@@ -10,9 +10,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useSession } from "@/components/session-context-provider";
-import { Tables, TablesInsert } from "@/types/supabase";
+import { Tables, TablesInsert, TablesUpdate } from "@/types/supabase";
 import { toast } from "sonner";
-import { PlusCircle, LayoutTemplate } from "lucide-react";
+import { PlusCircle, LayoutTemplate, Edit, Trash2, XCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 type WorkoutTemplate = Tables<'workout_templates'>;
@@ -31,6 +31,7 @@ export const ManageWorkoutTemplatesDialog = () => {
   const [exercises, setExercises] = useState<ExerciseDefinition[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [loadingExercises, setLoadingExercises] = useState(true);
+  const [editingTemplate, setEditingTemplate] = useState<WorkoutTemplate | null>(null);
 
   const form = useForm<z.infer<typeof workoutTemplateSchema>>({
     resolver: zodResolver(workoutTemplateSchema),
@@ -83,30 +84,86 @@ export const ManageWorkoutTemplatesDialog = () => {
     }
   }, [open, session, supabase]);
 
+  const handleEditClick = (template: WorkoutTemplate) => {
+    setEditingTemplate(template);
+    form.reset({
+      template_name: template.template_name,
+      exercise_id: template.exercise_id || "", // Ensure it's a string for the select
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTemplate(null);
+    form.reset();
+  };
+
   async function onSubmit(values: z.infer<typeof workoutTemplateSchema>) {
     if (!session) {
-      toast.error("You must be logged in to add workout templates.");
+      toast.error("You must be logged in to manage workout templates.");
       return;
     }
 
-    const newTemplate: TablesInsert<'workout_templates'> = {
-      user_id: session.user.id,
-      template_name: values.template_name,
-      exercise_id: values.exercise_id,
-      is_bonus: false, // Default to false
-    };
+    if (editingTemplate) {
+      // Update existing template
+      const updatedTemplate: TablesUpdate<'workout_templates'> = {
+        template_name: values.template_name,
+        exercise_id: values.exercise_id,
+      };
 
-    const { error } = await supabase.from('workout_templates').insert([newTemplate]);
+      const { error } = await supabase
+        .from('workout_templates')
+        .update(updatedTemplate)
+        .eq('id', editingTemplate.id);
 
-    if (error) {
-      toast.error("Failed to add workout template: " + error.message);
-      console.error("Error adding workout template:", error);
+      if (error) {
+        toast.error("Failed to update workout template: " + error.message);
+        console.error("Error updating workout template:", error);
+      } else {
+        toast.success("Workout template updated successfully!");
+        setEditingTemplate(null);
+        form.reset();
+        fetchWorkoutTemplates(); // Refresh the list
+      }
     } else {
-      toast.success("Workout template added successfully!");
-      form.reset();
-      fetchWorkoutTemplates(); // Refresh the list
+      // Add new template
+      const newTemplate: TablesInsert<'workout_templates'> = {
+        user_id: session.user.id,
+        template_name: values.template_name,
+        exercise_id: values.exercise_id,
+        is_bonus: false, // Default to false
+      };
+
+      const { error } = await supabase.from('workout_templates').insert([newTemplate]);
+
+      if (error) {
+        toast.error("Failed to add workout template: " + error.message);
+        console.error("Error adding workout template:", error);
+      } else {
+        toast.success("Workout template added successfully!");
+        form.reset();
+        fetchWorkoutTemplates(); // Refresh the list
+      }
     }
   }
+
+  const handleDeleteTemplate = async (templateId: string) => {
+    if (!confirm("Are you sure you want to delete this workout template? This action cannot be undone.")) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from('workout_templates')
+      .delete()
+      .eq('id', templateId);
+
+    if (error) {
+      toast.error("Failed to delete workout template: " + error.message);
+      console.error("Error deleting workout template:", error);
+    } else {
+      toast.success("Workout template deleted successfully!");
+      fetchWorkoutTemplates(); // Refresh the list
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -121,7 +178,7 @@ export const ManageWorkoutTemplatesDialog = () => {
           <DialogTitle>Manage Workout Templates</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4 overflow-y-auto">
-          <h3 className="text-lg font-semibold mb-2">Create New Template</h3>
+          <h3 className="text-lg font-semibold mb-2">{editingTemplate ? "Edit Workout Template" : "Create New Template"}</h3>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
@@ -143,7 +200,7 @@ export const ManageWorkoutTemplatesDialog = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Select Exercise</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select an exercise" />
@@ -167,9 +224,24 @@ export const ManageWorkoutTemplatesDialog = () => {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={loadingExercises && exercises.length === 0}>
-                <PlusCircle className="h-4 w-4 mr-2" /> Create Template
-              </Button>
+              <div className="flex gap-2">
+                <Button type="submit" className="flex-1" disabled={loadingExercises && exercises.length === 0}>
+                  {editingTemplate ? (
+                    <>
+                      <Edit className="h-4 w-4 mr-2" /> Update Template
+                    </>
+                  ) : (
+                    <>
+                      <PlusCircle className="h-4 w-4 mr-2" /> Create Template
+                    </>
+                  )}
+                </Button>
+                {editingTemplate && (
+                  <Button type="button" variant="outline" onClick={handleCancelEdit}>
+                    <XCircle className="h-4 w-4 mr-2" /> Cancel Edit
+                  </Button>
+                )}
+              </div>
             </form>
           </Form>
 
@@ -182,9 +254,16 @@ export const ManageWorkoutTemplatesDialog = () => {
             <ScrollArea className="h-48 w-full rounded-md border p-4">
               <ul className="space-y-2">
                 {workoutTemplates.map((template) => (
-                  <li key={template.id} className="flex items-center justify-between text-sm">
+                  <li key={template.id} className="flex items-center justify-between text-sm py-1">
                     <span>{template.template_name}</span>
-                    {/* Add edit/delete buttons here later if needed */}
+                    <div className="flex space-x-2">
+                      <Button variant="ghost" size="sm" onClick={() => handleEditClick(template)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteTemplate(template.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </li>
                 ))}
               </ul>
