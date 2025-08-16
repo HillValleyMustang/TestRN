@@ -10,6 +10,7 @@ import { ArrowUp, ArrowDown, Trophy, Dumbbell, CalendarDays, LinkIcon, LayoutTem
 import { ActivityLoggingDialog } from '@/components/activity-logging-dialog';
 import { ManageExercisesDialog } from '@/components/manage-exercises-dialog';
 import { ManageWorkoutTemplatesDialog } from '@/components/manage-workout-templates-dialog';
+import { WeeklyVolumeChart } from '@/components/dashboard/weekly-volume-chart'; // Import the new chart component
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 
@@ -124,16 +125,20 @@ export default function DashboardPage() {
         if (recentSessionIds.length > 0) {
           const { data: recentSetLogs, error: setLogsError } = await supabase
             .from('set_logs')
-            .select('weight_kg, reps')
+            .select('weight_kg, reps, exercise_definitions(*)') // Corrected: Removed comment from inside string
             .in('session_id', recentSessionIds); // Filter by recent session IDs
 
           if (setLogsError) {
             console.error("Error fetching recent set logs for volume:", setLogsError.message);
           } else {
             totalWeeklyVolume = recentSetLogs.reduce((sum, log) => {
-              const weight = log.weight_kg || 0;
-              const reps = log.reps || 0;
-              return sum + (weight * reps);
+              const exerciseType = (log.exercise_definitions as Tables<'exercise_definitions'>)?.type;
+              if (exerciseType === 'weight') { // Only sum volume for weight exercises
+                const weight = log.weight_kg || 0;
+                const reps = log.reps || 0;
+                return sum + (weight * reps);
+              }
+              return sum;
             }, 0);
           }
         }
@@ -288,7 +293,7 @@ export default function DashboardPage() {
                   )}
                   {Math.abs(weeklyVolumeChange)}% from last week
                 </p>
-              </>
+              </CardContent>
             )}
           </CardContent>
         </Card>
@@ -358,6 +363,11 @@ export default function DashboardPage() {
             </Button>
           </CardContent>
         </Card>
+      </section>
+
+      {/* New section for the chart */}
+      <section className="mb-8">
+        <WeeklyVolumeChart />
       </section>
 
       <section className="mb-8">
