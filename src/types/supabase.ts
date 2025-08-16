@@ -12,7 +12,7 @@ export type Database = {
       activity_logs: {
         Row: {
           activity_type: string
-          avg_time: string | null
+          avg_time: number | null // Changed from string to number
           created_at: string | null
           distance: string | null
           id: string
@@ -23,7 +23,7 @@ export type Database = {
         }
         Insert: {
           activity_type: string
-          avg_time?: string | null
+          avg_time?: number | null // Changed from string to number
           created_at?: string | null
           distance?: string | null
           id?: string
@@ -34,7 +34,7 @@ export type Database = {
         }
         Update: {
           activity_type?: string
-          avg_time?: string | null
+          avg_time?: number | null // Changed from string to number
           created_at?: string | null
           distance?: string | null
           id?: string

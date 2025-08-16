@@ -12,18 +12,35 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useSession } from "@/components/session-context-provider";
-import { TablesInsert } from "@/types/supabase";
+import { TablesInsert, Tables } from "@/types/supabase";
+
+type ActivityLog = Tables<'activity_logs'>;
+
+// Helper function to convert time string (e.g., "1h 30m") to total minutes
+const timeStringToMinutes = (timeStr: string): number => {
+  let totalMinutes = 0;
+  const hoursMatch = timeStr.match(/(\d+)h/);
+  const minutesMatch = timeStr.match(/(\d+)m/);
+
+  if (hoursMatch) {
+    totalMinutes += parseInt(hoursMatch[1]) * 60;
+  }
+  if (minutesMatch) {
+    totalMinutes += parseInt(minutesMatch[1]);
+  }
+  return totalMinutes;
+};
 
 // Schemas for activity logging forms
 const cyclingSchema = z.object({
-  distance: z.string().min(1, "Distance is required."),
+  distance: z.coerce.number().min(0.1, "Distance is required and must be positive."),
   time: z.string().min(1, "Time is required."),
   log_date: z.string().min(1, "Date is required."),
 });
 
 const swimmingSchema = z.object({
-  lengths: z.string().min(1, "Lengths is required."),
-  pool_size: z.string().min(1, "Pool size is required."),
+  lengths: z.coerce.number().min(1, "Lengths is required and must be positive."),
+  pool_size: z.coerce.number().min(1, "Pool size is required and must be positive."),
   log_date: z.string().min(1, "Date is required."),
 });
 
@@ -39,7 +56,7 @@ const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
   const form = useForm<z.infer<typeof cyclingSchema>>({
     resolver: zodResolver(cyclingSchema),
     defaultValues: {
-      distance: "",
+      distance: 0, // Now a number
       time: "",
       log_date: new Date().toISOString().split('T')[0], // Default to today
     },
@@ -51,29 +68,43 @@ const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
       return;
     }
 
-    const distanceValue = parseFloat(values.distance);
-    const timeParts = values.time.split('h').map(s => s.trim());
-    let totalMinutes = 0;
-    if (timeParts.length > 1) {
-      totalMinutes += parseFloat(timeParts[0]) * 60;
-      const remaining = timeParts[1].replace('m', '').trim();
-      if (remaining) totalMinutes += parseFloat(remaining);
-    } else {
-      totalMinutes += parseFloat(timeParts[0].replace('m', '').trim());
+    const distanceValue = values.distance; // This will be a number due to z.coerce.number()
+    const totalMinutes = timeStringToMinutes(values.time);
+    const totalSeconds = totalMinutes * 60;
+
+    let avgTimePerKm: number | null = null;
+    if (distanceValue > 0) {
+      avgTimePerKm = totalSeconds / distanceValue; // seconds per km
     }
 
-    const avgTimePerKm = totalMinutes / distanceValue;
-    const avgMinutes = Math.floor(avgTimePerKm);
-    const avgSeconds = Math.round((avgTimePerKm - avgMinutes) * 60);
-    const avgTimeString = `${avgMinutes}m ${avgSeconds}s/km`;
+    // Check for PR
+    let isPR = false;
+    try {
+      const { data: previousLogs, error: fetchError } = await supabase
+        .from('activity_logs')
+        .select('avg_time')
+        .eq('user_id', session.user.id)
+        .eq('activity_type', 'Cycling')
+        .order('log_date', { ascending: false });
+
+      if (fetchError) throw fetchError;
+
+      if (avgTimePerKm !== null) {
+        // A new PR if current avg_time is lower than all previous avg_times
+        isPR = previousLogs.every(log => log.avg_time === null || avgTimePerKm! < log.avg_time);
+      }
+    } catch (err) {
+      console.error("Error checking cycling PR:", err);
+      toast.error("Failed to check PR status.");
+    }
 
     const newLog: TablesInsert<'activity_logs'> = {
       user_id: session.user.id,
       activity_type: 'Cycling',
-      distance: values.distance + ' km',
+      distance: `${values.distance} km`,
       time: values.time,
-      avg_time: avgTimeString,
-      is_pb: false, // Placeholder, will implement actual PB logic later
+      avg_time: avgTimePerKm,
+      is_pb: isPR,
       log_date: values.log_date,
     };
 
@@ -142,8 +173,8 @@ const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
   const form = useForm<z.infer<typeof swimmingSchema>>({
     resolver: zodResolver(swimmingSchema),
     defaultValues: {
-      lengths: "",
-      pool_size: "",
+      lengths: 0, // Now a number
+      pool_size: 0, // Now a number
       log_date: new Date().toISOString().split('T')[0],
     },
   });
@@ -154,13 +185,41 @@ const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
       return;
     }
 
+    const totalLengths = values.lengths; // This will be a number
+
+    // Check for PR
+    let isPR = false;
+    try {
+      const { data: previousLogs, error: fetchError } = await supabase
+        .from('activity_logs')
+        .select('distance') // We need to parse lengths from distance string
+        .eq('user_id', session.user.id)
+        .eq('activity_type', 'Swimming')
+        .order('log_date', { ascending: false });
+
+      if (fetchError) throw fetchError;
+
+      // Extract lengths from previous logs
+      const previousLengths = previousLogs.map(log => {
+        const match = log.distance?.match(/^(\d+) lengths/);
+        return match ? parseInt(match[1]) : 0;
+      });
+
+      // A new PR if current totalLengths is greater than all previous totalLengths
+      isPR = previousLengths.every(prevLen => totalLengths > prevLen);
+
+    } catch (err) {
+      console.error("Error checking swimming PR:", err);
+      toast.error("Failed to check PR status.");
+    }
+
     const newLog: TablesInsert<'activity_logs'> = {
       user_id: session.user.id,
       activity_type: 'Swimming',
       distance: `${values.lengths} lengths (${values.pool_size}m pool)`,
-      time: null, // Swimming time can be added later if needed
+      time: null,
       avg_time: null,
-      is_pb: false,
+      is_pb: isPR,
       log_date: values.log_date,
     };
 
@@ -240,13 +299,37 @@ const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
       return;
     }
 
+    const durationMinutes = timeStringToMinutes(values.duration);
+
+    // Check for PR
+    let isPR = false;
+    try {
+      const { data: previousLogs, error: fetchError } = await supabase
+        .from('activity_logs')
+        .select('time')
+        .eq('user_id', session.user.id)
+        .eq('activity_type', 'Tennis')
+        .order('log_date', { ascending: false });
+
+      if (fetchError) throw fetchError;
+
+      const previousDurations = previousLogs.map(log => timeStringToMinutes(log.time || '0m'));
+
+      // A new PR if current duration is greater than all previous durations
+      isPR = previousDurations.every(prevDur => durationMinutes > prevDur);
+
+    } catch (err) {
+      console.error("Error checking tennis PR:", err);
+      toast.error("Failed to check PR status.");
+    }
+
     const newLog: TablesInsert<'activity_logs'> = {
       user_id: session.user.id,
       activity_type: 'Tennis',
       distance: null,
       time: values.duration,
       avg_time: null,
-      is_pb: false,
+      is_pb: isPR,
       log_date: values.log_date,
     };
 
