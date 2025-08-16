@@ -7,7 +7,7 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
+import { Input } => '@/components/ui/input';
 import { toast } from 'sonner';
 import { Dumbbell, Info, Lightbulb, Plus, CheckCircle2, Trophy } from 'lucide-react';
 import { Tables, TablesInsert, TablesUpdate } from '@/types/supabase';
@@ -26,13 +26,13 @@ interface SetLogState extends SetLogInsert {
   lastTimeSeconds?: number | null;
 }
 
-// Explicitly define the props for the page component using Record<string, string> for params
+// Explicitly define the props for the page component using Readonly<Record<string, string>> for params
 interface WorkoutSessionPageProps {
-  params: Record<string, string>;
-  searchParams?: { [key: string]: string | string[] | undefined };
+  params: Readonly<Record<string, string>>;
+  searchParams: Readonly<Record<string, string | string[] | undefined>>;
 }
 
-export default function WorkoutSessionPage({ params }: WorkoutSessionPageProps) {
+export default function WorkoutSessionPage({ params, searchParams }: WorkoutSessionPagePageProps) {
   const { session, supabase } = useSession();
   const router = useRouter();
   const { templateId } = params; // Destructure templateId here
@@ -146,7 +146,7 @@ export default function WorkoutSessionPage({ params }: WorkoutSessionPageProps) 
             time_seconds: null,
             isSaved: false,
             isPR: false,
-            lastWeight: lastSet?.weight_kg,
+            lastWeight: lastSet?.weight_kg, // Carry over last entered values as hints for next set
             lastReps: lastSet?.reps,
             lastTimeSeconds: lastSet?.time_seconds,
           }];
