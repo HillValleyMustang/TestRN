@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { Dumbbell, Info, Lightbulb, Plus, CheckCircle2, Trophy } from 'lucide-react';
 import { Tables, TablesInsert, TablesUpdate } from '@/types/supabase';
 import { ExerciseHistoryDialog } from '@/components/exercise-history-dialog';
+import { ExerciseInfoDialog } from '@/components/exercise-info-dialog'; // Import the new component
 
 type WorkoutTemplate = Tables<'workout_templates'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -20,7 +21,7 @@ type SetLogInsert = TablesInsert<'set_logs'>; // Use TablesInsert for new logs
 
 // Define a type for the joined data from template_exercises
 type TemplateExerciseJoin = Tables<'template_exercises'> & {
-  exercise_definitions: Tables<'exercise_definitions'> | null;
+  exercise_definitions: Tables<'exercise_definitions'>[] | null; // Changed to array type
 };
 
 interface SetLogState extends SetLogInsert {
@@ -89,9 +90,9 @@ export default function WorkoutSessionPage({ params, searchParams }: WorkoutSess
           throw new Error(fetchTemplateExercisesError.message);
         }
 
-        const fetchedExercises: ExerciseDefinition[] = templateExercisesData
-          .filter((te: TemplateExerciseJoin) => te.exercise_definitions !== null)
-          .map((te: TemplateExerciseJoin) => te.exercise_definitions as ExerciseDefinition);
+        const fetchedExercises: ExerciseDefinition[] = (templateExercisesData as TemplateExerciseJoin[])
+          .filter(te => te.exercise_definitions && te.exercise_definitions.length > 0)
+          .map(te => te.exercise_definitions![0] as ExerciseDefinition); // Access the first element of the array
 
         setExercisesForTemplate(fetchedExercises);
 
@@ -378,7 +379,7 @@ export default function WorkoutSessionPage({ params, searchParams }: WorkoutSess
                   exerciseType={exercise.type}
                   exerciseCategory={exercise.category}
                 />
-                <Button variant="outline" size="icon" title="Info"><Info className="h-4 w-4" /></Button>
+                <ExerciseInfoDialog exercise={exercise} /> {/* Use the new dialog here */}
                 <Button variant="outline" size="icon" title="Suggest Progression"><Lightbulb className="h-4 w-4" /></Button>
               </div>
             </CardHeader>
