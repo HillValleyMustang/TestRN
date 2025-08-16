@@ -12,7 +12,8 @@ import { toast } from 'sonner';
 import { Dumbbell, Info, Lightbulb, Plus, CheckCircle2, Trophy } from 'lucide-react';
 import { Tables, TablesInsert, TablesUpdate } from '@/types/supabase';
 import { ExerciseHistoryDialog } from '@/components/exercise-history-dialog';
-import { ExerciseInfoDialog } from '@/components/exercise-info-dialog'; // Import the new component
+import { ExerciseInfoDialog } from '@/components/exercise-info-dialog';
+import { ExerciseProgressionDialog } from '@/components/exercise-progression-dialog'; // Import the new component
 
 type WorkoutTemplate = Tables<'workout_templates'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -21,7 +22,7 @@ type SetLogInsert = TablesInsert<'set_logs'>; // Use TablesInsert for new logs
 
 // Define a type for the joined data from template_exercises
 type TemplateExerciseJoin = Tables<'template_exercises'> & {
-  exercise_definitions: Tables<'exercise_definitions'>[] | null; // Changed to array type
+  exercise_definitions: Tables<'exercise_definitions'>[] | null;
 };
 
 interface SetLogState extends SetLogInsert {
@@ -379,8 +380,12 @@ export default function WorkoutSessionPage({ params, searchParams }: WorkoutSess
                   exerciseType={exercise.type}
                   exerciseCategory={exercise.category}
                 />
-                <ExerciseInfoDialog exercise={exercise} /> {/* Use the new dialog here */}
-                <Button variant="outline" size="icon" title="Suggest Progression"><Lightbulb className="h-4 w-4" /></Button>
+                <ExerciseInfoDialog exercise={exercise} />
+                <ExerciseProgressionDialog
+                  exerciseId={exercise.id}
+                  exerciseName={exercise.name}
+                  exerciseType={exercise.type}
+                />
               </div>
             </CardHeader>
             <CardContent>
