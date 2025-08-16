@@ -31,6 +31,11 @@ type WorkoutTemplateDisplay = WorkoutTemplate & {
   lastCompleted: string;
 };
 
+// Define a type for SetLog with joined ExerciseDefinition
+type SetLogWithExerciseDefinition = SetLog & {
+  exercise_definitions: ExerciseDefinition | null;
+};
+
 export default function DashboardPage() {
   const { session, supabase } = useSession();
   const router = useRouter();
@@ -125,14 +130,18 @@ export default function DashboardPage() {
         if (recentSessionIds.length > 0) {
           const { data: recentSetLogs, error: setLogsError } = await supabase
             .from('set_logs')
-            .select('weight_kg, reps, exercise_definitions(*)') // Corrected: Removed comment from inside string
-            .in('session_id', recentSessionIds); // Filter by recent session IDs
+            .select(`
+              weight_kg,
+              reps,
+              exercise_definitions (*)
+            `)
+            .in('session_id', recentSessionIds);
 
           if (setLogsError) {
             console.error("Error fetching recent set logs for volume:", setLogsError.message);
           } else {
-            totalWeeklyVolume = recentSetLogs.reduce((sum, log) => {
-              const exerciseType = (log.exercise_definitions as Tables<'exercise_definitions'>)?.type;
+            totalWeeklyVolume = (recentSetLogs as SetLogWithExerciseDefinition[]).reduce((sum, log) => {
+              const exerciseType = log.exercise_definitions?.type;
               if (exerciseType === 'weight') { // Only sum volume for weight exercises
                 const weight = log.weight_kg || 0;
                 const reps = log.reps || 0;
@@ -293,7 +302,7 @@ export default function DashboardPage() {
                   )}
                   {Math.abs(weeklyVolumeChange)}% from last week
                 </p>
-              </CardContent>
+              </>
             )}
           </CardContent>
         </Card>
@@ -330,7 +339,7 @@ export default function DashboardPage() {
                 </p>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Last completed: {upNextWorkout.lastCompleted}</span>
-                  <Button onClick={() => handleStartWorkout(upNextWorkout.id)}>Start Workout</Button>
+                  <Button onClick={() => handleStartWorkout(upNextWorkout.id)} className="w-full">Start Workout</Button>
                 </div>
               </>
             ) : (

@@ -9,11 +9,17 @@ import { toast } from 'sonner';
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
+type ExerciseDefinition = Tables<'exercise_definitions'>; // Import ExerciseDefinition
 
 interface ChartData {
   date: string;
   volume: number;
 }
+
+// Define a type for SetLog with joined ExerciseDefinition
+type SetLogWithExerciseDefinition = SetLog & {
+  exercise_definitions: ExerciseDefinition | null;
+};
 
 export const WeeklyVolumeChart = () => {
   const { session, supabase } = useSession();
@@ -55,7 +61,7 @@ export const WeeklyVolumeChart = () => {
             reps,
             session_id,
             exercise_definitions (*)
-          `) // Corrected: Removed comment from inside string
+          `)
           .in('session_id', sessionIds);
 
         if (setLogsError) {
@@ -71,8 +77,8 @@ export const WeeklyVolumeChart = () => {
         // Aggregate volume by week
         const weeklyVolumeMap = new Map<string, number>(); // 'YYYY-WW' -> total volume
 
-        setLogsData.forEach(log => {
-          const exerciseType = (log.exercise_definitions as Tables<'exercise_definitions'>)?.type;
+        (setLogsData as SetLogWithExerciseDefinition[]).forEach(log => { // Cast to the new type
+          const exerciseType = log.exercise_definitions?.type;
           if (exerciseType === 'weight' && log.weight_kg && log.reps && log.session_id) {
             const sessionDateStr = sessionDateMap.get(log.session_id);
             if (sessionDateStr) {
