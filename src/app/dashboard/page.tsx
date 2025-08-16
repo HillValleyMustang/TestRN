@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowUp, ArrowDown, Trophy, Dumbbell, CalendarDays, LinkIcon } from 'lucide-react';
 import { ActivityLoggingDialog } from '@/components/activity-logging-dialog';
+import { ManageExercisesDialog } from '@/components/manage-exercises-dialog'; // Import the new component
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 
@@ -66,7 +67,7 @@ export default function DashboardPage() {
 
   const quickLinks = [
     { name: "Log Activity", component: <ActivityLoggingDialog /> },
-    { name: "Manage Exercises", href: "#", icon: <Dumbbell className="h-4 w-4" /> },
+    { name: "Manage Exercises", component: <ManageExercisesDialog /> }, // Use the new dialog component
     { name: "My Profile", href: "#", icon: <LinkIcon className="h-4 w-4" /> },
   ];
 
