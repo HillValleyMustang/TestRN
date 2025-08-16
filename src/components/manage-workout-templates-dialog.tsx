@@ -12,34 +12,83 @@ import * as z from "zod";
 import { useSession } from "@/components/session-context-provider";
 import { Tables, TablesInsert, TablesUpdate } from "@/types/supabase";
 import { toast } from "sonner";
-import { PlusCircle, LayoutTemplate, Edit, Trash2, XCircle } from "lucide-react";
+import { PlusCircle, LayoutTemplate, Edit, Trash2, XCircle, GripVertical } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 type WorkoutTemplate = Tables<'workout_templates'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
+type TemplateExercise = Tables<'template_exercises'>;
+
+// Extend ExerciseDefinition to include a temporary 'selected' state for the form
+type SelectableExercise = ExerciseDefinition & { isSelected?: boolean };
 
 // Zod schema for adding a new workout template
 const workoutTemplateSchema = z.object({
   template_name: z.string().min(1, "Template name is required."),
-  exercise_id: z.string().min(1, "At least one exercise is required."), // Assuming one exercise per template for simplicity
+  // We will manage exercises separately, not directly in the form schema for now
+  // exercise_id: z.string().min(1, "At least one exercise is required."),
 });
+
+// Component for sortable exercise items
+interface SortableExerciseItemProps {
+  exercise: ExerciseDefinition;
+  onRemove: (exerciseId: string) => void;
+}
+
+function SortableExerciseItem({ exercise, onRemove }: SortableExerciseItemProps) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: exercise.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center justify-between p-2 border rounded-md bg-card"
+    >
+      <div className="flex items-center">
+        <button {...listeners} {...attributes} className="cursor-grab mr-2 p-1">
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </button>
+        <span>{exercise.name} ({exercise.main_muscle})</span>
+      </div>
+      <Button variant="ghost" size="sm" onClick={() => onRemove(exercise.id)}>
+        <XCircle className="h-4 w-4 text-destructive" />
+      </Button>
+    </li>
+  );
+}
 
 export const ManageWorkoutTemplatesDialog = () => {
   const { session, supabase } = useSession();
   const [open, setOpen] = useState(false);
   const [workoutTemplates, setWorkoutTemplates] = useState<WorkoutTemplate[]>([]);
-  const [exercises, setExercises] = useState<ExerciseDefinition[]>([]);
+  const [allExercises, setAllExercises] = useState<ExerciseDefinition[]>([]);
+  const [selectedExercises, setSelectedExercises] = useState<ExerciseDefinition[]>([]); // Exercises for the current template being edited/created
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [loadingExercises, setLoadingExercises] = useState(true);
   const [editingTemplate, setEditingTemplate] = useState<WorkoutTemplate | null>(null);
+  const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>(""); // For the select input
 
   const form = useForm<z.infer<typeof workoutTemplateSchema>>({
     resolver: zodResolver(workoutTemplateSchema),
     defaultValues: {
       template_name: "",
-      exercise_id: "",
     },
   });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const fetchWorkoutTemplates = async () => {
     if (!session) return;
@@ -59,7 +108,7 @@ export const ManageWorkoutTemplatesDialog = () => {
     setLoadingTemplates(false);
   };
 
-  const fetchExercises = async () => {
+  const fetchAllExercises = async () => {
     if (!session) return;
     setLoadingExercises(true);
     const { data, error } = await supabase
@@ -72,29 +121,62 @@ export const ManageWorkoutTemplatesDialog = () => {
       toast.error("Failed to load exercises: " + error.message);
       console.error("Error fetching exercises:", error);
     } else {
-      setExercises(data || []);
+      setAllExercises(data || []);
     }
     setLoadingExercises(false);
+  };
+
+  const fetchTemplateExercises = async (templateId: string) => {
+    const { data, error } = await supabase
+      .from('template_exercises')
+      .select('*, exercise_definitions(*)')
+      .eq('template_id', templateId)
+      .order('order_index', { ascending: true });
+
+    if (error) {
+      toast.error("Failed to load template exercises: " + error.message);
+      console.error("Error fetching template exercises:", error);
+      return [];
+    }
+    // Ensure exercise_definitions is not null and cast to ExerciseDefinition[]
+    return data.map(item => item.exercise_definitions as ExerciseDefinition);
   };
 
   useEffect(() => {
     if (open) {
       fetchWorkoutTemplates();
-      fetchExercises();
+      fetchAllExercises();
     }
   }, [open, session, supabase]);
 
-  const handleEditClick = (template: WorkoutTemplate) => {
+  const handleEditClick = async (template: WorkoutTemplate) => {
     setEditingTemplate(template);
     form.reset({
       template_name: template.template_name,
-      exercise_id: template.exercise_id || "", // Ensure it's a string for the select
     });
+    const exercises = await fetchTemplateExercises(template.id);
+    setSelectedExercises(exercises);
   };
 
   const handleCancelEdit = () => {
     setEditingTemplate(null);
     form.reset();
+    setSelectedExercises([]);
+    setSelectedExerciseToAdd("");
+  };
+
+  const handleAddExerciseToTemplate = () => {
+    if (selectedExerciseToAdd && !selectedExercises.some(ex => ex.id === selectedExerciseToAdd)) {
+      const exerciseToAdd = allExercises.find(ex => ex.id === selectedExerciseToAdd);
+      if (exerciseToAdd) {
+        setSelectedExercises(prev => [...prev, exerciseToAdd]);
+        setSelectedExerciseToAdd(""); // Reset select
+      }
+    }
+  };
+
+  const handleRemoveExerciseFromTemplate = (exerciseId: string) => {
+    setSelectedExercises(prev => prev.filter(ex => ex.id !== exerciseId));
   };
 
   async function onSubmit(values: z.infer<typeof workoutTemplateSchema>) {
@@ -103,11 +185,17 @@ export const ManageWorkoutTemplatesDialog = () => {
       return;
     }
 
+    if (selectedExercises.length === 0) {
+      toast.error("Please add at least one exercise to the template.");
+      return;
+    }
+
+    let templateIdToUse: string;
+
     if (editingTemplate) {
       // Update existing template
       const updatedTemplate: TablesUpdate<'workout_templates'> = {
         template_name: values.template_name,
-        exercise_id: values.exercise_id,
       };
 
       const { error } = await supabase
@@ -118,39 +206,69 @@ export const ManageWorkoutTemplatesDialog = () => {
       if (error) {
         toast.error("Failed to update workout template: " + error.message);
         console.error("Error updating workout template:", error);
-      } else {
-        toast.success("Workout template updated successfully!");
-        setEditingTemplate(null);
-        form.reset();
-        fetchWorkoutTemplates(); // Refresh the list
+        return;
       }
+      templateIdToUse = editingTemplate.id;
+      toast.success("Workout template updated successfully!");
     } else {
       // Add new template
       const newTemplate: TablesInsert<'workout_templates'> = {
         user_id: session.user.id,
         template_name: values.template_name,
-        exercise_id: values.exercise_id,
         is_bonus: false, // Default to false
       };
 
-      const { error } = await supabase.from('workout_templates').insert([newTemplate]);
+      const { data, error } = await supabase.from('workout_templates').insert([newTemplate]).select('id').single();
 
-      if (error) {
+      if (error || !data) {
         toast.error("Failed to add workout template: " + error.message);
         console.error("Error adding workout template:", error);
-      } else {
-        toast.success("Workout template added successfully!");
-        form.reset();
-        fetchWorkoutTemplates(); // Refresh the list
+        return;
       }
+      templateIdToUse = data.id;
+      toast.success("Workout template created successfully!");
     }
-  }
 
-  const handleDeleteTemplate = async (templateId: string) => {
-    if (!confirm("Are you sure you want to delete this workout template? This action cannot be undone.")) {
+    // Manage template_exercises
+    // First, delete all existing template_exercises for this template
+    const { error: deleteError } = await supabase
+      .from('template_exercises')
+      .delete()
+      .eq('template_id', templateIdToUse);
+
+    if (deleteError) {
+      toast.error("Failed to clear old exercises: " + deleteError.message);
+      console.error("Error clearing old exercises:", deleteError);
       return;
     }
 
+    // Then, insert the new set of selected exercises with their order
+    const newTemplateExercises: TablesInsert<'template_exercises'>[] = selectedExercises.map((ex, index) => ({
+      template_id: templateIdToUse,
+      exercise_id: ex.id,
+      order_index: index,
+    }));
+
+    const { error: insertExercisesError } = await supabase
+      .from('template_exercises')
+      .insert(newTemplateExercises);
+
+    if (insertExercisesError) {
+      toast.error("Failed to save template exercises: " + insertExercisesError.message);
+      console.error("Error saving template exercises:", insertExercisesError);
+      return;
+    }
+
+    handleCancelEdit(); // Reset form and close dialog
+    fetchWorkoutTemplates(); // Refresh the list
+  }
+
+  const handleDeleteTemplate = async (templateId: string) => {
+    if (!confirm("Are you sure you want to delete this workout template? This will also delete all associated exercises and cannot be undone.")) {
+      return;
+    }
+
+    // Deleting the template will cascade delete template_exercises due to ON DELETE CASCADE
     const { error } = await supabase
       .from('workout_templates')
       .delete()
@@ -164,6 +282,21 @@ export const ManageWorkoutTemplatesDialog = () => {
       fetchWorkoutTemplates(); // Refresh the list
     }
   };
+
+  function handleDragEnd(event: any) {
+    const { active, over } = event;
+
+    if (active.id !== over.id) {
+      setSelectedExercises((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+        const newItems = [...items];
+        const [movedItem] = newItems.splice(oldIndex, 1);
+        newItems.splice(newIndex, 0, movedItem);
+        return newItems;
+      });
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -194,38 +327,66 @@ export const ManageWorkoutTemplatesDialog = () => {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="exercise_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Select Exercise</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select an exercise" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {loadingExercises ? (
-                          <div className="p-2 text-muted-foreground">Loading exercises...</div>
-                        ) : exercises.length === 0 ? (
-                          <div className="p-2 text-muted-foreground">No exercises found. Add some first!</div>
-                        ) : (
-                          exercises.map((exercise) => (
+
+              <div className="space-y-2">
+                <FormLabel>Exercises in Template</FormLabel>
+                <div className="flex gap-2">
+                  <Select onValueChange={setSelectedExerciseToAdd} value={selectedExerciseToAdd}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select an exercise to add" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {loadingExercises ? (
+                        <div className="p-2 text-muted-foreground">Loading exercises...</div>
+                      ) : allExercises.length === 0 ? (
+                        <div className="p-2 text-muted-foreground">No exercises found. Add some first!</div>
+                      ) : (
+                        allExercises
+                          .filter(ex => !selectedExercises.some(selectedEx => selectedEx.id === ex.id)) // Filter out already selected
+                          .map((exercise) => (
                             <SelectItem key={exercise.id} value={exercise.id}>
                               {exercise.name} ({exercise.main_muscle})
                             </SelectItem>
                           ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" onClick={handleAddExerciseToTemplate} disabled={!selectedExerciseToAdd}>
+                    Add
+                  </Button>
+                </div>
+                {selectedExercises.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">No exercises added to this template yet.</p>
+                ) : (
+                  <ScrollArea className="h-48 w-full rounded-md border p-4">
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext
+                        items={selectedExercises.map(ex => ex.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <ul className="space-y-2">
+                          {selectedExercises.map((exercise) => (
+                            <SortableExerciseItem
+                              key={exercise.id}
+                              exercise={exercise}
+                              onRemove={handleRemoveExerciseFromTemplate}
+                            />
+                          ))}
+                        </ul>
+                      </SortableContext>
+                    </DndContext>
+                  </ScrollArea>
                 )}
-              />
+              </div>
+
               <div className="flex gap-2">
-                <Button type="submit" className="flex-1" disabled={loadingExercises && exercises.length === 0}>
+                <Button type="submit" className="flex-1" disabled={loadingExercises && allExercises.length === 0}>
                   {editingTemplate ? (
                     <>
                       <Edit className="h-4 w-4 mr-2" /> Update Template
