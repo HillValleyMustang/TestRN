@@ -151,9 +151,9 @@ export const ManageWorkoutTemplatesDialog = () => {
                       </FormControl>
                       <SelectContent>
                         {loadingExercises ? (
-                          <SelectItem value="" disabled>Loading exercises...</SelectItem>
+                          <div className="p-2 text-muted-foreground">Loading exercises...</div>
                         ) : exercises.length === 0 ? (
-                          <SelectItem value="" disabled>No exercises found. Add some first!</SelectItem>
+                          <div className="p-2 text-muted-foreground">No exercises found. Add some first!</div>
                         ) : (
                           exercises.map((exercise) => (
                             <SelectItem key={exercise.id} value={exercise.id}>
