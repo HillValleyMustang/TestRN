@@ -10,18 +10,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Dumbbell, Info, Lightbulb, History, Plus, CheckCircle2, Trophy } from 'lucide-react';
-import { Tables } from '@/types/supabase';
+import { Tables, TablesInsert } from '@/types/supabase';
 
-type WorkoutTemplate = Tables<'workout_templates'> & {
-  exercise_definitions: Tables<'exercise_definitions'> | null;
+type WorkoutTemplate = Tables<'workout_templates'>;
+type ExerciseDefinition = Tables<'exercise_definitions'>;
+type SetLog = TablesInsert<'set_logs'>; // Use TablesInsert for new logs
+
+// Define a type for the joined result of workout_templates with exercise_definitions
+type WorkoutTemplateWithExercise = WorkoutTemplate & {
+  exercise_definitions: ExerciseDefinition | null;
 };
 
-interface SetLog {
-  weight_kg: number | null;
-  reps: number | null;
-  reps_l: number | null;
-  reps_r: number | null;
-  time_seconds: number | null;
+interface SetLogState extends SetLog {
   isSaved: boolean;
   isPR: boolean;
 }
@@ -32,9 +32,11 @@ export default function WorkoutSessionPage({ params }: { params: { templateId: s
   const { templateId } = params;
 
   const [workoutTemplate, setWorkoutTemplate] = useState<WorkoutTemplate | null>(null);
-  const [exercisesWithSets, setExercisesWithSets] = useState<Record<string, SetLog[]>>({});
+  const [exercisesForTemplate, setExercisesForTemplate] = useState<ExerciseDefinition[]>([]);
+  const [exercisesWithSets, setExercisesWithSets] = useState<Record<string, SetLogState[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) {
@@ -46,66 +48,61 @@ export default function WorkoutSessionPage({ params }: { params: { templateId: s
       setLoading(true);
       setError(null);
       try {
-        // Mock data for now. In a real app, you'd fetch from Supabase.
-        // For templateId "up-next-workout-id"
-        if (templateId === "up-next-workout-id") {
-          const mockTemplate: WorkoutTemplate = {
-            id: "up-next-workout-id",
-            user_id: session.user.id,
-            template_name: "Full Body Blast",
-            is_bonus: false,
-            exercise_id: null,
-            created_at: new Date().toISOString(),
-            exercise_definitions: null, // This will be populated by individual exercises
-          };
+        // 1. Fetch the workout template AND its associated exercise definition
+        const { data: templateWithExercise, error: fetchError } = await supabase
+          .from('workout_templates')
+          .select('*, exercise_definitions(*)') // Select template data and joined exercise
+          .eq('id', templateId)
+          .eq('user_id', session.user.id)
+          .single(); // Expecting a single template
 
-          const mockExercises: Tables<'exercise_definitions'>[] = [
-            { id: "exercise-1", user_id: session.user.id, name: "Barbell Squat", main_muscle: "Quads, Glutes", description: "Compound leg exercise.", pro_tip: "Keep chest up.", video_url: null, type: "weight", category: null, created_at: new Date().toISOString() },
-            { id: "exercise-2", user_id: session.user.id, name: "Bench Press", main_muscle: "Chest, Triceps", description: "Compound upper body exercise.", pro_tip: "Retract shoulder blades.", video_url: null, type: "weight", category: null, created_at: new Date().toISOString() },
-            { id: "exercise-3", user_id: session.user.id, name: "Deadlift", main_muscle: "Hamstrings, Glutes, Back", description: "Full body strength exercise.", pro_tip: "Maintain a neutral spine.", video_url: null, type: "weight", category: null, created_at: new Date().toISOString() },
-          ];
-
-          setWorkoutTemplate(mockTemplate);
-          const initialSets: Record<string, SetLog[]> = {};
-          mockExercises.forEach(ex => {
-            initialSets[ex.id] = [{ weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, isSaved: false, isPR: false }];
-          });
-          setExercisesWithSets(initialSets);
-
-        } else {
-          // For other mock templates, you can add more specific mock data or a generic one
-          const mockTemplate: WorkoutTemplate = {
-            id: templateId,
-            user_id: session.user.id,
-            template_name: `Custom Workout ${templateId.split('-')[1]}`,
-            is_bonus: false,
-            exercise_id: null,
-            created_at: new Date().toISOString(),
-            exercise_definitions: null,
-          };
-          const mockExercises: Tables<'exercise_definitions'>[] = [
-            { id: `exercise-${templateId}-a`, user_id: session.user.id, name: "Overhead Press", main_muscle: "Shoulders", description: "Press weight overhead.", pro_tip: "Engage core.", video_url: null, type: "weight", category: null, created_at: new Date().toISOString() },
-            { id: `exercise-${templateId}-b`, user_id: session.user.id, name: "Barbell Row", main_muscle: "Back", description: "Pull weight to torso.", pro_tip: "Squeeze shoulder blades.", video_url: null, type: "weight", category: null, created_at: new Date().toISOString() },
-          ];
-          setWorkoutTemplate(mockTemplate);
-          const initialSets: Record<string, SetLog[]> = {};
-          mockExercises.forEach(ex => {
-            initialSets[ex.id] = [{ weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, isSaved: false, isPR: false }];
-          });
-          setExercisesWithSets(initialSets);
+        if (fetchError || !templateWithExercise) {
+          throw new Error(fetchError?.message || "Workout template not found or no associated exercise.");
         }
 
-      } catch (err) {
+        setWorkoutTemplate(templateWithExercise); // Set the base template data
+
+        const fetchedExercises: ExerciseDefinition[] = [];
+        if (templateWithExercise.exercise_definitions) {
+          // If a template is linked to a single exercise, add it to the list
+          fetchedExercises.push(templateWithExercise.exercise_definitions);
+        }
+        setExercisesForTemplate(fetchedExercises);
+
+        // 2. Initialize sets for each exercise
+        const initialSets: Record<string, SetLogState[]> = {};
+        fetchedExercises.forEach(ex => {
+          initialSets[ex.id] = [{ weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, isSaved: false, isPR: false }];
+        });
+        setExercisesWithSets(initialSets);
+
+        // 3. Create a new workout session entry
+        const { data: sessionData, error: sessionError } = await supabase
+          .from('workout_sessions')
+          .insert({
+            user_id: session.user.id,
+            template_name: templateWithExercise.template_name, // Use the fetched template name
+            session_date: new Date().toISOString(),
+          })
+          .select('id')
+          .single();
+
+        if (sessionError || !sessionData) {
+          throw new Error(sessionError?.message || "Failed to create workout session.");
+        }
+        setCurrentSessionId(sessionData.id);
+
+      } catch (err: any) {
         console.error("Failed to fetch workout data:", err);
-        setError("Failed to load workout. Please try again.");
-        toast.error("Failed to load workout.");
+        setError(err.message || "Failed to load workout. Please try again.");
+        toast.error(err.message || "Failed to load workout.");
       } finally {
         setLoading(false);
       }
     };
 
     fetchWorkoutData();
-  }, [session, router, templateId]);
+  }, [session, router, templateId, supabase]);
 
   const handleAddSet = (exerciseId: string) => {
     setExercisesWithSets(prev => ({
@@ -119,30 +116,50 @@ export default function WorkoutSessionPage({ params }: { params: { templateId: s
       const newSets = [...prev[exerciseId]];
       newSets[setIndex] = {
         ...newSets[setIndex],
-        [field]: parseFloat(value) || null // Convert to number, or null if empty/invalid
+        [field]: parseFloat(value) || null
       };
       return { ...prev, [exerciseId]: newSets };
     });
   };
 
   const handleSaveSet = async (exerciseId: string, setIndex: number) => {
-    const currentSet = exercisesWithSets[exerciseId][setIndex];
-    if (!currentSet.weight_kg && !currentSet.reps && !currentSet.time_seconds) {
-      toast.error("Please enter weight/reps or time for the set.");
+    if (!currentSessionId) {
+      toast.error("Workout session not started. Please refresh.");
       return;
     }
 
-    // Mock saving to Supabase
-    toast.success(`Set saved for ${exerciseId}!`);
+    const currentSet = exercisesWithSets[exerciseId][setIndex];
+    if (!currentSet.weight_kg && !currentSet.reps && !currentSet.time_seconds && !currentSet.reps_l && !currentSet.reps_r) {
+      toast.error("Please enter at least one value (weight/reps/time) for the set.");
+      return;
+    }
 
-    // Simulate PR detection (very basic for now)
-    const isPR = Boolean(currentSet.weight_kg && currentSet.reps && currentSet.weight_kg * currentSet.reps > 1000); // Fixed: Explicitly cast to boolean
+    const newSetLog: SetLog = {
+      session_id: currentSessionId,
+      exercise_id: exerciseId,
+      weight_kg: currentSet.weight_kg,
+      reps: currentSet.reps,
+      reps_l: currentSet.reps_l,
+      reps_r: currentSet.reps_r,
+      time_seconds: currentSet.time_seconds,
+    };
 
-    setExercisesWithSets(prev => {
-      const newSets = [...prev[exerciseId]];
-      newSets[setIndex] = { ...newSets[setIndex], isSaved: true, isPR: isPR };
-      return { ...prev, [exerciseId]: newSets };
-    });
+    const { error: saveError } = await supabase.from('set_logs').insert([newSetLog]);
+
+    if (saveError) {
+      toast.error("Failed to save set: " + saveError.message);
+      console.error("Error saving set:", saveError);
+    } else {
+      // Simulate PR detection (very basic for now)
+      const isPR = Boolean(currentSet.weight_kg && currentSet.reps && currentSet.weight_kg * currentSet.reps > 1000);
+
+      setExercisesWithSets(prev => {
+        const newSets = [...prev[exerciseId]];
+        newSets[setIndex] = { ...newSets[setIndex], isSaved: true, isPR: isPR };
+        return { ...prev, [exerciseId]: newSets };
+      });
+      toast.success("Set saved successfully!");
+    }
   };
 
   if (loading) {
@@ -168,22 +185,6 @@ export default function WorkoutSessionPage({ params }: { params: { templateId: s
       </div>
     );
   }
-
-  // Mock exercises for the template
-  const exercisesForTemplate: Tables<'exercise_definitions'>[] = [];
-  if (templateId === "up-next-workout-id") {
-    exercisesForTemplate.push(
-      { id: "exercise-1", user_id: session?.user.id || "", name: "Barbell Squat", main_muscle: "Quads, Glutes", description: "Compound leg exercise.", pro_tip: "Keep chest up.", video_url: null, type: "weight", category: null, created_at: new Date().toISOString() },
-      { id: "exercise-2", user_id: session?.user.id || "", name: "Bench Press", main_muscle: "Chest, Triceps", description: "Compound upper body exercise.", pro_tip: "Retract shoulder blades.", video_url: null, type: "weight", category: null, created_at: new Date().toISOString() },
-      { id: "exercise-3", user_id: session?.user.id || "", name: "Deadlift", main_muscle: "Hamstrings, Glutes, Back", description: "Full body strength exercise.", pro_tip: "Maintain a neutral spine.", video_url: null, type: "weight", category: null, created_at: new Date().toISOString() },
-    );
-  } else {
-    exercisesForTemplate.push(
-      { id: `exercise-${templateId}-a`, user_id: session?.user.id || "", name: "Overhead Press", main_muscle: "Shoulders", description: "Press weight overhead.", pro_tip: "Engage core.", video_url: null, type: "weight", category: null, created_at: new Date().toISOString() },
-      { id: `exercise-${templateId}-b`, user_id: session?.user.id || "", name: "Barbell Row", main_muscle: "Back", description: "Pull weight to torso.", pro_tip: "Squeeze shoulder blades.", video_url: null, type: "weight", category: null, created_at: new Date().toISOString() },
-    );
-  }
-
 
   return (
     <div className="min-h-screen bg-background text-foreground p-4 sm:p-8">
@@ -287,7 +288,7 @@ export default function WorkoutSessionPage({ params }: { params: { templateId: s
                         {set.isSaved ? (
                           <div className="flex items-center text-green-500">
                             <CheckCircle2 className="h-5 w-5 mr-1" /> Saved
-                            {set.isPR && <Trophy className="h-5 w-5 ml-2 text-yellow-500" />} {/* Fixed: Removed title prop */}
+                            {set.isPR && <Trophy className="h-5 w-5 ml-2 text-yellow-500" />}
                           </div>
                         ) : (
                           <Button variant="secondary" size="sm" onClick={() => handleSaveSet(exercise.id, setIndex)}>Save</Button>

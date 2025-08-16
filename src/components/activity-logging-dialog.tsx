@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, Bike, Activity } from "lucide-react"; // Replaced Swimmer and TennisBall with Activity to resolve import errors
+import { CalendarDays, Bike, Activity } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -329,10 +329,10 @@ export const ActivityLoggingDialog = () => {
               <Bike className="h-4 w-4 mr-2" /> Log Cycling
             </Button>
             <Button variant="outline" onClick={() => handleActivitySelect("Swimming")}>
-              <Activity className="h-4 w-4 mr-2" /> Log Swimming {/* Changed to Activity */}
+              <Activity className="h-4 w-4 mr-2" /> Log Swimming
             </Button>
             <Button variant="outline" onClick={() => handleActivitySelect("Tennis")}>
-              <Activity className="h-4 w-4 mr-2" /> Log Tennis {/* Changed to Activity */}
+              <Activity className="h-4 w-4 mr-2" /> Log Tennis
             </Button>
           </div>
         ) : (

@@ -1,51 +1,71 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowUp, ArrowDown, Trophy, Dumbbell, CalendarDays, LinkIcon } from 'lucide-react';
-import { ActivityLoggingDialog } from '@/components/activity-logging-dialog'; // Import the new component
+import { ActivityLoggingDialog } from '@/components/activity-logging-dialog';
+import { Tables } from '@/types/supabase';
+import { toast } from 'sonner';
+
+type WorkoutTemplate = Tables<'workout_templates'>;
 
 export default function DashboardPage() {
   const { session, supabase } = useSession();
   const router = useRouter();
+  const [myWorkouts, setMyWorkouts] = useState<WorkoutTemplate[]>([]);
+  const [loadingWorkouts, setLoadingWorkouts] = useState(true);
 
   useEffect(() => {
     if (!session) {
       router.push('/login');
+      return;
     }
-  }, [session, router]);
+
+    const fetchWorkouts = async () => {
+      setLoadingWorkouts(true);
+      const { data, error } = await supabase
+        .from('workout_templates')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error("Error fetching workout templates:", error);
+        toast.error("Failed to load your workout templates.");
+      } else {
+        setMyWorkouts(data || []);
+      }
+      setLoadingWorkouts(false);
+    };
+
+    fetchWorkouts();
+  }, [session, router, supabase]);
 
   if (!session) {
     return null; // Or a loading spinner while redirecting
   }
 
-  // Placeholder data for KPI and workouts
-  const userName = session.user?.user_metadata?.full_name || session.user?.email?.split('@')[0] || 'Athlete';
+  // Placeholder data for KPI
+  const userName = session.user?.user_metadata?.first_name || session.user?.email?.split('@')[0] || 'Athlete';
   const workoutStreak = 7;
   const weeklyVolume = 12500; // kg
   const weeklyVolumeChange = 5; // percentage change
   const personalRecords = 12;
 
-  const upNextWorkout = {
-    id: "up-next-workout-id", // Mock ID for navigation
-    name: "Full Body Blast",
-    exercises: ["Squats", "Bench Press", "Deadlifts"],
-    lastCompleted: "2 days ago",
-  };
-
-  const myWorkouts = [
-    { id: "template-1", name: "Upper Body A", lastCompleted: "5 days ago" },
-    { id: "template-2", name: "Lower Body B", lastCompleted: "3 days ago" },
-    { id: "template-3", name: "Push Day", lastCompleted: "1 day ago" },
-    { id: "template-4", name: "Pull Day", lastCompleted: "Never" },
-  ];
+  // For "Up Next" workout, we'll just take the first one from myWorkouts for now
+  const upNextWorkout = myWorkouts.length > 0 ? {
+    id: myWorkouts[0].id,
+    name: myWorkouts[0].template_name,
+    exercises: ["Loading..."], // Will be fetched on workout session page
+    lastCompleted: "N/A", // This would come from workout_sessions table
+  } : null;
 
   const quickLinks = [
-    { name: "Log Activity", component: <ActivityLoggingDialog /> }, // Use the new dialog component
+    { name: "Log Activity", component: <ActivityLoggingDialog /> },
     { name: "Manage Exercises", href: "#", icon: <Dumbbell className="h-4 w-4" /> },
     { name: "My Profile", href: "#", icon: <LinkIcon className="h-4 w-4" /> },
   ];
@@ -108,14 +128,20 @@ export default function DashboardPage() {
             <CardTitle>Up Next</CardTitle>
           </CardHeader>
           <CardContent>
-            <h3 className="text-xl font-semibold mb-2">{upNextWorkout.name}</h3>
-            <p className="text-muted-foreground mb-4">
-              Exercises: {upNextWorkout.exercises.join(', ')}
-            </p>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Last completed: {upNextWorkout.lastCompleted}</span>
-              <Button onClick={() => handleStartWorkout(upNextWorkout.id)}>Start Workout</Button>
-            </div>
+            {upNextWorkout ? (
+              <>
+                <h3 className="text-xl font-semibold mb-2">{upNextWorkout.name}</h3>
+                <p className="text-muted-foreground mb-4">
+                  Exercises: {upNextWorkout.exercises.join(', ')}
+                </p>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Last completed: {upNextWorkout.lastCompleted}</span>
+                  <Button onClick={() => handleStartWorkout(upNextWorkout.id)}>Start Workout</Button>
+                </div>
+              </>
+            ) : (
+              <p className="text-muted-foreground">No upcoming workout. Create a new template!</p>
+            )}
           </CardContent>
         </Card>
 
@@ -134,7 +160,7 @@ export default function DashboardPage() {
                 </Button>
               ) : (
                 <div key={link.name}>
-                  {link.component} {/* Render the component directly */}
+                  {link.component}
                 </div>
               )
             ))}
@@ -148,17 +174,23 @@ export default function DashboardPage() {
       <section className="mb-8">
         <h2 className="text-2xl font-bold mb-4">My Workouts</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {myWorkouts.map((workout) => (
-            <Card key={workout.id}>
-              <CardHeader>
-                <CardTitle>{workout.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">Last completed: {workout.lastCompleted}</p>
-                <Button onClick={() => handleStartWorkout(workout.id)} className="w-full">Start Workout</Button>
-              </CardContent>
-            </Card>
-          ))}
+          {loadingWorkouts ? (
+            <p className="text-muted-foreground">Loading workouts...</p>
+          ) : myWorkouts.length === 0 ? (
+            <p className="text-muted-foreground">No workout templates found. Create one!</p>
+          ) : (
+            myWorkouts.map((workout) => (
+              <Card key={workout.id}>
+                <CardHeader>
+                  <CardTitle>{workout.template_name}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">Last completed: N/A</p> {/* Placeholder */}
+                  <Button onClick={() => handleStartWorkout(workout.id)} className="w-full">Start Workout</Button>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
       </section>
 

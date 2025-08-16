@@ -9,11 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from 'lucide-react';
 import { Tables } from '@/types/supabase';
+import { toast } from 'sonner';
 
 type ActivityLog = Tables<'activity_logs'>;
 
 export default function ActivityLogsPage() {
-  const { session } = useSession();
+  const { session, supabase } = useSession();
   const router = useRouter();
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,24 +30,27 @@ export default function ActivityLogsPage() {
       setLoading(true);
       setError(null);
       try {
-        // Mock data for now. In a real app, you'd fetch from Supabase.
-        const mockLogs: ActivityLog[] = [
-          { id: 'log-1', user_id: session.user.id, activity_type: 'Cycling', distance: '25 km', time: '1h 15m', avg_time: '3m/km', is_pb: true, log_date: new Date('2023-10-26T10:00:00Z').toISOString(), created_at: new Date('2023-10-26T10:00:00Z').toISOString() },
-          { id: 'log-2', user_id: session.user.id, activity_type: 'Swimming', distance: '1.5 km', time: '30m', avg_time: null, is_pb: false, log_date: new Date('2023-10-24T08:00:00Z').toISOString(), created_at: new Date('2023-10-24T08:00:00Z').toISOString() },
-          { id: 'log-3', user_id: session.user.id, activity_type: 'Tennis', distance: null, time: '1h', avg_time: null, is_pb: false, log_date: new Date('2023-10-22T17:00:00Z').toISOString(), created_at: new Date('2023-10-22T17:00:00Z').toISOString() },
-          { id: 'log-4', user_id: session.user.id, activity_type: 'Cycling', distance: '20 km', time: '1h 05m', avg_time: '3m 15s/km', is_pb: false, log_date: new Date('2023-10-19T09:00:00Z').toISOString(), created_at: new Date('2023-10-19T09:00:00Z').toISOString() },
-        ];
-        setActivityLogs(mockLogs);
-      } catch (err) {
+        const { data, error } = await supabase
+          .from('activity_logs')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .order('log_date', { ascending: false });
+
+        if (error) {
+          throw new Error(error.message);
+        }
+        setActivityLogs(data || []);
+      } catch (err: any) {
         console.error("Failed to fetch activity logs:", err);
-        setError("Failed to load activity logs. Please try again.");
+        setError(err.message || "Failed to load activity logs. Please try again.");
+        toast.error(err.message || "Failed to load activity logs.");
       } finally {
         setLoading(false);
       }
     };
 
     fetchActivityLogs();
-  }, [session, router]);
+  }, [session, router, supabase]);
 
   if (loading) {
     return (
