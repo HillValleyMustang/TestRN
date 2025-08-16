@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Dumbbell, Info, Lightbulb, History, Plus, CheckCircle2, Trophy } from 'lucide-react';
-import { Tables, TablesInsert } from '@/types/supabase';
+import { Tables, TablesInsert, TablesUpdate } from '@/types/supabase'; // Added TablesUpdate
 
 type WorkoutTemplate = Tables<'workout_templates'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -36,6 +36,7 @@ export default function WorkoutSessionPage({ params }: { params: { templateId: s
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null); // Track session start time
 
   useEffect(() => {
     if (!session) {
@@ -124,6 +125,7 @@ export default function WorkoutSessionPage({ params }: { params: { templateId: s
           throw new Error(sessionError?.message || "Failed to create workout session.");
         }
         setCurrentSessionId(sessionData.id);
+        setSessionStartTime(new Date()); // Set the start time when the session is created
 
         // 5. Initialize sets for each exercise with last set data
         const initialSets: Record<string, SetLogState[]> = {};
@@ -267,6 +269,39 @@ export default function WorkoutSessionPage({ params }: { params: { templateId: s
         return { ...prev, [exerciseId]: newSets };
       });
       toast.success("Set saved successfully!");
+    }
+  };
+
+  const handleFinishWorkout = async () => {
+    if (!currentSessionId || !sessionStartTime) {
+      toast.error("Workout session not properly started.");
+      return;
+    }
+
+    const endTime = new Date();
+    const durationMs = endTime.getTime() - sessionStartTime.getTime();
+    const durationMinutes = Math.round(durationMs / (1000 * 60));
+
+    let durationString = '';
+    if (durationMinutes < 60) {
+      durationString = `${durationMinutes} minutes`;
+    } else {
+      const hours = Math.floor(durationMinutes / 60);
+      const minutes = durationMinutes % 60;
+      durationString = `${hours}h ${minutes}m`;
+    }
+
+    const { error: updateError } = await supabase
+      .from('workout_sessions')
+      .update({ duration_string: durationString })
+      .eq('id', currentSessionId);
+
+    if (updateError) {
+      toast.error("Failed to save workout duration: " + updateError.message);
+      console.error("Error saving duration:", updateError);
+    } else {
+      toast.success("Workout session finished and duration saved!");
+      router.push('/dashboard'); // Redirect to dashboard
     }
   };
 
@@ -414,6 +449,10 @@ export default function WorkoutSessionPage({ params }: { params: { templateId: s
           </Card>
         ))}
       </section>
+
+      <div className="flex justify-center mt-8">
+        <Button size="lg" onClick={handleFinishWorkout}>Finish Workout</Button>
+      </div>
 
       <MadeWithDyad />
     </div>
