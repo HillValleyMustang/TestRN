@@ -14,16 +14,15 @@ import { Tables, TablesInsert } from '@/types/supabase';
 
 type WorkoutTemplate = Tables<'workout_templates'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
-type SetLog = TablesInsert<'set_logs'>; // Use TablesInsert for new logs
+type SetLog = Tables<'set_logs'>; // Use Tables for fetched logs
+type SetLogInsert = TablesInsert<'set_logs'>; // Use TablesInsert for new logs
 
-// Define a type for the joined result of workout_templates with exercise_definitions
-type WorkoutTemplateWithExercise = WorkoutTemplate & {
-  exercise_definitions: ExerciseDefinition | null;
-};
-
-interface SetLogState extends SetLog {
+interface SetLogState extends SetLogInsert {
   isSaved: boolean;
   isPR: boolean;
+  lastWeight?: number | null;
+  lastReps?: number | null;
+  lastTimeSeconds?: number | null;
 }
 
 export default function WorkoutSessionPage({ params }: { params: { templateId: string } }) {
@@ -69,14 +68,48 @@ export default function WorkoutSessionPage({ params }: { params: { templateId: s
         }
         setExercisesForTemplate(fetchedExercises);
 
-        // 2. Initialize sets for each exercise
-        const initialSets: Record<string, SetLogState[]> = {};
-        fetchedExercises.forEach(ex => {
-          initialSets[ex.id] = [{ weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, isSaved: false, isPR: false }];
-        });
-        setExercisesWithSets(initialSets);
+        // 2. Fetch the ID of the most recent previous workout session for the user
+        const { data: lastSessionData, error: lastSessionError } = await supabase
+          .from('workout_sessions')
+          .select('id')
+          .eq('user_id', session.user.id)
+          .order('session_date', { ascending: false })
+          .limit(1)
+          .single();
 
-        // 3. Create a new workout session entry
+        if (lastSessionError && lastSessionError.code !== 'PGRST116') { // PGRST116 means no rows found
+          console.warn("Error fetching last session ID:", lastSessionError.message);
+        }
+
+        const lastSessionId = lastSessionData ? lastSessionData.id : null;
+
+        // 3. Fetch last set data for each exercise using the lastSessionId
+        const lastSetsData: Record<string, { weight_kg: number | null, reps: number | null, time_seconds: number | null }> = {};
+        for (const ex of fetchedExercises) {
+          if (lastSessionId) { // Only fetch last set if a previous session exists
+            const { data: lastSet, error: lastSetError } = await supabase
+              .from('set_logs')
+              .select('weight_kg, reps, time_seconds')
+              .eq('exercise_id', ex.id)
+              .eq('session_id', lastSessionId) // Use the fetched lastSessionId
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .single();
+
+            if (lastSetError && lastSetError.code !== 'PGRST116') {
+              console.warn(`Could not fetch last set for exercise ${ex.name}:`, lastSetError.message);
+            }
+            if (lastSet) {
+              lastSetsData[ex.id] = {
+                weight_kg: lastSet.weight_kg,
+                reps: lastSet.reps,
+                time_seconds: lastSet.time_seconds,
+              };
+            }
+          }
+        }
+
+        // 4. Create a new workout session entry
         const { data: sessionData, error: sessionError } = await supabase
           .from('workout_sessions')
           .insert({
@@ -92,6 +125,25 @@ export default function WorkoutSessionPage({ params }: { params: { templateId: s
         }
         setCurrentSessionId(sessionData.id);
 
+        // 5. Initialize sets for each exercise with last set data
+        const initialSets: Record<string, SetLogState[]> = {};
+        fetchedExercises.forEach(ex => {
+          const lastSet = lastSetsData[ex.id];
+          initialSets[ex.id] = [{
+            weight_kg: null,
+            reps: null,
+            reps_l: null,
+            reps_r: null,
+            time_seconds: null,
+            isSaved: false,
+            isPR: false,
+            lastWeight: lastSet?.weight_kg,
+            lastReps: lastSet?.reps,
+            lastTimeSeconds: lastSet?.time_seconds,
+          }];
+        });
+        setExercisesWithSets(initialSets);
+
       } catch (err: any) {
         console.error("Failed to fetch workout data:", err);
         setError(err.message || "Failed to load workout. Please try again.");
@@ -105,13 +157,28 @@ export default function WorkoutSessionPage({ params }: { params: { templateId: s
   }, [session, router, templateId, supabase]);
 
   const handleAddSet = (exerciseId: string) => {
-    setExercisesWithSets(prev => ({
-      ...prev,
-      [exerciseId]: [...prev[exerciseId], { weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, isSaved: false, isPR: false }]
-    }));
+    setExercisesWithSets(prev => {
+      const currentExerciseSets = prev[exerciseId];
+      const lastSet = currentExerciseSets[currentExerciseSets.length - 1]; // Get the last set entered
+      return {
+        ...prev,
+        [exerciseId]: [...currentExerciseSets, {
+          weight_kg: null,
+          reps: null,
+          reps_l: null,
+          reps_r: null,
+          time_seconds: null,
+          isSaved: false,
+          isPR: false,
+          lastWeight: lastSet?.weight_kg, // Carry over last entered values as hints for next set
+          lastReps: lastSet?.reps,
+          lastTimeSeconds: lastSet?.time_seconds,
+        }]
+      };
+    });
   };
 
-  const handleInputChange = (exerciseId: string, setIndex: number, field: keyof SetLog, value: string) => {
+  const handleInputChange = (exerciseId: string, setIndex: number, field: keyof SetLogInsert, value: string) => {
     setExercisesWithSets(prev => {
       const newSets = [...prev[exerciseId]];
       newSets[setIndex] = {
@@ -129,12 +196,27 @@ export default function WorkoutSessionPage({ params }: { params: { templateId: s
     }
 
     const currentSet = exercisesWithSets[exerciseId][setIndex];
-    if (!currentSet.weight_kg && !currentSet.reps && !currentSet.time_seconds && !currentSet.reps_l && !currentSet.reps_r) {
-      toast.error("Please enter at least one value (weight/reps/time) for the set.");
+    const exercise = exercisesForTemplate.find(ex => ex.id === exerciseId);
+
+    if (!exercise) {
+      toast.error("Exercise not found.");
       return;
     }
 
-    const newSetLog: SetLog = {
+    if (exercise.type === 'weight' && (!currentSet.weight_kg || !currentSet.reps)) {
+      toast.error("Please enter weight and reps for this set.");
+      return;
+    }
+    if (exercise.type === 'timed' && !currentSet.time_seconds) {
+      toast.error("Please enter time for this set.");
+      return;
+    }
+    if (exercise.category === 'Unilateral' && (!currentSet.reps_l || !currentSet.reps_r)) {
+      toast.error("Please enter reps for both left and right sides.");
+      return;
+    }
+
+    const newSetLog: SetLogInsert = {
       session_id: currentSessionId,
       exercise_id: exerciseId,
       weight_kg: currentSet.weight_kg,
@@ -150,8 +232,34 @@ export default function WorkoutSessionPage({ params }: { params: { templateId: s
       toast.error("Failed to save set: " + saveError.message);
       console.error("Error saving set:", saveError);
     } else {
-      // Simulate PR detection (very basic for now)
-      const isPR = Boolean(currentSet.weight_kg && currentSet.reps && currentSet.weight_kg * currentSet.reps > 1000);
+      // Check for Personal Record (PR)
+      let isPR = false;
+      const { data: allPreviousSets, error: fetchPreviousError } = await supabase
+        .from('set_logs')
+        .select('weight_kg, reps, time_seconds')
+        .eq('exercise_id', exerciseId)
+        .eq('session_id', currentSessionId) // Only consider sets from the current session for PR check
+        .order('created_at', { ascending: false });
+
+      if (fetchPreviousError) {
+        console.error("Error fetching previous sets for PR check:", fetchPreviousError);
+      } else {
+        const relevantPreviousSets = allPreviousSets || [];
+
+        if (exercise.type === 'weight') {
+          const currentVolume = (currentSet.weight_kg || 0) * (currentSet.reps || 0);
+          isPR = relevantPreviousSets.every(prevSet => {
+            const prevVolume = (prevSet.weight_kg || 0) * (prevSet.reps || 0);
+            return currentVolume > prevVolume;
+          });
+        } else if (exercise.type === 'timed') {
+          const currentTime = currentSet.time_seconds || Infinity;
+          isPR = relevantPreviousSets.every(prevSet => {
+            const prevTime = prevSet.time_seconds || Infinity;
+            return currentTime < prevTime;
+          });
+        }
+      }
 
       setExercisesWithSets(prev => {
         const newSets = [...prev[exerciseId]];
@@ -230,15 +338,16 @@ export default function WorkoutSessionPage({ params }: { params: { templateId: s
                     <TableRow key={setIndex}>
                       <TableCell>{setIndex + 1}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {/* Placeholder for hint */}
-                        {setIndex === 0 ? "Last: 60kg x 8 reps" : "-"}
+                        {exercise.type === 'weight' && set.lastWeight && set.lastReps && `Last: ${set.lastWeight}kg x ${set.lastReps} reps`}
+                        {exercise.type === 'timed' && set.lastTimeSeconds && `Last: ${set.lastTimeSeconds}s`}
+                        {!set.lastWeight && !set.lastReps && !set.lastTimeSeconds && "-"}
                       </TableCell>
                       <TableCell>
                         <Input
                           type="number"
                           value={set.weight_kg ?? ''}
                           onChange={(e) => handleInputChange(exercise.id, setIndex, 'weight_kg', e.target.value)}
-                          disabled={set.isSaved}
+                          disabled={set.isSaved || exercise.type === 'timed'}
                           className="w-24"
                         />
                       </TableCell>
@@ -247,7 +356,7 @@ export default function WorkoutSessionPage({ params }: { params: { templateId: s
                           type="number"
                           value={set.reps ?? ''}
                           onChange={(e) => handleInputChange(exercise.id, setIndex, 'reps', e.target.value)}
-                          disabled={set.isSaved}
+                          disabled={set.isSaved || exercise.type === 'timed'}
                           className="w-20"
                         />
                       </TableCell>
