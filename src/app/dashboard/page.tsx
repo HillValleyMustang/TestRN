@@ -109,7 +109,8 @@ export default function DashboardPage() {
     { name: "Log Activity", component: <ActivityLoggingDialog /> },
     { name: "Manage Exercises", component: <ManageExercisesDialog /> },
     { name: "Manage Templates", component: <ManageWorkoutTemplatesDialog /> },
-    { name: "My Profile", href: "#", icon: <LinkIcon className="h-4 w-4" /> },
+    // Updated the href for My Profile
+    { name: "My Profile", href: "/profile", icon: <LinkIcon className="h-4 w-4" /> },
   ];
 
   const handleStartWorkout = (templateId: string) => {

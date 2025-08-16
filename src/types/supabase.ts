@@ -12,7 +12,7 @@ export type Database = {
       activity_logs: {
         Row: {
           activity_type: string
-          avg_time: number | null // Changed from string to number
+          avg_time: number | null
           created_at: string | null
           distance: string | null
           id: string
@@ -23,7 +23,7 @@ export type Database = {
         }
         Insert: {
           activity_type: string
-          avg_time?: number | null // Changed from string to number
+          avg_time?: number | null
           created_at?: string | null
           distance?: string | null
           id?: string
@@ -34,7 +34,7 @@ export type Database = {
         }
         Update: {
           activity_type?: string
-          avg_time?: number | null // Changed from string to number
+          avg_time?: number | null
           created_at?: string | null
           distance?: string | null
           id?: string
@@ -104,37 +104,46 @@ export type Database = {
         Row: {
           body_fat_pct: number | null
           created_at: string | null
+          first_name: string | null
           full_name: string | null
           health_notes: string | null
           height_cm: number | null
           id: string
+          last_name: string | null
           primary_goal: string | null
           preferred_muscles: string | null
           target_date: string | null
+          updated_at: string | null
           weight_kg: number | null
         }
         Insert: {
           body_fat_pct?: number | null
           created_at?: string | null
+          first_name?: string | null
           full_name?: string | null
           health_notes?: string | null
           height_cm?: number | null
           id: string
+          last_name?: string | null
           primary_goal?: string | null
           preferred_muscles?: string | null
           target_date?: string | null
+          updated_at?: string | null
           weight_kg?: number | null
         }
         Update: {
           body_fat_pct?: number | null
           created_at?: string | null
+          first_name?: string | null
           full_name?: string | null
           health_notes?: string | null
           height_cm?: number | null
           id?: string
+          last_name?: string | null
           primary_goal?: string | null
           preferred_muscles?: string | null
           target_date?: string | null
+          updated_at?: string | null
           weight_kg?: number | null
         }
         Relationships: [
