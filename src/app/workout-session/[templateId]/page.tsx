@@ -7,7 +7,7 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Input } => '@/components/ui/input';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Dumbbell, Info, Lightbulb, Plus, CheckCircle2, Trophy } from 'lucide-react';
 import { Tables, TablesInsert, TablesUpdate } from '@/types/supabase';
@@ -26,13 +26,13 @@ interface SetLogState extends SetLogInsert {
   lastTimeSeconds?: number | null;
 }
 
-// Explicitly define the props for the page component using Readonly<Record<string, string>> for params
+// Explicitly define the props for the page component using Record<string, string> for params
 interface WorkoutSessionPageProps {
-  params: Readonly<Record<string, string>>;
+  params: Record<string, string>; // Changed to a more general Record type
   searchParams: Readonly<Record<string, string | string[] | undefined>>;
 }
 
-export default function WorkoutSessionPage({ params, searchParams }: WorkoutSessionPagePageProps) {
+export default function WorkoutSessionPage({ params, searchParams }: WorkoutSessionPageProps) {
   const { session, supabase } = useSession();
   const router = useRouter();
   const { templateId } = params; // Destructure templateId here
