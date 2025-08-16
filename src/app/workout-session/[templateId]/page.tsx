@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Dumbbell, Info, Lightbulb, History, Plus, CheckCircle2, Trophy } from 'lucide-react';
-import { Tables, TablesInsert, TablesUpdate } from '@/types/supabase'; // Added TablesUpdate
+import { Tables, TablesInsert, TablesUpdate } from '@/types/supabase';
 
 type WorkoutTemplate = Tables<'workout_templates'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -25,7 +25,16 @@ interface SetLogState extends SetLogInsert {
   lastTimeSeconds?: number | null;
 }
 
-export default function WorkoutSessionPage({ params }: { params: { templateId: string } }) {
+// Explicitly define the props for the page component
+interface WorkoutSessionPageProps {
+  params: {
+    templateId: string;
+  };
+  // searchParams is part of Next.js PageProps, even if not used
+  searchParams?: { [key: string]: string | string[] | undefined };
+}
+
+export default function WorkoutSessionPage({ params }: WorkoutSessionPageProps) {
   const { session, supabase } = useSession();
   const router = useRouter();
   const { templateId } = params;

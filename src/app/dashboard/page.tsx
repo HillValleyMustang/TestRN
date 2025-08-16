@@ -16,6 +16,8 @@ import { toast } from 'sonner';
 type WorkoutTemplate = Tables<'workout_templates'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type WorkoutSession = Tables<'workout_sessions'>;
+type SetLog = Tables<'set_logs'>;
+type ActivityLog = Tables<'activity_logs'>; // Added for PRs
 
 // Extend the WorkoutTemplate type to include exercise name and last completed date for display
 type WorkoutTemplateDisplay = WorkoutTemplate & {
@@ -29,6 +31,11 @@ export default function DashboardPage() {
   const [myWorkouts, setMyWorkouts] = useState<WorkoutTemplateDisplay[]>([]);
   const [loadingWorkouts, setLoadingWorkouts] = useState(true);
 
+  // New state for KPIs
+  const [dynamicWeeklyVolume, setDynamicWeeklyVolume] = useState<number>(0);
+  const [dynamicPersonalRecords, setDynamicPersonalRecords] = useState<number>(0);
+  const [loadingKPIs, setLoadingKPIs] = useState(true);
+
   useEffect(() => {
     if (!session) {
       router.push('/login');
@@ -37,6 +44,7 @@ export default function DashboardPage() {
 
     const fetchDashboardData = async () => {
       setLoadingWorkouts(true);
+      setLoadingKPIs(true);
       try {
         // Fetch workout templates with associated exercise details
         const { data: templatesData, error: templatesError } = await supabase
@@ -52,7 +60,7 @@ export default function DashboardPage() {
         // Fetch workout sessions to determine last completed dates
         const { data: sessionsData, error: sessionsError } = await supabase
           .from('workout_sessions')
-          .select('template_name, session_date')
+          .select('template_name, session_date, id') // Also select session ID for volume calculation
           .eq('user_id', session.user.id)
           .order('session_date', { ascending: false });
 
@@ -75,11 +83,54 @@ export default function DashboardPage() {
 
         setMyWorkouts(processedWorkouts);
 
+        // --- KPI Calculation ---
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const sevenDaysAgoISO = sevenDaysAgo.toISOString();
+
+        // Calculate Weekly Volume
+        let totalWeeklyVolume = 0;
+        const recentSessionIds = sessionsData
+          .filter(session => new Date(session.session_date) >= sevenDaysAgo)
+          .map(session => session.id);
+
+        if (recentSessionIds.length > 0) {
+          const { data: recentSetLogs, error: setLogsError } = await supabase
+            .from('set_logs')
+            .select('weight_kg, reps')
+            .in('session_id', recentSessionIds); // Filter by recent session IDs
+
+          if (setLogsError) {
+            console.error("Error fetching recent set logs for volume:", setLogsError.message);
+          } else {
+            totalWeeklyVolume = recentSetLogs.reduce((sum, log) => {
+              const weight = log.weight_kg || 0;
+              const reps = log.reps || 0;
+              return sum + (weight * reps);
+            }, 0);
+          }
+        }
+        setDynamicWeeklyVolume(totalWeeklyVolume);
+
+        // Calculate Personal Records (from activity_logs)
+        const { data: prActivityLogs, error: prError } = await supabase
+          .from('activity_logs')
+          .select('id')
+          .eq('user_id', session.user.id)
+          .eq('is_pb', true);
+
+        if (prError) {
+          console.error("Error fetching PR activity logs:", prError.message);
+        } else {
+          setDynamicPersonalRecords(prActivityLogs.length);
+        }
+
       } catch (err: any) {
         console.error("Error fetching dashboard data:", err);
         toast.error(err.message || "Failed to load dashboard data.");
       } finally {
         setLoadingWorkouts(false);
+        setLoadingKPIs(false);
       }
     };
 
@@ -90,12 +141,9 @@ export default function DashboardPage() {
     return null; // Or a loading spinner while redirecting
   }
 
-  // Placeholder data for KPI
-  const userName = session.user?.user_metadata?.first_name || session.user?.email?.split('@')[0] || 'Athlete';
+  // Placeholder for workout streak (still static)
   const workoutStreak = 7;
-  const weeklyVolume = 12500; // kg
-  const weeklyVolumeChange = 5; // percentage change
-  const personalRecords = 12;
+  const weeklyVolumeChange = 5; // percentage change (still static for now)
 
   // For "Up Next" workout, we'll just take the first one from myWorkouts for now
   const upNextWorkout = myWorkouts.length > 0 ? {
@@ -109,7 +157,6 @@ export default function DashboardPage() {
     { name: "Log Activity", component: <ActivityLoggingDialog /> },
     { name: "Manage Exercises", component: <ManageExercisesDialog /> },
     { name: "Manage Templates", component: <ManageWorkoutTemplatesDialog /> },
-    // Updated the href for My Profile
     { name: "My Profile", href: "/profile", icon: <LinkIcon className="h-4 w-4" /> },
   ];
 
@@ -120,7 +167,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background text-foreground p-4 sm:p-8">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold">Welcome back, {userName}!</h1>
+        <h1 className="text-3xl font-bold">Welcome back, {session.user?.user_metadata?.first_name || session.user?.email?.split('@')[0] || 'Athlete'}!</h1>
       </header>
 
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -141,15 +188,22 @@ export default function DashboardPage() {
             <Dumbbell className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{weeklyVolume.toLocaleString()} kg</div>
-            <p className="text-xs text-muted-foreground flex items-center">
-              {weeklyVolumeChange > 0 ? (
-                <ArrowUp className="h-4 w-4 text-green-500 mr-1" />
-              ) : (
-                <ArrowDown className="h-4 w-4 text-red-500 mr-1" />
-              )}
-              {Math.abs(weeklyVolumeChange)}% from last week
-            </p>
+            {loadingKPIs ? (
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{dynamicWeeklyVolume.toLocaleString()} kg</div>
+                <p className="text-xs text-muted-foreground flex items-center">
+                  {/* This change is still static, as calculating percentage change requires previous week's data */}
+                  {weeklyVolumeChange > 0 ? (
+                    <ArrowUp className="h-4 w-4 text-green-500 mr-1" />
+                  ) : (
+                    <ArrowDown className="h-4 w-4 text-red-500 mr-1" />
+                  )}
+                  {Math.abs(weeklyVolumeChange)}% from last week
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -159,8 +213,14 @@ export default function DashboardPage() {
             <Trophy className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{personalRecords} PRs</div>
-            <p className="text-xs text-muted-foreground">New milestones achieved!</p>
+            {loadingKPIs ? (
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{dynamicPersonalRecords} PRs</div>
+                <p className="text-xs text-muted-foreground">New milestones achieved!</p>
+              </>
+            )}
           </CardContent>
         </Card>
       </section>
