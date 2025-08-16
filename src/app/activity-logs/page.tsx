@@ -1,0 +1,136 @@
+"use client";
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useSession } from '@/components/session-context-provider';
+import { MadeWithDyad } from "@/components/made-with-dyad";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from 'lucide-react';
+import { Tables } from '@/types/supabase';
+
+type ActivityLog = Tables<'activity_logs'>;
+
+export default function ActivityLogsPage() {
+  const { session } = useSession();
+  const router = useRouter();
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!session) {
+      router.push('/login');
+      return;
+    }
+
+    const fetchActivityLogs = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // Mock data for now. In a real app, you'd fetch from Supabase.
+        const mockLogs: ActivityLog[] = [
+          { id: 'log-1', user_id: session.user.id, activity_type: 'Cycling', distance: '25 km', time: '1h 15m', avg_time: '3m/km', is_pb: true, log_date: new Date('2023-10-26T10:00:00Z').toISOString(), created_at: new Date('2023-10-26T10:00:00Z').toISOString() },
+          { id: 'log-2', user_id: session.user.id, activity_type: 'Swimming', distance: '1.5 km', time: '30m', avg_time: null, is_pb: false, log_date: new Date('2023-10-24T08:00:00Z').toISOString(), created_at: new Date('2023-10-24T08:00:00Z').toISOString() },
+          { id: 'log-3', user_id: session.user.id, activity_type: 'Tennis', distance: null, time: '1h', avg_time: null, is_pb: false, log_date: new Date('2023-10-22T17:00:00Z').toISOString(), created_at: new Date('2023-10-22T17:00:00Z').toISOString() },
+          { id: 'log-4', user_id: session.user.id, activity_type: 'Cycling', distance: '20 km', time: '1h 05m', avg_time: '3m 15s/km', is_pb: false, log_date: new Date('2023-10-19T09:00:00Z').toISOString(), created_at: new Date('2023-10-19T09:00:00Z').toISOString() },
+        ];
+        setActivityLogs(mockLogs);
+      } catch (err) {
+        console.error("Failed to fetch activity logs:", err);
+        setError("Failed to load activity logs. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchActivityLogs();
+  }, [session, router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
+        <p>Loading activity logs...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-destructive">
+        <p>{error}</p>
+      </div>
+    );
+  }
+
+  const filterLogs = (type: string) => activityLogs.filter(log => log.activity_type === type);
+
+  const renderLogCard = (log: ActivityLog) => (
+    <Card key={log.id} className="mb-4">
+      <CardHeader>
+        <CardTitle className="flex justify-between items-center">
+          {log.activity_type}
+          {log.is_pb && <span className="text-yellow-500 text-sm font-semibold">PB!</span>}
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">{new Date(log.log_date).toLocaleDateString()}</p>
+      </CardHeader>
+      <CardContent>
+        {log.distance && <p>Distance: {log.distance}</p>}
+        {log.time && <p>Time: {log.time}</p>}
+        {log.avg_time && <p>Avg. Time: {log.avg_time}</p>}
+        {/* Add more details based on activity type if needed */}
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <div className="min-h-screen bg-background text-foreground p-4 sm:p-8">
+      <header className="mb-8 flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Activity Logs</h1>
+        <Button variant="outline" onClick={() => router.push('/dashboard')}>
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
+        </Button>
+      </header>
+
+      <Tabs defaultValue="all" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="all">All</TabsTrigger>
+          <TabsTrigger value="Cycling">Cycling</TabsTrigger>
+          <TabsTrigger value="Swimming">Swimming</TabsTrigger>
+          <TabsTrigger value="Tennis">Tennis</TabsTrigger>
+        </TabsList>
+        <TabsContent value="all" className="mt-4">
+          {activityLogs.length === 0 ? (
+            <p className="text-muted-foreground">No activities logged yet.</p>
+          ) : (
+            activityLogs.map(renderLogCard)
+          )}
+        </TabsContent>
+        <TabsContent value="Cycling" className="mt-4">
+          {filterLogs('Cycling').length === 0 ? (
+            <p className="text-muted-foreground">No cycling activities logged yet.</p>
+          ) : (
+            filterLogs('Cycling').map(renderLogCard)
+          )}
+        </TabsContent>
+        <TabsContent value="Swimming" className="mt-4">
+          {filterLogs('Swimming').length === 0 ? (
+            <p className="text-muted-foreground">No swimming activities logged yet.</p>
+          ) : (
+            filterLogs('Swimming').map(renderLogCard)
+          )}
+        </TabsContent>
+        <TabsContent value="Tennis" className="mt-4">
+          {filterLogs('Tennis').length === 0 ? (
+            <p className="text-muted-foreground">No tennis activities logged yet.</p>
+          ) : (
+            filterLogs('Tennis').map(renderLogCard)
+          )}
+        </TabsContent>
+      </Tabs>
+
+      <MadeWithDyad />
+    </div>
+  );
+}

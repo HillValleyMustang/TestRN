@@ -7,6 +7,7 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowUp, ArrowDown, Trophy, Dumbbell, CalendarDays, LinkIcon } from 'lucide-react';
+import { ActivityLoggingDialog } from '@/components/activity-logging-dialog'; // Import the new component
 
 export default function DashboardPage() {
   const { session, supabase } = useSession();
@@ -44,7 +45,7 @@ export default function DashboardPage() {
   ];
 
   const quickLinks = [
-    { name: "Log Activity", href: "#", icon: <CalendarDays className="h-4 w-4" /> },
+    { name: "Log Activity", component: <ActivityLoggingDialog /> }, // Use the new dialog component
     { name: "Manage Exercises", href: "#", icon: <Dumbbell className="h-4 w-4" /> },
     { name: "My Profile", href: "#", icon: <LinkIcon className="h-4 w-4" /> },
   ];
@@ -124,13 +125,22 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="flex flex-col space-y-2">
             {quickLinks.map((link) => (
-              <Button key={link.name} variant="ghost" className="justify-start" asChild>
-                <a href={link.href} className="flex items-center">
-                  {link.icon}
-                  <span className="ml-2">{link.name}</span>
-                </a>
-              </Button>
+              link.href ? (
+                <Button key={link.name} variant="ghost" className="justify-start" asChild>
+                  <a href={link.href} className="flex items-center">
+                    {link.icon}
+                    <span className="ml-2">{link.name}</span>
+                  </a>
+                </Button>
+              ) : (
+                <div key={link.name}>
+                  {link.component} {/* Render the component directly */}
+                </div>
+              )
             ))}
+            <Button variant="ghost" className="justify-start" onClick={() => router.push('/activity-logs')}>
+              <CalendarDays className="h-4 w-4 mr-2" /> View All Activities
+            </Button>
           </CardContent>
         </Card>
       </section>
