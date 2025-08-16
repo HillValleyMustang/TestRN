@@ -9,8 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { Dumbbell, Info, Lightbulb, History, Plus, CheckCircle2, Trophy } from 'lucide-react';
+import { Dumbbell, Info, Lightbulb, Plus, CheckCircle2, Trophy } from 'lucide-react';
 import { Tables, TablesInsert, TablesUpdate } from '@/types/supabase';
+import { ExerciseHistoryDialog } from '@/components/exercise-history-dialog'; // Import the new component
 
 type WorkoutTemplate = Tables<'workout_templates'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -249,8 +250,7 @@ export default function WorkoutSessionPage({ params }: WorkoutSessionPageProps) 
         .from('set_logs')
         .select('weight_kg, reps, time_seconds')
         .eq('exercise_id', exerciseId)
-        .eq('session_id', currentSessionId) // Only consider sets from the current session for PR check
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false }); // Fetch all sets for this exercise to check PR
 
       if (fetchPreviousError) {
         console.error("Error fetching previous sets for PR check:", fetchPreviousError);
@@ -259,12 +259,14 @@ export default function WorkoutSessionPage({ params }: WorkoutSessionPageProps) 
 
         if (exercise.type === 'weight') {
           const currentVolume = (currentSet.weight_kg || 0) * (currentSet.reps || 0);
+          // A new PR if current volume is strictly greater than all previous volumes for this exercise
           isPR = relevantPreviousSets.every(prevSet => {
             const prevVolume = (prevSet.weight_kg || 0) * (prevSet.reps || 0);
             return currentVolume > prevVolume;
           });
         } else if (exercise.type === 'timed') {
           const currentTime = currentSet.time_seconds || Infinity;
+          // A new PR if current time is strictly less than all previous times for this exercise
           isPR = relevantPreviousSets.every(prevSet => {
             const prevTime = prevSet.time_seconds || Infinity;
             return currentTime < prevTime;
@@ -354,7 +356,12 @@ export default function WorkoutSessionPage({ params }: WorkoutSessionPageProps) 
                 <p className="text-sm text-muted-foreground">{exercise.main_muscle}</p>
               </div>
               <div className="flex space-x-2">
-                <Button variant="outline" size="icon" title="History"><History className="h-4 w-4" /></Button>
+                <ExerciseHistoryDialog
+                  exerciseId={exercise.id}
+                  exerciseName={exercise.name}
+                  exerciseType={exercise.type}
+                  exerciseCategory={exercise.category}
+                />
                 <Button variant="outline" size="icon" title="Info"><Info className="h-4 w-4" /></Button>
                 <Button variant="outline" size="icon" title="Suggest Progression"><Lightbulb className="h-4 w-4" /></Button>
               </div>
