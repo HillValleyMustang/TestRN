@@ -37,7 +37,7 @@ export default function LoginPage() {
                   brandAccent: 'hsl(var(--primary-foreground))',
                   inputBackground: 'hsl(var(--input))',
                   inputBorder: 'hsl(var(--border))',
-                  inputFocusBorder: 'hsl(var(--ring))',
+                  inputBorderFocus: 'hsl(var(--ring))', // Fixed: Changed inputFocusBorder to inputBorderFocus
                   inputText: 'hsl(var(--foreground))',
                   messageText: 'hsl(var(--destructive-foreground))',
                   messageBackground: 'hsl(var(--destructive))',

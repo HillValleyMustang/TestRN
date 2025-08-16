@@ -30,16 +30,17 @@ export default function DashboardPage() {
   const personalRecords = 12;
 
   const upNextWorkout = {
+    id: "up-next-workout-id", // Mock ID for navigation
     name: "Full Body Blast",
     exercises: ["Squats", "Bench Press", "Deadlifts"],
     lastCompleted: "2 days ago",
   };
 
   const myWorkouts = [
-    { name: "Upper Body A", lastCompleted: "5 days ago" },
-    { name: "Lower Body B", lastCompleted: "3 days ago" },
-    { name: "Push Day", lastCompleted: "1 day ago" },
-    { name: "Pull Day", lastCompleted: "Never" },
+    { id: "template-1", name: "Upper Body A", lastCompleted: "5 days ago" },
+    { id: "template-2", name: "Lower Body B", lastCompleted: "3 days ago" },
+    { id: "template-3", name: "Push Day", lastCompleted: "1 day ago" },
+    { id: "template-4", name: "Pull Day", lastCompleted: "Never" },
   ];
 
   const quickLinks = [
@@ -48,9 +49,8 @@ export default function DashboardPage() {
     { name: "My Profile", href: "#", icon: <LinkIcon className="h-4 w-4" /> },
   ];
 
-  const handleStartWorkout = (workoutName: string) => {
-    // Implement navigation to workout logging interface
-    console.log(`Starting workout: ${workoutName}`);
+  const handleStartWorkout = (templateId: string) => {
+    router.push(`/workout-session/${templateId}`);
   };
 
   return (
@@ -113,7 +113,7 @@ export default function DashboardPage() {
             </p>
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Last completed: {upNextWorkout.lastCompleted}</span>
-              <Button onClick={() => handleStartWorkout(upNextWorkout.name)}>Start Workout</Button>
+              <Button onClick={() => handleStartWorkout(upNextWorkout.id)}>Start Workout</Button>
             </div>
           </CardContent>
         </Card>
@@ -139,13 +139,13 @@ export default function DashboardPage() {
         <h2 className="text-2xl font-bold mb-4">My Workouts</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {myWorkouts.map((workout) => (
-            <Card key={workout.name}>
+            <Card key={workout.id}>
               <CardHeader>
                 <CardTitle>{workout.name}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground mb-4">Last completed: {workout.lastCompleted}</p>
-                <Button onClick={() => handleStartWorkout(workout.name)} className="w-full">Start Workout</Button>
+                <Button onClick={() => handleStartWorkout(workout.id)} className="w-full">Start Workout</Button>
               </CardContent>
             </Card>
           ))}
