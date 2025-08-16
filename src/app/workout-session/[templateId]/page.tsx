@@ -33,16 +33,16 @@ interface SetLogState extends SetLogInsert {
   lastTimeSeconds?: number | null;
 }
 
-// Explicitly define the props for the page component using Record<string, string> for params
-interface WorkoutSessionPageProps {
-  params: Record<string, string>;
-  searchParams: Record<string, string | string[] | undefined>; // Removed Readonly
-}
-
-export default function WorkoutSessionPage({ params, searchParams }: WorkoutSessionPageProps) {
+export default function WorkoutSessionPage({ 
+  params, 
+  searchParams 
+}: { 
+  params?: Record<string, string>; 
+  searchParams?: Record<string, string | string[] | undefined>; 
+}) {
   const { session, supabase } = useSession();
   const router = useRouter();
-  const { templateId } = params;
+  const { templateId } = params || {}; // Safely access templateId
 
   const [workoutTemplate, setWorkoutTemplate] = useState<WorkoutTemplate | null>(null);
   const [exercisesForTemplate, setExercisesForTemplate] = useState<ExerciseDefinition[]>([]);
@@ -55,6 +55,12 @@ export default function WorkoutSessionPage({ params, searchParams }: WorkoutSess
   useEffect(() => {
     if (!session) {
       router.push('/login');
+      return;
+    }
+    
+    if (!templateId) { // Handle case where templateId might be undefined initially
+      setLoading(false);
+      setError("Workout template ID is missing.");
       return;
     }
 

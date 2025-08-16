@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowUp, ArrowDown, Trophy, Dumbbell, CalendarDays, LinkIcon, LayoutTemplate } from 'lucide-react';
 import { ActivityLoggingDialog } from '@/components/activity-logging-dialog';
 import { ManageExercisesDialog } from '@/components/manage-exercises-dialog';
-import { ManageWorkoutTemplatesDialog } from '@/components/manage-workout-templates-dialog'; // Corrected import path
+import { ManageWorkoutTemplatesDialog } from '@/components/manage-workout-templates-dialog';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 
@@ -17,7 +17,7 @@ type WorkoutTemplate = Tables<'workout_templates'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
-type ActivityLog = Tables<'activity_logs'>; // Added for PRs
+type ActivityLog = Tables<'activity_logs'>;
 
 // Define a type for the joined data from template_exercises
 type TemplateExerciseJoin = Tables<'template_exercises'> & {
@@ -39,6 +39,7 @@ export default function DashboardPage() {
   // New state for KPIs
   const [dynamicWeeklyVolume, setDynamicWeeklyVolume] = useState<number>(0);
   const [dynamicPersonalRecords, setDynamicPersonalRecords] = useState<number>(0);
+  const [workoutStreak, setWorkoutStreak] = useState<number>(0); // New state for workout streak
   const [loadingKPIs, setLoadingKPIs] = useState(true);
 
   useEffect(() => {
@@ -70,10 +71,10 @@ export default function DashboardPage() {
           throw new Error(templatesError.message);
         }
 
-        // Fetch workout sessions to determine last completed dates
+        // Fetch workout sessions to determine last completed dates and for KPI calculations
         const { data: sessionsData, error: sessionsError } = await supabase
           .from('workout_sessions')
-          .select('template_name, session_date, id') // Also select session ID for volume calculation
+          .select('template_name, session_date, id')
           .eq('user_id', session.user.id)
           .order('session_date', { ascending: false });
 
@@ -90,12 +91,12 @@ export default function DashboardPage() {
 
         const processedWorkouts: WorkoutTemplateDisplay[] = templatesData.map(template => {
           // Filter out null exercise_definitions and sort by order_index
-          const exercises = (template.template_exercises as TemplateExerciseJoin[] || []) // Explicitly cast to TemplateExerciseJoin[]
-            .filter((te: TemplateExerciseJoin) => te.exercise_definitions !== null) // Explicitly type 'te'
-            .map((te: TemplateExerciseJoin) => te.exercise_definitions as ExerciseDefinition) // Explicitly type 'te'
-            .sort((a: ExerciseDefinition, b: ExerciseDefinition) => { // Explicitly type 'a' and 'b'
-              const orderA = (template.template_exercises as TemplateExerciseJoin[])?.find((te: TemplateExerciseJoin) => te.exercise_definitions?.id === a.id)?.order_index || 0; // Explicitly type 'te'
-              const orderB = (template.template_exercises as TemplateExerciseJoin[])?.find((te: TemplateExerciseJoin) => te.exercise_definitions?.id === b.id)?.order_index || 0; // Explicitly type 'te'
+          const exercises = (template.template_exercises as TemplateExerciseJoin[] || [])
+            .filter((te: TemplateExerciseJoin) => te.exercise_definitions !== null)
+            .map((te: TemplateExerciseJoin) => te.exercise_definitions as ExerciseDefinition)
+            .sort((a: ExerciseDefinition, b: ExerciseDefinition) => {
+              const orderA = (template.template_exercises as TemplateExerciseJoin[])?.find((te: TemplateExerciseJoin) => te.exercise_definitions?.id === a.id)?.order_index || 0;
+              const orderB = (template.template_exercises as TemplateExerciseJoin[])?.find((te: TemplateExerciseJoin) => te.exercise_definitions?.id === b.id)?.order_index || 0;
               return orderA - orderB;
             });
 
@@ -111,6 +112,7 @@ export default function DashboardPage() {
         // --- KPI Calculation ---
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        sevenDaysAgo.setHours(0, 0, 0, 0); // Normalize to start of day
         const sevenDaysAgoISO = sevenDaysAgo.toISOString();
 
         // Calculate Weekly Volume
@@ -150,6 +152,60 @@ export default function DashboardPage() {
           setDynamicPersonalRecords(prActivityLogs.length);
         }
 
+        // Calculate Workout Streak
+        let currentWorkoutStreak = 0;
+        const { data: allUserSessions, error: allUserSessionsError } = await supabase
+          .from('workout_sessions')
+          .select('session_date')
+          .eq('user_id', session.user.id)
+          .order('session_date', { ascending: false }); // Order descending to check from most recent
+
+        if (allUserSessionsError) {
+          console.error("Error fetching all sessions for streak:", allUserSessionsError.message);
+        } else {
+          if (allUserSessions && allUserSessions.length > 0) {
+            const uniqueDates = new Set(allUserSessions.map(s => new Date(s.session_date).toISOString().split('T')[0]));
+            const sortedUniqueDates = Array.from(uniqueDates).sort(); // Sort ascending for iteration
+
+            let streak = 0;
+            let lastDate: Date | null = null;
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Normalize to start of day
+
+            // Iterate backwards from the most recent unique date
+            for (let i = sortedUniqueDates.length - 1; i >= 0; i--) {
+              const sessionDate = new Date(sortedUniqueDates[i]);
+              sessionDate.setHours(0, 0, 0, 0); // Normalize
+
+              if (i === sortedUniqueDates.length - 1) { // This is the most recent workout date
+                const diffFromToday = Math.round(Math.abs(today.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
+                if (diffFromToday === 0 || diffFromToday === 1) { // If session was today or yesterday
+                  streak = 1;
+                  lastDate = sessionDate;
+                } else {
+                  // Last session was more than 1 day ago, streak is 0
+                  streak = 0;
+                  break; // No need to check further
+                }
+              } else {
+                if (lastDate) {
+                  const diffDays = Math.round(Math.abs(lastDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
+                  if (diffDays === 1) {
+                    streak++;
+                    lastDate = sessionDate;
+                  } else {
+                    // Gap found, streak broken
+                    break;
+                  }
+                }
+              }
+            }
+            currentWorkoutStreak = streak;
+          }
+        }
+        setWorkoutStreak(currentWorkoutStreak);
+
       } catch (err: any) {
         console.error("Error fetching dashboard data:", err);
         toast.error(err.message || "Failed to load dashboard data.");
@@ -166,8 +222,7 @@ export default function DashboardPage() {
     return null; // Or a loading spinner while redirecting
   }
 
-  // Placeholder for workout streak (still static)
-  const workoutStreak = 7;
+  // Placeholder for weekly volume change (still static)
   const weeklyVolumeChange = 5; // percentage change (still static for now)
 
   // For "Up Next" workout, we'll just take the first one from myWorkouts for now
@@ -202,8 +257,14 @@ export default function DashboardPage() {
             <CalendarDays className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{workoutStreak} Days</div>
-            <p className="text-xs text-muted-foreground">Keep it up!</p>
+            {loadingKPIs ? (
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{workoutStreak} Days</div>
+                <p className="text-xs text-muted-foreground">Keep it up!</p>
+              </>
+            )}
           </CardContent>
         </Card>
 
