@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowUp, ArrowDown, Trophy, Dumbbell, CalendarDays, LinkIcon, LayoutTemplate } from 'lucide-react';
 import { ActivityLoggingDialog } from '@/components/activity-logging-dialog';
 import { ManageExercisesDialog } from '@/components/manage-exercises-dialog';
-import { ManageWorkoutTemplatesDialog } from '@/components/manage-workout-templates-dialog';
+import { ManageWorkoutTemplatesDialog } from '@/components/manage-workout-templates-dialog'; // Corrected import path
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 
@@ -19,9 +19,14 @@ type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
 type ActivityLog = Tables<'activity_logs'>; // Added for PRs
 
-// Extend the WorkoutTemplate type to include exercise name and last completed date for display
+// Define a type for the joined data from template_exercises
+type TemplateExerciseJoin = Tables<'template_exercises'> & {
+  exercise_definitions: Tables<'exercise_definitions'> | null;
+};
+
+// Extend the WorkoutTemplate type to include an array of exercise names and last completed date for display
 type WorkoutTemplateDisplay = WorkoutTemplate & {
-  exercise_name: string;
+  exercises: ExerciseDefinition[]; // Now an array of full exercise definitions
   lastCompleted: string;
 };
 
@@ -46,10 +51,18 @@ export default function DashboardPage() {
       setLoadingWorkouts(true);
       setLoadingKPIs(true);
       try {
-        // Fetch workout templates with associated exercise details
+        // Fetch workout templates with associated exercise details via template_exercises
         const { data: templatesData, error: templatesError } = await supabase
           .from('workout_templates')
-          .select('*, exercise_definitions(*)') // Select template data and joined exercise
+          .select(`
+            *,
+            template_exercises (
+              order_index,
+              exercise_definitions (
+                id, name, main_muscle, type, category, description, pro_tip, video_url
+              )
+            )
+          `)
           .eq('user_id', session.user.id)
           .order('created_at', { ascending: false });
 
@@ -75,11 +88,23 @@ export default function DashboardPage() {
           }
         });
 
-        const processedWorkouts: WorkoutTemplateDisplay[] = templatesData.map(template => ({
-          ...template,
-          exercise_name: (template.exercise_definitions as ExerciseDefinition)?.name || 'N/A',
-          lastCompleted: lastCompletedMap.get(template.template_name || '') || 'Never',
-        }));
+        const processedWorkouts: WorkoutTemplateDisplay[] = templatesData.map(template => {
+          // Filter out null exercise_definitions and sort by order_index
+          const exercises = (template.template_exercises as TemplateExerciseJoin[] || []) // Explicitly cast to TemplateExerciseJoin[]
+            .filter((te: TemplateExerciseJoin) => te.exercise_definitions !== null) // Explicitly type 'te'
+            .map((te: TemplateExerciseJoin) => te.exercise_definitions as ExerciseDefinition) // Explicitly type 'te'
+            .sort((a: ExerciseDefinition, b: ExerciseDefinition) => { // Explicitly type 'a' and 'b'
+              const orderA = (template.template_exercises as TemplateExerciseJoin[])?.find((te: TemplateExerciseJoin) => te.exercise_definitions?.id === a.id)?.order_index || 0; // Explicitly type 'te'
+              const orderB = (template.template_exercises as TemplateExerciseJoin[])?.find((te: TemplateExerciseJoin) => te.exercise_definitions?.id === b.id)?.order_index || 0; // Explicitly type 'te'
+              return orderA - orderB;
+            });
+
+          return {
+            ...template,
+            exercises: exercises,
+            lastCompleted: lastCompletedMap.get(template.template_name || '') || 'Never',
+          };
+        });
 
         setMyWorkouts(processedWorkouts);
 
@@ -149,7 +174,7 @@ export default function DashboardPage() {
   const upNextWorkout = myWorkouts.length > 0 ? {
     id: myWorkouts[0].id,
     name: myWorkouts[0].template_name,
-    exercises: [myWorkouts[0].exercise_name], // Now correctly shows the exercise name
+    exercises: myWorkouts[0].exercises.map(ex => ex.name), // Map to array of names
     lastCompleted: myWorkouts[0].lastCompleted,
   } : null;
 
@@ -235,7 +260,7 @@ export default function DashboardPage() {
               <>
                 <h3 className="text-xl font-semibold mb-2">{upNextWorkout.name}</h3>
                 <p className="text-muted-foreground mb-4">
-                  Exercise: {upNextWorkout.exercises.join(', ')}
+                  Exercises: {upNextWorkout.exercises.join(', ')}
                 </p>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Last completed: {upNextWorkout.lastCompleted}</span>
@@ -288,7 +313,9 @@ export default function DashboardPage() {
                   <CardTitle>{workout.template_name}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground mb-2">Exercise: {workout.exercise_name}</p>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Exercises: {workout.exercises.map(ex => ex.name).join(', ')}
+                  </p>
                   <p className="text-sm text-muted-foreground mb-4">Last completed: {workout.lastCompleted}</p>
                   <Button onClick={() => handleStartWorkout(workout.id)} className="w-full">Start Workout</Button>
                 </CardContent>

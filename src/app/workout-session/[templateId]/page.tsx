@@ -18,6 +18,11 @@ type ExerciseDefinition = Tables<'exercise_definitions'>;
 type SetLog = Tables<'set_logs'>; // Use Tables for fetched logs
 type SetLogInsert = TablesInsert<'set_logs'>; // Use TablesInsert for new logs
 
+// Define a type for the joined data from template_exercises
+type TemplateExerciseJoin = Tables<'template_exercises'> & {
+  exercise_definitions: Tables<'exercise_definitions'> | null;
+};
+
 interface SetLogState extends SetLogInsert {
   isSaved: boolean;
   isPR: boolean;
@@ -28,14 +33,14 @@ interface SetLogState extends SetLogInsert {
 
 // Explicitly define the props for the page component using Record<string, string> for params
 interface WorkoutSessionPageProps {
-  params: Record<string, string>; // Changed to a more general Record type
+  params: Record<string, string>;
   searchParams: Readonly<Record<string, string | string[] | undefined>>;
 }
 
 export default function WorkoutSessionPage({ params, searchParams }: WorkoutSessionPageProps) {
   const { session, supabase } = useSession();
   const router = useRouter();
-  const { templateId } = params; // Destructure templateId here
+  const { templateId } = params;
 
   const [workoutTemplate, setWorkoutTemplate] = useState<WorkoutTemplate | null>(null);
   const [exercisesForTemplate, setExercisesForTemplate] = useState<ExerciseDefinition[]>([]);
@@ -55,28 +60,42 @@ export default function WorkoutSessionPage({ params, searchParams }: WorkoutSess
       setLoading(true);
       setError(null);
       try {
-        // 1. Fetch the workout template AND its associated exercise definition
-        const { data: templateWithExercise, error: fetchError } = await supabase
+        // 1. Fetch the workout template
+        const { data: templateData, error: fetchTemplateError } = await supabase
           .from('workout_templates')
-          .select('*, exercise_definitions(*)') // Select template data and joined exercise
+          .select('*')
           .eq('id', templateId)
           .eq('user_id', session.user.id)
-          .single(); // Expecting a single template
+          .single();
 
-        if (fetchError || !templateWithExercise) {
-          throw new Error(fetchError?.message || "Workout template not found or no associated exercise.");
+        if (fetchTemplateError || !templateData) {
+          throw new Error(fetchTemplateError?.message || "Workout template not found.");
+        }
+        setWorkoutTemplate(templateData);
+
+        // 2. Fetch all exercises associated with this template via template_exercises
+        const { data: templateExercisesData, error: fetchTemplateExercisesError } = await supabase
+          .from('template_exercises')
+          .select(`
+            id, created_at, exercise_id, template_id, order_index,
+            exercise_definitions (
+              id, name, main_muscle, type, category, description, pro_tip, video_url
+            )
+          `)
+          .eq('template_id', templateId)
+          .order('order_index', { ascending: true });
+
+        if (fetchTemplateExercisesError) {
+          throw new Error(fetchTemplateExercisesError.message);
         }
 
-        setWorkoutTemplate(templateWithExercise); // Set the base template data
+        const fetchedExercises: ExerciseDefinition[] = templateExercisesData
+          .filter((te: TemplateExerciseJoin) => te.exercise_definitions !== null)
+          .map((te: TemplateExerciseJoin) => te.exercise_definitions as ExerciseDefinition);
 
-        const fetchedExercises: ExerciseDefinition[] = [];
-        if (templateWithExercise.exercise_definitions) {
-          // If a template is linked to a single exercise, add it to the list
-          fetchedExercises.push(templateWithExercise.exercise_definitions);
-        }
         setExercisesForTemplate(fetchedExercises);
 
-        // 2. Fetch the ID of the most recent previous workout session for the user
+        // 3. Fetch the ID of the most recent previous workout session for the user
         const { data: lastSessionData, error: lastSessionError } = await supabase
           .from('workout_sessions')
           .select('id')
@@ -91,7 +110,7 @@ export default function WorkoutSessionPage({ params, searchParams }: WorkoutSess
 
         const lastSessionId = lastSessionData ? lastSessionData.id : null;
 
-        // 3. Fetch last set data for each exercise using the lastSessionId
+        // 4. Fetch last set data for each exercise using the lastSessionId
         const lastSetsData: Record<string, { weight_kg: number | null, reps: number | null, time_seconds: number | null }> = {};
         for (const ex of fetchedExercises) {
           if (lastSessionId) { // Only fetch last set if a previous session exists
@@ -117,12 +136,12 @@ export default function WorkoutSessionPage({ params, searchParams }: WorkoutSess
           }
         }
 
-        // 4. Create a new workout session entry
+        // 5. Create a new workout session entry
         const { data: sessionData, error: sessionError } = await supabase
           .from('workout_sessions')
           .insert({
             user_id: session.user.id,
-            template_name: templateWithExercise.template_name, // Use the fetched template name
+            template_name: templateData.template_name, // Use the fetched template name
             session_date: new Date().toISOString(),
           })
           .select('id')
@@ -134,7 +153,7 @@ export default function WorkoutSessionPage({ params, searchParams }: WorkoutSess
         setCurrentSessionId(sessionData.id);
         setSessionStartTime(new Date()); // Set the start time when the session is created
 
-        // 5. Initialize sets for each exercise with last set data
+        // 6. Initialize sets for each exercise with last set data
         const initialSets: Record<string, SetLogState[]> = {};
         fetchedExercises.forEach(ex => {
           const lastSet = lastSetsData[ex.id];
