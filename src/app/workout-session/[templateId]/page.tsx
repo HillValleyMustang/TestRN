@@ -13,7 +13,7 @@ import { Dumbbell, Info, Lightbulb, Plus, CheckCircle2, Trophy } from 'lucide-re
 import { Tables, TablesInsert, TablesUpdate } from '@/types/supabase';
 import { ExerciseHistoryDialog } from '@/components/exercise-history-dialog';
 import { ExerciseInfoDialog } from '@/components/exercise-info-dialog';
-import { ExerciseProgressionDialog } from '@/components/exercise-progression-dialog'; // Import the new component
+import { ExerciseProgressionDialog } from '@/components/exercise-progression-dialog';
 
 type WorkoutTemplate = Tables<'workout_templates'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -36,7 +36,7 @@ interface SetLogState extends SetLogInsert {
 // Explicitly define the props for the page component using Record<string, string> for params
 interface WorkoutSessionPageProps {
   params: Record<string, string>;
-  searchParams: Readonly<Record<string, string | string[] | undefined>>;
+  searchParams: Record<string, string | string[] | undefined>; // Removed Readonly
 }
 
 export default function WorkoutSessionPage({ params, searchParams }: WorkoutSessionPageProps) {
@@ -330,7 +330,7 @@ export default function WorkoutSessionPage({ params, searchParams }: WorkoutSess
       console.error("Error saving duration:", updateError);
     } else {
       toast.success("Workout session finished and duration saved!");
-      router.push('/dashboard'); // Redirect to dashboard
+      router.push(`/workout-summary/${currentSessionId}`); // Redirect to summary page
     }
   };
 
