@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Dumbbell, Info, Lightbulb, Plus, CheckCircle2, Trophy } from 'lucide-react';
 import { Tables, TablesInsert, TablesUpdate } from '@/types/supabase';
-import { ExerciseHistoryDialog } from '@/components/exercise-history-dialog'; // Import the new component
+import { ExerciseHistoryDialog } from '@/components/exercise-history-dialog';
 
 type WorkoutTemplate = Tables<'workout_templates'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -26,19 +26,16 @@ interface SetLogState extends SetLogInsert {
   lastTimeSeconds?: number | null;
 }
 
-// Explicitly define the props for the page component
+// Explicitly define the props for the page component using Record<string, string> for params
 interface WorkoutSessionPageProps {
-  params: {
-    templateId: string;
-  };
-  // searchParams is part of Next.js PageProps, even if not used
+  params: Record<string, string>;
   searchParams?: { [key: string]: string | string[] | undefined };
 }
 
 export default function WorkoutSessionPage({ params }: WorkoutSessionPageProps) {
   const { session, supabase } = useSession();
   const router = useRouter();
-  const { templateId } = params;
+  const { templateId } = params; // Destructure templateId here
 
   const [workoutTemplate, setWorkoutTemplate] = useState<WorkoutTemplate | null>(null);
   const [exercisesForTemplate, setExercisesForTemplate] = useState<ExerciseDefinition[]>([]);
