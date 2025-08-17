@@ -17,6 +17,16 @@ import { PlusCircle, Edit, Trash2, XCircle, GripVertical } from "lucide-react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type WorkoutTemplate = Tables<'workout_templates'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -47,6 +57,8 @@ export default function ManageTemplatesPage() {
   const [loading, setLoading] = useState(true);
   const [editingTemplate, setEditingTemplate] = useState<WorkoutTemplate | null>(null);
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState("");
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<WorkoutTemplate | null>(null);
 
   const form = useForm<z.infer<typeof workoutTemplateSchema>>({
     resolver: zodResolver(workoutTemplateSchema),
@@ -112,11 +124,22 @@ export default function ManageTemplatesPage() {
     await fetchData();
   }
 
-  const handleDeleteTemplate = async (id: string) => {
-    if (!confirm("Delete this template?")) return;
-    const { error } = await supabase.from('workout_templates').delete().eq('id', id);
-    if (error) toast.error("Delete failed");
-    else { toast.success("Template deleted"); await fetchData(); }
+  const handleDeleteClick = (template: WorkoutTemplate) => {
+    setTemplateToDelete(template);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteTemplate = async () => {
+    if (!templateToDelete) return;
+    const { error } = await supabase.from('workout_templates').delete().eq('id', templateToDelete.id);
+    if (error) {
+      toast.error("Delete failed: " + error.message);
+    } else {
+      toast.success("Template deleted");
+      await fetchData();
+    }
+    setIsDeleteDialogOpen(false);
+    setTemplateToDelete(null);
   };
 
   function handleDragEnd(event: any) {
@@ -134,65 +157,81 @@ export default function ManageTemplatesPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <header className="mb-4"><h1 className="text-3xl font-bold">Manage Templates</h1></header>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1">
-          <Card>
-            <CardHeader><CardTitle>{editingTemplate ? "Edit Template" : "Create New Template"}</CardTitle></CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField control={form.control} name="template_name" render={({ field }) => ( <FormItem> <FormLabel>Template Name</FormLabel> <FormControl> <Input {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
-                  <FormItem>
-                    <FormLabel>Exercises</FormLabel>
-                    <div className="flex gap-2">
-                      <Select onValueChange={setSelectedExerciseToAdd} value={selectedExerciseToAdd}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Add exercise" /></SelectTrigger></FormControl>
-                        <SelectContent>{allExercises.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}</SelectContent>
-                      </Select>
-                      <Button type="button" onClick={handleAddExercise}>Add</Button>
+    <>
+      <div className="flex flex-col gap-4">
+        <header className="mb-4"><h1 className="text-3xl font-bold">Manage Templates</h1></header>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-1">
+            <Card>
+              <CardHeader><CardTitle>{editingTemplate ? "Edit Template" : "Create New Template"}</CardTitle></CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField control={form.control} name="template_name" render={({ field }) => ( <FormItem> <FormLabel>Template Name</FormLabel> <FormControl> <Input {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
+                    <FormItem>
+                      <FormLabel>Exercises</FormLabel>
+                      <div className="flex gap-2">
+                        <Select onValueChange={setSelectedExerciseToAdd} value={selectedExerciseToAdd}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Add exercise" /></SelectTrigger></FormControl>
+                          <SelectContent>{allExercises.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                        <Button type="button" onClick={handleAddExercise}>Add</Button>
+                      </div>
+                    </FormItem>
+                    <ScrollArea className="h-64 border rounded-md p-2">
+                      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                        <SortableContext items={selectedExercises.map(e => e.id)} strategy={verticalListSortingStrategy}>
+                          <ul className="space-y-2">{selectedExercises.map(e => <SortableExerciseItem key={e.id} exercise={e} onRemove={handleRemoveExercise} />)}</ul>
+                        </SortableContext>
+                      </DndContext>
+                    </ScrollArea>
+                    <div className="flex gap-2 pt-2">
+                      <Button type="submit" className="flex-1">{editingTemplate ? "Update" : "Create"}</Button>
+                      {editingTemplate && <Button type="button" variant="outline" onClick={handleCancelEdit}>Cancel</Button>}
                     </div>
-                  </FormItem>
-                  <ScrollArea className="h-64 border rounded-md p-2">
-                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                      <SortableContext items={selectedExercises.map(e => e.id)} strategy={verticalListSortingStrategy}>
-                        <ul className="space-y-2">{selectedExercises.map(e => <SortableExerciseItem key={e.id} exercise={e} onRemove={handleRemoveExercise} />)}</ul>
-                      </SortableContext>
-                    </DndContext>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader><CardTitle>My Templates</CardTitle></CardHeader>
+              <CardContent>
+                {loading ? <p>Loading...</p> : (
+                  <ScrollArea className="h-[600px] pr-4">
+                    <ul className="space-y-2">
+                      {templates.map(t => (
+                        <li key={t.id} className="flex items-center justify-between p-2 border rounded-md">
+                          <span>{t.template_name}</span>
+                          <div className="flex space-x-1">
+                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(t)}><Edit className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(t)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
                   </ScrollArea>
-                  <div className="flex gap-2 pt-2">
-                    <Button type="submit" className="flex-1">{editingTemplate ? "Update" : "Create"}</Button>
-                    {editingTemplate && <Button type="button" variant="outline" onClick={handleCancelEdit}>Cancel</Button>}
-                  </div>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-        </div>
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader><CardTitle>My Templates</CardTitle></CardHeader>
-            <CardContent>
-              {loading ? <p>Loading...</p> : (
-                <ScrollArea className="h-[600px] pr-4">
-                  <ul className="space-y-2">
-                    {templates.map(t => (
-                      <li key={t.id} className="flex items-center justify-between p-2 border rounded-md">
-                        <span>{t.template_name}</span>
-                        <div className="flex space-x-1">
-                          <Button variant="ghost" size="icon" onClick={() => handleEditClick(t)}><Edit className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteTemplate(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </ScrollArea>
-              )}
-            </CardContent>
-          </Card>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
-    </div>
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the template "{templateToDelete?.template_name}".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setTemplateToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteTemplate}>Continue</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
