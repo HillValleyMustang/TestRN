@@ -263,18 +263,18 @@ export default function DashboardPage() {
         <h1 className="text-3xl font-bold">Welcome back, {session.user?.user_metadata?.first_name || session.user?.email?.split('@')[0] || 'Athlete'}!</h1>
       </header>
 
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"> {/* Changed to responsive grid */}
+      <section className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8"> {/* Changed to grid-cols-2 for mobile, lg:grid-cols-3 for larger */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1"> {/* Reduced padding */}
             <CardTitle className="text-sm font-medium">Workout Streak</CardTitle>
             <CalendarDays className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3"> {/* Reduced padding */}
             {loadingKPIs ? (
               <p className="text-sm text-muted-foreground">Loading...</p>
             ) : (
               <>
-                <div className="text-2xl font-bold">{workoutStreak} Days</div>
+                <div className="text-xl font-bold">{workoutStreak} Days</div> {/* Slightly smaller font */}
                 <p className="text-xs text-muted-foreground">Keep it up!</p>
               </>
             )}
@@ -282,16 +282,16 @@ export default function DashboardPage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1"> {/* Reduced padding */}
             <CardTitle className="text-sm font-medium">Weekly Volume</CardTitle>
             <Dumbbell className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3"> {/* Reduced padding */}
             {loadingKPIs ? (
               <p className="text-sm text-muted-foreground">Loading...</p>
             ) : (
               <>
-                <div className="text-2xl font-bold">{dynamicWeeklyVolume.toLocaleString()} kg</div>
+                <div className="text-xl font-bold">{dynamicWeeklyVolume.toLocaleString()} kg</div> {/* Slightly smaller font */}
                 <p className="text-xs text-muted-foreground flex items-center">
                   {/* This change is still static, as calculating percentage change requires previous week's data */}
                   {weeklyVolumeChange > 0 ? (
@@ -307,16 +307,16 @@ export default function DashboardPage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1"> {/* Reduced padding */}
             <CardTitle className="text-sm font-medium">Personal Records</CardTitle>
             <Trophy className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3"> {/* Reduced padding */}
             {loadingKPIs ? (
               <p className="text-sm text-muted-foreground">Loading...</p>
             ) : (
               <>
-                <div className="text-2xl font-bold">{dynamicPersonalRecords} PRs</div>
+                <div className="text-xl font-bold">{dynamicPersonalRecords} PRs</div> {/* Slightly smaller font */}
                 <p className="text-xs text-muted-foreground">New milestones achieved!</p>
               </>
             )}
