@@ -5,12 +5,11 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { ActionHub } from '@/components/dashboard/action-hub';
-import { toast } from 'sonner';
 
 export default function DashboardPage() {
   const { session, supabase } = useSession();
   const router = useRouter();
-  const [athleteInitials, setAthleteInitials] = useState<string>('');
+  const [welcomeName, setWelcomeName] = useState<string>('');
 
   useEffect(() => {
     if (!session) {
@@ -20,20 +19,25 @@ export default function DashboardPage() {
 
     const fetchProfileData = async () => {
       try {
-        const { data: profileData } = await supabase
+        const { data: profileData, error } = await supabase
           .from('profiles')
           .select('first_name, last_name')
           .eq('id', session.user.id)
           .single();
         
+        if (error && error.code !== 'PGRST116') throw error;
+
         const firstName = profileData?.first_name;
-        const lastName = profileData?.last_name;
-        const userInitials = `${firstName ? firstName[0] : ''}${lastName ? lastName[0] : ''}`.toUpperCase();
-        setAthleteInitials(userInitials || session.user?.email?.[0].toUpperCase() || 'X');
+        if (firstName) {
+          setWelcomeName(firstName);
+        } else {
+          const userInitials = `${profileData?.first_name ? profileData.first_name[0] : ''}${profileData?.last_name ? profileData.last_name[0] : ''}`.toUpperCase();
+          setWelcomeName(`Athlete ${userInitials || session.user?.email?.[0].toUpperCase() || ''}`);
+        }
 
       } catch (err: any) {
         console.error("Error fetching profile data:", err);
-        toast.error("Failed to load profile data.");
+        setWelcomeName("Athlete"); // Fallback
       }
     };
 
@@ -47,17 +51,11 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-8">
       <header>
-        <h1 className="text-3xl font-bold">Welcome Back, Athlete {athleteInitials}</h1>
+        <h1 className="text-3xl font-bold">Welcome Back, {welcomeName}</h1>
         <p className="text-muted-foreground">Ready to Train? Let's get Started!</p>
       </header>
 
       <ActionHub />
-
-      <section>
-        <h2 className="text-2xl font-bold mb-4">Start a Workout</h2>
-        {/* Placeholder for workout templates - can be refactored later */}
-        <p className="text-muted-foreground">Select a workout template below or start an ad-hoc session.</p>
-      </section>
 
       <MadeWithDyad />
     </div>

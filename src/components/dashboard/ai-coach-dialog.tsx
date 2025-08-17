@@ -1,16 +1,20 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Bot } from "lucide-react";
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { ScrollArea } from '../ui/scroll-area';
 
-export const AiCoachDialog = () => {
+interface AiCoachDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
   const { supabase } = useSession();
-  const [open, setOpen] = useState(false);
   const [analysis, setAnalysis] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -37,14 +41,15 @@ export const AiCoachDialog = () => {
     }
   };
 
+  useEffect(() => {
+    if (!open) {
+      setAnalysis("");
+      setLoading(false);
+    }
+  }, [open]);
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="lg" className="w-full h-24 text-lg">
-          <Sparkles className="mr-2 h-6 w-6" />
-          AI Coach
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center">
