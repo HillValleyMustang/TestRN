@@ -14,7 +14,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from 'sonner';
-import { ArrowLeft } from 'lucide-react';
 import { Tables, TablesUpdate } from '@/types/supabase';
 
 type Profile = Tables<'profiles'>;
@@ -93,12 +92,12 @@ export default function ProfilePage() {
       weight_kg: values.weight_kg,
       primary_goal: values.primary_goal,
       health_notes: values.health_notes,
-      updated_at: new Date().toISOString(), // Add updated_at timestamp
+      updated_at: new Date().toISOString(),
     };
 
     const { error } = await supabase
       .from('profiles')
-      .upsert(updateData, { onConflict: 'id' }) // Use upsert to insert if not exists, update if exists
+      .upsert({ ...updateData, id: session.user.id }, { onConflict: 'id' })
       .eq('id', session.user.id);
 
     if (error) {
@@ -106,29 +105,25 @@ export default function ProfilePage() {
       console.error("Error updating profile:", error);
     } else {
       toast.success("Profile updated successfully!");
-      // Re-fetch profile to ensure UI is in sync, or update state directly
       setProfile(prev => ({ ...prev, ...updateData } as Profile));
     }
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
+      <div className="flex items-center justify-center">
         <p>Loading profile...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-4 sm:p-8">
-      <header className="mb-8 flex justify-between items-center">
+    <div className="flex flex-col gap-4">
+      <header className="mb-4">
         <h1 className="text-3xl font-bold">My Profile</h1>
-        <Button variant="outline" onClick={() => router.push('/dashboard')}>
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
-        </Button>
       </header>
 
-      <Card className="max-w-2xl mx-auto">
+      <Card className="max-w-2xl">
         <CardHeader>
           <CardTitle>Personal Information</CardTitle>
         </CardHeader>
@@ -143,7 +138,7 @@ export default function ProfilePage() {
                     <FormItem>
                       <FormLabel>First Name</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input {...field} value={field.value ?? ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -156,7 +151,7 @@ export default function ProfilePage() {
                     <FormItem>
                       <FormLabel>Last Name</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input {...field} value={field.value ?? ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

@@ -1,0 +1,55 @@
+"use client";
+
+import Link from "next/link";
+import { Home, Dumbbell, LayoutTemplate, History, User, BarChart3, PanelLeft, Plus } from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { UserNav } from "./user-nav";
+import { NotificationBell } from "./notification-bell";
+import { ActivityLoggingDialog } from "../activity-logging-dialog";
+import { ManageExercisesDialog } from "../manage-exercises-dialog";
+import { ManageWorkoutTemplatesDialog } from "../manage-workout-templates-dialog";
+
+const mobileNavLinks = [
+  { href: "/dashboard", label: "Dashboard", icon: Home },
+  { href: "/workout-history", label: "Workout History", icon: History },
+  { href: "/activity-logs", label: "Activity Logs", icon: BarChart3 },
+  { href: "/profile", label: "My Profile", icon: User },
+];
+
+export function Header() {
+  return (
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button size="icon" variant="outline" className="sm:hidden">
+            <PanelLeft className="h-5 w-5" />
+            <span className="sr-only">Toggle Menu</span>
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="sm:max-w-xs">
+          <nav className="grid gap-6 text-lg font-medium">
+            {mobileNavLinks.map(link => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+              >
+                <link.icon className="h-5 w-5" />
+                {link.label}
+              </Link>
+            ))}
+            <hr className="my-2" />
+            <ActivityLoggingDialog />
+            <ManageExercisesDialog />
+            <ManageWorkoutTemplatesDialog />
+          </nav>
+        </SheetContent>
+      </Sheet>
+      <div className="relative ml-auto flex flex-1 items-center justify-end gap-2 md:grow-0">
+        <NotificationBell />
+        <UserNav />
+      </div>
+    </header>
+  );
+}
