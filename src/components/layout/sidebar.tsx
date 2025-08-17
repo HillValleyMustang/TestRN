@@ -27,16 +27,18 @@ export function Sidebar() {
           return (
             <Tooltip key={link.href}>
               <TooltipTrigger asChild>
-                <Link
-                  href={link.href}
-                  className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8",
-                    isActive && "bg-accent text-accent-foreground"
-                  )}
-                >
-                  <Icon className="h-5 w-5" />
-                  <span className="sr-only">{link.label}</span>
-                </Link>
+                <div>
+                  <Link
+                    href={link.href}
+                    className={cn(
+                      "flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8",
+                      isActive && "bg-accent text-accent-foreground"
+                    )}
+                  >
+                    <Icon className="h-5 w-5" />
+                    <span className="sr-only">{link.label}</span>
+                  </Link>
+                </div>
               </TooltipTrigger>
               <TooltipContent side="right">{link.label}</TooltipContent>
             </Tooltip>
