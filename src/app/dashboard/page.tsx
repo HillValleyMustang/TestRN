@@ -6,7 +6,7 @@ import { useSession } from '@/components/session-context-provider';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowUp, ArrowDown, Trophy, Dumbbell, CalendarDays, LinkIcon, LayoutTemplate, History } from 'lucide-react';
+import { ArrowUp, ArrowDown, Trophy, Dumbbell, CalendarDays, LinkIcon, LayoutTemplate, History, Plus } from 'lucide-react';
 import { ActivityLoggingDialog } from '@/components/activity-logging-dialog';
 import { ManageExercisesDialog } from '@/components/manage-exercises-dialog';
 import { ManageWorkoutTemplatesDialog } from '@/components/manage-workout-templates-dialog';
@@ -371,6 +371,9 @@ export default function DashboardPage() {
             </Button>
             <Button variant="ghost" className="justify-start" onClick={() => router.push('/workout-history')}>
               <History className="h-4 w-4 mr-2" /> View Workout History
+            </Button>
+            <Button variant="ghost" className="justify-start" onClick={() => router.push('/workout-session/ad-hoc')}>
+              <Plus className="h-4 w-4 mr-2" /> Start Ad-Hoc Workout
             </Button>
           </CardContent>
         </Card>
