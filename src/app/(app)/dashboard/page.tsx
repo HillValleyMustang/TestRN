@@ -6,7 +6,7 @@ import { useSession } from '@/components/session-context-provider';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowUp, ArrowDown, Trophy, Dumbbell, CalendarDays, Plus } from 'lucide-react';
+import { ArrowUp, ArrowDown, Trophy, Dumbbell } from 'lucide-react';
 import { WeeklyVolumeChart } from '@/components/dashboard/weekly-volume-chart';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
@@ -15,7 +15,6 @@ type WorkoutTemplate = Tables<'workout_templates'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
-type ActivityLog = Tables<'activity_logs'>;
 
 type TemplateExerciseJoin = Tables<'template_exercises'> & {
   exercise_definitions: Tables<'exercise_definitions'> | null;
@@ -36,9 +35,9 @@ export default function DashboardPage() {
   const [myWorkouts, setMyWorkouts] = useState<WorkoutTemplateDisplay[]>([]);
   const [loadingWorkouts, setLoadingWorkouts] = useState(true);
 
-  const [dynamicWeeklyVolume, setDynamicWeeklyVolume] = useState<number>(0);
-  const [dynamicPersonalRecords, setDynamicPersonalRecords] = useState<number>(0);
-  const [workoutStreak, setWorkoutStreak] = useState<number>(0);
+  const [athleteInitials, setAthleteInitials] = useState<string>('');
+  const [weeklyVolume, setWeeklyVolume] = useState<number>(0);
+  const [weeklyPRs, setWeeklyPRs] = useState<number>(0);
   const [loadingKPIs, setLoadingKPIs] = useState(true);
 
   useEffect(() => {
@@ -51,33 +50,35 @@ export default function DashboardPage() {
       setLoadingWorkouts(true);
       setLoadingKPIs(true);
       try {
+        // Fetch profile for initials
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', session.user.id)
+          .single();
+        
+        const firstName = profileData?.first_name;
+        const lastName = profileData?.last_name;
+        const userInitials = `${firstName ? firstName[0] : ''}${lastName ? lastName[0] : ''}`.toUpperCase();
+        setAthleteInitials(userInitials || session.user?.email?.[0].toUpperCase() || 'X');
+
+        // Fetch workout templates
         const { data: templatesData, error: templatesError } = await supabase
           .from('workout_templates')
-          .select(`
-            *,
-            template_exercises (
-              order_index,
-              exercise_definitions (
-                id, name, main_muscle, type, category, description, pro_tip, video_url
-              )
-            )
-          `)
+          .select(`*, template_exercises (*, exercise_definitions (*))`)
           .eq('user_id', session.user.id)
           .order('created_at', { ascending: false });
 
-        if (templatesError) {
-          throw new Error(templatesError.message);
-        }
+        if (templatesError) throw new Error(templatesError.message);
 
+        // Fetch all sessions for last completed date and KPIs
         const { data: sessionsData, error: sessionsError } = await supabase
           .from('workout_sessions')
           .select('template_name, session_date, id')
           .eq('user_id', session.user.id)
           .order('session_date', { ascending: false });
 
-        if (sessionsError) {
-          throw new Error(sessionsError.message);
-        }
+        if (sessionsError) throw new Error(sessionsError.message);
 
         const lastCompletedMap = new Map<string, string>();
         sessionsData.forEach(session => {
@@ -86,111 +87,61 @@ export default function DashboardPage() {
           }
         });
 
-        const processedWorkouts: WorkoutTemplateDisplay[] = templatesData.map(template => {
-          const exercises = (template.template_exercises as TemplateExerciseJoin[] || [])
-            .filter((te: TemplateExerciseJoin) => te.exercise_definitions !== null)
-            .map((te: TemplateExerciseJoin) => te.exercise_definitions as ExerciseDefinition)
-            .sort((a: ExerciseDefinition, b: ExerciseDefinition) => {
-              const orderA = (template.template_exercises as TemplateExerciseJoin[])?.find((te: TemplateExerciseJoin) => te.exercise_definitions?.id === a.id)?.order_index || 0;
-              const orderB = (template.template_exercises as TemplateExerciseJoin[])?.find((te: TemplateExerciseJoin) => te.exercise_definitions?.id === b.id)?.order_index || 0;
-              return orderA - orderB;
-            });
-
-          return {
-            ...template,
-            exercises: exercises,
-            lastCompleted: lastCompletedMap.get(template.template_name || '') || 'Never',
-          };
-        });
-
+        const processedWorkouts: WorkoutTemplateDisplay[] = templatesData.map(template => ({
+          ...template,
+          exercises: (template.template_exercises as any[] || [])
+            .map(te => te.exercise_definitions)
+            .filter(Boolean),
+          lastCompleted: lastCompletedMap.get(template.template_name) || 'Never',
+        }));
         setMyWorkouts(processedWorkouts);
 
+        // Calculate KPIs for the last 7 days
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         sevenDaysAgo.setHours(0, 0, 0, 0);
 
-        let totalWeeklyVolume = 0;
         const recentSessionIds = sessionsData
           .filter(session => new Date(session.session_date) >= sevenDaysAgo)
           .map(session => session.id);
 
+        let totalWeeklyVolume = 0;
         if (recentSessionIds.length > 0) {
           const { data: recentSetLogs, error: setLogsError } = await supabase
             .from('set_logs')
-            .select(`*, exercise_definitions (*)`)
+            .select(`*, exercise_definitions (type)`)
             .in('session_id', recentSessionIds);
 
-          if (setLogsError) {
-            console.error("Error fetching recent set logs for volume:", setLogsError.message);
-          } else {
+          if (setLogsError) console.error("Error fetching recent set logs:", setLogsError.message);
+          else {
             totalWeeklyVolume = (recentSetLogs as SetLogWithExerciseDefinition[]).reduce((sum, log) => {
-              const exerciseType = log.exercise_definitions?.type;
-              if (exerciseType === 'weight') {
-                const weight = log.weight_kg || 0;
-                const reps = log.reps || 0;
-                return sum + (weight * reps);
+              if (log.exercise_definitions?.type === 'weight') {
+                return sum + ((log.weight_kg || 0) * (log.reps || 0));
               }
               return sum;
             }, 0);
           }
         }
-        setDynamicWeeklyVolume(totalWeeklyVolume);
+        setWeeklyVolume(totalWeeklyVolume);
 
-        const { data: prActivityLogs, error: prError } = await supabase
-          .from('activity_logs')
-          .select('id')
-          .eq('user_id', session.user.id)
-          .eq('is_pb', true);
-
-        if (prError) {
-          console.error("Error fetching PR activity logs:", prError.message);
-        } else {
-          setDynamicPersonalRecords(prActivityLogs.length);
+        let workoutPRs = 0;
+        if (recentSessionIds.length > 0) {
+            const { count } = await supabase
+                .from('set_logs')
+                .select('id', { count: 'exact', head: true })
+                .in('session_id', recentSessionIds)
+                .eq('is_pb', true);
+            workoutPRs = count || 0;
         }
 
-        let currentWorkoutStreak = 0;
-        const { data: allUserSessions, error: allUserSessionsError } = await supabase
-          .from('workout_sessions')
-          .select('session_date')
-          .eq('user_id', session.user.id)
-          .order('session_date', { ascending: false });
+        const { count: activityPRs } = await supabase
+            .from('activity_logs')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', session.user.id)
+            .eq('is_pb', true)
+            .gte('log_date', sevenDaysAgo.toISOString());
 
-        if (allUserSessionsError) {
-          console.error("Error fetching all sessions for streak:", allUserSessionsError.message);
-        } else if (allUserSessions && allUserSessions.length > 0) {
-          const uniqueDates = new Set(allUserSessions.map(s => new Date(s.session_date).toISOString().split('T')[0]));
-          const sortedUniqueDates = Array.from(uniqueDates).sort();
-
-          let streak = 0;
-          let lastDate: Date | null = null;
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-
-          for (let i = sortedUniqueDates.length - 1; i >= 0; i--) {
-            const sessionDate = new Date(sortedUniqueDates[i]);
-            sessionDate.setHours(0, 0, 0, 0);
-
-            if (i === sortedUniqueDates.length - 1) {
-              const diffFromToday = Math.round(Math.abs(today.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
-              if (diffFromToday <= 1) {
-                streak = 1;
-                lastDate = sessionDate;
-              } else {
-                break;
-              }
-            } else if (lastDate) {
-              const diffDays = Math.round(Math.abs(lastDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
-              if (diffDays === 1) {
-                streak++;
-                lastDate = sessionDate;
-              } else {
-                break;
-              }
-            }
-          }
-          currentWorkoutStreak = streak;
-        }
-        setWorkoutStreak(currentWorkoutStreak);
+        setWeeklyPRs(workoutPRs + (activityPRs || 0));
 
       } catch (err: any) {
         console.error("Error fetching dashboard data:", err);
@@ -208,14 +159,7 @@ export default function DashboardPage() {
     return null;
   }
 
-  const weeklyVolumeChange = 5;
-
-  const upNextWorkout = myWorkouts.length > 0 ? {
-    id: myWorkouts[0].id,
-    name: myWorkouts[0].template_name,
-    exercises: myWorkouts[0].exercises.map(ex => ex.name),
-    lastCompleted: myWorkouts[0].lastCompleted,
-  } : null;
+  const weeklyVolumeChange = 5; // Placeholder for change calculation
 
   const handleStartWorkout = (templateId: string) => {
     router.push(`/workout-session/${templateId}`);
@@ -224,25 +168,10 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-4">
       <header className="mb-4">
-        <h1 className="text-3xl font-bold">Welcome back, {session.user?.user_metadata?.first_name || session.user?.email?.split('@')[0] || 'Athlete'}!</h1>
+        <h1 className="text-3xl font-bold">Welcome Back, Athlete {athleteInitials}</h1>
       </header>
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-            <CardTitle className="text-sm font-medium">Workout Streak</CardTitle>
-            <CalendarDays className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="p-3">
-            {loadingKPIs ? <p className="text-sm text-muted-foreground">Loading...</p> : (
-              <>
-                <div className="text-xl font-bold">{workoutStreak} Days</div>
-                <p className="text-xs text-muted-foreground">Keep it up!</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
+      <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
             <CardTitle className="text-sm font-medium">Weekly Volume</CardTitle>
@@ -251,7 +180,7 @@ export default function DashboardPage() {
           <CardContent className="p-3">
             {loadingKPIs ? <p className="text-sm text-muted-foreground">Loading...</p> : (
               <>
-                <div className="text-xl font-bold">{dynamicWeeklyVolume.toLocaleString()} kg</div>
+                <div className="text-xl font-bold">{weeklyVolume.toLocaleString()} kg</div>
                 <p className="text-xs text-muted-foreground flex items-center">
                   {weeklyVolumeChange > 0 ? <ArrowUp className="h-4 w-4 text-green-500 mr-1" /> : <ArrowDown className="h-4 w-4 text-red-500 mr-1" />}
                   {Math.abs(weeklyVolumeChange)}% from last week
@@ -263,14 +192,14 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-            <CardTitle className="text-sm font-medium">Personal Records</CardTitle>
+            <CardTitle className="text-sm font-medium">Weekly PR's</CardTitle>
             <Trophy className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-3">
             {loadingKPIs ? <p className="text-sm text-muted-foreground">Loading...</p> : (
               <>
-                <div className="text-xl font-bold">{dynamicPersonalRecords} PRs</div>
-                <p className="text-xs text-muted-foreground">New milestones achieved!</p>
+                <div className="text-xl font-bold">{weeklyPRs} PRs</div>
+                <p className="text-xs text-muted-foreground">New milestones this week!</p>
               </>
             )}
           </CardContent>

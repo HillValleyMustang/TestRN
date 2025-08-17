@@ -9,6 +9,7 @@ import { NotificationBell } from "./notification-bell";
 import { ActivityLoggingDialog } from "../activity-logging-dialog";
 import { ManageExercisesDialog } from "../manage-exercises-dialog";
 import { ManageWorkoutTemplatesDialog } from "../manage-workout-templates-dialog";
+import { StreakPill } from "./streak-pill";
 
 const mobileNavLinks = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -47,6 +48,7 @@ export function Header() {
         </SheetContent>
       </Sheet>
       <div className="relative ml-auto flex flex-1 items-center justify-end gap-2 md:grow-0">
+        <StreakPill />
         <NotificationBell />
         <UserNav />
       </div>
