@@ -24,7 +24,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { WorkoutLogModal } from './workout-log-modal';
 import { ConsistencyCalendarModal } from './consistency-calendar-modal';
-import { StartWorkoutModal } from './start-workout-modal';
 
 export const ActionHub = () => {
   const router = useRouter();
@@ -32,7 +31,6 @@ export const ActionHub = () => {
   const [isAiCoachOpen, setIsAiCoachOpen] = useState(false);
   const [isWorkoutLogOpen, setIsWorkoutLogOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [isStartWorkoutOpen, setIsStartWorkoutOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
   return (
@@ -71,7 +69,7 @@ export const ActionHub = () => {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => setIsStartWorkoutOpen(true)}>
+            <DropdownMenuItem onSelect={() => router.push('/start-workout')}>
               <Dumbbell className="mr-2 h-4 w-4" />
               <span>Start Workout</span>
             </DropdownMenuItem>
@@ -91,7 +89,6 @@ export const ActionHub = () => {
       <AiCoachDialog open={isAiCoachOpen} onOpenChange={setIsAiCoachOpen} />
       <WorkoutLogModal open={isWorkoutLogOpen} onOpenChange={setIsWorkoutLogOpen} />
       <ConsistencyCalendarModal open={isCalendarOpen} onOpenChange={setIsCalendarOpen} />
-      <StartWorkoutModal open={isStartWorkoutOpen} onOpenChange={setIsStartWorkoutOpen} />
     </>
   );
 };

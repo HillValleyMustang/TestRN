@@ -7,9 +7,9 @@ import { cn } from "@/lib/utils";
 
 const navLinks = [
   { href: "/dashboard", label: "Home", icon: Home },
-  { href: "/workout-history", label: "Workout", icon: Dumbbell },
+  { href: "/start-workout", label: "Workout", icon: Dumbbell },
   { href: "/manage-exercises", label: "Exercises", icon: BookOpen },
-  { href: "/activity-logs", label: "Progress", icon: BarChart3 },
+  { href: "/progress", label: "Progress", icon: BarChart3 },
   { href: "/profile", label: "Profile", icon: User },
 ];
 

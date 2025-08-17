@@ -9,7 +9,6 @@ import { UserNav } from "./user-nav";
 import { NotificationBell } from "./notification-bell";
 import { ActivityLoggingDialog } from "../activity-logging-dialog";
 import { StreakPill } from "./streak-pill";
-import { StartWorkoutModal } from "../dashboard/start-workout-modal";
 
 const mobileNavLinks = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -22,7 +21,6 @@ const mobileNavLinks = [
 
 export function Header() {
   const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
-  const [isStartWorkoutOpen, setIsStartWorkoutOpen] = useState(false);
 
   return (
     <>
@@ -47,10 +45,13 @@ export function Header() {
                 </Link>
               ))}
               <hr className="my-2" />
-              <Button variant="ghost" className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground justify-start text-lg font-medium" onClick={() => setIsStartWorkoutOpen(true)}>
+              <Link
+                href="/start-workout"
+                className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+              >
                 <Dumbbell className="h-5 w-5" />
                 Start Workout
-              </Button>
+              </Link>
               <Button variant="ghost" className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground justify-start text-lg font-medium" onClick={() => setIsActivityLogOpen(true)}>
                 <Plus className="h-5 w-5" />
                 Log Activity
@@ -66,7 +67,6 @@ export function Header() {
       </header>
 
       <ActivityLoggingDialog open={isActivityLogOpen} onOpenChange={setIsActivityLogOpen} />
-      <StartWorkoutModal open={isStartWorkoutOpen} onOpenChange={setIsStartWorkoutOpen} />
     </>
   );
 }
