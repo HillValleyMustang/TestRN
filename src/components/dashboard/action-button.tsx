@@ -9,10 +9,9 @@ interface ActionButtonProps {
   icon: React.ReactNode;
   onClick?: () => void;
   className?: string;
-  hideTextOnMobile?: boolean;
 }
 
-export const ActionButton = ({ title, icon, onClick, className, hideTextOnMobile = false }: ActionButtonProps) => {
+export const ActionButton = ({ title, icon, onClick, className }: ActionButtonProps) => {
   return (
     <Button
       variant="outline"
@@ -24,7 +23,7 @@ export const ActionButton = ({ title, icon, onClick, className, hideTextOnMobile
       )}
     >
       {icon}
-      <span className={cn({ "hidden sm:block": hideTextOnMobile })}>{title}</span>
+      <span>{title}</span>
     </Button>
   );
 };

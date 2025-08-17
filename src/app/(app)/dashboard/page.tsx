@@ -50,7 +50,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-8">
       <header>
         <h1 className="text-3xl font-bold">Welcome Back, {welcomeName}</h1>
         <p className="text-muted-foreground">Ready to Train? Let's get Started!</p>
