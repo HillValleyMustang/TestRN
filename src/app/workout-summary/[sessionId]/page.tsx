@@ -130,12 +130,18 @@ export default function WorkoutSummaryPage({ params }: { params: { sessionId: st
   // Group set logs by exercise
   const exercisesWithGroupedSets = setLogs.reduce((acc, log) => {
     const exerciseName = log.exercise_definitions?.name || 'Unknown Exercise';
-    if (!acc[exerciseName]) {
-      acc[exerciseName] = [];
+    const exerciseId = log.exercise_definitions?.id || 'unknown';
+    if (!acc[exerciseId]) {
+      acc[exerciseId] = {
+        name: exerciseName,
+        type: log.exercise_definitions?.type,
+        category: log.exercise_definitions?.category,
+        sets: [],
+      };
     }
-    acc[exerciseName].push(log);
+    acc[exerciseId].sets.push(log);
     return acc;
-  }, {} as Record<string, SetLogWithExercise[]>);
+  }, {} as Record<string, { name: string; type: ExerciseDefinition['type'] | undefined; category: ExerciseDefinition['category'] | null | undefined; sets: SetLogWithExercise[] }>);
 
   return (
     <div className="min-h-screen bg-background text-foreground p-4 sm:p-8">
@@ -171,36 +177,44 @@ export default function WorkoutSummaryPage({ params }: { params: { sessionId: st
 
       <section className="mb-8">
         <h2 className="text-2xl font-bold mb-4">Exercises Performed</h2>
-        {Object.entries(exercisesWithGroupedSets).length === 0 ? (
+        {Object.values(exercisesWithGroupedSets).length === 0 ? (
           <p className="text-muted-foreground">No exercises logged for this session.</p>
         ) : (
-          Object.entries(exercisesWithGroupedSets).map(([exerciseName, sets]) => (
-            <Card key={exerciseName} className="mb-4">
+          Object.values(exercisesWithGroupedSets).map((exerciseGroup) => (
+            <Card key={exerciseGroup.name} className="mb-4">
               <CardHeader>
-                <CardTitle>{exerciseName}</CardTitle>
+                <CardTitle>{exerciseGroup.name}</CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Set</TableHead>
-                      <TableHead>Weight (kg)</TableHead>
-                      <TableHead>Reps</TableHead>
-                      <TableHead>Time (s)</TableHead>
-                      <TableHead>Reps (L)</TableHead>
-                      <TableHead>Reps (R)</TableHead>
+                      {exerciseGroup.type === 'weight' && <TableHead>Weight (kg)</TableHead>}
+                      {exerciseGroup.type === 'weight' && <TableHead>Reps</TableHead>}
+                      {exerciseGroup.type === 'timed' && <TableHead>Time (s)</TableHead>}
+                      {exerciseGroup.category === 'Unilateral' && (
+                        <>
+                          <TableHead>Reps (L)</TableHead>
+                          <TableHead>Reps (R)</TableHead>
+                        </>
+                      )}
                       <TableHead>PR</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sets.map((set, index) => (
+                    {exerciseGroup.sets.map((set, index) => (
                       <TableRow key={set.id}>
                         <TableCell>{index + 1}</TableCell>
-                        <TableCell>{set.weight_kg ?? '-'}</TableCell>
-                        <TableCell>{set.reps ?? '-'}</TableCell>
-                        <TableCell>{set.time_seconds ?? '-'}</TableCell>
-                        <TableCell>{set.reps_l ?? '-'}</TableCell>
-                        <TableCell>{set.reps_r ?? '-'}</TableCell>
+                        {exerciseGroup.type === 'weight' && <TableCell>{set.weight_kg ?? '-'}</TableCell>}
+                        {exerciseGroup.type === 'weight' && <TableCell>{set.reps ?? '-'}</TableCell>}
+                        {exerciseGroup.type === 'timed' && <TableCell>{set.time_seconds ?? '-'}</TableCell>}
+                        {exerciseGroup.category === 'Unilateral' && (
+                          <>
+                            <TableCell>{set.reps_l ?? '-'}</TableCell>
+                            <TableCell>{set.reps_r ?? '-'}</TableCell>
+                          </>
+                        )}
                         <TableCell>{set.is_pb ? <Trophy className="h-4 w-4 text-yellow-500" /> : '-'}</TableCell>
                       </TableRow>
                     ))}
