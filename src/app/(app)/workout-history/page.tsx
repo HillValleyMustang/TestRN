@@ -6,13 +6,13 @@ import { useSession } from '@/components/session-context-provider';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, History, CalendarDays, Trash2 } from 'lucide-react';
+import { ArrowLeft, Trash2 } from 'lucide-react';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 
 type WorkoutSession = Tables<'workout_sessions'>;
 
-export default function WorkoutLogPage() {
+export default function WorkoutHistoryPage() { // Renamed component
   const { session, supabase } = useSession();
   const router = useRouter();
   const [workoutSessions, setWorkoutSessions] = useState<WorkoutSession[]>([]);
@@ -31,23 +31,26 @@ export default function WorkoutLogPage() {
         .from('workout_sessions')
         .select('*')
         .eq('user_id', session.user.id)
-        .order('session_date', { ascending: false }); // Order by most recent first
+        .order('session_date', { ascending: false });
 
       if (error) {
         throw new Error(error.message);
       }
       setWorkoutSessions(data || []);
     } catch (err: any) {
-      console.error("Failed to fetch workout log:", err);
-      setError(err.message || "Failed to load workout log. Please try again.");
-      toast.error(err.message || "Failed to load workout log.");
+      console.error("Failed to fetch workout history:", err);
+      setError(err.message || "Failed to load workout history. Please try again.");
+      toast.error(err.message || "Failed to load workout history.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchWorkoutHistory();
+    const fetch = async () => {
+      await fetchWorkoutHistory();
+    }
+    fetch();
   }, [session, router, supabase]);
 
   const handleDeleteSession = async (sessionId: string, templateName: string | null) => {
@@ -60,13 +63,13 @@ export default function WorkoutLogPage() {
         .from('workout_sessions')
         .delete()
         .eq('id', sessionId)
-        .eq('user_id', session?.user?.id); // Ensure only the user's own sessions can be deleted
+        .eq('user_id', session?.user?.id);
 
       if (error) {
         throw new Error(error.message);
       }
       toast.success("Workout session deleted successfully!");
-      fetchWorkoutHistory(); // Re-fetch the list to update the UI
+      await fetchWorkoutHistory();
     } catch (err: any) {
       console.error("Failed to delete workout session:", err);
       toast.error("Failed to delete workout session: " + err.message);
@@ -76,7 +79,7 @@ export default function WorkoutLogPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
-        <p>Loading workout log...</p>
+        <p>Loading workout history...</p>
       </div>
     );
   }
@@ -92,7 +95,7 @@ export default function WorkoutLogPage() {
   return (
     <div className="min-h-screen bg-background text-foreground p-4 sm:p-8">
       <header className="mb-8 flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Workout Log</h1>
+        <h1 className="text-3xl font-bold">Workout History</h1> {/* Renamed title */}
         <Button variant="outline" onClick={() => router.push('/dashboard')}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
         </Button>

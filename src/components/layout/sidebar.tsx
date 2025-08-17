@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, History, User, BarChart3 } from "lucide-react";
+import { Home, History, User, BarChart3, Dumbbell, LayoutTemplate } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 const mainNavLinks = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
-  { href: "/workout-log", label: "Workout Log", icon: History },
+  { href: "/workout-history", label: "Workout History", icon: History },
   { href: "/activity-logs", label: "Activity Logs", icon: BarChart3 },
+  { href: "/manage-exercises", label: "Manage Exercises", icon: Dumbbell },
+  { href: "/manage-templates", label: "Manage Templates", icon: LayoutTemplate },
   { href: "/profile", label: "My Profile", icon: User },
 ];
 

@@ -22,15 +22,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from '@/components/ui/button';
-import { ManageExercisesDialog } from '../manage-exercises-dialog';
-import { ManageWorkoutTemplatesDialog } from '../manage-workout-templates-dialog';
+import { WorkoutLogModal } from './workout-log-modal';
+import { ConsistencyCalendarModal } from './consistency-calendar-modal';
+import { StartWorkoutModal } from './start-workout-modal';
 
 export const ActionHub = () => {
   const router = useRouter();
   const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
   const [isAiCoachOpen, setIsAiCoachOpen] = useState(false);
-  const [isManageExercisesOpen, setIsManageExercisesOpen] = useState(false);
-  const [isManageTemplatesOpen, setIsManageTemplatesOpen] = useState(false);
+  const [isWorkoutLogOpen, setIsWorkoutLogOpen] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isStartWorkoutOpen, setIsStartWorkoutOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
   return (
@@ -49,12 +51,12 @@ export const ActionHub = () => {
         <ActionButton
           title="Workout Log"
           icon={<History className="h-5 w-5" />}
-          onClick={() => router.push('/workout-log')}
+          onClick={() => setIsWorkoutLogOpen(true)}
         />
         <ActionButton
           title="Consistency Calendar"
           icon={<CalendarDays className="h-5 w-5" />}
-          onClick={() => router.push('/consistency-calendar')}
+          onClick={() => setIsCalendarOpen(true)}
           className="col-span-2"
         />
         
@@ -69,15 +71,15 @@ export const ActionHub = () => {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => router.push('/start-workout')}>
+            <DropdownMenuItem onSelect={() => setIsStartWorkoutOpen(true)}>
               <Dumbbell className="mr-2 h-4 w-4" />
               <span>Start Workout</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setIsManageExercisesOpen(true)}>
+            <DropdownMenuItem onSelect={() => router.push('/manage-exercises')}>
               <Dumbbell className="mr-2 h-4 w-4" />
               <span>Manage Exercises</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setIsManageTemplatesOpen(true)}>
+            <DropdownMenuItem onSelect={() => router.push('/manage-templates')}>
               <LayoutTemplate className="mr-2 h-4 w-4" />
               <span>Manage Templates</span>
             </DropdownMenuItem>
@@ -85,18 +87,11 @@ export const ActionHub = () => {
         </DropdownMenu>
       </div>
 
-      <ActivityLoggingDialog
-        open={isActivityLogOpen}
-        onOpenChange={setIsActivityLogOpen}
-      />
-      
-      <AiCoachDialog 
-        open={isAiCoachOpen}
-        onOpenChange={setIsAiCoachOpen}
-      />
-
-      <ManageExercisesDialog open={isManageExercisesOpen} onOpenChange={setIsManageExercisesOpen} />
-      <ManageWorkoutTemplatesDialog open={isManageTemplatesOpen} onOpenChange={setIsManageTemplatesOpen} />
+      <ActivityLoggingDialog open={isActivityLogOpen} onOpenChange={setIsActivityLogOpen} />
+      <AiCoachDialog open={isAiCoachOpen} onOpenChange={setIsAiCoachOpen} />
+      <WorkoutLogModal open={isWorkoutLogOpen} onOpenChange={setIsWorkoutLogOpen} />
+      <ConsistencyCalendarModal open={isCalendarOpen} onOpenChange={setIsCalendarOpen} />
+      <StartWorkoutModal open={isStartWorkoutOpen} onOpenChange={setIsStartWorkoutOpen} />
     </>
   );
 };

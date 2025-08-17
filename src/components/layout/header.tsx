@@ -8,21 +8,21 @@ import { Button } from "@/components/ui/button";
 import { UserNav } from "./user-nav";
 import { NotificationBell } from "./notification-bell";
 import { ActivityLoggingDialog } from "../activity-logging-dialog";
-import { ManageExercisesDialog } from "../manage-exercises-dialog";
-import { ManageWorkoutTemplatesDialog } from "../manage-workout-templates-dialog";
 import { StreakPill } from "./streak-pill";
+import { StartWorkoutModal } from "../dashboard/start-workout-modal";
 
 const mobileNavLinks = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
-  { href: "/workout-log", label: "Workout Log", icon: History },
+  { href: "/workout-history", label: "Workout History", icon: History },
   { href: "/activity-logs", label: "Activity Logs", icon: BarChart3 },
+  { href: "/manage-exercises", label: "Manage Exercises", icon: Dumbbell },
+  { href: "/manage-templates", label: "Manage Templates", icon: LayoutTemplate },
   { href: "/profile", label: "My Profile", icon: User },
 ];
 
 export function Header() {
   const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
-  const [isManageExercisesOpen, setIsManageExercisesOpen] = useState(false);
-  const [isManageTemplatesOpen, setIsManageTemplatesOpen] = useState(false);
+  const [isStartWorkoutOpen, setIsStartWorkoutOpen] = useState(false);
 
   return (
     <>
@@ -47,17 +47,13 @@ export function Header() {
                 </Link>
               ))}
               <hr className="my-2" />
+              <Button variant="ghost" className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground justify-start text-lg font-medium" onClick={() => setIsStartWorkoutOpen(true)}>
+                <Dumbbell className="h-5 w-5" />
+                Start Workout
+              </Button>
               <Button variant="ghost" className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground justify-start text-lg font-medium" onClick={() => setIsActivityLogOpen(true)}>
                 <Plus className="h-5 w-5" />
                 Log Activity
-              </Button>
-              <Button variant="ghost" className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground justify-start text-lg font-medium" onClick={() => setIsManageExercisesOpen(true)}>
-                <Dumbbell className="h-5 w-5" />
-                Manage Exercises
-              </Button>
-              <Button variant="ghost" className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground justify-start text-lg font-medium" onClick={() => setIsManageTemplatesOpen(true)}>
-                <LayoutTemplate className="h-5 w-5" />
-                Manage Templates
               </Button>
             </nav>
           </SheetContent>
@@ -70,8 +66,7 @@ export function Header() {
       </header>
 
       <ActivityLoggingDialog open={isActivityLogOpen} onOpenChange={setIsActivityLogOpen} />
-      <ManageExercisesDialog open={isManageExercisesOpen} onOpenChange={setIsManageExercisesOpen} />
-      <ManageWorkoutTemplatesDialog open={isManageTemplatesOpen} onOpenChange={setIsManageTemplatesOpen} />
+      <StartWorkoutModal open={isStartWorkoutOpen} onOpenChange={setIsStartWorkoutOpen} />
     </>
   );
 }
