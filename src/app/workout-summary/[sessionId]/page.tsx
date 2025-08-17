@@ -18,7 +18,6 @@ type ExerciseDefinition = Tables<'exercise_definitions'>;
 // Define a type for set logs joined with exercise definitions, including is_pb
 type SetLogWithExercise = SetLog & {
   exercise_definitions: ExerciseDefinition | null;
-  is_pb?: boolean; // Add is_pb property for display
 };
 
 interface WorkoutSummaryPageProps {
@@ -80,45 +79,17 @@ export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) 
         let prCount = 0;
         const processedSetLogs: SetLogWithExercise[] = [];
 
-        for (const log of setLogsData) {
+        (setLogsData as SetLogWithExercise[]).forEach(log => {
           const exerciseDef = log.exercise_definitions as ExerciseDefinition;
           if (exerciseDef?.type === 'weight' && log.weight_kg && log.reps) {
             volume += log.weight_kg * log.reps;
           }
 
-          // Re-check PR status for each set log
-          let isCurrentSetPR = false;
-          if (log.exercise_id) {
-            const { data: allPreviousSets, error: fetchPreviousError } = await supabase
-              .from('set_logs')
-              .select('id, weight_kg, reps, time_seconds') // Include 'id' here
-              .eq('exercise_id', log.exercise_id)
-              .order('created_at', { ascending: false });
-
-            if (!fetchPreviousError && allPreviousSets) {
-              // Filter out the current set from comparison
-              const relevantPreviousSets = allPreviousSets.filter(s => s.id !== log.id);
-
-              if (exerciseDef?.type === 'weight') {
-                const currentVolume = (log.weight_kg || 0) * (log.reps || 0);
-                isCurrentSetPR = relevantPreviousSets.every(prevSet => {
-                  const prevVolume = (prevSet.weight_kg || 0) * (prevSet.reps || 0);
-                  return currentVolume > prevVolume;
-                });
-              } else if (exerciseDef?.type === 'timed') {
-                const currentTime = log.time_seconds || Infinity;
-                isCurrentSetPR = relevantPreviousSets.every(prevSet => {
-                  const prevTime = prevSet.time_seconds || Infinity;
-                  return currentTime < prevTime;
-                });
-              }
-            }
-          }
-          if (isCurrentSetPR) {
+          if (log.is_pb) { // Use the is_pb column directly from the database
             prCount++;
           }
-          processedSetLogs.push({ ...log, exercise_definitions: exerciseDef, is_pb: isCurrentSetPR });
-        }
+          processedSetLogs.push({ ...log, exercise_definitions: exerciseDef });
+        });
         
         setSetLogs(processedSetLogs);
         setTotalVolume(volume);

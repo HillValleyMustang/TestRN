@@ -91,6 +91,36 @@ export const useExerciseSets = ({
       return;
     }
 
+    // Check for Personal Record (PR) before saving
+    let isPR = false;
+    const { data: allPreviousSets, error: fetchPreviousError } = await supabase
+      .from('set_logs')
+      .select('weight_kg, reps, time_seconds')
+      .eq('exercise_id', exerciseId)
+      .order('created_at', { ascending: false });
+
+    if (fetchPreviousError) {
+      console.error("Error fetching previous sets for PR check:", fetchPreviousError);
+    } else {
+      const relevantPreviousSets = allPreviousSets || [];
+
+      if (exerciseType === 'weight') {
+        const currentVolume = (currentSet.weight_kg || 0) * (currentSet.reps || 0);
+        // A new PR if current volume is strictly greater than all previous volumes
+        isPR = relevantPreviousSets.every(prevSet => {
+          const prevVolume = (prevSet.weight_kg || 0) * (prevSet.reps || 0);
+          return currentVolume > prevVolume;
+        });
+      } else if (exerciseType === 'timed') {
+        const currentTime = currentSet.time_seconds || Infinity;
+        // A new PR if current time is strictly less than all previous times (for timed exercises, lower is better)
+        isPR = relevantPreviousSets.every(prevSet => {
+          const prevTime = prevSet.time_seconds || Infinity;
+          return currentTime < prevTime;
+        });
+      }
+    }
+
     const newSetLog: SetLogInsert = {
       session_id: currentSessionId,
       exercise_id: exerciseId,
@@ -99,6 +129,7 @@ export const useExerciseSets = ({
       reps_l: currentSet.reps_l,
       reps_r: currentSet.reps_r,
       time_seconds: currentSet.time_seconds,
+      is_pb: isPR, // Save the calculated PR status
     };
 
     const { error: saveError } = await supabase.from('set_logs').insert([newSetLog]);
@@ -107,34 +138,6 @@ export const useExerciseSets = ({
       toast.error("Failed to save set: " + saveError.message);
       console.error("Error saving set:", saveError);
     } else {
-      // Check for Personal Record (PR)
-      let isPR = false;
-      const { data: allPreviousSets, error: fetchPreviousError } = await supabase
-        .from('set_logs')
-        .select('weight_kg, reps, time_seconds')
-        .eq('exercise_id', exerciseId)
-        .order('created_at', { ascending: false });
-
-      if (fetchPreviousError) {
-        console.error("Error fetching previous sets for PR check:", fetchPreviousError);
-      } else {
-        const relevantPreviousSets = allPreviousSets || [];
-
-        if (exerciseType === 'weight') {
-          const currentVolume = (currentSet.weight_kg || 0) * (currentSet.reps || 0);
-          isPR = relevantPreviousSets.every(prevSet => {
-            const prevVolume = (prevSet.weight_kg || 0) * (prevSet.reps || 0);
-            return currentVolume > prevVolume;
-          });
-        } else if (exerciseType === 'timed') {
-          const currentTime = currentSet.time_seconds || Infinity;
-          isPR = relevantPreviousSets.every(prevSet => {
-            const prevTime = prevSet.time_seconds || Infinity;
-            return currentTime < prevTime;
-          });
-        }
-      }
-
       setSets(prev => {
         const updatedSets = [...prev];
         updatedSets[setIndex] = { ...updatedSets[setIndex], isSaved: true, isPR: isPR };
