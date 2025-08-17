@@ -40,9 +40,12 @@ export const AiCoachDialog = () => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="lg" className="w-full h-24 text-lg">
-          <Sparkles className="mr-2 h-6 w-6" />
-          AI Coach
+        <Button
+          size="lg"
+          className="w-full h-24 text-base flex flex-col items-center justify-center gap-1 p-2"
+        >
+          <Sparkles className="h-6 w-6" />
+          <span className="text-center leading-tight">AI Coach</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
