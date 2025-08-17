@@ -174,6 +174,9 @@ export const useExerciseSets = ({
         return updatedSets;
       });
       toast.success("Set saved successfully!");
+      if (isPR) {
+        toast.success(`New Personal Record for ${exerciseType === 'weight' ? 'Volume' : 'Time'}!`);
+      }
     }
   }, [currentSessionId, exerciseId, exerciseType, exerciseCategory, sets, supabase, onUpdateSets]);
 

@@ -20,7 +20,7 @@ type SetLogWithExercise = SetLog & {
   exercise_definitions: ExerciseDefinition | null;
 };
 
-export default function WorkoutSummaryPage({ params }: { params: { sessionId: string } }) {
+export default function WorkoutSummaryPage({ params }: Readonly<{ params: { sessionId: string } }>) {
   const { session, supabase } = useSession();
   const router = useRouter();
   const { sessionId } = params;

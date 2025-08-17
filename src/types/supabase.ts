@@ -418,7 +418,7 @@ export type Enums<
     : never
 
 // Consolidated SetLogState for use across hooks and components
-export interface SetLogState extends Tables<'set_logs'> {
+export interface SetLogState extends Omit<Tables<'set_logs'>, 'id' | 'created_at'> {
   id: string | null; // Explicitly allow null for new sets
   created_at: string | null; // Explicitly allow null for new sets
   isSaved: boolean;
