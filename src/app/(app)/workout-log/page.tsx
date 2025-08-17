@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 
 type WorkoutSession = Tables<'workout_sessions'>;
 
-export default function WorkoutHistoryPage() {
+export default function WorkoutLogPage() {
   const { session, supabase } = useSession();
   const router = useRouter();
   const [workoutSessions, setWorkoutSessions] = useState<WorkoutSession[]>([]);
@@ -38,9 +38,9 @@ export default function WorkoutHistoryPage() {
       }
       setWorkoutSessions(data || []);
     } catch (err: any) {
-      console.error("Failed to fetch workout history:", err);
-      setError(err.message || "Failed to load workout history. Please try again.");
-      toast.error(err.message || "Failed to load workout history.");
+      console.error("Failed to fetch workout log:", err);
+      setError(err.message || "Failed to load workout log. Please try again.");
+      toast.error(err.message || "Failed to load workout log.");
     } finally {
       setLoading(false);
     }
@@ -76,7 +76,7 @@ export default function WorkoutHistoryPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
-        <p>Loading workout history...</p>
+        <p>Loading workout log...</p>
       </div>
     );
   }
@@ -92,7 +92,7 @@ export default function WorkoutHistoryPage() {
   return (
     <div className="min-h-screen bg-background text-foreground p-4 sm:p-8">
       <header className="mb-8 flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Workout History</h1>
+        <h1 className="text-3xl font-bold">Workout Log</h1>
         <Button variant="outline" onClick={() => router.push('/dashboard')}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
         </Button>

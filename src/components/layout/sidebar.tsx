@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 const mainNavLinks = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
-  { href: "/workout-history", label: "Workout History", icon: History },
+  { href: "/workout-log", label: "Workout Log", icon: History },
   { href: "/activity-logs", label: "Activity Logs", icon: BarChart3 },
   { href: "/profile", label: "My Profile", icon: User },
 ];
