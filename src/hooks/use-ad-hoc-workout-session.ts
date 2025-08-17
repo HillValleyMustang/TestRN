@@ -88,10 +88,41 @@ export const useAdHocWorkoutSession = ({ session, supabase, router }: UseAdHocWo
     fetchInitialData();
   }, [fetchInitialData]);
 
-  const addExerciseToSession = useCallback((exercise: ExerciseDefinition) => {
+  const addExerciseToSession = useCallback(async (exercise: ExerciseDefinition) => {
+    if (!currentSessionId) {
+      toast.error("Ad-hoc session not initialized. Please refresh the page.");
+      return;
+    }
+
+    // Fetch last set data for this specific exercise
+    let lastWeight = null;
+    let lastReps = null;
+    let lastTimeSeconds = null;
+
+    try {
+      const { data: lastSet, error: lastSetError } = await supabase
+        .from('set_logs')
+        .select('weight_kg, reps, time_seconds')
+        .eq('exercise_id', exercise.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (lastSetError && lastSetError.code !== 'PGRST116') {
+        console.warn(`Could not fetch last set for exercise ${exercise.name}:`, lastSetError.message);
+      }
+      if (lastSet) {
+        lastWeight = lastSet.weight_kg;
+        lastReps = lastSet.reps;
+        lastTimeSeconds = lastSet.time_seconds;
+      }
+    } catch (err) {
+      console.error("Error fetching last set for ad-hoc exercise:", err);
+    }
+
     setExercisesForSession(prev => {
       const updatedExercises = [...prev, exercise];
-      // Initialize sets for the newly added exercise
+      // Initialize sets for the newly added exercise with last set data
       setExercisesWithSets(prevSets => ({
         ...prevSets,
         [exercise.id]: [{
@@ -107,14 +138,14 @@ export const useAdHocWorkoutSession = ({ session, supabase, router }: UseAdHocWo
           is_pb: false,
           isSaved: false,
           isPR: false,
-          lastWeight: null, // Ad-hoc doesn't fetch last set data initially
-          lastReps: null,
-          lastTimeSeconds: null,
+          lastWeight: lastWeight,
+          lastReps: lastReps,
+          lastTimeSeconds: lastTimeSeconds,
         }],
       }));
       return updatedExercises;
     });
-  }, [currentSessionId]);
+  }, [currentSessionId, supabase]); // Added supabase to dependencies
 
   const removeExerciseFromSession = useCallback((exerciseId: string) => {
     setExercisesForSession(prev => prev.filter(ex => ex.id !== exerciseId));
