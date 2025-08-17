@@ -11,13 +11,14 @@ import { ExerciseInfoDialog } from '@/components/exercise-info-dialog';
 import { ExerciseProgressionDialog } from '@/components/exercise-progression-dialog';
 import { Tables, SetLogState } from '@/types/supabase'; // Import SetLogState from consolidated types
 import { useExerciseSets } from '@/hooks/use-exercise-sets';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 interface ExerciseCardProps {
   exercise: ExerciseDefinition;
   currentSessionId: string | null;
-  supabase: any; // SupabaseClient type is too complex to pass directly, use any for now
+  supabase: SupabaseClient;
   onUpdateGlobalSets: (exerciseId: string, newSets: SetLogState[]) => void;
   initialSets: SetLogState[];
 }

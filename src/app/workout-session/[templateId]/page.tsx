@@ -9,9 +9,8 @@ import { FinishWorkoutButton } from '@/components/workout-session/finish-workout
 import { useWorkoutSession } from '@/hooks/use-workout-session';
 import { SetLogState } from '@/types/supabase'; // Import SetLogState for typing from consolidated types
 
-export default function WorkoutSessionPage(props: any) { // Use 'any' for props to bypass PageProps constraint
-  const { params } = props;
-  const { templateId } = params || {}; // Safely access templateId
+export default function WorkoutSessionPage({ params }: { params: { templateId: string } }) {
+  const { templateId } = params;
 
   const { session, supabase } = useSession();
   const router = useRouter();
