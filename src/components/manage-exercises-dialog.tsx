@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,12 +13,11 @@ import * as z from "zod";
 import { useSession } from "@/components/session-context-provider";
 import { Tables, TablesInsert, TablesUpdate } from "@/types/supabase";
 import { toast } from "sonner";
-import { Dumbbell, PlusCircle, Edit, Trash2, XCircle } from "lucide-react";
+import { PlusCircle, Edit, Trash2, XCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
-// Zod schema for adding/editing an exercise definition
 const exerciseSchema = z.object({
   name: z.string().min(1, "Exercise name is required."),
   main_muscle: z.string().min(1, "Main muscle group is required."),
@@ -31,9 +30,13 @@ const exerciseSchema = z.object({
   video_url: z.string().url("Must be a valid URL.").optional().or(z.literal('')),
 });
 
-export const ManageExercisesDialog = () => {
+interface ManageExercisesDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export const ManageExercisesDialog = ({ open, onOpenChange }: ManageExercisesDialogProps) => {
   const { session, supabase } = useSession();
-  const [open, setOpen] = useState(false);
   const [exercises, setExercises] = useState<ExerciseDefinition[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingExercise, setEditingExercise] = useState<ExerciseDefinition | null>(null);
@@ -80,7 +83,7 @@ export const ManageExercisesDialog = () => {
     form.reset({
       name: exercise.name,
       main_muscle: exercise.main_muscle,
-      type: exercise.type as "weight" | "timed" | "cardio", // Cast to correct enum type
+      type: exercise.type as "weight" | "timed" | "cardio",
       category: exercise.category || "",
       description: exercise.description || "",
       pro_tip: exercise.pro_tip || "",
@@ -100,7 +103,6 @@ export const ManageExercisesDialog = () => {
     }
 
     if (editingExercise) {
-      // Update existing exercise
       const updatedExercise: TablesUpdate<'exercise_definitions'> = {
         name: values.name,
         main_muscle: values.main_muscle,
@@ -118,15 +120,13 @@ export const ManageExercisesDialog = () => {
 
       if (error) {
         toast.error("Failed to update exercise: " + error.message);
-        console.error("Error updating exercise:", error);
       } else {
         toast.success("Exercise updated successfully!");
         setEditingExercise(null);
         form.reset();
-        fetchExercises(); // Refresh the list
+        fetchExercises();
       }
     } else {
-      // Add new exercise
       const newExercise: TablesInsert<'exercise_definitions'> = {
         user_id: session.user.id,
         name: values.name,
@@ -142,11 +142,10 @@ export const ManageExercisesDialog = () => {
 
       if (error) {
         toast.error("Failed to add exercise: " + error.message);
-        console.error("Error adding exercise:", error);
       } else {
         toast.success("Exercise added successfully!");
         form.reset();
-        fetchExercises(); // Refresh the list
+        fetchExercises();
       }
     }
   }
@@ -163,21 +162,14 @@ export const ManageExercisesDialog = () => {
 
     if (error) {
       toast.error("Failed to delete exercise: " + error.message);
-      console.error("Error deleting exercise:", error);
     } else {
       toast.success("Exercise deleted successfully!");
-      fetchExercises(); // Refresh the list
+      fetchExercises();
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" className="justify-start">
-          <Dumbbell className="h-4 w-4 mr-2" />
-          <span>Manage Exercises</span>
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Manage Exercises</DialogTitle>
@@ -186,151 +178,24 @@ export const ManageExercisesDialog = () => {
           <h3 className="text-lg font-semibold mb-2">{editingExercise ? "Edit Exercise" : "Add New Exercise"}</h3>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Exercise Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="main_muscle"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Main Muscle Group</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Exercise Type</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select exercise type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="weight">Weight Training</SelectItem>
-                        <SelectItem value="timed">Timed Exercise</SelectItem>
-                        <SelectItem value="cardio">Cardio</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Compound, Isolation, Unilateral" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Brief description of the exercise" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="pro_tip"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Pro Tip (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Any pro tips for this exercise" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="video_url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Video URL (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Link to a demonstration video" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormField control={form.control} name="name" render={({ field }) => ( <FormItem> <FormLabel>Exercise Name</FormLabel> <FormControl> <Input {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
+              <FormField control={form.control} name="main_muscle" render={({ field }) => ( <FormItem> <FormLabel>Main Muscle Group</FormLabel> <FormControl> <Input {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
+              <FormField control={form.control} name="type" render={({ field }) => ( <FormItem> <FormLabel>Exercise Type</FormLabel> <Select onValueChange={field.onChange} value={field.value}> <FormControl> <SelectTrigger> <SelectValue placeholder="Select exercise type" /> </SelectTrigger> </FormControl> <SelectContent> <SelectItem value="weight">Weight Training</SelectItem> <SelectItem value="timed">Timed Exercise</SelectItem> <SelectItem value="cardio">Cardio</SelectItem> </SelectContent> </Select> <FormMessage /> </FormItem> )} />
+              <FormField control={form.control} name="category" render={({ field }) => ( <FormItem> <FormLabel>Category (Optional)</FormLabel> <FormControl> <Input placeholder="e.g., Compound, Isolation, Unilateral" {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
+              <FormField control={form.control} name="description" render={({ field }) => ( <FormItem> <FormLabel>Description (Optional)</FormLabel> <FormControl> <Textarea placeholder="Brief description of the exercise" {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
+              <FormField control={form.control} name="pro_tip" render={({ field }) => ( <FormItem> <FormLabel>Pro Tip (Optional)</FormLabel> <FormControl> <Textarea placeholder="Any pro tips for this exercise" {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
+              <FormField control={form.control} name="video_url" render={({ field }) => ( <FormItem> <FormLabel>Video URL (Optional)</FormLabel> <FormControl> <Input placeholder="Link to a demonstration video" {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
               <div className="flex gap-2">
                 <Button type="submit" className="flex-1">
-                  {editingExercise ? (
-                    <>
-                      <Edit className="h-4 w-4 mr-2" /> Update Exercise
-                    </>
-                  ) : (
-                    <>
-                      <PlusCircle className="h-4 w-4 mr-2" /> Add Exercise
-                    </>
-                  )}
+                  {editingExercise ? ( <> <Edit className="h-4 w-4 mr-2" /> Update Exercise </> ) : ( <> <PlusCircle className="h-4 w-4 mr-2" /> Add Exercise </> )}
                 </Button>
-                {editingExercise && (
-                  <Button type="button" variant="outline" onClick={handleCancelEdit}>
-                    <XCircle className="h-4 w-4 mr-2" /> Cancel Edit
-                  </Button>
-                )}
+                {editingExercise && ( <Button type="button" variant="outline" onClick={handleCancelEdit}> <XCircle className="h-4 w-4 mr-2" /> Cancel Edit </Button> )}
               </div>
             </form>
           </Form>
 
           <h3 className="text-lg font-semibold mt-6 mb-2">My Exercises</h3>
-          {loading ? (
-            <p className="text-muted-foreground">Loading exercises...</p>
-          ) : exercises.length === 0 ? (
-            <p className="text-muted-foreground">No exercises defined yet. Add one above!</p>
-          ) : (
-            <ScrollArea className="h-48 w-full rounded-md border p-4">
-              <ul className="space-y-2">
-                {exercises.map((exercise) => (
-                  <li key={exercise.id} className="flex items-center justify-between text-sm py-1">
-                    <span>{exercise.name} ({exercise.main_muscle})</span>
-                    <div className="flex space-x-2">
-                      <Button variant="ghost" size="sm" onClick={() => handleEditClick(exercise)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDeleteExercise(exercise.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </ScrollArea>
-          )}
+          {loading ? ( <p className="text-muted-foreground">Loading exercises...</p> ) : exercises.length === 0 ? ( <p className="text-muted-foreground">No exercises defined yet. Add one above!</p> ) : ( <ScrollArea className="h-48 w-full rounded-md border p-4"> <ul className="space-y-2"> {exercises.map((exercise) => ( <li key={exercise.id} className="flex items-center justify-between text-sm py-1"> <span>{exercise.name} ({exercise.main_muscle})</span> <div className="flex space-x-2"> <Button variant="ghost" size="sm" onClick={() => handleEditClick(exercise)}> <Edit className="h-4 w-4" /> </Button> <Button variant="ghost" size="sm" onClick={() => handleDeleteExercise(exercise.id)}> <Trash2 className="h-4 w-4 text-destructive" /> </Button> </div> </li> ))} </ul> </ScrollArea> )}
         </div>
       </DialogContent>
     </Dialog>

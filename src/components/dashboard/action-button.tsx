@@ -2,31 +2,26 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 interface ActionButtonProps {
-  icon: React.ReactElement<{ className?: string }>;
   title: string;
-  description: string;
   onClick?: () => void;
   className?: string;
 }
 
-export const ActionButton = ({ icon, title, description, onClick, className }: ActionButtonProps) => {
+export const ActionButton = ({ title, onClick, className }: ActionButtonProps) => {
   return (
-    <button
+    <Button
+      variant="outline"
       onClick={onClick}
       className={cn(
-        "w-full p-4 border rounded-lg flex items-center text-left hover:bg-accent transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+        "h-full w-full p-2 flex items-center justify-center text-center whitespace-normal",
+        "font-semibold text-sm leading-tight",
         className
       )}
     >
-      <div className="mr-4 flex-shrink-0 text-primary">
-        {React.cloneElement(icon, { className: "h-8 w-8" })}
-      </div>
-      <div className="flex-grow">
-        <p className="font-semibold text-foreground">{title}</p>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </div>
-    </button>
+      {title}
+    </Button>
   );
 };
