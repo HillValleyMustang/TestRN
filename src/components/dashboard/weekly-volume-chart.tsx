@@ -130,7 +130,7 @@ export const WeeklyVolumeChart = () => {
   }
 
   return (
-    <Card className="lg:col-span-2">
+    <Card>
       <CardHeader>
         <CardTitle>Weekly Workout Volume (kg)</CardTitle>
       </CardHeader>

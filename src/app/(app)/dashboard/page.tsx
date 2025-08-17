@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { ActionHub } from '@/components/dashboard/action-hub';
+import { WeeklyVolumeChart } from '@/components/dashboard/weekly-volume-chart';
 
 export default function DashboardPage() {
   const { session, supabase } = useSession();
@@ -55,7 +56,14 @@ export default function DashboardPage() {
         <p className="text-muted-foreground">Ready to Train? Let's get Started!</p>
       </header>
 
-      <ActionHub />
+      <div className="grid gap-8 lg:grid-cols-3">
+        <div className="lg:col-span-1">
+          <ActionHub />
+        </div>
+        <div className="lg:col-span-2">
+          <WeeklyVolumeChart />
+        </div>
+      </div>
 
       <MadeWithDyad />
     </div>
