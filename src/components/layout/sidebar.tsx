@@ -26,19 +26,19 @@ export function Sidebar() {
           const Icon = link.icon;
           return (
             <Tooltip key={link.href}>
-              <TooltipTrigger asChild>
-                <div>
-                  <Link
-                    href={link.href}
-                    className={cn(
-                      "flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8",
-                      isActive && "bg-accent text-accent-foreground"
-                    )}
-                  >
-                    <Icon className="h-5 w-5" />
-                    <span className="sr-only">{link.label}</span>
-                  </Link>
-                </div>
+              <TooltipTrigger
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8",
+                  isActive && "bg-accent text-accent-foreground"
+                )}
+              >
+                <Link
+                  href={link.href}
+                  className="flex h-full w-full items-center justify-center"
+                >
+                  <Icon className="h-5 w-5" />
+                  <span className="sr-only">{link.label}</span>
+                </Link>
               </TooltipTrigger>
               <TooltipContent side="right">{link.label}</TooltipContent>
             </Tooltip>
