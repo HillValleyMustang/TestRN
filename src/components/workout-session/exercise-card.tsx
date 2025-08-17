@@ -5,13 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { Plus, CheckCircle2, Trophy } from 'lucide-react';
+import { Plus, CheckCircle2, Trophy, Edit, Trash2 } from 'lucide-react';
 import { ExerciseHistoryDialog } from '@/components/exercise-history-dialog';
 import { ExerciseInfoDialog } from '@/components/exercise-info-dialog';
 import { ExerciseProgressionDialog } from '@/components/exercise-progression-dialog';
-import { Tables } from '@/types/supabase';
+import { Tables, SetLogState } from '@/types/supabase'; // Import SetLogState from consolidated types
 import { useExerciseSets } from '@/hooks/use-exercise-sets';
-import { SetLogState } from '@/hooks/use-workout-session'; // Import the shared type
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -24,7 +23,7 @@ interface ExerciseCardProps {
 }
 
 export const ExerciseCard = ({ exercise, currentSessionId, supabase, onUpdateGlobalSets, initialSets }: ExerciseCardProps) => {
-  const { sets, handleAddSet, handleInputChange, handleSaveSet } = useExerciseSets({
+  const { sets, handleAddSet, handleInputChange, handleSaveSet, handleEditSet, handleDeleteSet } = useExerciseSets({
     exerciseId: exercise.id,
     exerciseType: exercise.type,
     exerciseCategory: exercise.category,
@@ -76,7 +75,7 @@ export const ExerciseCard = ({ exercise, currentSessionId, supabase, onUpdateGlo
           </TableHeader>
           <TableBody>
             {sets.map((set, setIndex) => (
-              <TableRow key={setIndex}>
+              <TableRow key={set.id || `new-${setIndex}`}> {/* Use set.id if available, otherwise a temporary key */}
                 <TableCell>{setIndex + 1}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">
                   {exercise.type === 'weight' && set.lastWeight && set.lastReps && `Last: ${set.lastWeight}kg x ${set.lastReps} reps`}
@@ -136,12 +135,25 @@ export const ExerciseCard = ({ exercise, currentSessionId, supabase, onUpdateGlo
                 )}
                 <TableCell>
                   {set.isSaved ? (
-                    <div className="flex items-center text-green-500">
-                      <CheckCircle2 className="h-5 w-5 mr-1" /> Saved
-                      {set.isPR && <Trophy className="h-5 w-5 ml-2 text-yellow-500" />}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-green-500 flex items-center">
+                        <CheckCircle2 className="h-5 w-5 mr-1" /> Saved
+                      </span>
+                      {set.isPR && <Trophy className="h-5 w-5 text-yellow-500" />}
+                      <Button variant="ghost" size="sm" onClick={() => handleEditSet(setIndex)} title="Edit Set">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteSet(setIndex)} title="Delete Set">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     </div>
                   ) : (
-                    <Button variant="secondary" size="sm" onClick={() => handleSaveSet(setIndex)}>Save</Button>
+                    <div className="flex items-center space-x-2">
+                      <Button variant="secondary" size="sm" onClick={() => handleSaveSet(setIndex)}>Save</Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteSet(setIndex)} title="Delete Set">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   )}
                 </TableCell>
               </TableRow>

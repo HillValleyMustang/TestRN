@@ -416,3 +416,14 @@ export type Enums<
   : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
     ? PublicSchema["Enums"][PublicEnumNameOrOptions]
     : never
+
+// Consolidated SetLogState for use across hooks and components
+export interface SetLogState extends Tables<'set_logs'> {
+  id: string | null; // Explicitly allow null for new sets
+  created_at: string | null; // Explicitly allow null for new sets
+  isSaved: boolean;
+  isPR: boolean;
+  lastWeight?: number | null;
+  lastReps?: number | null;
+  lastTimeSeconds?: number | null;
+}

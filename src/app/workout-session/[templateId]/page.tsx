@@ -7,7 +7,7 @@ import { WorkoutHeader } from '@/components/workout-session/workout-header';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { FinishWorkoutButton } from '@/components/workout-session/finish-workout-button';
 import { useWorkoutSession } from '@/hooks/use-workout-session';
-import { SetLogState } from '@/hooks/use-workout-session'; // Import SetLogState for typing
+import { SetLogState } from '@/types/supabase'; // Import SetLogState for typing from consolidated types
 
 export default function WorkoutSessionPage(props: any) { // Use 'any' for props to bypass PageProps constraint
   const { params } = props;

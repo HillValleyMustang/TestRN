@@ -3,11 +3,10 @@
 import { useState, useCallback } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { Tables, TablesInsert } from '@/types/supabase';
-import { SetLogState } from './use-workout-session'; // Import the shared type
+import { Tables, TablesInsert, TablesUpdate, SetLogState } from '@/types/supabase'; // Import SetLogState from consolidated types
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
-type SetLogInsert = TablesInsert<'set_logs'>;
+type SetLog = Tables<'set_logs'>; // Use Tables<'set_logs'> to get the 'id' field
 
 interface UseExerciseSetsProps {
   exerciseId: string;
@@ -22,8 +21,10 @@ interface UseExerciseSetsProps {
 interface UseExerciseSetsReturn {
   sets: SetLogState[];
   handleAddSet: () => void;
-  handleInputChange: (setIndex: number, field: keyof SetLogInsert, value: string) => void;
+  handleInputChange: (setIndex: number, field: keyof TablesInsert<'set_logs'>, value: string) => void;
   handleSaveSet: (setIndex: number) => Promise<void>;
+  handleEditSet: (setIndex: number) => void;
+  handleDeleteSet: (setIndex: number) => Promise<void>;
 }
 
 export const useExerciseSets = ({
@@ -41,11 +42,16 @@ export const useExerciseSets = ({
     setSets(prev => {
       const lastSet = prev[prev.length - 1];
       const newSet: SetLogState = {
+        id: null, // New sets don't have an ID yet
+        created_at: null, // Will be set by DB
+        session_id: currentSessionId,
+        exercise_id: exerciseId,
         weight_kg: null,
         reps: null,
         reps_l: null,
         reps_r: null,
         time_seconds: null,
+        is_pb: false, // Default for new set
         isSaved: false,
         isPR: false,
         lastWeight: lastSet?.weight_kg,
@@ -56,9 +62,9 @@ export const useExerciseSets = ({
       onUpdateSets(exerciseId, updatedSets); // Update global state
       return updatedSets;
     });
-  }, [exerciseId, onUpdateSets]);
+  }, [exerciseId, onUpdateSets, currentSessionId]);
 
-  const handleInputChange = useCallback((setIndex: number, field: keyof SetLogInsert, value: string) => {
+  const handleInputChange = useCallback((setIndex: number, field: keyof TablesInsert<'set_logs'>, value: string) => {
     setSets(prev => {
       const newSets = [...prev];
       newSets[setIndex] = {
@@ -121,7 +127,7 @@ export const useExerciseSets = ({
       }
     }
 
-    const newSetLog: SetLogInsert = {
+    const setLogData: TablesInsert<'set_logs'> | TablesUpdate<'set_logs'> = {
       session_id: currentSessionId,
       exercise_id: exerciseId,
       weight_kg: currentSet.weight_kg,
@@ -132,15 +138,38 @@ export const useExerciseSets = ({
       is_pb: isPR, // Save the calculated PR status
     };
 
-    const { error: saveError } = await supabase.from('set_logs').insert([newSetLog]);
+    let error;
+    let data;
 
-    if (saveError) {
-      toast.error("Failed to save set: " + saveError.message);
-      console.error("Error saving set:", saveError);
+    if (currentSet.id) {
+      // Update existing set
+      const result = await supabase
+        .from('set_logs')
+        .update(setLogData as TablesUpdate<'set_logs'>)
+        .eq('id', currentSet.id)
+        .select()
+        .single();
+      error = result.error;
+      data = result.data;
+    } else {
+      // Insert new set
+      const result = await supabase.from('set_logs').insert([setLogData as TablesInsert<'set_logs'>]).select().single();
+      error = result.error;
+      data = result.data;
+    }
+
+    if (error) {
+      toast.error("Failed to save set: " + error.message);
+      console.error("Error saving set:", error);
     } else {
       setSets(prev => {
         const updatedSets = [...prev];
-        updatedSets[setIndex] = { ...updatedSets[setIndex], isSaved: true, isPR: isPR };
+        updatedSets[setIndex] = {
+          ...updatedSets[setIndex],
+          ...data, // Update with actual data from DB (e.g., id, created_at)
+          isSaved: true,
+          isPR: isPR,
+        };
         onUpdateSets(exerciseId, updatedSets); // Update global state
         return updatedSets;
       });
@@ -148,10 +177,56 @@ export const useExerciseSets = ({
     }
   }, [currentSessionId, exerciseId, exerciseType, exerciseCategory, sets, supabase, onUpdateSets]);
 
+  const handleEditSet = useCallback((setIndex: number) => {
+    setSets(prev => {
+      const updatedSets = [...prev];
+      updatedSets[setIndex] = { ...updatedSets[setIndex], isSaved: false };
+      onUpdateSets(exerciseId, updatedSets); // Update global state
+      return updatedSets;
+    });
+  }, [exerciseId, onUpdateSets]);
+
+  const handleDeleteSet = useCallback(async (setIndex: number) => {
+    const setToDelete = sets[setIndex];
+    if (!setToDelete.id) {
+      // If it's a new unsaved set, just remove from UI
+      setSets(prev => {
+        const updatedSets = prev.filter((_, i) => i !== setIndex);
+        onUpdateSets(exerciseId, updatedSets);
+        return updatedSets;
+      });
+      toast.success("Unsaved set removed.");
+      return;
+    }
+
+    if (!confirm("Are you sure you want to delete this set? This action cannot be undone.")) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from('set_logs')
+      .delete()
+      .eq('id', setToDelete.id);
+
+    if (error) {
+      toast.error("Failed to delete set: " + error.message);
+      console.error("Error deleting set:", error);
+    } else {
+      setSets(prev => {
+        const updatedSets = prev.filter((_, i) => i !== setIndex);
+        onUpdateSets(exerciseId, updatedSets); // Update global state
+        return updatedSets;
+      });
+      toast.success("Set deleted successfully!");
+    }
+  }, [exerciseId, sets, supabase, onUpdateSets]);
+
   return {
     sets,
     handleAddSet,
     handleInputChange,
     handleSaveSet,
+    handleEditSet,
+    handleDeleteSet,
   };
 };

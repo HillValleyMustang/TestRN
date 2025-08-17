@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { Tables, TablesInsert } from '@/types/supabase';
+import { Tables, TablesInsert, SetLogState } from '@/types/supabase'; // Import SetLogState from consolidated types
 
 type WorkoutTemplate = Tables<'workout_templates'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -14,14 +14,6 @@ type SetLogInsert = TablesInsert<'set_logs'>;
 type TemplateExerciseJoin = Tables<'template_exercises'> & {
   exercise_definitions: Tables<'exercise_definitions'>[] | null;
 };
-
-export interface SetLogState extends SetLogInsert {
-  isSaved: boolean;
-  isPR: boolean;
-  lastWeight?: number | null;
-  lastReps?: number | null;
-  lastTimeSeconds?: number | null;
-}
 
 interface UseWorkoutSessionProps {
   templateId: string;
@@ -162,11 +154,16 @@ export const useWorkoutSession = ({ templateId, session, supabase, router }: Use
       fetchedExercises.forEach(ex => {
         const lastSet = lastSetsData[ex.id];
         initialSets[ex.id] = [{
+          id: null, // New sets don't have an ID yet
+          created_at: null, // Will be set by DB
+          session_id: sessionData.id, // Use the newly created session ID
+          exercise_id: ex.id, // Corrected: use ex.id here
           weight_kg: null,
           reps: null,
           reps_l: null,
           reps_r: null,
           time_seconds: null,
+          is_pb: false, // Default for new set
           isSaved: false,
           isPR: false,
           lastWeight: lastSet?.weight_kg,
