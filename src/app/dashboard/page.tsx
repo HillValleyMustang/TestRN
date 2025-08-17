@@ -131,8 +131,7 @@ export default function DashboardPage() {
           const { data: recentSetLogs, error: setLogsError } = await supabase
             .from('set_logs')
             .select(`
-              weight_kg,
-              reps,
+              *,
               exercise_definitions (*)
             `)
             .in('session_id', recentSessionIds);

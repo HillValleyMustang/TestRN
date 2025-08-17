@@ -57,9 +57,7 @@ export const WeeklyVolumeChart = () => {
         const { data: setLogsData, error: setLogsError } = await supabase
           .from('set_logs')
           .select(`
-            weight_kg,
-            reps,
-            session_id,
+            *,
             exercise_definitions (*)
           `)
           .in('session_id', sessionIds);
