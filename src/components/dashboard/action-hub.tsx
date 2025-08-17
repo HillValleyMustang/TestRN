@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { CalendarDays, Sparkles, History, Calendar, ChevronDown, ChevronUp, User, Bike, Activity as ActivityIcon } from 'lucide-react';
+import { CalendarDays, Sparkles, History, Calendar, ChevronDown, ChevronUp, User, Dumbbell, Bike, Activity as ActivityIcon } from 'lucide-react';
 import { AiCoachDialog } from './ai-coach-dialog';
 import { ManageExercisesDialog } from '../manage-exercises-dialog';
 import { ActivityLoggingDialog } from '../activity-logging-dialog';
@@ -24,45 +24,29 @@ export const ActionHub = () => {
 
   return (
     <>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <Button
-          size="lg"
-          className="w-full h-24 text-base flex flex-col items-center justify-center gap-1 p-2"
-          onClick={() => setIsActivityLogOpen(true)}
-        >
-          <CalendarDays className="h-6 w-6" />
-          <span className="text-center leading-tight">Log Activity</span>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <Button size="lg" className="w-full h-24 text-lg" onClick={() => setIsActivityLogOpen(true)}>
+          <CalendarDays className="mr-2 h-6 w-6" />
+          Log Activity
         </Button>
         
         <AiCoachDialog />
 
-        <Button
-          size="lg"
-          className="w-full h-24 text-base flex flex-col items-center justify-center gap-1 p-2 col-span-2 md:col-span-1"
-          onClick={() => router.push('/workout-log')}
-        >
-          <History className="h-6 w-6" />
-          <span className="text-center leading-tight">Workout Log</span>
+        <Button size="lg" className="w-full h-24 text-lg" onClick={() => router.push('/workout-log')}>
+          <History className="mr-2 h-6 w-6" />
+          Workout Log
         </Button>
 
-        <Button
-          size="lg"
-          className="w-full h-24 text-base flex flex-col items-center justify-center gap-1 p-2 col-span-2 md:col-span-2"
-          onClick={() => router.push('/consistency-calendar')}
-        >
-          <Calendar className="h-6 w-6" />
-          <span className="text-center leading-tight">Consistency Calendar</span>
+        <Button size="lg" className="w-full h-24 text-lg" onClick={() => router.push('/consistency-calendar')}>
+          <Calendar className="mr-2 h-6 w-6" />
+          Consistency Calendar
         </Button>
 
         <DropdownMenu open={isMoreOpen} onOpenChange={setIsMoreOpen}>
           <DropdownMenuTrigger asChild>
-            <Button
-              size="lg"
-              variant="outline"
-              className="w-full h-24 text-base flex flex-col items-center justify-center gap-1 p-2 col-span-2 md:col-span-1"
-            >
-              <span className="text-center leading-tight">More</span>
-              {isMoreOpen ? <ChevronUp className="h-5 w-5 mt-1" /> : <ChevronDown className="h-5 w-5 mt-1" />}
+            <Button size="lg" variant="outline" className="w-full h-24 text-lg">
+              More
+              {isMoreOpen ? <ChevronUp className="ml-2 h-6 w-6" /> : <ChevronDown className="ml-2 h-6 w-6" />}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56">
