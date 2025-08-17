@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Home, History, User, BarChart3, Dumbbell, LayoutTemplate } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 const mainNavLinks = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -25,22 +26,27 @@ export function Sidebar() {
           const isActive = pathname === link.href;
           const Icon = link.icon;
           return (
-            <Tooltip key={link.href}>
-              <TooltipTrigger asChild>
-                <div
-                  className={cn(
-                    "relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8",
-                    isActive && "bg-accent text-accent-foreground"
-                  )}
-                >
-                  <Link href={link.href} className="absolute inset-0 z-10">
-                    <span className="sr-only">{link.label}</span>
-                  </Link>
-                  <Icon className="h-5 w-5" />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="right">{link.label}</TooltipContent>
-            </Tooltip>
+            <div key={link.href} className="relative">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      "h-9 w-9 text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8",
+                      isActive && "bg-accent text-accent-foreground"
+                    )}
+                    aria-label={link.label}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">{link.label}</TooltipContent>
+              </Tooltip>
+              <Link href={link.href} className="absolute inset-0 z-10">
+                <span className="sr-only">{link.label}</span>
+              </Link>
+            </div>
           );
         })}
       </nav>
