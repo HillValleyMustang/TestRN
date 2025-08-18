@@ -104,7 +104,10 @@ export default function ManageTemplatesPage() {
   const handleRemoveExercise = (id: string) => setSelectedExercises(prev => prev.filter(e => e.id !== id));
 
   async function onSubmit(values: z.infer<typeof workoutTemplateSchema>) {
-    if (!session || selectedExercises.length === 0) return;
+    if (!session || selectedExercises.length === 0) {
+      toast.error("Please add at least one exercise to the template.");
+      return;
+    }
     let templateId: string;
     if (editingTemplate) {
       const { error } = await supabase.from('workout_templates').update({ template_name: values.template_name }).eq('id', editingTemplate.id);
@@ -171,10 +174,12 @@ export default function ManageTemplatesPage() {
                     <FormItem>
                       <FormLabel>Exercises</FormLabel>
                       <div className="flex gap-2">
-                        <Select onValueChange={setSelectedExerciseToAdd} value={selectedExerciseToAdd}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Add exercise" /></SelectTrigger></FormControl>
-                          <SelectContent>{allExercises.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}</SelectContent>
-                        </Select>
+                        <FormControl> {/* FormControl now wraps the entire Select component */}
+                          <Select onValueChange={setSelectedExerciseToAdd} value={selectedExerciseToAdd}>
+                            <SelectTrigger><SelectValue placeholder="Add exercise" /></SelectTrigger>
+                            <SelectContent>{allExercises.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}</SelectContent>
+                          </Select>
+                        </FormControl>
                         <Button type="button" onClick={handleAddExercise}>Add</Button>
                       </div>
                     </FormItem>

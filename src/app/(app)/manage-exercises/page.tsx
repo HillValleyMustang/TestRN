@@ -166,7 +166,7 @@ export default function ManageExercisesPage() {
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                     <FormField control={form.control} name="name" render={({ field }) => ( <FormItem> <FormLabel>Exercise Name</FormLabel> <FormControl> <Input {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
                     <FormField control={form.control} name="main_muscle" render={({ field }) => ( <FormItem> <FormLabel>Main Muscle Group</FormLabel> <FormControl> <Input {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
-                    <FormField control={form.control} name="type" render={({ field }) => ( <FormItem> <FormLabel>Exercise Type</FormLabel> <Select onValueChange={field.onChange} value={field.value}> <FormControl> <SelectTrigger> <SelectValue placeholder="Select type" /> </SelectTrigger> </FormControl> <SelectContent> <SelectItem value="weight">Weight Training</SelectItem> <SelectItem value="timed">Timed</SelectItem> <SelectItem value="cardio">Cardio</SelectItem> </SelectContent> </Select> <FormMessage /> </FormItem> )} />
+                    <FormField control={form.control} name="type" render={({ field }) => ( <FormItem> <FormLabel>Exercise Type</FormLabel> <FormControl> {/* FormControl now wraps the entire Select component */} <Select onValueChange={field.onChange} value={field.value}> <SelectTrigger> <SelectValue placeholder="Select type" /> </SelectTrigger> <SelectContent> <SelectItem value="weight">Weight Training</SelectItem> <SelectItem value="timed">Timed</SelectItem> <SelectItem value="cardio">Cardio</SelectItem> </SelectContent> </Select> </FormControl> <FormMessage /> </FormItem> )} />
                     <FormField control={form.control} name="category" render={({ field }) => ( <FormItem> <FormLabel>Category (Optional)</FormLabel> <FormControl> <Input placeholder="e.g., Unilateral" {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
                     <FormField control={form.control} name="description" render={({ field }) => ( <FormItem> <FormLabel>Description (Optional)</FormLabel> <FormControl> <Textarea {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
                     <FormField control={form.control} name="pro_tip" render={({ field }) => ( <FormItem> <FormLabel>Pro Tip (Optional)</FormLabel> <FormControl> <Textarea {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
@@ -207,7 +207,7 @@ export default function ManageExercisesPage() {
             </Card>
           </div>
         </div>
-      </div>
+      </div >
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
