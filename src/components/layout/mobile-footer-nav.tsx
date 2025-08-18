@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Dumbbell, BookOpen, BarChart3, User } from "lucide-react";
+import { Home, Dumbbell, BookOpen, BarChart3, User, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
@@ -11,6 +11,7 @@ const navLinks = [
   { href: "/manage-exercises", label: "Exercises", icon: BookOpen },
   { href: "/progress", label: "Progress", icon: BarChart3 },
   { href: "/profile", label: "Profile", icon: User },
+  { href: "/admin/test-user", label: "Test", icon: Shield }, // Added test user link
 ];
 
 export function MobileFooterNav() {
@@ -18,7 +19,7 @@ export function MobileFooterNav() {
 
   return (
     <footer className="fixed bottom-0 left-0 z-10 w-full border-t bg-background sm:hidden">
-      <nav className="grid h-16 grid-cols-5">
+      <nav className="grid h-16 grid-cols-6">
         {navLinks.map((link) => {
           const isActive = pathname === link.href;
           const Icon = link.icon;
