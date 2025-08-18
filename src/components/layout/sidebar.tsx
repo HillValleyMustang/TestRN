@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Home, History, User, BarChart3, Dumbbell, LayoutTemplate } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button"; // Import Button component
 
 const mainNavLinks = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -27,15 +28,22 @@ export function Sidebar() {
           return (
             <Tooltip key={link.href}>
               <TooltipTrigger asChild>
-                <Link
-                  href={link.href}
-                  className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8",
-                    isActive && "bg-accent text-accent-foreground"
-                  )}
-                >
-                  <Icon className="h-5 w-5" />
-                  <span className="sr-only">{link.label}</span>
+                {/* Use Link with legacyBehavior and passHref, wrapping a Button with asChild */}
+                <Link href={link.href} passHref legacyBehavior>
+                  <Button
+                    variant="ghost" // Use ghost variant to maintain the visual style of a navigation link
+                    className={cn(
+                      "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
+                      isActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"
+                    )}
+                    asChild // This makes the Button render its child (the <a> tag) and pass its props to it
+                  >
+                    {/* Explicit <a> tag is needed when using legacyBehavior with Link and asChild on the child component */}
+                    <a>
+                      <Icon className="h-5 w-5" />
+                      <span className="sr-only">{link.label}</span>
+                    </a>
+                  </Button>
                 </Link>
               </TooltipTrigger>
               <TooltipContent side="right">{link.label}</TooltipContent>
