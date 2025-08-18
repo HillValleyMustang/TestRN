@@ -6,11 +6,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 
 export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -22,57 +29,52 @@ export default function LoginPage() {
     return () => subscription.unsubscribe();
   }, [router]);
 
-  const handleDemoLogin = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
-    try {
-      // Use a fixed demo email that should be valid
-      const email = 'demo@workouttracker.com';
-      const password = 'DemoPassword123';
-      
-      // Try to sign in first
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
 
-      if (signInError) {
-        // If sign in fails, try to sign up
-        const { data, error: signUpError } = await supabase.auth.signUp({
+    try {
+      if (isSignUp) {
+        // Sign up new user
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
-              first_name: 'Demo',
-              last_name: 'User'
+              first_name: firstName,
+              last_name: lastName
             }
           }
         });
 
-        if (signUpError) {
-          toast.error('Error: ' + signUpError.message);
-          return;
-        }
+        if (error) throw error;
 
-        // Create a profile for the demo user if needed
+        // Create profile
         if (data.user) {
           const { error: profileError } = await supabase
             .from('profiles')
             .upsert({
               id: data.user.id,
-              first_name: 'Demo',
-              last_name: 'User'
+              first_name: firstName,
+              last_name: lastName
             });
 
           if (profileError) {
             console.error('Profile creation error:', profileError);
-            // Even if profile creation fails, we can still log in
-            toast.success('Demo account signed in! (Profile creation had an issue)');
+            toast.success('Account created! Please check your email to confirm.');
           } else {
-            toast.success('Demo account created and signed in!');
+            toast.success('Account created! Please check your email to confirm.');
           }
         }
       } else {
-        toast.success('Signed in to demo account!');
+        // Sign in existing user
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+
+        if (error) throw error;
+        toast.success('Signed in successfully!');
       }
     } catch (error: any) {
       toast.error('Error: ' + error.message);
@@ -91,28 +93,68 @@ export default function LoginPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Welcome</CardTitle>
-            <CardDescription>Get started with a demo account</CardDescription>
+            <CardTitle>{isSignUp ? 'Create Account' : 'Welcome Back'}</CardTitle>
+            <CardDescription>
+              {isSignUp ? 'Create a new account to get started' : 'Sign in to your account'}
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-4">
-              <Button 
-                onClick={handleDemoLogin} 
-                className="w-full"
-                disabled={loading}
-              >
-                {loading ? "Creating Demo Account..." : "Use Demo Account"}
-              </Button>
-              
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground">
-                  This will create or sign in to a demo account with:
-                </p>
-                <p className="text-xs mt-2">
-                  Email: demo@workouttracker.com<br/>
-                  Password: DemoPassword123
-                </p>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {isSignUp && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">First Name</Label>
+                    <Input
+                      id="firstName"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      required={isSignUp}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Last Name</Label>
+                    <Input
+                      id="lastName"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      required={isSignUp}
+                    />
+                  </div>
+                </>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? (isSignUp ? 'Creating Account...' : 'Signing In...') : (isSignUp ? 'Create Account' : 'Sign In')}
+              </Button>
+            </form>
+            
+            <div className="mt-4 text-center">
+              <Button
+                variant="link"
+                onClick={() => setIsSignUp(!isSignUp)}
+                className="p-0 h-auto font-normal"
+              >
+                {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+              </Button>
             </div>
           </CardContent>
         </Card>
