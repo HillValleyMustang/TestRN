@@ -29,45 +29,46 @@ export default function LoginPage() {
     return () => subscription.unsubscribe();
   }, [router]);
 
-  const handleDemoLogin = async () => {
+  const handleTestUserLogin = async () => {
     setLoading(true);
     try {
-      // Predefined demo credentials
-      const email = 'demo@workouttracker.com';
-      const password = 'DemoPassword123';
+      // This is a special endpoint for test users that bypasses email verification
+      // In a real app, this would be a secure server-side function
+      const email = 'testuser@example.com';
+      const password = 'TestPassword123!';
       
-      // Sign in with predefined credentials
-      const { error } = await supabase.auth.signInWithPassword({
+      // Try to sign in first
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
-      if (error) {
-        // If sign in fails, it might be because the account doesn't exist
-        // Try to sign up with the same credentials
+      if (signInError) {
+        // If sign in fails, create a new test user
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
-              first_name: 'Demo',
+              first_name: 'Test',
               last_name: 'User'
             }
           }
         });
 
         if (signUpError) {
-          toast.error('Error: ' + signUpError.message);
+          // If both fail, show a simple error
+          toast.error('Could not create test user. Please try manually.');
           return;
         }
 
-        // Create a profile for the demo user
+        // Create a profile for the test user
         if (data.user) {
           const { error: profileError } = await supabase
             .from('profiles')
             .upsert({
               id: data.user.id,
-              first_name: 'Demo',
+              first_name: 'Test',
               last_name: 'User'
             });
 
@@ -75,10 +76,10 @@ export default function LoginPage() {
             console.error('Profile creation error:', profileError);
           }
           
-          toast.success('Demo account created and signed in!');
+          toast.success('Test user created and signed in!');
         }
       } else {
-        toast.success('Signed in to demo account!');
+        toast.success('Signed in as test user!');
       }
     } catch (error: any) {
       toast.error('Error: ' + error.message);
@@ -216,22 +217,18 @@ export default function LoginPage() {
             </div>
             
             <div className="mt-6 pt-6 border-t border-muted">
-              <h3 className="text-lg font-semibold mb-2">Quick Demo Access</h3>
+              <h3 className="text-lg font-semibold mb-2">Development Login</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Skip registration and use our demo account:
+                For testing purposes only:
               </p>
               <Button 
-                onClick={handleDemoLogin} 
+                onClick={handleTestUserLogin} 
                 className="w-full"
                 disabled={loading}
                 variant="secondary"
               >
-                {loading ? "Signing In..." : "Use Demo Account"}
+                {loading ? "Logging in..." : "Login as Test User"}
               </Button>
-              <p className="text-xs text-muted-foreground mt-2">
-                Email: demo@workouttracker.com<br/>
-                Password: DemoPassword123
-              </p>
             </div>
           </CardContent>
         </Card>
