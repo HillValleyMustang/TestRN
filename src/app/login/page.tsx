@@ -32,9 +32,10 @@ export default function LoginPage() {
     setLoading(true);
     
     try {
-      // Generate a unique email based on the name and timestamp
+      // Generate a valid email based on the name and timestamp
       const timestamp = Date.now();
-      const email = `${firstName.toLowerCase().replace(/\s+/g, '')}+${timestamp}@example.com`;
+      const cleanName = firstName.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const email = `${cleanName || 'user'}+${timestamp}@example.com`;
       
       if (isSignUp) {
         // Sign up the demo user
@@ -154,6 +155,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter any password"
                   required
+                  minLength={6}
                 />
               </div>
               
