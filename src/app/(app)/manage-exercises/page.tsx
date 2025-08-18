@@ -207,7 +207,7 @@ export default function ManageExercisesPage() {
             </Card>
           </div>
         </div>
-      </div >
+      </div>
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
