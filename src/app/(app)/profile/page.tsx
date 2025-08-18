@@ -137,9 +137,7 @@ export default function ProfilePage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>First Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} value={field.value ?? ''} />
-                      </FormControl>
+                      <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -150,9 +148,7 @@ export default function ProfilePage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Last Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} value={field.value ?? ''} />
-                      </FormControl>
+                      <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -165,9 +161,7 @@ export default function ProfilePage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Height (cm)</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="1" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.valueAsNumber)} />
-                      </FormControl>
+                      <FormControl><Input type="number" step="1" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.valueAsNumber)} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -178,9 +172,7 @@ export default function ProfilePage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Weight (kg)</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.1" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.valueAsNumber)} />
-                      </FormControl>
+                      <FormControl><Input type="number" step="0.1" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.valueAsNumber)} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -192,7 +184,7 @@ export default function ProfilePage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Primary Fitness Goal</FormLabel>
-                    <FormControl> {/* FormControl now wraps the entire Select component */}
+                    <FormControl>
                       <Select onValueChange={field.onChange} value={field.value || ''}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select your primary goal" />
@@ -216,9 +208,7 @@ export default function ProfilePage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Health Notes (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Any relevant health notes or considerations" {...field} value={field.value ?? ''} />
-                    </FormControl>
+                    <FormControl><Textarea placeholder="Any relevant health notes or considerations" {...field} value={field.value ?? ''} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

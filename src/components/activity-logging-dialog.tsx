@@ -125,9 +125,9 @@ const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField control={form.control} name="distance" render={({ field }) => ( <FormItem> <FormLabel>Distance (km)</FormLabel> <FormControl> <Input type="number" step="0.1" {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
-        <FormField control={form.control} name="time" render={({ field }) => ( <FormItem> <FormLabel>Time (e.g., 1h 30m)</FormLabel> <FormControl> <Input {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
-        <FormField control={form.control} name="log_date" render={({ field }) => ( <FormItem> <FormLabel>Date</FormLabel> <FormControl> <Input type="date" {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
+        <FormField control={form.control} name="distance" render={({ field }) => ( <FormItem> <FormLabel>Distance (km)</FormLabel> <FormControl><Input type="number" step="0.1" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+        <FormField control={form.control} name="time" render={({ field }) => ( <FormItem> <FormLabel>Time (e.g., 1h 30m)</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+        <FormField control={form.control} name="log_date" render={({ field }) => ( <FormItem> <FormLabel>Date</FormLabel> <FormControl><Input type="date" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
         <Button type="submit" className="w-full">Log Cycling</Button>
       </form>
     </Form>
@@ -197,9 +197,9 @@ const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField control={form.control} name="lengths" render={({ field }) => ( <FormItem> <FormLabel>Lengths</FormLabel> <FormControl> <Input type="number" {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
-        <FormField control={form.control} name="pool_size" render={({ field }) => ( <FormItem> <FormLabel>Pool Size (meters)</FormLabel> <FormControl> <Input type="number" {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
-        <FormField control={form.control} name="log_date" render={({ field }) => ( <FormItem> <FormLabel>Date</FormLabel> <FormControl> <Input type="date" {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
+        <FormField control={form.control} name="lengths" render={({ field }) => ( <FormItem> <FormLabel>Lengths</FormLabel> <FormControl><Input type="number" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+        <FormField control={form.control} name="pool_size" render={({ field }) => ( <FormItem> <FormLabel>Pool Size (meters)</FormLabel> <FormControl><Input type="number" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+        <FormField control={form.control} name="log_date" render={({ field }) => ( <FormItem> <FormLabel>Date</FormLabel> <FormControl><Input type="date" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
         <Button type="submit" className="w-full">Log Swimming</Button>
       </form>
     </Form>
@@ -264,8 +264,8 @@ const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField control={form.control} name="duration" render={({ field }) => ( <FormItem> <FormLabel>Duration (e.g., 1h 30m)</FormLabel> <FormControl> <Input {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
-        <FormField control={form.control} name="log_date" render={({ field }) => ( <FormItem> <FormLabel>Date</FormLabel> <FormControl> <Input type="date" {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
+        <FormField control={form.control} name="duration" render={({ field }) => ( <FormItem> <FormLabel>Duration (e.g., 1h 30m)</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+        <FormField control={form.control} name="log_date" render={({ field }) => ( <FormItem> <FormLabel>Date</FormLabel> <FormControl><Input type="date" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
         <Button type="submit" className="w-full">Log Tennis</Button>
       </form>
     </Form>
