@@ -40,11 +40,13 @@ export default function LoginPage() {
 
       if (error) {
         toast.error('Login failed: ' + error.message);
+        console.error('Login error details:', error);
       } else {
         toast.success('Signed in successfully!');
       }
     } catch (error: any) {
       toast.error('Error: ' + error.message);
+      console.error('Exception during login:', error);
     } finally {
       setLoading(false);
     }
@@ -99,6 +101,7 @@ export default function LoginPage() {
       }
     } catch (error: any) {
       toast.error('Error: ' + error.message);
+      console.error('Exception during auth:', error);
     } finally {
       setLoading(false);
     }
