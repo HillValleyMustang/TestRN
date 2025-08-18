@@ -28,21 +28,17 @@ export function Sidebar() {
           return (
             <Tooltip key={link.href}>
               <TooltipTrigger asChild>
-                {/* Use Link with legacyBehavior and passHref, wrapping a Button with asChild */}
-                <Link href={link.href} passHref legacyBehavior>
+                {/* Updated Link usage: Link directly wraps Button, no legacyBehavior or explicit <a> */}
+                <Link href={link.href} passHref>
                   <Button
-                    variant="ghost" // Use ghost variant to maintain the visual style of a navigation link
+                    variant="ghost"
                     className={cn(
                       "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
                       isActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"
                     )}
-                    asChild // This makes the Button render its child (the <a> tag) and pass its props to it
                   >
-                    {/* Explicit <a> tag is needed when using legacyBehavior with Link and asChild on the child component */}
-                    <a>
-                      <Icon className="h-5 w-5" />
-                      <span className="sr-only">{link.label}</span>
-                    </a>
+                    <Icon className="h-5 w-5" />
+                    <span className="sr-only">{link.label}</span>
                   </Button>
                 </Link>
               </TooltipTrigger>
