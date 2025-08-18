@@ -18,7 +18,7 @@ export function MobileFooterNav() {
 
   return (
     <footer className="fixed bottom-0 left-0 z-10 w-full border-t bg-background sm:hidden">
-      <nav className="grid h-16 grid-cols-6">
+      <nav className="grid h-16 grid-cols-5">
         {navLinks.map((link) => {
           const isActive = pathname === link.href;
           const Icon = link.icon;

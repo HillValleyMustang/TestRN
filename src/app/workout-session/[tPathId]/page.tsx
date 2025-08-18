@@ -7,7 +7,7 @@ import { TPathHeader } from '@/components/workout-session/t-path-header';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { FinishWorkoutButton } from '@/components/workout-session/finish-workout-button';
 import { useTPathSession } from '@/hooks/use-t-path-session';
-import { SetLogState } from '@/types/supabase';
+import { SetLogState } from '@/types/supabase'; // Import SetLogState for typing from consolidated types
 
 export default function WorkoutSessionPage({ params }: { params: { tPathId: string } }) {
   const { tPathId } = params;
@@ -23,8 +23,8 @@ export default function WorkoutSessionPage({ params }: { params: { tPathId: stri
     error,
     currentSessionId,
     sessionStartTime,
-    setExercisesWithSets,
-  } = useTPathSession({ tPathId, session, supabase, router });
+    setExercisesWithSets, // This setter is passed down to ExerciseCard
+  } = useTPathSession({ tPathId: tPathId || '', session, supabase, router }); // Added || '' for safety, though tPathId should be present
 
   if (loading) {
     return (
@@ -46,7 +46,7 @@ export default function WorkoutSessionPage({ params }: { params: { tPathId: stri
     return (
       <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
         <p>Transformation Path not found.</p>
-      </div>
+      </div >
     );
   }
 
