@@ -25,6 +25,9 @@ const profileSchema = z.object({
   weight_kg: z.coerce.number().min(1, "Weight must be positive.").optional().nullable(),
   primary_goal: z.string().optional().nullable(),
   health_notes: z.string().optional().nullable(),
+  preferred_weight_unit: z.enum(["kg", "lbs"]).optional(), // Marked as optional
+  preferred_distance_unit: z.enum(["km", "miles"]).optional(), // Marked as optional
+  default_rest_time_seconds: z.coerce.number().min(0, "Rest time cannot be negative.").optional().nullable(),
 });
 
 export default function ProfilePage() {
@@ -42,6 +45,9 @@ export default function ProfilePage() {
       weight_kg: null,
       primary_goal: null,
       health_notes: null,
+      preferred_weight_unit: "kg", // Explicitly provide default
+      preferred_distance_unit: "km", // Explicitly provide default
+      default_rest_time_seconds: 60,
     },
   });
 
@@ -71,6 +77,9 @@ export default function ProfilePage() {
           weight_kg: data.weight_kg,
           primary_goal: data.primary_goal,
           health_notes: data.health_notes,
+          preferred_weight_unit: (data.preferred_weight_unit || "kg") as "kg" | "lbs",
+          preferred_distance_unit: (data.preferred_distance_unit || "km") as "km" | "miles",
+          default_rest_time_seconds: data.default_rest_time_seconds || 60,
         });
       }
       setLoading(false);
@@ -92,6 +101,9 @@ export default function ProfilePage() {
       weight_kg: values.weight_kg,
       primary_goal: values.primary_goal,
       health_notes: values.health_notes,
+      preferred_weight_unit: values.preferred_weight_unit || "kg", // Provide fallback if somehow undefined
+      preferred_distance_unit: values.preferred_distance_unit || "km", // Provide fallback if somehow undefined
+      default_rest_time_seconds: values.default_rest_time_seconds,
       updated_at: new Date().toISOString(),
     };
 
@@ -202,6 +214,61 @@ export default function ProfilePage() {
                   </FormItem>
                 )}
               />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField
+                  control={form.control}
+                  name="preferred_weight_unit"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Weight Unit</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select unit" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="kg">Kilograms (kg)</SelectItem>
+                          <SelectItem value="lbs">Pounds (lbs)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="preferred_distance_unit"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Distance Unit</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select unit" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="km">Kilometers (km)</SelectItem>
+                          <SelectItem value="miles">Miles (miles)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="default_rest_time_seconds"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Default Rest Time (s)</FormLabel>
+                      <FormControl><Input type="number" step="5" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.valueAsNumber)} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               <FormField
                 control={form.control}
                 name="health_notes"

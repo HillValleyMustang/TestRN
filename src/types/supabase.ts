@@ -104,14 +104,18 @@ export type Database = {
         Row: {
           body_fat_pct: number | null
           created_at: string | null
+          default_rest_time_seconds: number | null
           first_name: string | null
           full_name: string | null
           health_notes: string | null
           height_cm: number | null
           id: string
+          last_ai_coach_use_at: string | null
           last_name: string | null
-          primary_goal: string | null
+          preferred_distance_unit: string | null
           preferred_muscles: string | null
+          preferred_weight_unit: string | null
+          primary_goal: string | null
           target_date: string | null
           updated_at: string | null
           weight_kg: number | null
@@ -119,14 +123,18 @@ export type Database = {
         Insert: {
           body_fat_pct?: number | null
           created_at?: string | null
+          default_rest_time_seconds?: number | null
           first_name?: string | null
           full_name?: string | null
           health_notes?: string | null
           height_cm?: number | null
           id: string
+          last_ai_coach_use_at?: string | null
           last_name?: string | null
-          primary_goal?: string | null
+          preferred_distance_unit?: string | null
           preferred_muscles?: string | null
+          preferred_weight_unit?: string | null
+          primary_goal?: string | null
           target_date?: string | null
           updated_at?: string | null
           weight_kg?: number | null
@@ -134,14 +142,18 @@ export type Database = {
         Update: {
           body_fat_pct?: number | null
           created_at?: string | null
+          default_rest_time_seconds?: number | null
           first_name?: string | null
           full_name?: string | null
           health_notes?: string | null
           height_cm?: number | null
           id?: string
+          last_ai_coach_use_at?: string | null
           last_name?: string | null
-          primary_goal?: string | null
+          preferred_distance_unit?: string | null
           preferred_muscles?: string | null
+          preferred_weight_unit?: string | null
+          primary_goal?: string | null
           target_date?: string | null
           updated_at?: string | null
           weight_kg?: number | null
@@ -254,6 +266,7 @@ export type Database = {
           created_at: string | null
           duration_string: string | null
           id: string
+          rating: number | null
           session_date: string
           template_name: string | null
           user_id: string | null
@@ -262,6 +275,7 @@ export type Database = {
           created_at?: string | null
           duration_string?: string | null
           id?: string
+          rating?: number | null
           session_date: string
           template_name?: string | null
           user_id?: string | null
@@ -270,6 +284,7 @@ export type Database = {
           created_at?: string | null
           duration_string?: string | null
           id?: string
+          rating?: number | null
           session_date?: string
           template_name?: string | null
           user_id?: string | null
@@ -321,6 +336,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_notifications_with_read_status: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          title: string
+          type: string
+        }[]
+      }
       handle_new_user: {
         Args: Record<PropertyKey, never>
         Returns: string
