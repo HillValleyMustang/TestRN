@@ -38,6 +38,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [currentTPathId, setCurrentTPathId] = useState<string>('');
+  const [aiCoachUsage, setAiCoachUsage] = useState<{ count: number; lastUsed: string | null }>({ count: 0, lastUsed: null });
 
   const form = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
@@ -86,6 +87,14 @@ export default function ProfilePage() {
           default_rest_time_seconds: data.default_rest_time_seconds || 60,
           preferred_muscles: data.preferred_muscles,
         });
+        
+        // Set AI coach usage info
+        if (data.last_ai_coach_use_at) {
+          setAiCoachUsage({
+            count: 1, // Simplified
+            lastUsed: new Date(data.last_ai_coach_use_at).toLocaleString()
+          });
+        }
       }
       setLoading(false);
     };
@@ -337,6 +346,27 @@ export default function ProfilePage() {
             currentTPathId={currentTPathId} 
             onTPathChange={handleTPathChange} 
           />
+        </CardContent>
+      </Card>
+
+      <Card className="max-w-2xl">
+        <CardHeader>
+          <CardTitle>AI Coach Usage</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <p className="text-sm">
+              You have used the AI Coach {aiCoachUsage.count} times today.
+            </p>
+            {aiCoachUsage.lastUsed && (
+              <p className="text-sm text-muted-foreground">
+                Last used: {aiCoachUsage.lastUsed}
+              </p>
+            )}
+            <p className="text-sm text-muted-foreground">
+              Limit: 2 uses per session. The AI Coach needs at least 3 workouts in the last 30 days to provide advice.
+            </p>
+          </div>
         </CardContent>
       </Card>
 

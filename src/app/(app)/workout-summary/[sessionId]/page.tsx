@@ -27,6 +27,7 @@ type ExerciseGroup = {
   type: ExerciseDefinition['type'] | undefined;
   category: ExerciseDefinition['category'] | null | undefined;
   sets: SetLogWithExercise[];
+  id: string;
 };
 
 interface WorkoutSummaryPageProps {
@@ -159,6 +160,7 @@ export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) 
         type: log.exercise_definitions?.type,
         category: log.exercise_definitions?.category,
         sets: [],
+        id: exerciseId
       };
     }
     acc[exerciseId].sets.push(log);
@@ -193,7 +195,11 @@ export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) 
           <p className="text-muted-foreground">No exercises logged for this session.</p>
         ) : (
           (Object.values(exercisesWithGroupedSets) as ExerciseGroup[]).map((exerciseGroup: ExerciseGroup) => (
-            <ExerciseSummaryCard key={exerciseGroup.name} exerciseGroup={exerciseGroup} />
+            <ExerciseSummaryCard 
+              key={exerciseGroup.name} 
+              exerciseGroup={exerciseGroup} 
+              currentSessionId={sessionId}
+            />
           ))
         )}
       </section>

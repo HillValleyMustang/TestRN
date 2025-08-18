@@ -5,6 +5,7 @@ import { Tables } from "@/types/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Trophy } from "lucide-react";
+import { ExerciseVolumeChart } from "./exercise-volume-chart";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type SetLog = Tables<'set_logs'>;
@@ -20,10 +21,12 @@ interface ExerciseSummaryCardProps {
     type: ExerciseDefinition['type'] | undefined;
     category: ExerciseDefinition['category'] | null | undefined;
     sets: SetLogWithExercise[];
+    id: string;
   };
+  currentSessionId: string;
 }
 
-export const ExerciseSummaryCard = ({ exerciseGroup }: ExerciseSummaryCardProps) => {
+export const ExerciseSummaryCard = ({ exerciseGroup, currentSessionId }: ExerciseSummaryCardProps) => {
   return (
     <Card key={exerciseGroup.name} className="mb-4">
       <CardHeader>
@@ -64,6 +67,14 @@ export const ExerciseSummaryCard = ({ exerciseGroup }: ExerciseSummaryCardProps)
             ))}
           </TableBody>
         </Table>
+        
+        <div className="mt-6">
+          <ExerciseVolumeChart 
+            currentSessionId={currentSessionId}
+            exerciseName={exerciseGroup.name}
+            exerciseId={exerciseGroup.id}
+          />
+        </div>
       </CardContent>
     </Card>
   );
