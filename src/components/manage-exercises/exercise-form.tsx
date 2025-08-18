@@ -26,14 +26,25 @@ import {
   FormMessage 
 } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, Edit, XCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { PlusCircle, Edit, XCircle, ChevronDown, ChevronUp, Info } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 const exerciseSchema = z.object({
   name: z.string().min(1, "Exercise name is required."),
-  main_muscle: z.string().min(1, "Main muscle group is required."),
+  main_muscles: z.array(z.string()).min(1, "At least one main muscle group is required."),
   type: z.array(z.enum(["weight", "timed"])).min(1, "At least one exercise type is required."),
   category: z.string().optional(),
   description: z.string().optional(),
@@ -51,17 +62,32 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
   const { session, supabase } = useSession();
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]);
 
   const mainMuscleGroups = [
-    "Chest", "Back", "Shoulders", "Arms", "Core", 
-    "Legs", "Glutes", "Calves", "Full Body", "Cardio"
+    "Pectorals", "Deltoids", "Lats", "Traps", "Biceps", 
+    "Triceps", "Quadriceps", "Hamstrings", "Glutes", "Calves", 
+    "Abdominals", "Core"
+  ];
+
+  const categoryOptions = [
+    { 
+      value: "Unilateral", 
+      label: "Unilateral",
+      description: "Movement performed with one arm or leg at a time"
+    },
+    { 
+      value: "Bilateral", 
+      label: "Bilateral",
+      description: "Both arms or legs move together"
+    }
   ];
 
   const form = useForm<z.infer<typeof exerciseSchema>>({
     resolver: zodResolver(exerciseSchema),
     defaultValues: {
       name: "",
-      main_muscle: "",
+      main_muscles: [],
       type: [],
       category: "",
       description: "",
@@ -72,26 +98,30 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
 
   useEffect(() => {
     if (editingExercise) {
+      const muscleGroups = editingExercise.main_muscle ? editingExercise.main_muscle.split(',').map(m => m.trim()) : [];
+      
       form.reset({
         name: editingExercise.name,
-        main_muscle: editingExercise.main_muscle,
-        type: editingExercise.type ? [editingExercise.type] : [],
+        main_muscles: muscleGroups,
+        type: editingExercise.type ? [editingExercise.type] as ("weight" | "timed")[] : [],
         category: editingExercise.category || "",
         description: editingExercise.description || "",
         pro_tip: editingExercise.pro_tip || "",
         video_url: editingExercise.video_url || "",
       });
-      setSelectedTypes(editingExercise.type ? [editingExercise.type] : []);
+      setSelectedMuscles(muscleGroups);
+      setSelectedTypes(editingExercise.type ? [editingExercise.type] as ("weight" | "timed")[] : []);
       setIsExpanded(true);
     } else {
       form.reset();
+      setSelectedMuscles([]);
       setSelectedTypes([]);
     }
   }, [editingExercise, form]);
 
-  const handleTypeChange = (type: string, checked: boolean) => {
+  const handleTypeChange = (type: "weight" | "timed", checked: boolean) => {
     const currentTypes = form.getValues("type") || [];
-    let newTypes;
+    let newTypes: ("weight" | "timed")[];
     
     if (checked) {
       newTypes = [...currentTypes, type];
@@ -101,6 +131,20 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
     
     form.setValue("type", newTypes);
     setSelectedTypes(newTypes);
+  };
+
+  const handleMuscleChange = (muscle: string, checked: boolean) => {
+    const currentMuscles = form.getValues("main_muscles") || [];
+    let newMuscles;
+    
+    if (checked) {
+      newMuscles = [...currentMuscles, muscle];
+    } else {
+      newMuscles = currentMuscles.filter((m) => m !== muscle);
+    }
+    
+    form.setValue("main_muscles", newMuscles);
+    setSelectedMuscles(newMuscles);
   };
 
   async function onSubmit(values: z.infer<typeof exerciseSchema>) {
@@ -115,8 +159,15 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
       return;
     }
 
+    // Ensure we have at least one muscle group
+    if (!values.main_muscles || values.main_muscles.length === 0) {
+      toast.error("Please select at least one main muscle group.");
+      return;
+    }
+
     const exerciseData = {
       ...values,
+      main_muscle: values.main_muscles.join(', '), // Store as comma-separated string
       type: values.type[0] // For now, we'll use the first type if multiple are selected
     };
 
@@ -144,6 +195,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
       } else {
         toast.success("Exercise added successfully!");
         form.reset();
+        setSelectedMuscles([]);
         setSelectedTypes([]);
         onSaveSuccess();
         setIsExpanded(false);
@@ -154,6 +206,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
   const toggleExpand = () => {
     if (isExpanded) {
       form.reset();
+      setSelectedMuscles([]);
       setSelectedTypes([]);
       if (editingExercise) {
         onCancelEdit();
@@ -198,34 +251,35 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                   </FormItem>
                 )} 
               />
-              <FormField 
-                control={form.control} 
-                name="main_muscle" 
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Main Muscle Group(s)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select muscle group" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {mainMuscleGroups.map((muscle) => (
-                          <SelectItem key={muscle} value={muscle}>
-                            {muscle}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} 
-              />
+              
+              <div className="space-y-2">
+                <FormLabel>Main Muscle Group(s)</FormLabel>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {mainMuscleGroups.map((muscle) => (
+                    <div key={muscle} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`muscle-${muscle}`}
+                        checked={selectedMuscles.includes(muscle)}
+                        onCheckedChange={(checked) => handleMuscleChange(muscle, !!checked)}
+                      />
+                      <label
+                        htmlFor={`muscle-${muscle}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        {muscle}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                <FormMessage>
+                  {form.formState.errors.main_muscles?.message}
+                </FormMessage>
+              </div>
+              
               <div className="space-y-2">
                 <FormLabel>Exercise Type</FormLabel>
-                <div className="flex flex-col space-y-2">
-                  <div className="flex items-center space-x-2">
+                <div className="flex flex-col space-y-3 pt-1">
+                  <div className="flex items-center space-x-3">
                     <Checkbox
                       id="weight"
                       checked={selectedTypes.includes("weight")}
@@ -238,7 +292,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                       Weight Training
                     </label>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-3">
                     <Checkbox
                       id="timed"
                       checked={selectedTypes.includes("timed")}
@@ -256,12 +310,26 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                   {form.formState.errors.type?.message}
                 </FormMessage>
               </div>
+              
               <FormField 
                 control={form.control} 
                 name="category" 
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Category</FormLabel>
+                    <div className="flex items-center justify-between">
+                      <FormLabel>Category</FormLabel>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs">
+                            <p>Unilateral: Movement performed with one arm or leg at a time</p>
+                            <p className="mt-1">Bilateral: Both arms or legs move together</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -269,18 +337,18 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="Unilateral">
-                          Unilateral (hint - movement performed one Arm or Leg at a time)
-                        </SelectItem>
-                        <SelectItem value="Bilateral">
-                          Bilateral (hint - both your Arms or Legs move together)
-                        </SelectItem>
+                        {categoryOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
                 )} 
               />
+              
               <FormField 
                 control={form.control} 
                 name="description" 
@@ -294,6 +362,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                   </FormItem>
                 )} 
               />
+              
               <FormField 
                 control={form.control} 
                 name="pro_tip" 
@@ -307,6 +376,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                   </FormItem>
                 )} 
               />
+              
               <FormField 
                 control={form.control} 
                 name="video_url" 
@@ -320,6 +390,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                   </FormItem>
                 )} 
               />
+              
               <div className="flex gap-2 pt-2">
                 <Button type="submit" className="flex-1">
                   {editingExercise ? (
