@@ -33,12 +33,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -237,13 +231,13 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
       {isExpanded && (
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField 
                 control={form.control} 
                 name="name" 
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Exercise Name</FormLabel>
+                    <FormLabel className="font-bold">Exercise Name</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
@@ -252,8 +246,8 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                 )} 
               />
               
-              <div className="space-y-2">
-                <FormLabel>Main Muscle Group(s)</FormLabel>
+              <div className="space-y-3">
+                <FormLabel className="font-bold">Main Muscle Group(s)</FormLabel>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {mainMuscleGroups.map((muscle) => (
                     <div key={muscle} className="flex items-center space-x-2">
@@ -276,9 +270,9 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                 </FormMessage>
               </div>
               
-              <div className="space-y-2">
-                <FormLabel>Exercise Type</FormLabel>
-                <div className="flex flex-col space-y-3 pt-1">
+              <div className="space-y-3">
+                <FormLabel className="font-bold">Exercise Type</FormLabel>
+                <div className="flex flex-col space-y-4 pt-1">
                   <div className="flex items-center space-x-3">
                     <Checkbox
                       id="weight"
@@ -317,18 +311,23 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                 render={({ field }) => (
                   <FormItem>
                     <div className="flex items-center justify-between">
-                      <FormLabel>Category</FormLabel>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-xs">
-                            <p>Unilateral: Movement performed with one arm or leg at a time</p>
-                            <p className="mt-1">Bilateral: Both arms or legs move together</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <FormLabel className="font-bold">Category</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8">
+                            <Info className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 max-w-[90vw]">
+                          <div className="space-y-2">
+                            <p className="font-semibold">Category Information</p>
+                            <ul className="text-sm space-y-1">
+                              <li><span className="font-medium">Unilateral:</span> Movement performed with one arm or leg at a time</li>
+                              <li><span className="font-medium">Bilateral:</span> Both arms or legs move together</li>
+                            </ul>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
@@ -354,7 +353,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                 name="description" 
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description (Optional)</FormLabel>
+                    <FormLabel className="font-bold">Description (Optional)</FormLabel>
                     <FormControl>
                       <Textarea {...field} />
                     </FormControl>
@@ -368,7 +367,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                 name="pro_tip" 
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Pro Tip (Optional)</FormLabel>
+                    <FormLabel className="font-bold">Pro Tip (Optional)</FormLabel>
                     <FormControl>
                       <Textarea {...field} />
                     </FormControl>
@@ -382,7 +381,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                 name="video_url" 
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Video URL (Optional)</FormLabel>
+                    <FormLabel className="font-bold">Video URL (Optional)</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
