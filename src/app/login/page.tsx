@@ -29,6 +29,64 @@ export default function LoginPage() {
     return () => subscription.unsubscribe();
   }, [router]);
 
+  const handleDemoLogin = async () => {
+    setLoading(true);
+    try {
+      // Predefined demo credentials
+      const email = 'demo@workouttracker.com';
+      const password = 'DemoPassword123';
+      
+      // Sign in with predefined credentials
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        // If sign in fails, it might be because the account doesn't exist
+        // Try to sign up with the same credentials
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              first_name: 'Demo',
+              last_name: 'User'
+            }
+          }
+        });
+
+        if (signUpError) {
+          toast.error('Error: ' + signUpError.message);
+          return;
+        }
+
+        // Create a profile for the demo user
+        if (data.user) {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert({
+              id: data.user.id,
+              first_name: 'Demo',
+              last_name: 'User'
+            });
+
+          if (profileError) {
+            console.error('Profile creation error:', profileError);
+          }
+          
+          toast.success('Demo account created and signed in!');
+        }
+      } else {
+        toast.success('Signed in to demo account!');
+      }
+    } catch (error: any) {
+      toast.error('Error: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -155,6 +213,25 @@ export default function LoginPage() {
               >
                 {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
               </Button>
+            </div>
+            
+            <div className="mt-6 pt-6 border-t border-muted">
+              <h3 className="text-lg font-semibold mb-2">Quick Demo Access</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Skip registration and use our demo account:
+              </p>
+              <Button 
+                onClick={handleDemoLogin} 
+                className="w-full"
+                disabled={loading}
+                variant="secondary"
+              >
+                {loading ? "Signing In..." : "Use Demo Account"}
+              </Button>
+              <p className="text-xs text-muted-foreground mt-2">
+                Email: demo@workouttracker.com<br/>
+                Password: DemoPassword123
+              </p>
             </div>
           </CardContent>
         </Card>
