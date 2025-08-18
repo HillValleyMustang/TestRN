@@ -29,29 +29,6 @@ export default function LoginPage() {
     return () => subscription.unsubscribe();
   }, [router]);
 
-  const handleTestUserLogin = async () => {
-    setLoading(true);
-    try {
-      // Using your permanent test credentials
-      const { error } = await supabase.auth.signInWithPassword({
-        email: 'craigd.facebook@gmail.com',
-        password: 'lufclufc'
-      });
-
-      if (error) {
-        toast.error('Login failed: ' + error.message);
-        console.error('Login error details:', error);
-      } else {
-        toast.success('Signed in successfully!');
-      }
-    } catch (error: any) {
-      toast.error('Error: ' + error.message);
-      console.error('Exception during login:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -79,7 +56,8 @@ export default function LoginPage() {
             .upsert({
               id: data.user.id,
               first_name: firstName,
-              last_name: lastName
+              last_name: lastName,
+              updated_at: new Date().toISOString()
             });
 
           if (profileError) {
@@ -179,25 +157,6 @@ export default function LoginPage() {
               >
                 {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
               </Button>
-            </div>
-            
-            <div className="mt-6 pt-6 border-t border-muted">
-              <h3 className="text-lg font-semibold mb-2">Quick Test Access</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Use your permanent test account:
-              </p>
-              <Button 
-                onClick={handleTestUserLogin} 
-                className="w-full"
-                disabled={loading}
-                variant="secondary"
-              >
-                {loading ? "Logging in..." : "Use Test Account"}
-              </Button>
-              <p className="text-xs text-muted-foreground mt-2">
-                Email: craigd.facebook@gmail.com<br/>
-                Password: lufclufc
-              </p>
             </div>
           </CardContent>
         </Card>
