@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Dumbbell, BookOpen, BarChart3, User, Shield } from "lucide-react";
+import { Home, Dumbbell, BookOpen, BarChart3, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
@@ -11,7 +11,6 @@ const navLinks = [
   { href: "/manage-exercises", label: "Exercises", icon: BookOpen },
   { href: "/progress", label: "Progress", icon: BarChart3 },
   { href: "/profile", label: "Profile", icon: User },
-  { href: "/admin/test-user", label: "Test", icon: Shield }, // Added test user link
 ];
 
 export function MobileFooterNav() {

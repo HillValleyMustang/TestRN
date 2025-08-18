@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, History, User, BarChart3, Dumbbell, LayoutTemplate, Shield } from "lucide-react";
+import { Home, History, User, BarChart3, Dumbbell, LayoutTemplate } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button"; // Import Button component
@@ -14,7 +14,6 @@ const mainNavLinks = [
   { href: "/manage-exercises", label: "Manage Exercises", icon: Dumbbell },
   { href: "/manage-t-paths", label: "Manage T-Paths", icon: LayoutTemplate },
   { href: "/profile", label: "My Profile", icon: User },
-  { href: "/admin/test-user", label: "Test User", icon: Shield }, // Added test user link
 ];
 
 export function Sidebar() {
