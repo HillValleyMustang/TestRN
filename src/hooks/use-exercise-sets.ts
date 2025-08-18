@@ -3,10 +3,12 @@
 import { useState, useCallback } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { Tables, TablesInsert, TablesUpdate, SetLogState } from '@/types/supabase'; // Import SetLogState from consolidated types
+import { Tables, TablesInsert, TablesUpdate, SetLogState } from '@/types/supabase';
+import { convertWeight } from '@/lib/unit-conversions';
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
-type SetLog = Tables<'set_logs'>; // Use Tables<'set_logs'> to get the 'id' field
+type SetLog = Tables<'set_logs'>;
+type Profile = Tables<'profiles'>;
 
 interface UseExerciseSetsProps {
   exerciseId: string;
@@ -16,6 +18,7 @@ interface UseExerciseSetsProps {
   supabase: SupabaseClient;
   onUpdateSets: (exerciseId: string, newSets: SetLogState[]) => void;
   initialSets: SetLogState[];
+  preferredWeightUnit: Profile['preferred_weight_unit']; // New prop
 }
 
 interface UseExerciseSetsReturn {
@@ -35,6 +38,7 @@ export const useExerciseSets = ({
   supabase,
   onUpdateSets,
   initialSets,
+  preferredWeightUnit,
 }: UseExerciseSetsProps): UseExerciseSetsReturn => {
   const [sets, setSets] = useState<SetLogState[]>(initialSets);
 
@@ -54,7 +58,7 @@ export const useExerciseSets = ({
         is_pb: false, // Default for new set
         isSaved: false,
         isPR: false,
-        lastWeight: lastSet?.weight_kg,
+        lastWeight: lastSet?.weight_kg, // Stored in KG
         lastReps: lastSet?.reps,
         lastTimeSeconds: lastSet?.time_seconds,
       };
@@ -67,14 +71,25 @@ export const useExerciseSets = ({
   const handleInputChange = useCallback((setIndex: number, field: keyof TablesInsert<'set_logs'>, value: string) => {
     setSets(prev => {
       const newSets = [...prev];
-      newSets[setIndex] = {
-        ...newSets[setIndex],
-        [field]: parseFloat(value) || null
-      };
+      let parsedValue: number | null = parseFloat(value);
+      if (isNaN(parsedValue)) parsedValue = null;
+
+      // If the field is weight_kg, convert from preferred unit to kg for internal state
+      if (field === 'weight_kg' && parsedValue !== null) {
+        newSets[setIndex] = {
+          ...newSets[setIndex],
+          [field]: convertWeight(parsedValue, preferredWeightUnit as 'kg' | 'lbs', 'kg')
+        };
+      } else {
+        newSets[setIndex] = {
+          ...newSets[setIndex],
+          [field]: parsedValue
+        };
+      }
       onUpdateSets(exerciseId, newSets); // Update global state
       return newSets;
     });
-  }, [exerciseId, onUpdateSets]);
+  }, [exerciseId, onUpdateSets, preferredWeightUnit]);
 
   const handleSaveSet = useCallback(async (setIndex: number) => {
     if (!currentSessionId) {
@@ -130,7 +145,7 @@ export const useExerciseSets = ({
     const setLogData: TablesInsert<'set_logs'> | TablesUpdate<'set_logs'> = {
       session_id: currentSessionId,
       exercise_id: exerciseId,
-      weight_kg: currentSet.weight_kg,
+      weight_kg: currentSet.weight_kg, // Already in KG due to handleInputChange
       reps: currentSet.reps,
       reps_l: currentSet.reps_l,
       reps_r: currentSet.reps_r,
@@ -213,7 +228,6 @@ export const useExerciseSets = ({
 
     if (error) {
       toast.error("Failed to delete set: " + error.message);
-      console.error("Error deleting set:", error);
     } else {
       setSets(prev => {
         const updatedSets = prev.filter((_, i) => i !== setIndex);

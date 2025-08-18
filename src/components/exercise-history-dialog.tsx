@@ -9,9 +9,11 @@ import { History } from "lucide-react";
 import { useSession } from "@/components/session-context-provider";
 import { Tables } from '@/types/supabase';
 import { toast } from "sonner";
+import { convertWeight, formatWeight } from '@/lib/unit-conversions';
 
 type SetLog = Tables<'set_logs'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
+type Profile = Tables<'profiles'>;
 
 // Define a new type to correctly represent the fetched data with the joined workout_sessions
 type SetLogWithSession = SetLog & {
@@ -30,6 +32,25 @@ export const ExerciseHistoryDialog = ({ exerciseId, exerciseName, exerciseType, 
   const [open, setOpen] = useState(false);
   const [historyLogs, setHistoryLogs] = useState<SetLogWithSession[]>([]); // Use the new type here
   const [loading, setLoading] = useState(true);
+  const [preferredWeightUnit, setPreferredWeightUnit] = useState<Profile['preferred_weight_unit']>('kg');
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!session) return;
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('preferred_weight_unit')
+        .eq('id', session.user.id)
+        .single();
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error("Error fetching profile for units:", profileError);
+      } else if (profileData) {
+        setPreferredWeightUnit(profileData.preferred_weight_unit || 'kg');
+      }
+    };
+    fetchUserData();
+  }, [session, supabase]);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -86,7 +107,7 @@ export const ExerciseHistoryDialog = ({ exerciseId, exerciseName, exerciseType, 
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
-                    {exerciseType === 'weight' && <TableHead>Weight (kg)</TableHead>}
+                    {exerciseType === 'weight' && <TableHead>Weight ({preferredWeightUnit})</TableHead>}
                     {exerciseType === 'weight' && <TableHead>Reps</TableHead>}
                     {exerciseType === 'timed' && <TableHead>Time (s)</TableHead>}
                     {exerciseCategory === 'Unilateral' && (
@@ -103,7 +124,11 @@ export const ExerciseHistoryDialog = ({ exerciseId, exerciseName, exerciseType, 
                       <TableCell>
                         {log.workout_sessions && new Date(log.workout_sessions.session_date).toLocaleDateString()}
                       </TableCell>
-                      {exerciseType === 'weight' && <TableCell>{log.weight_kg ?? '-'}</TableCell>}
+                      {exerciseType === 'weight' && (
+                        <TableCell>
+                          {formatWeight(convertWeight(log.weight_kg, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs')}
+                        </TableCell>
+                      )}
                       {exerciseType === 'weight' && <TableCell>{log.reps ?? '-'}</TableCell>}
                       {exerciseType === 'timed' && <TableCell>{log.time_seconds ?? '-'}</TableCell>}
                       {exerciseCategory === 'Unilateral' && (
