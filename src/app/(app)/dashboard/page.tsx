@@ -6,6 +6,7 @@ import { useSession } from '@/components/session-context-provider';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { ActionHub } from '@/components/dashboard/action-hub';
 import { WeeklyVolumeChart } from '@/components/dashboard/weekly-volume-chart';
+import { NextWorkoutCard } from '@/components/dashboard/next-workout-card';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 
@@ -100,6 +101,8 @@ export default function DashboardPage() {
         <h1 className="text-3xl font-bold">Welcome Back, {welcomeName}</h1>
         <p className="text-muted-foreground">Ready to Train? Let's get Started!</p>
       </header>
+
+      <NextWorkoutCard />
 
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-1">

@@ -94,6 +94,7 @@ export default function OnboardingPage() {
         primary_goal: goalFocus,
         health_notes: constraints,
         default_rest_time_seconds: 60, // Default to 60s as per requirements
+        body_fat_pct: null // Will be updated when user adds this data
       };
 
       const { error: profileError } = await supabase
@@ -127,6 +128,20 @@ export default function OnboardingPage() {
         .single();
 
       if (tPathError) throw tPathError;
+
+      // Generate the actual workouts for this T-Path
+      const response = await fetch(`/api/generate-t-path`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ tPathId: tPath.id })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate T-Path workouts');
+      }
 
       toast.success("Onboarding completed successfully!");
       router.push('/dashboard');

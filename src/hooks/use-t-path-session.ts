@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { Tables, TablesInsert, SetLogState } from '@/types/supabase'; // Import SetLogState from consolidated types
+import { Tables, TablesInsert, SetLogState } from '@/types/supabase';
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -137,7 +137,7 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
         .from('workout_sessions')
         .insert({
           user_id: session.user.id,
-          template_name: tPathData.template_name, // Use the T-Path name here
+          template_name: tPathData.template_name,
           session_date: new Date().toISOString(),
         })
         .select('id')
@@ -154,19 +154,19 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
       fetchedExercises.forEach(ex => {
         const lastSet = lastSetsData[ex.id];
         initialSets[ex.id] = [{
-          id: null, // New sets don't have an ID yet
-          created_at: null, // Will be set by DB
-          session_id: sessionData.id, // Use the newly created session ID
-          exercise_id: ex.id, // Corrected: use ex.id here
+          id: null,
+          created_at: null,
+          session_id: sessionData.id,
+          exercise_id: ex.id,
           weight_kg: null,
           reps: null,
           reps_l: null,
           reps_r: null,
           time_seconds: null,
-          is_pb: false, // Default for new set
+          is_pb: false,
           isSaved: false,
           isPR: false,
-          lastWeight: lastSet?.weight_kg, // Stored in KG
+          lastWeight: lastSet?.weight_kg,
           lastReps: lastSet?.reps,
           lastTimeSeconds: lastSet?.time_seconds,
         }];

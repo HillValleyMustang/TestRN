@@ -15,6 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from 'sonner';
 import { Tables, TablesUpdate } from '@/types/supabase';
+import { TPathSwitcher } from '@/components/t-path-switcher';
 
 type Profile = Tables<'profiles'>;
 
@@ -36,6 +37,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [currentTPathId, setCurrentTPathId] = useState<string>('');
 
   const form = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
@@ -134,6 +136,12 @@ export default function ProfilePage() {
       setProfile((prev: Profile | null) => ({ ...prev, ...updateData } as Profile));
     }
   }
+
+  const handleTPathChange = (newTPathId: string) => {
+    setCurrentTPathId(newTPathId);
+    // In a real implementation, this would update the user's active T-Path
+    toast.success("T-Path switched successfully!");
+  };
 
   if (loading) {
     return (
@@ -317,6 +325,18 @@ export default function ProfilePage() {
               <Button type="submit" className="w-full">Update Profile</Button>
             </form>
           </Form>
+        </CardContent>
+      </Card>
+
+      <Card className="max-w-2xl">
+        <CardHeader>
+          <CardTitle>T-Path Settings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <TPathSwitcher 
+            currentTPathId={currentTPathId} 
+            onTPathChange={handleTPathChange} 
+          />
         </CardContent>
       </Card>
 

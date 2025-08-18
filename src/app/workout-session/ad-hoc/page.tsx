@@ -4,10 +4,10 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { MadeWithDyad } from "@/components/made-with-dyad";
-import { TPathHeader } from '@/components/workout-session/t-path-header'; // Updated import
+import { TPathHeader } from '@/components/workout-session/t-path-header';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { FinishWorkoutButton } from '@/components/workout-session/finish-workout-button';
-import { useAdHocWorkoutSession } from '@/hooks/use-ad-hoc-workout-session'; // New hook
+import { useAdHocWorkoutSession } from '@/hooks/use-ad-hoc-workout-session';
 import { Tables, SetLogState } from '@/types/supabase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";

@@ -7,7 +7,7 @@ import { TPathHeader } from '@/components/workout-session/t-path-header';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { FinishWorkoutButton } from '@/components/workout-session/finish-workout-button';
 import { useTPathSession } from '@/hooks/use-t-path-session';
-import { SetLogState } from '@/types/supabase'; // Import SetLogState for typing from consolidated types
+import { SetLogState } from '@/types/supabase';
 
 export default function WorkoutSessionPage({ params }: { params: { tPathId: string } }) {
   const { tPathId } = params;
@@ -23,8 +23,8 @@ export default function WorkoutSessionPage({ params }: { params: { tPathId: stri
     error,
     currentSessionId,
     sessionStartTime,
-    setExercisesWithSets, // This setter is passed down to ExerciseCard
-  } = useTPathSession({ tPathId: tPathId || '', session, supabase, router }); // Added || '' for safety, though tPathId should be present
+    setExercisesWithSets,
+  } = useTPathSession({ tPathId: tPathId || '', session, supabase, router });
 
   if (loading) {
     return (
