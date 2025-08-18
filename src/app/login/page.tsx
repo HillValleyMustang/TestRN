@@ -60,16 +60,16 @@ export default function LoginPage() {
             .upsert({
               id: data.user.id,
               first_name: 'Demo',
-              last_name: 'User',
-              updated_at: new Date().toISOString()
+              last_name: 'User'
             });
 
           if (profileError) {
-            toast.error('Failed to create demo user profile: ' + profileError.message);
-            return;
+            console.error('Profile creation error:', profileError);
+            // Even if profile creation fails, we can still log in
+            toast.success('Demo account signed in! (Profile creation had an issue)');
+          } else {
+            toast.success('Demo account created and signed in!');
           }
-          
-          toast.success('Demo account created and signed in!');
         }
       } else {
         toast.success('Signed in to demo account!');
