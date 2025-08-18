@@ -7,7 +7,7 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Dumbbell, Timer, Trophy } from 'lucide-react';
+import { ArrowLeft, Dumbbell, Timer, Trophy, Star } from 'lucide-react';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 
@@ -35,6 +35,8 @@ export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) 
   const [error, setError] = useState<string | null>(null);
   const [totalVolume, setTotalVolume] = useState<number>(0);
   const [prsAchieved, setPrsAchieved] = useState<number>(0);
+  const [currentRating, setCurrentRating] = useState<number | null>(null);
+  const [isRatingSaved, setIsRatingSaved] = useState(false);
 
   useEffect(() => {
     if (!session) {
@@ -58,6 +60,8 @@ export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) 
           throw new Error(sessionError?.message || "Workout session not found.");
         }
         setWorkoutSession(sessionData);
+        setCurrentRating(sessionData.rating);
+        setIsRatingSaved(sessionData.rating !== null);
 
         // Fetch all set logs for this session, joining with exercise definitions
         const { data: setLogsData, error: setLogsError } = await supabase
@@ -106,6 +110,27 @@ export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) 
 
     fetchWorkoutSummary();
   }, [session, router, sessionId, supabase]);
+
+  const handleRatingChange = async (rating: number) => {
+    if (!session || !workoutSession) return;
+
+    setCurrentRating(rating);
+    setIsRatingSaved(false); // Indicate that the new rating is not yet saved
+
+    const { error: updateError } = await supabase
+      .from('workout_sessions')
+      .update({ rating: rating })
+      .eq('id', workoutSession.id)
+      .eq('user_id', session.user.id);
+
+    if (updateError) {
+      toast.error("Failed to save rating: " + updateError.message);
+      console.error("Error saving rating:", updateError);
+    } else {
+      toast.success("Workout rated successfully!");
+      setIsRatingSaved(true);
+    }
+  };
 
   if (loading) {
     return (
@@ -176,6 +201,29 @@ export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) 
             <Trophy className="h-5 w-5 text-primary" />
             <p className="text-lg font-semibold">PRs Achieved: {prsAchieved}</p>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Rate Your Workout</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center space-x-1">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star
+                key={star}
+                className={`h-8 w-8 cursor-pointer ${
+                  (currentRating && star <= currentRating) ? 'text-yellow-500 fill-yellow-500' : 'text-muted-foreground'
+                }`}
+                onClick={() => handleRatingChange(star)}
+              />
+            ))}
+            {isRatingSaved && <span className="ml-2 text-sm text-green-500">Saved!</span>}
+          </div>
+          <p className="text-sm text-muted-foreground mt-2">
+            How would you rate this workout session? (1-5 stars)
+          </p>
         </CardContent>
       </Card>
 
