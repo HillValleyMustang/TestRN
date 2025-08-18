@@ -40,35 +40,51 @@ serve(async (req: Request) => {
 
     const { tPathId } = await req.json();
 
-    // Get the T-Path settings
-    const { data: tPath, error: tPathError } = await supabaseClient
-      .from('t_paths')
-      .select('*, profiles(first_name, last_name)')
-      .eq('id', tPathId)
-      .single();
+    let tPath;
+    try {
+      // Get the T-Path settings
+      const { data, error } = await supabaseClient
+        .from('t_paths')
+        .select('*, profiles(first_name, last_name)')
+        .eq('id', tPathId)
+        .single();
 
-    if (tPathError) throw tPathError;
-    if (!tPath) throw new Error('T-Path not found');
+      if (error) throw error;
+      if (!data) throw new Error('T-Path not found in database.');
+      tPath = data;
+    } catch (err) {
+      console.error('Error fetching T-Path:', err);
+      return new Response(JSON.stringify({ error: `Error fetching T-Path: ${err instanceof Error ? err.message : String(err)}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Log tPath settings to debug
+    console.log('T-Path settings:', tPath.settings);
 
     // Determine workout names based on T-Path type
     let workoutNames: string[] = [];
-    if (tPath.settings?.tPathType === 'ulul') {
-      workoutNames = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
-    } else if (tPath.settings?.tPathType === 'ppl') {
-      workoutNames = ['Push', 'Pull', 'Legs'];
+    if (tPath.settings && typeof tPath.settings === 'object' && 'tPathType' in tPath.settings) {
+      if (tPath.settings.tPathType === 'ulul') {
+        workoutNames = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
+      } else if (tPath.settings.tPathType === 'ppl') {
+        workoutNames = ['Push', 'Pull', 'Legs'];
+      }
+    } else {
+      console.warn('T-Path settings or tPathType is missing/invalid:', tPath.settings);
+      return new Response(JSON.stringify({ error: 'Invalid T-Path settings. Please re-run onboarding.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     // Define the exercises that should exist as default (user_id IS NULL)
+    // IMPORTANT: main_muscle values must match the mainMuscleGroups in exercise-form.tsx
     const coreExercises = [
-      { name: 'Bench Press', main_muscle: 'Chest', type: 'weight', description: 'A fundamental chest exercise', pro_tip: 'Focus on proper form and controlled movement' },
-      { name: 'Squat', main_muscle: 'Quads', type: 'weight', description: 'A fundamental leg exercise', pro_tip: 'Keep your back straight' },
+      { name: 'Bench Press', main_muscle: 'Pectorals', type: 'weight', description: 'A fundamental chest exercise', pro_tip: 'Focus on proper form and controlled movement' },
+      { name: 'Squat', main_muscle: 'Quadriceps', type: 'weight', description: 'A fundamental leg exercise', pro_tip: 'Keep your back straight' },
       { name: 'Deadlift', main_muscle: 'Hamstrings', type: 'weight', description: 'A full body strength exercise', pro_tip: 'Maintain a neutral spine' },
       { name: 'Pull-up', main_muscle: 'Lats', type: 'weight', description: 'A great back and bicep exercise', pro_tip: 'Engage your lats' },
-      { name: 'Overhead Press', main_muscle: 'Shoulders', type: 'weight', description: 'Builds shoulder strength', pro_tip: 'Press straight overhead' },
-      { name: 'Barbell Row', main_muscle: 'Middle Back', type: 'weight', description: 'Develops back thickness', pro_tip: 'Pull to your lower chest' },
+      { name: 'Overhead Press', main_muscle: 'Deltoids', type: 'weight', description: 'Builds shoulder strength', pro_tip: 'Press straight overhead' },
+      { name: 'Barbell Row', main_muscle: 'Lats', type: 'weight', description: 'Develops back thickness', pro_tip: 'Pull to your lower chest' },
     ];
     const bonusExercises = [
-      { name: 'Arm Circles', main_muscle: 'Shoulders', type: 'timed', description: 'A shoulder mobility exercise', pro_tip: 'Perform controlled circles' },
+      { name: 'Arm Circles', main_muscle: 'Deltoids', type: 'timed', description: 'A shoulder mobility exercise', pro_tip: 'Perform controlled circles' },
       { name: 'Leg Stretch', main_muscle: 'Hamstrings', type: 'timed', description: 'A hamstring flexibility exercise', pro_tip: 'Hold for 30 seconds' }
     ];
 
@@ -77,107 +93,119 @@ serve(async (req: Request) => {
 
     // Ensure all expected default exercises exist and get their IDs
     for (const expectedEx of allExpectedExercises) {
-      const { data: existingEx, error: fetchExError } = await supabaseClient
-        .from('exercise_definitions')
-        .select('id, name, main_muscle, type, category, description, pro_tip, video_url')
-        .eq('name', expectedEx.name)
-        .is('user_id', null) // Crucial: check for default exercises
-        .single();
-
-      if (fetchExError && fetchExError.code !== 'PGRST116') { // PGRST116 means no rows found
-        throw fetchExError;
-      }
-
-      if (existingEx) {
-        defaultExerciseMap.set(existingEx.name, existingEx as ExerciseDef);
-      } else {
-        // If a default exercise doesn't exist, create it.
-        const { data: newEx, error: insertExError } = await supabaseClient
+      try {
+        const { data: existingEx, error: fetchExError } = await supabaseClient
           .from('exercise_definitions')
-          .insert({
-            name: expectedEx.name,
-            main_muscle: expectedEx.main_muscle,
-            type: expectedEx.type,
-            description: expectedEx.description,
-            pro_tip: expectedEx.pro_tip,
-            user_id: null // Ensure it's a default exercise
-          })
           .select('id, name, main_muscle, type, category, description, pro_tip, video_url')
+          .eq('name', expectedEx.name)
+          .is('user_id', null) // Crucial: check for default exercises
           .single();
 
-        if (insertExError) throw insertExError;
-        defaultExerciseMap.set(newEx.name, newEx as ExerciseDef);
+        if (fetchExError && fetchExError.code !== 'PGRST116') { // PGRST116 means no rows found
+          throw fetchExError;
+        }
+
+        if (existingEx) {
+          defaultExerciseMap.set(existingEx.name, existingEx as ExerciseDef);
+        } else {
+          // If a default exercise doesn't exist, create it.
+          const { data: newEx, error: insertExError } = await supabaseClient
+            .from('exercise_definitions')
+            .insert({
+              name: expectedEx.name,
+              main_muscle: expectedEx.main_muscle,
+              type: expectedEx.type,
+              description: expectedEx.description,
+              pro_tip: expectedEx.pro_tip,
+              user_id: null // Ensure it's a default exercise
+            })
+            .select('id, name, main_muscle, type, category, description, pro_tip, video_url')
+            .single();
+
+          if (insertExError) throw insertExError;
+          defaultExerciseMap.set(newEx.name, newEx as ExerciseDef);
+        }
+      } catch (err) {
+        console.error(`Error ensuring default exercise ${expectedEx.name}:`, err);
+        return new Response(JSON.stringify({ error: `Error setting up default exercise ${expectedEx.name}: ${err instanceof Error ? err.message : String(err)}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
 
     // Create workouts for this T-Path
     const workouts = [];
     for (let i = 0; i < workoutNames.length; i++) {
-      const { data: workout, error: workoutError } = await supabaseClient
-        .from('t_paths')
-        .insert({
-          user_id: tPath.user_id,
-          template_name: workoutNames[i],
-          is_bonus: false,
-          version: 1,
-          settings: tPath.settings
-        })
-        .select()
-        .single();
+      try {
+        const { data: workout, error: workoutError } = await supabaseClient
+          .from('t_paths')
+          .insert({
+            user_id: tPath.user_id,
+            template_name: workoutNames[i],
+            is_bonus: false,
+            version: 1,
+            settings: tPath.settings // Pass settings to sub-workouts
+          })
+          .select()
+          .single();
 
-      if (workoutError) throw workoutError;
-      workouts.push(workout);
+        if (workoutError) throw workoutError;
+        workouts.push(workout);
 
-      // Add exercises to each workout based on workout type
-      const exercisesForCurrentWorkout: { name: string; }[] = [];
-      if (workout.template_name.includes('Upper Body A')) {
-        exercisesForCurrentWorkout.push({ name: 'Bench Press' }, { name: 'Overhead Press' }, { name: 'Barbell Row' });
-      } else if (workout.template_name.includes('Lower Body A')) {
-        exercisesForCurrentWorkout.push({ name: 'Squat' }, { name: 'Deadlift' });
-      } else if (workout.template_name.includes('Upper Body B')) {
-        exercisesForCurrentWorkout.push({ name: 'Overhead Press' }, { name: 'Pull-up' }, { name: 'Bench Press' });
-      } else if (workout.template_name.includes('Lower Body B')) {
-        exercisesForCurrentWorkout.push({ name: 'Deadlift' }, { name: 'Squat' });
-      } else if (workout.template_name === 'Push') {
-        exercisesForCurrentWorkout.push({ name: 'Bench Press' }, { name: 'Overhead Press' });
-      } else if (workout.template_name === 'Pull') {
-        exercisesForCurrentWorkout.push({ name: 'Pull-up' }, { name: 'Barbell Row' });
-      } else if (workout.template_name === 'Legs') {
-        exercisesForCurrentWorkout.push({ name: 'Squat' }, { name: 'Deadlift' });
-      }
-
-      for (let j = 0; j < exercisesForCurrentWorkout.length; j++) {
-        const exercise = exercisesForCurrentWorkout[j];
-        const exerciseDef = defaultExerciseMap.get(exercise.name);
-
-        if (exerciseDef) {
-          await supabaseClient
-            .from('t_path_exercises')
-            .insert({
-              template_id: workout.id,
-              exercise_id: exerciseDef.id,
-              order_index: j
-            });
-        } else {
-          console.warn(`Default exercise "${exercise.name}" not found in map. This should not happen if pre-checked.`);
+        // Add exercises to each workout based on workout type
+        const exercisesForCurrentWorkout: { name: string; }[] = [];
+        if (workout.template_name.includes('Upper Body A')) {
+          exercisesForCurrentWorkout.push({ name: 'Bench Press' }, { name: 'Overhead Press' }, { name: 'Barbell Row' });
+        } else if (workout.template_name.includes('Lower Body A')) {
+          exercisesForCurrentWorkout.push({ name: 'Squat' }, { name: 'Deadlift' });
+        } else if (workout.template_name.includes('Upper Body B')) {
+          exercisesForCurrentWorkout.push({ name: 'Overhead Press' }, { name: 'Pull-up' }, { name: 'Bench Press' });
+        } else if (workout.template_name.includes('Lower Body B')) {
+          exercisesForCurrentWorkout.push({ name: 'Deadlift' }, { name: 'Squat' });
+        } else if (workout.template_name === 'Push') {
+          exercisesForCurrentWorkout.push({ name: 'Bench Press' }, { name: 'Overhead Press' });
+        } else if (workout.template_name === 'Pull') {
+          exercisesForCurrentWorkout.push({ name: 'Pull-up' }, { name: 'Barbell Row' });
+        } else if (workout.template_name === 'Legs') {
+          exercisesForCurrentWorkout.push({ name: 'Squat' }, { name: 'Deadlift' });
         }
-      }
 
-      // Add bonus exercises
-      for (let j = 0; j < bonusExercises.length; j++) {
-        const bonus = bonusExercises[j];
-        const bonusExerciseDef = defaultExerciseMap.get(bonus.name);
-        if (bonusExerciseDef) {
-          await supabaseClient
-            .from('t_path_exercises')
-            .insert({
-              template_id: workout.id,
-              exercise_id: bonusExerciseDef.id,
-              order_index: exercisesForCurrentWorkout.length + j
-            });
-        } else {
-          console.warn(`Default bonus exercise "${bonus.name}" not found in map. This should not happen if pre-checked.`);
+        for (let j = 0; j < exercisesForCurrentWorkout.length; j++) {
+          const exercise = exercisesForCurrentWorkout[j];
+          const exerciseDef = defaultExerciseMap.get(exercise.name);
+
+          if (exerciseDef) {
+            await supabaseClient
+              .from('t_path_exercises')
+              .insert({
+                template_id: workout.id,
+                exercise_id: exerciseDef.id,
+                order_index: j
+              });
+          } else {
+            console.warn(`Default exercise "${exercise.name}" not found in map. This should not happen if pre-checked.`);
+            // If a core exercise is missing, this is a critical error for the workout generation
+            throw new Error(`Missing core exercise definition: ${exercise.name}`);
+          }
         }
+
+        // Add bonus exercises
+        for (let j = 0; j < bonusExercises.length; j++) {
+          const bonus = bonusExercises[j];
+          const bonusExerciseDef = defaultExerciseMap.get(bonus.name);
+          if (bonusExerciseDef) {
+            await supabaseClient
+              .from('t_path_exercises')
+              .insert({
+                template_id: workout.id,
+                exercise_id: bonusExerciseDef.id,
+                order_index: exercisesForCurrentWorkout.length + j
+              });
+          } else {
+            console.warn(`Default bonus exercise "${bonus.name}" not found in map. This should not happen if pre-checked.`);
+          }
+        }
+      } catch (err) {
+        console.error(`Error creating workout ${workoutNames[i]} or its exercises:`, err);
+        return new Response(JSON.stringify({ error: `Error creating workout ${workoutNames[i]}: ${err instanceof Error ? err.message : String(err)}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
 
@@ -186,8 +214,8 @@ serve(async (req: Request) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error(error);
-    const message = error instanceof Error ? error.message : "An unknown error occurred";
+    console.error('Unhandled error in generate-t-path edge function:', error);
+    const message = error instanceof Error ? error.message : "An unknown error occurred during T-Path generation.";
     return new Response(
       JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
