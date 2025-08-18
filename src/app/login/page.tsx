@@ -1,17 +1,21 @@
 "use client";
 
-import { Auth } from '@supabase/auth-ui-react';
-import { ThemeSupa } from '@supabase/auth-ui-shared';
-import { supabase } from '@/integrations/supabase/client';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 
 export default function LoginPage() {
   const router = useRouter();
+  const [firstName, setFirstName] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(true);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -23,49 +27,95 @@ export default function LoginPage() {
     return () => subscription.unsubscribe();
   }, [router]);
 
-  const handleDemoLogin = async () => {
-    // Generate a unique email for the demo user
-    const timestamp = Date.now();
-    const email = `demo+${timestamp}@example.com`;
-    const password = 'demo1234';
-    const firstName = 'Demo';
-    const lastName = 'User';
+  const handleDemoLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
     
     try {
-      // Sign up the demo user
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            first_name: firstName,
-            last_name: lastName
+      // Generate a unique email based on the name and timestamp
+      const timestamp = Date.now();
+      const email = `${firstName.toLowerCase().replace(/\s+/g, '')}+${timestamp}@example.com`;
+      
+      if (isSignUp) {
+        // Sign up the demo user
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              first_name: firstName,
+              last_name: 'User'
+            }
           }
+        });
+
+        if (error) throw error;
+
+        // Create a profile for the demo user
+        if (data.user) {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert({
+              id: data.user.id,
+              first_name: firstName,
+              last_name: 'User',
+              updated_at: new Date().toISOString()
+            });
+
+          if (profileError) {
+            toast.error('Failed to create user profile: ' + profileError.message);
+            return;
+          }
+          
+          toast.success('User created successfully!');
         }
-      });
+      } else {
+        // Sign in the demo user
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
 
-      if (error) throw error;
-
-      // Create a profile for the demo user
-      if (data.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: data.user.id,
-            first_name: firstName,
-            last_name: lastName,
-            updated_at: new Date().toISOString()
+        if (error) {
+          // If sign in fails, try creating the user
+          const { data, error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                first_name: firstName,
+                last_name: 'User'
+              }
+            }
           });
 
-        if (profileError) {
-          toast.error('Failed to create demo user profile: ' + profileError.message);
-          return;
+          if (signUpError) throw signUpError;
+
+          if (data.user) {
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .upsert({
+                id: data.user.id,
+                first_name: firstName,
+                last_name: 'User',
+                updated_at: new Date().toISOString()
+              });
+
+            if (profileError) {
+              toast.error('Failed to create user profile: ' + profileError.message);
+              return;
+            }
+            
+            toast.success('User created and signed in successfully!');
+          }
+        } else {
+          toast.success('Signed in successfully!');
         }
-        
-        toast.success('Demo user created successfully!');
       }
     } catch (error: any) {
-      toast.error('Error creating demo user: ' + error.message);
+      toast.error('Error: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -79,52 +129,53 @@ export default function LoginPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Welcome</CardTitle>
-            <CardDescription>Sign in or create an account to get started.</CardDescription>
+            <CardTitle>Demo Login</CardTitle>
+            <CardDescription>Enter your name and password to get started.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Auth
-              supabaseClient={supabase}
-              providers={[]}
-              appearance={{
-                theme: ThemeSupa,
-                variables: {
-                  default: {
-                    colors: {
-                      brand: 'hsl(var(--primary))',
-                      brandAccent: 'hsl(var(--primary-foreground))',
-                      inputBackground: 'hsl(var(--input))',
-                      inputBorder: 'hsl(var(--border))',
-                      inputBorderFocus: 'hsl(var(--ring))',
-                      inputText: 'hsl(var(--foreground))',
-                      messageText: 'hsl(var(--destructive-foreground))',
-                      messageBackground: 'hsl(var(--destructive))',
-                    },
-                  },
-                },
-              }}
-              theme="light"
-              redirectTo={`${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback`}
-            />
-            
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
+          <CardContent>
+            <form onSubmit={handleDemoLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <Input
+                  id="firstName"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Enter your first name"
+                  required
+                />
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  Or continue with
-                </span>
+              
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter any password"
+                  required
+                />
               </div>
-            </div>
-            
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={handleDemoLogin}
-            >
-              Demo Login (Creates New User)
-            </Button>
+              
+              <div className="flex items-center justify-between">
+                <Button 
+                  type="button" 
+                  variant="link" 
+                  className="p-0 h-auto"
+                  onClick={() => setIsSignUp(!isSignUp)}
+                >
+                  {isSignUp ? "Already have an account? Sign In" : "Create new account? Sign Up"}
+                </Button>
+              </div>
+              
+              <Button 
+                type="submit" 
+                className="w-full"
+                disabled={loading || !firstName || !password}
+              >
+                {loading ? "Processing..." : (isSignUp ? "Create & Sign In" : "Sign In")}
+              </Button>
+            </form>
           </CardContent>
         </Card>
       </div>
