@@ -20,11 +20,19 @@ type SetLogWithExercise = SetLog & {
   exercise_definitions: ExerciseDefinition | null;
 };
 
+// Define a type for the grouped exercise data
+type ExerciseGroup = {
+  name: string;
+  type: ExerciseDefinition['type'] | undefined;
+  category: ExerciseDefinition['category'] | null | undefined;
+  sets: SetLogWithExercise[];
+};
+
 interface WorkoutSummaryPageProps {
   params: { sessionId: string };
 }
 
-export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) {
+export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) => {
   const { session, supabase } = useSession();
   const router = useRouter();
   const { sessionId } = params;
@@ -170,7 +178,7 @@ export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) 
     }
     acc[exerciseId].sets.push(log);
     return acc;
-  }, {} as Record<string, { name: string; type: ExerciseDefinition['type'] | undefined; category: ExerciseDefinition['category'] | null | undefined; sets: SetLogWithExercise[] }>);
+  }, {} as Record<string, ExerciseGroup>); // Cast the accumulator to the correct Record type
 
   return (
     <div className="min-h-screen bg-background text-foreground p-4 sm:p-8">
@@ -232,7 +240,7 @@ export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) 
         {Object.values(exercisesWithGroupedSets).length === 0 ? (
           <p className="text-muted-foreground">No exercises logged for this session.</p>
         ) : (
-          Object.values(exercisesWithGroupedSets).map((exerciseGroup) => (
+          (Object.values(exercisesWithGroupedSets) as ExerciseGroup[]).map((exerciseGroup: ExerciseGroup) => (
             <Card key={exerciseGroup.name} className="mb-4">
               <CardHeader>
                 <CardTitle>{exerciseGroup.name}</CardTitle>
@@ -255,7 +263,7 @@ export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) 
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {exerciseGroup.sets.map((set, index) => (
+                    {exerciseGroup.sets.map((set: SetLogWithExercise, index: number) => (
                       <TableRow key={set.id}>
                         <TableCell>{index + 1}</TableCell>
                         {exerciseGroup.type === 'weight' && <TableCell>{set.weight_kg ?? '-'}</TableCell>}

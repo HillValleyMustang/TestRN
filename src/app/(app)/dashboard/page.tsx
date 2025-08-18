@@ -6,6 +6,7 @@ import { useSession } from '@/components/session-context-provider';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { ActionHub } from '@/components/dashboard/action-hub';
 import { WeeklyVolumeChart } from '@/components/dashboard/weekly-volume-chart';
+import { Tables } from '@/types/supabase'; // Import Tables
 
 export default function DashboardPage() {
   const { session, supabase } = useSession();

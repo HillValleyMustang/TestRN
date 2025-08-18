@@ -1,0 +1,9 @@
+/**
+ * This index file re-exports all generated Supabase types for easier import.
+ * It is part of the Supabase generated types, refactored for modularity.
+ */
+
+export type { Json } from "./json";
+export type { Database } from "./database";
+export type { Tables, TablesInsert, TablesUpdate } from "./tables";
+export type { Enums } from "./enums";

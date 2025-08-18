@@ -117,7 +117,7 @@ export default function ProfilePage() {
       console.error("Error updating profile:", error);
     } else {
       toast.success("Profile updated successfully!");
-      setProfile(prev => ({ ...prev, ...updateData } as Profile));
+      setProfile((prev: Profile | null) => ({ ...prev, ...updateData } as Profile));
     }
   }
 
