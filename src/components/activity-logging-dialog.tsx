@@ -13,9 +13,11 @@ import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useSession } from "@/components/session-context-provider";
 import { TablesInsert, Tables } from "@/types/supabase";
+import { convertDistance, KM_TO_MILES } from '@/lib/unit-conversions';
 
 type ActivityLog = Tables<'activity_logs'>;
 type ActivityType = "Cycling" | "Swimming" | "Tennis";
+type Profile = Tables<'profiles'>;
 
 interface ActivityLoggingDialogProps {
   open?: boolean;
@@ -59,6 +61,26 @@ const tennisSchema = z.object({
 
 const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
   const { session, supabase } = useSession();
+  const [preferredDistanceUnit, setPreferredDistanceUnit] = useState<Profile['preferred_distance_unit']>('km');
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!session) return;
+      const { data: profileData, error } = await supabase
+        .from('profiles')
+        .select('preferred_distance_unit')
+        .eq('id', session.user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error("Error fetching user profile for distance unit:", error);
+      } else if (profileData) {
+        setPreferredDistanceUnit(profileData.preferred_distance_unit || 'km');
+      }
+    };
+    fetchUserProfile();
+  }, [session, supabase]);
+
   const form = useForm<z.infer<typeof cyclingSchema>>({
     resolver: zodResolver(cyclingSchema),
     defaultValues: {
@@ -74,13 +96,19 @@ const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
       return;
     }
 
-    const distanceValue = values.distance;
+    // Convert input distance to KM for storage and PR comparison
+    const distanceInKm = convertDistance(values.distance, preferredDistanceUnit as 'km' | 'miles', 'km');
+    if (distanceInKm === null) {
+      toast.error("Invalid distance value.");
+      return;
+    }
+
     const totalMinutes = timeStringToMinutes(values.time);
     const totalSeconds = totalMinutes * 60;
 
     let avgTimePerKm: number | null = null;
-    if (distanceValue > 0) {
-      avgTimePerKm = totalSeconds / distanceValue;
+    if (distanceInKm > 0) {
+      avgTimePerKm = totalSeconds / distanceInKm;
     }
 
     let isPR = false;
@@ -95,6 +123,7 @@ const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
       if (fetchError) throw fetchError;
 
       if (avgTimePerKm !== null) {
+        // For average time, lower is better (faster)
         isPR = previousLogs.every(log => log.avg_time === null || avgTimePerKm! < log.avg_time);
       }
     } catch (err) {
@@ -104,7 +133,7 @@ const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
     const newLog: TablesInsert<'activity_logs'> = {
       user_id: session.user.id,
       activity_type: 'Cycling',
-      distance: `${values.distance} km`,
+      distance: `${distanceInKm} km`, // Store in KM
       time: values.time,
       avg_time: avgTimePerKm,
       is_pb: isPR,
@@ -125,7 +154,7 @@ const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField control={form.control} name="distance" render={({ field }) => ( <FormItem> <FormLabel>Distance (km)</FormLabel> <FormControl><Input type="number" step="0.1" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+        <FormField control={form.control} name="distance" render={({ field }) => ( <FormItem> <FormLabel>Distance ({preferredDistanceUnit})</FormLabel> <FormControl><Input type="number" step="0.1" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
         <FormField control={form.control} name="time" render={({ field }) => ( <FormItem> <FormLabel>Time (e.g., 1h 30m)</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
         <FormField control={form.control} name="log_date" render={({ field }) => ( <FormItem> <FormLabel>Date</FormLabel> <FormControl><Input type="date" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
         <Button type="submit" className="w-full">Log Cycling</Button>
@@ -311,10 +340,10 @@ export const ActivityLoggingDialog = ({ open, onOpenChange, initialActivity, tri
         ) : (
           <div className="py-4">
             <h3 className="text-lg font-semibold mb-4">Log {selectedActivity}</h3>
+            <Button variant="outline" className="mb-4 w-full" onClick={() => setSelectedActivity(null)}> Back to Activity Types </Button>
             {selectedActivity === "Cycling" && <LogCyclingForm onLogSuccess={handleLogSuccess} />}
             {selectedActivity === "Swimming" && <LogSwimmingForm onLogSuccess={handleLogSuccess} />}
             {selectedActivity === "Tennis" && <LogTennisForm onLogSuccess={handleLogSuccess} />}
-            <Button variant="outline" className="mt-4 w-full" onClick={() => setSelectedActivity(null)}> Back to Activity Types </Button>
           </div>
         )}
       </DialogContent>

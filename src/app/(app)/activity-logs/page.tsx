@@ -10,8 +10,10 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from 'lucide-react';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
+import { convertDistance, formatDistance } from '@/lib/unit-conversions';
 
 type ActivityLog = Tables<'activity_logs'>;
+type Profile = Tables<'profiles'>;
 
 export default function ActivityLogsPage() {
   const { session, supabase } = useSession();
@@ -19,6 +21,25 @@ export default function ActivityLogsPage() {
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [preferredDistanceUnit, setPreferredDistanceUnit] = useState<Profile['preferred_distance_unit']>('km');
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!session) return;
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('preferred_distance_unit')
+        .eq('id', session.user.id)
+        .single();
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error("Error fetching user profile for distance unit:", profileError);
+      } else if (profileData) {
+        setPreferredDistanceUnit(profileData.preferred_distance_unit || 'km');
+      }
+    };
+    fetchUserProfile();
+  }, [session, supabase]);
 
   useEffect(() => {
     if (!session) {
@@ -70,23 +91,34 @@ export default function ActivityLogsPage() {
 
   const filterLogs = (type: string) => activityLogs.filter(log => log.activity_type === type);
 
-  const renderLogCard = (log: ActivityLog) => (
-    <Card key={log.id} className="mb-4">
-      <CardHeader>
-        <CardTitle className="flex justify-between items-center">
-          {log.activity_type}
-          {log.is_pb && <span className="text-yellow-500 text-sm font-semibold">PB!</span>}
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">{new Date(log.log_date).toLocaleDateString()}</p>
-      </CardHeader>
-      <CardContent>
-        {log.distance && <p>Distance: {log.distance}</p>}
-        {log.time && <p>Time: {log.time}</p>}
-        {log.avg_time && <p>Avg. Time: {log.avg_time}</p>}
-        {/* Add more details based on activity type if needed */}
-      </CardContent>
-    </Card>
-  );
+  const renderLogCard = (log: ActivityLog) => {
+    let displayDistance = log.distance;
+    if (log.activity_type === 'Cycling' && log.distance) {
+      const distanceMatch = log.distance.match(/^(\d+(\.\d+)?) km$/);
+      if (distanceMatch) {
+        const distanceInKm = parseFloat(distanceMatch[1]);
+        displayDistance = formatDistance(convertDistance(distanceInKm, 'km', preferredDistanceUnit as 'km' | 'miles'), preferredDistanceUnit as 'km' | 'miles');
+      }
+    }
+
+    return (
+      <Card key={log.id} className="mb-4">
+        <CardHeader>
+          <CardTitle className="flex justify-between items-center">
+            {log.activity_type}
+            {log.is_pb && <span className="text-yellow-500 text-sm font-semibold">PB!</span>}
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">{new Date(log.log_date).toLocaleDateString()}</p>
+        </CardHeader>
+        <CardContent>
+          {displayDistance && <p>Distance: {displayDistance}</p>}
+          {log.time && <p>Time: {log.time}</p>}
+          {log.avg_time && <p>Avg. Time: {log.avg_time}</p>}
+          {/* Add more details based on activity type if needed */}
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground p-4 sm:p-8">
