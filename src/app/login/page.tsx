@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 
 export default function LoginPage() {
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -22,48 +23,61 @@ export default function LoginPage() {
   }, [router]);
 
   const handleDemoLogin = async () => {
+    setLoading(true);
     try {
-      // Generate a unique email and password for the demo user
-      const timestamp = Date.now();
-      const email = `demo${timestamp}@example.com`;
-      const password = 'DemoPass123!';
-      const firstName = 'Demo';
-      const lastName = `User${timestamp}`;
+      // Use a fixed demo email that should be valid
+      const email = 'demo@workouttracker.com';
+      const password = 'DemoPassword123';
       
-      // Sign up the demo user
-      const { data, error } = await supabase.auth.signUp({
+      // Try to sign in first
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
-        password,
-        options: {
-          data: {
-            first_name: firstName,
-            last_name: lastName
-          }
-        }
+        password
       });
 
-      if (error) throw error;
+      if (signInError) {
+        // If sign in fails, try to sign up
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              first_name: 'Demo',
+              last_name: 'User'
+            }
+          }
+        });
 
-      // Create a profile for the demo user
-      if (data.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: data.user.id,
-            first_name: firstName,
-            last_name: lastName,
-            updated_at: new Date().toISOString()
-          });
-
-        if (profileError) {
-          toast.error('Failed to create demo user profile: ' + profileError.message);
+        if (signUpError) {
+          toast.error('Error: ' + signUpError.message);
           return;
         }
-        
-        toast.success('Demo user created successfully!');
+
+        // Create a profile for the demo user if needed
+        if (data.user) {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert({
+              id: data.user.id,
+              first_name: 'Demo',
+              last_name: 'User',
+              updated_at: new Date().toISOString()
+            });
+
+          if (profileError) {
+            toast.error('Failed to create demo user profile: ' + profileError.message);
+            return;
+          }
+          
+          toast.success('Demo account created and signed in!');
+        }
+      } else {
+        toast.success('Signed in to demo account!');
       }
     } catch (error: any) {
-      toast.error('Error creating demo user: ' + error.message);
+      toast.error('Error: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -85,24 +99,20 @@ export default function LoginPage() {
               <Button 
                 onClick={handleDemoLogin} 
                 className="w-full"
+                disabled={loading}
               >
-                Create Demo Account
+                {loading ? "Creating Demo Account..." : "Use Demo Account"}
               </Button>
               
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
-                    Or
-                  </span>
-                </div>
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">
+                  This will create or sign in to a demo account with:
+                </p>
+                <p className="text-xs mt-2">
+                  Email: demo@workouttracker.com<br/>
+                  Password: DemoPassword123
+                </p>
               </div>
-              
-              <p className="text-sm text-muted-foreground text-center">
-                Click above to create a temporary demo account and start exploring the app immediately.
-              </p>
             </div>
           </CardContent>
         </Card>
