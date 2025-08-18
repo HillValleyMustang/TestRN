@@ -32,16 +32,16 @@ export default function LoginPage() {
   const handleTestUserLogin = async () => {
     setLoading(true);
     try {
-      // Predefined test user credentials
+      // Using your permanent test credentials
       const { error } = await supabase.auth.signInWithPassword({
-        email: 'testuser@example.com',
-        password: 'TestPassword123!'
+        email: 'craigd.facebook@gmail.com',
+        password: 'lufclufc'
       });
 
       if (error) {
-        toast.error('Test user login failed: ' + error.message);
+        toast.error('Login failed: ' + error.message);
       } else {
-        toast.success('Signed in as test user!');
+        toast.success('Signed in successfully!');
       }
     } catch (error: any) {
       toast.error('Error: ' + error.message);
@@ -181,7 +181,7 @@ export default function LoginPage() {
             <div className="mt-6 pt-6 border-t border-muted">
               <h3 className="text-lg font-semibold mb-2">Quick Test Access</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Use our pre-configured test account:
+                Use your permanent test account:
               </p>
               <Button 
                 onClick={handleTestUserLogin} 
@@ -192,8 +192,8 @@ export default function LoginPage() {
                 {loading ? "Logging in..." : "Use Test Account"}
               </Button>
               <p className="text-xs text-muted-foreground mt-2">
-                Email: testuser@example.com<br/>
-                Password: TestPassword123!
+                Email: craigd.facebook@gmail.com<br/>
+                Password: lufclufc
               </p>
             </div>
           </CardContent>
