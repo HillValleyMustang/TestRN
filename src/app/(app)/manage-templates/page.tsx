@@ -174,12 +174,11 @@ export default function ManageTemplatesPage() {
                     <FormItem>
                       <FormLabel>Exercises</FormLabel>
                       <div className="flex gap-2">
-                        <FormControl> {/* FormControl now wraps the entire Select component */}
-                          <Select onValueChange={setSelectedExerciseToAdd} value={selectedExerciseToAdd}>
-                            <SelectTrigger><SelectValue placeholder="Add exercise" /></SelectTrigger>
-                            <SelectContent>{allExercises.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}</SelectContent>
-                          </Select>
-                        </FormControl>
+                        {/* Removed FormControl here as this Select is not part of the react-hook-form schema */}
+                        <Select onValueChange={setSelectedExerciseToAdd} value={selectedExerciseToAdd}>
+                          <SelectTrigger><SelectValue placeholder="Add exercise" /></SelectTrigger>
+                          <SelectContent>{allExercises.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}</SelectContent>
+                        </Select>
                         <Button type="button" onClick={handleAddExercise}>Add</Button>
                       </div>
                     </FormItem>
