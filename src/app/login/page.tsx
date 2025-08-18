@@ -4,21 +4,14 @@ import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '@/integrations/supabase/client';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [showTestUserForm, setShowTestUserForm] = useState(false);
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -30,16 +23,16 @@ export default function LoginPage() {
     return () => subscription.unsubscribe();
   }, [router]);
 
-  const handleTestUserSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    // Generate a unique email for the test user
+  const handleDemoLogin = async () => {
+    // Generate a unique email for the demo user
     const timestamp = Date.now();
-    const email = `testuser+${timestamp}@example.com`;
+    const email = `demo+${timestamp}@example.com`;
+    const password = 'demo1234';
+    const firstName = 'Demo';
+    const lastName = 'User';
     
     try {
-      // Sign up the test user
+      // Sign up the demo user
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -53,7 +46,7 @@ export default function LoginPage() {
 
       if (error) throw error;
 
-      // Create a profile for the test user
+      // Create a profile for the demo user
       if (data.user) {
         const { error: profileError } = await supabase
           .from('profiles')
@@ -65,17 +58,14 @@ export default function LoginPage() {
           });
 
         if (profileError) {
-          toast.error('Failed to create test user profile: ' + profileError.message);
+          toast.error('Failed to create demo user profile: ' + profileError.message);
           return;
         }
         
-        toast.success('Test user created successfully!');
-        router.push('/dashboard');
+        toast.success('Demo user created successfully!');
       }
     } catch (error: any) {
-      toast.error('Error creating test user: ' + error.message);
-    } finally {
-      setLoading(false);
+      toast.error('Error creating demo user: ' + error.message);
     }
   };
 
@@ -87,113 +77,56 @@ export default function LoginPage() {
           <p className="text-muted-foreground">Your personalized AI fitness coach.</p>
         </div>
 
-        {!showTestUserForm ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Welcome</CardTitle>
-              <CardDescription>Sign in or create an account to get started.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Auth
-                supabaseClient={supabase}
-                providers={[]}
-                appearance={{
-                  theme: ThemeSupa,
-                  variables: {
-                    default: {
-                      colors: {
-                        brand: 'hsl(var(--primary))',
-                        brandAccent: 'hsl(var(--primary-foreground))',
-                        inputBackground: 'hsl(var(--input))',
-                        inputBorder: 'hsl(var(--border))',
-                        inputBorderFocus: 'hsl(var(--ring))',
-                        inputText: 'hsl(var(--foreground))',
-                        messageText: 'hsl(var(--destructive-foreground))',
-                        messageBackground: 'hsl(var(--destructive))',
-                      },
+        <Card>
+          <CardHeader>
+            <CardTitle>Welcome</CardTitle>
+            <CardDescription>Sign in or create an account to get started.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Auth
+              supabaseClient={supabase}
+              providers={[]}
+              appearance={{
+                theme: ThemeSupa,
+                variables: {
+                  default: {
+                    colors: {
+                      brand: 'hsl(var(--primary))',
+                      brandAccent: 'hsl(var(--primary-foreground))',
+                      inputBackground: 'hsl(var(--input))',
+                      inputBorder: 'hsl(var(--border))',
+                      inputBorderFocus: 'hsl(var(--ring))',
+                      inputText: 'hsl(var(--foreground))',
+                      messageText: 'hsl(var(--destructive-foreground))',
+                      messageBackground: 'hsl(var(--destructive))',
                     },
                   },
-                }}
-                theme="light"
-                redirectTo={`${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback`}
-              />
-              
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
-                    Or continue with
-                  </span>
-                </div>
+                },
+              }}
+              theme="light"
+              redirectTo={`${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback`}
+            />
+            
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
               </div>
-              
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={() => setShowTestUserForm(true)}
-              >
-                Sign in as new user
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Create Test User</CardTitle>
-              <CardDescription>Enter your details to create a temporary test account.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleTestUserSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name</Label>
-                  <Input
-                    id="firstName"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    required
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input
-                    id="lastName"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    required
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={6}
-                  />
-                </div>
-                
-                <div className="flex gap-2">
-                  <Button type="submit" className="flex-1" disabled={loading}>
-                    {loading ? "Creating..." : "Create Test User"}
-                  </Button>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => setShowTestUserForm(false)}
-                  >
-                    Back
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Or continue with
+                </span>
+              </div>
+            </div>
+            
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={handleDemoLogin}
+            >
+              Demo Login (Creates New User)
+            </Button>
+          </CardContent>
+        </Card>
       </div>
       <MadeWithDyad />
     </div>
