@@ -192,20 +192,20 @@ export default function ProfilePage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Primary Fitness Goal</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ''}>
-                      <FormControl>
+                    <FormControl> {/* FormControl now wraps the entire Select component */}
+                      <Select onValueChange={field.onChange} value={field.value || ''}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select your primary goal" />
                         </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="muscle_gain">Muscle Gain</SelectItem>
-                        <SelectItem value="fat_loss">Fat Loss</SelectItem>
-                        <SelectItem value="strength_increase">Strength Increase</SelectItem>
-                        <SelectItem value="endurance_improvement">Endurance Improvement</SelectItem>
-                        <SelectItem value="overall_fitness">Overall Fitness</SelectItem>
-                      </SelectContent>
-                    </Select>
+                        <SelectContent>
+                          <SelectItem value="muscle_gain">Muscle Gain</SelectItem>
+                          <SelectItem value="fat_loss">Fat Loss</SelectItem>
+                          <SelectItem value="strength_increase">Strength Increase</SelectItem>
+                          <SelectItem value="endurance_improvement">Endurance Improvement</SelectItem>
+                          <SelectItem value="overall_fitness">Overall Fitness</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
