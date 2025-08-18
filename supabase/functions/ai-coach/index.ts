@@ -1,4 +1,4 @@
-/// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
+// REMOVED: /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
@@ -26,7 +26,7 @@ interface SetLog {
 interface WorkoutSession {
   id: string;
   session_date: string;
-  template_name: string | null;
+  template_name: string | null; // Keep template_name for existing workout_sessions
 }
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");

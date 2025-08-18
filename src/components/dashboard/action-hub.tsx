@@ -69,7 +69,7 @@ export const ActionHub = () => {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => router.push('/start-workout')}>
+            <DropdownMenuItem onSelect={() => router.push('/start-t-path')}>
               <Dumbbell className="mr-2 h-4 w-4" />
               <span>Start Workout</span>
             </DropdownMenuItem>
@@ -77,9 +77,9 @@ export const ActionHub = () => {
               <Dumbbell className="mr-2 h-4 w-4" />
               <span>Manage Exercises</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => router.push('/manage-templates')}>
+            <DropdownMenuItem onSelect={() => router.push('/manage-t-paths')}>
               <LayoutTemplate className="mr-2 h-4 w-4" />
-              <span>Manage Templates</span>
+              <span>Manage T-Paths</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -6,25 +6,25 @@ import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { Tables, TablesInsert, SetLogState } from '@/types/supabase'; // Import SetLogState from consolidated types
 
-type WorkoutTemplate = Tables<'workout_templates'>;
+type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type SetLogInsert = TablesInsert<'set_logs'>;
 
-// Define a type for the joined data from template_exercises
-type TemplateExerciseJoin = Tables<'template_exercises'> & {
+// Define a type for the joined data from t_path_exercises
+type TPathExerciseJoin = Tables<'t_path_exercises'> & {
   exercise_definitions: Tables<'exercise_definitions'>[] | null;
 };
 
-interface UseWorkoutSessionProps {
-  templateId: string;
+interface UseTPathSessionProps {
+  tPathId: string;
   session: Session | null;
   supabase: SupabaseClient;
   router: ReturnType<typeof useRouter>;
 }
 
-interface UseWorkoutSessionReturn {
-  workoutTemplate: WorkoutTemplate | null;
-  exercisesForTemplate: ExerciseDefinition[];
+interface UseTPathSessionReturn {
+  tPath: TPath | null;
+  exercisesForTPath: ExerciseDefinition[];
   exercisesWithSets: Record<string, SetLogState[]>;
   loading: boolean;
   error: string | null;
@@ -33,9 +33,9 @@ interface UseWorkoutSessionReturn {
   setExercisesWithSets: React.Dispatch<React.SetStateAction<Record<string, SetLogState[]>>>;
 }
 
-export const useWorkoutSession = ({ templateId, session, supabase, router }: UseWorkoutSessionProps): UseWorkoutSessionReturn => {
-  const [workoutTemplate, setWorkoutTemplate] = useState<WorkoutTemplate | null>(null);
-  const [exercisesForTemplate, setExercisesForTemplate] = useState<ExerciseDefinition[]>([]);
+export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPathSessionProps): UseTPathSessionReturn => {
+  const [tPath, setTPath] = useState<TPath | null>(null);
+  const [exercisesForTPath, setExercisesForTPath] = useState<ExerciseDefinition[]>([]);
   const [exercisesWithSets, setExercisesWithSets] = useState<Record<string, SetLogState[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,48 +48,48 @@ export const useWorkoutSession = ({ templateId, session, supabase, router }: Use
       return;
     }
 
-    if (!templateId) {
+    if (!tPathId) {
       setLoading(false);
-      setError("Workout template ID is missing.");
+      setError("Transformation Path ID is missing.");
       return;
     }
 
     setLoading(true);
     setError(null);
     try {
-      // 1. Fetch the workout template
-      const { data: templateData, error: fetchTemplateError } = await supabase
-        .from('workout_templates')
+      // 1. Fetch the Transformation Path
+      const { data: tPathData, error: fetchTPathError } = await supabase
+        .from('t_paths')
         .select('*')
-        .eq('id', templateId)
+        .eq('id', tPathId)
         .eq('user_id', session.user.id)
         .single();
 
-      if (fetchTemplateError || !templateData) {
-        throw new Error(fetchTemplateError?.message || "Workout template not found.");
+      if (fetchTPathError || !tPathData) {
+        throw new Error(fetchTPathError?.message || "Transformation Path not found.");
       }
-      setWorkoutTemplate(templateData);
+      setTPath(tPathData);
 
-      // 2. Fetch all exercises associated with this template via template_exercises
-      const { data: templateExercisesData, error: fetchTemplateExercisesError } = await supabase
-        .from('template_exercises')
+      // 2. Fetch all exercises associated with this T-Path via t_path_exercises
+      const { data: tPathExercisesData, error: fetchTPathExercisesError } = await supabase
+        .from('t_path_exercises')
         .select(`
           id, created_at, exercise_id, template_id, order_index,
           exercise_definitions (
             id, name, main_muscle, type, category, description, pro_tip, video_url
           )
         `)
-        .eq('template_id', templateId)
+        .eq('template_id', tPathId)
         .order('order_index', { ascending: true });
 
-      if (fetchTemplateExercisesError) {
-        throw new Error(fetchTemplateExercisesError.message);
+      if (fetchTPathExercisesError) {
+        throw new Error(fetchTPathExercisesError.message);
       }
 
-      const fetchedExercises: ExerciseDefinition[] = (templateExercisesData as TemplateExerciseJoin[])
+      const fetchedExercises: ExerciseDefinition[] = (tPathExercisesData as TPathExerciseJoin[])
         .filter(te => te.exercise_definitions && te.exercise_definitions.length > 0)
         .map(te => te.exercise_definitions![0] as ExerciseDefinition);
-      setExercisesForTemplate(fetchedExercises);
+      setExercisesForTPath(fetchedExercises);
 
       // 3. Fetch the ID of the most recent previous workout session for the user
       const { data: lastSessionData, error: lastSessionError } = await supabase
@@ -137,7 +137,7 @@ export const useWorkoutSession = ({ templateId, session, supabase, router }: Use
         .from('workout_sessions')
         .insert({
           user_id: session.user.id,
-          template_name: templateData.template_name,
+          template_name: tPathData.template_name, // Use the T-Path name here
           session_date: new Date().toISOString(),
         })
         .select('id')
@@ -166,7 +166,7 @@ export const useWorkoutSession = ({ templateId, session, supabase, router }: Use
           is_pb: false, // Default for new set
           isSaved: false,
           isPR: false,
-          lastWeight: lastSet?.weight_kg,
+          lastWeight: lastSet?.weight_kg, // Stored in KG
           lastReps: lastSet?.reps,
           lastTimeSeconds: lastSet?.time_seconds,
         }];
@@ -180,15 +180,15 @@ export const useWorkoutSession = ({ templateId, session, supabase, router }: Use
     } finally {
       setLoading(false);
     }
-  }, [templateId, session, supabase, router]);
+  }, [tPathId, session, supabase, router]);
 
   useEffect(() => {
     fetchWorkoutData();
   }, [fetchWorkoutData]);
 
   return {
-    workoutTemplate,
-    exercisesForTemplate,
+    tPath,
+    exercisesForTPath,
     exercisesWithSets,
     loading,
     error,

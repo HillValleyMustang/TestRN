@@ -9,34 +9,34 @@ import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 
-type WorkoutTemplate = Tables<'workout_templates'>;
+type TPath = Tables<'t_paths'>;
 
-export default function StartWorkoutPage() {
+export default function StartTPathPage() {
   const { session, supabase } = useSession();
   const router = useRouter();
-  const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
+  const [tPaths, setTPaths] = useState<TPath[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (session) {
-      const fetchTemplates = async () => {
+      const fetchTPaths = async () => {
         setLoading(true);
         try {
           const { data, error } = await supabase
-            .from('workout_templates')
+            .from('t_paths')
             .select('*')
             .eq('user_id', session.user.id)
             .order('template_name', { ascending: true });
 
           if (error) throw error;
-          setTemplates(data || []);
+          setTPaths(data || []);
         } catch (err: any) {
-          toast.error("Failed to load workout templates: " + err.message);
+          toast.error("Failed to load Transformation Paths: " + err.message);
         } finally {
           setLoading(false);
         }
       };
-      fetchTemplates();
+      fetchTPaths();
     }
   }, [session, supabase]);
 
@@ -49,7 +49,7 @@ export default function StartWorkoutPage() {
       <header className="mb-4">
         <h1 className="text-3xl font-bold">Start a Workout</h1>
         <p className="text-muted-foreground">
-          Start an ad-hoc session or choose one of your templates.
+          Start an ad-hoc session or choose one of your Transformation Paths.
         </p>
       </header>
       <div className="space-y-4">
@@ -63,12 +63,12 @@ export default function StartWorkoutPage() {
               Start Ad-Hoc Workout
             </CardTitle>
             <CardDescription>
-              Start a workout without a template. Add exercises as you go.
+              Start a workout without a T-Path. Add exercises as you go.
             </CardDescription>
           </CardHeader>
         </Card>
 
-        <h3 className="text-xl font-semibold pt-4">Or, choose a template</h3>
+        <h3 className="text-xl font-semibold pt-4">Or, choose a Transformation Path</h3>
 
         <div className="space-y-2">
           {loading ? (
@@ -77,21 +77,21 @@ export default function StartWorkoutPage() {
               <Skeleton className="h-20" />
               <Skeleton className="h-20" />
             </>
-          ) : templates.length === 0 ? (
+          ) : tPaths.length === 0 ? (
             <p className="text-muted-foreground text-center py-4">
-              You haven't created any workout templates yet. Go to 'Manage Templates' to create one.
+              You haven't created any Transformation Paths yet. Go to 'Manage T-Paths' to create one.
             </p>
           ) : (
-            templates.map(template => (
+            tPaths.map(tPath => (
               <Card
-                key={template.id}
+                key={tPath.id}
                 className="cursor-pointer hover:bg-accent transition-colors"
-                onClick={() => handleSelect(`/workout-session/${template.id}`)}
+                onClick={() => handleSelect(`/workout-session/${tPath.id}`)}
               >
                 <CardHeader>
                   <CardTitle className="flex items-center text-base">
                     <Dumbbell className="h-5 w-5 mr-2" />
-                    {template.template_name}
+                    {tPath.template_name}
                   </CardTitle>
                 </CardHeader>
               </Card>

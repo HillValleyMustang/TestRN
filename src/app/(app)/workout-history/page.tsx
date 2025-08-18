@@ -53,8 +53,8 @@ export default function WorkoutHistoryPage() { // Renamed component
     fetch();
   }, [session, router, supabase]);
 
-  const handleDeleteSession = async (sessionId: string, templateName: string | null) => {
-    if (!confirm(`Are you sure you want to delete the workout session "${templateName || 'Ad Hoc Workout'}"? This action cannot be undone.`)) {
+  const handleDeleteSession = async (sessionId: string, tPathName: string | null) => {
+    if (!confirm(`Are you sure you want to delete the workout session "${tPathName || 'Ad Hoc Workout'}"? This action cannot be undone.`)) {
       return;
     }
 

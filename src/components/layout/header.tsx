@@ -15,7 +15,7 @@ const mobileNavLinks = [
   { href: "/workout-history", label: "Workout History", icon: History },
   { href: "/activity-logs", label: "Activity Logs", icon: BarChart3 },
   { href: "/manage-exercises", label: "Manage Exercises", icon: Dumbbell },
-  { href: "/manage-templates", label: "Manage Templates", icon: LayoutTemplate },
+  { href: "/manage-t-paths", label: "Manage T-Paths", icon: LayoutTemplate },
   { href: "/profile", label: "My Profile", icon: User },
 ];
 
@@ -46,7 +46,7 @@ export function Header() {
               ))}
               <hr className="my-2" />
               <Link
-                href="/start-workout"
+                href="/start-t-path"
                 className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
               >
                 <Dumbbell className="h-5 w-5" />

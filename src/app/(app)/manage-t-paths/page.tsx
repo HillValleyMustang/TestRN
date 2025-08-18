@@ -28,11 +28,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type WorkoutTemplate = Tables<'workout_templates'>;
+type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
-const workoutTemplateSchema = z.object({
-  template_name: z.string().min(1, "Template name is required."),
+const tPathSchema = z.object({
+  template_name: z.string().min(1, "T-Path name is required."),
 });
 
 function SortableExerciseItem({ exercise, onRemove }: { exercise: ExerciseDefinition; onRemove: (id: string) => void; }) {
@@ -49,19 +49,19 @@ function SortableExerciseItem({ exercise, onRemove }: { exercise: ExerciseDefini
   );
 }
 
-export default function ManageTemplatesPage() {
+export default function ManageTPathsPage() {
   const { session, supabase } = useSession();
-  const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
+  const [tPaths, setTPaths] = useState<TPath[]>([]);
   const [allExercises, setAllExercises] = useState<ExerciseDefinition[]>([]);
   const [selectedExercises, setSelectedExercises] = useState<ExerciseDefinition[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingTemplate, setEditingTemplate] = useState<WorkoutTemplate | null>(null);
+  const [editingTPath, setEditingTPath] = useState<TPath | null>(null);
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState("");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [templateToDelete, setTemplateToDelete] = useState<WorkoutTemplate | null>(null);
+  const [tPathToDelete, setTPathToDelete] = useState<TPath | null>(null);
 
-  const form = useForm<z.infer<typeof workoutTemplateSchema>>({
-    resolver: zodResolver(workoutTemplateSchema),
+  const form = useForm<z.infer<typeof tPathSchema>>({
+    resolver: zodResolver(tPathSchema),
     defaultValues: { template_name: "" },
   });
 
@@ -70,8 +70,8 @@ export default function ManageTemplatesPage() {
   const fetchData = async () => {
     if (!session) return;
     setLoading(true);
-    const { data: tData, error: tError } = await supabase.from('workout_templates').select('*').eq('user_id', session.user.id);
-    if (tError) toast.error("Failed to load templates"); else setTemplates(tData || []);
+    const { data: tData, error: tError } = await supabase.from('t_paths').select('*').eq('user_id', session.user.id);
+    if (tError) toast.error("Failed to load T-Paths"); else setTPaths(tData || []);
     const { data: eData, error: eError } = await supabase.from('exercise_definitions').select('*').eq('user_id', session.user.id);
     if (eError) toast.error("Failed to load exercises"); else setAllExercises(eData || []);
     setLoading(false);
@@ -79,16 +79,16 @@ export default function ManageTemplatesPage() {
 
   useEffect(() => { fetchData(); }, [session, supabase]);
 
-  const handleEditClick = async (template: WorkoutTemplate) => {
-    setEditingTemplate(template);
-    form.reset({ template_name: template.template_name });
-    const { data, error } = await supabase.from('template_exercises').select('*, exercise_definitions(*)').eq('template_id', template.id).order('order_index');
-    if (error) toast.error("Failed to load template exercises");
+  const handleEditClick = async (tPath: TPath) => {
+    setEditingTPath(tPath);
+    form.reset({ template_name: tPath.template_name });
+    const { data, error } = await supabase.from('t_path_exercises').select('*, exercise_definitions(*)').eq('template_id', tPath.id).order('order_index');
+    if (error) toast.error("Failed to load T-Path exercises");
     else setSelectedExercises(data.map(item => item.exercise_definitions as ExerciseDefinition));
   };
 
   const handleCancelEdit = () => {
-    setEditingTemplate(null);
+    setEditingTPath(null);
     form.reset();
     setSelectedExercises([]);
   };
@@ -103,46 +103,46 @@ export default function ManageTemplatesPage() {
 
   const handleRemoveExercise = (id: string) => setSelectedExercises(prev => prev.filter(e => e.id !== id));
 
-  async function onSubmit(values: z.infer<typeof workoutTemplateSchema>) {
+  async function onSubmit(values: z.infer<typeof tPathSchema>) {
     if (!session || selectedExercises.length === 0) {
-      toast.error("Please add at least one exercise to the template.");
+      toast.error("Please add at least one exercise to the T-Path.");
       return;
     }
-    let templateId: string;
-    if (editingTemplate) {
-      const { error } = await supabase.from('workout_templates').update({ template_name: values.template_name }).eq('id', editingTemplate.id);
+    let tPathId: string;
+    if (editingTPath) {
+      const { error } = await supabase.from('t_paths').update({ template_name: values.template_name }).eq('id', editingTPath.id);
       if (error) { toast.error("Update failed"); return; }
-      templateId = editingTemplate.id;
+      tPathId = editingTPath.id;
     } else {
-      const { data, error } = await supabase.from('workout_templates').insert([{ ...values, user_id: session.user.id }]).select('id').single();
+      const { data, error } = await supabase.from('t_paths').insert([{ ...values, user_id: session.user.id }]).select('id').single();
       if (error || !data) { toast.error("Create failed"); return; }
-      templateId = data.id;
+      tPathId = data.id;
     }
-    await supabase.from('template_exercises').delete().eq('template_id', templateId);
-    const newExercises = selectedExercises.map((ex, i) => ({ template_id: templateId, exercise_id: ex.id, order_index: i }));
-    const { error: insertError } = await supabase.from('template_exercises').insert(newExercises);
+    await supabase.from('t_path_exercises').delete().eq('template_id', tPathId);
+    const newExercises = selectedExercises.map((ex, i) => ({ template_id: tPathId, exercise_id: ex.id, order_index: i }));
+    const { error: insertError } = await supabase.from('t_path_exercises').insert(newExercises);
     if (insertError) toast.error("Failed to save exercises");
-    else toast.success(`Template ${editingTemplate ? 'updated' : 'created'}!`);
+    else toast.success(`T-Path ${editingTPath ? 'updated' : 'created'}!`);
     handleCancelEdit();
     await fetchData();
   }
 
-  const handleDeleteClick = (template: WorkoutTemplate) => {
-    setTemplateToDelete(template);
+  const handleDeleteClick = (tPath: TPath) => {
+    setTPathToDelete(tPath);
     setIsDeleteDialogOpen(true);
   };
 
-  const confirmDeleteTemplate = async () => {
-    if (!templateToDelete) return;
-    const { error } = await supabase.from('workout_templates').delete().eq('id', templateToDelete.id);
+  const confirmDeleteTPath = async () => {
+    if (!tPathToDelete) return;
+    const { error } = await supabase.from('t_paths').delete().eq('id', tPathToDelete.id);
     if (error) {
       toast.error("Delete failed: " + error.message);
     } else {
-      toast.success("Template deleted");
+      toast.success("T-Path deleted");
       await fetchData();
     }
     setIsDeleteDialogOpen(false);
-    setTemplateToDelete(null);
+    setTPathToDelete(null);
   };
 
   function handleDragEnd(event: any) {
@@ -162,15 +162,15 @@ export default function ManageTemplatesPage() {
   return (
     <>
       <div className="flex flex-col gap-4">
-        <header className="mb-4"><h1 className="text-3xl font-bold">Manage Templates</h1></header>
+        <header className="mb-4"><h1 className="text-3xl font-bold">Manage Transformation Paths</h1></header>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-1">
             <Card>
-              <CardHeader><CardTitle>{editingTemplate ? "Edit Template" : "Create New Template"}</CardTitle></CardHeader>
+              <CardHeader><CardTitle>{editingTPath ? "Edit Transformation Path" : "Create New Transformation Path"}</CardTitle></CardHeader>
               <CardContent>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    <FormField control={form.control} name="template_name" render={({ field }) => ( <FormItem> <FormLabel>Template Name</FormLabel> <FormControl> <Input {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
+                    <FormField control={form.control} name="template_name" render={({ field }) => ( <FormItem> <FormLabel>T-Path Name</FormLabel> <FormControl> <Input {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
                     <FormItem>
                       <FormLabel>Exercises</FormLabel>
                       <div className="flex gap-2">
@@ -190,8 +190,8 @@ export default function ManageTemplatesPage() {
                       </DndContext>
                     </ScrollArea>
                     <div className="flex gap-2 pt-2">
-                      <Button type="submit" className="flex-1">{editingTemplate ? "Update" : "Create"}</Button>
-                      {editingTemplate && <Button type="button" variant="outline" onClick={handleCancelEdit}>Cancel</Button>}
+                      <Button type="submit" className="flex-1">{editingTPath ? "Update" : "Create"}</Button>
+                      {editingTPath && <Button type="button" variant="outline" onClick={handleCancelEdit}>Cancel</Button>}
                     </div>
                   </form>
                 </Form>
@@ -200,12 +200,12 @@ export default function ManageTemplatesPage() {
           </div>
           <div className="lg:col-span-2">
             <Card>
-              <CardHeader><CardTitle>My Templates</CardTitle></CardHeader>
+              <CardHeader><CardTitle>My Transformation Paths</CardTitle></CardHeader>
               <CardContent>
                 {loading ? <p>Loading...</p> : (
                   <ScrollArea className="h-[600px] pr-4">
                     <ul className="space-y-2">
-                      {templates.map(t => (
+                      {tPaths.map(t => (
                         <li key={t.id} className="flex items-center justify-between p-2 border rounded-md">
                           <span>{t.template_name}</span>
                           <div className="flex space-x-1">
@@ -227,12 +227,12 @@ export default function ManageTemplatesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the template "{templateToDelete?.template_name}".
+              This action cannot be undone. This will permanently delete the T-Path "{tPathToDelete?.template_name}".
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setTemplateToDelete(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteTemplate}>Continue</AlertDialogAction>
+            <AlertDialogCancel onClick={() => setTPathToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteTPath}>Continue</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

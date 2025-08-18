@@ -12,7 +12,7 @@ const mainNavLinks = [
   { href: "/workout-history", label: "Workout History", icon: History },
   { href: "/activity-logs", label: "Activity Logs", icon: BarChart3 },
   { href: "/manage-exercises", label: "Manage Exercises", icon: Dumbbell },
-  { href: "/manage-templates", label: "Manage Templates", icon: LayoutTemplate },
+  { href: "/manage-t-paths", label: "Manage T-Paths", icon: LayoutTemplate },
   { href: "/profile", label: "My Profile", icon: User },
 ];
 

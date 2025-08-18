@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { MadeWithDyad } from "@/components/made-with-dyad";
-import { WorkoutHeader } from '@/components/workout-session/workout-header';
+import { TPathHeader } from '@/components/workout-session/t-path-header'; // Updated import
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { FinishWorkoutButton } from '@/components/workout-session/finish-workout-button';
 import { useAdHocWorkoutSession } from '@/hooks/use-ad-hoc-workout-session'; // New hook
@@ -67,7 +67,7 @@ export default function AdHocWorkoutSessionPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground p-4 sm:p-8">
-      <WorkoutHeader templateName="Ad Hoc Workout" />
+      <TPathHeader tPathName="Ad Hoc Workout" />
 
       <section className="mb-8 p-4 border rounded-lg bg-card">
         <h2 className="text-xl font-semibold mb-4">Add Exercises</h2>

@@ -222,7 +222,7 @@ export type Database = {
           },
         ]
       }
-      template_exercises: {
+      t_path_exercises: {
         Row: {
           created_at: string | null
           exercise_id: string
@@ -246,17 +246,58 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "template_exercises_exercise_id_fkey"
+            foreignKeyName: "t_path_exercises_exercise_id_fkey"
             columns: ["exercise_id"]
             isOneToOne: false
             referencedRelation: "exercise_definitions"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "template_exercises_template_id_fkey"
+            foreignKeyName: "t_path_exercises_template_id_fkey"
             columns: ["template_id"]
             isOneToOne: false
-            referencedRelation: "workout_templates"
+            referencedRelation: "t_paths"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      t_paths: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_bonus: boolean | null
+          template_name: string
+          user_id: string | null
+          version: number | null
+          settings: Json | null
+          progression_settings: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_bonus?: boolean | null
+          template_name: string
+          user_id?: string | null
+          version?: number | null
+          settings?: Json | null
+          progression_settings?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_bonus?: boolean | null
+          template_name?: string
+          user_id?: string | null
+          version?: number | null
+          settings?: Json | null
+          progression_settings?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_templates_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -299,38 +340,66 @@ export type Database = {
           },
         ]
       }
-      workout_templates: {
+      user_notifications: {
         Row: {
-          created_at: string | null
-          id: string
-          is_bonus: boolean | null
-          template_name: string
-          user_id: string | null
-        }
+          id: string;
+          user_id: string;
+          notification_id: string;
+          read_at: string | null;
+        };
         Insert: {
-          created_at?: string | null
-          id?: string
-          is_bonus?: boolean | null
-          template_name: string
-          user_id?: string | null
-        }
+          id?: string;
+          user_id: string;
+          notification_id: string;
+          read_at?: string | null;
+        };
         Update: {
-          created_at?: string | null
-          id?: string
-          is_bonus?: boolean | null
-          template_name?: string
-          user_id?: string | null
-        }
+          id?: string;
+          user_id?: string;
+          notification_id?: string;
+          read_at?: string | null;
+        };
         Relationships: [
           {
-            foreignKeyName: "workout_templates_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            foreignKeyName: "user_notifications_notification_id_fkey";
+            columns: ["notification_id"];
+            isOneToOne: false;
+            referencedRelation: "notifications";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+          {
+            foreignKeyName: "user_notifications_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      notifications: {
+        Row: {
+          id: string;
+          title: string;
+          message: string;
+          type: string;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          message: string;
+          type?: string;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          message?: string;
+          type?: string;
+          created_at?: string | null;
+        };
+        Relationships: [];
+      };
     }
     Views: {
       [_ in never]: never
