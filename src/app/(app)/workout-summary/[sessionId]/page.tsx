@@ -4,12 +4,13 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { MadeWithDyad } from "@/components/made-with-dyad";
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Dumbbell, Timer, Trophy, Star } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
+import { WorkoutStatsCard } from '@/components/workout-summary/workout-stats-card';
+import { WorkoutRatingCard } from '@/components/workout-summary/workout-rating-card';
+import { ExerciseSummaryCard } from '@/components/workout-summary/exercise-summary-card';
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
@@ -32,7 +33,7 @@ interface WorkoutSummaryPageProps {
   params: { sessionId: string };
 }
 
-export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) => {
+export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) {
   const { session, supabase } = useSession();
   const router = useRouter();
   const { sessionId } = params;
@@ -119,25 +120,9 @@ export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) 
     fetchWorkoutSummary();
   }, [session, router, sessionId, supabase]);
 
-  const handleRatingChange = async (rating: number) => {
-    if (!session || !workoutSession) return;
-
+  const handleRatingChange = (rating: number) => {
     setCurrentRating(rating);
     setIsRatingSaved(false); // Indicate that the new rating is not yet saved
-
-    const { error: updateError } = await supabase
-      .from('workout_sessions')
-      .update({ rating: rating })
-      .eq('id', workoutSession.id)
-      .eq('user_id', session.user.id);
-
-    if (updateError) {
-      toast.error("Failed to save rating: " + updateError.message);
-      console.error("Error saving rating:", updateError);
-    } else {
-      toast.success("Workout rated successfully!");
-      setIsRatingSaved(true);
-    }
   };
 
   if (loading) {
@@ -189,51 +174,18 @@ export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) 
         </Button>
       </header>
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>{workoutSession.template_name || 'Ad Hoc Workout'}</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Date: {new Date(workoutSession.session_date).toLocaleDateString()}
-          </p>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="flex items-center space-x-2">
-            <Timer className="h-5 w-5 text-primary" />
-            <p className="text-lg font-semibold">Duration: {workoutSession.duration_string || 'N/A'}</p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Dumbbell className="h-5 w-5 text-primary" />
-            <p className="text-lg font-semibold">Total Volume: {totalVolume.toLocaleString()} kg</p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Trophy className="h-5 w-5 text-primary" />
-            <p className="text-lg font-semibold">PRs Achieved: {prsAchieved}</p>
-          </div>
-        </CardContent>
-      </Card>
+      <WorkoutStatsCard 
+        workoutSession={workoutSession} 
+        totalVolume={totalVolume} 
+        prsAchieved={prsAchieved} 
+      />
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Rate Your Workout</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center space-x-1">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <Star
-                key={star}
-                className={`h-8 w-8 cursor-pointer ${
-                  (currentRating && star <= currentRating) ? 'text-yellow-500 fill-yellow-500' : 'text-muted-foreground'
-                }`}
-                onClick={() => handleRatingChange(star)}
-              />
-            ))}
-            {isRatingSaved && <span className="ml-2 text-sm text-green-500">Saved!</span>}
-          </div>
-          <p className="text-sm text-muted-foreground mt-2">
-            How would you rate this workout session? (1-5 stars)
-          </p>
-        </CardContent>
-      </Card>
+      <WorkoutRatingCard 
+        workoutSession={workoutSession} 
+        onRatingChange={handleRatingChange} 
+        currentRating={currentRating} 
+        isRatingSaved={isRatingSaved} 
+      />
 
       <section className="mb-8">
         <h2 className="text-2xl font-bold mb-4">Exercises Performed</h2>
@@ -241,47 +193,7 @@ export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) 
           <p className="text-muted-foreground">No exercises logged for this session.</p>
         ) : (
           (Object.values(exercisesWithGroupedSets) as ExerciseGroup[]).map((exerciseGroup: ExerciseGroup) => (
-            <Card key={exerciseGroup.name} className="mb-4">
-              <CardHeader>
-                <CardTitle>{exerciseGroup.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Set</TableHead>
-                      {exerciseGroup.type === 'weight' && <TableHead>Weight (kg)</TableHead>}
-                      {exerciseGroup.type === 'weight' && <TableHead>Reps</TableHead>}
-                      {exerciseGroup.type === 'timed' && <TableHead>Time (s)</TableHead>}
-                      {exerciseGroup.category === 'Unilateral' && (
-                        <>
-                          <TableHead>Reps (L)</TableHead>
-                          <TableHead>Reps (R)</TableHead>
-                        </>
-                      )}
-                      <TableHead>PR</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {exerciseGroup.sets.map((set: SetLogWithExercise, index: number) => (
-                      <TableRow key={set.id}>
-                        <TableCell>{index + 1}</TableCell>
-                        {exerciseGroup.type === 'weight' && <TableCell>{set.weight_kg ?? '-'}</TableCell>}
-                        {exerciseGroup.type === 'weight' && <TableCell>{set.reps ?? '-'}</TableCell>}
-                        {exerciseGroup.type === 'timed' && <TableCell>{set.time_seconds ?? '-'}</TableCell>}
-                        {exerciseGroup.category === 'Unilateral' && (
-                          <>
-                            <TableCell>{set.reps_l ?? '-'}</TableCell>
-                            <TableCell>{set.reps_r ?? '-'}</TableCell>
-                          </>
-                        )}
-                        <TableCell>{set.is_pb ? <Trophy className="h-4 w-4 text-yellow-500" /> : '-'}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <ExerciseSummaryCard key={exerciseGroup.name} exerciseGroup={exerciseGroup} />
           ))
         )}
       </section>

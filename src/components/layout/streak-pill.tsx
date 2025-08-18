@@ -13,7 +13,9 @@ export function StreakPill() {
   const calculateStreak = useCallback((dates: string[]) => {
     if (dates.length === 0) return 0;
 
-    const sortedUniqueDates = [...new Set(dates)].sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+    // Convert Set to Array properly for TypeScript
+    const uniqueDates = Array.from(new Set(dates));
+    const sortedUniqueDates = uniqueDates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
 
     let currentStreak = 0;
     const today = new Date();
