@@ -32,52 +32,14 @@ export default function LoginPage() {
   const handleTestUserLogin = async () => {
     setLoading(true);
     try {
-      // This is a special endpoint for test users that bypasses email verification
-      // In a real app, this would be a secure server-side function
-      const email = 'testuser@example.com';
-      const password = 'TestPassword123!';
-      
-      // Try to sign in first
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password
+      // Predefined test user credentials
+      const { error } = await supabase.auth.signInWithPassword({
+        email: 'testuser@example.com',
+        password: 'TestPassword123!'
       });
 
-      if (signInError) {
-        // If sign in fails, create a new test user
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              first_name: 'Test',
-              last_name: 'User'
-            }
-          }
-        });
-
-        if (signUpError) {
-          // If both fail, show a simple error
-          toast.error('Could not create test user. Please try manually.');
-          return;
-        }
-
-        // Create a profile for the test user
-        if (data.user) {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .upsert({
-              id: data.user.id,
-              first_name: 'Test',
-              last_name: 'User'
-            });
-
-          if (profileError) {
-            console.error('Profile creation error:', profileError);
-          }
-          
-          toast.success('Test user created and signed in!');
-        }
+      if (error) {
+        toast.error('Test user login failed: ' + error.message);
       } else {
         toast.success('Signed in as test user!');
       }
@@ -217,9 +179,9 @@ export default function LoginPage() {
             </div>
             
             <div className="mt-6 pt-6 border-t border-muted">
-              <h3 className="text-lg font-semibold mb-2">Development Login</h3>
+              <h3 className="text-lg font-semibold mb-2">Quick Test Access</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                For testing purposes only:
+                Use our pre-configured test account:
               </p>
               <Button 
                 onClick={handleTestUserLogin} 
@@ -227,8 +189,12 @@ export default function LoginPage() {
                 disabled={loading}
                 variant="secondary"
               >
-                {loading ? "Logging in..." : "Login as Test User"}
+                {loading ? "Logging in..." : "Use Test Account"}
               </Button>
+              <p className="text-xs text-muted-foreground mt-2">
+                Email: testuser@example.com<br/>
+                Password: TestPassword123!
+              </p>
             </div>
           </CardContent>
         </Card>
