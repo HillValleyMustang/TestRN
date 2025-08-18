@@ -6,12 +6,17 @@ import { useSession } from '@/components/session-context-provider';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { ActionHub } from '@/components/dashboard/action-hub';
 import { WeeklyVolumeChart } from '@/components/dashboard/weekly-volume-chart';
-import { Tables } from '@/types/supabase'; // Import Tables
+import { Tables } from '@/types/supabase';
+import { toast } from 'sonner';
+
+type Profile = Tables<'profiles'>;
 
 export default function DashboardPage() {
   const { session, supabase } = useSession();
   const router = useRouter();
   const [welcomeName, setWelcomeName] = useState<string>('');
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!session) {
@@ -19,32 +24,71 @@ export default function DashboardPage() {
       return;
     }
 
-    const fetchProfileData = async () => {
+    const checkOnboardingStatus = async () => {
       try {
-        const { data: profileData, error } = await supabase
+        // Check if user has completed onboarding
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('first_name, last_name')
+          .select('*')
           .eq('id', session.user.id)
           .single();
         
-        if (error && error.code !== 'PGRST116') throw error;
+        if (profileError && profileError.code !== 'PGRST116') {
+          throw profileError;
+        }
 
-        const firstName = profileData?.first_name;
+        if (!profileData) {
+          // Redirect to onboarding if no profile exists
+          router.push('/onboarding');
+          return;
+        }
+
+        setProfile(profileData);
+
+        // Check if user has T-Paths
+        const { data: tPaths, error: tPathError } = await supabase
+          .from('t_paths')
+          .select('id')
+          .eq('user_id', session.user.id)
+          .limit(1);
+
+        if (tPathError) {
+          throw tPathError;
+        }
+
+        if (!tPaths || tPaths.length === 0) {
+          // Redirect to onboarding if no T-Paths exist
+          router.push('/onboarding');
+          return;
+        }
+
+        // Set welcome name
+        const firstName = profileData.first_name;
         if (firstName) {
           setWelcomeName(firstName);
         } else {
-          const userInitials = `${profileData?.first_name ? profileData.first_name[0] : ''}${profileData?.last_name ? profileData.last_name[0] : ''}`.toUpperCase();
+          const userInitials = `${profileData.first_name ? profileData.first_name[0] : ''}${profileData.last_name ? profileData.last_name[0] : ''}`.toUpperCase();
           setWelcomeName(`Athlete ${userInitials || session.user?.email?.[0].toUpperCase() || ''}`);
         }
 
       } catch (err: any) {
-        console.error("Error fetching profile data:", err);
-        setWelcomeName("Athlete"); // Fallback
+        console.error("Error checking onboarding status:", err);
+        toast.error("Error loading dashboard: " + err.message);
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchProfileData();
+    checkOnboardingStatus();
   }, [session, router, supabase]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p>Loading dashboard...</p>
+      </div>
+    );
+  }
 
   if (!session) {
     return null;

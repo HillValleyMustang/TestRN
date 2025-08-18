@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { Plus, CheckCircle2, Trophy, Edit, Trash2, Timer, RefreshCcw } from 'lucide-react';
+import { Plus, CheckCircle2, Trophy, Edit, Trash2, Timer, RefreshCcw, Info, History } from 'lucide-react';
 import { ExerciseHistoryDialog } from '@/components/exercise-history-dialog';
 import { ExerciseInfoDialog } from '@/components/exercise-info-dialog';
 import { ExerciseProgressionDialog } from '@/components/exercise-progression-dialog';
@@ -15,7 +15,8 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { useSession } from '@/components/session-context-provider';
 import { formatWeight, convertWeight } from '@/lib/unit-conversions';
 import { RestTimer } from './rest-timer';
-import { ExerciseSwapDialog } from './exercise-swap-dialog'; // New component
+import { ExerciseSwapDialog } from './exercise-swap-dialog';
+import { CantDoToggle } from './cant-do-toggle';
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type Profile = Tables<'profiles'>;
@@ -26,9 +27,19 @@ interface ExerciseCardProps {
   supabase: SupabaseClient;
   onUpdateGlobalSets: (exerciseId: string, newSets: SetLogState[]) => void;
   initialSets: SetLogState[];
+  onSubstituteExercise?: (oldExerciseId: string, newExercise: ExerciseDefinition) => void;
+  onRemoveExercise?: (exerciseId: string) => void;
 }
 
-export const ExerciseCard = ({ exercise, currentSessionId, supabase, onUpdateGlobalSets, initialSets }: ExerciseCardProps) => {
+export const ExerciseCard = ({ 
+  exercise, 
+  currentSessionId, 
+  supabase, 
+  onUpdateGlobalSets, 
+  initialSets,
+  onSubstituteExercise,
+  onRemoveExercise
+}: ExerciseCardProps) => {
   const { session } = useSession();
   const [preferredWeightUnit, setPreferredWeightUnit] = useState<Profile['preferred_weight_unit']>('kg');
   const [defaultRestTime, setDefaultRestTime] = useState<number>(60);
@@ -48,6 +59,7 @@ export const ExerciseCard = ({ exercise, currentSessionId, supabase, onUpdateGlo
         console.error("Error fetching user profile for units/rest time:", error);
       } else if (profileData) {
         setPreferredWeightUnit(profileData.preferred_weight_unit || 'kg');
+        setDefaultRestTime(profileData.default_rest_time_seconds || 60);
       }
     };
     fetchUserProfile();
@@ -81,6 +93,18 @@ export const ExerciseCard = ({ exercise, currentSessionId, supabase, onUpdateGlo
     // For example, by calling a prop like `onExerciseSwap(exercise.id, newExercise)`.
   };
 
+  const handleSubstitute = (newExercise: ExerciseDefinition) => {
+    if (onSubstituteExercise) {
+      onSubstituteExercise(exercise.id, newExercise);
+    }
+  };
+
+  const handleRemove = () => {
+    if (onRemoveExercise) {
+      onRemoveExercise(exercise.id);
+    }
+  };
+
   return (
     <Card className="mb-6">
       <CardHeader className="flex flex-row items-center justify-between">
@@ -104,6 +128,11 @@ export const ExerciseCard = ({ exercise, currentSessionId, supabase, onUpdateGlo
           <Button variant="outline" size="icon" title="Swap Exercise" onClick={() => setShowSwapDialog(true)}>
             <RefreshCcw className="h-4 w-4" />
           </Button>
+          <CantDoToggle 
+            exercise={exercise} 
+            onRemove={handleRemove}
+            onSubstitute={handleSubstitute}
+          />
         </div>
       </CardHeader>
       <CardContent>

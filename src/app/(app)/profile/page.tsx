@@ -19,15 +19,16 @@ import { Tables, TablesUpdate } from '@/types/supabase';
 type Profile = Tables<'profiles'>;
 
 const profileSchema = z.object({
-  first_name: z.string().min(1, "First name is required.").optional().or(z.literal('')),
-  last_name: z.string().min(1, "Last name is required.").optional().or(z.literal('')),
+  preferred_name: z.string().min(1, "Preferred name is required.").optional().or(z.literal('')),
   height_cm: z.coerce.number().min(1, "Height must be positive.").optional().nullable(),
   weight_kg: z.coerce.number().min(1, "Weight must be positive.").optional().nullable(),
+  body_fat_pct: z.coerce.number().min(0, "Body fat percentage must be 0 or greater.").max(100, "Body fat percentage cannot exceed 100.").optional().nullable(),
   primary_goal: z.string().optional().nullable(),
   health_notes: z.string().optional().nullable(),
-  preferred_weight_unit: z.enum(["kg", "lbs"]).optional(), // Marked as optional
-  preferred_distance_unit: z.enum(["km", "miles"]).optional(), // Marked as optional
+  preferred_weight_unit: z.enum(["kg"]).optional(), // Fixed to kg only
+  preferred_distance_unit: z.enum(["km"]).optional(), // Fixed to km only
   default_rest_time_seconds: z.coerce.number().min(0, "Rest time cannot be negative.").optional().nullable(),
+  preferred_muscles: z.string().optional().nullable(),
 });
 
 export default function ProfilePage() {
@@ -39,15 +40,16 @@ export default function ProfilePage() {
   const form = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      first_name: "",
-      last_name: "",
+      preferred_name: "",
       height_cm: null,
       weight_kg: null,
+      body_fat_pct: null,
       primary_goal: null,
       health_notes: null,
-      preferred_weight_unit: "kg", // Explicitly provide default
-      preferred_distance_unit: "km", // Explicitly provide default
-      default_rest_time_seconds: 60,
+      preferred_weight_unit: "kg", // Fixed to kg only
+      preferred_distance_unit: "km", // Fixed to km only
+      default_rest_time_seconds: 60, // Default to 60s
+      preferred_muscles: null,
     },
   });
 
@@ -71,15 +73,16 @@ export default function ProfilePage() {
       } else if (data) {
         setProfile(data);
         form.reset({
-          first_name: data.first_name || "",
-          last_name: data.last_name || "",
+          preferred_name: (data.first_name || "") + (data.last_name ? " " + data.last_name : ""),
           height_cm: data.height_cm,
           weight_kg: data.weight_kg,
+          body_fat_pct: data.body_fat_pct,
           primary_goal: data.primary_goal,
           health_notes: data.health_notes,
-          preferred_weight_unit: (data.preferred_weight_unit || "kg") as "kg" | "lbs",
-          preferred_distance_unit: (data.preferred_distance_unit || "km") as "km" | "miles",
+          preferred_weight_unit: "kg", // Fixed to kg only
+          preferred_distance_unit: "km", // Fixed to km only
           default_rest_time_seconds: data.default_rest_time_seconds || 60,
+          preferred_muscles: data.preferred_muscles,
         });
       }
       setLoading(false);
@@ -94,16 +97,27 @@ export default function ProfilePage() {
       return;
     }
 
+    // Split preferred name into first and last name
+    let firstName = "";
+    let lastName = "";
+    if (values.preferred_name) {
+      const nameParts = values.preferred_name.trim().split(" ");
+      firstName = nameParts[0];
+      lastName = nameParts.slice(1).join(" ");
+    }
+
     const updateData: TablesUpdate<'profiles'> = {
-      first_name: values.first_name || null,
-      last_name: values.last_name || null,
+      first_name: firstName || null,
+      last_name: lastName || null,
       height_cm: values.height_cm,
       weight_kg: values.weight_kg,
+      body_fat_pct: values.body_fat_pct,
       primary_goal: values.primary_goal,
       health_notes: values.health_notes,
-      preferred_weight_unit: values.preferred_weight_unit || "kg", // Provide fallback if somehow undefined
-      preferred_distance_unit: values.preferred_distance_unit || "km", // Provide fallback if somehow undefined
+      preferred_weight_unit: "kg", // Fixed to kg only
+      preferred_distance_unit: "km", // Fixed to km only
       default_rest_time_seconds: values.default_rest_time_seconds,
+      preferred_muscles: values.preferred_muscles,
       updated_at: new Date().toISOString(),
     };
 
@@ -142,30 +156,17 @@ export default function ProfilePage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="first_name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>First Name</FormLabel>
-                      <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="last_name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Last Name</FormLabel>
-                      <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="preferred_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Preferred Name</FormLabel>
+                    <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -190,6 +191,17 @@ export default function ProfilePage() {
                   )}
                 />
               </div>
+              <FormField
+                control={form.control}
+                name="body_fat_pct"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Body Fat Percentage (%)</FormLabel>
+                    <FormControl><Input type="number" step="0.1" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.valueAsNumber)} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="primary_goal"
@@ -221,7 +233,7 @@ export default function ProfilePage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Weight Unit</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value} disabled>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select unit" />
@@ -229,10 +241,10 @@ export default function ProfilePage() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="kg">Kilograms (kg)</SelectItem>
-                          <SelectItem value="lbs">Pounds (lbs)</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
+                      <p className="text-xs text-muted-foreground">Fixed to kg for MVP</p>
                     </FormItem>
                   )}
                 />
@@ -242,7 +254,7 @@ export default function ProfilePage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Distance Unit</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value} disabled>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select unit" />
@@ -250,10 +262,10 @@ export default function ProfilePage() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="km">Kilometers (km)</SelectItem>
-                          <SelectItem value="miles">Miles (miles)</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
+                      <p className="text-xs text-muted-foreground">Fixed to km for MVP</p>
                     </FormItem>
                   )}
                 />
@@ -262,13 +274,35 @@ export default function ProfilePage() {
                   name="default_rest_time_seconds"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Default Rest Time (s)</FormLabel>
-                      <FormControl><Input type="number" step="5" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.valueAsNumber)} /></FormControl>
+                      <FormLabel>Default Rest Time</FormLabel>
+                      <Select onValueChange={(value) => field.onChange(Number(value))} value={field.value?.toString() || '60'}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select rest time" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="30">30 seconds</SelectItem>
+                          <SelectItem value="60">60 seconds</SelectItem>
+                          <SelectItem value="120">120 seconds</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
+              <FormField
+                control={form.control}
+                name="preferred_muscles"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Preferred Muscles to Train (Optional)</FormLabel>
+                    <FormControl><Input placeholder="e.g., Chest, Back, Legs..." {...field} value={field.value ?? ''} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="health_notes"
