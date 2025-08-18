@@ -2,7 +2,9 @@
 
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ActivityChart } from "@/components/progress/activity-chart"; // Import the new component
+import { ActivityChart } from "@/components/progress/activity-chart";
+import { WeeklyVolumeChart } from "@/components/dashboard/weekly-volume-chart";
+import { PersonalRecordsCard } from "@/components/progress/personal-records-card";
 
 export default function ProgressPage() {
   return (
@@ -13,7 +15,29 @@ export default function ProgressPage() {
           Charts, records, and summaries to track your fitness journey.
         </p>
       </header>
-      <ActivityChart /> {/* Render the new chart component */}
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Workout Volume</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <WeeklyVolumeChart />
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Activity Overview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ActivityChart />
+          </CardContent>
+        </Card>
+      </div>
+      
+      <PersonalRecordsCard />
+      
       <Card>
         <CardHeader>
           <CardTitle>More Progress Metrics Coming Soon!</CardTitle>
@@ -24,6 +48,7 @@ export default function ProgressPage() {
           </p>
         </CardContent>
       </Card>
+      
       <MadeWithDyad />
     </div>
   );
