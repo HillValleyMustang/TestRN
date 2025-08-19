@@ -23,11 +23,12 @@ export default function LoginPage() {
           .single();
 
         if (profile) {
-          // User has profile, check if they have T-Paths
+          // User has profile, check if they have *main* T-Paths
           const { data: tPaths } = await supabase
             .from('t_paths')
             .select('id')
             .eq('user_id', session.user.id)
+            .is('parent_t_path_id', null) // Look for main T-Paths
             .limit(1);
 
           if (tPaths && tPaths.length > 0) {

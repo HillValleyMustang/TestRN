@@ -273,6 +273,7 @@ export type Database = {
           version: number | null
           settings: Json | null
           progression_settings: Json | null
+          parent_t_path_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -283,6 +284,7 @@ export type Database = {
           version?: number | null
           settings?: Json | null
           progression_settings?: Json | null
+          parent_t_path_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -293,6 +295,7 @@ export type Database = {
           version?: number | null
           settings?: Json | null
           progression_settings?: Json | null
+          parent_t_path_id?: string | null
         }
         Relationships: [
           {
@@ -300,6 +303,13 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "t_paths_parent_t_path_id_fkey"
+            columns: ["parent_t_path_id"]
+            isOneToOne: false
+            referencedRelation: "t_paths"
             referencedColumns: ["id"]
           },
         ]

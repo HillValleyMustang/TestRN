@@ -31,7 +31,7 @@ export default function OnboardingPage() {
   const [preferredMuscles, setPreferredMuscles] = useState<string>("");
   const [constraints, setConstraints] = useState<string>("");
   const [sessionLength, setSessionLength] = useState<string>("");
-  const [equipmentMethod, setEquipmentMethod] = useState<"photo" | "manual" | "skip" | null>(null);
+  const [equipmentMethod, setEquipmentMethod] = useState<"photo" | "skip" | null>(null); // Removed 'manual' from type
   const [consentGiven, setConsentGiven] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -110,6 +110,7 @@ export default function OnboardingPage() {
           ? '4-Day Upper/Lower' 
           : '3-Day Push/Pull/Legs',
         is_bonus: false,
+        parent_t_path_id: null, // Main T-Path has no parent
         settings: {
           tPathType,
           experience,
@@ -443,7 +444,7 @@ export default function OnboardingPage() {
               <div className="space-y-6">
                 <RadioGroup 
                   value={equipmentMethod || undefined} 
-                  onValueChange={(value: "photo" | "manual" | "skip") => setEquipmentMethod(value)}
+                  onValueChange={(value: "photo" | "skip") => setEquipmentMethod(value)} 
                 >
                   <div className="space-y-4">
                     <div className="flex items-center space-x-2">
@@ -454,13 +455,7 @@ export default function OnboardingPage() {
                       Take a photo of your gym to help us identify available equipment
                     </p>
                     
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="manual" id="manual" />
-                      <Label htmlFor="manual">Manual Equipment Selection</Label>
-                    </div>
-                    <p className="text-sm text-muted-foreground ml-6">
-                      Select your equipment from a list
-                    </p>
+                    {/* REMOVED: Manual Equipment Selection */}
                     
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="skip" id="skip" />

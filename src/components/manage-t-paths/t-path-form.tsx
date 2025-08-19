@@ -108,7 +108,12 @@ export const TPathForm = ({ editingTPath, onCancelEdit, onSaveSuccess, allExerci
       if (error) { toast.error("Update failed"); return; }
       tPathId = editingTPath.id;
     } else {
-      const { data, error } = await supabase.from('t_paths').insert([{ ...values, user_id: session.user.id }]).select('id').single();
+      const { data, error } = await supabase.from('t_paths').insert([{ 
+        ...values, 
+        user_id: session.user.id,
+        is_bonus: false, // New main T-Paths are not bonus
+        parent_t_path_id: null // New main T-Paths have no parent
+      }]).select('id').single();
       if (error || !data) { toast.error("Create failed"); return; }
       tPathId = data.id;
     }

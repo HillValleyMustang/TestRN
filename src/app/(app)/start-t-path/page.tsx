@@ -32,12 +32,12 @@ export default function StartTPathPage() {
     }
     setLoading(true);
     try {
-      // Fetch main T-Paths (where user_id is the actual user's ID and is_bonus is false)
+      // Fetch main T-Paths (where user_id is the actual user's ID and parent_t_path_id is NULL)
       const { data: mainTPaths, error: mainTPathsError } = await supabase
         .from('t_paths')
         .select('*')
         .eq('user_id', session.user.id)
-        .eq('is_bonus', false) // Main T-Paths
+        .is('parent_t_path_id', null) // Main T-Paths have no parent
         .order('template_name', { ascending: true });
 
       if (mainTPathsError) throw mainTPathsError;
@@ -45,12 +45,11 @@ export default function StartTPathPage() {
       const tPathsWithWorkouts: TPathWithWorkouts[] = [];
 
       for (const mainTPath of mainTPaths || []) {
-        // Fetch child workouts for each main T-Path (where user_id is the main T-Path's ID and is_bonus is true)
+        // Fetch child workouts for each main T-Path (where parent_t_path_id is the main T-Path's ID)
         const { data: childWorkouts, error: childWorkoutsError } = await supabase
           .from('t_paths')
           .select('*')
-          .eq('user_id', mainTPath.id) // Link to parent T-Path
-          .eq('is_bonus', true) // Child workouts
+          .eq('parent_t_path_id', mainTPath.id) // Link to parent T-Path
           .order('template_name', { ascending: true });
 
         if (childWorkoutsError) throw childWorkoutsError;

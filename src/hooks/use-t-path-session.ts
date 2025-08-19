@@ -57,20 +57,21 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
     setLoading(true);
     setError(null);
     try {
-      // 1. Fetch the Transformation Path
+      // 1. Fetch the specific workout (which is a child T-Path)
       const { data: tPathData, error: fetchTPathError } = await supabase
         .from('t_paths')
         .select('*')
         .eq('id', tPathId)
-        .eq('user_id', session.user.id)
+        .eq('user_id', session.user.id) // Ensure it belongs to the current user
+        .eq('is_bonus', true) // It must be a child workout
         .single();
 
       if (fetchTPathError || !tPathData) {
-        throw new Error(fetchTPathError?.message || "Transformation Path not found.");
+        throw new Error(fetchTPathError?.message || "Workout not found or not accessible.");
       }
       setTPath(tPathData);
 
-      // 2. Fetch all exercises associated with this T-Path via t_path_exercises
+      // 2. Fetch all exercises associated with this specific workout (child T-Path)
       const { data: tPathExercisesData, error: fetchTPathExercisesError } = await supabase
         .from('t_path_exercises')
         .select(`
@@ -96,6 +97,7 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
         .from('workout_sessions')
         .select('id')
         .eq('user_id', session.user.id)
+        .eq('template_name', tPathData.template_name) // Filter by the specific workout name
         .order('session_date', { ascending: false })
         .limit(1)
         .single();
@@ -114,7 +116,7 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
             .from('set_logs')
             .select('weight_kg, reps, time_seconds')
             .eq('exercise_id', ex.id)
-            .eq('session_id', lastSessionId)
+            .eq('session_id', lastSessionId) // Ensure it's from the last session of THIS workout
             .order('created_at', { ascending: false })
             .limit(1)
             .single();
@@ -137,7 +139,7 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
         .from('workout_sessions')
         .insert({
           user_id: session.user.id,
-          template_name: tPathData.template_name,
+          template_name: tPathData.template_name, // Use the specific workout's name
           session_date: new Date().toISOString(),
         })
         .select('id')

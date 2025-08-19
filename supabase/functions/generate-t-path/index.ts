@@ -260,8 +260,7 @@ serve(async (req: Request) => {
     const { data: existingChildWorkouts, error: fetchChildWorkoutsError } = await supabaseServiceRoleClient
       .from('t_paths')
       .select('id')
-      .eq('user_id', tPath.id) // Child workouts are linked to parent T-Path ID
-      .eq('is_bonus', true); // Only delete child workouts
+      .eq('parent_t_path_id', tPath.id); // Use parent_t_path_id for cleanup
 
     if (fetchChildWorkoutsError) {
       console.error('Error fetching existing child workouts for cleanup:', fetchChildWorkoutsError.message);
@@ -389,7 +388,8 @@ serve(async (req: Request) => {
         const { data: workout, error: workoutError } = await supabaseServiceRoleClient
           .from('t_paths')
           .insert({
-            user_id: tPath.id, // Link child workout to parent T-Path ID
+            user_id: user.id, // This must be the actual user's ID
+            parent_t_path_id: tPath.id, // Link child workout to parent T-Path ID
             template_name: workoutName,
             is_bonus: true, // Mark as a child workout
             version: 1,
