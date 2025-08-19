@@ -140,8 +140,8 @@ export default function StartTPathPage() {
               if (isExpandable) {
                 return (
                   <Card key={tPath.id} className="w-full"> {/* Wrap the entire accordion item in a Card */}
-                    <Accordion type="single" collapsible value={tPath.id} className="w-full">
-                      <AccordionItem value={tPath.id} className="border-b-0"> {/* Remove default border */}
+                    <Accordion type="single" collapsible className="w-full"> {/* Removed value prop */}
+                      <AccordionItem value={tPath.id}> {/* Removed border-b-0 */}
                         <AccordionTrigger className="flex items-center justify-between w-full p-6 text-lg font-semibold hover:no-underline data-[state=open]:border-b">
                           <div className="flex items-center">
                             <Dumbbell className="h-5 w-5 mr-2" />
