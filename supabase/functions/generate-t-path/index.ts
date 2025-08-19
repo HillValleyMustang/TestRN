@@ -96,21 +96,31 @@ serve(async (req: Request) => {
     }
 
     const { tPathId } = await req.json();
+    console.log(`Received request to generate T-Path workouts for tPathId: ${tPathId}`);
 
     let tPath;
     try {
+      // Simplified select to only get necessary fields and avoid potential issues with profiles join
       const { data, error } = await supabaseServiceRoleClient
         .from('t_paths')
-        .select('*, profiles(first_name, last_name)')
+        .select('id, template_name, settings')
         .eq('id', tPathId)
         .single();
 
-      if (error) throw error;
-      if (!data) throw new Error('T-Path not found in database.');
+      if (error) {
+        console.error(`Error fetching T-Path with ID ${tPathId}:`, error);
+        throw error;
+      }
+      if (!data) {
+        console.error(`T-Path with ID ${tPathId} not found in database.`);
+        throw new Error('T-Path not found in database.');
+      }
       tPath = data;
+      console.log(`Fetched T-Path: ${tPath.template_name} (ID: ${tPath.id})`);
     } catch (err) {
-      console.error('Error fetching T-Path:', err);
-      return new Response(JSON.stringify({ error: `Error fetching T-Path: ${err instanceof Error ? err.message : String(err)}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error(`Error in initial T-Path fetch: ${errorMessage}`);
+      return new Response(JSON.stringify({ error: `Error fetching T-Path: ${errorMessage}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     console.log('T-Path settings:', tPath.settings);
@@ -128,35 +138,50 @@ serve(async (req: Request) => {
     }
     console.log('Determined workout names:', workoutNames);
 
-    // --- Delete existing child workouts and their exercises for this tPathId ---
-    console.log(`Deleting existing child workouts for parent T-Path ID: ${tPathId}`);
-    const { data: existingChildWorkouts, error: fetchChildrenError } = await supabaseServiceRoleClient
+    // --- Delete existing misclassified top-level workouts and their exercises ---
+    console.log(`Starting cleanup of misclassified top-level workouts for user ID: ${user.id}`);
+    const misclassifiedWorkoutNames = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B', 'Push', 'Pull', 'Legs'];
+
+    const { data: existingMisclassifiedWorkouts, error: fetchMisclassifiedError } = await supabaseServiceRoleClient
       .from('t_paths')
-      .select('id')
-      .eq('user_id', tPathId); // Child workouts have parent's ID as their user_id
+      .select('id, template_name')
+      .eq('user_id', user.id) // Directly linked to the user
+      .in('template_name', misclassifiedWorkoutNames); // Names that should be child workouts
 
-    if (fetchChildrenError) throw fetchChildrenError;
+    if (fetchMisclassifiedError) {
+      console.error('Error fetching misclassified workouts:', fetchMisclassifiedError);
+      throw fetchMisclassifiedError;
+    }
 
-    if (existingChildWorkouts && existingChildWorkouts.length > 0) {
-      const childWorkoutIds = existingChildWorkouts.map((w: { id: string }) => w.id); // Fixed: Explicitly type 'w'
+    if (existingMisclassifiedWorkouts && existingMisclassifiedWorkouts.length > 0) {
+      const misclassifiedWorkoutIds = existingMisclassifiedWorkouts.map((w: { id: string }) => w.id);
+      console.log(`Found ${misclassifiedWorkoutIds.length} misclassified workouts to delete:`, existingMisclassifiedWorkouts.map((w: { template_name: string }) => w.template_name)); // Fixed TS error here
 
       // Delete associated t_path_exercises first
       const { error: deleteTPathExercisesError } = await supabaseServiceRoleClient
         .from('t_path_exercises')
         .delete()
-        .in('template_id', childWorkoutIds);
-      if (deleteTPathExercisesError) throw deleteTPathExercisesError;
-      console.log(`Deleted t_path_exercises for ${childWorkoutIds.length} child workouts.`);
+        .in('template_id', misclassifiedWorkoutIds);
+      if (deleteTPathExercisesError) {
+        console.error('Error deleting t_path_exercises for misclassified workouts:', deleteTPathExercisesError);
+        throw deleteTPathExercisesError;
+      }
+      console.log(`Deleted t_path_exercises for ${misclassifiedWorkoutIds.length} misclassified workouts.`);
 
-      // Then delete the child workouts themselves
+      // Then delete the misclassified workouts themselves
       const { error: deleteWorkoutsError } = await supabaseServiceRoleClient
         .from('t_paths')
         .delete()
-        .in('id', childWorkoutIds);
-      if (deleteWorkoutsError) throw deleteWorkoutsError;
-      console.log(`Deleted ${childWorkoutIds.length} child workouts.`);
+        .in('id', misclassifiedWorkoutIds);
+      if (deleteWorkoutsError) {
+        console.error('Error deleting misclassified workouts:', deleteWorkoutsError);
+        throw deleteWorkoutsError;
+      }
+      console.log(`Deleted ${misclassifiedWorkoutIds.length} misclassified workouts.`);
+    } else {
+      console.log('No misclassified top-level workouts found for cleanup.');
     }
-    // --- End Delete Logic ---
+    // --- End Cleanup Logic ---
 
     // Ensure all unique exercises from CSV exist in exercise_definitions (user_id IS NULL)
     const uniqueCsvExercises = Array.from(new Map(csvExercises.map(item => [item.name, item])).values());
@@ -216,8 +241,9 @@ serve(async (req: Request) => {
           console.log(`Inserted new default exercise: ${newEx.name}`);
         }
       } catch (err) {
-        console.error(`Error ensuring default exercise ${csvEx.name}:`, err);
-        return new Response(JSON.stringify({ error: `Error setting up default exercise ${csvEx.name}: ${err instanceof Error ? err.message : String(err)}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        console.error(`Error ensuring default exercise ${csvEx.name}: ${errorMessage}`);
+        return new Response(JSON.stringify({ error: `Error setting up default exercise ${csvEx.name}: ${errorMessage}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
     console.log('Finished ensuring default exercises from CSV. Map size:', defaultExerciseMap.size);
@@ -233,14 +259,17 @@ serve(async (req: Request) => {
           .insert({
             user_id: tPath.id, // IMPORTANT: Link child workout to parent T-Path ID
             template_name: workoutNames[i],
-            is_bonus: true, // Mark as a child workout
+            is_bonus: true, // Mark as a child workout for display in accordion as per start-t-path page
             version: 1,
             settings: tPath.settings // Pass settings to sub-workouts
           })
           .select()
           .single();
 
-        if (workoutError) throw workoutError;
+        if (workoutError) {
+          console.error(`Error inserting workout ${workoutNames[i]}:`, workoutError);
+          throw workoutError;
+        }
         workouts.push(workout);
         console.log(`Workout created: ${workout.template_name} (ID: ${workout.id})`);
 
@@ -269,13 +298,17 @@ serve(async (req: Request) => {
           const { error: insertTPathExercisesError } = await supabaseServiceRoleClient
             .from('t_path_exercises')
             .insert(tPathExercisesToInsert);
-          if (insertTPathExercisesError) throw insertTPathExercisesError;
+          if (insertTPathExercisesError) {
+            console.error(`Error inserting t_path_exercises for ${workout.template_name}:`, insertTPathExercisesError);
+            throw insertTPathExercisesError;
+          }
           console.log(`Inserted ${tPathExercisesToInsert.length} exercises into ${workout.template_name}`);
         }
 
       } catch (err) {
-        console.error(`Error creating workout ${workoutNames[i]} or its exercises:`, err);
-        return new Response(JSON.stringify({ error: `Error creating workout ${workoutNames[i]}: ${err instanceof Error ? err.message : String(err)}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        console.error(`Error creating workout ${workoutNames[i]} or its exercises: ${errorMessage}`);
+        return new Response(JSON.stringify({ error: `Error creating workout ${workoutNames[i]}: ${errorMessage}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
     console.log('Finished workout creation loop.');
@@ -285,10 +318,10 @@ serve(async (req: Request) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Unhandled error in generate-t-path edge function:', error);
-    const message = error instanceof Error ? error.message : "An unknown error occurred during T-Path generation.";
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during T-Path generation.";
+    console.error('Unhandled error in generate-t-path edge function:', errorMessage);
     return new Response(
-      JSON.stringify({ error: message }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
