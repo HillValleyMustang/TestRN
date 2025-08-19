@@ -9,8 +9,8 @@ const corsHeaders = {
 };
 
 // Define types for the data we're fetching and inserting
-interface ExerciseLibraryEntry {
-  exercise_id: string;
+interface ExerciseDef { // Renamed from ExerciseLibraryEntry for clarity in this context
+  exercise_id: string; // This is the library_id
   name: string;
   main_muscle: string;
   type: string;
@@ -21,7 +21,7 @@ interface ExerciseLibraryEntry {
 }
 
 interface WorkoutStructureEntry {
-  exercise_id: string;
+  exercise_id: string; // This is the exercise_library_id
   workout_split: string;
   workout_name: string;
   min_session_minutes: number | null;
@@ -29,7 +29,7 @@ interface WorkoutStructureEntry {
 }
 
 // Hardcoded data from exercise_library.csv
-const exerciseLibraryData: ExerciseLibraryEntry[] = [
+const exerciseLibraryData: ExerciseDef[] = [
   { exercise_id: 'ex_bench_press', name: 'Bench Press', main_muscle: 'Pectorals', type: 'weight', category: 'Bilateral', description: 'A fundamental chest exercise', pro_tip: 'Focus on proper form and controlled movement', video_url: '' },
   { exercise_id: 'ex_overhead_press', name: 'Overhead Press', main_muscle: 'Deltoids', type: 'weight', category: 'Bilateral', description: 'Builds shoulder strength', pro_tip: 'Press straight overhead', video_url: '' },
   { exercise_id: 'ex_barbell_row', name: 'Barbell Row', main_muscle: 'Lats', type: 'weight', category: 'Bilateral', description: 'Develops back thickness', pro_tip: 'Pull to your lower chest', video_url: '' },
@@ -142,6 +142,8 @@ serve(async (req: Request) => {
   }
 
   try {
+    console.log('Edge function started.');
+
     const supabaseAuthClient = createClient(
       // @ts-ignore
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -157,11 +159,12 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { data: { user } } = await supabaseAuthClient.auth.getUser();
-    if (!user) {
-      console.error('Unauthorized: No user session found.');
+    const { data: { user }, error: userError } = await supabaseAuthClient.auth.getUser();
+    if (userError || !user) {
+      console.error('Unauthorized: No user session found or user fetch error:', userError?.message);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+    console.log(`User authenticated: ${user.id}`);
 
     const { tPathId } = await req.json();
     console.log(`Received request to generate T-Path workouts for tPathId: ${tPathId} for user: ${user.id}`);
@@ -185,7 +188,7 @@ serve(async (req: Request) => {
 
       if (upsertError) {
         console.error(`Error upserting exercise definition ${ex.name}:`, upsertError.message);
-        throw upsertError;
+        throw upsertError; // Re-throw to be caught by outer try-catch
       }
     }
     console.log('Default exercise definitions ensured.');
@@ -205,7 +208,7 @@ serve(async (req: Request) => {
 
       if (upsertError) {
         console.error(`Error upserting workout structure entry for ${ws.exercise_id} in ${ws.workout_name}:`, upsertError.message);
-        throw upsertError;
+        throw upsertError; // Re-throw to be caught by outer try-catch
       }
     }
     console.log('Workout exercise structure ensured.');
@@ -213,6 +216,7 @@ serve(async (req: Request) => {
     // --- Step 3: Fetch T-Path details and generate user-specific workouts ---
     let tPath;
     try {
+      console.log(`Fetching T-Path with ID: ${tPathId}`);
       const { data, error } = await supabaseServiceRoleClient
         .from('t_paths')
         .select('id, template_name, settings')
@@ -272,6 +276,7 @@ serve(async (req: Request) => {
       console.log(`Found ${childWorkoutIdsToDelete.length} child workouts to delete.`);
 
       // Delete associated t_path_exercises first
+      console.log('Deleting associated t_path_exercises...');
       const { error: deleteTPathExercisesError } = await supabaseServiceRoleClient
         .from('t_path_exercises')
         .delete()
@@ -283,6 +288,7 @@ serve(async (req: Request) => {
       console.log(`Deleted t_path_exercises for ${childWorkoutIdsToDelete.length} child workouts.`);
 
       // Then delete the child workouts themselves
+      console.log('Deleting child workouts...');
       const { error: deleteWorkoutsError } = await supabaseServiceRoleClient
         .from('t_paths')
         .delete()
@@ -305,6 +311,7 @@ serve(async (req: Request) => {
         console.log(`Processing workout: ${workoutName}`);
 
         // Fetch raw structure entries first
+        console.log(`Fetching workout structure for ${workoutSplit} - ${workoutName}...`);
         const { data: rawStructureEntries, error: structureError } = await supabaseServiceRoleClient
           .from('workout_exercise_structure')
           .select('*') // Select all columns from workout_exercise_structure
@@ -317,12 +324,14 @@ serve(async (req: Request) => {
           console.error(`Error fetching raw workout structure for ${workoutName}:`, structureError.message);
           throw structureError;
         }
+        console.log(`Fetched ${rawStructureEntries?.length || 0} raw structure entries for ${workoutName}.`);
 
         const exercisesToInclude = [];
         let mainExerciseCount = 0;
         let bonusExerciseCount = 0;
 
         for (const entry of rawStructureEntries || []) {
+          console.log(`Processing entry for exercise_library_id: ${entry.exercise_library_id}`);
           // Now fetch the exercise_definition using the library_id
           const { data: exerciseDefData, error: exerciseDefError } = await supabaseServiceRoleClient
             .from('exercise_definitions')
@@ -390,6 +399,7 @@ serve(async (req: Request) => {
         }
 
         // Insert the child workout (t_paths entry)
+        console.log(`Inserting child workout: ${workoutName}`);
         const { data: workout, error: workoutError } = await supabaseServiceRoleClient
           .from('t_paths')
           .insert({
@@ -423,6 +433,7 @@ serve(async (req: Request) => {
         }));
 
         if (tPathExercisesToInsert.length > 0) {
+          console.log(`Inserting ${tPathExercisesToInsert.length} exercises into t_path_exercises for ${workoutName}...`);
           const { error: insertTPathExercisesError } = await supabaseServiceRoleClient
             .from('t_path_exercises')
             .insert(tPathExercisesToInsert);
@@ -431,12 +442,15 @@ serve(async (req: Request) => {
             throw insertTPathExercisesError;
           }
           console.log(`Inserted ${tPathExercisesToInsert.length} exercises into ${workoutName}`);
+        } else {
+          console.log(`No exercises to insert for ${workoutName}.`);
         }
 
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         console.error(`Error creating workout ${workoutName} or its exercises: ${errorMessage}`);
-        return new Response(JSON.stringify({ error: `Error creating workout ${workoutName}: ${errorMessage}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        // Do not return here, let the outer catch handle the final response
+        throw err; // Re-throw to be caught by outer try-catch
       }
     }
     console.log('Finished workout creation loop.');
