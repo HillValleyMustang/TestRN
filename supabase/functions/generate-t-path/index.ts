@@ -14,9 +14,60 @@ interface ExerciseDef {
   name: string;
   main_muscle: string;
   type: string;
+  category: string | null;
   description: string | null;
   pro_tip: string | null;
+  video_url: string | null;
 }
+
+interface CsvExercise {
+  name: string;
+  main_muscle: string;
+  type: string;
+  category: string;
+  description: string;
+  pro_tip: string;
+  video_url: string;
+  workout_name: string;
+}
+
+// Hardcoded CSV data
+const csvExercises: CsvExercise[] = [
+  { name: 'Bench Press', main_muscle: 'Pectorals', type: 'weight', category: 'Bilateral', description: 'A fundamental chest exercise', pro_tip: 'Focus on proper form and controlled movement', video_url: '', workout_name: 'Upper Body A' },
+  { name: 'Overhead Press', main_muscle: 'Deltoids', type: 'weight', category: 'Bilateral', description: 'Builds shoulder strength', pro_tip: 'Press straight overhead', video_url: '', workout_name: 'Upper Body A' },
+  { name: 'Barbell Row', main_muscle: 'Lats', type: 'weight', category: 'Bilateral', description: 'Develops back thickness', pro_tip: 'Pull to your lower chest', video_url: '', workout_name: 'Upper Body A' },
+  { name: 'Bicep Curl', main_muscle: 'Biceps', type: 'weight', category: 'Bilateral', description: 'Targets the biceps', pro_tip: 'Keep elbows tucked in', video_url: '', workout_name: 'Upper Body A' },
+  { name: 'Tricep Extension', main_muscle: 'Triceps', type: 'weight', category: 'Bilateral', description: 'Targets the triceps', pro_tip: 'Control the eccentric phase', video_url: '', workout_name: 'Upper Body A' },
+  { name: 'Squat', main_muscle: 'Quadriceps', type: 'weight', category: 'Bilateral', description: 'A fundamental leg exercise', pro_tip: 'Keep your back straight', video_url: '', workout_name: 'Lower Body A' },
+  { name: 'Deadlift', main_muscle: 'Hamstrings', type: 'weight', category: 'Bilateral', description: 'A full body strength exercise', pro_tip: 'Maintain a neutral spine', video_url: '', workout_name: 'Lower Body A' },
+  { name: 'Leg Press', main_muscle: 'Quadriceps', type: 'weight', category: 'Bilateral', description: 'Targets quadriceps', pro_tip: 'Don\'t lock your knees', video_url: '', workout_name: 'Lower Body A' },
+  { name: 'Hamstring Curl', main_muscle: 'Hamstrings', type: 'weight', category: 'Bilateral', description: 'Isolates hamstrings', pro_tip: 'Focus on the squeeze', video_url: '', workout_name: 'Lower Body A' },
+  { name: 'Calf Raise', main_muscle: 'Calves', type: 'weight', category: 'Bilateral', description: 'Targets calves', pro_tip: 'Full range of motion', video_url: '', workout_name: 'Lower Body A' },
+  { name: 'Incline Dumbbell Press', main_muscle: 'Pectorals', type: 'weight', category: 'Bilateral', description: 'Targets upper chest', pro_tip: 'Control the descent', video_url: '', workout_name: 'Upper Body B' },
+  { name: 'Seated Cable Row', main_muscle: 'Lats', type: 'weight', category: 'Bilateral', description: 'Targets back thickness', pro_tip: 'Pull with your elbows', video_url: '', workout_name: 'Upper Body B' },
+  { name: 'Lateral Raise', main_muscle: 'Deltoids', type: 'weight', category: 'Bilateral', description: 'Targets side deltoids', pro_tip: 'Lead with elbows', video_url: '', workout_name: 'Upper Body B' },
+  { name: 'Face Pull', main_muscle: 'Traps', type: 'weight', category: 'Bilateral', description: 'Targets rear deltoids and traps', pro_tip: 'Pull towards your face', video_url: '', workout_name: 'Upper Body B' },
+  { name: 'Tricep Pushdown', main_muscle: 'Triceps', type: 'weight', category: 'Bilateral', description: 'Targets triceps', pro_tip: 'Keep elbows stationary', video_url: '', workout_name: 'Upper Body B' },
+  { name: 'Hammer Curl', main_muscle: 'Biceps', type: 'weight', category: 'Bilateral', description: 'Targets biceps and forearms', pro_tip: 'Keep palms facing each other', video_url: '', workout_name: 'Upper Body B' },
+  { name: 'Romanian Deadlift', main_muscle: 'Hamstrings', type: 'weight', category: 'Bilateral', description: 'Targets hamstrings and glutes', pro_tip: 'Maintain a slight bend in knees', video_url: '', workout_name: 'Lower Body B' },
+  { name: 'Leg Extension', main_muscle: 'Quadriceps', type: 'weight', category: 'Bilateral', description: 'Isolates quadriceps', pro_tip: 'Control the movement', video_url: '', workout_name: 'Lower Body B' },
+  { name: 'Lunges', main_muscle: 'Quadriceps', type: 'weight', category: 'Unilateral', description: 'Targets quads, glutes, and hamstrings', pro_tip: 'Keep front knee behind toes', video_url: '', workout_name: 'Lower Body B' },
+  { name: 'Glute Bridge', main_muscle: 'Glutes', type: 'weight', category: 'Bilateral', description: 'Activates glutes', pro_tip: 'Squeeze glutes at the top', video_url: '', workout_name: 'Lower Body B' },
+  { name: 'Standing Calf Raise', main_muscle: 'Calves', type: 'weight', category: 'Bilateral', description: 'Targets calves', pro_tip: 'Go for a full stretch', video_url: '', workout_name: 'Lower Body B' },
+  { name: 'Bench Press', main_muscle: 'Pectorals', type: 'weight', category: 'Bilateral', description: 'A fundamental chest exercise', pro_tip: 'Focus on proper form and controlled movement', video_url: '', workout_name: 'Push' },
+  { name: 'Overhead Press', main_muscle: 'Deltoids', type: 'weight', category: 'Bilateral', description: 'Builds shoulder strength', pro_tip: 'Press straight overhead', video_url: '', workout_name: 'Push' },
+  { name: 'Tricep Pushdown', main_muscle: 'Triceps', type: 'weight', category: 'Bilateral', description: 'Targets triceps', pro_tip: 'Keep elbows stationary', video_url: '', workout_name: 'Push' },
+  { name: 'Lateral Raise', main_muscle: 'Deltoids', type: 'weight', category: 'Bilateral', description: 'Targets side deltoids', pro_tip: 'Lead with elbows', video_url: '', workout_name: 'Push' },
+  { name: 'Pull-up', main_muscle: 'Lats', type: 'weight', category: 'Bilateral', description: 'A great back and bicep exercise', pro_tip: 'Engage your lats', video_url: '', workout_name: 'Pull' },
+  { name: 'Barbell Row', main_muscle: 'Lats', type: 'weight', category: 'Bilateral', description: 'Develops back thickness', pro_tip: 'Pull to your lower chest', video_url: '', workout_name: 'Pull' },
+  { name: 'Face Pull', main_muscle: 'Traps', type: 'weight', category: 'Bilateral', description: 'Targets rear deltoids and traps', pro_tip: 'Pull towards your face', video_url: '', workout_name: 'Pull' },
+  { name: 'Bicep Curl', main_muscle: 'Biceps', type: 'weight', category: 'Bilateral', description: 'Targets the biceps', pro_tip: 'Keep elbows tucked in', video_url: '', workout_name: 'Pull' },
+  { name: 'Squat', main_muscle: 'Quadriceps', type: 'weight', category: 'Bilateral', description: 'A fundamental leg exercise', pro_tip: 'Keep your back straight', video_url: '', workout_name: 'Legs' },
+  { name: 'Deadlift', main_muscle: 'Hamstrings', type: 'weight', category: 'Bilateral', description: 'A full body strength exercise', pro_tip: 'Maintain a neutral spine', video_url: '', workout_name: 'Legs' },
+  { name: 'Leg Press', main_muscle: 'Quadriceps', type: 'weight', category: 'Bilateral', description: 'Targets quadriceps', pro_tip: 'Don\'t lock your knees', video_url: '', workout_name: 'Legs' },
+  { name: 'Hamstring Curl', main_muscle: 'Hamstrings', type: 'weight', category: 'Bilateral', description: 'Isolates hamstrings', pro_tip: 'Focus on the squeeze', video_url: '', workout_name: 'Legs' },
+  { name: 'Calf Raise', main_muscle: 'Calves', type: 'weight', category: 'Bilateral', description: 'Targets calves', pro_tip: 'Full range of motion', video_url: '', workout_name: 'Legs' },
+];
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -24,7 +75,6 @@ serve(async (req: Request) => {
   }
 
   try {
-    // Client to get user from JWT (uses anon key and request's auth header)
     const supabaseAuthClient = createClient(
       // @ts-ignore
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -33,7 +83,6 @@ serve(async (req: Request) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     );
 
-    // Client for database operations (uses service role key to bypass RLS where needed)
     const supabaseServiceRoleClient = createClient(
       // @ts-ignore
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -50,7 +99,6 @@ serve(async (req: Request) => {
 
     let tPath;
     try {
-      // Get the T-Path settings using the service role client
       const { data, error } = await supabaseServiceRoleClient
         .from('t_paths')
         .select('*, profiles(first_name, last_name)')
@@ -67,7 +115,6 @@ serve(async (req: Request) => {
 
     console.log('T-Path settings:', tPath.settings);
 
-    // Determine workout names based on T-Path type
     let workoutNames: string[] = [];
     if (tPath.settings && typeof tPath.settings === 'object' && 'tPathType' in tPath.settings) {
       if (tPath.settings.tPathType === 'ulul') {
@@ -81,52 +128,84 @@ serve(async (req: Request) => {
     }
     console.log('Determined workout names:', workoutNames);
 
-    // Define the exercises that should exist as default (user_id IS NULL)
-    // IMPORTANT: main_muscle values must match the mainMuscleGroups in exercise-form.tsx
-    const coreExercises = [
-      { name: 'Bench Press', main_muscle: 'Pectorals', type: 'weight', description: 'A fundamental chest exercise', pro_tip: 'Focus on proper form and controlled movement' },
-      { name: 'Squat', main_muscle: 'Quadriceps', type: 'weight', description: 'A fundamental leg exercise', pro_tip: 'Keep your back straight' },
-      { name: 'Deadlift', main_muscle: 'Hamstrings', type: 'weight', description: 'A full body strength exercise', pro_tip: 'Maintain a neutral spine' },
-      { name: 'Pull-up', main_muscle: 'Lats', type: 'weight', description: 'A great back and bicep exercise', pro_tip: 'Engage your lats' },
-      { name: 'Overhead Press', main_muscle: 'Deltoids', type: 'weight', description: 'Builds shoulder strength', pro_tip: 'Press straight overhead' },
-      { name: 'Barbell Row', main_muscle: 'Lats', type: 'weight', description: 'Develops back thickness', pro_tip: 'Pull to your lower chest' },
-    ];
-    const bonusExercises = [
-      { name: 'Arm Circles', main_muscle: 'Deltoids', type: 'timed', description: 'A shoulder mobility exercise', pro_tip: 'Perform controlled circles' },
-      { name: 'Leg Stretch', main_muscle: 'Hamstrings', type: 'timed', description: 'A hamstring flexibility exercise', pro_tip: 'Hold for 30 seconds' }
-    ];
+    // --- Delete existing child workouts and their exercises for this tPathId ---
+    console.log(`Deleting existing child workouts for parent T-Path ID: ${tPathId}`);
+    const { data: existingChildWorkouts, error: fetchChildrenError } = await supabaseServiceRoleClient
+      .from('t_paths')
+      .select('id')
+      .eq('user_id', tPathId); // Child workouts have parent's ID as their user_id
 
-    const allExpectedExercises = [...coreExercises, ...bonusExercises];
+    if (fetchChildrenError) throw fetchChildrenError;
+
+    if (existingChildWorkouts && existingChildWorkouts.length > 0) {
+      const childWorkoutIds = existingChildWorkouts.map((w: { id: string }) => w.id); // Fixed: Explicitly type 'w'
+
+      // Delete associated t_path_exercises first
+      const { error: deleteTPathExercisesError } = await supabaseServiceRoleClient
+        .from('t_path_exercises')
+        .delete()
+        .in('template_id', childWorkoutIds);
+      if (deleteTPathExercisesError) throw deleteTPathExercisesError;
+      console.log(`Deleted t_path_exercises for ${childWorkoutIds.length} child workouts.`);
+
+      // Then delete the child workouts themselves
+      const { error: deleteWorkoutsError } = await supabaseServiceRoleClient
+        .from('t_paths')
+        .delete()
+        .in('id', childWorkoutIds);
+      if (deleteWorkoutsError) throw deleteWorkoutsError;
+      console.log(`Deleted ${childWorkoutIds.length} child workouts.`);
+    }
+    // --- End Delete Logic ---
+
+    // Ensure all unique exercises from CSV exist in exercise_definitions (user_id IS NULL)
+    const uniqueCsvExercises = Array.from(new Map(csvExercises.map(item => [item.name, item])).values());
     const defaultExerciseMap = new Map<string, ExerciseDef>();
 
-    console.log('Ensuring default exercises exist...');
-    // Ensure all expected default exercises exist and get their IDs
-    for (const expectedEx of allExpectedExercises) {
+    console.log('Ensuring default exercises from CSV exist...');
+    for (const csvEx of uniqueCsvExercises) {
       try {
         const { data: existingEx, error: fetchExError } = await supabaseServiceRoleClient
           .from('exercise_definitions')
           .select('id, name, main_muscle, type, category, description, pro_tip, video_url')
-          .eq('name', expectedEx.name)
-          .is('user_id', null) // Crucial: check for default exercises
+          .eq('name', csvEx.name)
+          .is('user_id', null) // Check for default exercises
           .single();
 
-        if (fetchExError && fetchExError.code !== 'PGRST116') { // PGRST116 means no rows found
+        if (fetchExError && fetchExError.code !== 'PGRST116') {
           throw fetchExError;
         }
 
         if (existingEx) {
-          defaultExerciseMap.set(existingEx.name, existingEx as ExerciseDef);
-          console.log(`Found existing default exercise: ${existingEx.name}`);
+          // Update existing default exercise with CSV data
+          const { data: updatedEx, error: updateExError } = await supabaseServiceRoleClient
+            .from('exercise_definitions')
+            .update({
+              main_muscle: csvEx.main_muscle,
+              type: csvEx.type,
+              category: csvEx.category,
+              description: csvEx.description,
+              pro_tip: csvEx.pro_tip,
+              video_url: csvEx.video_url,
+            })
+            .eq('id', existingEx.id)
+            .select('id, name, main_muscle, type, category, description, pro_tip, video_url')
+            .single();
+          if (updateExError) throw updateExError;
+          defaultExerciseMap.set(updatedEx.name, updatedEx as ExerciseDef);
+          console.log(`Updated existing default exercise: ${updatedEx.name}`);
         } else {
-          // If a default exercise doesn't exist, create it.
+          // Insert new default exercise
           const { data: newEx, error: insertExError } = await supabaseServiceRoleClient
             .from('exercise_definitions')
             .insert({
-              name: expectedEx.name,
-              main_muscle: expectedEx.main_muscle,
-              type: expectedEx.type,
-              description: expectedEx.description,
-              pro_tip: expectedEx.pro_tip,
+              name: csvEx.name,
+              main_muscle: csvEx.main_muscle,
+              type: csvEx.type,
+              category: csvEx.category,
+              description: csvEx.description,
+              pro_tip: csvEx.pro_tip,
+              video_url: csvEx.video_url,
               user_id: null // Ensure it's a default exercise
             })
             .select('id, name, main_muscle, type, category, description, pro_tip, video_url')
@@ -137,11 +216,11 @@ serve(async (req: Request) => {
           console.log(`Inserted new default exercise: ${newEx.name}`);
         }
       } catch (err) {
-        console.error(`Error ensuring default exercise ${expectedEx.name}:`, err);
-        return new Response(JSON.stringify({ error: `Error setting up default exercise ${expectedEx.name}: ${err instanceof Error ? err.message : String(err)}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        console.error(`Error ensuring default exercise ${csvEx.name}:`, err);
+        return new Response(JSON.stringify({ error: `Error setting up default exercise ${csvEx.name}: ${err instanceof Error ? err.message : String(err)}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
-    console.log('Finished ensuring default exercises. Map size:', defaultExerciseMap.size);
+    console.log('Finished ensuring default exercises from CSV. Map size:', defaultExerciseMap.size);
 
     // Create workouts for this T-Path
     const workouts = [];
@@ -152,9 +231,9 @@ serve(async (req: Request) => {
         const { data: workout, error: workoutError } = await supabaseServiceRoleClient
           .from('t_paths')
           .insert({
-            user_id: user.id, // Use the authenticated user's ID
+            user_id: tPath.id, // IMPORTANT: Link child workout to parent T-Path ID
             template_name: workoutNames[i],
-            is_bonus: false,
+            is_bonus: true, // Mark as a child workout
             version: 1,
             settings: tPath.settings // Pass settings to sub-workouts
           })
@@ -165,62 +244,35 @@ serve(async (req: Request) => {
         workouts.push(workout);
         console.log(`Workout created: ${workout.template_name} (ID: ${workout.id})`);
 
-        // Add exercises to each workout based on workout type
-        const exercisesForCurrentWorkout: { name: string; }[] = [];
-        if (workout.template_name.includes('Upper Body A')) {
-          exercisesForCurrentWorkout.push({ name: 'Bench Press' }, { name: 'Overhead Press' }, { name: 'Barbell Row' });
-        } else if (workout.template_name.includes('Lower Body A')) {
-          exercisesForCurrentWorkout.push({ name: 'Squat' }, { name: 'Deadlift' });
-        } else if (workout.template_name.includes('Upper Body B')) {
-          exercisesForCurrentWorkout.push({ name: 'Overhead Press' }, { name: 'Pull-up' }, { name: 'Bench Press' });
-        } else if (workout.template_name.includes('Lower Body B')) {
-          exercisesForCurrentWorkout.push({ name: 'Deadlift' }, { name: 'Squat' });
-        } else if (workout.template_name === 'Push') {
-          exercisesForCurrentWorkout.push({ name: 'Bench Press' }, { name: 'Overhead Press' });
-        } else if (workout.template_name === 'Pull') {
-          exercisesForCurrentWorkout.push({ name: 'Pull-up' }, { name: 'Barbell Row' });
-        } else if (workout.template_name === 'Legs') {
-          exercisesForCurrentWorkout.push({ name: 'Squat' }, { name: 'Deadlift' });
-        }
+        // Filter exercises from CSV for the current workout
+        const exercisesForCurrentWorkout = csvExercises.filter(ex => ex.workout_name === workout.template_name);
         console.log(`Exercises for ${workout.template_name}:`, exercisesForCurrentWorkout.map(e => e.name));
 
+        const tPathExercisesToInsert = [];
         for (let j = 0; j < exercisesForCurrentWorkout.length; j++) {
           const exercise = exercisesForCurrentWorkout[j];
           const exerciseDef = defaultExerciseMap.get(exercise.name);
 
           if (exerciseDef) {
-            await supabaseServiceRoleClient
-              .from('t_path_exercises')
-              .insert({
-                template_id: workout.id,
-                exercise_id: exerciseDef.id,
-                order_index: j
-              });
-            console.log(`Inserted ${exercise.name} into ${workout.template_name}`);
+            tPathExercisesToInsert.push({
+              template_id: workout.id,
+              exercise_id: exerciseDef.id,
+              order_index: j
+            });
           } else {
-            console.warn(`Default exercise "${exercise.name}" not found in map. This should not happen if pre-checked.`);
-            // If a core exercise is missing, this is a critical error for the workout generation
-            throw new Error(`Missing core exercise definition: ${exercise.name}`);
+            console.warn(`Exercise "${exercise.name}" not found in map. This should not happen.`);
+            throw new Error(`Missing exercise definition for workout: ${exercise.name}`);
           }
         }
 
-        // Add bonus exercises
-        for (let j = 0; j < bonusExercises.length; j++) {
-          const bonus = bonusExercises[j];
-          const bonusExerciseDef = defaultExerciseMap.get(bonus.name);
-          if (bonusExerciseDef) {
-            await supabaseServiceRoleClient
-              .from('t_path_exercises')
-              .insert({
-                template_id: workout.id,
-                exercise_id: bonusExerciseDef.id,
-                order_index: exercisesForCurrentWorkout.length + j
-              });
-            console.log(`Inserted bonus exercise ${bonus.name} into ${workout.template_name}`);
-          } else {
-            console.warn(`Default bonus exercise "${bonus.name}" not found in map. This should not happen if pre-checked.`);
-          }
+        if (tPathExercisesToInsert.length > 0) {
+          const { error: insertTPathExercisesError } = await supabaseServiceRoleClient
+            .from('t_path_exercises')
+            .insert(tPathExercisesToInsert);
+          if (insertTPathExercisesError) throw insertTPathExercisesError;
+          console.log(`Inserted ${tPathExercisesToInsert.length} exercises into ${workout.template_name}`);
         }
+
       } catch (err) {
         console.error(`Error creating workout ${workoutNames[i]} or its exercises:`, err);
         return new Response(JSON.stringify({ error: `Error creating workout ${workoutNames[i]}: ${err instanceof Error ? err.message : String(err)}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
