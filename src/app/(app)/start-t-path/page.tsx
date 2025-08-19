@@ -139,34 +139,38 @@ export default function StartTPathPage() {
               
               if (isExpandable) {
                 return (
-                  <Accordion type="single" collapsible key={tPath.id} className="w-full">
-                    <AccordionItem value={tPath.id}>
-                      <AccordionTrigger className="text-lg font-semibold">
-                        <Dumbbell className="h-5 w-5 mr-2" />
-                        {tPath.template_name}
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <div className="grid grid-cols-1 gap-3 p-2">
-                          {tPath.workouts.length === 0 ? (
-                            <p className="text-muted-foreground text-center py-2">No workouts defined for this path.</p>
-                          ) : (
-                            tPath.workouts.map(workout => (
-                              <Card key={workout.id} className="flex items-center justify-between p-4">
-                                <div>
-                                  <CardTitle className="text-base">{workout.template_name}</CardTitle>
-                                  <p className="text-sm text-muted-foreground flex items-center gap-1">
-                                    <CalendarDays className="h-4 w-4" />
-                                    {formatLastCompleted(workout.last_completed_at)}
-                                  </p>
-                                </div>
-                                <Button onClick={() => handleStartWorkout(workout.id)}>Start</Button>
-                              </Card>
-                            ))
-                          )}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
+                  <Card key={tPath.id} className="w-full"> {/* Wrap the entire accordion item in a Card */}
+                    <Accordion type="single" collapsible value={tPath.id} className="w-full">
+                      <AccordionItem value={tPath.id} className="border-b-0"> {/* Remove default border */}
+                        <AccordionTrigger className="flex items-center justify-between w-full p-6 text-lg font-semibold hover:no-underline data-[state=open]:border-b">
+                          <div className="flex items-center">
+                            <Dumbbell className="h-5 w-5 mr-2" />
+                            {tPath.template_name}
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="p-6 pt-0">
+                          <div className="grid grid-cols-1 gap-3">
+                            {tPath.workouts.length === 0 ? (
+                              <p className="text-muted-foreground text-center py-2">No workouts defined for this path.</p>
+                            ) : (
+                              tPath.workouts.map(workout => (
+                                <Card key={workout.id} className="flex items-center justify-between p-4">
+                                  <div>
+                                    <CardTitle className="text-base">{workout.template_name}</CardTitle>
+                                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                      <CalendarDays className="h-4 w-4" />
+                                      {formatLastCompleted(workout.last_completed_at)}
+                                    </p>
+                                  </div>
+                                  <Button onClick={() => handleStartWorkout(workout.id)}>Start</Button>
+                                </Card>
+                              ))
+                            )}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  </Card>
                 );
               } else {
                 // Render as a non-expandable card for other T-Paths
