@@ -134,36 +134,61 @@ export default function StartTPathPage() {
               You haven't created any Transformation Paths yet. Go to 'Manage T-Paths' to create one.
             </p>
           ) : (
-            <Accordion type="single" collapsible className="w-full">
-              {tPaths.map(tPath => (
-                <AccordionItem key={tPath.id} value={tPath.id}>
-                  <AccordionTrigger className="text-lg font-semibold">
-                    <Dumbbell className="h-5 w-5 mr-2" />
-                    {tPath.template_name}
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="grid grid-cols-1 gap-3 p-2">
-                      {tPath.workouts.length === 0 ? (
-                        <p className="text-muted-foreground text-center py-2">No workouts defined for this path.</p>
-                      ) : (
-                        tPath.workouts.map(workout => (
-                          <Card key={workout.id} className="flex items-center justify-between p-4">
-                            <div>
-                              <CardTitle className="text-base">{workout.template_name}</CardTitle>
-                              <p className="text-sm text-muted-foreground flex items-center gap-1">
-                                <CalendarDays className="h-4 w-4" />
-                                {formatLastCompleted(workout.last_completed_at)}
-                              </p>
-                            </div>
-                            <Button onClick={() => handleStartWorkout(workout.id)}>Start</Button>
-                          </Card>
-                        ))
-                      )}
+            tPaths.map(tPath => {
+              const isExpandable = tPath.template_name === '4-Day Upper/Lower';
+              
+              if (isExpandable) {
+                return (
+                  <Accordion type="single" collapsible key={tPath.id} className="w-full">
+                    <AccordionItem value={tPath.id}>
+                      <AccordionTrigger className="text-lg font-semibold">
+                        <Dumbbell className="h-5 w-5 mr-2" />
+                        {tPath.template_name}
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="grid grid-cols-1 gap-3 p-2">
+                          {tPath.workouts.length === 0 ? (
+                            <p className="text-muted-foreground text-center py-2">No workouts defined for this path.</p>
+                          ) : (
+                            tPath.workouts.map(workout => (
+                              <Card key={workout.id} className="flex items-center justify-between p-4">
+                                <div>
+                                  <CardTitle className="text-base">{workout.template_name}</CardTitle>
+                                  <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                    <CalendarDays className="h-4 w-4" />
+                                    {formatLastCompleted(workout.last_completed_at)}
+                                  </p>
+                                </div>
+                                <Button onClick={() => handleStartWorkout(workout.id)}>Start</Button>
+                              </Card>
+                            ))
+                          )}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                );
+              } else {
+                // Render as a non-expandable card for other T-Paths
+                return (
+                  <Card key={tPath.id} className="flex items-center justify-between p-4">
+                    <div>
+                      <CardTitle className="text-base flex items-center">
+                        <Dumbbell className="h-5 w-5 mr-2" />
+                        {tPath.template_name}
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {tPath.workouts.length} workouts
+                      </p>
                     </div>
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
+                    {/* Optionally add a button to view details or manage this T-Path */}
+                    <Button variant="outline" onClick={() => router.push(`/manage-t-paths?edit=${tPath.id}`)}>
+                      View Workouts
+                    </Button>
+                  </Card>
+                );
+              }
+            })
           )}
         </div>
       </div>
