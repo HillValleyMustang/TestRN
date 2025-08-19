@@ -92,15 +92,15 @@ serve(async (req: Request) => {
 
     const { data: { user } } = await supabaseAuthClient.auth.getUser();
     if (!user) {
+      console.error('Unauthorized: No user session found.');
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const { tPathId } = await req.json();
-    console.log(`Received request to generate T-Path workouts for tPathId: ${tPathId}`);
+    console.log(`Received request to generate T-Path workouts for tPathId: ${tPathId} for user: ${user.id}`);
 
     let tPath;
     try {
-      // Simplified select to only get necessary fields and avoid potential issues with profiles join
       const { data, error } = await supabaseServiceRoleClient
         .from('t_paths')
         .select('id, template_name, settings')
@@ -108,7 +108,7 @@ serve(async (req: Request) => {
         .single();
 
       if (error) {
-        console.error(`Error fetching T-Path with ID ${tPathId}:`, error);
+        console.error(`Error fetching T-Path with ID ${tPathId}:`, error.message);
         throw error;
       }
       if (!data) {
@@ -149,13 +149,13 @@ serve(async (req: Request) => {
       .in('template_name', misclassifiedWorkoutNames); // Names that should be child workouts
 
     if (fetchMisclassifiedError) {
-      console.error('Error fetching misclassified workouts:', fetchMisclassifiedError);
+      console.error('Error fetching misclassified workouts for cleanup:', fetchMisclassifiedError.message);
       throw fetchMisclassifiedError;
     }
 
     if (existingMisclassifiedWorkouts && existingMisclassifiedWorkouts.length > 0) {
       const misclassifiedWorkoutIds = existingMisclassifiedWorkouts.map((w: { id: string }) => w.id);
-      console.log(`Found ${misclassifiedWorkoutIds.length} misclassified workouts to delete:`, existingMisclassifiedWorkouts.map((w: { template_name: string }) => w.template_name)); // Fixed TS error here
+      console.log(`Found ${misclassifiedWorkoutIds.length} misclassified workouts to delete:`, existingMisclassifiedWorkouts.map((w: { template_name: string }) => w.template_name));
 
       // Delete associated t_path_exercises first
       const { error: deleteTPathExercisesError } = await supabaseServiceRoleClient
@@ -163,7 +163,7 @@ serve(async (req: Request) => {
         .delete()
         .in('template_id', misclassifiedWorkoutIds);
       if (deleteTPathExercisesError) {
-        console.error('Error deleting t_path_exercises for misclassified workouts:', deleteTPathExercisesError);
+        console.error('Error deleting t_path_exercises for misclassified workouts:', deleteTPathExercisesError.message);
         throw deleteTPathExercisesError;
       }
       console.log(`Deleted t_path_exercises for ${misclassifiedWorkoutIds.length} misclassified workouts.`);
@@ -174,7 +174,7 @@ serve(async (req: Request) => {
         .delete()
         .in('id', misclassifiedWorkoutIds);
       if (deleteWorkoutsError) {
-        console.error('Error deleting misclassified workouts:', deleteWorkoutsError);
+        console.error('Error deleting misclassified workouts:', deleteWorkoutsError.message);
         throw deleteWorkoutsError;
       }
       console.log(`Deleted ${misclassifiedWorkoutIds.length} misclassified workouts.`);
@@ -197,9 +197,12 @@ serve(async (req: Request) => {
           .is('user_id', null) // Check for default exercises
           .single();
 
-        if (fetchExError && fetchExError.code !== 'PGRST116') {
+        if (fetchExError && fetchExError.code !== 'PGRST116') { // PGRST116 means no rows found
+          console.error(`Error fetching existing exercise ${csvEx.name}:`, fetchExError.message);
           throw fetchExError;
         }
+
+        let currentExerciseDef: ExerciseDef | null = null;
 
         if (existingEx) {
           // Update existing default exercise with CSV data
@@ -216,9 +219,16 @@ serve(async (req: Request) => {
             .eq('id', existingEx.id)
             .select('id, name, main_muscle, type, category, description, pro_tip, video_url')
             .single();
-          if (updateExError) throw updateExError;
-          defaultExerciseMap.set(updatedEx.name, updatedEx as ExerciseDef);
-          console.log(`Updated existing default exercise: ${updatedEx.name}`);
+          if (updateExError) {
+            console.error(`Error updating existing default exercise ${csvEx.name}:`, updateExError.message);
+            throw updateExError;
+          }
+          if (!updatedEx) {
+            console.error(`Update operation for ${csvEx.name} returned no data.`);
+            throw new Error(`Failed to retrieve updated exercise data for ${csvEx.name}.`);
+          }
+          currentExerciseDef = updatedEx as ExerciseDef;
+          console.log(`Updated existing default exercise: ${currentExerciseDef.name}`);
         } else {
           // Insert new default exercise
           const { data: newEx, error: insertExError } = await supabaseServiceRoleClient
@@ -236,10 +246,18 @@ serve(async (req: Request) => {
             .select('id, name, main_muscle, type, category, description, pro_tip, video_url')
             .single();
 
-          if (insertExError) throw insertExError;
-          defaultExerciseMap.set(newEx.name, newEx as ExerciseDef);
-          console.log(`Inserted new default exercise: ${newEx.name}`);
+          if (insertExError) {
+            console.error(`Error inserting new default exercise ${csvEx.name}:`, insertExError.message);
+            throw insertExError;
+          }
+          if (!newEx) {
+            console.error(`Insert operation for ${csvEx.name} returned no data.`);
+            throw new Error(`Failed to retrieve new exercise data for ${csvEx.name}.`);
+          }
+          currentExerciseDef = newEx as ExerciseDef;
+          console.log(`Inserted new default exercise: ${currentExerciseDef.name}`);
         }
+        defaultExerciseMap.set(currentExerciseDef.name, currentExerciseDef);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         console.error(`Error ensuring default exercise ${csvEx.name}: ${errorMessage}`);
@@ -267,8 +285,12 @@ serve(async (req: Request) => {
           .single();
 
         if (workoutError) {
-          console.error(`Error inserting workout ${workoutNames[i]}:`, workoutError);
+          console.error(`Error inserting workout ${workoutNames[i]}:`, workoutError.message);
           throw workoutError;
+        }
+        if (!workout) {
+          console.error(`Insert operation for workout ${workoutNames[i]} returned no data.`);
+          throw new Error(`Failed to retrieve new workout data for ${workoutNames[i]}.`);
         }
         workouts.push(workout);
         console.log(`Workout created: ${workout.template_name} (ID: ${workout.id})`);
@@ -299,7 +321,7 @@ serve(async (req: Request) => {
             .from('t_path_exercises')
             .insert(tPathExercisesToInsert);
           if (insertTPathExercisesError) {
-            console.error(`Error inserting t_path_exercises for ${workout.template_name}:`, insertTPathExercisesError);
+            console.error(`Error inserting t_path_exercises for ${workout.template_name}:`, insertTPathExercisesError.message);
             throw insertTPathExercisesError;
           }
           console.log(`Inserted ${tPathExercisesToInsert.length} exercises into ${workout.template_name}`);
