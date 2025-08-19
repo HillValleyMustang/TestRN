@@ -311,7 +311,7 @@ serve(async (req: Request) => {
           .select(`
             *,
             exercise_definitions (
-              id, name, main_muscle, type, category, description, pro_tip, video_url
+              id, name, main_muscle, type, category, description, pro_tip, video_url, library_id
             )
           `)
           .eq('workout_split', workoutSplit)

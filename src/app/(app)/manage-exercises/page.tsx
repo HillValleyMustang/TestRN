@@ -20,18 +20,38 @@ export default function ManageExercisesPage() {
   const fetchExercises = useCallback(async () => {
     if (!session) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from('exercise_definitions')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .order('name', { ascending: true });
+    try {
+      // Fetch all exercises: user's own and global ones
+      const { data, error } = await supabase
+        .from('exercise_definitions')
+        .select('*')
+        .or(`user_id.eq.${session.user.id},user_id.is.null`)
+        .order('name', { ascending: true });
 
-    if (error) {
-      toast.error("Failed to load exercises: " + error.message);
-    } else {
-      setExercises(data || []);
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      // Filter out global exercises if a user-owned copy already exists
+      const userOwnedExercises = data.filter(ex => ex.user_id === session.user.id);
+      const globalExercises = data.filter(ex => ex.user_id === null);
+
+      const userOwnedLibraryIds = new Set(userOwnedExercises.map(ex => ex.library_id).filter(Boolean));
+
+      const filteredGlobalExercises = globalExercises.filter(ex => 
+        ex.library_id === null || !userOwnedLibraryIds.has(ex.library_id)
+      );
+
+      // Combine and sort: user-owned first, then filtered global
+      const combinedExercises = [...userOwnedExercises, ...filteredGlobalExercises];
+      combinedExercises.sort((a, b) => a.name.localeCompare(b.name));
+
+      setExercises(combinedExercises || []);
+    } catch (err: any) {
+      toast.error("Failed to load exercises: " + err.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [session, supabase]);
 
   useEffect(() => {
@@ -52,12 +72,16 @@ export default function ManageExercisesPage() {
   };
 
   const handleDeleteClick = (exercise: ExerciseDefinition) => {
+    if (exercise.user_id === null) {
+      toast.error("You cannot delete global exercises. You can only delete exercises you have created.");
+      return;
+    }
     setExerciseToDelete(exercise);
     setIsDeleteDialogOpen(true);
   };
 
   const confirmDeleteExercise = async () => {
-    if (!exerciseToDelete) return;
+    if (!exerciseToDelete || exerciseToDelete.user_id === null) return; // Double check
     const { error } = await supabase.from('exercise_definitions').delete().eq('id', exerciseToDelete.id);
     if (error) {
       toast.error("Failed to delete exercise: " + error.message);

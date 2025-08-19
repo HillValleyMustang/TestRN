@@ -40,10 +40,10 @@ const exerciseSchema = z.object({
   name: z.string().min(1, "Exercise name is required."),
   main_muscles: z.array(z.string()).min(1, "At least one main muscle group is required."),
   type: z.array(z.enum(["weight", "timed"])).min(1, "At least one exercise type is required."),
-  category: z.string().optional(),
-  description: z.string().optional(),
-  pro_tip: z.string().optional(),
-  video_url: z.string().url("Must be a valid URL.").optional().or(z.literal('')),
+  category: z.string().optional().nullable(), // Allow null for category
+  description: z.string().optional().nullable(), // Allow null for description
+  pro_tip: z.string().optional().nullable(), // Allow null for pro_tip
+  video_url: z.string().url("Must be a valid URL.").optional().or(z.literal('')).nullable(), // Allow null for video_url
 });
 
 interface ExerciseFormProps {
@@ -61,7 +61,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
   const mainMuscleGroups = [
     "Pectorals", "Deltoids", "Lats", "Traps", "Biceps", 
     "Triceps", "Quadriceps", "Hamstrings", "Glutes", "Calves", 
-    "Abdominals", "Core"
+    "Abdominals", "Core", "Full Body" // Added Full Body
   ];
 
   const categoryOptions = [
@@ -83,10 +83,10 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
       name: "",
       main_muscles: [],
       type: [],
-      category: "",
-      description: "",
-      pro_tip: "",
-      video_url: "",
+      category: null,
+      description: null,
+      pro_tip: null,
+      video_url: null,
     },
   });
 
@@ -98,10 +98,10 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
         name: editingExercise.name,
         main_muscles: muscleGroups,
         type: editingExercise.type ? [editingExercise.type] as ("weight" | "timed")[] : [],
-        category: editingExercise.category || "",
-        description: editingExercise.description || "",
-        pro_tip: editingExercise.pro_tip || "",
-        video_url: editingExercise.video_url || "",
+        category: editingExercise.category || null,
+        description: editingExercise.description || null,
+        pro_tip: editingExercise.pro_tip || null,
+        video_url: editingExercise.video_url || null,
       });
       setSelectedMuscles(muscleGroups);
       setSelectedTypes(editingExercise.type ? [editingExercise.type] as ("weight" | "timed")[] : []);
@@ -160,29 +160,59 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
     }
 
     const exerciseData = {
-      ...values,
+      name: values.name,
       main_muscle: values.main_muscles.join(', '), // Store as comma-separated string
-      type: values.type[0] // For now, we'll use the first type if multiple are selected
+      type: values.type[0], // For now, we'll use the first type if multiple are selected
+      category: values.category,
+      description: values.description,
+      pro_tip: values.pro_tip,
+      video_url: values.video_url,
     };
 
     if (editingExercise) {
-      const { error } = await supabase
-        .from('exercise_definitions')
-        .update(exerciseData)
-        .eq('id', editingExercise.id);
+      if (editingExercise.user_id === null) {
+        // This is a global exercise (hardcoded or AI-generated).
+        // User is "adopting" it by trying to edit it. Create a new user-owned copy.
+        const { error } = await supabase.from('exercise_definitions').insert([{ 
+          ...exerciseData, 
+          user_id: session.user.id,
+          library_id: editingExercise.library_id // Preserve the original library_id
+        }]);
 
-      if (error) {
-        toast.error("Failed to update exercise: " + error.message);
+        if (error) {
+          if (error.code === '23505') { // Unique violation code
+            toast.error("You already have a copy of this exercise in your library.");
+          } else {
+            toast.error("Failed to adopt exercise: " + error.message);
+          }
+        } else {
+          toast.success("Exercise adopted and added to your library!");
+          onCancelEdit();
+          onSaveSuccess();
+          setIsExpanded(false);
+        }
       } else {
-        toast.success("Exercise updated successfully!");
-        onCancelEdit();
-        onSaveSuccess();
-        setIsExpanded(false);
+        // This is an existing user-owned exercise, so update it.
+        const { error } = await supabase
+          .from('exercise_definitions')
+          .update(exerciseData)
+          .eq('id', editingExercise.id);
+
+        if (error) {
+          toast.error("Failed to update exercise: " + error.message);
+        } else {
+          toast.success("Exercise updated successfully!");
+          onCancelEdit();
+          onSaveSuccess();
+          setIsExpanded(false);
+        }
       }
     } else {
+      // This is a brand new exercise created by the user.
       const { error } = await supabase.from('exercise_definitions').insert([{ 
         ...exerciseData, 
-        user_id: session.user.id 
+        user_id: session.user.id,
+        library_id: null // No library_id for user-created exercises
       }]);
       if (error) {
         toast.error("Failed to add exercise: " + error.message);
@@ -329,7 +359,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                         </PopoverContent>
                       </Popover>
                     </div>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select category" />
@@ -355,7 +385,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                   <FormItem>
                     <FormLabel className="font-bold">Description (Optional)</FormLabel>
                     <FormControl>
-                      <Textarea {...field} />
+                      <Textarea {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -369,7 +399,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                   <FormItem>
                     <FormLabel className="font-bold">Pro Tip (Optional)</FormLabel>
                     <FormControl>
-                      <Textarea {...field} />
+                      <Textarea {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -383,7 +413,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                   <FormItem>
                     <FormLabel className="font-bold">Video URL (Optional)</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -393,9 +423,15 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
               <div className="flex gap-2 pt-2">
                 <Button type="submit" className="flex-1">
                   {editingExercise ? (
-                    <>
-                      <Edit className="h-4 w-4 mr-2" /> Update
-                    </>
+                    editingExercise.user_id === null ? (
+                      <>
+                        <PlusCircle className="h-4 w-4 mr-2" /> Adopt & Edit
+                      </>
+                    ) : (
+                      <>
+                        <Edit className="h-4 w-4 mr-2" /> Update
+                      </>
+                    )
                   ) : (
                     <>
                       <PlusCircle className="h-4 w-4 mr-2" /> Add

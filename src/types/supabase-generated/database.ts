@@ -64,6 +64,7 @@ export type Database = {
           type: string
           user_id: string | null
           video_url: string | null
+          library_id: string | null
         }
         Insert: {
           category?: string | null
@@ -76,6 +77,7 @@ export type Database = {
           type?: string
           user_id?: string | null
           video_url?: string | null
+          library_id?: string | null
         }
         Update: {
           category?: string | null
@@ -88,6 +90,7 @@ export type Database = {
           type?: string
           user_id?: string | null
           video_url?: string | null
+          library_id?: string | null
         }
         Relationships: [
           {
@@ -395,6 +398,36 @@ export type Database = {
           title?: string;
           message?: string;
           type?: string;
+          created_at?: string | null;
+        };
+        Relationships: [];
+      };
+      workout_exercise_structure: {
+        Row: {
+          id: string;
+          exercise_library_id: string;
+          workout_split: string;
+          workout_name: string;
+          min_session_minutes: number | null;
+          bonus_for_time_group: number | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          exercise_library_id: string;
+          workout_split: string;
+          workout_name: string;
+          min_session_minutes?: number | null;
+          bonus_for_time_group?: number | null;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          exercise_library_id?: string;
+          workout_split?: string;
+          workout_name?: string;
+          min_session_minutes?: number | null;
+          bonus_for_time_group?: number | null;
           created_at?: string | null;
         };
         Relationships: [];

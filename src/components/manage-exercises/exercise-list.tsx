@@ -54,16 +54,21 @@ export const ExerciseList = ({
             <Skeleton className="h-10 w-full" />
           </div>
         ) : exercises.length === 0 ? (
-          <p>No exercises defined yet.</p>
+          <p>No exercises defined yet. Add some or they will be generated for you!</p>
         ) : (
           <ScrollArea className="h-[600px] pr-4">
             <ul className="space-y-2">
               {exercises.map((ex) => (
                 <li key={ex.id} className="flex items-center justify-between p-2 border rounded-md">
-                  <span>{ex.name} <span className="text-muted-foreground">({ex.main_muscle})</span></span>
+                  <span>
+                    {ex.name} <span className="text-muted-foreground">({ex.main_muscle})</span>
+                    {ex.user_id === null && <span className="ml-2 text-xs text-blue-500">(Global)</span>}
+                  </span>
                   <div className="flex space-x-1">
                     <Button variant="ghost" size="icon" onClick={() => onEdit(ex)}><Edit className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => onDelete(ex)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    {ex.user_id !== null && ( // Only allow deleting user-owned exercises
+                      <Button variant="ghost" size="icon" onClick={() => onDelete(ex)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    )}
                   </div>
                 </li>
               ))}
