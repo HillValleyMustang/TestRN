@@ -24,17 +24,24 @@ serve(async (req: Request) => {
   }
 
   try {
-    // @ts-ignore
-    const supabaseClient = createClient(
+    // Client to get user from JWT (uses anon key and request's auth header)
+    const supabaseAuthClient = createClient(
       // @ts-ignore
       Deno.env.get('SUPABASE_URL') ?? '',
       // @ts-ignore
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '', // CORRECTED: Use SERVICE_ROLE_KEY for server-side operations
-      // Removed global headers as service role key bypasses RLS and doesn't need user JWT
-      // { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     );
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    // Client for database operations (uses service role key to bypass RLS where needed)
+    const supabaseServiceRoleClient = createClient(
+      // @ts-ignore
+      Deno.env.get('SUPABASE_URL') ?? '',
+      // @ts-ignore
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const { data: { user } } = await supabaseAuthClient.auth.getUser();
     if (!user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -43,8 +50,8 @@ serve(async (req: Request) => {
 
     let tPath;
     try {
-      // Get the T-Path settings
-      const { data, error } = await supabaseClient
+      // Get the T-Path settings using the service role client
+      const { data, error } = await supabaseServiceRoleClient
         .from('t_paths')
         .select('*, profiles(first_name, last_name)')
         .eq('id', tPathId)
@@ -58,7 +65,6 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: `Error fetching T-Path: ${err instanceof Error ? err.message : String(err)}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Log tPath settings to debug
     console.log('T-Path settings:', tPath.settings);
 
     // Determine workout names based on T-Path type
@@ -73,7 +79,7 @@ serve(async (req: Request) => {
       console.warn('T-Path settings or tPathType is missing/invalid:', tPath.settings);
       return new Response(JSON.stringify({ error: 'Invalid T-Path settings. Please re-run onboarding.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-    console.log('Determined workout names:', workoutNames); // New log
+    console.log('Determined workout names:', workoutNames);
 
     // Define the exercises that should exist as default (user_id IS NULL)
     // IMPORTANT: main_muscle values must match the mainMuscleGroups in exercise-form.tsx
@@ -93,11 +99,11 @@ serve(async (req: Request) => {
     const allExpectedExercises = [...coreExercises, ...bonusExercises];
     const defaultExerciseMap = new Map<string, ExerciseDef>();
 
-    console.log('Ensuring default exercises exist...'); // New log
+    console.log('Ensuring default exercises exist...');
     // Ensure all expected default exercises exist and get their IDs
     for (const expectedEx of allExpectedExercises) {
       try {
-        const { data: existingEx, error: fetchExError } = await supabaseClient
+        const { data: existingEx, error: fetchExError } = await supabaseServiceRoleClient
           .from('exercise_definitions')
           .select('id, name, main_muscle, type, category, description, pro_tip, video_url')
           .eq('name', expectedEx.name)
@@ -110,10 +116,10 @@ serve(async (req: Request) => {
 
         if (existingEx) {
           defaultExerciseMap.set(existingEx.name, existingEx as ExerciseDef);
-          console.log(`Found existing default exercise: ${existingEx.name}`); // New log
+          console.log(`Found existing default exercise: ${existingEx.name}`);
         } else {
           // If a default exercise doesn't exist, create it.
-          const { data: newEx, error: insertExError } = await supabaseClient
+          const { data: newEx, error: insertExError } = await supabaseServiceRoleClient
             .from('exercise_definitions')
             .insert({
               name: expectedEx.name,
@@ -128,25 +134,25 @@ serve(async (req: Request) => {
 
           if (insertExError) throw insertExError;
           defaultExerciseMap.set(newEx.name, newEx as ExerciseDef);
-          console.log(`Inserted new default exercise: ${newEx.name}`); // New log
+          console.log(`Inserted new default exercise: ${newEx.name}`);
         }
       } catch (err) {
         console.error(`Error ensuring default exercise ${expectedEx.name}:`, err);
         return new Response(JSON.stringify({ error: `Error setting up default exercise ${expectedEx.name}: ${err instanceof Error ? err.message : String(err)}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
-    console.log('Finished ensuring default exercises. Map size:', defaultExerciseMap.size); // New log
+    console.log('Finished ensuring default exercises. Map size:', defaultExerciseMap.size);
 
     // Create workouts for this T-Path
     const workouts = [];
-    console.log('Starting workout creation loop...'); // New log
+    console.log('Starting workout creation loop...');
     for (let i = 0; i < workoutNames.length; i++) {
       try {
-        console.log(`Creating workout: ${workoutNames[i]}`); // New log
-        const { data: workout, error: workoutError } = await supabaseClient
+        console.log(`Creating workout: ${workoutNames[i]}`);
+        const { data: workout, error: workoutError } = await supabaseServiceRoleClient
           .from('t_paths')
           .insert({
-            user_id: tPath.user_id,
+            user_id: user.id, // Use the authenticated user's ID
             template_name: workoutNames[i],
             is_bonus: false,
             version: 1,
@@ -157,7 +163,7 @@ serve(async (req: Request) => {
 
         if (workoutError) throw workoutError;
         workouts.push(workout);
-        console.log(`Workout created: ${workout.template_name} (ID: ${workout.id})`); // New log
+        console.log(`Workout created: ${workout.template_name} (ID: ${workout.id})`);
 
         // Add exercises to each workout based on workout type
         const exercisesForCurrentWorkout: { name: string; }[] = [];
@@ -176,21 +182,21 @@ serve(async (req: Request) => {
         } else if (workout.template_name === 'Legs') {
           exercisesForCurrentWorkout.push({ name: 'Squat' }, { name: 'Deadlift' });
         }
-        console.log(`Exercises for ${workout.template_name}:`, exercisesForCurrentWorkout.map(e => e.name)); // New log
+        console.log(`Exercises for ${workout.template_name}:`, exercisesForCurrentWorkout.map(e => e.name));
 
         for (let j = 0; j < exercisesForCurrentWorkout.length; j++) {
           const exercise = exercisesForCurrentWorkout[j];
           const exerciseDef = defaultExerciseMap.get(exercise.name);
 
           if (exerciseDef) {
-            await supabaseClient
+            await supabaseServiceRoleClient
               .from('t_path_exercises')
               .insert({
                 template_id: workout.id,
                 exercise_id: exerciseDef.id,
                 order_index: j
               });
-            console.log(`Inserted ${exercise.name} into ${workout.template_name}`); // New log
+            console.log(`Inserted ${exercise.name} into ${workout.template_name}`);
           } else {
             console.warn(`Default exercise "${exercise.name}" not found in map. This should not happen if pre-checked.`);
             // If a core exercise is missing, this is a critical error for the workout generation
@@ -203,14 +209,14 @@ serve(async (req: Request) => {
           const bonus = bonusExercises[j];
           const bonusExerciseDef = defaultExerciseMap.get(bonus.name);
           if (bonusExerciseDef) {
-            await supabaseClient
+            await supabaseServiceRoleClient
               .from('t_path_exercises')
               .insert({
                 template_id: workout.id,
                 exercise_id: bonusExerciseDef.id,
                 order_index: exercisesForCurrentWorkout.length + j
               });
-            console.log(`Inserted bonus exercise ${bonus.name} into ${workout.template_name}`); // New log
+            console.log(`Inserted bonus exercise ${bonus.name} into ${workout.template_name}`);
           } else {
             console.warn(`Default bonus exercise "${bonus.name}" not found in map. This should not happen if pre-checked.`);
           }
@@ -220,7 +226,7 @@ serve(async (req: Request) => {
         return new Response(JSON.stringify({ error: `Error creating workout ${workoutNames[i]}: ${err instanceof Error ? err.message : String(err)}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
-    console.log('Finished workout creation loop.'); // New log
+    console.log('Finished workout creation loop.');
 
     return new Response(
       JSON.stringify({ message: 'T-Path generated successfully', workouts }),
