@@ -304,22 +304,17 @@ serve(async (req: Request) => {
       try {
         console.log(`Processing workout: ${workoutName}`);
 
-        // Fetch exercises for the current workout from workout_exercise_structure
-        const { data: structureEntries, error: structureError } = await supabaseServiceRoleClient
+        // Fetch raw structure entries first
+        const { data: rawStructureEntries, error: structureError } = await supabaseServiceRoleClient
           .from('workout_exercise_structure')
-          .select(`
-            *,
-            exercise_definitions (
-              id, name, main_muscle, type, category, description, pro_tip, video_url, library_id
-            )
-          `)
+          .select('*') // Select all columns from workout_exercise_structure
           .eq('workout_split', workoutSplit)
           .eq('workout_name', workoutName)
-          .order('min_session_minutes', { ascending: true, nullsFirst: false }) // Order main exercises first
-          .order('bonus_for_time_group', { ascending: true, nullsFirst: false }); // Then bonus exercises
+          .order('min_session_minutes', { ascending: true, nullsFirst: false })
+          .order('bonus_for_time_group', { ascending: true, nullsFirst: false });
 
         if (structureError) {
-          console.error(`Error fetching workout structure for ${workoutName}:`, structureError.message);
+          console.error(`Error fetching raw workout structure for ${workoutName}:`, structureError.message);
           throw structureError;
         }
 
@@ -327,13 +322,24 @@ serve(async (req: Request) => {
         let mainExerciseCount = 0;
         let bonusExerciseCount = 0;
 
-        for (const entry of structureEntries || []) {
-          const exerciseDef = entry.exercise_definitions;
-          if (!exerciseDef || !Array.isArray(exerciseDef) || exerciseDef.length === 0) {
-            console.warn(`Exercise definition not found for library_id: ${entry.exercise_library_id}`);
+        for (const entry of rawStructureEntries || []) {
+          // Now fetch the exercise_definition using the library_id
+          const { data: exerciseDefData, error: exerciseDefError } = await supabaseServiceRoleClient
+            .from('exercise_definitions')
+            .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id')
+            .eq('library_id', entry.exercise_library_id)
+            .single(); // Assuming library_id is unique for default exercises
+
+          if (exerciseDefError) {
+            console.warn(`Could not find exercise definition for library_id: ${entry.exercise_library_id}. Error: ${exerciseDefError.message}`);
+            continue; // Skip this entry if exercise definition is not found
+          }
+          if (!exerciseDefData) {
+            console.warn(`Exercise definition data is null for library_id: ${entry.exercise_library_id}. Skipping.`);
             continue;
           }
-          const actualExercise = exerciseDef[0]; // Assuming exercise_definitions is an array of one item due to select syntax
+
+          const actualExercise = exerciseDefData; // This is now the single exercise definition object
 
           let isBonus = false;
           let includeExercise = false;
@@ -356,9 +362,8 @@ serve(async (req: Request) => {
 
           if (includeExercise) {
             exercisesToInclude.push({
-              exercise_id: actualExercise.id,
+              exercise_id: actualExercise.id, // Use the actual UUID from exercise_definitions
               is_bonus_exercise: isBonus,
-              // Keep other exercise details if needed for ordering or display
               order_criteria: isBonus ? entry.bonus_for_time_group : entry.min_session_minutes,
               original_order: exercisesToInclude.length // Preserve original order from CSV for same time group
             });
