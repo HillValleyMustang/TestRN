@@ -61,13 +61,27 @@ export default {
   				ring: 'hsl(var(--sidebar-ring))'
   			},
   			workout: {
-  				'upper-body-a': 'hsl(var(--workout-upper-body-a))',
-  				'lower-body-a': 'hsl(var(--workout-lower-body-a))',
-  				'upper-body-b': 'hsl(var(--workout-upper-body-b))',
-  				'lower-body-b': 'hsl(var(--workout-lower-body-b))',
-  				'push': 'hsl(var(--workout-push))',
-  				'pull': 'hsl(var(--workout-pull))',
-  				'legs': 'hsl(var(--workout-legs))',
+  				'upper-body-a-base': 'hsl(var(--workout-upper-body-a-base))',
+  				'upper-body-a-bg': 'hsl(var(--workout-upper-body-a-bg))',
+  				'upper-body-a-text': 'hsl(var(--workout-upper-body-a-text))',
+  				'lower-body-a-base': 'hsl(var(--workout-lower-body-a-base))',
+  				'lower-body-a-bg': 'hsl(var(--workout-lower-body-a-bg))',
+  				'lower-body-a-text': 'hsl(var(--workout-lower-body-a-text))',
+  				'upper-body-b-base': 'hsl(var(--workout-upper-body-b-base))',
+  				'upper-body-b-bg': 'hsl(var(--workout-upper-body-b-bg))',
+  				'upper-body-b-text': 'hsl(var(--workout-upper-body-b-text))',
+  				'lower-body-b-base': 'hsl(var(--workout-lower-body-b-base))',
+  				'lower-body-b-bg': 'hsl(var(--workout-lower-body-b-bg))',
+  				'lower-body-b-text': 'hsl(var(--workout-lower-body-b-text))',
+  				'push-base': 'hsl(var(--workout-push-base))',
+  				'push-bg': 'hsl(var(--workout-push-bg))',
+  				'push-text': 'hsl(var(--workout-push-text))',
+  				'pull-base': 'hsl(var(--workout-pull-base))',
+  				'pull-bg': 'hsl(var(--workout-pull-bg))',
+  				'pull-text': 'hsl(var(--workout-pull-text))',
+  				'legs-base': 'hsl(var(--workout-legs-base))',
+  				'legs-bg': 'hsl(var(--workout-legs-bg))',
+  				'legs-text': 'hsl(var(--workout-legs-text))',
   			}
   		},
   		borderRadius: {
@@ -102,7 +116,7 @@ export default {
   plugins: [require("tailwindcss-animate")],
   safelist: [
     {
-      pattern: /(text|bg|border)-workout-(upper-body-a|lower-body-a|upper-body-b|lower-body-b|push|pull|legs)/,
+      pattern: /(text|bg|border)-workout-(upper-body-a|lower-body-a|upper-body-b|lower-body-b|push|pull|legs)-(base|bg|text)/,
     },
   ],
 } satisfies Config;

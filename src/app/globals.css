@@ -72,13 +72,34 @@
 
     --sidebar-ring: 217.2 91.2% 59.8%;
 
-    --workout-upper-body-a: 142 76% 36%; /* Green */
-    --workout-lower-body-a: 27 87% 67%;  /* Orange */
-    --workout-upper-body-b: 210 70% 50%; /* Blue */
-    --workout-lower-body-b: 280 65% 60%; /* Purple */
-    --workout-push: 0 84.2% 60.2%;       /* Red */
-    --workout-pull: 180 70% 40%;         /* Cyan */
-    --workout-legs: 43 74% 66%;          /* Yellow */
+    /* New Workout Colors for better contrast and pop */
+    --workout-upper-body-a-base: 180 70% 40%; /* Teal */
+    --workout-upper-body-a-bg: 180 70% 90%;
+    --workout-upper-body-a-text: 180 70% 20%;
+
+    --workout-lower-body-a-base: 27 87% 50%; /* Orange */
+    --workout-lower-body-a-bg: 27 87% 90%;
+    --workout-lower-body-a-text: 27 87% 30%;
+
+    --workout-upper-body-b-base: 240 60% 40%; /* Deep Blue */
+    --workout-upper-body-b-bg: 240 60% 90%;
+    --workout-upper-body-b-text: 240 60% 20%;
+
+    --workout-lower-body-b-base: 300 60% 45%; /* Magenta/Plum */
+    --workout-lower-body-b-bg: 300 60% 90%;
+    --workout-lower-body-b-text: 300 60% 25%;
+
+    --workout-push-base: 0 80% 45%; /* Crimson Red */
+    --workout-push-bg: 0 80% 90%;
+    --workout-push-text: 0 80% 25%;
+
+    --workout-pull-base: 140 70% 35%; /* Forest Green */
+    --workout-pull-bg: 140 70% 90%;
+    --workout-pull-text: 140 70% 15%;
+
+    --workout-legs-base: 45 80% 50%; /* Goldenrod Yellow */
+    --workout-legs-bg: 45 80% 90%;
+    --workout-legs-text: 45 80% 30%;
   }
   .dark {
 
@@ -147,13 +168,34 @@
 
     --sidebar-ring: 217.2 91.2% 59.8%;
 
-    --workout-upper-body-a: 142 76% 46%;
-    --workout-lower-body-a: 30 80% 55%;
-    --workout-upper-body-b: 220 70% 50%;
-    --workout-lower-body-b: 280 65% 70%;
-    --workout-push: 0 62.8% 30.6%;
-    --workout-pull: 180 60% 50%;
-    --workout-legs: 43 74% 76%;
+    /* Dark mode adjustments for new workout colors */
+    --workout-upper-body-a-base: 180 70% 50%; /* Teal */
+    --workout-upper-body-a-bg: 180 70% 20%;
+    --workout-upper-body-a-text: 180 70% 90%;
+
+    --workout-lower-body-a-base: 27 87% 60%; /* Orange */
+    --workout-lower-body-a-bg: 27 87% 20%;
+    --workout-lower-body-a-text: 27 87% 90%;
+
+    --workout-upper-body-b-base: 240 60% 50%; /* Deep Blue */
+    --workout-upper-body-b-bg: 240 60% 20%;
+    --workout-upper-body-b-text: 240 60% 90%;
+
+    --workout-lower-body-b-base: 300 60% 55%; /* Magenta/Plum */
+    --workout-lower-body-b-bg: 300 60% 25%;
+    --workout-lower-body-b-text: 300 60% 90%;
+
+    --workout-push-base: 0 80% 55%; /* Crimson Red */
+    --workout-push-bg: 0 80% 25%;
+    --workout-push-text: 0 80% 90%;
+
+    --workout-pull-base: 140 70% 45%; /* Forest Green */
+    --workout-pull-bg: 140 70% 15%;
+    --workout-pull-text: 140 70% 90%;
+
+    --workout-legs-base: 45 80% 60%; /* Goldenrod Yellow */
+    --workout-legs-bg: 45 80% 20%;
+    --workout-legs-text: 45 80% 90%;
   }
 }
 

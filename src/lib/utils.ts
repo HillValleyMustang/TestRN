@@ -33,5 +33,14 @@ export function getWorkoutColorClass(workoutName: string, type: 'text' | 'border
       break;
     default: return ''; // No specific color for other workouts or 'Ad Hoc Workout'
   }
-  return `${type}-workout-${colorKey}`;
+
+  // Return the appropriate color variant based on the type
+  if (type === 'text') {
+    return `text-workout-${colorKey}-text`;
+  } else if (type === 'bg') {
+    return `bg-workout-${colorKey}-bg`;
+  } else if (type === 'border') {
+    return `border-workout-${colorKey}-base`; // Use base for border for a stronger line
+  }
+  return '';
 }
