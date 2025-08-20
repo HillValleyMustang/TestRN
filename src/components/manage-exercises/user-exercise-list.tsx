@@ -20,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ExerciseForm } from "@/components/manage-exercises/exercise-form";
 import { ExerciseInfoDialog } from "@/components/exercise-info-dialog";
 import { cn, getWorkoutColorClass } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
+import { WorkoutBadge } from "@/components/workout-badge"; // Import WorkoutBadge
 
 // Extend the ExerciseDefinition type to include a temporary flag for global exercises
 interface FetchedExerciseDefinition extends Tables<'exercise_definitions'> {
@@ -106,16 +106,12 @@ export const UserExerciseList = ({
                         {exerciseWorkoutsMap[ex.id]?.length > 0 && (
                           <div className="mt-1 flex flex-wrap gap-1">
                             {exerciseWorkoutsMap[ex.id].map(workout => (
-                              <Badge 
+                              <WorkoutBadge 
                                 key={workout.id} 
-                                className={cn(
-                                  "px-2 py-0.5 text-xs", 
-                                  getWorkoutColorClass(workout.name, 'bg'),
-                                  getWorkoutColorClass(workout.name, 'text')
-                                )}
+                                workoutName={workout.name}
                               >
                                 {workout.name}
-                              </Badge>
+                              </WorkoutBadge>
                             ))}
                           </div>
                         )}
