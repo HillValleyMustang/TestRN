@@ -65,7 +65,6 @@ export type Database = {
           user_id: string | null
           video_url: string | null
           library_id: string | null
-          is_favorite: boolean | null
         }
         Insert: {
           category?: string | null
@@ -79,7 +78,6 @@ export type Database = {
           user_id?: string | null
           video_url?: string | null
           library_id?: string | null
-          is_favorite?: boolean | null
         }
         Update: {
           category?: string | null
@@ -93,7 +91,6 @@ export type Database = {
           user_id?: string | null
           video_url?: string | null
           library_id?: string | null
-          is_favorite?: boolean | null
         }
         Relationships: [
           {

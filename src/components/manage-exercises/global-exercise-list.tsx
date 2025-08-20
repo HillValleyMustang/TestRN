@@ -5,7 +5,7 @@ import { Tables } from "@/types/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Filter, PlusCircle, Heart } from "lucide-react";
+import { Filter, Info, PlusCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sheet,
@@ -16,9 +16,6 @@ import {
 } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ExerciseInfoDialog } from "@/components/exercise-info-dialog";
-import { AddExerciseToTPathDialog } from "./add-exercise-to-tpath-dialog";
-import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -29,10 +26,6 @@ interface GlobalExerciseListProps {
   selectedMuscleFilter: string;
   setSelectedMuscleFilter: (value: string) => void;
   availableMuscleGroups: string[];
-  exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean }[]>; // New prop
-  onRemoveFromWorkout: (workoutId: string, exerciseId: string) => void; // New prop
-  onToggleFavorite: (exercise: ExerciseDefinition) => void; // New prop
-  onAddSuccess: () => void; // New prop for refreshing after adding to T-Path
 }
 
 export const GlobalExerciseList = ({
@@ -42,29 +35,12 @@ export const GlobalExerciseList = ({
   selectedMuscleFilter,
   setSelectedMuscleFilter,
   availableMuscleGroups,
-  exerciseWorkoutsMap,
-  onRemoveFromWorkout,
-  onToggleFavorite,
-  onAddSuccess,
 }: GlobalExerciseListProps) => {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [isAddTPathDialogOpen, setIsAddTPathDialogOpen] = useState(false);
-  const [selectedExerciseForTPath, setSelectedExerciseForTPath] = useState<ExerciseDefinition | null>(null);
 
   const handleFilterChange = (value: string) => {
     setSelectedMuscleFilter(value);
     setIsSheetOpen(false);
-  };
-
-  const handleOpenAddTPathDialog = (exercise: ExerciseDefinition, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent opening info dialog
-    setSelectedExerciseForTPath(exercise);
-    setIsAddTPathDialogOpen(true);
-  };
-
-  const handleToggleFavoriteClick = (exercise: ExerciseDefinition, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent opening info dialog
-    onToggleFavorite(exercise);
   };
 
   return (
@@ -116,35 +92,14 @@ export const GlobalExerciseList = ({
                 <li key={ex.id} className="flex items-center justify-between p-2 border rounded-md">
                   <ExerciseInfoDialog
                     exercise={ex}
-                    exerciseWorkouts={exerciseWorkoutsMap[ex.id] || []}
-                    onRemoveFromWorkout={onRemoveFromWorkout}
                     trigger={
-                      <div className="flex-1 cursor-pointer py-1 pr-2" onClick={(e) => e.stopPropagation()}> {/* Stop propagation for the trigger itself */}
-                        <span className="font-medium">
-                          {ex.name} <span className="text-muted-foreground">({ex.main_muscle})</span>
-                        </span>
-                        {exerciseWorkoutsMap[ex.id]?.length > 0 && (
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {exerciseWorkoutsMap[ex.id].map(workout => (
-                              <Badge key={workout.id} variant="secondary" className="px-2 py-0.5 text-xs">
-                                {workout.name}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      <span className="cursor-pointer hover:underline">
+                        {ex.name} <span className="text-muted-foreground">({ex.main_muscle})</span>
+                      </span>
                     }
                   />
                   <div className="flex space-x-1">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={(e) => handleToggleFavoriteClick(ex, e)} 
-                      title={ex.is_favorite ? "Unfavorite" : "Favorite"}
-                    >
-                      <Heart className={cn("h-4 w-4", ex.is_favorite ? "fill-red-500 text-red-500" : "text-muted-foreground")} />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={(e) => handleOpenAddTPathDialog(ex, e)} title="Add to T-Path">
+                    <Button variant="ghost" size="icon" onClick={() => onEdit(ex)} title="Adopt & Edit">
                       <PlusCircle className="h-4 w-4" />
                     </Button>
                   </div>
@@ -154,15 +109,6 @@ export const GlobalExerciseList = ({
           </ScrollArea>
         )}
       </CardContent>
-
-      {selectedExerciseForTPath && (
-        <AddExerciseToTPathDialog
-          open={isAddTPathDialogOpen}
-          onOpenChange={setIsAddTPathDialogOpen}
-          exercise={selectedExerciseForTPath}
-          onAddSuccess={onAddSuccess}
-        />
-      )}
     </Card>
   );
 };
