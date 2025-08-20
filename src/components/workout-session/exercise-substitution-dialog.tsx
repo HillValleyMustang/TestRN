@@ -8,6 +8,7 @@ import { useSession } from "@/components/session-context-provider";
 import { Tables } from '@/types/supabase';
 import { toast } from "sonner";
 import { Info, Check, Sparkles } from "lucide-react";
+import { LoadingOverlay } from '../loading-overlay'; // Import LoadingOverlay
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -74,18 +75,18 @@ export const ExerciseSubstitutionDialog = ({
     }
   }, [open, session, supabase, currentExercise]);
 
-  const adoptExercise = async (exercise: ExerciseDefinition): Promise<ExerciseDefinition> => {
-    if (exercise.user_id === session?.user.id) {
-      return exercise; // Already user-owned
+  const adoptExercise = async (exerciseToAdopt: ExerciseDefinition): Promise<ExerciseDefinition> => {
+    if (exerciseToAdopt.user_id === session?.user.id) {
+      return exerciseToAdopt; // Already user-owned
     }
 
     // Check if user already has an adopted copy of this global exercise
-    if (exercise.library_id) {
+    if (exerciseToAdopt.library_id) {
       const { data: existingAdopted, error: fetchError } = await supabase
         .from('exercise_definitions')
         .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite') // Specify all columns required by ExerciseDefinition
         .eq('user_id', session!.user.id)
-        .eq('library_id', exercise.library_id)
+        .eq('library_id', exerciseToAdopt.library_id)
         .single();
 
       if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 means no rows found
@@ -100,15 +101,15 @@ export const ExerciseSubstitutionDialog = ({
     const { data: newAdoptedExercise, error: insertError } = await supabase
       .from('exercise_definitions')
       .insert({
-        name: exercise.name,
-        main_muscle: exercise.main_muscle,
-        type: exercise.type,
-        category: exercise.category,
-        description: exercise.description,
-        pro_tip: exercise.pro_tip,
-        video_url: exercise.video_url,
+        name: exerciseToAdopt.name,
+        main_muscle: exerciseToAdopt.main_muscle,
+        type: exerciseToAdopt.type,
+        category: exerciseToAdopt.category,
+        description: exerciseToAdopt.description,
+        pro_tip: exerciseToAdopt.pro_tip,
+        video_url: exerciseToAdopt.video_url,
         user_id: session!.user.id,
-        library_id: exercise.library_id || null, // Preserve library_id if it exists
+        library_id: exerciseToAdopt.library_id || null, // Preserve library_id if it exists
         is_favorite: false, // Default to not favourited on adoption
       })
       .select()
@@ -254,6 +255,11 @@ export const ExerciseSubstitutionDialog = ({
           </div>
         </div>
       </DialogContent>
+      <LoadingOverlay 
+        isOpen={generatingAi} 
+        title="Generating AI Suggestion" 
+        description="Please wait while the AI suggests a new exercise." 
+      />
     </Dialog>
   );
 };

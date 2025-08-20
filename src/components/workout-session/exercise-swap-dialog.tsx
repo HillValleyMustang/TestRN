@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useSession } from "@/components/session-context-provider";
 import { Tables } from '@/types/supabase';
 import { RefreshCcw, Sparkles } from "lucide-react";
+import { LoadingOverlay } from '../loading-overlay'; // Import LoadingOverlay
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -33,7 +34,7 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
       // Fetch all exercises (user-owned and global) that match criteria
       const { data: allMatchingExercises, error: fetchError } = await supabase
         .from('exercise_definitions')
-        .select('*')
+        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite') // Specify all columns required by ExerciseDefinition
         .or(`user_id.eq.${session.user.id},user_id.is.null`) // User's own or global
         .eq('main_muscle', currentExercise.main_muscle) // Suggest exercises for the same main muscle
         .eq('type', currentExercise.type) // Suggest exercises of the same type (weight, timed, cardio)
@@ -49,7 +50,7 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
           .map(ex => ex.library_id)
       );
 
-      const filteredExercises = allMatchingExercises.filter(ex => {
+      const filteredExercises = (allMatchingExercises as ExerciseDefinition[]).filter(ex => { // Explicitly cast
         if (ex.user_id === null && ex.library_id && userOwnedExerciseIds.has(ex.library_id)) {
           return false; // Exclude global if user has an adopted copy
         }
@@ -81,7 +82,7 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
     if (exercise.library_id) {
       const { data: existingAdopted, error: fetchError } = await supabase
         .from('exercise_definitions')
-        .select('*')
+        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite') // Specify all columns required by ExerciseDefinition
         .eq('user_id', session!.user.id)
         .eq('library_id', exercise.library_id)
         .single();
@@ -90,7 +91,7 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
         throw fetchError;
       }
       if (existingAdopted) {
-        return existingAdopted; // Return existing adopted copy
+        return existingAdopted as ExerciseDefinition; // Explicitly cast
       }
     }
 
@@ -227,6 +228,11 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
           )}
         </div>
       </DialogContent>
+      <LoadingOverlay 
+        isOpen={generatingAi} 
+        title="Generating AI Suggestion" 
+        description="Please wait while the AI suggests a new exercise." 
+      />
     </Dialog>
   );
 };

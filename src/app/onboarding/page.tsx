@@ -9,6 +9,7 @@ import { OnboardingStep4_SessionPreferences } from "@/components/onboarding/onbo
 import { OnboardingStep5_EquipmentSetup } from "@/components/onboarding/onboarding-step-5-equipment-setup";
 import { OnboardingStep6_Consent } from "@/components/onboarding/onboarding-step-6-consent";
 import { useSession } from "@/components/session-context-provider";
+import { LoadingOverlay } from "@/components/loading-overlay"; // Import LoadingOverlay
 
 export default function OnboardingPage() {
   const { session } = useSession(); // Use session to check if user is logged in
@@ -174,6 +175,11 @@ export default function OnboardingPage() {
           </CardContent>
         </Card>
       </div>
+      <LoadingOverlay 
+        isOpen={loading} 
+        title="Generating Your Transformation Path" 
+        description="Please wait while the AI creates your personalised workout plan." 
+      />
     </div>
   );
 }

@@ -493,7 +493,7 @@ export default function ProfilePage() {
       </Card>
 
       <MadeWithDyad />
-      <LoadingOverlay isOpen={showRegenerationLoading} title="Generating Workouts" description="Please wait while your personalized workouts are created." />
+      <LoadingOverlay isOpen={showRegenerationLoading} title="Generating Workouts" description="Please wait while your personalised workouts are created." />
     </div>
   );
 }

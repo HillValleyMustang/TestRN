@@ -9,6 +9,7 @@ import { Camera, Upload, Sparkles, Loader2, AlertCircle } from "lucide-react";
 import { useSession } from "@/components/session-context-provider";
 import { toast } from "sonner";
 import { Tables } from "@/types/supabase";
+import { LoadingOverlay } from '../loading-overlay'; // Import LoadingOverlay
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -162,6 +163,11 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
           </Button>
         </div>
       </DialogContent>
+      <LoadingOverlay 
+        isOpen={loading} 
+        title="Analysing Gym Equipment" 
+        description="Please wait while the AI identifies equipment from your photo." 
+      />
     </Dialog>
   );
 };

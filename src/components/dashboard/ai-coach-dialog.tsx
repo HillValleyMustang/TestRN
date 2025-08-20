@@ -7,6 +7,7 @@ import { Sparkles, Bot, AlertCircle } from "lucide-react";
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { ScrollArea } from '../ui/scroll-area';
+import { LoadingOverlay } from '../loading-overlay'; // Import LoadingOverlay
 
 interface AiCoachDialogProps {
   open: boolean;
@@ -159,6 +160,11 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
           )}
         </div>
       </DialogContent>
+      <LoadingOverlay 
+        isOpen={loading} 
+        title="Generating AI Analysis" 
+        description="Please wait while the AI coach analyses your workout performance." 
+      />
     </Dialog>
   );
 };
