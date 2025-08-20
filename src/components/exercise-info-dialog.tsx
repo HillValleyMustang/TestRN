@@ -58,7 +58,7 @@ export const ExerciseInfoDialog = ({ exercise, trigger, exerciseWorkouts = [], o
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="sm:max-w-[400px] p-0 backdrop-blur-md"> {/* Adjusted max-width and added backdrop-blur */}
+      <DialogContent className="sm:max-w-md p-0"> {/* Adjusted max-width and removed backdrop-blur */}
         <DialogHeader className="p-6 pb-4"> {/* Add padding to header */}
           <DialogTitle>{exercise.name} Information</DialogTitle>
         </DialogHeader>
