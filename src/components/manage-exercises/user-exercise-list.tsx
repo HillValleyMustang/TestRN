@@ -108,7 +108,7 @@ export const UserExerciseList = ({
                             {exerciseWorkoutsMap[ex.id].map(workout => (
                               <Badge 
                                 key={workout.id} 
-                                className={cn("px-2 py-0.5 text-xs text-primary-foreground", getWorkoutColorClass(workout.name, 'bg'))}
+                                className={cn("px-2 py-0.5 text-xs text-foreground", getWorkoutColorClass(workout.name, 'bg'))}
                               >
                                 {workout.name}
                               </Badge>
