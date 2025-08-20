@@ -11,7 +11,7 @@ const corsHeaders = {
 // @ts-ignore
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 // @ts-ignore
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`; // Updated to gemini-1.5-flash-latest
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -46,7 +46,7 @@ serve(async (req: Request) => {
       a brief description of how to use it, a practical pro tip for performing the exercise,
       and a relevant YouTube video URL (can be an empty string if none found).
 
-      Respond only with a JSON object. Ensure all fields are present, even if null or empty string.
+      IMPORTANT: Respond ONLY with a JSON object. Do NOT include any other text, markdown formatting (like \`\`\`json), or conversational phrases. The response must be a pure JSON string.
       Example:
       {
         "name": "Exercise Name",
@@ -87,11 +87,15 @@ serve(async (req: Request) => {
       throw new Error("AI did not return a valid response.");
     }
 
+    // Use a regex to extract the JSON object from the generated text
+    const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
+    let jsonString = jsonMatch ? jsonMatch[0] : generatedText; // Fallback to full text if no match
+
     let identifiedExercise;
     try {
-      identifiedExercise = JSON.parse(generatedText);
+      identifiedExercise = JSON.parse(jsonString);
     } catch (parseError) {
-      console.error("Failed to parse Gemini response as JSON:", generatedText);
+      console.error("Failed to parse Gemini response as JSON:", jsonString);
       throw new Error("AI returned an invalid format. Please try again or use manual entry.");
     }
 
