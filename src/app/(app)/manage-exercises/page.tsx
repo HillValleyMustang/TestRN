@@ -6,6 +6,7 @@ import { Tables } from "@/types/supabase";
 import { toast } from "sonner";
 import { ExerciseForm } from "@/components/manage-exercises/exercise-form";
 import { ExerciseList } from "@/components/manage-exercises/exercise-list";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -16,43 +17,53 @@ export default function ManageExercisesPage() {
   const [editingExercise, setEditingExercise] = useState<ExerciseDefinition | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [exerciseToDelete, setExerciseToDelete] = useState<ExerciseDefinition | null>(null);
+  const [selectedMuscleFilter, setSelectedMuscleFilter] = useState<string>('all');
+  const [availableMuscleGroups, setAvailableMuscleGroups] = useState<string[]>([]);
 
   const fetchExercises = useCallback(async () => {
     if (!session) return;
     setLoading(true);
     try {
-      // Fetch all exercises: user's own and global ones
-      const { data, error } = await supabase
+      // Fetch all exercises (user's own and global ones) to get all muscle groups
+      const { data: allData, error: allDataError } = await supabase
         .from('exercise_definitions')
-        .select('*')
+        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at') // Added created_at
         .or(`user_id.eq.${session.user.id},user_id.is.null`)
         .order('name', { ascending: true });
 
-      if (error) {
-        throw new Error(error.message);
+      if (allDataError) {
+        throw new Error(allDataError.message);
+      }
+
+      // Extract unique muscle groups for the filter dropdown
+      const uniqueMuscles = Array.from(new Set(allData.map(ex => ex.main_muscle))).sort();
+      setAvailableMuscleGroups(['all', ...uniqueMuscles]);
+
+      // Apply the selected filter
+      let filteredData = allData;
+      if (selectedMuscleFilter !== 'all') {
+        filteredData = allData.filter(ex => ex.main_muscle === selectedMuscleFilter);
       }
 
       // Filter out global exercises if a user-owned copy already exists
-      const userOwnedExercises = data.filter(ex => ex.user_id === session.user.id);
-      const globalExercises = data.filter(ex => ex.user_id === null);
+      const userOwnedExercises = filteredData.filter(ex => ex.user_id === session.user.id);
+      const globalExercises = filteredData.filter(ex => ex.user_id === null);
 
       const userOwnedLibraryIds = new Set(userOwnedExercises.map(ex => ex.library_id).filter(Boolean));
 
-      const filteredGlobalExercises = globalExercises.filter(ex => 
+      const finalExercises = globalExercises.filter(ex => 
         ex.library_id === null || !userOwnedLibraryIds.has(ex.library_id)
-      );
+      ).concat(userOwnedExercises); // Concatenate user-owned exercises
 
-      // Combine and sort: user-owned first, then filtered global
-      const combinedExercises = [...userOwnedExercises, ...filteredGlobalExercises];
-      combinedExercises.sort((a, b) => a.name.localeCompare(b.name));
+      finalExercises.sort((a, b) => a.name.localeCompare(b.name));
 
-      setExercises(combinedExercises || []);
+      setExercises(finalExercises || []);
     } catch (err: any) {
       toast.error("Failed to load exercises: " + err.message);
     } finally {
       setLoading(false);
     }
-  }, [session, supabase]);
+  }, [session, supabase, selectedMuscleFilter]); // Re-run when filter changes
 
   useEffect(() => {
     fetchExercises();
@@ -107,6 +118,21 @@ export default function ManageExercisesPage() {
           />
         </div>
         <div className="lg:col-span-2">
+          <div className="mb-4">
+            <Select onValueChange={setSelectedMuscleFilter} value={selectedMuscleFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by Muscle Group" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Muscle Groups</SelectItem>
+                {availableMuscleGroups.filter(muscle => muscle !== 'all').map(muscle => (
+                  <SelectItem key={muscle} value={muscle}>
+                    {muscle}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <ExerciseList
             exercises={exercises}
             loading={loading}
