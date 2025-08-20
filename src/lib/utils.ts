@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { ArrowUp, ArrowDown, ArrowRight, ArrowLeft, Footprints, LucideIcon } from "lucide-react";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -13,13 +14,11 @@ export function getWorkoutColorClass(workoutName: string, type: 'text' | 'border
       colorKey = 'upper-body-a';
       break;
     case 'Lower Body A':
+    case 'Lower Body B':
       colorKey = 'lower-body-a';
       break;
     case 'Upper Body B':
       colorKey = 'upper-body-b';
-      break;
-    case 'Lower Body B':
-      colorKey = 'lower-body-b';
       break;
     case 'Push':
     case '3-Day Push/Pull/Legs': // Map main T-Path to its first workout's color
@@ -43,4 +42,23 @@ export function getWorkoutColorClass(workoutName: string, type: 'text' | 'border
     return `border-workout-${colorKey}-border`; // Use the new border variant
   }
   return '';
+}
+
+export function getWorkoutIcon(workoutName: string): LucideIcon | null {
+  switch (workoutName) {
+    case 'Upper Body A':
+    case 'Upper Body B':
+      return ArrowUp; // Up arrow for Upper body
+    case 'Lower Body A':
+    case 'Lower Body B':
+      return ArrowDown; // Down arrow for Lower body
+    case 'Push':
+      return ArrowRight; // Represents pushing forward/away
+    case 'Pull':
+      return ArrowLeft; // Represents pulling towards
+    case 'Legs':
+      return Footprints; // Represents leg movement
+    default:
+      return null; // No specific icon for other workouts or 'Ad Hoc Workout'
+  }
 }
