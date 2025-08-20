@@ -58,7 +58,7 @@ export const ExerciseInfoDialog = ({ exercise, trigger, exerciseWorkouts = [], o
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{exercise.name} Information</DialogTitle>
         </DialogHeader>
