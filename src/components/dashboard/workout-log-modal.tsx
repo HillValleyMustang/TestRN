@@ -30,13 +30,13 @@ export const WorkoutLogModal = ({ open, onOpenChange }: WorkoutLogModalProps) =>
         try {
           const { data, error } = await supabase
             .from('workout_sessions')
-            .select('*')
+            .select('id, template_name, session_date, duration_string, created_at, rating, user_id') // Specify all columns required by WorkoutSession
             .eq('user_id', session.user.id)
             .order('session_date', { ascending: false })
             .limit(3);
 
           if (error) throw error;
-          setRecentSessions(data || []);
+          setRecentSessions(data as WorkoutSession[] || []); // Explicitly cast
         } catch (err: any) {
           toast.error("Failed to load recent workouts: " + err.message);
         } finally {

@@ -28,13 +28,13 @@ export const NextWorkoutCard = () => {
         // Get the user's T-Path
         const { data, error } = await supabase
           .from('t_paths')
-          .select('*')
+          .select('id, template_name, created_at, is_bonus, user_id, version, settings, progression_settings, parent_t_path_id') // Specify all columns required by TPath
           .eq('user_id', session.user.id)
           .limit(1);
 
         if (error) throw error;
         if (data && data.length > 0) {
-          setTPath(data[0]);
+          setTPath(data[0] as TPath); // Explicitly cast
         }
       } catch (err: any) {
         toast.error("Failed to load T-Path: " + err.message);

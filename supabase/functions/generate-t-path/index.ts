@@ -402,7 +402,7 @@ serve(async (req: Request) => {
       try {
         const { data: rawStructureEntries, error: structureError } = await supabaseServiceRoleClient
           .from('workout_exercise_structure')
-          .select('*')
+          .select('exercise_library_id, min_session_minutes, bonus_for_time_group') // Specify columns
           .eq('workout_split', workoutSplit)
           .eq('workout_name', workoutName)
           .order('min_session_minutes', { ascending: true, nullsFirst: false })
@@ -421,7 +421,7 @@ serve(async (req: Request) => {
         for (const entry of rawStructureEntries || []) {
           const { data: exerciseDefData, error: exerciseDefError } = await supabaseServiceRoleClient
             .from('exercise_definitions')
-            .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id')
+            .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id') // Specify columns
             .eq('library_id', entry.exercise_library_id)
             .single();
 
@@ -452,7 +452,8 @@ serve(async (req: Request) => {
             isBonus = true;
             orderCriteriaValue = entry.bonus_for_time_group;
             console.log(`  Exercise: ${actualExercise.name}, Type: Bonus, bonus_for_time_group: ${orderCriteriaValue}, maxAllowedMinutes: ${maxAllowedMinutes}`);
-            if (orderCriteriaValue !== null && orderCriteriaValue <= maxAllowedMinutes) {
+            // Changed condition for bonus exercises to be strictly less than maxAllowedMinutes
+            if (orderCriteriaValue !== null && orderCriteriaValue < maxAllowedMinutes) { 
               includeExercise = true;
             }
           }
@@ -497,7 +498,7 @@ serve(async (req: Request) => {
             version: 1,
             settings: tPathSettings
           })
-          .select()
+          .select('id') // Specify columns
           .single();
 
         if (workoutError) {

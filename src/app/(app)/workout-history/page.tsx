@@ -30,14 +30,14 @@ export default function WorkoutHistoryPage() { // Renamed component
     try {
       const { data, error } = await supabase
         .from('workout_sessions')
-        .select('*')
+        .select('id, template_name, session_date, duration_string, created_at, rating, user_id') // Specify all columns required by WorkoutSession
         .eq('user_id', session.user.id)
         .order('session_date', { ascending: false });
 
       if (error) {
         throw new Error(error.message);
       }
-      setWorkoutSessions(data || []);
+      setWorkoutSessions(data as WorkoutSession[] || []); // Explicitly cast
     } catch (err: any) {
       console.error("Failed to fetch workout history:", err);
       setError(err.message || "Failed to load workout history. Please try again.");

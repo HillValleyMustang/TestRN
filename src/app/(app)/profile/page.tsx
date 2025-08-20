@@ -72,7 +72,7 @@ export default function ProfilePage() {
       setLoading(true);
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('first_name, last_name, height_cm, weight_kg, body_fat_pct, primary_goal, health_notes, preferred_weight_unit, preferred_distance_unit, default_rest_time_seconds, preferred_muscles, preferred_session_length, active_t_path_id, last_ai_coach_use_at, created_at, full_name, id, target_date, updated_at') // Specify all columns required by Profile
         .eq('id', session.user.id)
         .single();
 

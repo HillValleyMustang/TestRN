@@ -36,7 +36,7 @@ export default function StartTPathPage() {
       // Fetch main T-Paths (where user_id is the actual user's ID and parent_t_path_id is NULL)
       const { data: mainTPaths, error: mainTPathsError } = await supabase
         .from('t_paths')
-        .select('*')
+        .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id') // Specify all columns required by TPath
         .eq('user_id', session.user.id)
         .is('parent_t_path_id', null) // Main T-Paths have no parent
         .order('template_name', { ascending: true });
@@ -45,17 +45,17 @@ export default function StartTPathPage() {
 
       const tPathsWithWorkouts: TPathWithWorkouts[] = [];
 
-      for (const mainTPath of mainTPaths || []) {
+      for (const mainTPath of mainTPaths as TPath[] || []) { // Explicitly cast
         // Fetch child workouts for each main T-Path (where parent_t_path_id is the main T-Path's ID)
         const { data: childWorkouts, error: childWorkoutsError } = await supabase
           .from('t_paths')
-          .select('*')
+          .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id') // Specify all columns required by TPath
           .eq('parent_t_path_id', mainTPath.id) // Link to parent T-Path
           .order('template_name', { ascending: true });
 
         if (childWorkoutsError) throw childWorkoutsError;
 
-        const workoutsWithLastDate = await Promise.all((childWorkouts || []).map(async (workout) => {
+        const workoutsWithLastDate = await Promise.all((childWorkouts as TPath[] || []).map(async (workout) => { // Explicitly cast
           const { data: lastSessionDate, error: lastSessionError } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
           
           if (lastSessionError) {

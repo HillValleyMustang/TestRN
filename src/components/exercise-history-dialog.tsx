@@ -16,7 +16,7 @@ type ExerciseDefinition = Tables<'exercise_definitions'>;
 type Profile = Tables<'profiles'>;
 
 // Define a new type to correctly represent the fetched data with the joined workout_sessions
-type SetLogWithSession = SetLog & {
+type SetLogWithSession = Pick<SetLog, 'id' | 'weight_kg' | 'reps' | 'reps_l' | 'reps_r' | 'time_seconds' | 'created_at' | 'exercise_id' | 'is_pb' | 'session_id'> & {
   workout_sessions: Pick<Tables<'workout_sessions'>, 'session_date'> | null;
 };
 
@@ -61,7 +61,7 @@ export const ExerciseHistoryDialog = ({ exerciseId, exerciseName, exerciseType, 
         const { data, error } = await supabase
           .from('set_logs')
           .select(`
-            *,
+            id, weight_kg, reps, reps_l, reps_r, time_seconds, created_at, exercise_id, is_pb, session_id,
             workout_sessions (
               session_date
             )
@@ -73,7 +73,13 @@ export const ExerciseHistoryDialog = ({ exerciseId, exerciseName, exerciseType, 
           throw new Error(error.message);
         }
 
-        setHistoryLogs(data as SetLogWithSession[] || []); // Cast the data to the new type
+        // Map the data to the correct type, handling workout_sessions as an array
+        const mappedData: SetLogWithSession[] = (data as (SetLog & { workout_sessions: Pick<Tables<'workout_sessions'>, 'session_date'>[] | null })[]).map(log => ({
+          ...log,
+          workout_sessions: (log.workout_sessions && log.workout_sessions.length > 0) ? log.workout_sessions[0] : null,
+        }));
+
+        setHistoryLogs(mappedData || []); // Cast the data to the new type
       } catch (err: any) {
         console.error("Failed to fetch exercise history:", err);
         toast.error("Failed to load exercise history: " + err.message);

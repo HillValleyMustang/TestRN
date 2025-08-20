@@ -39,7 +39,7 @@ export const ExerciseVolumeChart = ({ currentSessionId, exerciseName, exerciseId
         const { data: setLogs, error: fetchError } = await supabase
           .from('set_logs')
           .select(`
-            *,
+            weight_kg, reps,
             workout_sessions (
               session_date,
               id
@@ -57,7 +57,10 @@ export const ExerciseVolumeChart = ({ currentSessionId, exerciseName, exerciseId
         const sessionVolumes: Record<string, { date: string; volume: number; sessionId: string }> = {};
         
         (setLogs || []).forEach(log => {
-          const sessionId = log.workout_sessions?.id;
+          // Access workout_sessions as an array and get the first element
+          const sessionInfo = (log.workout_sessions as { session_date: string; id: string }[] | null)?.[0];
+          const sessionId = sessionInfo?.id;
+
           if (!sessionId) return;
           
           // Skip the current session
@@ -69,7 +72,7 @@ export const ExerciseVolumeChart = ({ currentSessionId, exerciseName, exerciseId
           
           if (!sessionVolumes[sessionId]) {
             sessionVolumes[sessionId] = {
-              date: new Date(log.workout_sessions?.session_date || '').toLocaleDateString(),
+              date: new Date(sessionInfo.session_date || '').toLocaleDateString(),
               volume: 0,
               sessionId
             };

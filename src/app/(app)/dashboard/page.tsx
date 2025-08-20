@@ -30,7 +30,7 @@ export default function DashboardPage() {
         // Check if user has completed onboarding
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('*')
+          .select('first_name, last_name, active_t_path_id, body_fat_pct, created_at, default_rest_time_seconds, full_name, health_notes, height_cm, id, last_ai_coach_use_at, preferred_distance_unit, preferred_muscles, preferred_session_length, preferred_weight_unit, primary_goal, target_date, updated_at, weight_kg') // Specify all columns required by Profile
           .eq('id', session.user.id)
           .single();
         
@@ -44,7 +44,7 @@ export default function DashboardPage() {
           return;
         }
 
-        setProfile(profileData);
+        setProfile(profileData as Profile); // Explicitly cast
 
         // Check if user has T-Paths
         const { data: tPaths, error: tPathError } = await supabase

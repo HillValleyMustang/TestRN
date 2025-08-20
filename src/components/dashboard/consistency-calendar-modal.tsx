@@ -23,13 +23,13 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
         try {
           const { data: workoutDates, error: workoutError } = await supabase
             .from('workout_sessions')
-            .select('session_date')
+            .select('session_date') // Specify columns
             .eq('user_id', session.user.id);
           if (workoutError) throw workoutError;
 
           const { data: activityDates, error: activityError } = await supabase
             .from('activity_logs')
-            .select('log_date')
+            .select('log_date') // Specify columns
             .eq('user_id', session.user.id);
           if (activityError) throw activityError;
 

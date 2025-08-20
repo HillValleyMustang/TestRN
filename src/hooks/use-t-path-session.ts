@@ -11,8 +11,8 @@ type ExerciseDefinition = Tables<'exercise_definitions'>;
 type SetLogInsert = TablesInsert<'set_logs'>;
 
 // Define a type for the joined data from t_path_exercises
-type TPathExerciseJoin = Tables<'t_path_exercises'> & {
-  exercise_definitions: Tables<'exercise_definitions'>[] | null;
+type TPathExerciseJoin = Pick<Tables<'t_path_exercises'>, 'id' | 'created_at' | 'exercise_id' | 'template_id' | 'order_index'> & {
+  exercise_definitions: Pick<Tables<'exercise_definitions'>, 'id' | 'name' | 'main_muscle' | 'type' | 'category' | 'description' | 'pro_tip' | 'video_url'>[] | null;
 };
 
 interface UseTPathSessionProps {
@@ -60,7 +60,7 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
       // 1. Fetch the specific workout (which is a child T-Path)
       const { data: tPathData, error: fetchTPathError } = await supabase
         .from('t_paths')
-        .select('*')
+        .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id') // Specify all columns required by TPath
         .eq('id', tPathId)
         .eq('user_id', session.user.id) // Ensure it belongs to the current user
         .eq('is_bonus', true) // It must be a child workout
@@ -69,7 +69,7 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
       if (fetchTPathError || !tPathData) {
         throw new Error(fetchTPathError?.message || "Workout not found or not accessible.");
       }
-      setTPath(tPathData);
+      setTPath(tPathData as TPath); // Explicitly cast
 
       // 2. Fetch all exercises associated with this specific workout (child T-Path)
       const { data: tPathExercisesData, error: fetchTPathExercisesError } = await supabase

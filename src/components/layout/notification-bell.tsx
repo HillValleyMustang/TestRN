@@ -28,6 +28,7 @@ export function NotificationBell() {
     if (!session) return;
     setLoading(true);
     try {
+      // RPC call already selects specific columns, no change needed here.
       const { data, error } = await supabase.rpc('get_notifications_with_read_status');
 
       if (error) {

@@ -49,14 +49,14 @@ export const useAdHocWorkoutSession = ({ session, supabase, router }: UseAdHocWo
       // 1. Fetch all available exercise definitions for the user
       const { data: exercisesData, error: fetchExercisesError } = await supabase
         .from('exercise_definitions')
-        .select('*')
+        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, is_favorite, created_at, user_id') // Specify all columns required by ExerciseDefinition
         .eq('user_id', session.user.id)
         .order('name', { ascending: true });
 
       if (fetchExercisesError) {
         throw new Error(fetchExercisesError.message);
       }
-      setAllExercises(exercisesData || []);
+      setAllExercises(exercisesData as ExerciseDefinition[] || []); // Explicitly cast
 
       // 2. Create a new ad-hoc workout session entry
       const { data: sessionData, error: sessionError } = await supabase

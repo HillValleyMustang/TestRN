@@ -51,7 +51,7 @@ export const ExerciseCard = ({
       if (!session) return;
       const { data: profileData, error } = await supabase
         .from('profiles')
-        .select('preferred_weight_unit, default_rest_time_seconds')
+        .select('preferred_weight_unit, default_rest_time_seconds') // Specify columns
         .eq('id', session.user.id)
         .single();
 

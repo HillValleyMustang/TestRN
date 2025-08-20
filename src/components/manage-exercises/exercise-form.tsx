@@ -176,8 +176,10 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
         const { error } = await supabase.from('exercise_definitions').insert([{ 
           ...exerciseData, 
           user_id: session.user.id,
-          library_id: editingExercise.library_id // Preserve the original library_id
-        }]);
+          library_id: editingExercise.library_id, // Preserve the original library_id
+          is_favorite: false, // Default to not favorited on adoption
+          created_at: new Date().toISOString(), // Add created_at
+        }]).select('id').single(); // Specify columns for select
 
         if (error) {
           if (error.code === '23505') { // Unique violation code
@@ -212,8 +214,10 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
       const { error } = await supabase.from('exercise_definitions').insert([{ 
         ...exerciseData, 
         user_id: session.user.id,
-        library_id: null // No library_id for user-created exercises
-      }]);
+        library_id: null, // No library_id for user-created exercises
+        is_favorite: false, // Default to not favorited
+        created_at: new Date().toISOString(), // Add created_at
+      }]).select('id').single(); // Specify columns for select
       if (error) {
         toast.error("Failed to add exercise: " + error.message);
       } else {

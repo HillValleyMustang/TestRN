@@ -29,6 +29,7 @@ export function UserNav() {
     return null;
   }
 
+  // Access user_metadata directly from session.user
   const user = session.user;
   const userInitial = user.email ? user.email[0].toUpperCase() : '?';
 

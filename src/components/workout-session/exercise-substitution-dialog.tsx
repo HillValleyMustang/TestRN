@@ -37,7 +37,7 @@ export const ExerciseSubstitutionDialog = ({
       // Fetch all exercises (user-owned and global) that match criteria
       const { data: allMatchingExercises, error: fetchError } = await supabase
         .from('exercise_definitions')
-        .select('*')
+        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite') // Specify all columns required by ExerciseDefinition
         .or(`user_id.eq.${session.user.id},user_id.is.null`) // User's own or global
         .eq('main_muscle', currentExercise.main_muscle)
         .eq('type', currentExercise.type)
@@ -52,7 +52,7 @@ export const ExerciseSubstitutionDialog = ({
           .map(ex => ex.library_id)
       );
 
-      const filteredSubstitutions = allMatchingExercises.filter(ex => {
+      const filteredSubstitutions = (allMatchingExercises as ExerciseDefinition[]).filter(ex => { // Explicitly cast
         if (ex.user_id === null && ex.library_id && userOwnedExerciseIds.has(ex.library_id)) {
           return false; // Exclude global if user has an adopted copy
         }
@@ -83,7 +83,7 @@ export const ExerciseSubstitutionDialog = ({
     if (exercise.library_id) {
       const { data: existingAdopted, error: fetchError } = await supabase
         .from('exercise_definitions')
-        .select('*')
+        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite') // Specify all columns required by ExerciseDefinition
         .eq('user_id', session!.user.id)
         .eq('library_id', exercise.library_id)
         .single();
@@ -92,7 +92,7 @@ export const ExerciseSubstitutionDialog = ({
         throw fetchError;
       }
       if (existingAdopted) {
-        return existingAdopted; // Return existing adopted copy
+        return existingAdopted as ExerciseDefinition; // Explicitly cast
       }
     }
 
@@ -109,6 +109,7 @@ export const ExerciseSubstitutionDialog = ({
         video_url: exercise.video_url,
         user_id: session!.user.id,
         library_id: exercise.library_id || null, // Preserve library_id if it exists
+        is_favorite: false, // Default to not favourited on adoption
       })
       .select()
       .single();

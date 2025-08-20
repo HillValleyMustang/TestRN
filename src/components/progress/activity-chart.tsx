@@ -52,7 +52,7 @@ export const ActivityChart = () => {
       try {
         const { data: activityLogs, error: fetchError } = await supabase
           .from('activity_logs')
-          .select('*')
+          .select('log_date, activity_type, distance, time') // Specify columns
           .eq('user_id', session.user.id)
           .order('log_date', { ascending: true });
 

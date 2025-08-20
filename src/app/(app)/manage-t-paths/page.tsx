@@ -22,10 +22,16 @@ export default function ManageTPathsPage() {
   const fetchTPathsAndExercises = useCallback(async () => {
     if (!session) return;
     setLoading(true);
-    const { data: tData, error: tError } = await supabase.from('t_paths').select('*').eq('user_id', session.user.id);
-    if (tError) toast.error("Failed to load T-Paths"); else setTPaths(tData || []);
-    const { data: eData, error: eError } = await supabase.from('exercise_definitions').select('*').eq('user_id', session.user.id);
-    if (eError) toast.error("Failed to load exercises"); else setAllExercises(eData || []);
+    const { data: tData, error: tError } = await supabase
+      .from('t_paths')
+      .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id') // Specify all columns required by TPath
+      .eq('user_id', session.user.id);
+    if (tError) toast.error("Failed to load T-Paths"); else setTPaths(tData as TPath[] || []); // Explicitly cast
+    const { data: eData, error: eError } = await supabase
+      .from('exercise_definitions')
+      .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, is_favorite, created_at, user_id') // Specify all columns required by ExerciseDefinition
+      .eq('user_id', session.user.id);
+    if (eError) toast.error("Failed to load exercises"); else setAllExercises(eData as ExerciseDefinition[] || []); // Explicitly cast
     setLoading(false);
   }, [session, supabase]);
 

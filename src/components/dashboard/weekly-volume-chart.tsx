@@ -6,6 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { useSession } from '@/components/session-context-provider';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
+import { formatWeight } from '@/lib/unit-conversions';
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
@@ -18,7 +19,7 @@ interface ChartData {
 
 // Define a type for SetLog with joined ExerciseDefinition
 type SetLogWithExerciseDefinition = SetLog & {
-  exercise_definitions: ExerciseDefinition | null;
+  exercise_definitions: Pick<ExerciseDefinition, 'type'>[] | null; // Changed to array
 };
 
 export const WeeklyVolumeChart = () => {
@@ -53,12 +54,12 @@ export const WeeklyVolumeChart = () => {
           return;
         }
 
-        // Fetch all set logs associated with these sessions
+        // Fetch all set logs associated with these sessions, selecting all SetLog columns and necessary exercise definition columns
         const { data: setLogsData, error: setLogsError } = await supabase
           .from('set_logs')
           .select(`
-            *,
-            exercise_definitions (*)
+            id, created_at, exercise_id, is_pb, reps, reps_l, reps_r, session_id, time_seconds, weight_kg,
+            exercise_definitions (type)
           `)
           .in('session_id', sessionIds);
 
@@ -75,8 +76,8 @@ export const WeeklyVolumeChart = () => {
         // Aggregate volume by week
         const weeklyVolumeMap = new Map<string, number>(); // 'YYYY-WW' -> total volume
 
-        (setLogsData as SetLogWithExerciseDefinition[]).forEach(log => { // Cast to the new type
-          const exerciseType = log.exercise_definitions?.type;
+        (setLogsData as SetLogWithExerciseDefinition[]).forEach(log => { // Explicitly cast
+          const exerciseType = log.exercise_definitions?.[0]?.type; // Access the type from the first element of the array
           if (exerciseType === 'weight' && log.weight_kg && log.reps && log.session_id) {
             const sessionDateStr = sessionDateMap.get(log.session_id);
             if (sessionDateStr) {

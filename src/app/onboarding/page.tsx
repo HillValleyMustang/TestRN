@@ -106,7 +106,7 @@ export default function OnboardingPage() {
       const { data: tPath, error: tPathError } = await supabase
         .from('t_paths')
         .insert([tPathData])
-        .select()
+        .select('id') // Specify columns
         .single();
 
       if (tPathError) throw tPathError;

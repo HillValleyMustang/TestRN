@@ -28,21 +28,21 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
 
   useEffect(() => {
     const fetchUserWorkouts = async () => {
-      if (!session || !open) return;
+      if (!session) return;
 
       setLoading(true);
       try {
         // Fetch only the user's child T-Paths (workouts)
         const { data, error } = await supabase
           .from('t_paths')
-          .select('*') // Changed to select all columns to match TPath type
+          .select('id, template_name, created_at, is_bonus, user_id, version, settings, progression_settings, parent_t_path_id') // Specify all columns required by TPath
           .eq('user_id', session.user.id)
           .eq('is_bonus', true) // These are the individual workouts within a main T-Path
           .not('parent_t_path_id', 'is', null) // Ensure it's a child workout
           .order('template_name', { ascending: true });
 
         if (error) throw error;
-        setUserWorkouts(data || []);
+        setUserWorkouts(data as TPath[] || []); // Explicitly cast
       } catch (err: any) {
         console.error("Failed to fetch user workouts:", err);
         toast.error("Failed to load your workouts: " + err.message);
@@ -66,7 +66,7 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
     if (exerciseToAdopt.library_id) {
       const { data: existingAdopted, error: fetchError } = await supabase
         .from('exercise_definitions')
-        .select('*')
+        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite') // Specify all columns required by ExerciseDefinition
         .eq('user_id', session!.user.id)
         .eq('library_id', exerciseToAdopt.library_id)
         .single();
@@ -75,7 +75,7 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
         throw fetchError;
       }
       if (existingAdopted) {
-        return existingAdopted; // Return existing adopted copy
+        return existingAdopted as ExerciseDefinition; // Explicitly cast
       }
     }
 

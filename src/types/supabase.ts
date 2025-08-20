@@ -41,3 +41,8 @@ export type ProfileUpdate = TablesUpdate<'profiles'> & {
   preferred_session_length?: string | null;
   active_t_path_id?: string | null;
 };
+
+// Define a type for set logs joined with exercise definitions, including is_pb
+export type SetLogWithExercise = Pick<Tables<'set_logs'>, 'id' | 'weight_kg' | 'reps' | 'reps_l' | 'reps_r' | 'time_seconds' | 'is_pb' | 'created_at' | 'exercise_id' | 'session_id'> & {
+  exercise_definitions: Pick<Tables<'exercise_definitions'>, 'id' | 'name' | 'main_muscle' | 'type' | 'category'> | null;
+};

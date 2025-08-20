@@ -6,7 +6,7 @@ import { useSession } from '@/components/session-context-provider';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
-import { Tables } from '@/types/supabase';
+import { Tables, SetLogWithExercise } from '@/types/supabase'; // Import SetLogWithExercise
 import { toast } from 'sonner';
 import { WorkoutStatsCard } from '@/components/workout-summary/workout-stats-card';
 import { WorkoutRatingCard } from '@/components/workout-summary/workout-rating-card';
@@ -15,11 +15,6 @@ import { ExerciseSummaryCard } from '@/components/workout-summary/exercise-summa
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
-
-// Define a type for set logs joined with exercise definitions, including is_pb
-type SetLogWithExercise = SetLog & {
-  exercise_definitions: ExerciseDefinition | null;
-};
 
 // Define a type for the grouped exercise data
 type ExerciseGroup = {
@@ -61,7 +56,7 @@ export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) 
         // Fetch workout session details
         const { data: sessionData, error: sessionError } = await supabase
           .from('workout_sessions')
-          .select('*')
+          .select('id, template_name, duration_string, session_date, rating, created_at, user_id') // Specify all columns required by WorkoutSession
           .eq('id', sessionId)
           .eq('user_id', session.user.id)
           .single();
@@ -69,7 +64,7 @@ export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) 
         if (sessionError || !sessionData) {
           throw new Error(sessionError?.message || "Workout session not found.");
         }
-        setWorkoutSession(sessionData);
+        setWorkoutSession(sessionData as WorkoutSession); // Explicitly cast
         setCurrentRating(sessionData.rating);
         setIsRatingSaved(sessionData.rating !== null);
 
@@ -77,7 +72,7 @@ export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) 
         const { data: setLogsData, error: setLogsError } = await supabase
           .from('set_logs')
           .select(`
-            *,
+            id, exercise_id, weight_kg, reps, reps_l, reps_r, time_seconds, is_pb, created_at, session_id,
             exercise_definitions (
               id, name, main_muscle, type, category
             )
@@ -93,8 +88,8 @@ export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) 
         let prCount = 0;
         const processedSetLogs: SetLogWithExercise[] = [];
 
-        (setLogsData as SetLogWithExercise[]).forEach(log => {
-          const exerciseDef = log.exercise_definitions as ExerciseDefinition;
+        (setLogsData as (SetLog & { exercise_definitions: Pick<ExerciseDefinition, 'id' | 'name' | 'main_muscle' | 'type' | 'category'>[] | null })[]).forEach(log => {
+          const exerciseDef = (log.exercise_definitions && log.exercise_definitions.length > 0) ? log.exercise_definitions[0] : null;
           if (exerciseDef?.type === 'weight' && log.weight_kg && log.reps) {
             volume += log.weight_kg * log.reps;
           }

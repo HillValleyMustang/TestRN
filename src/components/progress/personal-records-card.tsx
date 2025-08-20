@@ -10,6 +10,7 @@ import { Trophy } from 'lucide-react';
 
 type SetLog = Tables<'set_logs'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
+type WorkoutSession = Tables<'workout_sessions'>; // Import WorkoutSession type
 
 interface PersonalRecord {
   exerciseName: string;
@@ -30,22 +31,28 @@ export const PersonalRecordsCard = () => {
       
       setLoading(true);
       try {
-        // Fetch all personal records (sets marked as PR)
+        // Fetch all set logs for the user that are marked as PRs
+        // We need to join with workout_sessions to filter by user_id
         const { data: prSets, error } = await supabase
           .from('set_logs')
           .select(`
-            *,
-            exercise_definitions (name, type)
+            id, created_at, weight_kg, reps, time_seconds, is_pb,
+            exercise_definitions (name, type),
+            workout_sessions (user_id)
           `)
           .eq('is_pb', true)
-          .eq('session_id', session.user.id)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
 
+        // Filter the results on the client side to ensure they belong to the current user
+        // This is necessary because RLS on set_logs only allows access to sets linked to user's sessions,
+        // but the initial select doesn't directly filter by user_id on set_logs.
+        const userPrSets = (prSets || []).filter((set: any) => set.workout_sessions?.user_id === session.user.id);
+
         // Process the records
         const records: PersonalRecord[] = [];
-        (prSets || []).forEach((set: any) => {
+        userPrSets.forEach((set: any) => {
           const exercise = set.exercise_definitions;
           if (!exercise) return;
 

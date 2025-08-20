@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Tables } from "@/types/supabase";
+import { Tables, SetLogWithExercise } from "@/types/supabase"; // Import SetLogWithExercise
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Trophy } from "lucide-react";
@@ -9,11 +9,6 @@ import { ExerciseVolumeChart } from "./exercise-volume-chart";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type SetLog = Tables<'set_logs'>;
-
-// Define a type for set logs joined with exercise definitions, including is_pb
-type SetLogWithExercise = SetLog & {
-  exercise_definitions: ExerciseDefinition | null;
-};
 
 interface ExerciseSummaryCardProps {
   exerciseGroup: {

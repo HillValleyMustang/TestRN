@@ -98,7 +98,7 @@ serve(async (req: Request) => {
         user_id: null, // Mark as a global exercise
         library_id: newLibraryId, // Assign the unique AI-generated library ID
       })
-      .select()
+      .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id') // Specify columns
       .single();
 
     if (insertError) {

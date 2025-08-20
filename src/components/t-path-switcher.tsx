@@ -43,12 +43,12 @@ export const TPathSwitcher = ({ currentTPathId, onTPathChange }: TPathSwitcherPr
       try {
         const { data, error } = await supabase
           .from('t_paths')
-          .select('*')
+          .select('id, template_name, created_at, is_bonus, user_id, version, settings, progression_settings, parent_t_path_id') // Specify all columns required by TPath
           .eq('user_id', session.user.id)
           .is('parent_t_path_id', null); // Fetch only main T-Paths
 
         if (error) throw error;
-        setTPaths(data || []);
+        setTPaths(data as TPath[] || []); // Explicitly cast
       } catch (err: any) {
         toast.error("Failed to load T-Paths: " + err.message);
       }

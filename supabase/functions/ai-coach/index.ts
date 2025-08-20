@@ -20,7 +20,7 @@ interface SetLog {
   weight_kg: number | null;
   reps: number | null;
   time_seconds: number | null;
-  exercise_definitions: ExerciseDef | null;
+  exercise_definitions: Pick<ExerciseDef, 'name' | 'main_muscle'> | null; // Pick only 'name' and 'main_muscle'
 }
 
 interface WorkoutSession {
@@ -72,7 +72,7 @@ serve(async (req: Request) => {
     const sessionIds = sessions.map((s: WorkoutSession) => s.id);
     const { data: setLogs, error: setLogsError } = await supabaseClient
       .from('set_logs')
-      .select('*, exercise_definitions(name, main_muscle)')
+      .select('session_id, weight_kg, reps, time_seconds, exercise_definitions(name, main_muscle)') // Specify columns
       .in('session_id', sessionIds)
       .returns<SetLog[]>();
 

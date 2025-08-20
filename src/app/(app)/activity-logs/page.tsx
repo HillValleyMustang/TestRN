@@ -53,14 +53,14 @@ export default function ActivityLogsPage() {
       try {
         const { data, error } = await supabase
           .from('activity_logs')
-          .select('*')
+          .select('id, activity_type, is_pb, log_date, distance, time, avg_time, created_at, user_id') // Specify all columns required by ActivityLog
           .eq('user_id', session.user.id)
           .order('log_date', { ascending: false });
 
         if (error) {
           throw new Error(error.message);
         }
-        setActivityLogs(data || []);
+        setActivityLogs(data as ActivityLog[] || []); // Explicitly cast
       } catch (err: any) {
         console.error("Failed to fetch activity logs:", err);
         setError(err.message || "Failed to load activity logs. Please try again.");

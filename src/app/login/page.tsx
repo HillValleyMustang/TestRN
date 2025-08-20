@@ -7,6 +7,10 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { useSession } from '@/components/session-context-provider';
+import { Tables } from '@/types/supabase'; // Import Tables type
+
+type Profile = Tables<'profiles'>;
+type TPath = Tables<'t_paths'>;
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,7 +22,7 @@ export default function LoginPage() {
         // Check if user has completed onboarding
         const { data: profile } = await supabase
           .from('profiles')
-          .select('id')
+          .select('id') // Specify columns
           .eq('id', session.user.id)
           .single();
 
@@ -26,7 +30,7 @@ export default function LoginPage() {
           // User has profile, check if they have *main* T-Paths
           const { data: tPaths } = await supabase
             .from('t_paths')
-            .select('id')
+            .select('id') // Specify columns
             .eq('user_id', session.user.id)
             .is('parent_t_path_id', null) // Look for main T-Paths
             .limit(1);
@@ -68,8 +72,8 @@ export default function LoginPage() {
                   messageBackground: 'hsl(var(--destructive))',
                 },
               },
-            },
-          }}
+            }}
+          }
           theme="light" // Default to light theme
           redirectTo={`${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback`} // Ensure this matches your Supabase redirect URL
         />
