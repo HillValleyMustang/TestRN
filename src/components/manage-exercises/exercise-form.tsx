@@ -26,13 +26,15 @@ import {
   FormMessage 
 } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, Edit, XCircle, ChevronDown, ChevronUp, Info } from "lucide-react";
+import { PlusCircle, Edit, XCircle, ChevronDown, ChevronUp, Info, Sparkles } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { AnalyzeGymDialog } from "./analyze-gym-dialog"; 
+import { Label } from "@/components/ui/label"; // Import Label component
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -57,6 +59,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]);
+  const [showAnalyzeGymDialog, setShowAnalyzeGymDialog] = useState(false); // State for the new dialog
 
   const mainMuscleGroups = [
     "Pectorals", "Deltoids", "Lats", "Traps", "Biceps", 
@@ -139,6 +142,27 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
     
     form.setValue("main_muscles", newMuscles);
     setSelectedMuscles(newMuscles);
+  };
+
+  const handleExerciseIdentified = (identifiedData: Partial<ExerciseDefinition>) => {
+    // Reset form to treat this as a new exercise
+    onCancelEdit(); // Clear any existing editing state
+    setIsExpanded(true); // Ensure the form is open
+
+    const muscleGroups = identifiedData.main_muscle ? identifiedData.main_muscle.split(',').map(m => m.trim()) : [];
+    const exerciseType = identifiedData.type ? [identifiedData.type] as ("weight" | "timed")[] : [];
+
+    form.reset({
+      name: identifiedData.name || "",
+      main_muscles: muscleGroups,
+      type: exerciseType,
+      category: identifiedData.category || null,
+      description: identifiedData.description || null,
+      pro_tip: identifiedData.pro_tip || null,
+      video_url: identifiedData.video_url || null,
+    });
+    setSelectedMuscles(muscleGroups);
+    setSelectedTypes(exerciseType);
   };
 
   async function onSubmit(values: z.infer<typeof exerciseSchema>) {
@@ -266,6 +290,17 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowAnalyzeGymDialog(true)}
+                  className="flex-1"
+                >
+                  <Sparkles className="h-4 w-4 mr-2" /> Analyze My Gym
+                </Button>
+              </div>
+
               <FormField 
                 control={form.control} 
                 name="name" 
@@ -313,12 +348,12 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                       checked={selectedTypes.includes("weight")}
                       onCheckedChange={(checked) => handleTypeChange("weight", !!checked)}
                     />
-                    <label
+                    <Label
                       htmlFor="weight"
                       className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                     >
                       Weight Training
-                    </label>
+                    </Label>
                   </div>
                   <div className="flex items-center space-x-3">
                     <Checkbox
@@ -326,12 +361,12 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                       checked={selectedTypes.includes("timed")}
                       onCheckedChange={(checked) => handleTypeChange("timed", !!checked)}
                     />
-                    <label
+                    <Label
                       htmlFor="timed"
                       className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                     >
                       Timed (e.g. Plank)
-                    </label>
+                    </Label>
                   </div>
                 </div>
                 <FormMessage>
@@ -468,6 +503,11 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
           </Form>
         </CardContent>
       )}
+      <AnalyzeGymDialog
+        open={showAnalyzeGymDialog}
+        onOpenChange={setShowAnalyzeGymDialog}
+        onExerciseIdentified={handleExerciseIdentified}
+      />
     </Card>
   );
 };
