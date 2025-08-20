@@ -100,7 +100,7 @@ export default function ManageExercisesPage() {
       // Populate user-owned exercises first
       allExercisesData.filter(ex => ex.user_id === session.user.id).forEach(ex => {
         const key = ex.library_id || ex.id; // Use library_id if available, otherwise its own ID
-        userOwnedMap.set(key, ex);
+        userOwnedMap.set(key, { ...ex, is_favorite: !!ex.is_favorite }); // Ensure is_favorite is boolean
       });
 
       // Populate global exercises, ensuring no duplicates with user-owned versions
