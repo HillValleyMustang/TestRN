@@ -1,11 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Tables } from "@/types/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Edit, Trash2 } from "lucide-react";
+import { Edit, Trash2, Filter } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,6 +17,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ExerciseForm } from "@/components/manage-exercises/exercise-form";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -29,6 +38,12 @@ interface UserExerciseListProps {
   exerciseToDelete: ExerciseDefinition | null;
   setIsDeleteDialogOpen: (open: boolean) => void;
   confirmDeleteExercise: () => void;
+  editingExercise: ExerciseDefinition | null;
+  onCancelEdit: () => void;
+  onSaveSuccess: () => void;
+  selectedMuscleFilter: string;
+  setSelectedMuscleFilter: (value: string) => void;
+  availableMuscleGroups: string[];
 }
 
 export const UserExerciseList = ({
@@ -40,13 +55,63 @@ export const UserExerciseList = ({
   exerciseToDelete,
   setIsDeleteDialogOpen,
   confirmDeleteExercise,
+  editingExercise,
+  onCancelEdit,
+  onSaveSuccess,
+  selectedMuscleFilter,
+  setSelectedMuscleFilter,
+  availableMuscleGroups,
 }: UserExerciseListProps) => {
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+  const handleFilterChange = (value: string) => {
+    setSelectedMuscleFilter(value);
+    setIsSheetOpen(false);
+  };
+
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="text-2xl font-bold">My Custom Exercises</CardTitle>
+        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="sm" className="h-8 gap-1">
+              <Filter className="h-4 w-4" />
+              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Filter</span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="h-fit max-h-[80vh]">
+            <SheetHeader>
+              <SheetTitle>Filter Exercises by Muscle Group</SheetTitle>
+            </SheetHeader>
+            <div className="py-4">
+              <Select onValueChange={handleFilterChange} value={selectedMuscleFilter}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Filter by Muscle" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Muscle Groups</SelectItem>
+                  {availableMuscleGroups.filter(muscle => muscle !== 'all').map(muscle => (
+                    <SelectItem key={muscle} value={muscle}>
+                      {muscle}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </SheetContent>
+        </Sheet>
       </CardHeader>
       <CardContent>
+        <div className="mb-6">
+          <ExerciseForm
+            editingExercise={editingExercise}
+            onCancelEdit={onCancelEdit}
+            onSaveSuccess={onSaveSuccess}
+          />
+        </div>
+
+        <h3 className="text-xl font-semibold mb-4">My Exercises</h3>
         {loading ? (
           <div className="space-y-2">
             <Skeleton className="h-10 w-full" />

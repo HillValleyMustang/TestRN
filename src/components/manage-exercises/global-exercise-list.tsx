@@ -5,7 +5,7 @@ import { Tables } from "@/types/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Edit, Filter } from "lucide-react";
+import { Filter, Info, PlusCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sheet,
@@ -15,6 +15,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ExerciseInfoDialog } from "@/components/exercise-info-dialog";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -39,7 +40,7 @@ export const GlobalExerciseList = ({
 
   const handleFilterChange = (value: string) => {
     setSelectedMuscleFilter(value);
-    setIsSheetOpen(false); // Close sheet after selection
+    setIsSheetOpen(false);
   };
 
   return (
@@ -89,12 +90,17 @@ export const GlobalExerciseList = ({
             <ul className="space-y-2">
               {exercises.map((ex) => (
                 <li key={ex.id} className="flex items-center justify-between p-2 border rounded-md">
-                  <span>
-                    {ex.name} <span className="text-muted-foreground">({ex.main_muscle})</span>
-                  </span>
+                  <ExerciseInfoDialog
+                    exercise={ex}
+                    trigger={
+                      <span className="cursor-pointer hover:underline">
+                        {ex.name} <span className="text-muted-foreground">({ex.main_muscle})</span>
+                      </span>
+                    }
+                  />
                   <div className="flex space-x-1">
                     <Button variant="ghost" size="icon" onClick={() => onEdit(ex)} title="Adopt & Edit">
-                      <Edit className="h-4 w-4" />
+                      <PlusCircle className="h-4 w-4" />
                     </Button>
                   </div>
                 </li>

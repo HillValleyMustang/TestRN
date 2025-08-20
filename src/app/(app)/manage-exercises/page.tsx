@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useSession } from "@/components/session-context-provider";
 import { Tables } from "@/types/supabase";
 import { toast } from "sonner";
-import { ExerciseForm } from "@/components/manage-exercises/exercise-form";
 import { GlobalExerciseList } from "@/components/manage-exercises/global-exercise-list";
 import { UserExerciseList } from "@/components/manage-exercises/user-exercise-list";
 
@@ -80,7 +79,7 @@ export default function ManageExercisesPage() {
     } finally {
       setLoading(false);
     }
-  }, [session, supabase, selectedMuscleFilter]); // Re-run when filter changes
+  }, [session, supabase, selectedMuscleFilter]);
 
   useEffect(() => {
     fetchExercises();
@@ -96,12 +95,10 @@ export default function ManageExercisesPage() {
 
   const handleSaveSuccess = () => {
     setEditingExercise(null);
-    fetchExercises(); // Re-fetch to update both lists
+    fetchExercises();
   };
 
   const handleDeleteClick = (exercise: ExerciseDefinition) => {
-    // This check is now redundant as UserExerciseList only passes user-owned exercises
-    // but kept for safety.
     if (exercise.user_id === null) {
       toast.error("You cannot delete global exercises. You can only delete exercises you have created.");
       return;
@@ -111,13 +108,13 @@ export default function ManageExercisesPage() {
   };
 
   const confirmDeleteExercise = async () => {
-    if (!exerciseToDelete || exerciseToDelete.user_id === null) return; // Double check
+    if (!exerciseToDelete || exerciseToDelete.user_id === null) return;
     const { error } = await supabase.from('exercise_definitions').delete().eq('id', exerciseToDelete.id);
     if (error) {
       toast.error("Failed to delete exercise: " + error.message);
     } else {
       toast.success("Exercise deleted successfully!");
-      fetchExercises(); // Re-fetch to update the list
+      fetchExercises();
     }
     setIsDeleteDialogOpen(false);
     setExerciseToDelete(null);
@@ -130,13 +127,6 @@ export default function ManageExercisesPage() {
       </header>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1">
-          <ExerciseForm
-            editingExercise={editingExercise}
-            onCancelEdit={handleCancelEdit}
-            onSaveSuccess={handleSaveSuccess}
-          />
-        </div>
-        <div className="lg:col-span-2 space-y-8">
           <UserExerciseList
             exercises={userExercises}
             loading={loading}
@@ -146,7 +136,15 @@ export default function ManageExercisesPage() {
             exerciseToDelete={exerciseToDelete}
             setIsDeleteDialogOpen={setIsDeleteDialogOpen}
             confirmDeleteExercise={confirmDeleteExercise}
+            editingExercise={editingExercise}
+            onCancelEdit={handleCancelEdit}
+            onSaveSuccess={handleSaveSuccess}
+            selectedMuscleFilter={selectedMuscleFilter}
+            setSelectedMuscleFilter={setSelectedMuscleFilter}
+            availableMuscleGroups={availableMuscleGroups}
           />
+        </div>
+        <div className="lg:col-span-2 space-y-8">
           <GlobalExerciseList
             exercises={globalExercises}
             loading={loading}

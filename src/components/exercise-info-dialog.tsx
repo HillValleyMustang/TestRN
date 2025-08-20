@@ -3,25 +3,35 @@
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Info, Youtube } from "lucide-react";
+import { Info, Youtube, Search } from "lucide-react";
 import { Tables } from '@/types/supabase';
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 interface ExerciseInfoDialogProps {
   exercise: ExerciseDefinition;
+  trigger?: React.ReactNode;
 }
 
-export const ExerciseInfoDialog = ({ exercise }: ExerciseInfoDialogProps) => {
+export const ExerciseInfoDialog = ({ exercise, trigger }: ExerciseInfoDialogProps) => {
   const [open, setOpen] = useState(false);
+
+  const handleGoogleSearch = () => {
+    const searchQuery = encodeURIComponent(`${exercise.name} exercise`);
+    window.open(`https://www.google.com/search?q=${searchQuery}`, '_blank');
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="icon" title="Info">
-          <Info className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
+      {trigger ? (
+        <DialogTrigger asChild>{trigger}</DialogTrigger>
+      ) : (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="icon" title="Info">
+            <Info className="h-4 w-4" />
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{exercise.name} Information</DialogTitle>
@@ -54,6 +64,9 @@ export const ExerciseInfoDialog = ({ exercise }: ExerciseInfoDialogProps) => {
               </a>
             </Button>
           )}
+          <Button variant="outline" onClick={handleGoogleSearch} className="mt-2">
+            <Search className="h-4 w-4 mr-2" /> Google Search
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
