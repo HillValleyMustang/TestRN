@@ -7,6 +7,7 @@ import { Info, Youtube, Search, Trash2 } from "lucide-react";
 import { Tables } from '@/types/supabase';
 import { toast } from "sonner";
 import { useSession } from "@/components/session-context-provider";
+import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -58,79 +59,81 @@ export const ExerciseInfoDialog = ({ exercise, trigger, exerciseWorkouts = [], o
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="sm:max-w-md p-0"> {/* Adjusted max-width and removed backdrop-blur */}
-        <DialogHeader className="p-6 pb-4"> {/* Add padding to header */}
+      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col p-0"> {/* Re-added max-h and flex-col, kept p-0 for full control */}
+        <DialogHeader className="p-6 pb-4"> {/* Padding for header */}
           <DialogTitle>{exercise.name} Information</DialogTitle>
         </DialogHeader>
 
-        {embedVideoUrl && (
-          <div className="px-6 pb-4"> {/* Add horizontal padding, some bottom padding */}
-            <div className="relative w-full rounded-md overflow-hidden" style={{ paddingBottom: '56.25%' /* 16:9 Aspect Ratio */ }}>
-              <iframe
-                className="absolute top-0 left-0 w-full h-full"
-                src={embedVideoUrl}
-                title={`${exercise.name} video`}
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              ></iframe>
+        {/* Scrollable content area */}
+        <ScrollArea className="flex-grow"> {/* Use ScrollArea for the main content */}
+          <div className="px-6 pb-6 space-y-4"> {/* Padding for content inside scroll area */}
+            {embedVideoUrl && (
+              <div className="pb-4"> {/* No horizontal padding here, it's handled by parent div */}
+                <div className="relative w-full rounded-md overflow-hidden" style={{ paddingBottom: '56.25%' /* 16:9 Aspect Ratio */ }}>
+                  <iframe
+                    className="absolute top-0 left-0 w-full h-full"
+                    src={embedVideoUrl}
+                    title={`${exercise.name} video`}
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  ></iframe>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <h4 className="font-semibold text-sm mb-1">Main Muscle:</h4>
+              <p className="text-sm text-muted-foreground">{exercise.main_muscle}</p>
             </div>
+            {exercise.category && (
+              <div>
+                <h4 className="font-semibold text-sm mb-1">Category:</h4>
+                <p className="text-sm text-muted-foreground">{exercise.category}</p>
+              </div>
+            )}
+            {exercise.description && (
+              <div>
+                <h4 className="font-semibold text-sm mb-1">Description:</h4>
+                <p className="text-sm text-muted-foreground">{exercise.description}</p>
+              </div>
+            )}
+            {exercise.pro_tip && (
+              <div>
+                <h4 className="font-semibold text-sm mb-1">Pro Tip:</h4>
+                <p className="text-sm text-muted-foreground">{exercise.pro_tip}</p>
+              </div>
+            )}
+
+            {exerciseWorkouts.length > 0 && (
+              <div>
+                <h4 className="font-semibold text-sm mb-2">Included in Workouts:</h4>
+                <ul className="space-y-1">
+                  {exerciseWorkouts.map(workout => (
+                    <li key={workout.id} className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span>{workout.name}</span>
+                      {workout.isUserOwned && onRemoveFromWorkout && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleRemove(workout.id)}
+                          className="h-auto p-1 text-destructive hover:text-destructive"
+                          title={`Remove from ${workout.name}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <Button variant="outline" onClick={handleGoogleSearch} className="w-full">
+              <Search className="h-4 w-4 mr-2" /> Google Search
+            </Button>
           </div>
-        )}
-
-        <div className="px-6 pb-6 space-y-4"> {/* Add padding and vertical spacing */}
-          {/* Adjusted for consistency */}
-          <div>
-            <h4 className="font-semibold text-sm mb-1">Main Muscle:</h4>
-            <p className="text-sm text-muted-foreground">{exercise.main_muscle}</p>
-          </div>
-          {exercise.category && (
-            <div>
-              <h4 className="font-semibold text-sm mb-1">Category:</h4>
-              <p className="text-sm text-muted-foreground">{exercise.category}</p>
-            </div>
-          )}
-          {exercise.description && (
-            <div>
-              <h4 className="font-semibold text-sm mb-1">Description:</h4>
-              <p className="text-sm text-muted-foreground">{exercise.description}</p>
-            </div>
-          )}
-          {exercise.pro_tip && (
-            <div>
-              <h4 className="font-semibold text-sm mb-1">Pro Tip:</h4>
-              <p className="text-sm text-muted-foreground">{exercise.pro_tip}</p>
-            </div>
-          )}
-
-          {exerciseWorkouts.length > 0 && (
-            <div>
-              <h4 className="font-semibold text-sm mb-2">Included in Workouts:</h4>
-              <ul className="space-y-1">
-                {exerciseWorkouts.map(workout => (
-                  <li key={workout.id} className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>{workout.name}</span>
-                    {workout.isUserOwned && onRemoveFromWorkout && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => handleRemove(workout.id)}
-                        className="h-auto p-1 text-destructive hover:text-destructive"
-                        title={`Remove from ${workout.name}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <Button variant="outline" onClick={handleGoogleSearch} className="w-full">
-            <Search className="h-4 w-4 mr-2" /> Google Search
-          </Button>
-        </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );
