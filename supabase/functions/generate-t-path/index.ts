@@ -21,7 +21,7 @@ interface ExerciseDef {
 }
 
 interface WorkoutStructureEntry {
-  exercise_library_id: string;
+  exercise_library_id: string; // This is the exercise_library_id
   workout_split: string;
   workout_name: string;
   min_session_minutes: number | null;
@@ -92,7 +92,7 @@ const rawCsvData = [
   { name: 'Incline Smith Machine Press', main_muscle: 'Chest, Shoulders', type: 'weight', category: 'Bilateral', description: 'Lie on an incline bench under the bar. Grip the bar slightly wider than your shoulders. Unrack it, lower it to your upper chest, and press it back up until your arms are extended.', pro_tip: 'Tuck your elbows to about a 45-75 degree angle relative to your torso. Flaring them out to 90 degrees puts unnecessary stress on your shoulder joints.', video_url: 'https://www.youtube.com/embed/tLB1XtM21Fk', workout_name: 'Push', min_session_minutes: 60, bonus_for_time_group: 45 },
   { name: 'Barbell Row', main_muscle: 'Lats', type: 'weight', category: 'Bilateral', description: 'Hinge at your hips with a slight bend in your knees, keeping your back straight. Pull the barbell from the floor towards your lower chest, squeezing your back muscles.', pro_tip: 'Drive your elbows up and back, thinking about pulling them towards the ceiling, not just lifting the weight with your arms.', video_url: 'https://www.youtube.com/embed/FWJR5Ve8bnQ', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
   { name: 'Bench Press', main_muscle: 'Pectorals', type: 'weight', category: 'Bilateral', description: 'Lie on a flat bench, grip the barbell slightly wider than shoulder-width, and lower it to your mid-chest. Press the bar back up until your arms are fully extended.', pro_tip: 'Keep your shoulder blades retracted (squeezed together) and pinned to the bench throughout the entire lift to protect your shoulders and create a stable base.', video_url: 'https://www.youtube.com/embed/rT7DgCr-3pg', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
-  { name: 'Bicep Curl', main_muscle: 'Biceps', type: 'weight', category: 'Bilateral', description: 'Stand or sit holding a dumbbell in each hand with an underhand grip. Keeping your elbows pinned to your sides, curl the weights up towards your shoulders.', pro_tip: 'Avoid swinging your body. Control the weight on the way down (the eccentric phase) for at least a 2-3 second count to maximize muscle growth.', video_url: 'https://www.youtube.com/embed/ykJmrZ5v0Oo', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
+  { name: 'Bicep Curl', main_muscle: 'Biceps', type: 'weight', category: 'Bilateral', description: 'Stand or sit holding a dumbbell in each hand with an underhand grip. Keeping your elbows pinned to your sides, curl the weights up towards your shoulders. Squeeze, then lower slowly.', pro_tip: 'Avoid swinging your body. Control the weight on the way down (the eccentric phase) for at least a 2-3 second count to maximize muscle growth.', video_url: 'https://www.youtube.com/embed/ykJmrZ5v0Oo', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
   { name: 'Box Jumps', main_muscle: 'Quadriceps', type: 'timed', category: 'Bilateral', description: 'Stand in front of a sturdy box. Swing your arms and bend your knees to jump explosively onto the center of the box, landing softly in a squat position. Step back down.', pro_tip: 'Focus on a soft, quiet landing. The goal is explosive power on the way up, not a jarring impact on the way down. Step down, don\'t jump down.', video_url: 'https://www.youtube.com/embed/A8_OCd36-2s', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
   { name: 'Burpees', main_muscle: 'Full Body', type: 'timed', category: 'Bilateral', description: 'From a standing position, drop into a squat, place your hands on the ground, kick your feet back into a plank, perform a push-up, jump your feet back to your hands, and jump up explosively.', pro_tip: 'Maintain a tight core when you kick your feet back to the plank position to prevent your lower back from sagging.', video_url: 'https://www.youtube.com/embed/auBLPXO8Fww', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
   { name: 'Crunches', main_muscle: 'Abdominals', type: 'weight', category: 'Bilateral', description: 'Lie on your back with your knees bent and feet flat on the floor. Place your hands behind your head or across your chest and lift your upper back off the floor towards your knees.', pro_tip: 'Focus on lifting with your abs, not pulling with your neck. Keep a space the size of a fist between your chin and your chest.', video_url: 'https://www.youtube.com/embed/Xyd_fa5zoEU', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
@@ -157,7 +157,7 @@ rawCsvData.forEach(row => {
 
     if (workoutSplit) { // Only add if a valid split is determined
       workoutStructureData.push({
-        exercise_id: exerciseId,
+        exercise_library_id: exerciseId, // Corrected property name
         workout_split: workoutSplit,
         workout_name: row.workout_name,
         min_session_minutes: row.min_session_minutes,
@@ -180,9 +180,12 @@ function getMaxMinutes(sessionLength: string | null | undefined): number {
 
 // Helper function to initialize Supabase clients
 const getSupabaseClients = (authHeader: string) => {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-  const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  // @ts-ignore
+  const supabaseUrl = (Deno.env as any).get('SUPABASE_URL') ?? '';
+  // @ts-ignore
+  const supabaseAnonKey = (Deno.env as any).get('SUPABASE_ANON_KEY') ?? '';
+  // @ts-ignore
+  const supabaseServiceRoleKey = (Deno.env as any).get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
   const supabaseAuthClient = createClient(
     supabaseUrl,
@@ -231,7 +234,7 @@ const upsertWorkoutExerciseStructure = async (supabaseServiceRoleClient: any) =>
     const { error: upsertError } = await supabaseServiceRoleClient
       .from('workout_exercise_structure')
       .upsert({
-        exercise_library_id: ws.exercise_id,
+        exercise_library_id: ws.exercise_library_id, // Corrected property name
         workout_split: ws.workout_split,
         workout_name: ws.workout_name,
         min_session_minutes: ws.min_session_minutes,
@@ -239,7 +242,7 @@ const upsertWorkoutExerciseStructure = async (supabaseServiceRoleClient: any) =>
       }, { onConflict: 'exercise_library_id,workout_split,workout_name' });
 
     if (upsertError) {
-      console.error(`Error upserting workout structure entry for ${ws.exercise_id} in ${ws.workout_name}:`, upsertError.message);
+      console.error(`Error upserting workout structure entry for ${ws.exercise_library_id} in ${ws.workout_name}:`, upsertError.message); // Corrected property name
       throw upsertError;
     }
   }
@@ -545,7 +548,7 @@ serve(async (req: Request) => {
     console.error('Unhandled error in generate-t-path edge function:', errorMessage);
     return new Response(
       JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application' } }
     );
   }
 });
