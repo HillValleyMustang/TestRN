@@ -6,6 +6,17 @@ import { Tables } from "@/types/supabase";
 import { toast } from "sonner";
 import { GlobalExerciseList } from "@/components/manage-exercises/global-exercise-list";
 import { UserExerciseList } from "@/components/manage-exercises/user-exercise-list";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Filter } from "lucide-react";
 
 // Extend the ExerciseDefinition type to include a temporary flag for global exercises
 // This flag will be set during data fetching based on user_global_favorites table
@@ -27,6 +38,7 @@ export default function ManageExercisesPage() {
   const [selectedMuscleFilter, setSelectedMuscleFilter] = useState<string>('all');
   const [availableMuscleGroups, setAvailableMuscleGroups] = useState<string[]>([]);
   const [exerciseWorkoutsMap, setExerciseWorkoutsMap] = useState<Record<string, { id: string; name: string; isUserOwned: boolean }[]>>({});
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 
   const fetchExercises = useCallback(async () => {
     if (!session) return;
@@ -125,7 +137,7 @@ export default function ManageExercisesPage() {
 
       // Extract unique muscle groups for the filter dropdown from *all* exercises
       const allUniqueMuscles = Array.from(new Set(allExercisesData.map(ex => ex.main_muscle))).sort();
-      setAvailableMuscleGroups(allUniqueMuscles); // Removed 'all' and 'favorites' from here
+      setAvailableMuscleGroups(allUniqueMuscles);
 
       // Apply the selected filter to both lists
       if (selectedMuscleFilter === 'favorites') {
@@ -264,8 +276,45 @@ export default function ManageExercisesPage() {
       <header className="mb-4">
         <h1 className="text-3xl font-bold">Manage Exercises</h1>
       </header>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1">
+      
+      <div className="flex justify-end mb-4">
+        <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="sm" className="h-8 gap-1">
+              <Filter className="h-4 w-4" />
+              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Filter</span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="h-fit max-h-[80vh]">
+            <SheetHeader>
+              <SheetTitle>Filter Exercises by Muscle Group</SheetTitle>
+            </SheetHeader>
+            <div className="py-4">
+              <Select onValueChange={setSelectedMuscleFilter} value={selectedMuscleFilter}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Filter by Muscle" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Muscle Groups</SelectItem>
+                  <SelectItem value="favorites">Favourites</SelectItem>
+                  {availableMuscleGroups.map(muscle => (
+                    <SelectItem key={muscle} value={muscle}>
+                      {muscle}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      <Tabs defaultValue="my-exercises" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="my-exercises">My Exercises</TabsTrigger>
+          <TabsTrigger value="global-library">Global Library</TabsTrigger>
+        </TabsList>
+        <TabsContent value="my-exercises" className="mt-4">
           <UserExerciseList
             exercises={userExercises}
             loading={loading}
@@ -278,29 +327,23 @@ export default function ManageExercisesPage() {
             editingExercise={editingExercise}
             onCancelEdit={handleCancelEdit}
             onSaveSuccess={handleSaveSuccess}
-            selectedMuscleFilter={selectedMuscleFilter}
-            setSelectedMuscleFilter={setSelectedMuscleFilter}
-            availableMuscleGroups={availableMuscleGroups}
             exerciseWorkoutsMap={exerciseWorkoutsMap}
             onRemoveFromWorkout={handleRemoveFromWorkout}
             onToggleFavorite={handleToggleFavorite}
           />
-        </div>
-        <div className="lg:col-span-2 space-y-8">
+        </TabsContent>
+        <TabsContent value="global-library" className="mt-4">
           <GlobalExerciseList
             exercises={globalExercises}
             loading={loading}
             onEdit={handleEditClick}
-            selectedMuscleFilter={selectedMuscleFilter}
-            setSelectedMuscleFilter={setSelectedMuscleFilter}
-            availableMuscleGroups={availableMuscleGroups}
             exerciseWorkoutsMap={exerciseWorkoutsMap}
             onRemoveFromWorkout={handleRemoveFromWorkout}
             onToggleFavorite={handleToggleFavorite}
-            onAddSuccess={fetchExercises} // Pass fetchExercises to refresh after adding to T-Path
+            onAddSuccess={fetchExercises}
           />
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

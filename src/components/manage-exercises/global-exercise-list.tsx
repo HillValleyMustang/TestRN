@@ -5,16 +5,8 @@ import { Tables } from "@/types/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Filter, PlusCircle, Heart } from "lucide-react";
+import { PlusCircle, Heart } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ExerciseInfoDialog } from "@/components/exercise-info-dialog";
 import { AddExerciseToTPathDialog } from "./add-exercise-to-tpath-dialog";
 import { cn } from "@/lib/utils";
@@ -29,9 +21,6 @@ interface GlobalExerciseListProps {
   exercises: FetchedExerciseDefinition[];
   loading: boolean;
   onEdit: (exercise: FetchedExerciseDefinition) => void;
-  selectedMuscleFilter: string;
-  setSelectedMuscleFilter: (value: string) => void;
-  availableMuscleGroups: string[];
   exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean }[]>; // New prop
   onRemoveFromWorkout: (workoutId: string, exerciseId: string) => void; // New prop
   onToggleFavorite: (exercise: FetchedExerciseDefinition) => void; // New prop
@@ -42,22 +31,13 @@ export const GlobalExerciseList = ({
   exercises,
   loading,
   onEdit,
-  selectedMuscleFilter,
-  setSelectedMuscleFilter,
-  availableMuscleGroups,
   exerciseWorkoutsMap,
   onRemoveFromWorkout,
   onToggleFavorite,
   onAddSuccess,
 }: GlobalExerciseListProps) => {
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isAddTPathDialogOpen, setIsAddTPathDialogOpen] = useState(false);
   const [selectedExerciseForTPath, setSelectedExerciseForTPath] = useState<FetchedExerciseDefinition | null>(null);
-
-  const handleFilterChange = (value: string) => {
-    setSelectedMuscleFilter(value);
-    setIsSheetOpen(false);
-  };
 
   const handleOpenAddTPathDialog = (exercise: FetchedExerciseDefinition, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent opening info dialog
@@ -74,35 +54,6 @@ export const GlobalExerciseList = ({
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="text-2xl font-bold">Global Exercise Library</CardTitle>
-        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 gap-1">
-              <Filter className="h-4 w-4" />
-              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Filter</span>
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="bottom" className="h-fit max-h-[80vh]">
-            <SheetHeader>
-              <SheetTitle>Filter Exercises by Muscle Group</SheetTitle>
-            </SheetHeader>
-            <div className="py-4">
-              <Select onValueChange={handleFilterChange} value={selectedMuscleFilter}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Filter by Muscle" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Muscle Groups</SelectItem>
-                  <SelectItem value="favorites">Favourites</SelectItem>
-                  {availableMuscleGroups.map(muscle => (
-                    <SelectItem key={muscle} value={muscle}>
-                      {muscle}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </SheetContent>
-        </Sheet>
       </CardHeader>
       <CardContent>
         {loading ? (
