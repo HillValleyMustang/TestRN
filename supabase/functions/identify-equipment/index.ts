@@ -41,10 +41,11 @@ serve(async (req: Request) => {
 
     const prompt = `
       Analyze the gym equipment in this image. Identify the specific equipment.
+      Use English UK spelling for all text fields (e.g., 'analyse' instead of 'analyze', 'colour' instead of 'color').
       Provide its name, primary muscle group(s) (comma-separated if multiple, e.g., "Pectorals, Deltoids"),
       its type ('weight' or 'timed'), its category ('Bilateral', 'Unilateral', or null if not applicable),
       a brief description of how to use it, a practical pro tip for performing the exercise,
-      and a relevant YouTube video URL (can be an empty string if none found).
+      and a relevant YouTube embed URL for a tutorial video (can be an empty string if none found).
 
       IMPORTANT: Respond ONLY with a JSON object. Do NOT include any other text, markdown formatting (like \`\`\`json), or conversational phrases. The response must be a pure JSON string.
       Example:
