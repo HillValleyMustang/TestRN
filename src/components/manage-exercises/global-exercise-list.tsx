@@ -114,7 +114,7 @@ export const GlobalExerciseList = ({
         ) : exercises.length === 0 ? (
           <p className="text-muted-foreground">No global exercises found matching the filter.</p>
         ) : (
-          <ScrollArea className="max-h-[600px] pr-4">
+          <ScrollArea className="pr-4">
             <ul className="space-y-2">
               {exercises.map((ex) => (
                 <li key={ex.id} className="flex items-center justify-between p-2 border rounded-md">
