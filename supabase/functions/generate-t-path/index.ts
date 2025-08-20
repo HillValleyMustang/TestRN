@@ -168,13 +168,13 @@ rawCsvData.forEach(row => {
 });
 
 // Helper to get max minutes from sessionLength string
-function getMaxMinutes(sessionLength: string): number {
+function getMaxMinutes(sessionLength: string | null | undefined): number {
   switch (sessionLength) {
     case '15-30': return 30;
     case '30-45': return 45;
     case '45-60': return 60;
     case '60-90': return 90;
-    default: return 90; // Default to longest if unknown
+    default: return 90; // Default to longest if unknown or null
   }
 }
 
@@ -247,12 +247,14 @@ serve(async (req: Request) => {
       }
     }
 
-    // --- Step 3: Fetch T-Path details and generate user-specific workouts ---
+    // --- Step 3: Fetch T-Path details and user's preferred session length ---
     let tPath;
+    let preferredSessionLength: string | null | undefined;
+
     try {
       const { data, error } = await supabaseServiceRoleClient
         .from('t_paths')
-        .select('id, template_name, settings')
+        .select('id, template_name, settings, profiles(preferred_session_length)') // Select preferred_session_length from joined profiles
         .eq('id', tPathId)
         .single();
 
@@ -264,21 +266,25 @@ serve(async (req: Request) => {
         throw new Error('T-Path not found in database.');
       }
       tPath = data;
+      // @ts-ignore
+      preferredSessionLength = tPath.profiles?.preferred_session_length; // Access from joined data
+      console.log(`Fetched preferredSessionLength from profile: ${preferredSessionLength}`);
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      return new Response(JSON.stringify({ error: `Error fetching T-Path: ${errorMessage}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: `Error fetching T-Path or profile: ${errorMessage}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const tPathSettings = tPath.settings as { tPathType?: string; sessionLength?: string };
+    const tPathSettings = tPath.settings as { tPathType?: string }; // sessionLength is no longer here
     
-    if (!tPathSettings || !tPathSettings.tPathType || !tPathSettings.sessionLength) {
-      console.warn('T-Path settings or tPathType/sessionLength is missing/invalid:', tPathSettings);
+    if (!tPathSettings || !tPathSettings.tPathType) {
+      console.warn('T-Path settings or tPathType is missing/invalid:', tPathSettings);
       return new Response(JSON.stringify({ error: 'Invalid T-Path settings. Please re-run onboarding.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const workoutSplit = tPathSettings.tPathType;
-    const maxAllowedMinutes = getMaxMinutes(tPathSettings.sessionLength);
-    console.log(`Calculated maxAllowedMinutes: ${maxAllowedMinutes} based on sessionLength: ${tPathSettings.sessionLength}`);
+    const maxAllowedMinutes = getMaxMinutes(preferredSessionLength);
+    console.log(`Calculated maxAllowedMinutes: ${maxAllowedMinutes} based on preferredSessionLength: ${preferredSessionLength}`);
 
     let workoutNames: string[] = [];
     if (workoutSplit === 'ulul') {
@@ -420,7 +426,7 @@ serve(async (req: Request) => {
             template_name: workoutName,
             is_bonus: true,
             version: 1,
-            settings: tPathSettings
+            settings: tPathSettings // Keep general settings, but sessionLength is not here
           })
           .select()
           .single();

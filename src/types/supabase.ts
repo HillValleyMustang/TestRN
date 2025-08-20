@@ -25,3 +25,27 @@ export interface SetLogState extends Omit<Tables<'set_logs'>, 'id' | 'created_at
   lastReps?: number | null;
   lastTimeSeconds?: number | null;
 }
+
+// Manually extend the Profile type to include new columns if not auto-generated
+declare module "./supabase-generated/database" {
+  export interface Database {
+    public: {
+      Tables: {
+        profiles: {
+          Row: {
+            preferred_session_length: string | null;
+            active_t_path_id: string | null;
+          };
+          Insert: {
+            preferred_session_length?: string | null;
+            active_t_path_id?: string | null;
+          };
+          Update: {
+            preferred_session_length?: string | null;
+            active_t_path_id?: string | null;
+          };
+        };
+      };
+    };
+  }
+}

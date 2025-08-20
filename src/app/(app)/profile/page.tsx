@@ -18,6 +18,7 @@ import { Tables, TablesUpdate } from '@/types/supabase';
 import { TPathSwitcher } from '@/components/t-path-switcher';
 
 type Profile = Tables<'profiles'>;
+type TPath = Tables<'t_paths'>;
 
 const profileSchema = z.object({
   preferred_name: z.string().min(1, "Preferred name is required.").optional().or(z.literal('')),
@@ -30,6 +31,7 @@ const profileSchema = z.object({
   preferred_distance_unit: z.enum(["km"]).optional(), // Fixed to km only
   default_rest_time_seconds: z.coerce.number().min(0, "Rest time cannot be negative.").optional().nullable(),
   preferred_muscles: z.string().optional().nullable(),
+  preferred_session_length: z.enum(["15-30", "30-45", "45-60", "60-90"]).optional().nullable(), // New field
 });
 
 export default function ProfilePage() {
@@ -37,7 +39,8 @@ export default function ProfilePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [currentTPathId, setCurrentTPathId] = useState<string>('');
+  const [activeTPathId, setActiveTPathId] = useState<string>('');
+  const [activeTPathName, setActiveTPathName] = useState<string | null>(null);
   const [aiCoachUsage, setAiCoachUsage] = useState<{ count: number; lastUsed: string | null }>({ count: 0, lastUsed: null });
 
   const form = useForm<z.infer<typeof profileSchema>>({
@@ -53,6 +56,7 @@ export default function ProfilePage() {
       preferred_distance_unit: "km", // Fixed to km only
       default_rest_time_seconds: 60, // Default to 60s
       preferred_muscles: null,
+      preferred_session_length: "45-60", // Default value
     },
   });
 
@@ -75,6 +79,24 @@ export default function ProfilePage() {
         console.error("Error fetching profile:", error);
       } else if (data) {
         setProfile(data);
+        
+        // Fetch active T-Path name if active_t_path_id exists
+        let currentTPathName: string | null = null;
+        if (data.active_t_path_id) {
+          const { data: tPathData, error: tPathError } = await supabase
+            .from('t_paths')
+            .select('template_name')
+            .eq('id', data.active_t_path_id)
+            .single();
+          if (tPathError) {
+            console.error("Error fetching active T-Path name:", tPathError);
+          } else if (tPathData) {
+            currentTPathName = tPathData.template_name;
+          }
+        }
+        setActiveTPathName(currentTPathName);
+        setActiveTPathId(data.active_t_path_id || '');
+
         form.reset({
           preferred_name: (data.first_name || "") + (data.last_name ? " " + data.last_name : ""),
           height_cm: data.height_cm,
@@ -86,6 +108,7 @@ export default function ProfilePage() {
           preferred_distance_unit: "km", // Fixed to km only
           default_rest_time_seconds: data.default_rest_time_seconds || 60,
           preferred_muscles: data.preferred_muscles,
+          preferred_session_length: data.preferred_session_length || "45-60", // Set default if null
         });
         
         // Set AI coach usage info
@@ -108,6 +131,8 @@ export default function ProfilePage() {
       return;
     }
 
+    const oldSessionLength = profile?.preferred_session_length;
+
     // Split preferred name into first and last name
     let firstName = "";
     let lastName = "";
@@ -129,6 +154,7 @@ export default function ProfilePage() {
       preferred_distance_unit: "km", // Fixed to km only
       default_rest_time_seconds: values.default_rest_time_seconds,
       preferred_muscles: values.preferred_muscles,
+      preferred_session_length: values.preferred_session_length, // Update preferred session length
       updated_at: new Date().toISOString(),
     };
 
@@ -143,13 +169,62 @@ export default function ProfilePage() {
     } else {
       toast.success("Profile updated successfully!");
       setProfile((prev: Profile | null) => ({ ...prev, ...updateData } as Profile));
+
+      // If session length changed and there's an active T-Path, regenerate workouts
+      if (values.preferred_session_length !== oldSessionLength && activeTPathId) {
+        toast.info("Session length changed. Regenerating T-Path workouts...");
+        try {
+          const response = await fetch(`/api/generate-t-path`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({ tPathId: activeTPathId })
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to regenerate T-Path workouts');
+          }
+          toast.success("T-Path workouts updated successfully!");
+        } catch (regenError: any) {
+          toast.error("Failed to regenerate T-Path workouts: " + regenError.message);
+          console.error("Error regenerating T-Path:", regenError);
+        }
+      }
     }
   }
 
-  const handleTPathChange = (newTPathId: string) => {
-    setCurrentTPathId(newTPathId);
-    // In a real implementation, this would update the user's active T-Path
-    toast.success("T-Path switched successfully!");
+  const handleTPathChange = async (newTPathId: string) => {
+    if (!session) return;
+
+    try {
+      // Update the active_t_path_id in the user's profile
+      const { error } = await supabase
+        .from('profiles')
+        .update({ active_t_path_id: newTPathId })
+        .eq('id', session.user.id);
+
+      if (error) throw error;
+
+      setActiveTPathId(newTPathId);
+      // Re-fetch profile to update activeTPathName
+      const { data: tPathData, error: tPathError } = await supabase
+        .from('t_paths')
+        .select('template_name')
+        .eq('id', newTPathId)
+        .single();
+      if (tPathError) {
+        console.error("Error fetching new active T-Path name:", tPathError);
+      } else if (tPathData) {
+        setActiveTPathName(tPathData.template_name);
+      }
+
+      toast.success("Active T-Path switched successfully!");
+    } catch (err: any) {
+      toast.error("Failed to switch T-Path: " + err.message);
+      console.error("Error switching T-Path:", err);
+    }
   };
 
   if (loading) {
@@ -342,10 +417,42 @@ export default function ProfilePage() {
           <CardTitle>T-Path Settings</CardTitle>
         </CardHeader>
         <CardContent>
-          <TPathSwitcher 
-            currentTPathId={currentTPathId} 
-            onTPathChange={handleTPathChange} 
-          />
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm font-medium">Active Transformation Path:</p>
+              <p className="text-lg font-semibold">{activeTPathName || 'None Selected'}</p>
+            </div>
+            <FormField
+              control={form.control}
+              name="preferred_session_length"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Preferred Session Length</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || ''}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select preferred session length" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="15-30">15-30 minutes</SelectItem>
+                      <SelectItem value="30-45">30-45 minutes</SelectItem>
+                      <SelectItem value="45-60">45-60 minutes</SelectItem>
+                      <SelectItem value="60-90">60-90 minutes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                  <p className="text-xs text-muted-foreground">
+                    Changing this will regenerate your active T-Path workouts.
+                  </p>
+                </FormItem>
+              )}
+            />
+            <TPathSwitcher 
+              currentTPathId={activeTPathId} 
+              onTPathChange={handleTPathChange} 
+            />
+          </div>
         </CardContent>
       </Card>
 

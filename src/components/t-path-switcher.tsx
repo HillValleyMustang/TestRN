@@ -44,7 +44,8 @@ export const TPathSwitcher = ({ currentTPathId, onTPathChange }: TPathSwitcherPr
         const { data, error } = await supabase
           .from('t_paths')
           .select('*')
-          .eq('user_id', session.user.id);
+          .eq('user_id', session.user.id)
+          .is('parent_t_path_id', null); // Fetch only main T-Paths
 
         if (error) throw error;
         setTPaths(data || []);
@@ -56,6 +57,10 @@ export const TPathSwitcher = ({ currentTPathId, onTPathChange }: TPathSwitcherPr
     fetchTPaths();
   }, [session, supabase]);
 
+  useEffect(() => {
+    setSelectedTPathId(currentTPathId);
+  }, [currentTPathId]);
+
   const handleTPathChange = (newTPathId: string) => {
     if (newTPathId !== currentTPathId) {
       setSelectedTPathId(newTPathId);
@@ -63,10 +68,25 @@ export const TPathSwitcher = ({ currentTPathId, onTPathChange }: TPathSwitcherPr
     }
   };
 
-  const confirmSwitch = () => {
-    onTPathChange(selectedTPathId);
-    setShowSwitchDialog(false);
-    toast.success("Switched to new T-Path!");
+  const confirmSwitch = async () => {
+    if (!session) return;
+
+    try {
+      // Update the active_t_path_id in the user's profile
+      const { error } = await supabase
+        .from('profiles')
+        .update({ active_t_path_id: selectedTPathId })
+        .eq('id', session.user.id);
+
+      if (error) throw error;
+
+      onTPathChange(selectedTPathId);
+      setShowSwitchDialog(false);
+      toast.success("Switched to new T-Path!");
+    } catch (err: any) {
+      toast.error("Failed to switch T-Path: " + err.message);
+      console.error("Error switching T-Path:", err);
+    }
   };
 
   const cancelSwitch = () => {
@@ -78,7 +98,7 @@ export const TPathSwitcher = ({ currentTPathId, onTPathChange }: TPathSwitcherPr
 
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium">Active T-Path</label>
+      <label className="text-sm font-medium">Switch Active T-Path</label>
       <Select value={selectedTPathId} onValueChange={handleTPathChange}>
         <SelectTrigger>
           <SelectValue>
@@ -99,8 +119,7 @@ export const TPathSwitcher = ({ currentTPathId, onTPathChange }: TPathSwitcherPr
           <AlertDialogHeader>
             <AlertDialogTitle>Switch T-Path?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to switch to a different T-Path? Your records and stats will remain unaffected, 
-              but the active workout plan will change.
+              Are you sure you want to switch to a different T-Path? This will change your active workout plan.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

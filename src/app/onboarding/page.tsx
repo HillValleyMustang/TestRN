@@ -85,25 +85,7 @@ export default function OnboardingPage() {
     setLoading(true);
     
     try {
-      // Save user profile data
-      const profileData: TablesInsert<'profiles'> = {
-        id: session.user.id,
-        first_name: session.user.user_metadata?.first_name || '',
-        last_name: session.user.user_metadata?.last_name || '',
-        preferred_muscles: preferredMuscles,
-        primary_goal: goalFocus,
-        health_notes: constraints,
-        default_rest_time_seconds: 60, // Default to 60s as per requirements
-        body_fat_pct: null // Will be updated when user adds this data
-      };
-
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert(profileData, { onConflict: 'id' });
-
-      if (profileError) throw profileError;
-
-      // Create initial T-Path
+      // Create initial T-Path first to get its ID
       const tPathData: TablesInsert<'t_paths'> = {
         user_id: session.user.id,
         template_name: tPathType === 'ulul' 
@@ -111,13 +93,12 @@ export default function OnboardingPage() {
           : '3-Day Push/Pull/Legs',
         is_bonus: false,
         parent_t_path_id: null, // Main T-Path has no parent
-        settings: {
+        settings: { // Keep general settings here, but sessionLength moves to profile
           tPathType,
           experience,
           goalFocus,
           preferredMuscles,
           constraints,
-          sessionLength,
           equipmentMethod
         }
       };
@@ -130,14 +111,34 @@ export default function OnboardingPage() {
 
       if (tPathError) throw tPathError;
 
-      // Generate the actual workouts for this T-Path
+      // Save user profile data, including preferred_session_length and active_t_path_id
+      const profileData: TablesInsert<'profiles'> = {
+        id: session.user.id,
+        first_name: session.user.user_metadata?.first_name || '',
+        last_name: session.user.user_metadata?.last_name || '',
+        preferred_muscles: preferredMuscles,
+        primary_goal: goalFocus,
+        health_notes: constraints,
+        default_rest_time_seconds: 60, // Default to 60s as per requirements
+        body_fat_pct: null, // Will be updated when user adds this data
+        preferred_session_length: sessionLength, // Store session length in profile
+        active_t_path_id: tPath.id, // Set the newly created T-Path as active
+      };
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert(profileData, { onConflict: 'id' });
+
+      if (profileError) throw profileError;
+
+      // Generate the actual workouts for this T-Path (now using sessionLength from profile)
       const response = await fetch(`/api/generate-t-path`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ tPathId: tPath.id })
+        body: JSON.stringify({ tPathId: tPath.id }) // Pass the main T-Path ID
       });
 
       if (!response.ok) {
