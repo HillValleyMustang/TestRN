@@ -1,191 +1,135 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useSession } from "@/components/session-context-provider";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import { toast } from "sonner";
-import { TablesInsert, ProfileInsert } from "@/types/supabase"; // Import ProfileInsert
+import { useOnboardingForm } from "@/hooks/use-onboarding-form";
+import { OnboardingStep1_TPathSelection } from "@/components/onboarding/onboarding-step-1-tpath-selection.tsx";
+import { OnboardingStep2_ExperienceLevel } from "@/components/onboarding/onboarding-step-2-experience-level.tsx";
+import { OnboardingStep3_GoalFocus } from "@/components/onboarding/onboarding-step-3-goal-focus.tsx";
+import { OnboardingStep4_SessionPreferences } from "@/components/onboarding/onboarding-step-4-session-preferences.tsx";
+import { OnboardingStep5_EquipmentSetup } from "@/components/onboarding/onboarding-step-5-equipment-setup.tsx";
+import { OnboardingStep6_Consent } from "@/components/onboarding/onboarding-step-6-consent.tsx";
+import { useSession } from "@/components/session-context-provider";
 
 export default function OnboardingPage() {
-  const router = useRouter();
-  const { session, supabase } = useSession();
-  
-  const [currentStep, setCurrentStep] = useState(1);
-  const [tPathType, setTPathType] = useState<"ulul" | "ppl" | null>(null);
-  const [experience, setExperience] = useState<"beginner" | "intermediate" | null>(null);
-  const [goalFocus, setGoalFocus] = useState<string>("");
-  const [preferredMuscles, setPreferredMuscles] = useState<string>("");
-  const [constraints, setConstraints] = useState<string>("");
-  const [sessionLength, setSessionLength] = useState<string>("");
-  const [equipmentMethod, setEquipmentMethod] = useState<"photo" | "skip" | null>(null); // Removed 'manual' from type
-  const [consentGiven, setConsentGiven] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  const tPathDescriptions = {
-    ulul: {
-      title: "4-Day Upper/Lower (ULUL)",
-      pros: [
-        "Higher frequency per muscle group (2x/week)",
-        "Good for hypertrophy",
-        "Flexible scheduling"
-      ],
-      cons: [
-        "Sessions can be longer",
-        "Potential for upper body fatigue",
-        "Less focus on single 'big lift' days"
-      ]
-    },
-    ppl: {
-      title: "3-Day Push/Pull/Legs (PPL)",
-      pros: [
-        "Logical split by movement pattern",
-        "Allows for high volume per session",
-        "Feels intuitive"
-      ],
-      cons: [
-        "Lower frequency per muscle group (once every 5-7 days)",
-        "Missing a day can unbalance the week",
-        "Can be demanding for beginners"
-      ]
-    }
-  };
-
-  const handleTPathSelect = (type: "ulul" | "ppl") => {
-    setTPathType(type);
-    setCurrentStep(2);
-  };
-
-  const handleNext = () => {
-    if (currentStep < 6) {
-      setCurrentStep(currentStep + 1);
-    }
-  };
-
-  const handleBack = () => {
-      setCurrentStep(currentStep - 1);
-  };
-
-  const handleSubmit = async () => {
-    if (!session) return;
-    
-    setLoading(true);
-    
-    try {
-      // Define both T-Path types to be inserted
-      const ululTPathData: TablesInsert<'t_paths'> = {
-        user_id: session.user.id,
-        template_name: '4-Day Upper/Lower',
-        is_bonus: false,
-        parent_t_path_id: null,
-        settings: {
-          tPathType: 'ulul', // Store the type in settings for later retrieval
-          experience,
-          goalFocus,
-          preferredMuscles,
-          constraints,
-          equipmentMethod
-        }
-      };
-
-      const pplTPathData: TablesInsert<'t_paths'> = {
-        user_id: session.user.id,
-        template_name: '3-Day Push/Pull/Legs',
-        is_bonus: false,
-        parent_t_path_id: null,
-        settings: {
-          tPathType: 'ppl', // Store the type in settings for later retrieval
-          experience,
-          goalFocus,
-          preferredMuscles,
-          constraints,
-          equipmentMethod
-        }
-      };
-
-      // Insert both T-Paths
-      const { data: insertedTPaths, error: insertTPathsError } = await supabase
-        .from('t_paths')
-        .insert([ululTPathData, pplTPathData])
-        .select('id, template_name'); // Select ID and template_name to find the active one
-
-      if (insertTPathsError) throw insertTPathsError;
-
-      // Determine the active T-Path ID based on user's selection
-      const activeTPath = insertedTPaths.find(tp =>
-        (tPathType === 'ulul' && tp.template_name === '4-Day Upper/Lower') ||
-        (tPathType === 'ppl' && tp.template_name === '3-Day Push/Pull/Legs')
-      );
-
-      if (!activeTPath) {
-        throw new Error("Could not find the selected T-Path after creation.");
-      }
-
-      // Save user profile data, including preferred_session_length and active_t_path_id
-      const profileData: ProfileInsert = { // Use ProfileInsert type
-        id: session.user.id,
-        first_name: session.user.user_metadata?.first_name || '',
-        last_name: session.user.user_metadata?.last_name || '',
-        preferred_muscles: preferredMuscles,
-        primary_goal: goalFocus,
-        health_notes: constraints,
-        default_rest_time_seconds: 60, // Default to 60s as per requirements
-        body_fat_pct: null, // Will be updated when user adds this data
-        preferred_session_length: sessionLength, // Store session length in profile
-        active_t_path_id: activeTPath.id, // Set the initially selected T-Path as active
-      };
-
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert(profileData, { onConflict: 'id' });
-
-      if (profileError) throw profileError;
-
-      // Generate workouts for ALL newly created main T-Paths
-      const generationPromises = insertedTPaths.map(async (tp) => {
-        const response = await fetch(`/api/generate-t-path`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({ tPathId: tp.id })
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Failed to generate T-Path workouts for ${tp.template_name}: ${errorText}`);
-        }
-      });
-
-      await Promise.all(generationPromises);
-
-      toast.success("Onboarding completed successfully!");
-      router.push('/dashboard');
-    } catch (error: any) {
-      toast.error("Failed to complete onboarding: " + error.message);
-      console.error("Onboarding error:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { session } = useSession(); // Use session to check if user is logged in
+  const {
+    currentStep,
+    tPathType,
+    setTPathType,
+    experience,
+    setExperience,
+    goalFocus,
+    setGoalFocus,
+    preferredMuscles,
+    setPreferredMuscles,
+    constraints,
+    setConstraints,
+    sessionLength,
+    setSessionLength,
+    equipmentMethod,
+    setEquipmentMethod,
+    consentGiven,
+    setConsentGiven,
+    loading,
+    tPathDescriptions,
+    handleNext,
+    handleBack,
+    handleSubmit,
+  } = useOnboardingForm();
 
   if (!session) {
-    return <div>Loading...</div>;
+    return <div>Loading...</div>; // Or redirect to login if session is null
   }
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <OnboardingStep1_TPathSelection
+            tPathType={tPathType}
+            setTPathType={setTPathType}
+            handleNext={handleNext}
+            tPathDescriptions={tPathDescriptions}
+          />
+        );
+      case 2:
+        return (
+          <OnboardingStep2_ExperienceLevel
+            experience={experience}
+            setExperience={setExperience}
+            handleNext={handleNext}
+            handleBack={handleBack}
+          />
+        );
+      case 3:
+        return (
+          <OnboardingStep3_GoalFocus
+            goalFocus={goalFocus}
+            setGoalFocus={setGoalFocus}
+            preferredMuscles={preferredMuscles}
+            setPreferredMuscles={setPreferredMuscles}
+            constraints={constraints}
+            setConstraints={setConstraints}
+            handleNext={handleNext}
+            handleBack={handleBack}
+          />
+        );
+      case 4:
+        return (
+          <OnboardingStep4_SessionPreferences
+            sessionLength={sessionLength}
+            setSessionLength={setSessionLength}
+            handleNext={handleNext}
+            handleBack={handleBack}
+          />
+        );
+      case 5:
+        return (
+          <OnboardingStep5_EquipmentSetup
+            equipmentMethod={equipmentMethod}
+            setEquipmentMethod={setEquipmentMethod}
+            handleNext={handleNext}
+            handleBack={handleBack}
+          />
+        );
+      case 6:
+        return (
+          <OnboardingStep6_Consent
+            consentGiven={consentGiven}
+            setConsentGiven={setConsentGiven}
+            handleSubmit={handleSubmit}
+            handleBack={handleBack}
+            loading={loading}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  const getStepTitle = () => {
+    switch (currentStep) {
+      case 1: return "Choose Your Transformation Path";
+      case 2: return "Your Experience Level";
+      case 3: return "Goal Focus";
+      case 4: return "Session Preferences";
+      case 5: return "Equipment Setup";
+      case 6: return "Consent";
+      default: return "";
+    }
+  };
+
+  const getStepDescription = () => {
+    switch (currentStep) {
+      case 1: return "Select the workout structure that best fits your goals";
+      case 2: return "Help us tailor your program to your experience level";
+      case 3: return "What are you primarily trying to achieve?";
+      case 4: return "How long do you prefer your workout sessions to be?";
+      case 5: return "Let's set up your gym equipment";
+      case 6: return "We need your permission to store your data";
+      default: return "";
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background p-4 sm:p-8">
@@ -222,334 +166,11 @@ export default function OnboardingPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>
-              {currentStep === 1 && "Choose Your Transformation Path"}
-              {currentStep === 2 && "Your Experience Level"}
-              {currentStep === 3 && "Goal Focus"}
-              {currentStep === 4 && "Session Preferences"}
-              {currentStep === 5 && "Equipment Setup"}
-              {currentStep === 6 && "Consent"}
-            </CardTitle>
-            <CardDescription>
-              {currentStep === 1 && "Select the workout structure that best fits your goals"}
-              {currentStep === 2 && "Help us tailor your program to your experience level"}
-              {currentStep === 3 && "What are you primarily trying to achieve?"}
-              {currentStep === 4 && "How long do you prefer your workout sessions to be?"}
-              {currentStep === 5 && "Let's set up your gym equipment"}
-              {currentStep === 6 && "We need your permission to store your data"}
-            </CardDescription>
+            <CardTitle>{getStepTitle()}</CardTitle>
+            <CardDescription>{getStepDescription()}</CardDescription>
           </CardHeader>
           <CardContent>
-            {currentStep === 1 && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Card 
-                    className={`cursor-pointer transition-all ${
-                      tPathType === 'ulul' 
-                        ? 'border-primary ring-2 ring-primary' 
-                        : 'hover:border-primary'
-                    }`}
-                    onClick={() => setTPathType('ulul')}
-                  >
-                    <CardHeader>
-                      <CardTitle>4-Day Upper/Lower (ULUL)</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <h4 className="font-semibold text-green-600">Pros:</h4>
-                        <ul className="text-sm space-y-1">
-                          {tPathDescriptions.ulul.pros.map((pro, i) => (
-                            <li key={i} className="flex items-start">
-                              <span className="text-green-500 mr-2">✓</span>
-                              {pro}
-                            </li>
-                          ))}
-                        </ul>
-                        <h4 className="font-semibold text-red-600 mt-3">Cons:</h4>
-                        <ul className="text-sm space-y-1">
-                          {tPathDescriptions.ulul.cons.map((con, i) => (
-                            <li key={i} className="flex items-start">
-                              <span className="text-red-500 mr-2">✗</span>
-                              {con}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card 
-                    className={`cursor-pointer transition-all ${
-                      tPathType === 'ppl' 
-                        ? 'border-primary ring-2 ring-primary' 
-                        : 'hover:border-primary'
-                    }`}
-                    onClick={() => setTPathType('ppl')}
-                  >
-                    <CardHeader>
-                      <CardTitle>3-Day Push/Pull/Legs (PPL)</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <h4 className="font-semibold text-green-600">Pros:</h4>
-                        <ul className="text-sm space-y-1">
-                          {tPathDescriptions.ppl.pros.map((pro, i) => (
-                            <li key={i} className="flex items-start">
-                              <span className="text-green-500 mr-2">✓</span>
-                              {pro}
-                            </li>
-                          ))}
-                        </ul>
-                        <h4 className="font-semibold text-red-600 mt-3">Cons:</h4>
-                        <ul className="text-sm space-y-1">
-                          {tPathDescriptions.ppl.cons.map((con, i) => (
-                            <li key={i} className="flex items-start">
-                              <span className="text-red-500 mr-2">✗</span>
-                              {con}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-                
-                <div className="flex justify-between">
-                  <div></div>
-                  <Button 
-                    onClick={handleNext} 
-                    disabled={!tPathType}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {currentStep === 2 && (
-              <div className="space-y-6">
-                <RadioGroup 
-                  value={experience || undefined} 
-                  onValueChange={(value: "beginner" | "intermediate") => setExperience(value)}
-                >
-                  <div className="flex flex-col space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="beginner" id="beginner" />
-                      <Label htmlFor="beginner">Beginner</Label>
-                    </div>
-                    <p className="text-sm text-muted-foreground ml-6">
-                      New to structured training or returning after a long break
-                    </p>
-                  </div>
-                  <div className="flex flex-col space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="intermediate" id="intermediate" />
-                      <Label htmlFor="intermediate">Intermediate</Label>
-                    </div>
-                    <p className="text-sm text-muted-foreground ml-6">
-                      Some experience with structured training programs
-                    </p>
-                  </div>
-                </RadioGroup>
-                
-                <div className="flex justify-between">
-                  <Button variant="outline" onClick={handleBack}>
-                    Back
-                  </Button>
-                  <Button 
-                    onClick={handleNext} 
-                    disabled={!experience}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {currentStep === 3 && (
-              <div className="space-y-6">
-                <RadioGroup 
-                  value={goalFocus} 
-                  onValueChange={setGoalFocus}
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="muscle_gain" id="muscle_gain" />
-                      <Label htmlFor="muscle_gain">Build Muscle & Tone</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="general_fitness" id="general_fitness" />
-                      <Label htmlFor="general_fitness">Improve General Fitness</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="strength" id="strength" />
-                      <Label htmlFor="strength">Build Strength</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="mobility" id="mobility" />
-                      <Label htmlFor="mobility">Increase Mobility</Label>
-                    </div>
-                  </div>
-                </RadioGroup>
-                
-                <div>
-                  <Label htmlFor="preferredMuscles">Preferred Muscles to Train (Optional)</Label>
-                  <Input 
-                    id="preferredMuscles" 
-                    placeholder="e.g., Chest, Back, Legs..." 
-                    value={preferredMuscles}
-                    onChange={(e) => setPreferredMuscles(e.target.value)}
-                  />
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Let us know if there are specific muscle groups you want to focus on
-                  </p>
-                </div>
-                
-                <div>
-                  <Label htmlFor="constraints">Constraints (Optional)</Label>
-                  <Textarea 
-                    id="constraints" 
-                    placeholder="Any injuries, health conditions, or limitations..." 
-                    value={constraints}
-                    onChange={(e) => setConstraints(e.target.value)}
-                  />
-                </div>
-                
-                <div className="flex justify-between">
-                  <Button variant="outline" onClick={handleBack}>
-                    Back
-                  </Button>
-                  <Button 
-                    onClick={handleNext} 
-                    disabled={!goalFocus}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {currentStep === 4 && (
-              <div className="space-y-6">
-                <RadioGroup 
-                  value={sessionLength} 
-                  onValueChange={setSessionLength}
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="15-30" id="15-30" />
-                      <Label htmlFor="15-30">15-30 minutes</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="30-45" id="30-45" />
-                      <Label htmlFor="30-45">30-45 minutes</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="45-60" id="45-60" />
-                      <Label htmlFor="45-60">45-60 minutes</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="60-90" id="60-90" />
-                      <Label htmlFor="60-90">60-90 minutes</Label>
-                    </div>
-                  </div>
-                </RadioGroup>
-                
-                <div className="flex justify-between">
-                  <Button variant="outline" onClick={handleBack}>
-                    Back
-                  </Button>
-                  <Button 
-                    onClick={handleNext} 
-                    disabled={!sessionLength}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {currentStep === 5 && (
-              <div className="space-y-6">
-                <RadioGroup 
-                  value={equipmentMethod || undefined} 
-                  onValueChange={(value: "photo" | "skip") => setEquipmentMethod(value)} 
-                >
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="photo" id="photo" />
-                      <Label htmlFor="photo">Upload Gym Photo</Label>
-                    </div>
-                    <p className="text-sm text-muted-foreground ml-6">
-                      Take a photo of your gym to help us identify available equipment
-                    </p>
-                    
-                    {/* REMOVED: Manual Equipment Selection */}
-                    
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="skip" id="skip" />
-                      <Label htmlFor="skip">Skip for Now</Label>
-                    </div>
-                    <p className="text-sm text-muted-foreground ml-6">
-                      Use default "Common Gym" equipment set
-                    </p>
-                  </div>
-                </RadioGroup>
-                
-                <div className="flex justify-between">
-                  <Button variant="outline" onClick={handleBack}>
-                    Back
-                  </Button>
-                  <Button 
-                    onClick={handleNext} 
-                    disabled={!equipmentMethod}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {currentStep === 6 && (
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  <div className="flex items-start space-x-2">
-                    <Checkbox 
-                      id="consent" 
-                      checked={consentGiven}
-                      onCheckedChange={(checked) => setConsentGiven(!!checked)}
-                    />
-                    <Label htmlFor="consent" className="text-sm">
-                      I consent to storing my workout data and profile information to provide 
-                      personalised training recommendations. I understand I can delete my data 
-                      at any time through my profile settings.
-                    </Label>
-                  </div>
-                  
-                  <div className="text-sm text-muted-foreground p-4 bg-muted rounded-lg">
-                    <h4 className="font-semibold mb-2">Data Privacy Information:</h4>
-                    <ul className="space-y-1">
-                      <li>• Photos are processed for equipment detection only</li>
-                      <li>• Not used for identity or shared publicly</li>
-                      <li>• Stored until you delete or replace them</li>
-                      <li>• You can export or delete your data anytime</li>
-                    </ul>
-                  </div>
-                </div>
-                
-                <div className="flex justify-between">
-                  <Button variant="outline" onClick={handleBack}>
-                    Back
-                  </Button>
-                  <Button 
-                    onClick={handleSubmit} 
-                    disabled={!consentGiven || loading}
-                  >
-                    {loading ? "Completing Setup..." : "Complete Onboarding"}
-                  </Button>
-                </div>
-              </div>
-            )}
+            {renderStepContent()}
           </CardContent>
         </Card>
       </div>
