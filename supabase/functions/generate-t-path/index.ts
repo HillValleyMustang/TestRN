@@ -345,7 +345,7 @@ serve(async (req: Request) => {
         .from('t_path_exercises')
         .delete()
         .in('template_id', childWorkoutIdsToDelete)
-        .select(); // Use .select() to get count
+        .count('exact'); // Correctly get the count
 
       if (deleteTPathExercisesError) {
         console.error('Error deleting t_path_exercises for child workouts:', deleteTPathExercisesError.message);
@@ -358,7 +358,7 @@ serve(async (req: Request) => {
         .from('t_paths')
         .delete()
         .in('id', childWorkoutIdsToDelete)
-        .select(); // Use .select() to get count
+        .count('exact'); // Correctly get the count
 
       if (deleteWorkoutsError) {
         console.error('Error deleting child workouts:', deleteWorkoutsError.message);
