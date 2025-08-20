@@ -11,7 +11,7 @@ const corsHeaders = {
 // @ts-ignore
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 // @ts-ignore
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${GEMINI_API_KEY}`; // Using gemini-pro-vision for image analysis
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`; // Updated to gemini-1.5-flash-latest
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
