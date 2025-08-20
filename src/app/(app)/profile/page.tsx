@@ -187,6 +187,8 @@ export default function ProfilePage() {
             throw new Error('Failed to regenerate T-Path workouts');
           }
           toast.success("T-Path workouts updated successfully!");
+          // Redirect to start-t-path to force re-fetch of workouts
+          router.push('/start-t-path'); 
         } catch (regenError: any) {
           toast.error("Failed to regenerate T-Path workouts: " + regenError.message);
           console.error("Error regenerating T-Path:", regenError);
