@@ -21,7 +21,7 @@ interface ExerciseDef {
 }
 
 interface WorkoutStructureEntry {
-  exercise_id: string; // This is the exercise_library_id
+  exercise_library_id: string;
   workout_split: string;
   workout_name: string;
   min_session_minutes: number | null;
@@ -178,6 +178,120 @@ function getMaxMinutes(sessionLength: string | null | undefined): number {
   }
 }
 
+// Helper function to initialize Supabase clients
+const getSupabaseClients = (authHeader: string) => {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+  const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+  const supabaseAuthClient = createClient(
+    supabaseUrl,
+    supabaseAnonKey,
+    { global: { headers: { Authorization: authHeader } } }
+  );
+
+  const supabaseServiceRoleClient = createClient(
+    supabaseUrl,
+    supabaseServiceRoleKey
+  );
+
+  return { supabaseAuthClient, supabaseServiceRoleClient };
+};
+
+// Helper function to upsert exercise definitions
+const upsertExerciseDefinitions = async (supabaseServiceRoleClient: any) => {
+  console.log('Starting upsert of exercise_definitions...');
+  for (const ex of exerciseLibraryData) {
+    const { error: upsertError } = await supabaseServiceRoleClient
+      .from('exercise_definitions')
+      .upsert({
+        library_id: ex.exercise_id,
+        name: ex.name,
+        main_muscle: ex.main_muscle,
+        type: ex.type,
+        category: ex.category,
+        description: ex.description,
+        pro_tip: ex.pro_tip,
+        video_url: ex.video_url,
+        user_id: null
+      }, { onConflict: 'library_id' });
+
+    if (upsertError) {
+      console.error(`Error upserting exercise definition ${ex.name}:`, upsertError.message);
+      throw upsertError;
+    }
+  }
+  console.log('Finished upsert of exercise_definitions.');
+};
+
+// Helper function to upsert workout exercise structure
+const upsertWorkoutExerciseStructure = async (supabaseServiceRoleClient: any) => {
+  console.log('Starting upsert of workout_exercise_structure...');
+  for (const ws of workoutStructureData) {
+    const { error: upsertError } = await supabaseServiceRoleClient
+      .from('workout_exercise_structure')
+      .upsert({
+        exercise_library_id: ws.exercise_id,
+        workout_split: ws.workout_split,
+        workout_name: ws.workout_name,
+        min_session_minutes: ws.min_session_minutes,
+        bonus_for_time_group: ws.bonus_for_time_group,
+      }, { onConflict: 'exercise_library_id,workout_split,workout_name' });
+
+    if (upsertError) {
+      console.error(`Error upserting workout structure entry for ${ws.exercise_id} in ${ws.workout_name}:`, upsertError.message);
+      throw upsertError;
+    }
+  }
+  console.log('Finished upsert of workout_exercise_structure.');
+};
+
+// Helper function to clean up existing child workouts
+const cleanupExistingChildWorkouts = async (supabaseServiceRoleClient: any, tPathId: string) => {
+  console.log('Starting cleanup of existing child workouts...');
+  const { data: existingChildWorkouts, error: fetchChildWorkoutsError } = await supabaseServiceRoleClient
+    .from('t_paths')
+    .select('id')
+    .eq('parent_t_path_id', tPathId);
+
+  if (fetchChildWorkoutsError) {
+    console.error('Error fetching existing child workouts for cleanup:', fetchChildWorkoutsError.message);
+    throw fetchChildWorkoutsError;
+  }
+
+  if (existingChildWorkouts && existingChildWorkouts.length > 0) {
+    const childWorkoutIdsToDelete = existingChildWorkouts.map((w: { id: string }) => w.id);
+    console.log(`Found existing child workouts to delete: ${childWorkoutIdsToDelete.join(', ')}`);
+
+    // Delete associated t_path_exercises first
+    const { error: deleteTPathExercisesError } = await supabaseServiceRoleClient
+      .from('t_path_exercises')
+      .delete()
+      .in('template_id', childWorkoutIdsToDelete);
+
+    if (deleteTPathExercisesError) {
+      console.error('Error deleting t_path_exercises for child workouts:', deleteTPathExercisesError.message);
+      throw deleteTPathExercisesError;
+    }
+    console.log(`Deleted associated t_path_exercises.`);
+
+    // Then delete the child workouts themselves
+    const { error: deleteWorkoutsError } = await supabaseServiceRoleClient
+      .from('t_paths')
+      .delete()
+      .in('id', childWorkoutIdsToDelete);
+
+    if (deleteWorkoutsError) {
+      console.error('Error deleting child workouts:', deleteWorkoutsError.message);
+      throw deleteWorkoutsError;
+    }
+    console.log(`Deleted existing child workouts.`);
+  } else {
+    console.log('No existing child workouts found for cleanup.');
+  }
+};
+
+// Main serve function
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -186,20 +300,13 @@ serve(async (req: Request) => {
   try {
     console.log('Edge Function: generate-t-path started.');
 
-    const supabaseAuthClient = createClient(
-      // @ts-ignore
-      Deno.env.get('SUPABASE_URL') ?? '',
-      // @ts-ignore
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
-    );
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('Authorization header missing.');
+      return new Response(JSON.stringify({ error: 'Authorization header missing' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
-    const supabaseServiceRoleClient = createClient(
-      // @ts-ignore
-      Deno.env.get('SUPABASE_URL') ?? '',
-      // @ts-ignore
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const { supabaseAuthClient, supabaseServiceRoleClient } = getSupabaseClients(authHeader);
 
     const { data: { user }, error: userError } = await supabaseAuthClient.auth.getUser();
     if (userError || !user) {
@@ -211,57 +318,16 @@ serve(async (req: Request) => {
     const { tPathId } = await req.json();
     console.log(`Received tPathId: ${tPathId}`);
 
-    // --- Step 1: Ensure exercise_definitions are populated from exerciseLibraryData ---
-    console.log('Starting upsert of exercise_definitions...');
-    for (const ex of exerciseLibraryData) {
-      const { error: upsertError } = await supabaseServiceRoleClient
-        .from('exercise_definitions')
-        .upsert({
-          library_id: ex.exercise_id,
-          name: ex.name,
-          main_muscle: ex.main_muscle,
-          type: ex.type,
-          category: ex.category,
-          description: ex.description,
-          pro_tip: ex.pro_tip,
-          video_url: ex.video_url,
-          user_id: null
-        }, { onConflict: 'library_id' });
+    // --- Step 1: Ensure exercise_definitions and workout_exercise_structure are populated ---
+    await upsertExerciseDefinitions(supabaseServiceRoleClient);
+    await upsertWorkoutExerciseStructure(supabaseServiceRoleClient);
 
-      if (upsertError) {
-        console.error(`Error upserting exercise definition ${ex.name}:`, upsertError.message);
-        throw upsertError;
-      }
-    }
-    console.log('Finished upsert of exercise_definitions.');
-
-    // --- Step 2: Ensure workout_exercise_structure is populated from workoutStructureData ---
-    console.log('Starting upsert of workout_exercise_structure...');
-    for (const ws of workoutStructureData) {
-      const { error: upsertError } = await supabaseServiceRoleClient
-        .from('workout_exercise_structure')
-        .upsert({
-          exercise_library_id: ws.exercise_id,
-          workout_split: ws.workout_split,
-          workout_name: ws.workout_name,
-          min_session_minutes: ws.min_session_minutes,
-          bonus_for_time_group: ws.bonus_for_time_group,
-        }, { onConflict: 'exercise_library_id,workout_split,workout_name' });
-
-      if (upsertError) {
-        console.error(`Error upserting workout structure entry for ${ws.exercise_id} in ${ws.workout_name}:`, upsertError.message);
-        throw upsertError;
-      }
-    }
-    console.log('Finished upsert of workout_exercise_structure.');
-
-    // --- Step 3: Fetch T-Path details and user's preferred session length ---
+    // --- Step 2: Fetch T-Path details and user's preferred session length ---
     let tPath;
     let preferredSessionLength: string | null | undefined;
 
     try {
       console.log(`Fetching T-Path with ID ${tPathId}...`);
-      // Fetch T-Path data without embedding profiles
       const { data: tPathData, error: tPathError } = await supabaseServiceRoleClient
         .from('t_paths')
         .select('id, template_name, settings, user_id')
@@ -278,12 +344,11 @@ serve(async (req: Request) => {
       tPath = tPathData;
       console.log(`Fetched T-Path: ${JSON.stringify(tPath)}`);
 
-      // Now fetch preferred_session_length from profiles using the user.id
       console.log(`Fetching profile for user ID: ${user.id}`);
       const { data: profileData, error: profileError } = await supabaseServiceRoleClient
         .from('profiles')
         .select('preferred_session_length')
-        .eq('id', user.id) // Use the user.id from auth.getUser()
+        .eq('id', user.id)
         .single();
 
       if (profileError) {
@@ -302,7 +367,7 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: `Error fetching T-Path or profile: ${errorMessage}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const tPathSettings = tPath.settings as { tPathType?: string }; // sessionLength is no longer here
+    const tPathSettings = tPath.settings as { tPathType?: string };
     
     if (!tPathSettings || !tPathSettings.tPathType) {
       console.warn('T-Path settings or tPathType is missing/invalid:', tPathSettings);
@@ -325,54 +390,13 @@ serve(async (req: Request) => {
     console.log(`Workout split: ${workoutSplit}, Workout names to generate: ${workoutNames.join(', ')}`);
 
     // --- Cleanup existing child workouts for this T-Path ---
-    console.log('Starting cleanup of existing child workouts...');
-    const { data: existingChildWorkouts, error: fetchChildWorkoutsError } = await supabaseServiceRoleClient
-      .from('t_paths')
-      .select('id')
-      .eq('parent_t_path_id', tPath.id);
-
-    if (fetchChildWorkoutsError) {
-      console.error('Error fetching existing child workouts for cleanup:', fetchChildWorkoutsError.message);
-      throw fetchChildWorkoutsError;
-    }
-
-    if (existingChildWorkouts && existingChildWorkouts.length > 0) {
-      const childWorkoutIdsToDelete = existingChildWorkouts.map((w: { id: string }) => w.id);
-      console.log(`Found existing child workouts to delete: ${childWorkoutIdsToDelete.join(', ')}`);
-
-      // Delete associated t_path_exercises first
-      const { count: deletedTPathExercisesCount, error: deleteTPathExercisesError } = await supabaseServiceRoleClient
-        .from('t_path_exercises')
-        .delete()
-        .in('template_id', childWorkoutIdsToDelete); // Removed .count('exact')
-
-      if (deleteTPathExercisesError) {
-        console.error('Error deleting t_path_exercises for child workouts:', deleteTPathExercisesError.message);
-        throw deleteTPathExercisesError;
-      }
-      console.log(`Deleted ${deletedTPathExercisesCount} associated t_path_exercises.`);
-
-      // Then delete the child workouts themselves
-      const { count: deletedWorkoutsCount, error: deleteWorkoutsError } = await supabaseServiceRoleClient
-        .from('t_paths')
-        .delete()
-        .in('id', childWorkoutIdsToDelete); // Removed .count('exact')
-
-      if (deleteWorkoutsError) {
-        console.error('Error deleting child workouts:', deleteWorkoutsError.message);
-        throw deleteWorkoutsError;
-      }
-      console.log(`Deleted ${deletedWorkoutsCount} existing child workouts.`);
-    } else {
-      console.log('No existing child workouts found for cleanup.');
-    }
+    await cleanupExistingChildWorkouts(supabaseServiceRoleClient, tPath.id);
 
     // Create workouts for this T-Path
     const generatedWorkouts = [];
     for (const workoutName of workoutNames) {
       console.log(`Processing workout: ${workoutName}`);
       try {
-        // Fetch raw structure entries first
         const { data: rawStructureEntries, error: structureError } = await supabaseServiceRoleClient
           .from('workout_exercise_structure')
           .select('*')
@@ -416,6 +440,7 @@ serve(async (req: Request) => {
           if (entry.bonus_for_time_group === null) {
             // This is a main exercise
             orderCriteriaValue = entry.min_session_minutes;
+            console.log(`  Exercise: ${actualExercise.name}, Type: Main, min_session_minutes: ${orderCriteriaValue}, maxAllowedMinutes: ${maxAllowedMinutes}`);
             if (orderCriteriaValue !== null && orderCriteriaValue <= maxAllowedMinutes) {
               includeExercise = true;
             }
@@ -423,6 +448,7 @@ serve(async (req: Request) => {
             // This is a bonus exercise
             isBonus = true;
             orderCriteriaValue = entry.bonus_for_time_group;
+            console.log(`  Exercise: ${actualExercise.name}, Type: Bonus, bonus_for_time_group: ${orderCriteriaValue}, maxAllowedMinutes: ${maxAllowedMinutes}`);
             if (orderCriteriaValue !== null && orderCriteriaValue <= maxAllowedMinutes) {
               includeExercise = true;
             }
@@ -437,10 +463,12 @@ serve(async (req: Request) => {
             });
             if (isBonus) bonusExerciseCount++;
             else mainExerciseCount++;
+            console.log(`    -> Included: ${actualExercise.name}`);
+          } else {
+            console.log(`    -> Excluded: ${actualExercise.name}`);
           }
         }
 
-        // Sort exercises: main exercises first, then bonus exercises, then by their order criteria
         exercisesToInclude.sort((a, b) => {
           if (a.is_bonus_exercise === b.is_bonus_exercise) {
             return (a.order_criteria || 0) - (b.order_criteria || 0) || a.original_order - b.original_order;
@@ -455,7 +483,6 @@ serve(async (req: Request) => {
           continue;
         }
 
-        // Insert the child workout (t_paths entry)
         console.log(`Inserting child workout ${workoutName}...`);
         const { data: workout, error: workoutError } = await supabaseServiceRoleClient
           .from('t_paths')
@@ -465,7 +492,7 @@ serve(async (req: Request) => {
             template_name: workoutName,
             is_bonus: true,
             version: 1,
-            settings: tPathSettings // Keep general settings, but sessionLength is not here
+            settings: tPathSettings
           })
           .select()
           .single();
@@ -480,7 +507,6 @@ serve(async (req: Request) => {
         generatedWorkouts.push(workout);
         console.log(`Child workout ${workoutName} inserted with ID: ${workout.id}`);
 
-        // Insert exercises into t_path_exercises
         const tPathExercisesToInsert = exercisesToInclude.map((ex, i) => ({
           template_id: workout.id,
           exercise_id: ex.exercise_id,

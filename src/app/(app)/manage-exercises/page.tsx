@@ -150,45 +150,12 @@ export default function ManageExercisesPage() {
         userOwnedMap.set(key, { ...ex, is_favorite: !!ex.is_favorite }); // Ensure is_favorite is boolean
       });
 
-      // Fetch relevant workout_exercise_structure entries for filtering global exercises
-      let relevantLibraryIds: Set<string> = new Set();
-      if (workoutSplit) {
-        const { data: structureData, error: structureError } = await supabase
-          .from('workout_exercise_structure')
-          .select('exercise_library_id, min_session_minutes, bonus_for_time_group')
-          .eq('workout_split', workoutSplit);
-
-        if (structureError) {
-          console.error("Error fetching workout structure for filtering:", structureError);
-        } else {
-          structureData.forEach(entry => {
-            const isMainExercise = entry.bonus_for_time_group === null;
-            const meetsTimeCriteria = (entry.min_session_minutes !== null && entry.min_session_minutes <= maxAllowedMinutes) ||
-                                      (entry.bonus_for_time_group !== null && entry.bonus_for_time_group <= maxAllowedMinutes);
-            
-            if (meetsTimeCriteria) {
-              relevantLibraryIds.add(entry.exercise_library_id);
-            }
-          });
-        }
-      } else {
-        // If no active T-Path or workout split, consider all global exercises relevant
-        allExercisesData.filter(ex => ex.user_id === null).forEach(ex => {
-          if (ex.library_id) {
-            relevantLibraryIds.add(ex.library_id);
-          } else {
-            // Fallback for global exercises without library_id
-            relevantLibraryIds.add(ex.id);
-          }
-        });
-      }
-
       // Populate global exercises, ensuring no duplicates with user-owned versions
+      // Removed the isRelevantToSessionLength filter for global exercises
       allExercisesData.filter(ex => ex.user_id === null).forEach(ex => {
         const isUserOwnedCopy = ex.library_id && userOwnedMap.has(ex.library_id);
-        const isRelevantToSessionLength = ex.library_id ? relevantLibraryIds.has(ex.library_id) : true; // If no library_id, assume relevant
-
-        if (!isUserOwnedCopy && isRelevantToSessionLength) {
+        
+        if (!isUserOwnedCopy) { // Only filter out if user has an adopted copy
           globalMap.set(ex.id, { // Use actual ID for global map key
             ...ex,
             is_favorited_by_current_user: favoritedGlobalExerciseIds.has(ex.id)
