@@ -13,7 +13,13 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 
-export default function WorkoutSessionPage({ params }: { params: { tPathId: string } }) {
+interface WorkoutSessionPageProps {
+  params: {
+    tPathId: string;
+  };
+}
+
+export default function WorkoutSessionPage({ params }: WorkoutSessionPageProps) {
   const { tPathId } = params;
 
   const { session, supabase } = useSession();
