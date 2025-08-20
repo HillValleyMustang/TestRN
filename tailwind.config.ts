@@ -100,4 +100,9 @@ export default {
   	}
   },
   plugins: [require("tailwindcss-animate")],
+  safelist: [
+    {
+      pattern: /(text|bg|border)-workout-(upper-body-a|lower-body-a|upper-body-b|lower-body-b|push|pull|legs)/,
+    },
+  ],
 } satisfies Config;
