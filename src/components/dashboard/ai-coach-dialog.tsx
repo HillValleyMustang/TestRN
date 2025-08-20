@@ -119,7 +119,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
               {canUseAiCoach ? (
                 <>
                   <p>Get personalised feedback on your workout history from the last month.</p>
-                  <Button onClick={handleAnalyze}>Analyze My Performance</Button>
+                  <Button onClick={handleAnalyze}>Analyse My Performance</Button>
                   <p className="text-sm text-muted-foreground">
                     You have {2 - usageCount} uses remaining for this session.
                   </p>
@@ -146,7 +146,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
           )}
           {loading && (
             <div className="text-center text-muted-foreground">
-              <p>Analyzing your performance... This may take a moment.</p>
+              <p>Analysing your performance... This may take a moment.</p>
             </div>
           )}
           {analysis && (

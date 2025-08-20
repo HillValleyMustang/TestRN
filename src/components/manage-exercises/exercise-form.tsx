@@ -201,7 +201,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
           ...exerciseData, 
           user_id: session.user.id,
           library_id: editingExercise.library_id, // Preserve the original library_id
-          is_favorite: false, // Default to not favorited on adoption
+          is_favorite: false, // Default to not favourited on adoption
           created_at: new Date().toISOString(), // Add created_at
         }]).select('id').single(); // Specify columns for select
 
@@ -239,7 +239,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
         ...exerciseData, 
         user_id: session.user.id,
         library_id: null, // No library_id for user-created exercises
-        is_favorite: false, // Default to not favorited
+        is_favorite: false, // Default to not favourited
         created_at: new Date().toISOString(), // Add created_at
       }]).select('id').single(); // Specify columns for select
       if (error) {
@@ -297,7 +297,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                   onClick={() => setShowAnalyzeGymDialog(true)}
                   className="flex-1"
                 >
-                  <Sparkles className="h-4 w-4 mr-2" /> Analyze My Gym
+                  <Sparkles className="h-4 w-4 mr-2" /> Analyse My Gym
                 </Button>
               </div>
 

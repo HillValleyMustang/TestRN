@@ -91,7 +91,7 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
     } catch (err: any) {
       console.error("AI identification error:", err);
       setError(err.message || "An unexpected error occurred during analysis.");
-      toast.error(err.message || "Failed to analyze image.");
+      toast.error(err.message || "Failed to analyse image.");
     } finally {
       setLoading(false);
     }
@@ -111,7 +111,7 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center">
-            <Sparkles className="h-5 w-5 mr-2" /> Analyze My Gym
+            <Sparkles className="h-5 w-5 mr-2" /> Analyse My Gym
           </DialogTitle>
           <DialogDescription>
             Upload photos of your gym equipment to automatically build your exercise library.
@@ -158,7 +158,7 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
             ) : (
               <Sparkles className="h-4 w-4 mr-2" />
             )}
-            {loading ? "Analyzing..." : "Analyze Photo"}
+            {loading ? "Analysing..." : "Analyse Photo"}
           </Button>
         </div>
       </DialogContent>
