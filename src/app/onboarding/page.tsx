@@ -85,16 +85,14 @@ export default function OnboardingPage() {
     setLoading(true);
     
     try {
-      // Create initial T-Path first to get its ID
-      const tPathData: TablesInsert<'t_paths'> = {
+      // Define both T-Path types to be inserted
+      const ululTPathData: TablesInsert<'t_paths'> = {
         user_id: session.user.id,
-        template_name: tPathType === 'ulul' 
-          ? '4-Day Upper/Lower' 
-          : '3-Day Push/Pull/Legs',
+        template_name: '4-Day Upper/Lower',
         is_bonus: false,
-        parent_t_path_id: null, // Main T-Path has no parent
-        settings: { // Keep general settings here, but sessionLength moves to profile
-          tPathType,
+        parent_t_path_id: null,
+        settings: {
+          tPathType: 'ulul', // Store the type in settings for later retrieval
           experience,
           goalFocus,
           preferredMuscles,
@@ -103,13 +101,38 @@ export default function OnboardingPage() {
         }
       };
 
-      const { data: tPath, error: tPathError } = await supabase
-        .from('t_paths')
-        .insert([tPathData])
-        .select('id') // Specify columns
-        .single();
+      const pplTPathData: TablesInsert<'t_paths'> = {
+        user_id: session.user.id,
+        template_name: '3-Day Push/Pull/Legs',
+        is_bonus: false,
+        parent_t_path_id: null,
+        settings: {
+          tPathType: 'ppl', // Store the type in settings for later retrieval
+          experience,
+          goalFocus,
+          preferredMuscles,
+          constraints,
+          equipmentMethod
+        }
+      };
 
-      if (tPathError) throw tPathError;
+      // Insert both T-Paths
+      const { data: insertedTPaths, error: insertTPathsError } = await supabase
+        .from('t_paths')
+        .insert([ululTPathData, pplTPathData])
+        .select('id, template_name'); // Select ID and template_name to find the active one
+
+      if (insertTPathsError) throw insertTPathsError;
+
+      // Determine the active T-Path ID based on user's selection
+      const activeTPath = insertedTPaths.find(tp =>
+        (tPathType === 'ulul' && tp.template_name === '4-Day Upper/Lower') ||
+        (tPathType === 'ppl' && tp.template_name === '3-Day Push/Pull/Legs')
+      );
+
+      if (!activeTPath) {
+        throw new Error("Could not find the selected T-Path after creation.");
+      }
 
       // Save user profile data, including preferred_session_length and active_t_path_id
       const profileData: ProfileInsert = { // Use ProfileInsert type
@@ -122,7 +145,7 @@ export default function OnboardingPage() {
         default_rest_time_seconds: 60, // Default to 60s as per requirements
         body_fat_pct: null, // Will be updated when user adds this data
         preferred_session_length: sessionLength, // Store session length in profile
-        active_t_path_id: tPath.id, // Set the newly created T-Path as active
+        active_t_path_id: activeTPath.id, // Set the initially selected T-Path as active
       };
 
       const { error: profileError } = await supabase
@@ -131,19 +154,24 @@ export default function OnboardingPage() {
 
       if (profileError) throw profileError;
 
-      // Generate the actual workouts for this T-Path (now using sessionLength from profile)
-      const response = await fetch(`/api/generate-t-path`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({ tPathId: tPath.id }) // Pass the main T-Path ID
+      // Generate workouts for ALL newly created main T-Paths
+      const generationPromises = insertedTPaths.map(async (tp) => {
+        const response = await fetch(`/api/generate-t-path`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({ tPathId: tp.id })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Failed to generate T-Path workouts for ${tp.template_name}: ${errorText}`);
+        }
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to generate T-Path workouts');
-      }
+      await Promise.all(generationPromises);
 
       toast.success("Onboarding completed successfully!");
       router.push('/dashboard');
