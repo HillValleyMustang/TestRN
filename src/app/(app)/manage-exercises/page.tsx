@@ -16,8 +16,9 @@ import {
 } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Filter } from "lucide-react";
-import { Card } from "@/components/ui/card"; // Import Card component
+import { Filter, ChevronLeft, ChevronRight } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import useEmblaCarousel from 'embla-carousel-react';
 
 // Extend the ExerciseDefinition type to include a temporary flag for global exercises
 // This flag will be set during data fetching based on user_global_favorites table
@@ -40,6 +41,9 @@ export default function ManageExercisesPage() {
   const [availableMuscleGroups, setAvailableMuscleGroups] = useState<string[]>([]);
   const [exerciseWorkoutsMap, setExerciseWorkoutsMap] = useState<Record<string, { id: string; name: string; isUserOwned: boolean }[]>>({});
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("my-exercises");
+
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
 
   const fetchExercises = useCallback(async () => {
     if (!session) return;
@@ -272,17 +276,48 @@ export default function ManageExercisesPage() {
     }
   };
 
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value);
+    if (emblaApi) {
+      const index = value === "my-exercises" ? 0 : 1;
+      emblaApi.scrollTo(index);
+    }
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+
+    const onSelect = () => {
+      const selectedIndex = emblaApi.selectedScrollSnap();
+      setActiveTab(selectedIndex === 0 ? "my-exercises" : "global-library");
+    };
+
+    emblaApi.on("select", onSelect);
+    onSelect(); // Set initial tab based on carousel position
+
+    return () => {
+      emblaApi.off("select", onSelect);
+    };
+  }, [emblaApi]);
+
+  const scrollPrev = useCallback(() => {
+    emblaApi && emblaApi.scrollPrev();
+  }, [emblaApi]);
+
+  const scrollNext = useCallback(() => {
+    emblaApi && emblaApi.scrollNext();
+  }, [emblaApi]);
+
   return (
     <div className="flex flex-col gap-4">
       <header className="mb-4">
         <h1 className="text-3xl font-bold">Manage Exercises</h1>
       </header>
       
-      <Card> {/* Wrap the entire tabs section in a Card */}
-        <Tabs defaultValue="my-exercises" className="w-full">
-          {/* This div acts as the combined header for tabs and filter */}
-          <div className="flex items-center justify-between p-4 border-b"> {/* Added padding and border-b for visual separation */}
-            <TabsList className="grid grid-cols-2 h-9 flex-grow max-w-[calc(100%-60px)]"> {/* Adjusted width to make space for filter button */}
+      <Card>
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+          <div className="flex items-center justify-between p-4 border-b">
+            <TabsList className="grid grid-cols-2 h-9 flex-grow max-w-[calc(100%-60px)]">
               <TabsTrigger value="my-exercises">My Exercises</TabsTrigger>
               <TabsTrigger value="global-library">Global Library</TabsTrigger>
             </TabsList>
@@ -316,36 +351,66 @@ export default function ManageExercisesPage() {
               </SheetContent>
             </Sheet>
           </div>
-          {/* TabsContent will be rendered below this "header" div */}
-          <TabsContent value="my-exercises" className="p-4 pt-0"> {/* Added padding, removed mt-4 as it's now inside Card */}
-            <UserExerciseList
-              exercises={userExercises}
-              loading={loading}
-              onEdit={handleEditClick}
-              onDelete={handleDeleteClick}
-              isDeleteDialogOpen={isDeleteDialogOpen}
-              exerciseToDelete={exerciseToDelete}
-              setIsDeleteDialogOpen={setIsDeleteDialogOpen}
-              confirmDeleteExercise={confirmDeleteExercise}
-              editingExercise={editingExercise}
-              onCancelEdit={handleCancelEdit}
-              onSaveSuccess={handleSaveSuccess}
-              exerciseWorkoutsMap={exerciseWorkoutsMap}
-              onRemoveFromWorkout={handleRemoveFromWorkout}
-              onToggleFavorite={handleToggleFavorite}
-            />
-          </TabsContent>
-          <TabsContent value="global-library" className="p-4 pt-0"> {/* Added padding, removed mt-4 */}
-            <GlobalExerciseList
-              exercises={globalExercises}
-              loading={loading}
-              onEdit={handleEditClick}
-              exerciseWorkoutsMap={exerciseWorkoutsMap}
-              onRemoveFromWorkout={handleRemoveFromWorkout}
-              onToggleFavorite={handleToggleFavorite}
-              onAddSuccess={fetchExercises}
-            />
-          </TabsContent>
+          
+          <div className="relative">
+            <div className="overflow-hidden" ref={emblaRef}>
+              <div className="flex">
+                <div className="embla__slide flex-[0_0_100%] min-w-0 p-4 pt-0">
+                  <TabsContent value="my-exercises" className="mt-0 border-none p-0">
+                    <UserExerciseList
+                      exercises={userExercises}
+                      loading={loading}
+                      onEdit={handleEditClick}
+                      onDelete={handleDeleteClick}
+                      isDeleteDialogOpen={isDeleteDialogOpen}
+                      exerciseToDelete={exerciseToDelete}
+                      setIsDeleteDialogOpen={setIsDeleteDialogOpen}
+                      confirmDeleteExercise={confirmDeleteExercise}
+                      editingExercise={editingExercise}
+                      onCancelEdit={handleCancelEdit}
+                      onSaveSuccess={handleSaveSuccess}
+                      exerciseWorkoutsMap={exerciseWorkoutsMap}
+                      onRemoveFromWorkout={handleRemoveFromWorkout}
+                      onToggleFavorite={handleToggleFavorite}
+                    />
+                  </TabsContent>
+                </div>
+                <div className="embla__slide flex-[0_0_100%] min-w-0 p-4 pt-0">
+                  <TabsContent value="global-library" className="mt-0 border-none p-0">
+                    <GlobalExerciseList
+                      exercises={globalExercises}
+                      loading={loading}
+                      onEdit={handleEditClick}
+                      exerciseWorkoutsMap={exerciseWorkoutsMap}
+                      onRemoveFromWorkout={handleRemoveFromWorkout}
+                      onToggleFavorite={handleToggleFavorite}
+                      onAddSuccess={fetchExercises}
+                    />
+                  </TabsContent>
+                </div>
+              </div>
+            </div>
+            
+            {/* Navigation Buttons for Carousel */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={scrollPrev}
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-10 hidden sm:flex"
+              disabled={activeTab === "my-exercises"}
+            >
+              <ChevronLeft className="h-6 w-6" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={scrollNext}
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 hidden sm:flex"
+              disabled={activeTab === "global-library"}
+            >
+              <ChevronRight className="h-6 w-6" />
+            </Button>
+          </div>
         </Tabs>
       </Card>
     </div>
