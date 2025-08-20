@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState } from 'react'; // Corrected import statement
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Info, Youtube, Search, Trash2 } from "lucide-react";
@@ -58,11 +58,27 @@ export const ExerciseInfoDialog = ({ exercise, trigger, exerciseWorkouts = [], o
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="max-w-[600px]"> {/* Adjusted max-w to accommodate video better */}
-        <DialogHeader>
+      <DialogContent className="max-w-[600px] p-0"> {/* Remove default padding here */}
+        <DialogHeader className="p-6 pb-4"> {/* Add padding to header */}
           <DialogTitle>{exercise.name} Information</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
+
+        {embedVideoUrl && (
+          <div className="px-6 pb-4"> {/* Add horizontal padding, some bottom padding */}
+            <div className="relative w-full rounded-md overflow-hidden" style={{ paddingBottom: '56.25%' /* 16:9 Aspect Ratio */ }}>
+              <iframe
+                className="absolute top-0 left-0 w-full h-full"
+                src={embedVideoUrl}
+                title={`${exercise.name} video`}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
+            </div>
+          </div>
+        )}
+
+        <div className="px-6 pb-6 space-y-4"> {/* Add padding and vertical spacing */}
           <p className="text-sm text-muted-foreground">
             <span className="font-semibold">Main Muscle:</span> {exercise.main_muscle}
           </p>
@@ -108,22 +124,7 @@ export const ExerciseInfoDialog = ({ exercise, trigger, exerciseWorkouts = [], o
             </div>
           )}
 
-          {embedVideoUrl && (
-            <div className="mt-2">
-              <h4 className="font-semibold text-sm mb-1">Video:</h4>
-              <div className="relative w-full" style={{ paddingBottom: '56.25%' /* 16:9 Aspect Ratio */ }}>
-                <iframe
-                  className="absolute top-0 left-0 w-full h-full rounded-md"
-                  src={embedVideoUrl}
-                  title={`${exercise.name} video`}
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                ></iframe>
-              </div>
-            </div>
-          )}
-          <Button variant="outline" onClick={handleGoogleSearch} className="mt-2">
+          <Button variant="outline" onClick={handleGoogleSearch} className="w-full">
             <Search className="h-4 w-4 mr-2" /> Google Search
           </Button>
         </div>
