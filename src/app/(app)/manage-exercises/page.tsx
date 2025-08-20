@@ -101,24 +101,27 @@ export default function ManageExercisesPage() {
       }
       const favoritedGlobalExerciseIds = new Set(userGlobalFavorites?.map(fav => fav.exercise_id));
 
-      // Fetch all user's T-Paths (workouts) and their associated exercises
-      const { data: userTPaths, error: userTPathsError } = await supabase
-        .from('t_paths')
-        .select('id, template_name, user_id')
-        .eq('user_id', session.user.id)
-        .eq('is_bonus', true) // Only fetch child workouts
-        .not('parent_t_path_id', 'is', null); // Ensure it's a child workout
-
-      if (userTPathsError) {
-        throw new Error(userTPathsError.message);
+      // Fetch only the child workouts of the *active* T-Path
+      let activeTPathChildWorkouts: TPath[] = [];
+      if (activeTPathId) {
+          const { data: childWorkoutsData, error: childWorkoutsError } = await supabase
+              .from('t_paths')
+              .select('id, template_name, user_id')
+              .eq('parent_t_path_id', activeTPathId) // Filter by active parent T-Path
+              .eq('is_bonus', true); // Ensure they are child workouts
+          if (childWorkoutsError) {
+              console.error("Error fetching child workouts for active T-Path:", childWorkoutsError);
+          } else {
+              activeTPathChildWorkouts = childWorkoutsData as TPath[];
+          }
       }
 
-      const userWorkoutIds = userTPaths.map(tp => tp.id);
+      const activeWorkoutIds = activeTPathChildWorkouts.map(tp => tp.id);
 
       const { data: tPathExercisesData, error: tPathExercisesError } = await supabase
         .from('t_path_exercises')
         .select('exercise_id, template_id')
-        .in('template_id', userWorkoutIds);
+        .in('template_id', activeWorkoutIds); // Filter by active child workout IDs
 
       if (tPathExercisesError) {
         throw new Error(tPathExercisesError.message);
@@ -127,7 +130,7 @@ export default function ManageExercisesPage() {
       // Build exerciseWorkoutsMap
       const newExerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean }[]> = {};
       tPathExercisesData.forEach(tpe => {
-        const workout = userTPaths.find(tp => tp.id === tpe.template_id);
+        const workout = activeTPathChildWorkouts.find(tp => tp.id === tpe.template_id);
         if (workout) {
           if (!newExerciseWorkoutsMap[tpe.exercise_id]) {
             newExerciseWorkoutsMap[tpe.exercise_id] = [];

@@ -2,12 +2,12 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useOnboardingForm } from "@/hooks/use-onboarding-form";
-import { OnboardingStep1_TPathSelection } from "@/components/onboarding/onboarding-step-1-tpath-selection.tsx";
-import { OnboardingStep2_ExperienceLevel } from "@/components/onboarding/onboarding-step-2-experience-level.tsx";
-import { OnboardingStep3_GoalFocus } from "@/components/onboarding/onboarding-step-3-goal-focus.tsx";
-import { OnboardingStep4_SessionPreferences } from "@/components/onboarding/onboarding-step-4-session-preferences.tsx";
-import { OnboardingStep5_EquipmentSetup } from "@/components/onboarding/onboarding-step-5-equipment-setup.tsx";
-import { OnboardingStep6_Consent } from "@/components/onboarding/onboarding-step-6-consent.tsx";
+import { OnboardingStep1_TPathSelection } from "@/components/onboarding/onboarding-step-1-tpath-selection";
+import { OnboardingStep2_ExperienceLevel } from "@/components/onboarding/onboarding-step-2-experience-level";
+import { OnboardingStep3_GoalFocus } from "@/components/onboarding/onboarding-step-3-goal-focus";
+import { OnboardingStep4_SessionPreferences } from "@/components/onboarding/onboarding-step-4-session-preferences";
+import { OnboardingStep5_EquipmentSetup } from "@/components/onboarding/onboarding-step-5-equipment-setup";
+import { OnboardingStep6_Consent } from "@/components/onboarding/onboarding-step-6-consent";
 import { useSession } from "@/components/session-context-provider";
 
 export default function OnboardingPage() {
