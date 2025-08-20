@@ -5,13 +5,15 @@ import { useSession } from "@/components/session-context-provider";
 import { Tables } from "@/types/supabase";
 import { toast } from "sonner";
 import { ExerciseForm } from "@/components/manage-exercises/exercise-form";
-import { ExerciseList } from "@/components/manage-exercises/exercise-list";
+import { GlobalExerciseList } from "@/components/manage-exercises/global-exercise-list";
+import { UserExerciseList } from "@/components/manage-exercises/user-exercise-list";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 export default function ManageExercisesPage() {
   const { session, supabase } = useSession();
-  const [exercises, setExercises] = useState<ExerciseDefinition[]>([]);
+  const [globalExercises, setGlobalExercises] = useState<ExerciseDefinition[]>([]);
+  const [userExercises, setUserExercises] = useState<ExerciseDefinition[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingExercise, setEditingExercise] = useState<ExerciseDefinition | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -34,39 +36,45 @@ export default function ManageExercisesPage() {
         throw new Error(allDataError.message);
       }
 
-      // Deduplicate and prioritize user-owned exercises
-      const uniqueExercisesMap = new Map<string, ExerciseDefinition>(); // Key: library_id or exercise.id
+      const userOwnedMap = new Map<string, ExerciseDefinition>(); // Key: library_id or exercise.id
+      const globalMap = new Map<string, ExerciseDefinition>(); // Key: library_id
 
-      // First, add all user-owned exercises. If a library_id exists, use it as a key.
-      // If no library_id (user-created from scratch), use its own ID.
+      // Populate user-owned exercises first
       allData.filter(ex => ex.user_id === session.user.id).forEach(ex => {
-        const key = ex.library_id || ex.id;
-        uniqueExercisesMap.set(key, ex);
+        const key = ex.library_id || ex.id; // Use library_id if available, otherwise its own ID
+        userOwnedMap.set(key, ex);
       });
 
-      // Then, iterate through global exercises.
-      // Only add a global exercise if a user-owned version (with the same library_id) doesn't already exist.
+      // Populate global exercises, ensuring no duplicates with user-owned versions
       allData.filter(ex => ex.user_id === null).forEach(ex => {
-        const key = ex.library_id || ex.id; // Global exercises should always have a library_id
-        if (!uniqueExercisesMap.has(key)) {
-          uniqueExercisesMap.set(key, ex);
+        if (ex.library_id && !userOwnedMap.has(ex.library_id)) {
+          // Only add global if no user-owned version (with same library_id) exists
+          globalMap.set(ex.library_id, ex);
+        } else if (!ex.library_id && !userOwnedMap.has(ex.id)) {
+          // Fallback for global exercises without library_id (shouldn't happen with current data)
+          globalMap.set(ex.id, ex);
         }
       });
 
-      let finalExercises = Array.from(uniqueExercisesMap.values());
+      let finalUserExercises = Array.from(userOwnedMap.values());
+      let finalGlobalExercises = Array.from(globalMap.values());
 
-      // Extract unique muscle groups for the filter dropdown from the *deduplicated* list
-      const uniqueMuscles = Array.from(new Set(finalExercises.map(ex => ex.main_muscle))).sort();
-      setAvailableMuscleGroups(['all', ...uniqueMuscles]);
+      // Extract unique muscle groups for the filter dropdown from *all* exercises
+      const allUniqueMuscles = Array.from(new Set(allData.map(ex => ex.main_muscle))).sort();
+      setAvailableMuscleGroups(['all', ...allUniqueMuscles]);
 
-      // Apply the selected filter
+      // Apply the selected filter to both lists
       if (selectedMuscleFilter !== 'all') {
-        finalExercises = finalExercises.filter(ex => ex.main_muscle === selectedMuscleFilter);
+        finalUserExercises = finalUserExercises.filter(ex => ex.main_muscle === selectedMuscleFilter);
+        finalGlobalExercises = finalGlobalExercises.filter(ex => ex.main_muscle === selectedMuscleFilter);
       }
 
-      finalExercises.sort((a, b) => a.name.localeCompare(b.name));
+      finalUserExercises.sort((a, b) => a.name.localeCompare(b.name));
+      finalGlobalExercises.sort((a, b) => a.name.localeCompare(b.name));
 
-      setExercises(finalExercises || []);
+      setUserExercises(finalUserExercises);
+      setGlobalExercises(finalGlobalExercises);
+
     } catch (err: any) {
       toast.error("Failed to load exercises: " + err.message);
     } finally {
@@ -88,10 +96,12 @@ export default function ManageExercisesPage() {
 
   const handleSaveSuccess = () => {
     setEditingExercise(null);
-    fetchExercises();
+    fetchExercises(); // Re-fetch to update both lists
   };
 
   const handleDeleteClick = (exercise: ExerciseDefinition) => {
+    // This check is now redundant as UserExerciseList only passes user-owned exercises
+    // but kept for safety.
     if (exercise.user_id === null) {
       toast.error("You cannot delete global exercises. You can only delete exercises you have created.");
       return;
@@ -107,7 +117,7 @@ export default function ManageExercisesPage() {
       toast.error("Failed to delete exercise: " + error.message);
     } else {
       toast.success("Exercise deleted successfully!");
-      fetchExercises();
+      fetchExercises(); // Re-fetch to update the list
     }
     setIsDeleteDialogOpen(false);
     setExerciseToDelete(null);
@@ -126,9 +136,9 @@ export default function ManageExercisesPage() {
             onSaveSuccess={handleSaveSuccess}
           />
         </div>
-        <div className="lg:col-span-2">
-          <ExerciseList
-            exercises={exercises}
+        <div className="lg:col-span-2 space-y-8">
+          <UserExerciseList
+            exercises={userExercises}
             loading={loading}
             onEdit={handleEditClick}
             onDelete={handleDeleteClick}
@@ -136,6 +146,11 @@ export default function ManageExercisesPage() {
             exerciseToDelete={exerciseToDelete}
             setIsDeleteDialogOpen={setIsDeleteDialogOpen}
             confirmDeleteExercise={confirmDeleteExercise}
+          />
+          <GlobalExerciseList
+            exercises={globalExercises}
+            loading={loading}
+            onEdit={handleEditClick}
             selectedMuscleFilter={selectedMuscleFilter}
             setSelectedMuscleFilter={setSelectedMuscleFilter}
             availableMuscleGroups={availableMuscleGroups}
