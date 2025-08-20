@@ -23,7 +23,7 @@ export default function ManageExercisesPage() {
     if (!session) return;
     setLoading(true);
     try {
-      // Fetch all exercises (user's own and global ones) to get all muscle groups
+      // Fetch all exercises (user's own and global ones)
       const { data: allData, error: allDataError } = await supabase
         .from('exercise_definitions')
         .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at')
@@ -34,25 +34,35 @@ export default function ManageExercisesPage() {
         throw new Error(allDataError.message);
       }
 
-      // Extract unique muscle groups for the filter dropdown
-      const uniqueMuscles = Array.from(new Set(allData.map(ex => ex.main_muscle))).sort();
+      // Deduplicate and prioritize user-owned exercises
+      const uniqueExercisesMap = new Map<string, ExerciseDefinition>(); // Key: library_id or exercise.id
+
+      // First, add all user-owned exercises. If a library_id exists, use it as a key.
+      // If no library_id (user-created from scratch), use its own ID.
+      allData.filter(ex => ex.user_id === session.user.id).forEach(ex => {
+        const key = ex.library_id || ex.id;
+        uniqueExercisesMap.set(key, ex);
+      });
+
+      // Then, iterate through global exercises.
+      // Only add a global exercise if a user-owned version (with the same library_id) doesn't already exist.
+      allData.filter(ex => ex.user_id === null).forEach(ex => {
+        const key = ex.library_id || ex.id; // Global exercises should always have a library_id
+        if (!uniqueExercisesMap.has(key)) {
+          uniqueExercisesMap.set(key, ex);
+        }
+      });
+
+      let finalExercises = Array.from(uniqueExercisesMap.values());
+
+      // Extract unique muscle groups for the filter dropdown from the *deduplicated* list
+      const uniqueMuscles = Array.from(new Set(finalExercises.map(ex => ex.main_muscle))).sort();
       setAvailableMuscleGroups(['all', ...uniqueMuscles]);
 
       // Apply the selected filter
-      let filteredData = allData;
       if (selectedMuscleFilter !== 'all') {
-        filteredData = allData.filter(ex => ex.main_muscle === selectedMuscleFilter);
+        finalExercises = finalExercises.filter(ex => ex.main_muscle === selectedMuscleFilter);
       }
-
-      // Filter out global exercises if a user-owned copy already exists
-      const userOwnedExercises = filteredData.filter(ex => ex.user_id === session.user.id);
-      const globalExercises = filteredData.filter(ex => ex.user_id === null);
-
-      const userOwnedLibraryIds = new Set(userOwnedExercises.map(ex => ex.library_id).filter(Boolean));
-
-      const finalExercises = globalExercises.filter(ex => 
-        ex.library_id === null || !userOwnedLibraryIds.has(ex.library_id)
-      ).concat(userOwnedExercises); // Concatenate user-owned exercises
 
       finalExercises.sort((a, b) => a.name.localeCompare(b.name));
 
