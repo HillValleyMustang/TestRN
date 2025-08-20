@@ -18,10 +18,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -53,40 +55,45 @@ export const ExerciseList = ({
   setSelectedMuscleFilter,
   availableMuscleGroups,
 }: ExerciseListProps) => {
-  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   const handleFilterChange = (value: string) => {
     setSelectedMuscleFilter(value);
-    setIsPopoverOpen(false); // Close popover after selection
+    setIsSheetOpen(false); // Close sheet after selection
   };
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="text-2xl font-bold">My Exercise Library</CardTitle>
-        <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-          <PopoverTrigger asChild>
+        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+          <SheetTrigger asChild>
             <Button variant="outline" size="sm" className="h-8 gap-1">
               <Filter className="h-4 w-4" />
               <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Filter</span>
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-48 p-2" side="bottom" align="start">
-            <Select onValueChange={handleFilterChange} value={selectedMuscleFilter}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Filter by Muscle" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Muscle Groups</SelectItem>
-                {availableMuscleGroups.filter(muscle => muscle !== 'all').map(muscle => (
-                  <SelectItem key={muscle} value={muscle}>
-                    {muscle}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </PopoverContent>
-        </Popover>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="h-fit max-h-[80vh]">
+            <SheetHeader>
+              <SheetTitle>Filter Exercises by Muscle Group</SheetTitle>
+            </SheetHeader>
+            <div className="py-4">
+              <Select onValueChange={handleFilterChange} value={selectedMuscleFilter}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Filter by Muscle" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Muscle Groups</SelectItem>
+                  {availableMuscleGroups.filter(muscle => muscle !== 'all').map(muscle => (
+                    <SelectItem key={muscle} value={muscle}>
+                      {muscle}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </SheetContent>
+        </Sheet>
       </CardHeader>
       <CardContent>
         {loading ? (
