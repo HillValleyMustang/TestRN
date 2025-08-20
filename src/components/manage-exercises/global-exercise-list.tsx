@@ -9,7 +9,7 @@ import { PlusCircle, Heart } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExerciseInfoDialog } from "@/components/exercise-info-dialog";
 import { AddExerciseToTPathDialog } from "./add-exercise-to-tpath-dialog";
-import { cn } from "@/lib/utils";
+import { cn, getWorkoutColorClass } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
 // Extend the ExerciseDefinition type to include a temporary flag for global exercises
@@ -81,7 +81,10 @@ export const GlobalExerciseList = ({
                         {exerciseWorkoutsMap[ex.id]?.length > 0 && (
                           <div className="mt-1 flex flex-wrap gap-1">
                             {exerciseWorkoutsMap[ex.id].map(workout => (
-                              <Badge key={workout.id} variant="secondary" className="px-2 py-0.5 text-xs">
+                              <Badge 
+                                key={workout.id} 
+                                className={cn("px-2 py-0.5 text-xs text-primary-foreground", getWorkoutColorClass(workout.name, 'bg'))}
+                              >
                                 {workout.name}
                               </Badge>
                             ))}
