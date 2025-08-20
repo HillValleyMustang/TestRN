@@ -5,7 +5,7 @@ import { Tables } from "@/types/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Edit, Trash2, Heart } from "lucide-react";
+import { Edit, Trash2, Heart, Info } from "lucide-react"; // Import Info icon
 import {
   AlertDialog,
   AlertDialogAction,
@@ -94,6 +94,7 @@ export const UserExerciseList = ({
             <ul className="space-y-2">
               {exercises.map((ex) => (
                 <li key={ex.id} className="flex items-center justify-between p-2 border rounded-md">
+                  {/* Main clickable area for info dialog */}
                   <ExerciseInfoDialog
                     exercise={ex}
                     exerciseWorkouts={exerciseWorkoutsMap[ex.id] || []}
@@ -122,7 +123,19 @@ export const UserExerciseList = ({
                       </div>
                     }
                   />
+                  {/* Action buttons group */}
                   <div className="flex space-x-1">
+                    {/* New Info Button */}
+                    <ExerciseInfoDialog
+                      exercise={ex}
+                      exerciseWorkouts={exerciseWorkoutsMap[ex.id] || []}
+                      onRemoveFromWorkout={onRemoveFromWorkout}
+                      trigger={
+                        <Button variant="ghost" size="icon" title="More Info">
+                          <Info className="h-4 w-4" />
+                        </Button>
+                      }
+                    />
                     <Button 
                       variant="ghost" 
                       size="icon" 

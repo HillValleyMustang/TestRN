@@ -381,7 +381,7 @@ export default function ManageExercisesPage() {
           <div className="relative">
             <div className="overflow-hidden" ref={emblaRef}>
               <div className="flex">
-                <div className="embla__slide flex-[0_0_100%] min-w-0 p-4 pt-0">
+                <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0"> {/* Changed p-4 to px-2 */}
                   <TabsContent value="my-exercises" className="mt-0 border-none p-0">
                     <UserExerciseList
                       exercises={userExercises}
@@ -401,7 +401,7 @@ export default function ManageExercisesPage() {
                     />
                   </TabsContent>
                 </div>
-                <div className="embla__slide flex-[0_0_100%] min-w-0 p-4 pt-0">
+                <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0"> {/* Changed p-4 to px-2 */}
                   <TabsContent value="global-library" className="mt-0 border-none p-0">
                     <GlobalExerciseList
                       exercises={globalExercises}
