@@ -16,6 +16,7 @@ import * as z from "zod";
 import { toast } from 'sonner';
 import { Profile as ProfileType, ProfileUpdate, Tables } from '@/types/supabase'; // Use alias for Profile
 import { TPathSwitcher } from '@/components/t-path-switcher';
+import { LoadingOverlay } from '@/components/loading-overlay'; // Import the new component
 
 type Profile = ProfileType; // Use the aliased type
 type TPath = Tables<'t_paths'>;
@@ -42,6 +43,7 @@ export default function ProfilePage() {
   const [activeTPathId, setActiveTPathId] = useState<string>('');
   const [activeTPathName, setActiveTPathName] = useState<string | null>(null);
   const [aiCoachUsage, setAiCoachUsage] = useState<{ count: number; lastUsed: string | null }>({ count: 0, lastUsed: null });
+  const [showRegenerationLoading, setShowRegenerationLoading] = useState(false); // New state for loading overlay
 
   const form = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
@@ -173,6 +175,7 @@ export default function ProfilePage() {
       // If session length changed and there's an active T-Path, regenerate workouts
       if (values.preferred_session_length !== oldSessionLength && activeTPathId) {
         toast.info("Session length changed. Regenerating T-Path workouts...");
+        setShowRegenerationLoading(true); // Show loading overlay
         try {
           const response = await fetch(`/api/generate-t-path`, {
             method: 'POST',
@@ -187,12 +190,19 @@ export default function ProfilePage() {
             throw new Error('Failed to regenerate T-Path workouts');
           }
           toast.success("T-Path workouts updated successfully!");
-          // Redirect to start-t-path to force re-fetch of workouts
-          router.push('/start-t-path'); 
+          // Add a small delay before redirecting to allow database changes to propagate
+          setTimeout(() => {
+            router.push('/start-t-path'); 
+          }, 1000); // 1 second delay
         } catch (regenError: any) {
           toast.error("Failed to regenerate T-Path workouts: " + regenError.message);
           console.error("Error regenerating T-Path:", regenError);
+        } finally {
+          setShowRegenerationLoading(false); // Hide loading overlay
         }
+      } else {
+        // If no regeneration, just stay on profile page or redirect to dashboard
+        // For now, let's just stay on the profile page if no regeneration happened
       }
     }
   }
@@ -483,6 +493,7 @@ export default function ProfilePage() {
       </Card>
 
       <MadeWithDyad />
+      <LoadingOverlay isOpen={showRegenerationLoading} title="Generating Workouts" description="Please wait while your personalized workouts are created." />
     </div>
   );
 }
