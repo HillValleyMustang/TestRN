@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import useEmblaCarousel from 'embla-carousel-react';
+import { getMaxMinutes } from '@/lib/utils'; // Import getMaxMinutes
 
 // Extend the ExerciseDefinition type to include a temporary flag for global exercises
 // This flag will be set during data fetching based on user_global_favorites table
@@ -49,6 +50,35 @@ export default function ManageExercisesPage() {
     if (!session) return;
     setLoading(true);
     try {
+      // Fetch user profile to get preferred_session_length and active_t_path_id
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('preferred_session_length, active_t_path_id')
+        .eq('id', session.user.id)
+        .single();
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error("Error fetching user profile for filtering:", profileError);
+      }
+
+      const preferredSessionLength = profileData?.preferred_session_length;
+      const activeTPathId = profileData?.active_t_path_id;
+      const maxAllowedMinutes = getMaxMinutes(preferredSessionLength);
+
+      let workoutSplit: string | null = null;
+      if (activeTPathId) {
+        const { data: activeTPath, error: activeTPathError } = await supabase
+          .from('t_paths')
+          .select('settings')
+          .eq('id', activeTPathId)
+          .single();
+        if (activeTPathError) {
+          console.error("Error fetching active T-Path settings:", activeTPathError);
+        } else if (activeTPath?.settings && typeof activeTPath.settings === 'object' && 'tPathType' in activeTPath.settings) {
+          workoutSplit = (activeTPath.settings as { tPathType: string }).tPathType;
+        }
+      }
+
       // Fetch all exercises (user's own and global ones)
       const { data: allExercisesData, error: allExercisesError } = await supabase
         .from('exercise_definitions')
@@ -120,17 +150,46 @@ export default function ManageExercisesPage() {
         userOwnedMap.set(key, { ...ex, is_favorite: !!ex.is_favorite }); // Ensure is_favorite is boolean
       });
 
+      // Fetch relevant workout_exercise_structure entries for filtering global exercises
+      let relevantLibraryIds: Set<string> = new Set();
+      if (workoutSplit) {
+        const { data: structureData, error: structureError } = await supabase
+          .from('workout_exercise_structure')
+          .select('exercise_library_id, min_session_minutes, bonus_for_time_group')
+          .eq('workout_split', workoutSplit);
+
+        if (structureError) {
+          console.error("Error fetching workout structure for filtering:", structureError);
+        } else {
+          structureData.forEach(entry => {
+            const isMainExercise = entry.bonus_for_time_group === null;
+            const meetsTimeCriteria = (entry.min_session_minutes !== null && entry.min_session_minutes <= maxAllowedMinutes) ||
+                                      (entry.bonus_for_time_group !== null && entry.bonus_for_time_group <= maxAllowedMinutes);
+            
+            if (meetsTimeCriteria) {
+              relevantLibraryIds.add(entry.exercise_library_id);
+            }
+          });
+        }
+      } else {
+        // If no active T-Path or workout split, consider all global exercises relevant
+        allExercisesData.filter(ex => ex.user_id === null).forEach(ex => {
+          if (ex.library_id) {
+            relevantLibraryIds.add(ex.library_id);
+          } else {
+            // Fallback for global exercises without library_id
+            relevantLibraryIds.add(ex.id);
+          }
+        });
+      }
+
       // Populate global exercises, ensuring no duplicates with user-owned versions
       allExercisesData.filter(ex => ex.user_id === null).forEach(ex => {
-        if (ex.library_id && !userOwnedMap.has(ex.library_id)) {
-          // Only add global if no user-owned version (with same library_id) exists
+        const isUserOwnedCopy = ex.library_id && userOwnedMap.has(ex.library_id);
+        const isRelevantToSessionLength = ex.library_id ? relevantLibraryIds.has(ex.library_id) : true; // If no library_id, assume relevant
+
+        if (!isUserOwnedCopy && isRelevantToSessionLength) {
           globalMap.set(ex.id, { // Use actual ID for global map key
-            ...ex,
-            is_favorited_by_current_user: favoritedGlobalExerciseIds.has(ex.id)
-          });
-        } else if (!ex.library_id && !userOwnedMap.has(ex.id)) {
-          // Fallback for global exercises without library_id (shouldn't happen with current data)
-          globalMap.set(ex.id, {
             ...ex,
             is_favorited_by_current_user: favoritedGlobalExerciseIds.has(ex.id)
           });

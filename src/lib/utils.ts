@@ -62,3 +62,14 @@ export function getWorkoutIcon(workoutName: string): LucideIcon | null {
       return null; // No specific icon for other workouts or 'Ad Hoc Workout'
   }
 }
+
+// Helper to get max minutes from sessionLength string
+export function getMaxMinutes(sessionLength: string | null | undefined): number {
+  switch (sessionLength) {
+    case '15-30': return 30;
+    case '30-45': return 45;
+    case '45-60': return 60;
+    case '60-90': return 90;
+    default: return 90; // Default to longest if unknown or null
+  }
+}
