@@ -53,20 +53,26 @@ export const ExerciseList = ({
   setSelectedMuscleFilter,
   availableMuscleGroups,
 }: ExerciseListProps) => {
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+
+  const handleFilterChange = (value: string) => {
+    setSelectedMuscleFilter(value);
+    setIsPopoverOpen(false); // Close popover after selection
+  };
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="text-2xl font-bold">My Exercise Library</CardTitle>
-        <Popover>
+        <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="h-8 gap-1">
               <Filter className="h-4 w-4" />
               <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Filter</span>
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-48 p-2" align="end">
-            <Select onValueChange={setSelectedMuscleFilter} value={selectedMuscleFilter}>
+          <PopoverContent className="w-48 p-2" side="bottom" align="start">
+            <Select onValueChange={handleFilterChange} value={selectedMuscleFilter}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Filter by Muscle" />
               </SelectTrigger>
