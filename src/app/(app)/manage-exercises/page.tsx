@@ -125,7 +125,7 @@ export default function ManageExercisesPage() {
 
       // Extract unique muscle groups for the filter dropdown from *all* exercises
       const allUniqueMuscles = Array.from(new Set(allExercisesData.map(ex => ex.main_muscle))).sort();
-      setAvailableMuscleGroups(['all', 'favorites', ...allUniqueMuscles]);
+      setAvailableMuscleGroups(allUniqueMuscles); // Removed 'all' and 'favorites' from here
 
       // Apply the selected filter to both lists
       if (selectedMuscleFilter === 'favorites') {
@@ -190,7 +190,7 @@ export default function ManageExercisesPage() {
 
   const handleToggleFavorite = async (exercise: FetchedExerciseDefinition) => {
     if (!session) {
-      toast.error("You must be logged in to favorite exercises.");
+      toast.error("You must be logged in to favourite exercises.");
       return;
     }
     try {
@@ -204,7 +204,7 @@ export default function ManageExercisesPage() {
           .eq('user_id', session.user.id);
 
         if (error) throw error;
-        toast.success(newFavoriteStatus ? "Added to favorites!" : "Removed from favorites.");
+        toast.success(newFavoriteStatus ? "Added to favourites!" : "Removed from favourites.");
       } else if (exercise.user_id === null) {
         // This is a global exercise, toggle its status in user_global_favorites
         const isCurrentlyFavorited = exercise.is_favorited_by_current_user;
@@ -215,19 +215,19 @@ export default function ManageExercisesPage() {
             .eq('user_id', session.user.id)
             .eq('exercise_id', exercise.id);
           if (error) throw error;
-          toast.success("Removed from favorites.");
+          toast.success("Removed from favourites.");
         } else {
           const { error } = await supabase
             .from('user_global_favorites')
             .insert({ user_id: session.user.id, exercise_id: exercise.id });
           if (error) throw error;
-          toast.success("Added to favorites!");
+          toast.success("Added to favourites!");
         }
       }
       fetchExercises(); // Re-fetch to update UI
     } catch (err: any) {
-      console.error("Failed to toggle favorite status:", err);
-      toast.error("Failed to update favorite status: " + err.message);
+      console.error("Failed to toggle favourite status:", err);
+      toast.error("Failed to update favourite status: " + err.message);
     }
   };
 

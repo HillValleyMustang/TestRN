@@ -118,7 +118,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
             <div className="text-center space-y-4">
               {canUseAiCoach ? (
                 <>
-                  <p>Get personalized feedback on your workout history from the last month.</p>
+                  <p>Get personalised feedback on your workout history from the last month.</p>
                   <Button onClick={handleAnalyze}>Analyze My Performance</Button>
                   <p className="text-sm text-muted-foreground">
                     You have {2 - usageCount} uses remaining for this session.

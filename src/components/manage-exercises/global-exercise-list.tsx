@@ -92,8 +92,8 @@ export const GlobalExerciseList = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Muscle Groups</SelectItem>
-                  <SelectItem value="favorites">Favorites</SelectItem>
-                  {availableMuscleGroups.filter(muscle => muscle !== 'all' && muscle !== 'favorites').map(muscle => (
+                  <SelectItem value="favorites">Favourites</SelectItem>
+                  {availableMuscleGroups.map(muscle => (
                     <SelectItem key={muscle} value={muscle}>
                       {muscle}
                     </SelectItem>
@@ -144,7 +144,7 @@ export const GlobalExerciseList = ({
                       variant="ghost" 
                       size="icon" 
                       onClick={(e) => handleToggleFavoriteClick(ex, e)} 
-                      title={ex.is_favorited_by_current_user ? "Unfavorite" : "Favorite"}
+                      title={ex.is_favorited_by_current_user ? "Unfavourite" : "Favourite"}
                     >
                       <Heart className={cn("h-4 w-4", ex.is_favorited_by_current_user ? "fill-red-500 text-red-500" : "text-muted-foreground")} />
                     </Button>

@@ -100,7 +100,7 @@ export default function StartTPathPage() {
       <header className="mb-4">
         <h1 className="text-3xl font-bold">Your Transformation Paths</h1>
         <p className="text-muted-foreground">
-          Start an ad-hoc session or choose one of your personalized Transformation Paths.
+          Start an ad-hoc session or choose one of your personalised Transformation Paths.
         </p>
       </header>
       <div className="space-y-4">
@@ -119,7 +119,7 @@ export default function StartTPathPage() {
           </CardHeader>
         </Card>
 
-        <h3 className="text-xl font-semibold pt-4">Your Personalized Paths</h3>
+        <h3 className="text-xl font-semibold pt-4">Your Personalised Paths</h3>
 
         <div className="space-y-2">
           {loading ? (

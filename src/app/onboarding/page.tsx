@@ -164,7 +164,7 @@ export default function OnboardingPage() {
         <header className="mb-8 text-center">
           <h1 className="text-3xl font-bold">Welcome to Your Fitness Journey</h1>
           <p className="text-muted-foreground mt-2">
-            Let's set up your personalized Transformation Path
+            Let's set up your personalised Transformation Path
           </p>
         </header>
 
@@ -492,7 +492,7 @@ export default function OnboardingPage() {
                     />
                     <Label htmlFor="consent" className="text-sm">
                       I consent to storing my workout data and profile information to provide 
-                      personalized training recommendations. I understand I can delete my data 
+                      personalised training recommendations. I understand I can delete my data 
                       at any time through my profile settings.
                     </Label>
                   </div>

@@ -92,7 +92,7 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
         video_url: exerciseToAdopt.video_url,
         user_id: session!.user.id,
         library_id: exerciseToAdopt.library_id || null, // Preserve library_id if it exists
-        is_favorite: false, // Default to not favorited on adoption
+        is_favorite: false, // Default to not favourited on adoption
       })
       .select()
       .single();
@@ -164,14 +164,14 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <p className="text-sm text-muted-foreground">
-            Select one of your personalized workouts to add this exercise to.
+            Select one of your personalised workouts to add this exercise to.
             This will permanently add it to the workout template.
           </p>
           {loading ? (
             <p className="text-center text-muted-foreground">Loading your workouts...</p>
           ) : userWorkouts.length === 0 ? (
             <p className="text-center text-muted-foreground">
-              You don't have any personalized workouts yet. Create a T-Path first!
+              You don't have any personalised workouts yet. Create a T-Path first!
             </p>
           ) : (
             <Select onValueChange={setSelectedWorkoutId} value={selectedWorkoutId}>
