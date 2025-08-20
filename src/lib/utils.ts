@@ -40,7 +40,7 @@ export function getWorkoutColorClass(workoutName: string, type: 'text' | 'border
   } else if (type === 'bg') {
     return `bg-workout-${colorKey}-bg`;
   } else if (type === 'border') {
-    return `border-workout-${colorKey}-base`; // Use base for border for a stronger line
+    return `border-workout-${colorKey}-border`; // Use the new border variant
   }
   return '';
 }
