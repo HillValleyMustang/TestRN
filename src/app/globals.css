@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-
-
 @layer base {
   :root {
 
@@ -141,8 +139,6 @@
     --sidebar-ring: 217.2 91.2% 59.8%}
 }
 
-
-
 @layer base {
   * {
     @apply border-border;
@@ -150,4 +146,10 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Custom class for backdrop blur */
+.backdrop-blur-md {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px); /* For Safari compatibility */
 }
