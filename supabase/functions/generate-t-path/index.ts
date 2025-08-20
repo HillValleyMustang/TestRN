@@ -344,8 +344,7 @@ serve(async (req: Request) => {
       const { count: deletedTPathExercisesCount, error: deleteTPathExercisesError } = await supabaseServiceRoleClient
         .from('t_path_exercises')
         .delete()
-        .in('template_id', childWorkoutIdsToDelete)
-        .count('exact'); // Correctly get the count
+        .in('template_id', childWorkoutIdsToDelete); // Removed .count('exact')
 
       if (deleteTPathExercisesError) {
         console.error('Error deleting t_path_exercises for child workouts:', deleteTPathExercisesError.message);
@@ -357,8 +356,7 @@ serve(async (req: Request) => {
       const { count: deletedWorkoutsCount, error: deleteWorkoutsError } = await supabaseServiceRoleClient
         .from('t_paths')
         .delete()
-        .in('id', childWorkoutIdsToDelete)
-        .count('exact'); // Correctly get the count
+        .in('id', childWorkoutIdsToDelete); // Removed .count('exact')
 
       if (deleteWorkoutsError) {
         console.error('Error deleting child workouts:', deleteWorkoutsError.message);
