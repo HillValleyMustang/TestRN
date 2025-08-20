@@ -241,13 +241,14 @@ export default function ProfilePage() {
         <h1 className="text-3xl font-bold">My Profile</h1>
       </header>
 
-      <Card className="max-w-2xl">
-        <CardHeader>
-          <CardTitle>Personal Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      {/* Wrap all cards that contain form fields with the FormProvider and form tag */}
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <Card className="max-w-2xl">
+            <CardHeader>
+              <CardTitle>Personal Information</CardTitle>
+            </CardHeader>
+            <CardContent>
               <FormField
                 control={form.control}
                 name="preferred_name"
@@ -406,56 +407,58 @@ export default function ProfilePage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full">Update Profile</Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
-      <Card className="max-w-2xl">
-        <CardHeader>
-          <CardTitle>T-Path Settings</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm font-medium">Active Transformation Path:</p>
-              <p className="text-lg font-semibold">{activeTPathName || 'None Selected'}</p>
-            </div>
-            <FormField
-              control={form.control}
-              name="preferred_session_length"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Preferred Session Length</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || ''}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select preferred session length" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="15-30">15-30 minutes</SelectItem>
-                      <SelectItem value="30-45">30-45 minutes</SelectItem>
-                      <SelectItem value="45-60">45-60 minutes</SelectItem>
-                      <SelectItem value="60-90">60-90 minutes</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                  <p className="text-xs text-muted-foreground">
-                    Changing this will regenerate your active T-Path workouts.
-                  </p>
-                </FormItem>
-              )}
-            />
-            <TPathSwitcher 
-              currentTPathId={activeTPathId} 
-              onTPathChange={handleTPathChange} 
-            />
-          </div>
-        </CardContent>
-      </Card>
+          <Card className="max-w-2xl">
+            <CardHeader>
+              <CardTitle>T-Path Settings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm font-medium">Active Transformation Path:</p>
+                  <p className="text-lg font-semibold">{activeTPathName || 'None Selected'}</p>
+                </div>
+                <FormField
+                  control={form.control}
+                  name="preferred_session_length"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Preferred Session Length</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ''}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select preferred session length" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="15-30">15-30 minutes</SelectItem>
+                          <SelectItem value="30-45">30-45 minutes</SelectItem>
+                          <SelectItem value="45-60">45-60 minutes</SelectItem>
+                          <SelectItem value="60-90">60-90 minutes</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                      <p className="text-xs text-muted-foreground">
+                        Changing this will regenerate your active T-Path workouts.
+                      </p>
+                    </FormItem>
+                  )}
+                />
+                <TPathSwitcher 
+                  currentTPathId={activeTPathId} 
+                  onTPathChange={handleTPathChange} 
+                />
+              </div>
+            </CardContent>
+          </Card>
 
+          <Button type="submit" className="w-full">Update Profile</Button>
+        </form>
+      </Form>
+
+      {/* This card is not part of the form submission, so it remains outside */}
       <Card className="max-w-2xl">
         <CardHeader>
           <CardTitle>AI Coach Usage</CardTitle>
