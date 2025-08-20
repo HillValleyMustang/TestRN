@@ -5,7 +5,7 @@ import { Tables } from "@/types/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Edit, Trash2, Filter } from "lucide-react";
+import { Edit, Trash2, Filter, Heart } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +26,9 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ExerciseInfoDialog } from "@/components/exercise-info-dialog";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -44,6 +47,9 @@ interface UserExerciseListProps {
   selectedMuscleFilter: string;
   setSelectedMuscleFilter: (value: string) => void;
   availableMuscleGroups: string[];
+  exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean }[]>; // New prop
+  onRemoveFromWorkout: (workoutId: string, exerciseId: string) => void; // New prop
+  onToggleFavorite: (exercise: ExerciseDefinition) => void; // New prop
 }
 
 export const UserExerciseList = ({
@@ -61,12 +67,20 @@ export const UserExerciseList = ({
   selectedMuscleFilter,
   setSelectedMuscleFilter,
   availableMuscleGroups,
+  exerciseWorkoutsMap,
+  onRemoveFromWorkout,
+  onToggleFavorite,
 }: UserExerciseListProps) => {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   const handleFilterChange = (value: string) => {
     setSelectedMuscleFilter(value);
     setIsSheetOpen(false);
+  };
+
+  const handleToggleFavoriteClick = (exercise: ExerciseDefinition, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent opening info dialog
+    onToggleFavorite(exercise);
   };
 
   return (
@@ -91,6 +105,7 @@ export const UserExerciseList = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Muscle Groups</SelectItem>
+                  <SelectItem value="favorites">Favorites</SelectItem> {/* New filter option */}
                   {availableMuscleGroups.filter(muscle => muscle !== 'all').map(muscle => (
                     <SelectItem key={muscle} value={muscle}>
                       {muscle}
@@ -125,14 +140,40 @@ export const UserExerciseList = ({
             <ul className="space-y-2">
               {exercises.map((ex) => (
                 <li key={ex.id} className="flex items-center justify-between p-2 border rounded-md">
-                  <span>
-                    {ex.name} <span className="text-muted-foreground">({ex.main_muscle})</span>
-                  </span>
+                  <ExerciseInfoDialog
+                    exercise={ex}
+                    exerciseWorkouts={exerciseWorkoutsMap[ex.id] || []}
+                    onRemoveFromWorkout={onRemoveFromWorkout}
+                    trigger={
+                      <div className="flex-1 cursor-pointer py-1 pr-2" onClick={(e) => e.stopPropagation()}> {/* Stop propagation for the trigger itself */}
+                        <span className="font-medium">
+                          {ex.name} <span className="text-muted-foreground">({ex.main_muscle})</span>
+                        </span>
+                        {exerciseWorkoutsMap[ex.id]?.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {exerciseWorkoutsMap[ex.id].map(workout => (
+                              <Badge key={workout.id} variant="secondary" className="px-2 py-0.5 text-xs">
+                                {workout.name}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    }
+                  />
                   <div className="flex space-x-1">
-                    <Button variant="ghost" size="icon" onClick={() => onEdit(ex)} title="Edit Exercise">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={(e) => handleToggleFavoriteClick(ex, e)} 
+                      title={ex.is_favorite ? "Unfavorite" : "Favorite"}
+                    >
+                      <Heart className={cn("h-4 w-4", ex.is_favorite ? "fill-red-500 text-red-500" : "text-muted-foreground")} />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEdit(ex); }} title="Edit Exercise">
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => onDelete(ex)} title="Delete Exercise">
+                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(ex); }} title="Delete Exercise">
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
