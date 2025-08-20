@@ -45,7 +45,7 @@ export const TPathList = ({
       <CardHeader><CardTitle>My Transformation Paths</CardTitle></CardHeader>
       <CardContent>
         {loading ? <p>Loading...</p> : (
-          <ScrollArea className="h-[600px] pr-4">
+          <ScrollArea className="max-h-[600px] pr-4">
             <ul className="space-y-2">
               {tPaths.map(t => (
                 <li key={t.id} className="flex items-center justify-between p-2 border rounded-md">
