@@ -1,11 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Tables } from "@/types/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Edit, Trash2 } from "lucide-react";
+import { Edit, Trash2, Filter } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,6 +17,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -29,6 +37,9 @@ interface ExerciseListProps {
   exerciseToDelete: ExerciseDefinition | null;
   setIsDeleteDialogOpen: (open: boolean) => void;
   confirmDeleteExercise: () => void;
+  selectedMuscleFilter: string;
+  setSelectedMuscleFilter: (value: string) => void;
+  availableMuscleGroups: string[];
 }
 
 export const ExerciseList = ({
@@ -40,11 +51,44 @@ export const ExerciseList = ({
   exerciseToDelete,
   setIsDeleteDialogOpen,
   confirmDeleteExercise,
+  selectedMuscleFilter,
+  setSelectedMuscleFilter,
+  availableMuscleGroups,
 }: ExerciseListProps) => {
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>My Exercise Library</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <CardTitle className="text-2xl font-bold">My Exercise Library</CardTitle>
+        <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="h-8 gap-1">
+              <Filter className="h-4 w-4" />
+              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Filter</span>
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Filter Exercises</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <Select onValueChange={setSelectedMuscleFilter} value={selectedMuscleFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by Muscle Group" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Muscle Groups</SelectItem>
+                  {availableMuscleGroups.filter(muscle => muscle !== 'all').map(muscle => (
+                    <SelectItem key={muscle} value={muscle}>
+                      {muscle}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardHeader>
       <CardContent>
         {loading ? (

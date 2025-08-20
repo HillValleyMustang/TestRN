@@ -6,7 +6,6 @@ import { Tables } from "@/types/supabase";
 import { toast } from "sonner";
 import { ExerciseForm } from "@/components/manage-exercises/exercise-form";
 import { ExerciseList } from "@/components/manage-exercises/exercise-list";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -27,7 +26,7 @@ export default function ManageExercisesPage() {
       // Fetch all exercises (user's own and global ones) to get all muscle groups
       const { data: allData, error: allDataError } = await supabase
         .from('exercise_definitions')
-        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at') // Added created_at
+        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at')
         .or(`user_id.eq.${session.user.id},user_id.is.null`)
         .order('name', { ascending: true });
 
@@ -118,21 +117,6 @@ export default function ManageExercisesPage() {
           />
         </div>
         <div className="lg:col-span-2">
-          <div className="mb-4">
-            <Select onValueChange={setSelectedMuscleFilter} value={selectedMuscleFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by Muscle Group" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Muscle Groups</SelectItem>
-                {availableMuscleGroups.filter(muscle => muscle !== 'all').map(muscle => (
-                  <SelectItem key={muscle} value={muscle}>
-                    {muscle}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
           <ExerciseList
             exercises={exercises}
             loading={loading}
@@ -142,6 +126,9 @@ export default function ManageExercisesPage() {
             exerciseToDelete={exerciseToDelete}
             setIsDeleteDialogOpen={setIsDeleteDialogOpen}
             confirmDeleteExercise={confirmDeleteExercise}
+            selectedMuscleFilter={selectedMuscleFilter}
+            setSelectedMuscleFilter={setSelectedMuscleFilter}
+            availableMuscleGroups={availableMuscleGroups}
           />
         </div>
       </div>
