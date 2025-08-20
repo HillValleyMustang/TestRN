@@ -260,23 +260,40 @@ serve(async (req: Request) => {
     let preferredSessionLength: string | null | undefined;
 
     try {
-      console.log(`Fetching T-Path with ID ${tPathId} and user profile...`);
-      const { data, error } = await supabaseServiceRoleClient
+      console.log(`Fetching T-Path with ID ${tPathId}...`);
+      // Fetch T-Path data without embedding profiles
+      const { data: tPathData, error: tPathError } = await supabaseServiceRoleClient
         .from('t_paths')
-        .select('id, template_name, settings, profiles(preferred_session_length)') // Select preferred_session_length from joined profiles
+        .select('id, template_name, settings, user_id')
         .eq('id', tPathId)
         .single();
 
-      if (error) {
-        console.error(`Error fetching T-Path with ID ${tPathId}:`, error.message);
-        throw error;
+      if (tPathError) {
+        console.error(`Error fetching T-Path with ID ${tPathId}:`, tPathError.message);
+        throw tPathError;
       }
-      if (!data) {
+      if (!tPathData) {
         throw new Error('T-Path not found in database.');
       }
-      tPath = data;
-      // @ts-ignore
-      preferredSessionLength = tPath.profiles?.preferred_session_length; // Access from joined data
+      tPath = tPathData;
+      console.log(`Fetched T-Path: ${JSON.stringify(tPath)}`);
+
+      // Now fetch preferred_session_length from profiles using the user.id
+      console.log(`Fetching profile for user ID: ${user.id}`);
+      const { data: profileData, error: profileError } = await supabaseServiceRoleClient
+        .from('profiles')
+        .select('preferred_session_length')
+        .eq('id', user.id) // Use the user.id from auth.getUser()
+        .single();
+
+      if (profileError) {
+        console.error(`Error fetching profile for user ${user.id}:`, profileError.message);
+        throw profileError;
+      }
+      if (!profileData) {
+        console.warn(`Profile not found for user ${user.id}. Using default session length.`);
+      }
+      preferredSessionLength = profileData?.preferred_session_length;
       console.log(`Fetched preferredSessionLength from profile: ${preferredSessionLength}`);
 
     } catch (err) {
