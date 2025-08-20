@@ -9,7 +9,7 @@ const corsHeaders = {
 };
 
 // Define types for the data we're fetching and inserting
-interface ExerciseDef { // Renamed from ExerciseLibraryEntry for clarity in this context
+interface ExerciseDef {
   exercise_id: string; // This is the library_id
   name: string;
   main_muscle: string;
@@ -28,7 +28,7 @@ interface WorkoutStructureEntry {
   bonus_for_time_group: number | null;
 }
 
-// Hardcoded data from Dyad - Workout Tracker - ExerciseDefinitions - Workout Tracker - ExerciseDefinitions (6).csv
+// ALL exercises from the CSV, regardless of workout_name. This populates exercise_definitions.
 const exerciseLibraryData: ExerciseDef[] = [
   { exercise_id: 'ex_bench_press', name: 'Bench Press', main_muscle: 'Pectorals', type: 'weight', category: 'Bilateral', description: 'A fundamental chest exercise', pro_tip: 'Focus on proper form and controlled movement', video_url: '' },
   { exercise_id: 'ex_overhead_press', name: 'Overhead Press', main_muscle: 'Deltoids', type: 'weight', category: 'Bilateral', description: 'Builds shoulder strength', pro_tip: 'Press straight overhead', video_url: '' },
@@ -181,7 +181,7 @@ const exerciseLibraryData: ExerciseDef[] = [
   { exercise_id: 'ex_barbell_curl', name: 'Barbell Curl', main_muscle: 'Biceps', type: 'weight', category: 'Bilateral', description: 'Targets biceps', pro_tip: 'Keep elbows tucked in', video_url: '' },
   { exercise_id: 'ex_dumbbell_curl', name: 'Dumbbell Curl', main_muscle: 'Biceps', type: 'weight', category: 'Bilateral', description: 'Targets biceps with dumbbells', pro_tip: 'Rotate palms up as you curl', video_url: '' },
   { exercise_id: 'ex_incline_dumbbell_curl', name: 'Incline Dumbbell Curl', main_muscle: 'Biceps', type: 'weight', category: 'Bilateral', description: 'Targets biceps with stretch', pro_tip: 'Keep back flat', video_url: '' },
-  { exercise_id: 'ex_spider_curl', name: 'Spider Curl', main_muscle: 'Biceps', type: 'weight', category: 'Bilateral', description: 'Isolates biceps', pro_tip: 'Keep chest on bench', video_url: '' },
+  { exercise_id: 'ex_spider_curl', name: 'Spider Curl', main_muscle: 'Biceps', type: 'weight', category: 'Bilateral', description: 'Targets biceps with isolation', pro_tip: 'Keep chest on bench', video_url: '' },
   { exercise_id: 'ex_cable_curl', name: 'Cable Curl', main_muscle: 'Biceps', type: 'weight', category: 'Bilateral', description: 'Targets biceps with cable', pro_tip: 'Maintain constant tension', video_url: '' },
   { exercise_id: 'ex_reverse_curl', name: 'Reverse Curl', main_muscle: 'Forearms', type: 'weight', category: 'Bilateral', description: 'Targets forearms and brachialis', pro_tip: 'Keep wrists straight', video_url: '' },
   { exercise_id: 'ex_zottman_curl', name: 'Zottman Curl', main_muscle: 'Biceps', type: 'weight', category: 'Bilateral', description: 'Targets biceps and forearms', pro_tip: 'Rotate palms down on descent', video_url: '' },
@@ -201,6 +201,8 @@ const exerciseLibraryData: ExerciseDef[] = [
   { exercise_id: 'ex_military_press', name: 'Military Press', main_muscle: 'Deltoids', type: 'weight', category: 'Bilateral', description: 'Strict overhead press', pro_tip: 'Keep body rigid', video_url: '' },
   { exercise_id: 'ex_push_jerk', name: 'Push Jerk', main_muscle: 'Shoulders', type: 'weight', category: 'Bilateral', description: 'Explosive overhead press', pro_tip: 'Use leg drive to assist press', video_url: '' },
   { exercise_id: 'ex_dumbbell_front_raise', name: 'Dumbbell Front Raise', main_muscle: 'Deltoids', type: 'weight', category: 'Bilateral', description: 'Targets front deltoids', pro_tip: 'Avoid swinging', video_url: '' },
+  { exercise_id: 'ex_cable_lateral_raise', name: 'Cable Lateral Raise', main_muscle: 'Deltoids', type: 'weight', category: 'Bilateral', description: 'Targets side deltoids with cable', pro_tip: 'Lead with elbows', video_url: '' },
+  { exercise_id: 'ex_machine_lateral_raise', name: 'Machine Lateral Raise', main_muscle: 'Deltoids', type: 'weight', category: 'Bilateral', description: 'Machine-based side deltoid isolation', pro_tip: 'Focus on the squeeze', video_url: '' },
   { exercise_id: 'ex_reverse_pec_deck_fly', name: 'Reverse Pec Deck Fly', main_muscle: 'Deltoids', type: 'weight', category: 'Bilateral', description: 'Targets rear deltoids', pro_tip: 'Squeeze shoulder blades together', video_url: '' },
   { exercise_id: 'ex_band_pull_apart', name: 'Band Pull Apart', main_muscle: 'Shoulders', type: 'weight', category: 'Bilateral', description: 'Targets rear deltoids and upper back', pro_tip: 'Pull band apart with straight arms', video_url: '' },
   { exercise_id: 'ex_face_pull_rope', name: 'Face Pull Rope', main_muscle: 'Traps', type: 'weight', category: 'Bilateral', description: 'Targets rear deltoids and traps', pro_tip: 'Pull rope towards your face', video_url: '' },
@@ -214,7 +216,7 @@ const exerciseLibraryData: ExerciseDef[] = [
   { exercise_id: 'ex_machine_crunch', name: 'Machine Crunch', main_muscle: 'Abdominals', type: 'weight', category: 'Bilateral', description: 'Machine-based abdominal exercise', pro_tip: 'Focus on contracting your abs', video_url: '' },
   { exercise_id: 'ex_cable_oblique_crunch', name: 'Cable Oblique Crunch', main_muscle: 'Abdominals', type: 'weight', category: 'Bilateral', description: 'Targets obliques with cable', pro_tip: 'Rotate from your torso', video_url: '' },
   { exercise_id: 'ex_side_bend', name: 'Side Bend', main_muscle: 'Obliques', type: 'weight', category: 'Bilateral', description: 'Targets obliques', pro_tip: 'Bend to the side with control', video_url: '' },
-  { exercise_id: 'ex_hanging_knee_raise', name: 'Hanging Knee Raise', main_muscle: 'Abdominals', type: 'weight', category: 'Bilateral', description: 'Targets lower abs', pro_tip: 'Lift knees towards chest', video_url: '' },
+  { exercise_id: 'ex_hanging_knee_raise', name: 'Hanging Knee Raise', main_muscle: 'Abdominals', type: 'weight', category: 'Bilateral', description: 'Targets lower abs', pro_tip: 'Lift hips off the floor', video_url: '' },
   { exercise_id: 'ex_decline_crunch', name: 'Decline Crunch', main_muscle: 'Abdominals', type: 'weight', category: 'Bilateral', description: 'Targets abs from decline bench', pro_tip: 'Control the movement', video_url: '' },
   { exercise_id: 'ex_medicine_ball_twist', name: 'Medicine Ball Twist', main_muscle: 'Core', type: 'weight', category: 'Bilateral', description: 'Targets obliques', pro_tip: 'Rotate from your core', video_url: '' },
   { exercise_id: 'ex_plank_variations', name: 'Plank Variations', main_muscle: 'Core', type: 'timed', category: null, description: 'Various plank styles', pro_tip: 'Maintain good form', video_url: '' },
@@ -421,7 +423,7 @@ const exerciseLibraryData: ExerciseDef[] = [
   { exercise_id: 'ex_kettlebell_trx_suspension_training', name: 'Kettlebell TRX Suspension Training', main_muscle: 'Full Body', type: 'strength', category: null, description: 'Bodyweight training with TRX straps and kettlebell', pro_tip: 'Adjust difficulty by body angle', video_url: '' },
 ];
 
-// Hardcoded data from Dyad - Workout Tracker - ExerciseDefinitions - Workout Tracker - ExerciseDefinitions (6).csv
+// ONLY exercises that are part of default workouts. This populates workout_exercise_structure.
 const workoutStructureData: WorkoutStructureEntry[] = [
   { exercise_id: 'ex_bench_press', workout_split: 'ulul', workout_name: 'Upper Body A', min_session_minutes: 15, bonus_for_time_group: null },
   { exercise_id: 'ex_overhead_press', workout_split: 'ulul', workout_name: 'Upper Body A', min_session_minutes: 15, bonus_for_time_group: null },
