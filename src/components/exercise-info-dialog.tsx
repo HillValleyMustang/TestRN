@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react'; // Corrected import statement
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Info, Youtube, Search, Trash2 } from "lucide-react";
@@ -79,13 +79,16 @@ export const ExerciseInfoDialog = ({ exercise, trigger, exerciseWorkouts = [], o
         )}
 
         <div className="px-6 pb-6 space-y-4"> {/* Add padding and vertical spacing */}
-          <p className="text-sm text-muted-foreground">
-            <span className="font-semibold">Main Muscle:</span> {exercise.main_muscle}
-          </p>
+          {/* Adjusted for consistency */}
+          <div>
+            <h4 className="font-semibold text-sm mb-1">Main Muscle:</h4>
+            <p className="text-sm text-muted-foreground">{exercise.main_muscle}</p>
+          </div>
           {exercise.category && (
-            <p className="text-sm text-muted-foreground">
-              <span className="font-semibold">Category:</span> {exercise.category}
-            </p>
+            <div>
+              <h4 className="font-semibold text-sm mb-1">Category:</h4>
+              <p className="text-sm text-muted-foreground">{exercise.category}</p>
+            </div>
           )}
           {exercise.description && (
             <div>
