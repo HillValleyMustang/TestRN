@@ -101,7 +101,11 @@ export const UserExerciseList = ({
                     trigger={
                       <div className="flex-1 cursor-pointer py-1 pr-2">
                         <span className="font-medium">
-                          {ex.name} <span className="text-sm text-muted-foreground">({ex.main_muscle})</span>
+                          {ex.name}{' '}
+                          <span className="text-sm text-muted-foreground">
+                            ({ex.main_muscle}){' '}
+                            {ex.library_id ? '(Adopted)' : '(User Created)'}
+                          </span>
                         </span>
                         {exerciseWorkoutsMap[ex.id]?.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1">
