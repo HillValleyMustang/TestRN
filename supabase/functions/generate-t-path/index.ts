@@ -117,7 +117,7 @@ const rawCsvData = [
   { name: 'Russian Twists', main_muscle: 'Abdominals', type: 'weight', category: 'Bilateral', description: 'Sit on the floor, lean back with your torso at a 45-degree angle, and lift your feet off the ground. Clasp your hands or hold a weight and twist your torso from side to side.', pro_tip: 'Move slowly and deliberately. The goal is to rotate your torso, not just swing your arms from side to side.', video_url: 'https://www.youtube.com/embed/wkD8rjkodUI', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
   { name: 'Seated Cable Row', main_muscle: 'Lats', type: 'weight', category: 'Bilateral', description: 'Sit at a cable row machine with your feet on the platform. Grab the handle and pull it towards your abdomen, squeezing your shoulder blades together.', pro_tip: 'Don\'t use momentum by leaning your torso too far back and forth. Keep your back relatively straight and focus on pulling with your back muscles.', video_url: 'https://www.youtube.com/embed/GZbfZ033f74', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
   { name: 'Side Plank', main_muscle: 'Core', type: 'timed', category: 'Bilateral', description: 'Lie on your side and prop your body up on your forearm, keeping your feet stacked. Lift your hips until your body is in a straight line from your ankles to your shoulders.', pro_tip: 'Avoid letting your hips drop towards the floor. Actively push your supporting forearm into the ground to keep your shoulder stable and your hips high.', video_url: 'https://www.youtube.com/embed/NXr4Fw8q60o', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
-  { name: 'Squat', main_muscle: 'Quadriceps', type: 'weight', category: 'Bilateral', description: 'Stand with your feet shoulder-width apart. Hinge at your hips and bend your knees to lower your body as if you\'re sitting in a chair. Keep your chest up and back straight. Go as low as you can comfortably, then drive through your heels to return to the start.', pro_tip: 'Imagine you are \'spreading the floor apart\' with your feet. This helps activate your glutes and keeps your knees from caving inward.', video_url: 'https://www.youtube.com/embed/U3mC6_o2o_c', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
+  { name: 'Squat', main_muscle: 'Quadriceps', type: 'weight', category: 'Bilateral', description: 'Stand with your feet shoulder-width apart. Hinge at your hips and bend your knees to lower your body as if you\'re sitting in an invisible chair. Keep your chest up and back straight. Go as low as you can comfortably, then drive through your heels to return to the start.', pro_tip: 'Imagine you are \'spreading the floor apart\' with your feet. This helps activate your glutes and keeps your knees from caving inward.', video_url: 'https://www.youtube.com/embed/U3mC6_o2o_c', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
   { name: 'Standing Calf Raise', main_muscle: 'Calves', type: 'weight', category: 'Bilateral', description: 'Stand with the balls of your feet on an elevated surface. Lower your heels as far as comfortable, then press up onto your tiptoes, squeezing your calf muscles.', pro_tip: 'Pause and squeeze for a second at the very top of the movement to maximize the contraction in your calves.', video_url: 'https://www.youtube.com/embed/wxwY7GXxL4k', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
   { name: 'Tricep Extension', main_muscle: 'Triceps', type: 'weight', category: 'Bilateral', description: 'Sit or stand holding one dumbbell with both hands over your head. Lower the dumbbell behind your head by bending your elbows, then extend your arms to lift it back up.', pro_tip: 'Keep your elbows tucked in and pointing towards the ceiling as much as possible. Don\'t let them flare out to the sides.', video_url: 'https://www.youtube.com/embed/YbX7Wd3S4S4', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
   { name: 'Tricep Pushdown', main_muscle: 'Triceps', type: 'weight', category: 'Bilateral', description: 'Stand in front of a cable machine with a high pulley. Grab the bar or rope attachment with an overhand grip. Keeping your elbows pinned to your sides, push the bar down until your arms are fully extended.', pro_tip: 'Take a step back from the machine and hinge slightly at your hips. This will give you a better range of motion and prevent the weight stack from hitting the top.', video_url: 'https://www.youtube.com/embed/2-LAMcpzODU', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
@@ -341,26 +341,30 @@ serve(async (req: Request) => {
       console.log(`Found existing child workouts to delete: ${childWorkoutIdsToDelete.join(', ')}`);
 
       // Delete associated t_path_exercises first
-      const { error: deleteTPathExercisesError } = await supabaseServiceRoleClient
+      const { count: deletedTPathExercisesCount, error: deleteTPathExercisesError } = await supabaseServiceRoleClient
         .from('t_path_exercises')
         .delete()
-        .in('template_id', childWorkoutIdsToDelete);
+        .in('template_id', childWorkoutIdsToDelete)
+        .select(); // Use .select() to get count
+
       if (deleteTPathExercisesError) {
         console.error('Error deleting t_path_exercises for child workouts:', deleteTPathExercisesError.message);
         throw deleteTPathExercisesError;
       }
-      console.log('Deleted associated t_path_exercises.');
+      console.log(`Deleted ${deletedTPathExercisesCount} associated t_path_exercises.`);
 
       // Then delete the child workouts themselves
-      const { error: deleteWorkoutsError } = await supabaseServiceRoleClient
+      const { count: deletedWorkoutsCount, error: deleteWorkoutsError } = await supabaseServiceRoleClient
         .from('t_paths')
         .delete()
-        .in('id', childWorkoutIdsToDelete);
+        .in('id', childWorkoutIdsToDelete)
+        .select(); // Use .select() to get count
+
       if (deleteWorkoutsError) {
         console.error('Error deleting child workouts:', deleteWorkoutsError.message);
         throw deleteWorkoutsError;
       }
-      console.log('Deleted existing child workouts.');
+      console.log(`Deleted ${deletedWorkoutsCount} existing child workouts.`);
     } else {
       console.log('No existing child workouts found for cleanup.');
     }
