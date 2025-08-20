@@ -5,6 +5,7 @@ import { Tables } from "@/types/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dumbbell, Timer, Trophy, Calendar } from "lucide-react";
 import { formatTime } from '@/lib/unit-conversions';
+import { cn, getWorkoutColorClass } from '@/lib/utils'; // Import cn and getWorkoutColorClass
 
 type WorkoutSession = Tables<'workout_sessions'>;
 
@@ -15,10 +16,11 @@ interface WorkoutStatsCardProps {
 }
 
 export const WorkoutStatsCard = ({ workoutSession, totalVolume, prsAchieved }: WorkoutStatsCardProps) => {
+  const workoutColorClass = getWorkoutColorClass(workoutSession.template_name || 'Ad Hoc Workout', 'text');
   return (
     <Card className="mb-6">
       <CardHeader>
-        <CardTitle>{workoutSession.template_name || 'Ad Hoc Workout'}</CardTitle>
+        <CardTitle className={cn(workoutColorClass)}>{workoutSession.template_name || 'Ad Hoc Workout'}</CardTitle>
         <p className="text-sm text-muted-foreground">
           Date: {new Date(workoutSession.session_date).toLocaleDateString()}
         </p>

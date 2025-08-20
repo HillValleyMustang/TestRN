@@ -8,6 +8,7 @@ import { Dumbbell, Clock } from 'lucide-react';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { cn, getWorkoutColorClass } from '@/lib/utils'; // Import cn and getWorkoutColorClass
 
 type TPath = Tables<'t_paths'>;
 type WorkoutSession = Tables<'workout_sessions'>;
@@ -77,6 +78,8 @@ export const NextWorkoutCard = () => {
     );
   }
 
+  const workoutColorClass = getWorkoutColorClass(tPath.template_name, 'text');
+
   return (
     <Card>
       <CardHeader>
@@ -88,7 +91,7 @@ export const NextWorkoutCard = () => {
       <CardContent>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h3 className="text-lg font-semibold">{tPath.template_name}</h3>
+            <h3 className={cn("text-lg font-semibold", workoutColorClass)}>{tPath.template_name}</h3>
             <div className="flex items-center gap-1 text-muted-foreground">
               <Clock className="h-4 w-4" />
               <span>Estimated 45-60 min</span>

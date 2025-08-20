@@ -70,7 +70,16 @@
 
     --sidebar-border: 220 13% 91%;
 
-    --sidebar-ring: 217.2 91.2% 59.8%}
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    --workout-upper-body-a: 142 76% 36%; /* Green */
+    --workout-lower-body-a: 27 87% 67%;  /* Orange */
+    --workout-upper-body-b: 210 70% 50%; /* Blue */
+    --workout-lower-body-b: 280 65% 60%; /* Purple */
+    --workout-push: 0 84.2% 60.2%;       /* Red */
+    --workout-pull: 180 70% 40%;         /* Cyan */
+    --workout-legs: 43 74% 66%;          /* Yellow */
+  }
   .dark {
 
     --background: 0 0% 3.9%;
@@ -136,7 +145,16 @@
 
     --sidebar-border: 240 3.7% 15.9%;
 
-    --sidebar-ring: 217.2 91.2% 59.8%}
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    --workout-upper-body-a: 142 76% 46%;
+    --workout-lower-body-a: 30 80% 55%;
+    --workout-upper-body-b: 220 70% 50%;
+    --workout-lower-body-b: 280 65% 70%;
+    --workout-push: 0 62.8% 30.6%;
+    --workout-pull: 180 60% 50%;
+    --workout-legs: 43 74% 76%;
+  }
 }
 
 @layer base {

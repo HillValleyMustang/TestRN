@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
+import { cn, getWorkoutColorClass } from '@/lib/utils'; // Import cn and getWorkoutColorClass
 
 type WorkoutSession = Tables<'workout_sessions'>;
 
@@ -106,37 +107,41 @@ export default function WorkoutHistoryPage() { // Renamed component
           <p className="text-muted-foreground text-center">No workout sessions logged yet. Start a workout to see your history!</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {workoutSessions.map((sessionItem) => (
-              <Card key={sessionItem.id}>
-                <CardHeader>
-                  <CardTitle>{sessionItem.template_name || 'Ad Hoc Workout'}</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    {new Date(sessionItem.session_date).toLocaleDateString()}
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Duration: {sessionItem.duration_string || 'N/A'}
-                  </p>
-                  <div className="flex justify-between gap-2">
-                    <Button
-                      onClick={() => router.push(`/workout-summary/${sessionItem.id}`)}
-                      className="flex-1"
-                    >
-                      View Summary
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      onClick={() => handleDeleteSession(sessionItem.id, sessionItem.template_name)}
-                      title="Delete Workout Session"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            {workoutSessions.map((sessionItem) => {
+              const workoutName = sessionItem.template_name || 'Ad Hoc Workout';
+              const workoutBorderClass = getWorkoutColorClass(workoutName, 'border');
+              return (
+                <Card key={sessionItem.id} className={cn("border-2", workoutBorderClass)}>
+                  <CardHeader>
+                    <CardTitle>{workoutName}</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(sessionItem.session_date).toLocaleDateString()}
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Duration: {sessionItem.duration_string || 'N/A'}
+                    </p>
+                    <div className="flex justify-between gap-2">
+                      <Button
+                        onClick={() => router.push(`/workout-summary/${sessionItem.id}`)}
+                        className="flex-1"
+                      >
+                        View Summary
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => handleDeleteSession(sessionItem.id, sessionItem.template_name)}
+                        title="Delete Workout Session"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </section>

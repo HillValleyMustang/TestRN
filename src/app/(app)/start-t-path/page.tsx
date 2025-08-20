@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNowStrict } from 'date-fns';
+import { cn, getWorkoutColorClass } from '@/lib/utils'; // Import cn and getWorkoutColorClass
 
 type TPath = Tables<'t_paths'>;
 type WorkoutSession = Tables<'workout_sessions'>;
@@ -134,7 +135,7 @@ export default function StartTPathPage() {
             </p>
           ) : (
             tPaths.map(tPath => {
-              const isExpandable = tPath.template_name === '4-Day Upper/Lower';
+              const isExpandable = tPath.template_name === '4-Day Upper/Lower' || tPath.template_name === '3-Day Push/Pull/Legs'; // Make PPL also expandable
               
               if (isExpandable) {
                 return (
@@ -152,18 +153,21 @@ export default function StartTPathPage() {
                             {tPath.workouts.length === 0 ? (
                               <p className="text-muted-foreground text-center py-2">No workouts defined for this path.</p>
                             ) : (
-                              tPath.workouts.map(workout => (
-                                <Card key={workout.id} className="flex items-center justify-between p-4">
-                                  <div>
-                                    <CardTitle className="text-base">{workout.template_name}</CardTitle>
-                                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                                      <CalendarDays className="h-4 w-4" />
-                                      {formatLastCompleted(workout.last_completed_at)}
-                                    </p>
-                                  </div>
-                                  <Button onClick={() => handleStartWorkout(workout.id)}>Start</Button>
-                                </Card>
-                              ))
+                              tPath.workouts.map(workout => {
+                                const workoutBorderClass = getWorkoutColorClass(workout.template_name, 'border');
+                                return (
+                                  <Card key={workout.id} className={cn("flex items-center justify-between p-4 border-2", workoutBorderClass)}>
+                                    <div>
+                                      <CardTitle className="text-base">{workout.template_name}</CardTitle>
+                                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                        <CalendarDays className="h-4 w-4" />
+                                        {formatLastCompleted(workout.last_completed_at)}
+                                      </p>
+                                    </div>
+                                    <Button onClick={() => handleStartWorkout(workout.id)}>Start</Button>
+                                  </Card>
+                                );
+                              })
                             )}
                           </div>
                         </AccordionContent>

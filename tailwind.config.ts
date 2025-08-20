@@ -59,6 +59,15 @@ export default {
   				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
+  			},
+  			workout: {
+  				'upper-body-a': 'hsl(var(--workout-upper-body-a))',
+  				'lower-body-a': 'hsl(var(--workout-lower-body-a))',
+  				'upper-body-b': 'hsl(var(--workout-upper-body-b))',
+  				'lower-body-b': 'hsl(var(--workout-lower-body-b))',
+  				'push': 'hsl(var(--workout-push))',
+  				'pull': 'hsl(var(--workout-pull))',
+  				'legs': 'hsl(var(--workout-legs))',
   			}
   		},
   		borderRadius: {
