@@ -14,10 +14,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from 'sonner';
-import { Tables, TablesUpdate } from '@/types/supabase';
+import { Profile as ProfileType, ProfileUpdate, Tables } from '@/types/supabase'; // Use alias for Profile
 import { TPathSwitcher } from '@/components/t-path-switcher';
 
-type Profile = Tables<'profiles'>;
+type Profile = ProfileType; // Use the aliased type
 type TPath = Tables<'t_paths'>;
 
 const profileSchema = z.object({
@@ -78,7 +78,7 @@ export default function ProfilePage() {
         toast.error("Failed to load profile: " + error.message);
         console.error("Error fetching profile:", error);
       } else if (data) {
-        setProfile(data);
+        setProfile(data as Profile); // Cast to the extended Profile type
         
         // Fetch active T-Path name if active_t_path_id exists
         let currentTPathName: string | null = null;
@@ -142,7 +142,7 @@ export default function ProfilePage() {
       lastName = nameParts.slice(1).join(" ");
     }
 
-    const updateData: TablesUpdate<'profiles'> = {
+    const updateData: ProfileUpdate = { // Use ProfileUpdate type
       first_name: firstName || null,
       last_name: lastName || null,
       height_cm: values.height_cm,

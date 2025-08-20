@@ -18,7 +18,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { TablesInsert } from "@/types/supabase";
+import { TablesInsert, ProfileInsert } from "@/types/supabase"; // Import ProfileInsert
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -112,7 +112,7 @@ export default function OnboardingPage() {
       if (tPathError) throw tPathError;
 
       // Save user profile data, including preferred_session_length and active_t_path_id
-      const profileData: TablesInsert<'profiles'> = {
+      const profileData: ProfileInsert = { // Use ProfileInsert type
         id: session.user.id,
         first_name: session.user.user_metadata?.first_name || '',
         last_name: session.user.user_metadata?.last_name || '',

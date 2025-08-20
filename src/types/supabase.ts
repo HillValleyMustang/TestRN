@@ -14,7 +14,7 @@ export type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums } from "
 // These are application-specific types that extend or combine Supabase-generated types.
 
 // Consolidated SetLogState for use across hooks and components
-import { Tables } from "./supabase-generated"; // Import Tables from generated types
+import { Tables, TablesInsert, TablesUpdate } from "./supabase-generated"; // Import necessary types from generated
 
 export interface SetLogState extends Omit<Tables<'set_logs'>, 'id' | 'created_at'> {
   id: string | null; // Explicitly allow null for new sets
@@ -26,26 +26,18 @@ export interface SetLogState extends Omit<Tables<'set_logs'>, 'id' | 'created_at
   lastTimeSeconds?: number | null;
 }
 
-// Manually extend the Profile type to include new columns if not auto-generated
-declare module "./supabase-generated/database" {
-  export interface Database {
-    public: {
-      Tables: {
-        profiles: {
-          Row: {
-            preferred_session_length: string | null;
-            active_t_path_id: string | null;
-          };
-          Insert: {
-            preferred_session_length?: string | null;
-            active_t_path_id?: string | null;
-          };
-          Update: {
-            preferred_session_length?: string | null;
-            active_t_path_id?: string | null;
-          };
-        };
-      };
-    };
-  }
-}
+// Explicitly define extended Profile types to include preferred_session_length and active_t_path_id
+export type Profile = Tables<'profiles'> & {
+  preferred_session_length: string | null;
+  active_t_path_id: string | null;
+};
+
+export type ProfileInsert = TablesInsert<'profiles'> & {
+  preferred_session_length?: string | null;
+  active_t_path_id?: string | null;
+};
+
+export type ProfileUpdate = TablesUpdate<'profiles'> & {
+  preferred_session_length?: string | null;
+  active_t_path_id?: string | null;
+};
