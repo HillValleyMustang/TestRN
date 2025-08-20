@@ -17,6 +17,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Filter } from "lucide-react";
+import { Card } from "@/components/ui/card"; // Import Card component
 
 // Extend the ExerciseDefinition type to include a temporary flag for global exercises
 // This flag will be set during data fetching based on user_global_favorites table
@@ -277,73 +278,76 @@ export default function ManageExercisesPage() {
         <h1 className="text-3xl font-bold">Manage Exercises</h1>
       </header>
       
-      <div className="flex justify-end mb-4">
-        <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 gap-1">
-              <Filter className="h-4 w-4" />
-              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Filter</span>
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="bottom" className="h-fit max-h-[80vh]">
-            <SheetHeader>
-              <SheetTitle>Filter Exercises by Muscle Group</SheetTitle>
-            </SheetHeader>
-            <div className="py-4">
-              <Select onValueChange={setSelectedMuscleFilter} value={selectedMuscleFilter}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Filter by Muscle" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Muscle Groups</SelectItem>
-                  <SelectItem value="favorites">Favourites</SelectItem>
-                  {availableMuscleGroups.map(muscle => (
-                    <SelectItem key={muscle} value={muscle}>
-                      {muscle}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </SheetContent>
-        </Sheet>
-      </div>
-
-      <Tabs defaultValue="my-exercises" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="my-exercises">My Exercises</TabsTrigger>
-          <TabsTrigger value="global-library">Global Library</TabsTrigger>
-        </TabsList>
-        <TabsContent value="my-exercises" className="mt-4">
-          <UserExerciseList
-            exercises={userExercises}
-            loading={loading}
-            onEdit={handleEditClick}
-            onDelete={handleDeleteClick}
-            isDeleteDialogOpen={isDeleteDialogOpen}
-            exerciseToDelete={exerciseToDelete}
-            setIsDeleteDialogOpen={setIsDeleteDialogOpen}
-            confirmDeleteExercise={confirmDeleteExercise}
-            editingExercise={editingExercise}
-            onCancelEdit={handleCancelEdit}
-            onSaveSuccess={handleSaveSuccess}
-            exerciseWorkoutsMap={exerciseWorkoutsMap}
-            onRemoveFromWorkout={handleRemoveFromWorkout}
-            onToggleFavorite={handleToggleFavorite}
-          />
-        </TabsContent>
-        <TabsContent value="global-library" className="mt-4">
-          <GlobalExerciseList
-            exercises={globalExercises}
-            loading={loading}
-            onEdit={handleEditClick}
-            exerciseWorkoutsMap={exerciseWorkoutsMap}
-            onRemoveFromWorkout={handleRemoveFromWorkout}
-            onToggleFavorite={handleToggleFavorite}
-            onAddSuccess={fetchExercises}
-          />
-        </TabsContent>
-      </Tabs>
+      <Card> {/* Wrap the entire tabs section in a Card */}
+        <Tabs defaultValue="my-exercises" className="w-full">
+          {/* This div acts as the combined header for tabs and filter */}
+          <div className="flex items-center justify-between p-4 border-b"> {/* Added padding and border-b for visual separation */}
+            <TabsList className="grid grid-cols-2 h-9 flex-grow max-w-[calc(100%-60px)]"> {/* Adjusted width to make space for filter button */}
+              <TabsTrigger value="my-exercises">My Exercises</TabsTrigger>
+              <TabsTrigger value="global-library">Global Library</TabsTrigger>
+            </TabsList>
+            <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 gap-1 ml-2">
+                  <Filter className="h-4 w-4" />
+                  <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Filter</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="h-fit max-h-[80vh]">
+                <SheetHeader>
+                  <SheetTitle>Filter Exercises by Muscle Group</SheetTitle>
+                </SheetHeader>
+                <div className="py-4">
+                  <Select onValueChange={setSelectedMuscleFilter} value={selectedMuscleFilter}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Filter by Muscle" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Muscle Groups</SelectItem>
+                      <SelectItem value="favorites">Favourites</SelectItem>
+                      {availableMuscleGroups.map(muscle => (
+                        <SelectItem key={muscle} value={muscle}>
+                          {muscle}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
+          {/* TabsContent will be rendered below this "header" div */}
+          <TabsContent value="my-exercises" className="p-4 pt-0"> {/* Added padding, removed mt-4 as it's now inside Card */}
+            <UserExerciseList
+              exercises={userExercises}
+              loading={loading}
+              onEdit={handleEditClick}
+              onDelete={handleDeleteClick}
+              isDeleteDialogOpen={isDeleteDialogOpen}
+              exerciseToDelete={exerciseToDelete}
+              setIsDeleteDialogOpen={setIsDeleteDialogOpen}
+              confirmDeleteExercise={confirmDeleteExercise}
+              editingExercise={editingExercise}
+              onCancelEdit={handleCancelEdit}
+              onSaveSuccess={handleSaveSuccess}
+              exerciseWorkoutsMap={exerciseWorkoutsMap}
+              onRemoveFromWorkout={handleRemoveFromWorkout}
+              onToggleFavorite={handleToggleFavorite}
+            />
+          </TabsContent>
+          <TabsContent value="global-library" className="p-4 pt-0"> {/* Added padding, removed mt-4 */}
+            <GlobalExerciseList
+              exercises={globalExercises}
+              loading={loading}
+              onEdit={handleEditClick}
+              exerciseWorkoutsMap={exerciseWorkoutsMap}
+              onRemoveFromWorkout={handleRemoveFromWorkout}
+              onToggleFavorite={handleToggleFavorite}
+              onAddSuccess={fetchExercises}
+            />
+          </TabsContent>
+        </Tabs>
+      </Card>
     </div>
   );
 }
