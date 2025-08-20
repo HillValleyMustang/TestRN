@@ -105,7 +105,7 @@ const rawCsvData = [
   { name: 'Incline Dumbbell Press', main_muscle: 'Pectorals', type: 'weight', category: 'Bilateral', description: 'Lie on a bench set at a 30-45 degree incline. Hold a dumbbell in each hand at chest level and press them upwards until your arms are fully extended.', pro_tip: 'Don\'t let the dumbbells touch at the top. Keep them slightly apart to maintain constant tension on your upper chest muscles.', video_url: 'https://www.youtube.com/embed/8iPEnn-ltC8', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
   { name: 'Jumping Jacks', main_muscle: 'Full Body', type: 'timed', category: 'Bilateral', description: 'Stand with your feet together and arms at your sides. Simultaneously jump your feet out to the sides while raising your arms overhead. Jump back to the starting position.', pro_tip: 'Stay light on the balls of your feet to make the movement more efficient and reduce impact on your joints.', video_url: 'https://www.youtube.com/embed/1b98vrFRiMA', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
   { name: 'Kettlebell Swings', main_muscle: 'Glutes', type: 'weight', category: 'Bilateral', description: 'Stand with feet shoulder-width apart, holding a kettlebell with both hands. Hinge at your hips, swing the kettlebell between your legs, then explosively drive your hips forward to swing the weight up to chest level.', pro_tip: 'The power comes from a powerful hip thrust, not from lifting with your arms. Your arms are just there to guide the kettlebell.', video_url: 'https://www.youtube.com/embed/sSESeQoM_1o', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
-  { name: 'Lateral Raise', main_muscle: 'Deltoids', type: 'weight', category: 'Bilateral', description: 'Stand holding a light dumbbell in each hand at your sides. With a slight bend in your elbows, raise your arms out to the sides until they are parallel with the floor.', pro_tip: 'Pour the dumbbells out slightly at the top of the movement, as if you\'re pouring a jug of water. This helps to better isolate the medial deltoid.', video_url: 'https://www.youtube.com/embed/3VcKaXpzqRo', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
+  { name: 'Lateral Raise', main_muscle: 'Deltoids', type: 'weight', category: 'Bilateral', description: 'Stand holding a light dumbbell in each hand at your sides. With a slight bend in your elbows, raise your arms out to the sides until they are parallel with the floor.', pro_tip: 'Pour the dumbbells out slightly at the top of the movement, as if you\'re pouring a jug of water. This helps to better isolate the medial deltoid.', video_url: 'https://www.youtube.com/embed/3GFZpOYu0pQ', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
   { name: 'Leg Extension', main_muscle: 'Quadriceps', type: 'weight', category: 'Bilateral', description: 'Sit on the machine with your shins behind the pad. Extend your legs to lift the weight until they are straight out in front of you. Squeeze your quads at the top.', pro_tip: 'Point your toes slightly outwards to target the vastus medialis (teardrop muscle) near your knee, or slightly inwards to focus more on the outer quad sweep.', video_url: 'https://www.youtube.com/embed/YyvSfVjQeL0', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
   { name: 'Leg Press', main_muscle: 'Quadriceps', type: 'weight', category: 'Bilateral', description: 'Sit in the leg press machine with your feet shoulder-width apart on the platform. Lower the platform by bending your knees until they form a 90-degree angle, then press the weight back up.', pro_tip: 'Placing your feet higher on the platform will target your glutes and hamstrings more; placing them lower will target your quads more.', video_url: 'https://www.youtube.com/embed/IZ_9sZt31iA', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
   { name: 'Lunges', main_muscle: 'Quadriceps', type: 'weight', category: 'Unilateral', description: 'Step forward with one leg and lower your hips until both knees are bent at a 90-degree angle. Your front knee should be directly above your ankle, and your back knee should hover just above the ground. Push off your front foot to return to the start.', pro_tip: 'Keep your torso upright and your core engaged to maintain balance throughout the movement.', video_url: 'https://www.youtube.com/embed/QOVaHwm-Q6U', workout_name: 'FALSE', min_session_minutes: null, bonus_for_time_group: null },
@@ -282,6 +282,8 @@ serve(async (req: Request) => {
     }
 
     const tPathSettings = tPath.settings as { tPathType?: string; sessionLength?: string };
+    console.log('T-Path Settings:', JSON.stringify(tPathSettings)); // Log the full settings object
+    
     if (!tPathSettings || !tPathSettings.tPathType || !tPathSettings.sessionLength) {
       console.warn('T-Path settings or tPathType/sessionLength is missing/invalid:', tPathSettings);
       return new Response(JSON.stringify({ error: 'Invalid T-Path settings. Please re-run onboarding.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -289,7 +291,7 @@ serve(async (req: Request) => {
 
     const workoutSplit = tPathSettings.tPathType;
     const maxAllowedMinutes = getMaxMinutes(tPathSettings.sessionLength);
-    console.log(`Generating workouts for split: ${workoutSplit}, max minutes: ${maxAllowedMinutes}`);
+    console.log(`Calculated maxAllowedMinutes: ${maxAllowedMinutes} based on sessionLength: ${tPathSettings.sessionLength}`);
 
     let workoutNames: string[] = [];
     if (workoutSplit === 'ulul') {
@@ -373,7 +375,6 @@ serve(async (req: Request) => {
         let bonusExerciseCount = 0;
 
         for (const entry of rawStructureEntries || []) {
-          console.log(`Processing entry for exercise_library_id: ${entry.exercise_library_id}`);
           // Now fetch the exercise_definition using the library_id
           const { data: exerciseDefData, error: exerciseDefError } = await supabaseServiceRoleClient
             .from('exercise_definitions')
@@ -399,12 +400,18 @@ serve(async (req: Request) => {
             // This is a main exercise
             if (entry.min_session_minutes <= maxAllowedMinutes) {
               includeExercise = true;
+              console.log(`  Main Exercise: ${actualExercise.name}, min_session_minutes: ${entry.min_session_minutes}, maxAllowedMinutes: ${maxAllowedMinutes}, Included: ${includeExercise}`);
+            } else {
+              console.log(`  Main Exercise: ${actualExercise.name}, min_session_minutes: ${entry.min_session_minutes}, maxAllowedMinutes: ${maxAllowedMinutes}, Included: FALSE (too long)`);
             }
           } else if (entry.bonus_for_time_group !== null && entry.min_session_minutes === null) {
             // This is a bonus exercise
             isBonus = true;
             if (entry.bonus_for_time_group <= maxAllowedMinutes) {
               includeExercise = true;
+              console.log(`  Bonus Exercise: ${actualExercise.name}, bonus_for_time_group: ${entry.bonus_for_time_group}, maxAllowedMinutes: ${maxAllowedMinutes}, Included: ${includeExercise}`);
+            } else {
+              console.log(`  Bonus Exercise: ${actualExercise.name}, bonus_for_time_group: ${entry.bonus_for_time_group}, maxAllowedMinutes: ${maxAllowedMinutes}, Included: FALSE (too long)`);
             }
           } else {
             console.warn(`Exercise structure entry for ${actualExercise.name} has invalid min_session_minutes/bonus_for_time_group configuration. Skipping.`);
@@ -433,7 +440,7 @@ serve(async (req: Request) => {
           return a.is_bonus_exercise ? 1 : -1;
         });
 
-        console.log(`Workout ${workoutName}: ${mainExerciseCount} main exercises, ${bonusExerciseCount} bonus exercises selected.`);
+        console.log(`Workout ${workoutName}: ${mainExerciseCount} main exercises, ${bonusExerciseCount} bonus exercises selected. Total: ${exercisesToInclude.length}`);
 
         if (exercisesToInclude.length === 0) {
           console.warn(`No exercises selected for workout ${workoutName} based on session length ${maxAllowedMinutes}. Skipping workout creation.`);
