@@ -20,18 +20,21 @@ import { AddExerciseToTPathDialog } from "./add-exercise-to-tpath-dialog";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
-type ExerciseDefinition = Tables<'exercise_definitions'>;
+// Extend the ExerciseDefinition type to include a temporary flag for global exercises
+interface FetchedExerciseDefinition extends Tables<'exercise_definitions'> {
+  is_favorited_by_current_user?: boolean;
+}
 
 interface GlobalExerciseListProps {
-  exercises: ExerciseDefinition[];
+  exercises: FetchedExerciseDefinition[];
   loading: boolean;
-  onEdit: (exercise: ExerciseDefinition) => void;
+  onEdit: (exercise: FetchedExerciseDefinition) => void;
   selectedMuscleFilter: string;
   setSelectedMuscleFilter: (value: string) => void;
   availableMuscleGroups: string[];
   exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean }[]>; // New prop
   onRemoveFromWorkout: (workoutId: string, exerciseId: string) => void; // New prop
-  onToggleFavorite: (exercise: ExerciseDefinition) => void; // New prop
+  onToggleFavorite: (exercise: FetchedExerciseDefinition) => void; // New prop
   onAddSuccess: () => void; // New prop for refreshing after adding to T-Path
 }
 
@@ -49,20 +52,20 @@ export const GlobalExerciseList = ({
 }: GlobalExerciseListProps) => {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isAddTPathDialogOpen, setIsAddTPathDialogOpen] = useState(false);
-  const [selectedExerciseForTPath, setSelectedExerciseForTPath] = useState<ExerciseDefinition | null>(null);
+  const [selectedExerciseForTPath, setSelectedExerciseForTPath] = useState<FetchedExerciseDefinition | null>(null);
 
   const handleFilterChange = (value: string) => {
     setSelectedMuscleFilter(value);
     setIsSheetOpen(false);
   };
 
-  const handleOpenAddTPathDialog = (exercise: ExerciseDefinition, e: React.MouseEvent) => {
+  const handleOpenAddTPathDialog = (exercise: FetchedExerciseDefinition, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent opening info dialog
     setSelectedExerciseForTPath(exercise);
     setIsAddTPathDialogOpen(true);
   };
 
-  const handleToggleFavoriteClick = (exercise: ExerciseDefinition, e: React.MouseEvent) => {
+  const handleToggleFavoriteClick = (exercise: FetchedExerciseDefinition, e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation(); // Prevent opening info dialog
     onToggleFavorite(exercise);
   };
@@ -89,7 +92,8 @@ export const GlobalExerciseList = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Muscle Groups</SelectItem>
-                  {availableMuscleGroups.filter(muscle => muscle !== 'all').map(muscle => (
+                  <SelectItem value="favorites">Favorites</SelectItem>
+                  {availableMuscleGroups.filter(muscle => muscle !== 'all' && muscle !== 'favorites').map(muscle => (
                     <SelectItem key={muscle} value={muscle}>
                       {muscle}
                     </SelectItem>
@@ -119,7 +123,7 @@ export const GlobalExerciseList = ({
                     exerciseWorkouts={exerciseWorkoutsMap[ex.id] || []}
                     onRemoveFromWorkout={onRemoveFromWorkout}
                     trigger={
-                      <div className="flex-1 cursor-pointer py-1 pr-2" onClick={(e) => e.stopPropagation()}> {/* Stop propagation for the trigger itself */}
+                      <div className="flex-1 cursor-pointer py-1 pr-2">
                         <span className="font-medium">
                           {ex.name} <span className="text-muted-foreground">({ex.main_muscle})</span>
                         </span>
@@ -140,9 +144,9 @@ export const GlobalExerciseList = ({
                       variant="ghost" 
                       size="icon" 
                       onClick={(e) => handleToggleFavoriteClick(ex, e)} 
-                      title={ex.is_favorite ? "Unfavorite" : "Favorite"}
+                      title={ex.is_favorited_by_current_user ? "Unfavorite" : "Favorite"}
                     >
-                      <Heart className={cn("h-4 w-4", ex.is_favorite ? "fill-red-500 text-red-500" : "text-muted-foreground")} />
+                      <Heart className={cn("h-4 w-4", ex.is_favorited_by_current_user ? "fill-red-500 text-red-500" : "text-muted-foreground")} />
                     </Button>
                     <Button variant="ghost" size="icon" onClick={(e) => handleOpenAddTPathDialog(ex, e)} title="Add to T-Path">
                       <PlusCircle className="h-4 w-4" />

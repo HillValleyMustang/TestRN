@@ -30,18 +30,21 @@ import { ExerciseInfoDialog } from "@/components/exercise-info-dialog";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
-type ExerciseDefinition = Tables<'exercise_definitions'>;
+// Extend the ExerciseDefinition type to include a temporary flag for global exercises
+interface FetchedExerciseDefinition extends Tables<'exercise_definitions'> {
+  is_favorited_by_current_user?: boolean;
+}
 
 interface UserExerciseListProps {
-  exercises: ExerciseDefinition[];
+  exercises: FetchedExerciseDefinition[];
   loading: boolean;
-  onEdit: (exercise: ExerciseDefinition) => void;
-  onDelete: (exercise: ExerciseDefinition) => void;
+  onEdit: (exercise: FetchedExerciseDefinition) => void;
+  onDelete: (exercise: FetchedExerciseDefinition) => void;
   isDeleteDialogOpen: boolean;
-  exerciseToDelete: ExerciseDefinition | null;
+  exerciseToDelete: FetchedExerciseDefinition | null;
   setIsDeleteDialogOpen: (open: boolean) => void;
   confirmDeleteExercise: () => void;
-  editingExercise: ExerciseDefinition | null;
+  editingExercise: FetchedExerciseDefinition | null;
   onCancelEdit: () => void;
   onSaveSuccess: () => void;
   selectedMuscleFilter: string;
@@ -49,7 +52,7 @@ interface UserExerciseListProps {
   availableMuscleGroups: string[];
   exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean }[]>; // New prop
   onRemoveFromWorkout: (workoutId: string, exerciseId: string) => void; // New prop
-  onToggleFavorite: (exercise: ExerciseDefinition) => void; // New prop
+  onToggleFavorite: (exercise: FetchedExerciseDefinition) => void; // New prop
 }
 
 export const UserExerciseList = ({
@@ -78,7 +81,7 @@ export const UserExerciseList = ({
     setIsSheetOpen(false);
   };
 
-  const handleToggleFavoriteClick = (exercise: ExerciseDefinition, e: React.MouseEvent) => {
+  const handleToggleFavoriteClick = (exercise: FetchedExerciseDefinition, e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation(); // Prevent opening info dialog
     onToggleFavorite(exercise);
   };
@@ -106,7 +109,7 @@ export const UserExerciseList = ({
                 <SelectContent>
                   <SelectItem value="all">All Muscle Groups</SelectItem>
                   <SelectItem value="favorites">Favorites</SelectItem> {/* New filter option */}
-                  {availableMuscleGroups.filter(muscle => muscle !== 'all').map(muscle => (
+                  {availableMuscleGroups.filter(muscle => muscle !== 'all' && muscle !== 'favorites').map(muscle => (
                     <SelectItem key={muscle} value={muscle}>
                       {muscle}
                     </SelectItem>
@@ -145,7 +148,7 @@ export const UserExerciseList = ({
                     exerciseWorkouts={exerciseWorkoutsMap[ex.id] || []}
                     onRemoveFromWorkout={onRemoveFromWorkout}
                     trigger={
-                      <div className="flex-1 cursor-pointer py-1 pr-2" onClick={(e) => e.stopPropagation()}> {/* Stop propagation for the trigger itself */}
+                      <div className="flex-1 cursor-pointer py-1 pr-2">
                         <span className="font-medium">
                           {ex.name} <span className="text-muted-foreground">({ex.main_muscle})</span>
                         </span>

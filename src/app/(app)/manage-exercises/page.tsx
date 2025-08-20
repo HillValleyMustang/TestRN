@@ -7,18 +7,23 @@ import { toast } from "sonner";
 import { GlobalExerciseList } from "@/components/manage-exercises/global-exercise-list";
 import { UserExerciseList } from "@/components/manage-exercises/user-exercise-list";
 
-type ExerciseDefinition = Tables<'exercise_definitions'>;
+// Extend the ExerciseDefinition type to include a temporary flag for global exercises
+// This flag will be set during data fetching based on user_global_favorites table
+interface FetchedExerciseDefinition extends Tables<'exercise_definitions'> {
+  is_favorited_by_current_user?: boolean;
+}
+
 type TPath = Tables<'t_paths'>;
 type TPathExercise = Tables<'t_path_exercises'>;
 
 export default function ManageExercisesPage() {
   const { session, supabase } = useSession();
-  const [globalExercises, setGlobalExercises] = useState<ExerciseDefinition[]>([]);
-  const [userExercises, setUserExercises] = useState<ExerciseDefinition[]>([]);
+  const [globalExercises, setGlobalExercises] = useState<FetchedExerciseDefinition[]>([]);
+  const [userExercises, setUserExercises] = useState<FetchedExerciseDefinition[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingExercise, setEditingExercise] = useState<ExerciseDefinition | null>(null);
+  const [editingExercise, setEditingExercise] = useState<FetchedExerciseDefinition | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [exerciseToDelete, setExerciseToDelete] = useState<ExerciseDefinition | null>(null);
+  const [exerciseToDelete, setExerciseToDelete] = useState<FetchedExerciseDefinition | null>(null);
   const [selectedMuscleFilter, setSelectedMuscleFilter] = useState<string>('all');
   const [availableMuscleGroups, setAvailableMuscleGroups] = useState<string[]>([]);
   const [exerciseWorkoutsMap, setExerciseWorkoutsMap] = useState<Record<string, { id: string; name: string; isUserOwned: boolean }[]>>({});
@@ -37,6 +42,17 @@ export default function ManageExercisesPage() {
       if (allExercisesError) {
         throw new Error(allExercisesError.message);
       }
+
+      // Fetch user's global favorites
+      const { data: userGlobalFavorites, error: favoritesError } = await supabase
+        .from('user_global_favorites')
+        .select('exercise_id')
+        .eq('user_id', session.user.id);
+
+      if (favoritesError) {
+        throw new Error(favoritesError.message);
+      }
+      const favoritedGlobalExerciseIds = new Set(userGlobalFavorites?.map(fav => fav.exercise_id));
 
       // Fetch all user's T-Paths (workouts) and their associated exercises
       const { data: userTPaths, error: userTPathsError } = await supabase
@@ -78,8 +94,8 @@ export default function ManageExercisesPage() {
       });
       setExerciseWorkoutsMap(newExerciseWorkoutsMap);
 
-      const userOwnedMap = new Map<string, ExerciseDefinition>(); // Key: library_id or exercise.id
-      const globalMap = new Map<string, ExerciseDefinition>(); // Key: library_id
+      const userOwnedMap = new Map<string, FetchedExerciseDefinition>(); // Key: library_id or exercise.id
+      const globalMap = new Map<string, FetchedExerciseDefinition>(); // Key: library_id
 
       // Populate user-owned exercises first
       allExercisesData.filter(ex => ex.user_id === session.user.id).forEach(ex => {
@@ -91,10 +107,16 @@ export default function ManageExercisesPage() {
       allExercisesData.filter(ex => ex.user_id === null).forEach(ex => {
         if (ex.library_id && !userOwnedMap.has(ex.library_id)) {
           // Only add global if no user-owned version (with same library_id) exists
-          globalMap.set(ex.library_id, ex);
+          globalMap.set(ex.id, { // Use actual ID for global map key
+            ...ex,
+            is_favorited_by_current_user: favoritedGlobalExerciseIds.has(ex.id)
+          });
         } else if (!ex.library_id && !userOwnedMap.has(ex.id)) {
           // Fallback for global exercises without library_id (shouldn't happen with current data)
-          globalMap.set(ex.id, ex);
+          globalMap.set(ex.id, {
+            ...ex,
+            is_favorited_by_current_user: favoritedGlobalExerciseIds.has(ex.id)
+          });
         }
       });
 
@@ -108,7 +130,7 @@ export default function ManageExercisesPage() {
       // Apply the selected filter to both lists
       if (selectedMuscleFilter === 'favorites') {
         finalUserExercises = finalUserExercises.filter(ex => ex.is_favorite);
-        finalGlobalExercises = []; // Global exercises are not favorited directly
+        finalGlobalExercises = finalGlobalExercises.filter(ex => ex.is_favorited_by_current_user);
       } else if (selectedMuscleFilter !== 'all') {
         finalUserExercises = finalUserExercises.filter(ex => ex.main_muscle === selectedMuscleFilter);
         finalGlobalExercises = finalGlobalExercises.filter(ex => ex.main_muscle === selectedMuscleFilter);
@@ -131,7 +153,7 @@ export default function ManageExercisesPage() {
     fetchExercises();
   }, [fetchExercises]);
 
-  const handleEditClick = (exercise: ExerciseDefinition) => {
+  const handleEditClick = (exercise: FetchedExerciseDefinition) => {
     setEditingExercise(exercise);
   };
 
@@ -144,7 +166,7 @@ export default function ManageExercisesPage() {
     fetchExercises();
   };
 
-  const handleDeleteClick = (exercise: ExerciseDefinition) => {
+  const handleDeleteClick = (exercise: FetchedExerciseDefinition) => {
     if (exercise.user_id === null) {
       toast.error("You cannot delete global exercises. You can only delete exercises you have created.");
       return;
@@ -166,71 +188,42 @@ export default function ManageExercisesPage() {
     setExerciseToDelete(null);
   };
 
-  const adoptExercise = async (exerciseToAdopt: ExerciseDefinition): Promise<ExerciseDefinition> => {
-    if (exerciseToAdopt.user_id === session?.user.id) {
-      return exerciseToAdopt; // Already user-owned
-    }
-
-    // Check if user already has an adopted copy of this global exercise
-    if (exerciseToAdopt.library_id) {
-      const { data: existingAdopted, error: fetchError } = await supabase
-        .from('exercise_definitions')
-        .select('*')
-        .eq('user_id', session!.user.id)
-        .eq('library_id', exerciseToAdopt.library_id)
-        .single();
-
-      if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 means no rows found
-        throw fetchError;
-      }
-      if (existingAdopted) {
-        return existingAdopted; // Return existing adopted copy
-      }
-    }
-
-    // If not user-owned and no adopted copy exists, create one
-    const { data: newAdoptedExercise, error: insertError } = await supabase
-      .from('exercise_definitions')
-      .insert({
-        name: exerciseToAdopt.name,
-        main_muscle: exerciseToAdopt.main_muscle,
-        type: exerciseToAdopt.type,
-        category: exerciseToAdopt.category,
-        description: exerciseToAdopt.description,
-        pro_tip: exerciseToAdopt.pro_tip,
-        video_url: exerciseToAdopt.video_url,
-        user_id: session!.user.id,
-        library_id: exerciseToAdopt.library_id || null, // Preserve library_id if it exists
-        is_favorite: false, // Default to not favorited on adoption
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      throw insertError;
-    }
-    return newAdoptedExercise;
-  };
-
-  const handleToggleFavorite = async (exercise: ExerciseDefinition) => {
+  const handleToggleFavorite = async (exercise: FetchedExerciseDefinition) => {
     if (!session) {
       toast.error("You must be logged in to favorite exercises.");
       return;
     }
     try {
-      const userOwnedExercise = await adoptExercise(exercise);
-      const newFavoriteStatus = !userOwnedExercise.is_favorite;
+      if (exercise.user_id === session.user.id) {
+        // This is a user-owned exercise, toggle its is_favorite flag
+        const newFavoriteStatus = !exercise.is_favorite;
+        const { error } = await supabase
+          .from('exercise_definitions')
+          .update({ is_favorite: newFavoriteStatus })
+          .eq('id', exercise.id)
+          .eq('user_id', session.user.id);
 
-      const { error } = await supabase
-        .from('exercise_definitions')
-        .update({ is_favorite: newFavoriteStatus })
-        .eq('id', userOwnedExercise.id)
-        .eq('user_id', session.user.id);
-
-      if (error) {
-        throw error;
+        if (error) throw error;
+        toast.success(newFavoriteStatus ? "Added to favorites!" : "Removed from favorites.");
+      } else if (exercise.user_id === null) {
+        // This is a global exercise, toggle its status in user_global_favorites
+        const isCurrentlyFavorited = exercise.is_favorited_by_current_user;
+        if (isCurrentlyFavorited) {
+          const { error } = await supabase
+            .from('user_global_favorites')
+            .delete()
+            .eq('user_id', session.user.id)
+            .eq('exercise_id', exercise.id);
+          if (error) throw error;
+          toast.success("Removed from favorites.");
+        } else {
+          const { error } = await supabase
+            .from('user_global_favorites')
+            .insert({ user_id: session.user.id, exercise_id: exercise.id });
+          if (error) throw error;
+          toast.success("Added to favorites!");
+        }
       }
-      toast.success(newFavoriteStatus ? "Added to favorites!" : "Removed from favorites.");
       fetchExercises(); // Re-fetch to update UI
     } catch (err: any) {
       console.error("Failed to toggle favorite status:", err);
