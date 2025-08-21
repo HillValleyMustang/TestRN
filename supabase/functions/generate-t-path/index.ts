@@ -393,7 +393,9 @@ serve(async (req: Request) => {
     console.log(`Workout split: ${workoutSplit}, Workout names to generate: ${workoutNames.join(', ')}`);
 
     // --- Cleanup existing child workouts for this T-Path ---
+    console.log(`Attempting to clean up existing child workouts for parent T-Path ID: ${tPath.id}`);
     await cleanupExistingChildWorkouts(supabaseServiceRoleClient, tPath.id);
+    console.log(`Cleanup of existing child workouts for parent T-Path ID: ${tPath.id} completed.`);
 
     // Create workouts for this T-Path
     const generatedWorkouts = [];
@@ -453,7 +455,7 @@ serve(async (req: Request) => {
             orderCriteriaValue = entry.bonus_for_time_group;
             console.log(`  Exercise: ${actualExercise.name}, Type: Bonus, bonus_for_time_group: ${orderCriteriaValue}, maxAllowedMinutes: ${maxAllowedMinutes}`);
             // Changed condition for bonus exercises to be strictly less than maxAllowedMinutes
-            if (orderCriteriaValue !== null && orderCriteriaValue < maxAllowedMinutes) { 
+            if (orderCriteriaValue !== null && orderCriteriaValue <= maxAllowedMinutes) { // Changed from < to <=
               includeExercise = true;
             }
           }
