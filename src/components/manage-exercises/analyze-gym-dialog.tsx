@@ -30,6 +30,7 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
 
   const [showDuplicateConfirmDialog, setShowDuplicateConfirmDialog] = useState(false);
   const [identifiedExerciseData, setIdentifiedExerciseData] = useState<Partial<ExerciseDefinition> | null>(null);
+  const [duplicateLocation, setDuplicateLocation] = useState<'My Exercises' | 'Global Library'>('My Exercises'); // State for duplicate location
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -97,6 +98,9 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
           }
 
           if (existingExercises && existingExercises.length > 0) {
+            // Determine where the duplicate exists
+            const isUserOwnedDuplicate = existingExercises.some(ex => ex.user_id === session.user.id);
+            setDuplicateLocation(isUserOwnedDuplicate ? 'My Exercises' : 'Global Library');
             // Duplicate found, show confirmation dialog
             setShowDuplicateConfirmDialog(true);
           } else {
@@ -215,6 +219,7 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
           open={showDuplicateConfirmDialog}
           onOpenChange={handleCancelDuplicateAdd} // If user closes dialog, it's a cancel
           exerciseName={identifiedExerciseData.name || "Unknown Exercise"}
+          duplicateLocation={duplicateLocation} // Pass the determined location
           onConfirmAddAnyway={handleConfirmAddAnyway}
         />
       )}

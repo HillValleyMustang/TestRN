@@ -9,6 +9,7 @@ interface DuplicateExerciseConfirmDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   exerciseName: string;
+  duplicateLocation: 'My Exercises' | 'Global Library'; // New prop for dynamic text
   onConfirmAddAnyway: () => void;
 }
 
@@ -16,6 +17,7 @@ export const DuplicateExerciseConfirmDialog = ({
   open,
   onOpenChange,
   exerciseName,
+  duplicateLocation,
   onConfirmAddAnyway,
 }: DuplicateExerciseConfirmDialogProps) => {
   return (
@@ -26,12 +28,12 @@ export const DuplicateExerciseConfirmDialog = ({
             <AlertTriangle className="h-5 w-5 mr-2" /> Exercise Already Exists!
           </DialogTitle>
           <DialogDescription>
-            An exercise named "<span className="font-semibold">{exerciseName}</span>" already exists in your library or the global library.
+            It looks like "<span className="font-semibold">{exerciseName}</span>" is already a saved exercise within {duplicateLocation}.
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
           <p className="text-sm text-muted-foreground">
-            Are you sure you want to add it again? Adding a duplicate might make your exercise list harder to manage.
+            Adding it again will create a duplicate.
           </p>
         </div>
         <DialogFooter className="flex flex-col sm:flex-row gap-2">
