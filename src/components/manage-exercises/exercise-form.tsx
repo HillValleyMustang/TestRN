@@ -274,7 +274,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
         className="flex flex-row items-center justify-between space-y-0 pb-3 cursor-pointer"
         onClick={toggleExpand}
       >
-        <CardTitle className="text-lg font-bold"> {/* Changed to text-lg */}
+        <CardTitle className="text-lg font-bold"> {/* Set to text-lg */}
           {editingExercise ? "Edit Exercise" : "Add New Exercise"}
         </CardTitle>
         <Button 

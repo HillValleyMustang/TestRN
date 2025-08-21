@@ -208,6 +208,7 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
           </div>
         </DialogContent>
       </Dialog>
+      {/* LoadingOverlay is now outside the Dialog */}
       <LoadingOverlay 
         isOpen={loading} 
         title="Analysing Gym Equipment" 
