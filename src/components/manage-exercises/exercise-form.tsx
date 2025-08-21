@@ -269,22 +269,28 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex justify-between items-center">
+      <CardHeader 
+        className="flex items-center justify-between cursor-pointer" // Apply flex and cursor here
+        onClick={toggleExpand}
+        role="button" // Add role for accessibility
+        tabIndex={0} // Make it focusable
+        onKeyDown={(e) => { // Allow Enter key to trigger toggle
+          if (e.key === 'Enter' || e.key === ' ') {
+            toggleExpand();
+          }
+        }}
+      >
+        <CardTitle className="flex-1"> {/* flex-1 to make title take available space */}
           {editingExercise ? "Edit Exercise" : "Add New Exercise"}
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={toggleExpand}
-            className="ml-2"
-          >
-            {isExpanded ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
-          </Button>
         </CardTitle>
+        {/* Chevron directly inside CardHeader */}
+        <span className="ml-2">
+          {isExpanded ? (
+            <ChevronUp className="h-4 w-4" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
+          )}
+        </span>
       </CardHeader>
       {isExpanded && (
         <CardContent>
