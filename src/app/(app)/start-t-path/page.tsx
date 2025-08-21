@@ -23,57 +23,79 @@ interface TPathWithWorkouts extends TPath {
 export default function StartTPathPage() {
   const { session, supabase } = useSession();
   const router = useRouter();
-  const [tPaths, setTPaths] = useState<TPathWithWorkouts[]>([]);
+  const [activeTPath, setActiveTPath] = useState<TPathWithWorkouts | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchTPaths = useCallback(async () => {
+  const fetchActiveTPath = useCallback(async () => {
     if (!session) {
       router.push('/login');
       return;
     }
     setLoading(true);
     try {
-      // Fetch main T-Paths (where user_id is the actual user's ID and parent_t_path_id is NULL)
-      const { data: mainTPaths, error: mainTPathsError } = await supabase
+      // 1. Fetch user profile to get active_t_path_id
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('active_t_path_id')
+        .eq('id', session.user.id)
+        .single();
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        throw profileError;
+      }
+
+      const activeTPathId = profileData?.active_t_path_id;
+
+      if (!activeTPathId) {
+        setActiveTPath(null); // No active T-Path set
+        setLoading(false);
+        return;
+      }
+
+      // 2. Fetch the specific active main T-Path
+      const { data: mainTPath, error: mainTPathError } = await supabase
         .from('t_paths')
-        .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id') // Specify all columns required by TPath
+        .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
+        .eq('id', activeTPathId)
         .eq('user_id', session.user.id)
-        .is('parent_t_path_id', null) // Main T-Paths have no parent
+        .is('parent_t_path_id', null) // Ensure it's a main T-Path
+        .single();
+
+      if (mainTPathError || !mainTPath) {
+        // If active_t_path_id is set but the T-Path doesn't exist or isn't a main T-Path for this user
+        console.error("Active T-Path not found or invalid:", mainTPathError);
+        setActiveTPath(null);
+        setLoading(false);
+        return;
+      }
+
+      // 3. Fetch child workouts for the active main T-Path
+      const { data: childWorkouts, error: childWorkoutsError } = await supabase
+        .from('t_paths')
+        .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
+        .eq('parent_t_path_id', mainTPath.id)
         .order('template_name', { ascending: true });
 
-      if (mainTPathsError) throw mainTPathsError;
+      if (childWorkoutsError) throw childWorkoutsError;
 
-      const tPathsWithWorkouts: TPathWithWorkouts[] = [];
+      const workoutsWithLastDate = await Promise.all((childWorkouts as TPath[] || []).map(async (workout) => {
+        const { data: lastSessionDate, error: lastSessionError } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
+        
+        if (lastSessionError) {
+          console.error(`Error fetching last session date for workout ${workout.template_name}:`, lastSessionError);
+        }
+        
+        return {
+          ...workout,
+          last_completed_at: lastSessionDate && lastSessionDate.length > 0 ? lastSessionDate[0].session_date : null,
+        };
+      }));
 
-      for (const mainTPath of mainTPaths as TPath[] || []) { // Explicitly cast
-        // Fetch child workouts for each main T-Path (where parent_t_path_id is the main T-Path's ID)
-        const { data: childWorkouts, error: childWorkoutsError } = await supabase
-          .from('t_paths')
-          .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id') // Specify all columns required by TPath
-          .eq('parent_t_path_id', mainTPath.id) // Link to parent T-Path
-          .order('template_name', { ascending: true });
+      setActiveTPath({
+        ...mainTPath,
+        workouts: workoutsWithLastDate,
+      });
 
-        if (childWorkoutsError) throw childWorkoutsError;
-
-        const workoutsWithLastDate = await Promise.all((childWorkouts as TPath[] || []).map(async (workout) => { // Explicitly cast
-          const { data: lastSessionDate, error: lastSessionError } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
-          
-          if (lastSessionError) {
-            console.error(`Error fetching last session date for workout ${workout.template_name}:`, lastSessionError);
-          }
-          
-          return {
-            ...workout,
-            last_completed_at: lastSessionDate && lastSessionDate.length > 0 ? lastSessionDate[0].session_date : null,
-          };
-        }));
-
-        tPathsWithWorkouts.push({
-          ...mainTPath,
-          workouts: workoutsWithLastDate,
-        });
-      }
-      setTPaths(tPathsWithWorkouts);
     } catch (err: any) {
       toast.error("Failed to load Transformation Paths: " + err.message);
       console.error("Error fetching T-Paths:", err);
@@ -83,8 +105,8 @@ export default function StartTPathPage() {
   }, [session, supabase, router]);
 
   useEffect(() => {
-    fetchTPaths();
-  }, [fetchTPaths]);
+    fetchActiveTPath();
+  }, [fetchActiveTPath]);
 
   const handleStartWorkout = (workoutId: string) => {
     router.push(`/workout-session/${workoutId}`);
@@ -120,7 +142,7 @@ export default function StartTPathPage() {
           </CardHeader>
         </Card>
 
-        <h3 className="text-xl font-semibold pt-4">Your Personalised Paths</h3>
+        <h3 className="text-xl font-semibold pt-4">Your Active Path</h3>
 
         <div className="space-y-2">
           {loading ? (
@@ -129,73 +151,46 @@ export default function StartTPathPage() {
               <Skeleton className="h-20" />
               <Skeleton className="h-20" />
             </>
-          ) : tPaths.length === 0 ? (
+          ) : !activeTPath ? (
             <p className="text-muted-foreground text-center py-4">
-              You haven't created any Transformation Paths yet. Go to 'Manage T-Paths' to create one.
+              You haven't selected an active Transformation Path yet. Please go to your <a href="/profile" className="text-primary underline">Profile Settings</a> to choose one.
             </p>
           ) : (
-            tPaths.map(tPath => {
-              const isExpandable = tPath.template_name === '4-Day Upper/Lower' || tPath.template_name === '3-Day Push/Pull/Legs'; // Make PPL also expandable
-              
-              if (isExpandable) {
-                return (
-                  <Card key={tPath.id} className="w-full"> {/* Wrap the entire accordion item in a Card */}
-                    <Accordion type="single" collapsible className="w-full"> {/* Removed value prop */}
-                      <AccordionItem value={tPath.id}> {/* Removed border-b-0 */}
-                        <AccordionTrigger className="flex items-center justify-between w-full p-6 text-lg font-semibold hover:no-underline data-[state=open]:border-b">
-                          <div className="flex items-center">
-                            <Dumbbell className="h-5 w-5 mr-2" />
-                            {tPath.template_name}
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="p-6 pt-0">
-                          <div className="grid grid-cols-1 gap-3">
-                            {tPath.workouts.length === 0 ? (
-                              <p className="text-muted-foreground text-center py-2">No workouts defined for this path.</p>
-                            ) : (
-                              tPath.workouts.map(workout => {
-                                const workoutBorderClass = getWorkoutColorClass(workout.template_name, 'border');
-                                return (
-                                  <Card key={workout.id} className={cn("flex items-center justify-between p-4 border-2", workoutBorderClass)}>
-                                    <div>
-                                      <CardTitle className="text-base">{workout.template_name}</CardTitle>
-                                      <p className="text-sm text-muted-foreground flex items-center gap-1">
-                                        <CalendarDays className="h-4 w-4" />
-                                        {formatLastCompleted(workout.last_completed_at)}
-                                      </p>
-                                    </div>
-                                    <Button onClick={() => handleStartWorkout(workout.id)}>Start</Button>
-                                  </Card>
-                                );
-                              })
-                            )}
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    </Accordion>
-                  </Card>
-                );
-              } else {
-                // Render as a non-expandable card for other T-Paths
-                return (
-                  <Card key={tPath.id} className="flex items-center justify-between p-4">
-                    <div>
-                      <CardTitle className="text-base flex items-center">
-                        <Dumbbell className="h-5 w-5 mr-2" />
-                        {tPath.template_name}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {tPath.workouts.length} workouts
-                      </p>
+            <Card key={activeTPath.id} className="w-full">
+              <Accordion type="single" collapsible defaultValue={activeTPath.id} className="w-full">
+                <AccordionItem value={activeTPath.id}>
+                  <AccordionTrigger className="flex items-center justify-between w-full p-6 text-lg font-semibold hover:no-underline data-[state=open]:border-b">
+                    <div className="flex items-center">
+                      <Dumbbell className="h-5 w-5 mr-2" />
+                      {activeTPath.template_name}
                     </div>
-                    {/* Optionally add a button to view details or manage this T-Path */}
-                    <Button variant="outline" onClick={() => router.push(`/manage-t-paths?edit=${tPath.id}`)}>
-                      View Workouts
-                    </Button>
-                  </Card>
-                );
-              }
-            })
+                  </AccordionTrigger>
+                  <AccordionContent className="p-6 pt-0">
+                    <div className="grid grid-cols-1 gap-3">
+                      {activeTPath.workouts.length === 0 ? (
+                        <p className="text-muted-foreground text-center py-2">No workouts defined for this path. This may happen if your session length is too short for any workouts.</p>
+                      ) : (
+                        activeTPath.workouts.map(workout => {
+                          const workoutBorderClass = getWorkoutColorClass(workout.template_name, 'border');
+                          return (
+                            <Card key={workout.id} className={cn("flex items-center justify-between p-4 border-2", workoutBorderClass)}>
+                              <div>
+                                <CardTitle className="text-base">{workout.template_name}</CardTitle>
+                                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                  <CalendarDays className="h-4 w-4" />
+                                  {formatLastCompleted(workout.last_completed_at)}
+                                </p>
+                              </div>
+                              <Button onClick={() => handleStartWorkout(workout.id)}>Start</Button>
+                            </Card>
+                          );
+                        })
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </Card>
           )}
         </div>
       </div>
