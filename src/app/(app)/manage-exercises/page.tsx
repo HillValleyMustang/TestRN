@@ -22,7 +22,6 @@ import useEmblaCarousel from 'embla-carousel-react';
 import { getMaxMinutes } from '@/lib/utils'; // Import getMaxMinutes
 
 // Extend the ExerciseDefinition type to include a temporary flag for global exercises
-// This flag will be set during data fetching based on user_global_favorites table
 interface FetchedExerciseDefinition extends Tables<'exercise_definitions'> {
   is_favorited_by_current_user?: boolean;
 }
@@ -36,8 +35,7 @@ export default function ManageExercisesPage() {
   const [userExercises, setUserExercises] = useState<FetchedExerciseDefinition[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingExercise, setEditingExercise] = useState<FetchedExerciseDefinition | null>(null);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [exerciseToDelete, setExerciseToDelete] = useState<FetchedExerciseDefinition | null>(null);
+  // Removed isDeleteDialogOpen, exerciseToDelete, setIsDeleteDialogOpen, confirmDeleteExercise
   const [selectedMuscleFilter, setSelectedMuscleFilter] = useState<string>('all');
   const [availableMuscleGroups, setAvailableMuscleGroups] = useState<string[]>([]);
   const [exerciseWorkoutsMap, setExerciseWorkoutsMap] = useState<Record<string, { id: string; name: string; isUserOwned: boolean }[]>>({});
@@ -90,7 +88,7 @@ export default function ManageExercisesPage() {
         throw new Error(allExercisesError.message);
       }
 
-      // Fetch user's global favorites
+      // Fetch user's global favourites
       const { data: userGlobalFavorites, error: favoritesError } = await supabase
         .from('user_global_favorites')
         .select('exercise_id')
@@ -212,26 +210,30 @@ export default function ManageExercisesPage() {
     fetchExercises();
   };
 
-  const handleDeleteClick = (exercise: FetchedExerciseDefinition) => {
-    if (exercise.user_id === null) {
-      toast.error("You cannot delete global exercises. You can only delete exercises you have created.");
+  // This function is now passed to ExerciseInfoDialog for user-created exercises
+  const handleDeleteExercise = async (exercise: FetchedExerciseDefinition) => {
+    if (!session) {
+      toast.error("You must be logged in to delete exercises.");
       return;
     }
-    setExerciseToDelete(exercise);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const confirmDeleteExercise = async () => {
-    if (!exerciseToDelete || exerciseToDelete.user_id === null) return;
-    const { error } = await supabase.from('exercise_definitions').delete().eq('id', exerciseToDelete.id);
-    if (error) {
-      toast.error("Failed to delete exercise: " + error.message);
-    } else {
-      toast.success("Exercise deleted successfully!");
-      fetchExercises();
+    // The check for user_id === null is now handled by the component calling this (ExerciseInfoDialog)
+    // and by the UI logic that only shows the delete button for user-created exercises.
+    if (!exercise.id) {
+      toast.error("Cannot delete an exercise without an ID.");
+      return;
     }
-    setIsDeleteDialogOpen(false);
-    setExerciseToDelete(null);
+
+    try {
+      const { error } = await supabase.from('exercise_definitions').delete().eq('id', exercise.id);
+      if (error) {
+        throw new Error(error.message);
+      }
+      toast.success("Exercise deleted successfully!");
+      fetchExercises(); // Re-fetch to update the list
+    } catch (err: any) {
+      console.error("Failed to delete exercise:", err);
+      toast.error("Failed to delete exercise: " + err.message);
+    }
   };
 
   const handleToggleFavorite = async (exercise: FetchedExerciseDefinition) => {
@@ -390,17 +392,15 @@ export default function ManageExercisesPage() {
                       exercises={userExercises}
                       loading={loading}
                       onEdit={handleEditClick}
-                      onDelete={handleDeleteClick}
-                      isDeleteDialogOpen={isDeleteDialogOpen}
-                      exerciseToDelete={exerciseToDelete}
-                      setIsDeleteDialogOpen={setIsDeleteDialogOpen}
-                      confirmDeleteExercise={confirmDeleteExercise}
+                      onDelete={handleDeleteExercise} // Pass the new delete handler
+                      // Removed isDeleteDialogOpen, exerciseToDelete, setIsDeleteDialogOpen, confirmDeleteExercise
                       editingExercise={editingExercise}
                       onCancelEdit={handleCancelEdit}
                       onSaveSuccess={handleSaveSuccess}
                       exerciseWorkoutsMap={exerciseWorkoutsMap}
                       onRemoveFromWorkout={handleRemoveFromWorkout}
                       onToggleFavorite={handleToggleFavorite}
+                      onAddSuccess={fetchExercises} // Pass onAddSuccess
                     />
                   </TabsContent>
                 </div>

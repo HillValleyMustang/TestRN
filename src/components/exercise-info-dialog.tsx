@@ -7,7 +7,16 @@ import { Info, Youtube, Search, Trash2 } from "lucide-react";
 import { Tables } from '@/types/supabase';
 import { toast } from "sonner";
 import { useSession } from "@/components/session-context-provider";
-// Removed: import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -16,6 +25,7 @@ interface ExerciseInfoDialogProps {
   trigger?: React.ReactNode;
   exerciseWorkouts?: { id: string; name: string; isUserOwned: boolean }[]; // New prop
   onRemoveFromWorkout?: (workoutId: string, exerciseId: string) => void; // New prop
+  onDeleteExercise?: (exercise: ExerciseDefinition) => void; // Changed prop type to accept full object
 }
 
 // Helper function to get YouTube embed URL
@@ -26,8 +36,9 @@ const getYouTubeEmbedUrl = (url: string | null | undefined): string | null => {
   return match && match[1] ? `https://www.youtube.com/embed/${match[1]}` : null;
 };
 
-export const ExerciseInfoDialog = ({ exercise, trigger, exerciseWorkouts = [], onRemoveFromWorkout }: ExerciseInfoDialogProps) => {
+export const ExerciseInfoDialog = ({ exercise, trigger, exerciseWorkouts = [], onRemoveFromWorkout, onDeleteExercise }: ExerciseInfoDialogProps) => {
   const [open, setOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false); // State for delete confirmation
   const { session } = useSession();
 
   const handleGoogleSearch = () => {
@@ -35,18 +46,31 @@ export const ExerciseInfoDialog = ({ exercise, trigger, exerciseWorkouts = [], o
     window.open(`https://www.google.com/search?q=${searchQuery}`, '_blank');
   };
 
-  const handleRemove = async (workoutId: string) => {
+  const handleRemoveFromWorkoutClick = async (workoutId: string) => {
     if (!session) {
       toast.error("You must be logged in to remove exercises from workouts.");
       return;
     }
     if (onRemoveFromWorkout) {
       onRemoveFromWorkout(workoutId, exercise.id);
-      setOpen(false); // Close dialog after removal attempt
+      // No need to close dialog immediately, parent will re-render workouts list
     }
   };
 
+  const handleDeleteExerciseClick = () => {
+    setIsDeleteConfirmOpen(true); // Open confirmation dialog
+  };
+
+  const confirmDeleteExercise = () => {
+    if (onDeleteExercise) {
+      onDeleteExercise(exercise); // Pass the full exercise object
+      setOpen(false); // Close info dialog after deletion
+    }
+    setIsDeleteConfirmOpen(false); // Close confirmation dialog
+  };
+
   const embedVideoUrl = getYouTubeEmbedUrl(exercise.video_url);
+  const isUserCreatedExercise = session && exercise.user_id === session.user.id;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -115,7 +139,7 @@ export const ExerciseInfoDialog = ({ exercise, trigger, exerciseWorkouts = [], o
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        onClick={() => handleRemove(workout.id)}
+                        onClick={() => handleRemoveFromWorkoutClick(workout.id)}
                         className="h-auto p-1 text-destructive hover:text-destructive"
                         title={`Remove from ${workout.name}`}
                       >
@@ -131,8 +155,29 @@ export const ExerciseInfoDialog = ({ exercise, trigger, exerciseWorkouts = [], o
           <Button variant="outline" onClick={handleGoogleSearch} className="w-full">
             <Search className="h-4 w-4 mr-2" /> Google Search
           </Button>
+
+          {isUserCreatedExercise && onDeleteExercise && (
+            <Button variant="destructive" onClick={handleDeleteExerciseClick} className="w-full mt-4">
+              <Trash2 className="h-4 w-4 mr-2" /> Delete Exercise
+            </Button>
+          )}
         </div>
       </DialogContent>
+
+      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the exercise "{exercise.name}" from your custom library.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIsDeleteConfirmOpen(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteExercise}>Continue</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 };

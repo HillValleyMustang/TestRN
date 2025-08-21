@@ -5,9 +5,9 @@ import { Tables } from "@/types/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Edit, Trash2, Heart, Info } from "lucide-react"; // Import Info icon
+import { Edit, Trash2, Heart, Info, PlusCircle } from "lucide-react"; // Import PlusCircle icon
 import {
-  AlertDialog,
+  AlertDialog, // Keep AlertDialog import as it might be used elsewhere or for other purposes
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
@@ -21,6 +21,7 @@ import { ExerciseForm } from "@/components/manage-exercises/exercise-form";
 import { ExerciseInfoDialog } from "@/components/exercise-info-dialog";
 import { cn, getWorkoutColorClass } from "@/lib/utils";
 import { WorkoutBadge } from "@/components/workout-badge"; // Import WorkoutBadge
+import { AddExerciseToTPathDialog } from "./add-exercise-to-tpath-dialog"; // Import the dialog
 
 // Extend the ExerciseDefinition type to include a temporary flag for global exercises
 interface FetchedExerciseDefinition extends Tables<'exercise_definitions'> {
@@ -31,35 +32,39 @@ interface UserExerciseListProps {
   exercises: FetchedExerciseDefinition[];
   loading: boolean;
   onEdit: (exercise: FetchedExerciseDefinition) => void;
-  onDelete: (exercise: FetchedExerciseDefinition) => void;
-  isDeleteDialogOpen: boolean;
-  exerciseToDelete: FetchedExerciseDefinition | null;
-  setIsDeleteDialogOpen: (open: boolean) => void;
-  confirmDeleteExercise: () => void;
+  onDelete: (exercise: FetchedExerciseDefinition) => void; // Changed type to accept full object
+  // Removed isDeleteDialogOpen, exerciseToDelete, setIsDeleteDialogOpen, confirmDeleteExercise
   editingExercise: FetchedExerciseDefinition | null;
   onCancelEdit: () => void;
   onSaveSuccess: () => void;
-  exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean }[]>; // New prop
-  onRemoveFromWorkout: (workoutId: string, exerciseId: string) => void; // New prop
-  onToggleFavorite: (exercise: FetchedExerciseDefinition) => void; // New prop
+  exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean }[]>;
+  onRemoveFromWorkout: (workoutId: string, exerciseId: string) => void;
+  onToggleFavorite: (exercise: FetchedExerciseDefinition) => void;
+  onAddSuccess: () => void; // Prop to trigger refresh after adding to T-Path
 }
 
 export const UserExerciseList = ({
   exercises,
   loading,
   onEdit,
-  onDelete,
-  isDeleteDialogOpen,
-  exerciseToDelete,
-  setIsDeleteDialogOpen,
-  confirmDeleteExercise,
+  onDelete, // Pass this down to ExerciseInfoDialog
+  // Removed isDeleteDialogOpen, exerciseToDelete, setIsDeleteDialogOpen, confirmDeleteExercise
   editingExercise,
   onCancelEdit,
   onSaveSuccess,
   exerciseWorkoutsMap,
   onRemoveFromWorkout,
   onToggleFavorite,
+  onAddSuccess, // Pass this down
 }: UserExerciseListProps) => {
+  const [isAddTPathDialogOpen, setIsAddTPathDialogOpen] = useState(false);
+  const [selectedExerciseForTPath, setSelectedExerciseForTPath] = useState<FetchedExerciseDefinition | null>(null);
+
+  const handleOpenAddTPathDialog = (exercise: FetchedExerciseDefinition, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent opening info dialog
+    setSelectedExerciseForTPath(exercise);
+    setIsAddTPathDialogOpen(true);
+  };
 
   const handleToggleFavoriteClick = (exercise: FetchedExerciseDefinition, e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation(); // Prevent opening info dialog
@@ -99,13 +104,13 @@ export const UserExerciseList = ({
                     exercise={ex}
                     exerciseWorkouts={exerciseWorkoutsMap[ex.id] || []}
                     onRemoveFromWorkout={onRemoveFromWorkout}
+                    onDeleteExercise={onDelete} // Pass the onDelete function here
                     trigger={
                       <div className="flex-1 cursor-pointer py-1 pr-2">
                         <span className="font-medium">
                           {ex.name}{' '}
                           <span className="text-sm text-muted-foreground">
                             ({ex.main_muscle}){' '}
-                            {ex.library_id ? '(Adopted)' : '(User Created)'}
                           </span>
                         </span>
                         {exerciseWorkoutsMap[ex.id]?.length > 0 && (
@@ -125,11 +130,12 @@ export const UserExerciseList = ({
                   />
                   {/* Action buttons group */}
                   <div className="flex space-x-1">
-                    {/* New Info Button */}
+                    {/* New Info Button (redundant if main area is trigger, but kept for consistency with global list) */}
                     <ExerciseInfoDialog
                       exercise={ex}
                       exerciseWorkouts={exerciseWorkoutsMap[ex.id] || []}
                       onRemoveFromWorkout={onRemoveFromWorkout}
+                      onDeleteExercise={onDelete} // Pass the onDelete function here
                       trigger={
                         <Button variant="ghost" size="icon" title="More Info">
                           <Info className="h-4 w-4" />
@@ -144,12 +150,13 @@ export const UserExerciseList = ({
                     >
                       <Heart className={cn("h-4 w-4", ex.is_favorite ? "fill-red-500 text-red-500" : "text-muted-foreground")} />
                     </Button>
+                    <Button variant="ghost" size="icon" onClick={(e) => handleOpenAddTPathDialog(ex, e)} title="Add to T-Path">
+                      <PlusCircle className="h-4 w-4" />
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEdit(ex); }} title="Edit Exercise">
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(ex); }} title="Delete Exercise">
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    {/* Removed the direct delete button from the card */}
                   </div>
                 </li>
               ))}
@@ -158,20 +165,7 @@ export const UserExerciseList = ({
         )}
       </CardContent>
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the exercise "{exerciseToDelete?.name}" from your custom library.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteExercise}>Continue</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Removed AlertDialog from here as it's now handled inside ExerciseInfoDialog */}
     </Card>
   );
 };
