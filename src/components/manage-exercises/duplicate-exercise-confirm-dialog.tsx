@@ -23,13 +23,13 @@ export const DuplicateExerciseConfirmDialog = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
+        <DialogHeader className="mb-4"> {/* Added mb-4 for gap */}
           <DialogTitle className="flex items-center justify-center text-yellow-600">
             <AlertTriangle className="h-5 w-5 mr-2" /> Exercise Already Exists!
           </DialogTitle>
-          <DialogDescription className="text-center">
+          <DialogDescription className="text-center mt-2"> {/* Adjusted mt-2 */}
             It looks like "<span className="font-semibold">{exerciseName}</span>" is already a saved exercise within {duplicateLocation}.
-            <p className="mt-2">Adding it again will create a duplicate.</p>
+            <p className="mt-1">Adding it again will create a duplicate.</p> {/* Reduced mt-1 */}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-4">
