@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
 
 interface LoadingOverlayProps {
@@ -10,15 +11,15 @@ interface LoadingOverlayProps {
 }
 
 export const LoadingOverlay = ({ isOpen, title = "Processing...", description = "Please wait while we update your data." }: LoadingOverlayProps) => {
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background/80 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0">
-      <div className="max-w-sm flex flex-col items-center justify-center text-center p-8 bg-card rounded-lg shadow-lg">
+    <Dialog open={isOpen}>
+      <DialogContent className="max-w-sm flex flex-col items-center justify-center text-center p-8">
         <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-        <h3 className="text-lg font-semibold mb-2">{title}</h3>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </div>
-    </div>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+      </DialogContent>
+    </Dialog>
   );
 };

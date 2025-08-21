@@ -27,8 +27,7 @@ import {
 } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlusCircle, Edit, XCircle, ChevronDown, ChevronUp, Info, Sparkles } from "lucide-react";
-import { Checkbox }
- from "@/components/ui/checkbox";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Popover,
   PopoverContent,
@@ -270,25 +269,22 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
 
   return (
     <Card>
-      <CardHeader 
-        className="flex flex-row items-center justify-between space-y-0 pb-3 cursor-pointer"
-        onClick={toggleExpand}
-      >
-        <CardTitle className="text-lg font-bold"> {/* Set to text-lg */}
+      <CardHeader>
+        <CardTitle className="flex justify-between items-center">
           {editingExercise ? "Edit Exercise" : "Add New Exercise"}
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={toggleExpand}
+            className="ml-2"
+          >
+            {isExpanded ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </Button>
         </CardTitle>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={(e) => { e.stopPropagation(); toggleExpand(); }} // Stop propagation here
-          className="ml-2"
-        >
-          {isExpanded ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          )}
-        </Button>
       </CardHeader>
       {isExpanded && (
         <CardContent>
