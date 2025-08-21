@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"; // Add DialogTrigger
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSession } from "@/components/session-context-provider";
 import { Tables } from '@/types/supabase';
 import { toast } from "sonner";
 import { Info, Check, Sparkles } from "lucide-react";
-import { LoadingOverlay } from '../loading-overlay'; // Import LoadingOverlay
+import { LoadingOverlay } from '../loading-overlay';
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -19,11 +19,11 @@ interface ExerciseSubstitutionDialogProps {
   onSubstitute: (newExercise: ExerciseDefinition) => void;
 }
 
-export const ExerciseSubstitutionDialog = ({ 
-  open, 
-  onOpenChange, 
-  currentExercise, 
-  onSubstitute 
+export const ExerciseSubstitutionDialog = ({
+  open,
+  onOpenChange,
+  currentExercise,
+  onSubstitute
 }: ExerciseSubstitutionDialogProps) => {
   const { session, supabase } = useSession();
   const [substitutions, setSubstitutions] = useState<ExerciseDefinition[]>([]);
@@ -35,27 +35,25 @@ export const ExerciseSubstitutionDialog = ({
 
     setLoading(true);
     try {
-      // Fetch all exercises (user-owned and global) that match criteria
       const { data: allMatchingExercises, error: fetchError } = await supabase
         .from('exercise_definitions')
-        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite') // Specify all columns required by ExerciseDefinition
-        .or(`user_id.eq.${session.user.id},user_id.is.null`) // User's own or global
+        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite')
+        .or(`user_id.eq.${session.user.id},user_id.is.null`)
         .eq('main_muscle', currentExercise.main_muscle)
         .eq('type', currentExercise.type)
-        .neq('id', currentExercise.id); // Exclude the current exercise
+        .neq('id', currentExercise.id);
 
       if (fetchError) throw fetchError;
 
-      // Filter out global exercises if a user-owned copy already exists
       const userOwnedExerciseIds = new Set(
         allMatchingExercises
           .filter(ex => ex.user_id === session.user.id && ex.library_id)
           .map(ex => ex.library_id)
       );
 
-      const filteredSubstitutions = (allMatchingExercises as ExerciseDefinition[]).filter(ex => { // Explicitly cast
+      const filteredSubstitutions = (allMatchingExercises as ExerciseDefinition[]).filter(ex => {
         if (ex.user_id === null && ex.library_id && userOwnedExerciseIds.has(ex.library_id)) {
-          return false; // Exclude global if user has an adopted copy
+          return false;
         }
         return true;
       });
@@ -77,27 +75,25 @@ export const ExerciseSubstitutionDialog = ({
 
   const adoptExercise = async (exerciseToAdopt: ExerciseDefinition): Promise<ExerciseDefinition> => {
     if (exerciseToAdopt.user_id === session?.user.id) {
-      return exerciseToAdopt; // Already user-owned
+      return exerciseToAdopt;
     }
 
-    // Check if user already has an adopted copy of this global exercise
     if (exerciseToAdopt.library_id) {
       const { data: existingAdopted, error: fetchError } = await supabase
         .from('exercise_definitions')
-        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite') // Specify all columns required by ExerciseDefinition
+        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite')
         .eq('user_id', session!.user.id)
         .eq('library_id', exerciseToAdopt.library_id)
         .single();
 
-      if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 means no rows found
+      if (fetchError && fetchError.code !== 'PGRST116') {
         throw fetchError;
       }
       if (existingAdopted) {
-        return existingAdopted as ExerciseDefinition; // Explicitly cast
+        return existingAdopted as ExerciseDefinition;
       }
     }
 
-    // If not user-owned and no adopted copy exists, create one
     const { data: newAdoptedExercise, error: insertError } = await supabase
       .from('exercise_definitions')
       .insert({
@@ -109,8 +105,8 @@ export const ExerciseSubstitutionDialog = ({
         pro_tip: exerciseToAdopt.pro_tip,
         video_url: exerciseToAdopt.video_url,
         user_id: session!.user.id,
-        library_id: exerciseToAdopt.library_id || null, // Preserve library_id if it exists
-        is_favorite: false, // Default to not favourited on adoption
+        library_id: exerciseToAdopt.library_id || null,
+        is_favorite: false,
       })
       .select()
       .single();
@@ -160,7 +156,6 @@ export const ExerciseSubstitutionDialog = ({
 
       const newAiExercise = data.newExercise;
       if (newAiExercise) {
-        // Add the newly generated exercise to the list of substitutions
         setSubstitutions(prev => [...prev, newAiExercise]);
         toast.success("AI generated a new exercise suggestion!");
       } else {
@@ -184,7 +179,7 @@ export const ExerciseSubstitutionDialog = ({
           <p className="text-sm text-muted-foreground mb-4">
             Replace <span className="font-semibold">{currentExercise.name}</span> with one of these alternatives:
           </p>
-          
+
           {loading ? (
             <p className="text-center text-muted-foreground">Loading substitutions...</p>
           ) : substitutions.length === 0 && !generatingAi ? (
@@ -201,8 +196,8 @@ export const ExerciseSubstitutionDialog = ({
             <ScrollArea className="h-64 pr-4">
               <div className="space-y-3">
                 {substitutions.map((exercise) => (
-                  <div 
-                    key={exercise.id} 
+                  <div
+                    key={exercise.id}
                     className="p-4 border rounded-lg hover:bg-accent transition-colors"
                   >
                     <div className="flex justify-between items-start">
@@ -215,8 +210,8 @@ export const ExerciseSubstitutionDialog = ({
                           <p className="text-sm mt-1">{exercise.description}</p>
                         )}
                       </div>
-                      <Button 
-                        size="sm" 
+                      <Button
+                        size="sm"
                         onClick={() => handleSelectSubstitution(exercise)}
                       >
                         Select
@@ -233,17 +228,17 @@ export const ExerciseSubstitutionDialog = ({
               </div>
             </ScrollArea>
           )}
-          
+
           <div className="mt-4 flex justify-between">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={generatingAi}
             >
               Cancel
             </Button>
             {substitutions.length > 0 && (
-              <Button 
+              <Button
                 variant="secondary"
                 onClick={handleGenerateAiSuggestion}
                 disabled={generatingAi}
@@ -255,10 +250,10 @@ export const ExerciseSubstitutionDialog = ({
           </div>
         </div>
       </DialogContent>
-      <LoadingOverlay 
-        isOpen={generatingAi} 
-        title="Generating AI Suggestion" 
-        description="Please wait while the AI suggests a new exercise." 
+      <LoadingOverlay
+        isOpen={generatingAi}
+        title="Generating AI Suggestion"
+        description="Please wait while the AI suggests a new exercise."
       />
     </Dialog>
   );

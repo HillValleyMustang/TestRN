@@ -12,20 +12,28 @@ type ExerciseDefinition = Tables<'exercise_definitions'>;
 type SetLog = Tables<'set_logs'>;
 
 interface ExerciseProgressionDialogProps {
+  open?: boolean; // Make open prop optional for controlled/uncontrolled usage
+  onOpenChange?: (open: boolean) => void; // Make onOpenChange prop optional
   exerciseId: string;
   exerciseName: string;
   exerciseType: ExerciseDefinition['type'];
+  trigger?: React.ReactNode; // Destructure this prop
 }
 
-export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, exerciseType }: ExerciseProgressionDialogProps) => {
+export const ExerciseProgressionDialog = ({ open, onOpenChange, exerciseId, exerciseName, exerciseType, trigger }: ExerciseProgressionDialogProps) => {
   const { session, supabase } = useSession();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false); // Internal state for uncontrolled usage
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Determine if the dialog is controlled or uncontrolled
+  const isControlled = open !== undefined && onOpenChange !== undefined;
+  const currentOpen = isControlled ? open : internalOpen;
+  const setCurrentOpen = isControlled ? onOpenChange : setInternalOpen;
+
   useEffect(() => {
     const fetchProgressionSuggestion = async () => {
-      if (!session || !exerciseId || !open) return;
+      if (!session || !exerciseId || !currentOpen) return;
 
       setLoading(true);
       setSuggestion(null);
@@ -83,18 +91,22 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, exerciseTy
       }
     };
 
-    if (open) {
+    if (currentOpen) {
       fetchProgressionSuggestion();
     }
-  }, [open, session, exerciseId, exerciseType, supabase]);
+  }, [currentOpen, session, exerciseId, exerciseType, supabase]);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="icon" title="Suggest Progression">
-          <Lightbulb className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
+    <Dialog open={currentOpen} onOpenChange={setCurrentOpen}>
+      {trigger ? (
+        <DialogTrigger asChild>{trigger}</DialogTrigger>
+      ) : (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="icon" title="Suggest Progression">
+            <Lightbulb className="h-4 w-4" />
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Progression Suggestion for {exerciseName}</DialogTitle>

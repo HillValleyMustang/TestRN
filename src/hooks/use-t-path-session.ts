@@ -18,7 +18,7 @@ type TPathExerciseJoin = {
   template_id: string;
   order_index: number;
   is_bonus_exercise: boolean | null; // Explicitly included as it's selected
-  exercise_definitions: Pick<Tables<'exercise_definitions'>, 'id' | 'name' | 'main_muscle' | 'type' | 'category' | 'description' | 'pro_tip' | 'video_url'> | null;
+  exercise_definitions: Pick<Tables<'exercise_definitions'>, 'id' | 'name' | 'main_muscle' | 'type' | 'category' | 'description' | 'pro_tip' | 'video_url'>[] | null; // Changed to array
 };
 
 interface UseTPathSessionProps {
@@ -37,6 +37,7 @@ interface UseTPathSessionReturn {
   currentSessionId: string | null;
   sessionStartTime: Date | null;
   setExercisesWithSets: React.Dispatch<React.SetStateAction<Record<string, SetLogState[]>>>;
+  refreshExercisesForTPath: (oldExerciseId?: string, newExercise?: WorkoutExercise | null) => void; // New refresh function
 }
 
 export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPathSessionProps): UseTPathSessionReturn => {
@@ -94,9 +95,9 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
       }
 
       const fetchedExercises: WorkoutExercise[] = (tPathExercisesData as TPathExerciseJoin[])
-        .filter(te => te.exercise_definitions) // Ensure exercise_definitions is not null
+        .filter(te => te.exercise_definitions && te.exercise_definitions.length > 0) // Ensure exercise_definitions is not null and not empty
         .map(te => ({
-          ...(te.exercise_definitions! as Tables<'exercise_definitions'>), // Base exercise data
+          ...(te.exercise_definitions![0] as Tables<'exercise_definitions'>), // Access the first element
           is_bonus_exercise: !!te.is_bonus_exercise, // Add the bonus flag and ensure it's boolean
         }));
       setExercisesForTPath(fetchedExercises);
@@ -197,6 +198,22 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
     fetchWorkoutData();
   }, [fetchWorkoutData]);
 
+  // New function to refresh the exercises list
+  const refreshExercisesForTPath = useCallback((oldExerciseId?: string, newExercise?: WorkoutExercise | null) => {
+    setExercisesForTPath(prevExercises => {
+      if (oldExerciseId && newExercise) {
+        // Substitute an exercise
+        return prevExercises.map(ex => ex.id === oldExerciseId ? newExercise : ex);
+      } else if (oldExerciseId && newExercise === null) {
+        // Remove an exercise
+        return prevExercises.filter(ex => ex.id !== oldExerciseId);
+      }
+      // If no specific old/new exercise, just re-fetch all (though this might be less efficient)
+      // For now, we'll rely on the explicit substitute/remove logic.
+      return prevExercises;
+    });
+  }, []);
+
   return {
     tPath,
     exercisesForTPath,
@@ -206,5 +223,6 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
     currentSessionId,
     sessionStartTime,
     setExercisesWithSets,
+    refreshExercisesForTPath,
   };
 };

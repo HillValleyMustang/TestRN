@@ -21,18 +21,26 @@ type SetLogWithSession = Pick<SetLog, 'id' | 'weight_kg' | 'reps' | 'reps_l' | '
 };
 
 interface ExerciseHistoryDialogProps {
+  open?: boolean; // Make open prop optional for controlled/uncontrolled usage
+  onOpenChange?: (open: boolean) => void; // Make onOpenChange prop optional
   exerciseId: string;
   exerciseName: string;
   exerciseType: ExerciseDefinition['type'];
   exerciseCategory?: ExerciseDefinition['category'] | null;
+  trigger?: React.ReactNode; // Destructure this prop
 }
 
-export const ExerciseHistoryDialog = ({ exerciseId, exerciseName, exerciseType, exerciseCategory }: ExerciseHistoryDialogProps) => {
+export const ExerciseHistoryDialog = ({ open, onOpenChange, exerciseId, exerciseName, exerciseType, exerciseCategory, trigger }: ExerciseHistoryDialogProps) => {
   const { session, supabase } = useSession();
-  const [open, setOpen] = useState(false);
-  const [historyLogs, setHistoryLogs] = useState<SetLogWithSession[]>([]); // Use the new type here
+  const [internalOpen, setInternalOpen] = useState(false); // Internal state for uncontrolled usage
+  const [historyLogs, setHistoryLogs] = useState<SetLogWithSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [preferredWeightUnit, setPreferredWeightUnit] = useState<Profile['preferred_weight_unit']>('kg');
+
+  // Determine if the dialog is controlled or uncontrolled
+  const isControlled = open !== undefined && onOpenChange !== undefined;
+  const currentOpen = isControlled ? open : internalOpen;
+  const setCurrentOpen = isControlled ? onOpenChange : setInternalOpen;
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -54,7 +62,7 @@ export const ExerciseHistoryDialog = ({ exerciseId, exerciseName, exerciseType, 
 
   useEffect(() => {
     const fetchHistory = async () => {
-      if (!session || !exerciseId || !open) return;
+      if (!session || !exerciseId || !currentOpen) return;
 
       setLoading(true);
       try {
@@ -73,13 +81,12 @@ export const ExerciseHistoryDialog = ({ exerciseId, exerciseName, exerciseType, 
           throw new Error(error.message);
         }
 
-        // Map the data to the correct type, handling workout_sessions as an array
         const mappedData: SetLogWithSession[] = (data as (SetLog & { workout_sessions: Pick<Tables<'workout_sessions'>, 'session_date'>[] | null })[]).map(log => ({
           ...log,
           workout_sessions: (log.workout_sessions && log.workout_sessions.length > 0) ? log.workout_sessions[0] : null,
         }));
 
-        setHistoryLogs(mappedData || []); // Cast the data to the new type
+        setHistoryLogs(mappedData || []);
       } catch (err: any) {
         console.error("Failed to fetch exercise history:", err);
         toast.error("Failed to load exercise history: " + err.message);
@@ -89,15 +96,19 @@ export const ExerciseHistoryDialog = ({ exerciseId, exerciseName, exerciseType, 
     };
 
     fetchHistory();
-  }, [open, session, exerciseId, supabase]);
+  }, [currentOpen, session, exerciseId, supabase]);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="icon" title="History">
-          <History className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
+    <Dialog open={currentOpen} onOpenChange={setCurrentOpen}>
+      {trigger ? (
+        <DialogTrigger asChild>{trigger}</DialogTrigger>
+      ) : (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="icon" title="History">
+            <History className="h-4 w-4" />
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>History for {exerciseName}</DialogTitle>

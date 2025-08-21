@@ -21,11 +21,13 @@ import {
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 interface ExerciseInfoDialogProps {
+  open?: boolean; // Make open prop optional for controlled/uncontrolled usage
+  onOpenChange?: (open: boolean) => void; // Make onOpenChange prop optional
   exercise: ExerciseDefinition;
   trigger?: React.ReactNode;
-  exerciseWorkouts?: { id: string; name: string; isUserOwned: boolean }[]; // New prop
-  onRemoveFromWorkout?: (workoutId: string, exerciseId: string) => void; // New prop
-  onDeleteExercise?: (exercise: ExerciseDefinition) => void; // Changed prop type to accept full object
+  exerciseWorkouts?: { id: string; name: string; isUserOwned: boolean }[];
+  onRemoveFromWorkout?: (workoutId: string, exerciseId: string) => void;
+  onDeleteExercise?: (exercise: ExerciseDefinition) => void;
 }
 
 // Helper function to get YouTube embed URL
@@ -36,10 +38,14 @@ const getYouTubeEmbedUrl = (url: string | null | undefined): string | null => {
   return match && match[1] ? `https://www.youtube.com/embed/${match[1]}` : null;
 };
 
-export const ExerciseInfoDialog = ({ exercise, trigger, exerciseWorkouts = [], onRemoveFromWorkout, onDeleteExercise }: ExerciseInfoDialogProps) => {
-  const [open, setOpen] = useState(false);
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false); // State for delete confirmation
+export const ExerciseInfoDialog = ({ open, onOpenChange, exercise, trigger, exerciseWorkouts = [], onRemoveFromWorkout, onDeleteExercise }: ExerciseInfoDialogProps) => {
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const { session } = useSession();
+
+  // Determine if the dialog is controlled or uncontrolled
+  const isControlled = open !== undefined && onOpenChange !== undefined;
+  const currentOpen = isControlled ? open : useState(false)[0]; // Use internal state if uncontrolled
+  const setCurrentOpen = isControlled ? onOpenChange : useState(false)[1]; // Use internal state if uncontrolled
 
   const handleGoogleSearch = () => {
     const searchQuery = encodeURIComponent(`${exercise.name} exercise`);
@@ -53,27 +59,26 @@ export const ExerciseInfoDialog = ({ exercise, trigger, exerciseWorkouts = [], o
     }
     if (onRemoveFromWorkout) {
       onRemoveFromWorkout(workoutId, exercise.id);
-      // No need to close dialog immediately, parent will re-render workouts list
     }
   };
 
   const handleDeleteExerciseClick = () => {
-    setIsDeleteConfirmOpen(true); // Open confirmation dialog
+    setIsDeleteConfirmOpen(true);
   };
 
   const confirmDeleteExercise = () => {
     if (onDeleteExercise) {
-      onDeleteExercise(exercise); // Pass the full exercise object
-      setOpen(false); // Close info dialog after deletion
+      onDeleteExercise(exercise);
+      setCurrentOpen(false); // Close info dialog after deletion
     }
-    setIsDeleteConfirmOpen(false); // Close confirmation dialog
+    setIsDeleteConfirmOpen(false);
   };
 
   const embedVideoUrl = getYouTubeEmbedUrl(exercise.video_url);
   const isUserCreatedExercise = session && exercise.user_id === session.user.id;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={currentOpen} onOpenChange={setCurrentOpen}>
       {trigger ? (
         <DialogTrigger asChild>{trigger}</DialogTrigger>
       ) : (
@@ -88,11 +93,10 @@ export const ExerciseInfoDialog = ({ exercise, trigger, exerciseWorkouts = [], o
           <DialogTitle>{exercise.name} Information</DialogTitle>
         </DialogHeader>
 
-        {/* Main content area, now with overflow-y-auto */}
         <div className="flex-grow overflow-y-auto px-6 pb-6 space-y-4">
           {embedVideoUrl && (
             <div className="pb-4">
-              <div className="relative w-full rounded-md overflow-hidden" style={{ paddingBottom: '56.25%' /* 16:9 Aspect Ratio */ }}>
+              <div className="relative w-full rounded-md overflow-hidden" style={{ paddingBottom: '56.25%' }}>
                 <iframe
                   className="absolute top-0 left-0 w-full h-full"
                   src={embedVideoUrl}
@@ -136,9 +140,9 @@ export const ExerciseInfoDialog = ({ exercise, trigger, exerciseWorkouts = [], o
                   <li key={workout.id} className="flex items-center justify-between text-sm text-muted-foreground">
                     <span>{workout.name}</span>
                     {workout.isUserOwned && onRemoveFromWorkout && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleRemoveFromWorkoutClick(workout.id)}
                         className="h-auto p-1 text-destructive hover:text-destructive"
                         title={`Remove from ${workout.name}`}

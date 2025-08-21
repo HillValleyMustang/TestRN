@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useSession } from "@/components/session-context-provider";
-import { Tables } from '@/types/supabase';
+import { Tables, WorkoutExercise } from '@/types/supabase'; // Import WorkoutExercise
 import { toast } from "sonner";
 import { Ban, RotateCcw } from "lucide-react";
 import { ExerciseSubstitutionDialog } from "./exercise-substitution-dialog";
@@ -12,43 +12,30 @@ import { ExerciseSubstitutionDialog } from "./exercise-substitution-dialog";
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 interface CantDoToggleProps {
+  open: boolean; // Controlled prop
+  onOpenChange: (open: boolean) => void; // Controlled prop
   exercise: ExerciseDefinition;
   onRemove: () => void;
   onSubstitute: (newExercise: ExerciseDefinition) => void;
 }
 
-export const CantDoToggle = ({ exercise, onRemove, onSubstitute }: CantDoToggleProps) => {
-  const [showDialog, setShowDialog] = useState(false);
-  const [showSubstitutionDialog, setShowSubstitutionDialog] = useState(false);
-
-  const handleCantDo = () => {
-    setShowDialog(true);
-  };
+export const CantDoToggle = ({ open, onOpenChange, exercise, onRemove, onSubstitute }: CantDoToggleProps) => {
+  const [showSubstitutionDialog, setShowSubstitutionDialog] = React.useState(false);
 
   const handleSubstitute = () => {
-    setShowDialog(false);
-    setShowSubstitutionDialog(true);
+    onOpenChange(false); // Close current dialog
+    setShowSubstitutionDialog(true); // Open substitution dialog
   };
 
   const handleRemove = () => {
-    setShowDialog(false);
+    onOpenChange(false); // Close current dialog
     onRemove();
     toast.success(`Removed ${exercise.name} from this workout`);
   };
 
   return (
     <>
-      <Button 
-        variant="outline" 
-        size="sm" 
-        onClick={handleCantDo}
-        className="flex items-center"
-      >
-        <Ban className="h-4 w-4 mr-2" />
-        Can't Do
-      </Button>
-
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Can't Do This Exercise?</DialogTitle>
@@ -63,7 +50,7 @@ export const CantDoToggle = ({ exercise, onRemove, onSubstitute }: CantDoToggleP
             </p>
           </div>
           <DialogFooter className="flex flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setShowDialog(false)}>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button variant="secondary" onClick={handleSubstitute}>

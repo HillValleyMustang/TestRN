@@ -6,13 +6,13 @@ import { useSession } from '@/components/session-context-provider';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { TPathHeader } from '@/components/workout-session/t-path-header';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
-import { FinishWorkoutButton } from '@/components/workout-session/finish-workout-button';
 import { useAdHocWorkoutSession } from '@/hooks/use-ad-hoc-workout-session';
-import { Tables, SetLogState } from '@/types/supabase';
+import { Tables, SetLogState, WorkoutExercise } from '@/types/supabase'; // Import WorkoutExercise
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
+import { WorkoutSessionFooter } from '@/components/workout-session/workout-session-footer'; // Import WorkoutSessionFooter
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -100,10 +100,11 @@ export default function AdHocWorkoutSessionPage() {
         {exercisesForSession.length === 0 ? (
           <p className="text-muted-foreground text-center">Add exercises to start your workout!</p>
         ) : (
-          exercisesForSession.map((exercise) => (
+          exercisesForSession.map((exercise, index) => (
             <ExerciseCard
               key={exercise.id}
               exercise={exercise}
+              exerciseNumber={index + 1} // Pass exercise number
               currentSessionId={currentSessionId}
               supabase={supabase}
               onUpdateGlobalSets={(exerciseId: string, newSets: SetLogState[]) => {
@@ -113,13 +114,15 @@ export default function AdHocWorkoutSessionPage() {
                 }));
               }}
               initialSets={exercisesWithSets[exercise.id] || []}
+              workoutTemplateName="Ad Hoc Workout" // Ad-hoc workouts don't have a specific template name
+              onRemoveExercise={removeExerciseFromSession} // Allow removing exercises from ad-hoc session
             />
           ))
         )}
       </section>
 
       {exercisesForSession.length > 0 && (
-        <FinishWorkoutButton
+        <WorkoutSessionFooter
           currentSessionId={currentSessionId}
           sessionStartTime={sessionStartTime}
           supabase={supabase}
