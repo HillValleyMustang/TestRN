@@ -27,7 +27,8 @@ import {
 } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlusCircle, Edit, XCircle, ChevronDown, ChevronUp, Info, Sparkles } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox }
+ from "@/components/ui/checkbox";
 import {
   Popover,
   PopoverContent,
@@ -273,7 +274,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
         className="flex flex-row items-center justify-between space-y-0 pb-3 cursor-pointer"
         onClick={toggleExpand}
       >
-        <CardTitle className="text-2xl font-bold">
+        <CardTitle className="text-xl font-bold"> {/* Reverted text size */}
           {editingExercise ? "Edit Exercise" : "Add New Exercise"}
         </CardTitle>
         <Button 
