@@ -15,9 +15,8 @@ import { toast } from 'sonner';
 import Link from 'next/link'; // Import Link for navigation
 
 interface WorkoutSessionPageProps {
-  params: {
-    tPathId: string;
-  };
+  params: { [key: string]: string }; // Changed to be more generic for dynamic routes
+  searchParams?: { [key: string]: string | string[] | undefined };
 }
 
 export default function WorkoutSessionPage({ params }: WorkoutSessionPageProps) {
