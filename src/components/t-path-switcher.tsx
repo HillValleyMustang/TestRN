@@ -22,6 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { LoadingOverlay } from '@/components/loading-overlay'; // Import LoadingOverlay
 
 type TPath = Tables<'t_paths'>;
 
@@ -35,6 +36,7 @@ export const TPathSwitcher = ({ currentTPathId, onTPathChange }: TPathSwitcherPr
   const [tPaths, setTPaths] = useState<TPath[]>([]);
   const [selectedTPathId, setSelectedTPathId] = useState(currentTPathId);
   const [showSwitchDialog, setShowSwitchDialog] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false); // New loading state
 
   useEffect(() => {
     const fetchTPaths = async () => {
@@ -71,21 +73,32 @@ export const TPathSwitcher = ({ currentTPathId, onTPathChange }: TPathSwitcherPr
   const confirmSwitch = async () => {
     if (!session) return;
 
+    setIsSwitching(true); // Start loading
     try {
-      // Update the active_t_path_id in the user's profile
-      const { error } = await supabase
-        .from('profiles')
-        .update({ active_t_path_id: selectedTPathId })
-        .eq('id', session.user.id);
+      // Call the Next.js API route to handle the switch and disassociation
+      const response = await fetch('/api/switch-t-path', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ oldTPathId: currentTPathId, newTPathId: selectedTPathId }),
+      });
 
-      if (error) throw error;
+      const data = await response.json();
 
-      onTPathChange(selectedTPathId);
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to switch T-Path via API.');
+      }
+
+      onTPathChange(selectedTPathId); // Notify parent component of the change
       setShowSwitchDialog(false);
       toast.success("Switched to new T-Path!");
     } catch (err: any) {
       toast.error("Failed to switch T-Path: " + err.message);
       console.error("Error switching T-Path:", err);
+    } finally {
+      setIsSwitching(false); // End loading
     }
   };
 
@@ -97,37 +110,44 @@ export const TPathSwitcher = ({ currentTPathId, onTPathChange }: TPathSwitcherPr
   const currentTPath = tPaths.find(tp => tp.id === currentTPathId);
 
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium">Switch Active T-Path</label>
-      <Select value={selectedTPathId} onValueChange={handleTPathChange}>
-        <SelectTrigger>
-          <SelectValue>
-            {currentTPath ? currentTPath.template_name : "Select T-Path"}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {tPaths.map((tPath) => (
-            <SelectItem key={tPath.id} value={tPath.id}>
-              {tPath.template_name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+    <>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Switch Active T-Path</label>
+        <Select value={selectedTPathId} onValueChange={handleTPathChange}>
+          <SelectTrigger>
+            <SelectValue>
+              {currentTPath ? currentTPath.template_name : "Select T-Path"}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {tPaths.map((tPath) => (
+              <SelectItem key={tPath.id} value={tPath.id}>
+                {tPath.template_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-      <AlertDialog open={showSwitchDialog} onOpenChange={setShowSwitchDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Switch T-Path?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to switch to a different T-Path? This will change your active workout plan.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={cancelSwitch}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmSwitch}>Switch T-Path</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+        <AlertDialog open={showSwitchDialog} onOpenChange={setShowSwitchDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Switch T-Path?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to switch to a different T-Path? This will change your active workout plan and disassociate exercises from your previous T-Path's workouts.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={cancelSwitch}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmSwitch}>Switch T-Path</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+      <LoadingOverlay 
+        isOpen={isSwitching} 
+        title="Switching Transformation Path" 
+        description="Please wait while your new workout plan is activated and old exercises are disassociated." 
+      />
+    </>
   );
 };
