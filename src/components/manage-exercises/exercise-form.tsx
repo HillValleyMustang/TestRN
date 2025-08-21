@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useSession } from "@/components/session-context-provider";
+import { Tables } from "@/types/supabase";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -34,7 +35,6 @@ import {
 } from "@/components/ui/popover";
 import { AnalyzeGymDialog } from "./analyze-gym-dialog"; 
 import { Label } from "@/components/ui/label"; // Import Label component
-import { Tables } from '@/types/supabase'; // Import Tables
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -95,14 +95,14 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
 
   useEffect(() => {
     if (editingExercise) {
-      const muscleGroups = editingExercise.main_muscle ? editingExercise.main_muscle.split(',').map((m: string) => m.trim()) : [];
+      const muscleGroups = editingExercise.main_muscle ? editingExercise.main_muscle.split(',').map(m => m.trim()) : [];
       
       form.reset({
         name: editingExercise.name,
         main_muscles: muscleGroups,
         type: editingExercise.type ? [editingExercise.type] as ("weight" | "timed")[] : [],
         category: editingExercise.category || null,
-        description: editingExercise.description || null, // Fixed typo here
+        description: editingExercise.description || null,
         pro_tip: editingExercise.pro_tip || null,
         video_url: editingExercise.video_url || null,
       });
@@ -149,7 +149,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
     onCancelEdit(); // Clear any existing editing state
     setIsExpanded(true); // Ensure the form is open
 
-    const muscleGroups = identifiedData.main_muscle ? identifiedData.main_muscle.split(',').map((m: string) => m.trim()) : [];
+    const muscleGroups = identifiedData.main_muscle ? identifiedData.main_muscle.split(',').map(m => m.trim()) : [];
     const exerciseType = identifiedData.type ? [identifiedData.type] as ("weight" | "timed")[] : [];
 
     form.reset({
@@ -269,26 +269,22 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        {/* Make the entire title area clickable */}
-        <div className="flex-1 flex items-center cursor-pointer" onClick={toggleExpand}>
-          <CardTitle className="text-2xl font-bold">
-            {editingExercise ? "Edit Exercise" : "Add New Exercise"}
-          </CardTitle>
-        </div>
-        {/* Keep the chevron button separate for direct click */}
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={toggleExpand}
-          className="ml-2"
-        >
-          {isExpanded ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          )}
-        </Button>
+      <CardHeader>
+        <CardTitle className="flex justify-between items-center">
+          {editingExercise ? "Edit Exercise" : "Add New Exercise"}
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={toggleExpand}
+            className="ml-2"
+          >
+            {isExpanded ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </Button>
+        </CardTitle>
       </CardHeader>
       {isExpanded && (
         <CardContent>
