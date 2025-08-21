@@ -23,17 +23,18 @@ export const DuplicateExerciseConfirmDialog = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center text-yellow-600">
-            <AlertTriangle className="h-5 w-5 mr-2" /> Exercise Already Exists!
+        <DialogHeader className="text-center">
+          <DialogTitle className="flex flex-col items-center text-yellow-600 text-2xl font-bold mb-2">
+            <AlertTriangle className="h-10 w-10 mb-2" /> 
+            Exercise Already Exists!
           </DialogTitle>
-          <DialogDescription>
-            It looks like "<span className="font-semibold">{exerciseName}</span>" is already a saved exercise within {duplicateLocation}.
+          <DialogDescription className="text-base text-foreground">
+            It looks like "<span className="font-bold text-primary">{exerciseName}</span>" is already a saved exercise within <span className="font-bold text-primary">{duplicateLocation}</span>.
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4">
+        <div className="py-4 text-center">
           <p className="text-sm text-muted-foreground">
-            Adding it again will create a duplicate.
+            Adding it again will create a duplicate entry in your personal exercise library.
           </p>
         </div>
         <DialogFooter className="flex flex-col sm:flex-row gap-2">
