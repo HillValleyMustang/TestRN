@@ -131,9 +131,9 @@ export const TPathSwitcher = ({ currentTPathId, onTPathChange }: TPathSwitcherPr
         <AlertDialog open={showSwitchDialog} onOpenChange={setShowSwitchDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Switch T-Path?</AlertDialogTitle>
+              <AlertDialogTitle>Switch Transformation Path?</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to switch to a different T-Path? This will change your active workout plan and disassociate exercises from your previous T-Path's workouts.
+                Switching to a new T-Path will clear and replace all exercises from your current plan. Don't worry—your custom exercises are still safe and can be re-added from your personal library whenever you like.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
