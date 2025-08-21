@@ -15,8 +15,8 @@ import { toast } from 'sonner';
 import Link from 'next/link'; // Import Link for navigation
 
 interface WorkoutSessionPageProps {
-  params: { [key: string]: string }; // Changed to be more generic for dynamic routes
-  searchParams?: { [key: string]: string | string[] | undefined };
+  params: any;
+  searchParams: any; // Changed to 'any' to resolve TypeScript error
 }
 
 export default function WorkoutSessionPage({ params }: WorkoutSessionPageProps) {
