@@ -32,7 +32,7 @@ interface UserExerciseListProps {
   exercises: FetchedExerciseDefinition[];
   loading: boolean;
   onEdit: (exercise: FetchedExerciseDefinition) => void;
-  onDelete: (exercise: FetchedExerciseDefinition) => void; // Changed type to accept full object
+  onDelete: (exercise: FetchedExerciseDefinition) => void; // This will now be passed to ExerciseInfoDialog
   // Removed isDeleteDialogOpen, exerciseToDelete, setIsDeleteDialogOpen, confirmDeleteExercise
   editingExercise: FetchedExerciseDefinition | null;
   onCancelEdit: () => void;
@@ -166,6 +166,15 @@ export const UserExerciseList = ({
       </CardContent>
 
       {/* Removed AlertDialog from here as it's now handled inside ExerciseInfoDialog */}
+      {selectedExerciseForTPath && (
+        <AddExerciseToTPathDialog
+          key={selectedExerciseForTPath.id} // Added key prop
+          open={isAddTPathDialogOpen}
+          onOpenChange={setIsAddTPathDialogOpen}
+          exercise={selectedExerciseForTPath}
+          onAddSuccess={onAddSuccess}
+        />
+      )}
     </Card>
   );
 };
