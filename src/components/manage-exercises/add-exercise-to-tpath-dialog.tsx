@@ -11,6 +11,7 @@ import { PlusCircle } from "lucide-react";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type TPath = Tables<'t_paths'>;
+type Profile = Tables<'profiles'>;
 
 interface AddExerciseToTPathDialogProps {
   open: boolean;
@@ -32,13 +33,33 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
 
       setLoading(true);
       try {
-        // Fetch only the user's child T-Paths (workouts)
+        // First, get the user's active_t_path_id from their profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('active_t_path_id')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profileError && profileError.code !== 'PGRST116') {
+          throw profileError;
+        }
+
+        const activeTPathId = profileData?.active_t_path_id;
+
+        if (!activeTPathId) {
+          setUserWorkouts([]);
+          toast.info("You don't have an active Transformation Path set up. Please set one in your profile.");
+          setLoading(false);
+          return;
+        }
+
+        // Then, fetch only the child T-Paths (workouts) that belong to the active T-Path
         const { data, error } = await supabase
           .from('t_paths')
           .select('id, template_name, created_at, is_bonus, user_id, version, settings, progression_settings, parent_t_path_id') // Specify all columns required by TPath
           .eq('user_id', session.user.id)
           .eq('is_bonus', true) // These are the individual workouts within a main T-Path
-          .not('parent_t_path_id', 'is', null) // Ensure it's a child workout
+          .eq('parent_t_path_id', activeTPathId) // Filter by the active parent T-Path
           .order('template_name', { ascending: true });
 
         if (error) throw error;
@@ -171,7 +192,7 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
             <p className="text-center text-muted-foreground">Loading your workouts...</p>
           ) : userWorkouts.length === 0 ? (
             <p className="text-center text-muted-foreground">
-              You don't have any personalised workouts yet. Create a T-Path first!
+              You don't have any workouts in your active Transformation Path.
             </p>
           ) : (
             <Select onValueChange={setSelectedWorkoutId} value={selectedWorkoutId}>
