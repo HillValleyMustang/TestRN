@@ -233,9 +233,35 @@ export default function ProfilePage() {
       }
 
       toast.success("Active T-Path switched successfully!");
+
+      // ********************************************************************
+      // IMPORTANT: After switching the T-Path, we need to regenerate its workouts.
+      // The `generate-t-path` function expects the ID of the *main* T-Path.
+      // The `newTPathId` passed here is the ID of the *main* T-Path.
+      // So, we can directly call the generation API for this newTPathId.
+      // ********************************************************************
+      setShowRegenerationLoading(true); // Show loading overlay for regeneration
+      const response = await fetch(`/api/generate-t-path`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ tPathId: newTPathId }) // Use the newTPathId here
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to regenerate T-Path workouts after switch');
+      }
+      toast.success("New T-Path workouts generated successfully!");
+      setTimeout(() => {
+        router.push('/start-t-path'); // Redirect to start-t-path to see the new workouts
+      }, 1000);
     } catch (err: any) {
       toast.error("Failed to switch T-Path: " + err.message);
       console.error("Error switching T-Path:", err);
+    } finally {
+      setShowRegenerationLoading(false); // Hide loading overlay
     }
   };
 
