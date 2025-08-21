@@ -207,12 +207,12 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
             </Button>
           </div>
         </DialogContent>
-        <LoadingOverlay 
-          isOpen={loading} 
-          title="Analysing Gym Equipment" 
-          description="Please wait while the AI identifies equipment from your photo." 
-        />
       </Dialog>
+      <LoadingOverlay 
+        isOpen={loading} 
+        title="Analysing Gym Equipment" 
+        description="Please wait while the AI identifies equipment from your photo." 
+      />
 
       {identifiedExerciseData && (
         <DuplicateExerciseConfirmDialog

@@ -269,22 +269,25 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex justify-between items-center">
+      <CardHeader 
+        className="flex flex-row items-center justify-between space-y-0 pb-3 cursor-pointer"
+        onClick={toggleExpand}
+      >
+        <CardTitle className="text-2xl font-bold">
           {editingExercise ? "Edit Exercise" : "Add New Exercise"}
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={toggleExpand}
-            className="ml-2"
-          >
-            {isExpanded ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
-          </Button>
         </CardTitle>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={(e) => { e.stopPropagation(); toggleExpand(); }} // Stop propagation here
+          className="ml-2"
+        >
+          {isExpanded ? (
+            <ChevronUp className="h-4 w-4" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
+          )}
+        </Button>
       </CardHeader>
       {isExpanded && (
         <CardContent>
