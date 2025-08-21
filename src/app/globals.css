@@ -107,6 +107,11 @@
     --workout-legs-bg: 45 80% 90%; /* Light Yellow for background */
     --workout-legs-text: 45 80% 30%; /* Dark Yellow/Brown for text */
     --workout-legs-border: 45 80% 40%; /* Medium Yellow for border */
+
+    --workout-bonus-base: 210 90% 50%; /* Bright Blue for Bonus */
+    --workout-bonus-bg: 210 90% 95%; /* Light Blue for Bonus background */
+    --workout-bonus-text: 210 90% 30%; /* Dark Blue for Bonus text */
+    --workout-bonus-border: 210 90% 40%; /* Medium Blue for Bonus border */
   }
   .dark {
 
@@ -210,6 +215,11 @@
     --workout-legs-bg: 45 80% 20%; /* Darker Yellow for background */
     --workout-legs-text: 45 80% 90%; /* Light Yellow for text */
     --workout-legs-border: 45 80% 50%; /* Medium Yellow for border */
+
+    --workout-bonus-base: 210 90% 60%; /* Bright Blue for Bonus */
+    --workout-bonus-bg: 210 90% 25%; /* Darker Blue for Bonus background */
+    --workout-bonus-text: 210 90% 90%; /* Light Blue for Bonus text */
+    --workout-bonus-border: 210 90% 50%; /* Medium Blue for Bonus border */
   }
 }
 

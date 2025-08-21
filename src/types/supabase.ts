@@ -46,3 +46,8 @@ export type ProfileUpdate = TablesUpdate<'profiles'> & {
 export type SetLogWithExercise = Pick<Tables<'set_logs'>, 'id' | 'weight_kg' | 'reps' | 'reps_l' | 'reps_r' | 'time_seconds' | 'is_pb' | 'created_at' | 'exercise_id' | 'session_id'> & {
   exercise_definitions: Pick<Tables<'exercise_definitions'>, 'id' | 'name' | 'main_muscle' | 'type' | 'category'> | null;
 };
+
+// New type for exercises when fetched as part of a workout, including bonus status
+export type WorkoutExercise = Tables<'exercise_definitions'> & {
+  is_bonus_exercise: boolean;
+};

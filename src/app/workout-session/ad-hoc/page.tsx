@@ -81,8 +81,8 @@ export default function AdHocWorkoutSessionPage() {
                 <div className="p-2 text-muted-foreground">No exercises defined. Go to Dashboard &gt; Manage Exercises to add some!</div>
               ) : (
                 allExercises
-                  .filter((ex: ExerciseDefinition) => !exercisesForSession.some((sessionEx: ExerciseDefinition) => sessionEx.id === ex.id)) // Filter out already added exercises
-                  .map((exercise: ExerciseDefinition) => (
+                  .filter((ex: ExerciseDefinition) => !exercisesForSession.some((sessionEx: WorkoutExercise) => sessionEx.id === ex.id)) // Filter out already added exercises
+                  .map((exercise) => (
                     <SelectItem key={exercise.id} value={exercise.id}>
                       {exercise.name} ({exercise.main_muscle})
                     </SelectItem>
@@ -100,7 +100,7 @@ export default function AdHocWorkoutSessionPage() {
         {exercisesForSession.length === 0 ? (
           <p className="text-muted-foreground text-center">Add exercises to start your workout!</p>
         ) : (
-          exercisesForSession.map((exercise: ExerciseDefinition) => (
+          exercisesForSession.map((exercise) => (
             <ExerciseCard
               key={exercise.id}
               exercise={exercise}

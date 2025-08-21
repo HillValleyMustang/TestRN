@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { Tables, SetLogState } from '@/types/supabase';
+import { Tables, SetLogState, WorkoutExercise } from '@/types/supabase';
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type WorkoutSession = Tables<'workout_sessions'>;
@@ -17,7 +17,7 @@ interface UseAdHocWorkoutSessionProps {
 
 interface UseAdHocWorkoutSessionReturn {
   allExercises: ExerciseDefinition[];
-  exercisesForSession: ExerciseDefinition[];
+  exercisesForSession: WorkoutExercise[]; // Changed to WorkoutExercise[]
   exercisesWithSets: Record<string, SetLogState[]>;
   loading: boolean;
   error: string | null;
@@ -30,7 +30,7 @@ interface UseAdHocWorkoutSessionReturn {
 
 export const useAdHocWorkoutSession = ({ session, supabase, router }: UseAdHocWorkoutSessionProps): UseAdHocWorkoutSessionReturn => {
   const [allExercises, setAllExercises] = useState<ExerciseDefinition[]>([]);
-  const [exercisesForSession, setExercisesForSession] = useState<ExerciseDefinition[]>([]);
+  const [exercisesForSession, setExercisesForSession] = useState<WorkoutExercise[]>([]); // Changed to WorkoutExercise[]
   const [exercisesWithSets, setExercisesWithSets] = useState<Record<string, SetLogState[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -121,15 +121,19 @@ export const useAdHocWorkoutSession = ({ session, supabase, router }: UseAdHocWo
     }
 
     setExercisesForSession(prev => {
-      const updatedExercises = [...prev, exercise];
+      const newWorkoutExercise: WorkoutExercise = {
+        ...exercise, // Spread the existing ExerciseDefinition properties
+        is_bonus_exercise: false, // Ad-hoc exercises are not bonus
+      };
+      const updatedExercises = [...prev, newWorkoutExercise];
       // Initialize sets for the newly added exercise with last set data
       setExercisesWithSets(prevSets => ({
         ...prevSets,
-        [exercise.id]: [{
+        [newWorkoutExercise.id]: [{
           id: null,
           created_at: null,
           session_id: currentSessionId,
-          exercise_id: exercise.id,
+          exercise_id: newWorkoutExercise.id,
           weight_kg: null,
           reps: null,
           reps_l: null,

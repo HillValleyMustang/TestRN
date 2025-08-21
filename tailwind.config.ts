@@ -89,6 +89,10 @@ export default {
   				'legs-bg': 'hsl(var(--workout-legs-bg))',
   				'legs-text': 'hsl(var(--workout-legs-text))',
   				'legs-border': 'hsl(var(--workout-legs-border))',
+  				'bonus-base': 'hsl(var(--workout-bonus-base))',
+  				'bonus-bg': 'hsl(var(--workout-bonus-bg))',
+  				'bonus-text': 'hsl(var(--workout-bonus-text))',
+  				'bonus-border': 'hsl(var(--workout-bonus-border))',
   			}
   		},
   		borderRadius: {
@@ -123,7 +127,7 @@ export default {
   plugins: [require("tailwindcss-animate")],
   safelist: [
     {
-      pattern: /(text|bg|border)-workout-(upper-body-a|lower-body-a|upper-body-b|lower-body-b|push|pull|legs)-(base|bg|text|border)/,
+      pattern: /(text|bg|border)-workout-(upper-body-a|lower-body-a|upper-body-b|lower-body-b|push|pull|legs|bonus)-(base|bg|text|border)/,
     },
   ],
 } satisfies Config;

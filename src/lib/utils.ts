@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { ArrowUp, ArrowDown, ArrowRight, ArrowLeft, Footprints, LucideIcon } from "lucide-react";
+import { ArrowUp, ArrowDown, ArrowRight, ArrowLeft, Footprints, LucideIcon, Star } from "lucide-react"; // Import Star icon
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -30,6 +30,9 @@ export function getWorkoutColorClass(workoutName: string, type: 'text' | 'border
     case 'Legs':
       colorKey = 'legs';
       break;
+    case 'Bonus': // New case for bonus exercises
+      colorKey = 'bonus';
+      break;
     default: return ''; // No specific color for other workouts or 'Ad Hoc Workout'
   }
 
@@ -58,6 +61,8 @@ export function getWorkoutIcon(workoutName: string): LucideIcon | null {
       return ArrowLeft; // Represents pulling towards
     case 'Legs':
       return Footprints; // Represents leg movement
+    case 'Bonus': // New case for bonus exercises
+      return Star; // Star icon for bonus
     default:
       return null; // No specific icon for other workouts or 'Ad Hoc Workout'
   }

@@ -9,7 +9,7 @@ import { Plus, CheckCircle2, Trophy, Edit, Trash2, Timer, RefreshCcw, Info, Hist
 import { ExerciseHistoryDialog } from '@/components/exercise-history-dialog';
 import { ExerciseInfoDialog } from '@/components/exercise-info-dialog';
 import { ExerciseProgressionDialog } from '@/components/exercise-progression-dialog';
-import { Tables, SetLogState } from '@/types/supabase';
+import { Tables, SetLogState, WorkoutExercise } from '@/types/supabase';
 import { useExerciseSets } from '@/hooks/use-exercise-sets';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { useSession } from '@/components/session-context-provider';
@@ -17,17 +17,17 @@ import { formatWeight, convertWeight } from '@/lib/unit-conversions';
 import { RestTimer } from './rest-timer';
 import { ExerciseSwapDialog } from './exercise-swap-dialog';
 import { CantDoToggle } from './cant-do-toggle';
+import { WorkoutBadge } from '../workout-badge'; // Import WorkoutBadge
 
-type ExerciseDefinition = Tables<'exercise_definitions'>;
 type Profile = Tables<'profiles'>;
 
 interface ExerciseCardProps {
-  exercise: ExerciseDefinition;
+  exercise: WorkoutExercise; // Use the new WorkoutExercise type
   currentSessionId: string | null;
   supabase: SupabaseClient;
   onUpdateGlobalSets: (exerciseId: string, newSets: SetLogState[]) => void;
   initialSets: SetLogState[];
-  onSubstituteExercise?: (oldExerciseId: string, newExercise: ExerciseDefinition) => void;
+  onSubstituteExercise?: (oldExerciseId: string, newExercise: WorkoutExercise) => void; // Update type
   onRemoveExercise?: (exerciseId: string) => void;
 }
 
@@ -81,7 +81,7 @@ export const ExerciseCard = ({
     setIsTimerRunning(true);
   };
 
-  const handleSwapExercise = (newExercise: ExerciseDefinition) => {
+  const handleSwapExercise = (newExercise: Tables<'exercise_definitions'>) => {
     // This is a placeholder for the actual swap logic.
     // In a real application, you'd likely want to replace the current exercise card
     // with a new one for the swapped exercise, and potentially remove the old one.
@@ -93,9 +93,16 @@ export const ExerciseCard = ({
     // For example, by calling a prop like `onExerciseSwap(exercise.id, newExercise)`.
   };
 
-  const handleSubstitute = (newExercise: ExerciseDefinition) => {
+  const handleSubstitute = (newExercise: Tables<'exercise_definitions'>) => {
     if (onSubstituteExercise) {
-      onSubstituteExercise(exercise.id, newExercise);
+      // When substituting, the new exercise might not have the is_bonus_exercise flag directly.
+      // For now, we'll assume it inherits the bonus status of the exercise it's replacing,
+      // or set it to false if not explicitly provided.
+      const substitutedExercise: WorkoutExercise = {
+        ...newExercise,
+        is_bonus_exercise: exercise.is_bonus_exercise || false, // Inherit or default
+      };
+      onSubstituteExercise(exercise.id, substitutedExercise);
     }
   };
 
@@ -109,7 +116,10 @@ export const ExerciseCard = ({
     <Card className="mb-6">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="text-xl">{exercise.name}</CardTitle>
+          <CardTitle className="text-xl flex items-center gap-2">
+            {exercise.name}
+            {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus">Bonus</WorkoutBadge>}
+          </CardTitle>
           <p className="text-sm text-muted-foreground">{exercise.main_muscle}</p>
         </div>
         <div className="flex space-x-2">

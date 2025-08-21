@@ -4,15 +4,21 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { Tables, TablesInsert, SetLogState } from '@/types/supabase';
+import { Tables, TablesInsert, SetLogState, WorkoutExercise } from '@/types/supabase';
 
 type TPath = Tables<'t_paths'>;
-type ExerciseDefinition = Tables<'exercise_definitions'>;
 type SetLogInsert = TablesInsert<'set_logs'>;
 
 // Define a type for the joined data from t_path_exercises
-type TPathExerciseJoin = Pick<Tables<'t_path_exercises'>, 'id' | 'created_at' | 'exercise_id' | 'template_id' | 'order_index'> & {
-  exercise_definitions: Pick<Tables<'exercise_definitions'>, 'id' | 'name' | 'main_muscle' | 'type' | 'category' | 'description' | 'pro_tip' | 'video_url'>[] | null;
+// This type precisely matches the structure returned by the Supabase select query
+type TPathExerciseJoin = {
+  id: string;
+  created_at: string | null;
+  exercise_id: string;
+  template_id: string;
+  order_index: number;
+  is_bonus_exercise: boolean | null; // Explicitly included as it's selected
+  exercise_definitions: Pick<Tables<'exercise_definitions'>, 'id' | 'name' | 'main_muscle' | 'type' | 'category' | 'description' | 'pro_tip' | 'video_url'> | null;
 };
 
 interface UseTPathSessionProps {
@@ -24,7 +30,7 @@ interface UseTPathSessionProps {
 
 interface UseTPathSessionReturn {
   tPath: TPath | null;
-  exercisesForTPath: ExerciseDefinition[];
+  exercisesForTPath: WorkoutExercise[];
   exercisesWithSets: Record<string, SetLogState[]>;
   loading: boolean;
   error: string | null;
@@ -35,7 +41,7 @@ interface UseTPathSessionReturn {
 
 export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPathSessionProps): UseTPathSessionReturn => {
   const [tPath, setTPath] = useState<TPath | null>(null);
-  const [exercisesForTPath, setExercisesForTPath] = useState<ExerciseDefinition[]>([]);
+  const [exercisesForTPath, setExercisesForTPath] = useState<WorkoutExercise[]>([]);
   const [exercisesWithSets, setExercisesWithSets] = useState<Record<string, SetLogState[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +81,7 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
       const { data: tPathExercisesData, error: fetchTPathExercisesError } = await supabase
         .from('t_path_exercises')
         .select(`
-          id, created_at, exercise_id, template_id, order_index,
+          id, created_at, exercise_id, template_id, order_index, is_bonus_exercise,
           exercise_definitions (
             id, name, main_muscle, type, category, description, pro_tip, video_url
           )
@@ -87,9 +93,12 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
         throw new Error(fetchTPathExercisesError.message);
       }
 
-      const fetchedExercises: ExerciseDefinition[] = (tPathExercisesData as TPathExerciseJoin[])
-        .filter(te => te.exercise_definitions && te.exercise_definitions.length > 0)
-        .map(te => te.exercise_definitions![0] as ExerciseDefinition);
+      const fetchedExercises: WorkoutExercise[] = (tPathExercisesData as TPathExerciseJoin[])
+        .filter(te => te.exercise_definitions) // Ensure exercise_definitions is not null
+        .map(te => ({
+          ...(te.exercise_definitions! as Tables<'exercise_definitions'>), // Base exercise data
+          is_bonus_exercise: !!te.is_bonus_exercise, // Add the bonus flag and ensure it's boolean
+        }));
       setExercisesForTPath(fetchedExercises);
 
       // 3. Fetch the ID of the most recent previous workout session for the user

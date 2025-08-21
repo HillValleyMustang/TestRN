@@ -7,7 +7,7 @@ import { TPathHeader } from '@/components/workout-session/t-path-header';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { FinishWorkoutButton } from '@/components/workout-session/finish-workout-button';
 import { useTPathSession } from '@/hooks/use-t-path-session';
-import { SetLogState } from '@/types/supabase';
+import { SetLogState, WorkoutExercise } from '@/types/supabase'; // Import WorkoutExercise
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Dumbbell, PlusCircle } from 'lucide-react';
@@ -65,7 +65,7 @@ export default function WorkoutSessionPage({ params }: WorkoutSessionPageProps) 
   const currentExercise = exercisesForTPath[currentExerciseIndex];
   const totalExercises = exercisesForTPath.length;
 
-  const handleSubstituteExercise = (oldExerciseId: string, newExercise: any) => {
+  const handleSubstituteExercise = (oldExerciseId: string, newExercise: WorkoutExercise) => {
     // Replace the exercise in the session
     setExercisesWithSets(prev => {
       const newExercisesWithSets = { ...prev };
