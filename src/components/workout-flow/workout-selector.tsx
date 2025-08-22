@@ -95,7 +95,7 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
       setWorkouts(workoutsWithLastDate);
 
       // Determine the next workout
-      let nextWorkoutCandidate: WorkoutDisplayData | null = null; // Explicitly type here
+      let nextWorkoutCandidate: WorkoutDisplayData | null = null;
       let oldestCompletionDate: Date | null = null;
 
       workoutsWithLastDate.forEach(workout => {
@@ -112,7 +112,7 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
       });
 
       if (nextWorkoutCandidate) {
-        setNextWorkoutId(nextWorkoutCandidate.id);
+        setNextWorkoutId(nextWorkoutCandidate!.id); // Re-added non-null assertion
       } else if (workoutsWithLastDate.length > 0) {
         // If all have been completed, just pick the first one as a fallback
         setNextWorkoutId(workoutsWithLastDate[0].id);
