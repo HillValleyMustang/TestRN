@@ -9,18 +9,6 @@ import { Tables, TablesInsert, SetLogState, WorkoutExercise } from '@/types/supa
 type TPath = Tables<'t_paths'>;
 type SetLogInsert = TablesInsert<'set_logs'>;
 
-// Define a type for the joined data from t_path_exercises
-// This type precisely matches the structure returned by the Supabase select query
-type TPathExerciseJoin = {
-  id: string;
-  created_at: string | null;
-  exercise_id: string;
-  template_id: string;
-  order_index: number;
-  is_bonus_exercise: boolean | null; // Explicitly included as it's selected
-  exercise_definitions: Pick<Tables<'exercise_definitions'>, 'id' | 'name' | 'main_muscle' | 'type' | 'category' | 'description' | 'pro_tip' | 'video_url'>[] | null; // Changed to array
-};
-
 interface UseTPathSessionProps {
   tPathId: string;
   session: Session | null;
@@ -37,7 +25,7 @@ interface UseTPathSessionReturn {
   currentSessionId: string | null;
   sessionStartTime: Date | null;
   setExercisesWithSets: React.Dispatch<React.SetStateAction<Record<string, SetLogState[]>>>;
-  refreshExercisesForTPath: (oldExerciseId?: string, newExercise?: WorkoutExercise | null) => void; // New refresh function
+  refreshExercisesForTPath: (oldExerciseId?: string, newExercise?: WorkoutExercise | null) => void;
 }
 
 export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPathSessionProps): UseTPathSessionReturn => {
@@ -49,31 +37,13 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
 
-  const logToSupabase = useCallback(async (logType: string, data: any) => {
-    if (!session?.user?.id) return;
-    try {
-      const { error: logError } = await supabase.from('client_logs').insert({
-        user_id: session.user.id,
-        log_type: logType,
-        data: data,
-      });
-      if (logError) {
-        console.error(`Failed to log to Supabase (${logType}):`, logError.message);
-      }
-    } catch (err) {
-      console.error(`Unexpected error logging to Supabase (${logType}):`, err);
-    }
-  }, [session, supabase]);
-
   const fetchWorkoutData = useCallback(async () => {
     if (!session) {
       router.push('/login');
       return;
     }
-
-    // Return early if tPathId is not provided, but keep loading true
     if (!tPathId) {
-      setLoading(true); // Keep loading true while waiting for a valid tPathId
+      setLoading(true);
       setError(null);
       return;
     }
@@ -81,102 +51,56 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
     setLoading(true);
     setError(null);
     try {
-      // 1. Fetch the specific workout (which is a child T-Path)
+      // 1. Fetch the workout T-Path
       const { data: tPathData, error: fetchTPathError } = await supabase
         .from('t_paths')
         .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
         .eq('id', tPathId)
         .eq('user_id', session.user.id)
-        .eq('is_bonus', true)
         .single();
 
       if (fetchTPathError || !tPathData) {
-        const errorMessage = fetchTPathError?.message || "Workout not found or not accessible.";
-        toast.error(errorMessage);
-        throw new Error(errorMessage);
+        throw new Error(fetchTPathError?.message || "Workout not found or is not accessible by this user.");
       }
       setTPath(tPathData as TPath);
 
-      // 2. Fetch all exercises associated with this specific workout (child T-Path)
-      const { data: tPathExercisesData, error: fetchTPathExercisesError } = await supabase
+      // 2. Fetch exercise associations for this workout (more robust two-step query)
+      const { data: tPathExercises, error: fetchLinksError } = await supabase
         .from('t_path_exercises')
-        .select(`
-          id, created_at, exercise_id, template_id, order_index, is_bonus_exercise,
-          exercise_definitions (
-            id, name, main_muscle, type, category, description, pro_tip, video_url
-          )
-        `)
+        .select('exercise_id, is_bonus_exercise, order_index')
         .eq('template_id', tPathId)
         .order('order_index', { ascending: true });
 
-      await logToSupabase('raw_tpath_exercises_data', tPathExercisesData);
+      if (fetchLinksError) throw fetchLinksError;
 
-      if (fetchTPathExercisesError) {
-        toast.error(fetchTPathExercisesError.message);
-        throw new Error(fetchTPathExercisesError.message);
+      if (!tPathExercises || tPathExercises.length === 0) {
+        setExercisesForTPath([]);
+        setLoading(false);
+        return; // Stop here if no exercises are linked
       }
 
-      const fetchedExercises: WorkoutExercise[] = (tPathExercisesData as TPathExerciseJoin[])
-        .filter(te => {
-          const hasExerciseDef = te.exercise_definitions && te.exercise_definitions.length > 0;
-          if (!hasExerciseDef) {
-            // Log filtered out exercises
-            logToSupabase('filtered_out_exercise', { t_path_exercise_id: te.id, reason: 'missing_exercise_definition' });
-          }
-          return hasExerciseDef;
-        })
-        .map(te => ({
-          ...(te.exercise_definitions![0] as Tables<'exercise_definitions'>),
-          is_bonus_exercise: !!te.is_bonus_exercise,
-        }));
+      const exerciseIds = tPathExercises.map(e => e.exercise_id);
+      const exerciseInfoMap = new Map(tPathExercises.map(e => [e.exercise_id, { is_bonus_exercise: !!e.is_bonus_exercise, order_index: e.order_index }]));
+
+      // 3. Fetch the details for those exercises
+      const { data: exerciseDetails, error: fetchDetailsError } = await supabase
+        .from('exercise_definitions')
+        .select('*')
+        .in('id', exerciseIds);
       
-      await logToSupabase('mapped_fetched_exercises', fetchedExercises);
+      if (fetchDetailsError) throw fetchDetailsError;
+
+      // Combine the data
+      const fetchedExercises: WorkoutExercise[] = (exerciseDetails as Tables<'exercise_definitions'>[] || [])
+        .map(ex => ({
+          ...ex,
+          is_bonus_exercise: exerciseInfoMap.get(ex.id)?.is_bonus_exercise || false,
+        }))
+        .sort((a, b) => (exerciseInfoMap.get(a.id)?.order_index || 0) - (exerciseInfoMap.get(b.id)?.order_index || 0));
+
       setExercisesForTPath(fetchedExercises);
 
-      // 3. Fetch the ID of the most recent previous workout session for the user
-      const { data: lastSessionData, error: lastSessionError } = await supabase
-        .from('workout_sessions')
-        .select('id')
-        .eq('user_id', session.user.id)
-        .eq('template_name', tPathData.template_name)
-        .order('session_date', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (lastSessionError && lastSessionError.code !== 'PGRST116') {
-        logToSupabase('last_session_fetch_warning', { error: lastSessionError.message });
-      }
-
-      const lastSessionId = lastSessionData ? lastSessionData.id : null;
-
-      // 4. Fetch last set data for each exercise using the lastSessionId
-      const lastSetsData: Record<string, { weight_kg: number | null, reps: number | null, time_seconds: number | null }> = {};
-      for (const ex of fetchedExercises) {
-        if (lastSessionId) {
-          const { data: lastSet, error: lastSetError } = await supabase
-            .from('set_logs')
-            .select('weight_kg, reps, time_seconds')
-            .eq('exercise_id', ex.id)
-            .eq('session_id', lastSessionId)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-
-          if (lastSetError && lastSetError.code !== 'PGRST116') {
-            logToSupabase('last_set_fetch_warning', { exercise_id: ex.id, error: lastSetError.message });
-          }
-          if (lastSet) {
-            lastSetsData[ex.id] = {
-              weight_kg: lastSet.weight_kg,
-              reps: lastSet.reps,
-              time_seconds: lastSet.time_seconds,
-            };
-          }
-        }
-      }
-      await logToSupabase('last_sets_data', lastSetsData);
-
-      // 5. Create a new workout session entry
+      // 4. Create a new workout session entry
       const { data: sessionData, error: sessionError } = await supabase
         .from('workout_sessions')
         .insert({
@@ -192,9 +116,39 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
       }
       setCurrentSessionId(sessionData.id);
       setSessionStartTime(new Date());
-      await logToSupabase('new_workout_session_created', { session_id: sessionData.id, template_name: tPathData.template_name });
 
-      // 6. Initialize sets for each exercise with last set data
+      // 5. Fetch last set data for each exercise
+      const { data: lastSessionData, error: lastSessionError } = await supabase
+        .from('workout_sessions')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .eq('template_name', tPathData.template_name)
+        .order('session_date', { ascending: false })
+        .limit(1)
+        .single();
+      
+      const lastSessionId = lastSessionData ? lastSessionData.id : null;
+      const lastSetsData: Record<string, { weight_kg: number | null, reps: number | null, time_seconds: number | null }> = {};
+      if (lastSessionId) {
+        for (const ex of fetchedExercises) {
+            const { data: lastSet, error: lastSetError } = await supabase
+              .from('set_logs')
+              .select('weight_kg, reps, time_seconds')
+              .eq('exercise_id', ex.id)
+              .eq('session_id', lastSessionId)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .single();
+            if (lastSetError && lastSetError.code !== 'PGRST116') {
+              console.warn(`Could not fetch last set for ${ex.name}: ${lastSetError.message}`);
+            }
+            if (lastSet) {
+              lastSetsData[ex.id] = lastSet;
+            }
+        }
+      }
+
+      // 6. Initialize sets for each exercise
       const initialSets: Record<string, SetLogState[]> = {};
       fetchedExercises.forEach(ex => {
         const lastSet = lastSetsData[ex.id];
@@ -216,17 +170,15 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
           lastTimeSeconds: lastSet?.time_seconds,
         }];
       });
-      await logToSupabase('initial_sets_initialized', initialSets);
       setExercisesWithSets(initialSets);
 
     } catch (err: any) {
       setError(err.message || "Failed to load workout. Please try again.");
       toast.error(err.message || "Failed to load workout.");
-      logToSupabase('fetch_workout_data_error', { error: err.message, stack: err.stack });
     } finally {
       setLoading(false);
     }
-  }, [tPathId, session, supabase, router, logToSupabase]);
+  }, [tPathId, session, supabase, router]);
 
   useEffect(() => {
     fetchWorkoutData();
