@@ -71,9 +71,12 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
       return;
     }
 
-    // No explicit check for !tPathId here.
-    // The parent component will ensure tPathId is a non-empty string before calling this hook.
-    // If it somehow still ends up empty, the Supabase query will gracefully return no results.
+    // Return early if tPathId is not provided, but keep loading true
+    if (!tPathId) {
+      setLoading(true); // Keep loading true while waiting for a valid tPathId
+      setError(null);
+      return;
+    }
 
     setLoading(true);
     setError(null);

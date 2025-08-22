@@ -13,7 +13,7 @@ import Link from 'next/link';
 import { WorkoutSessionHeader } from '@/components/workout-session/workout-session-header';
 import { WorkoutSessionFooter } from '@/components/workout-session/workout-session-footer';
 import { toast } from 'sonner';
-import React from 'react'; // Keep React import for general use
+import React from 'react';
 
 // Define a simple interface for the expected params structure
 interface PageParams {
@@ -34,21 +34,7 @@ export default function WorkoutSessionPage({ params }: { params: any }) {
   const { session, supabase } = useSession();
   const router = useRouter();
 
-  // Conditionally call useTPathSession only when resolvedTPathId is available
-  const tPathSessionHookResult = resolvedTPathId
-    ? useTPathSession({ tPathId: resolvedTPathId, session, supabase, router })
-    : {
-        tPath: null,
-        exercisesForTPath: [],
-        exercisesWithSets: {},
-        loading: true, // Indicate loading while params are resolving
-        error: null, // No error yet, just waiting
-        currentSessionId: null,
-        sessionStartTime: null,
-        setExercisesWithSets: () => {},
-        refreshExercisesForTPath: () => {},
-      };
-
+  // Call useTPathSession unconditionally
   const {
     tPath,
     exercisesForTPath,
@@ -59,7 +45,7 @@ export default function WorkoutSessionPage({ params }: { params: any }) {
     sessionStartTime,
     setExercisesWithSets,
     refreshExercisesForTPath,
-  } = tPathSessionHookResult;
+  } = useTPathSession({ tPathId: resolvedTPathId || '', session, supabase, router }); // Pass resolvedTPathId or empty string
 
   const [completedExerciseCount, setCompletedExerciseCount] = useState(0);
 
@@ -73,6 +59,7 @@ export default function WorkoutSessionPage({ params }: { params: any }) {
     }
   }, [exercisesForTPath, exercisesWithSets]);
 
+  // Show loading state if params are not resolved OR if the hook is still loading
   if (!isParamsResolved || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
