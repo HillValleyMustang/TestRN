@@ -5,7 +5,7 @@
 @layer base {
   :root {
 
-    --background: 0 0% 100%;
+    --background: 0 0% 98%; /* Softer off-white background */
 
     --foreground: 0 0% 3.9%;
 
@@ -37,7 +37,7 @@
 
     --destructive-foreground: 0 0% 98%;
 
-    --action-primary: 217 91% 60%; /* Electric Blue */
+    --action-primary: 217 91% 60%; /* New premium blue for primary actions */
     --action-primary-foreground: 0 0% 100%;
 
     --border: 0 0% 89.8%;
@@ -56,7 +56,7 @@
 
     --chart-5: 27 87% 67%;
 
-    --radius: 0.5rem
+    --radius: 0.75rem; /* Increased corner radius */
   ;
 
     --sidebar-background: 0 0% 98%;
@@ -79,42 +79,42 @@
     --workout-upper-body-a-base: 180 70% 40%; /* Deep Teal */
     --workout-upper-body-a-bg: 180 70% 90%; /* Light Teal for background */
     --workout-upper-body-a-text: 180 70% 20%; /* Dark Teal for text */
-    --workout-upper-body-a-border: 180 70% 30%; /* Medium Teal for border */
+    --workout-upper-body-a-border: 180 70% 40%; /* More vibrant border */
 
     --workout-lower-body-a-base: 27 87% 50%; /* Vibrant Orange */
     --workout-lower-body-a-bg: 27 87% 90%; /* Light Orange for background */
     --workout-lower-body-a-text: 27 87% 30%; /* Dark Orange for text */
-    --workout-lower-body-a-border: 27 87% 40%; /* Medium Orange for border */
+    --workout-lower-body-a-border: 27 87% 50%; /* More vibrant border */
 
     --workout-upper-body-b-base: 240 60% 40%; /* Deep Blue */
     --workout-upper-body-b-bg: 240 60% 90%; /* Light Blue for background */
     --workout-upper-body-b-text: 240 60% 20%; /* Dark Blue for text */
-    --workout-upper-body-b-border: 240 60% 30%; /* Medium Blue for border */
+    --workout-upper-body-b-border: 240 60% 40%; /* More vibrant border */
 
     --workout-lower-body-b-base: 300 60% 45%; /* Rich Magenta */
     --workout-lower-body-b-bg: 300 60% 90%; /* Light Magenta for background */
     --workout-lower-body-b-text: 300 60% 25%; /* Dark Magenta for text */
-    --workout-lower-body-b-border: 300 60% 35%; /* Medium Magenta for border */
+    --workout-lower-body-b-border: 300 60% 45%; /* More vibrant border */
 
     --workout-push-base: 0 80% 45%; /* Crimson Red */
     --workout-push-bg: 0 80% 90%; /* Light Red for background */
     --workout-push-text: 0 80% 25%; /* Dark Red for text */
-    --workout-push-border: 0 80% 35%; /* Medium Red for border */
+    --workout-push-border: 0 80% 45%; /* More vibrant border */
 
     --workout-pull-base: 140 70% 35%; /* Forest Green */
     --workout-pull-bg: 140 70% 90%; /* Light Green for background */
     --workout-pull-text: 140 70% 15%; /* Dark Green for text */
-    --workout-pull-border: 140 70% 25%; /* Medium Green for border */
+    --workout-pull-border: 140 70% 35%; /* More vibrant border */
 
     --workout-legs-base: 45 80% 50%; /* Goldenrod Yellow */
     --workout-legs-bg: 45 80% 90%; /* Light Yellow for background */
     --workout-legs-text: 45 80% 30%; /* Dark Yellow/Brown for text */
-    --workout-legs-border: 45 80% 40%; /* Medium Yellow for border */
+    --workout-legs-border: 45 80% 50%; /* More vibrant border */
 
     --workout-bonus-base: 210 90% 50%; /* Bright Blue for Bonus */
     --workout-bonus-bg: 210 90% 95%; /* Light Blue for Bonus background */
     --workout-bonus-text: 210 90% 30%; /* Dark Blue for Bonus text */
-    --workout-bonus-border: 210 90% 40%; /* Medium Blue for Bonus border */
+    --workout-bonus-border: 210 90% 50%; /* More vibrant border */
   }
   .dark {
 

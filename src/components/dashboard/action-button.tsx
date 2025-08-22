@@ -19,6 +19,7 @@ export const ActionButton = ({ title, icon, onClick, className }: ActionButtonPr
       className={cn(
         "h-full w-full p-2 flex flex-col items-center justify-center text-center whitespace-normal gap-1",
         "font-semibold text-sm leading-tight",
+        "border-0 shadow-sm hover:shadow-md transition-shadow bg-card", // Replaced border with shadow
         className
       )}
     >

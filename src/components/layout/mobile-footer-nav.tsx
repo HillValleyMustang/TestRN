@@ -27,8 +27,8 @@ export function MobileFooterNav() {
               key={link.href}
               href={link.href}
               className={cn(
-                "flex flex-col items-center justify-center gap-1 pt-2 text-xs font-medium",
-                isActive ? "text-primary" : "text-muted-foreground"
+                "flex flex-col items-center justify-center gap-1 pt-2 text-xs font-medium transition-colors",
+                isActive ? "text-action" : "text-muted-foreground hover:text-foreground/80"
               )}
             >
               <Icon className="h-5 w-5" />
