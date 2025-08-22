@@ -11,39 +11,87 @@ import { useRouter } from 'next/navigation';
 import { cn, getWorkoutColorClass } from '@/lib/utils'; // Import cn and getWorkoutColorClass
 
 type TPath = Tables<'t_paths'>;
-type WorkoutSession = Tables<'workout_sessions'>;
+type Profile = Tables<'profiles'>; // Import Profile type
 
 export const NextWorkoutCard = () => {
   const { session, supabase } = useSession();
   const router = useRouter();
-  const [tPath, setTPath] = useState<TPath | null>(null);
+  const [mainTPath, setMainTPath] = useState<TPath | null>(null); // Stores the user's active main T-Path
+  const [nextWorkout, setNextWorkout] = useState<TPath | null>(null); // Stores the specific child workout to display
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchTPath = async () => {
+    const fetchNextWorkout = async () => {
       if (!session) return;
       
       setLoading(true);
       try {
-        // Get the user's T-Path
-        const { data, error } = await supabase
-          .from('t_paths')
-          .select('id, template_name, created_at, is_bonus, user_id, version, settings, progression_settings, parent_t_path_id') // Specify all columns required by TPath
-          .eq('user_id', session.user.id)
-          .limit(1);
+        // 1. Fetch user profile to get active_t_path_id
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('active_t_path_id')
+          .eq('id', session.user.id)
+          .single();
 
-        if (error) throw error;
-        if (data && data.length > 0) {
-          setTPath(data[0] as TPath); // Explicitly cast
+        if (profileError && profileError.code !== 'PGRST116') { // PGRST116 means no rows found
+          throw profileError;
         }
+
+        const activeMainTPathId = profileData?.active_t_path_id;
+
+        if (!activeMainTPathId) {
+          setMainTPath(null);
+          setNextWorkout(null);
+          setLoading(false);
+          return;
+        }
+
+        // 2. Fetch the active main T-Path details
+        const { data: mainTPathData, error: mainTPathError } = await supabase
+          .from('t_paths')
+          .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
+          .eq('id', activeMainTPathId)
+          .eq('user_id', session.user.id)
+          .is('is_bonus', null) // Main T-Paths have is_bonus as null or false
+          .single();
+
+        if (mainTPathError || !mainTPathData) {
+          console.error("Active main T-Path not found or invalid:", mainTPathError);
+          setMainTPath(null);
+          setNextWorkout(null);
+          setLoading(false);
+          return;
+        }
+        setMainTPath(mainTPathData);
+
+        // 3. Fetch child workouts for this main T-Path
+        const { data: childWorkoutsData, error: childWorkoutsError } = await supabase
+          .from('t_paths')
+          .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
+          .eq('parent_t_path_id', mainTPathData.id)
+          .eq('is_bonus', true) // These are the actual individual workouts
+          .order('template_name', { ascending: true }); // Order for consistent "next" selection
+
+        if (childWorkoutsError) {
+          throw childWorkoutsError;
+        }
+
+        // 4. Determine the "next" workout (e.g., the first one in the list)
+        if (childWorkoutsData && childWorkoutsData.length > 0) {
+          setNextWorkout(childWorkoutsData[0]); // Set the first child workout as the next one
+        } else {
+          setNextWorkout(null); // No child workouts found for this main T-Path
+        }
+
       } catch (err: any) {
-        toast.error("Failed to load T-Path: " + err.message);
+        toast.error("Failed to load your next workout: " + err.message);
+        console.error("Error fetching next workout:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTPath();
+    fetchNextWorkout();
   }, [session, supabase]);
 
   if (loading) {
@@ -62,7 +110,7 @@ export const NextWorkoutCard = () => {
     );
   }
 
-  if (!tPath) {
+  if (!mainTPath) {
     return (
       <Card>
         <CardHeader>
@@ -72,13 +120,30 @@ export const NextWorkoutCard = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">No T-Path found. Complete onboarding to get started.</p>
+          <p className="text-muted-foreground">No active Transformation Path found. Complete onboarding or set one in your profile to get started.</p>
         </CardContent>
       </Card>
     );
   }
 
-  const workoutColorClass = getWorkoutColorClass(tPath.template_name, 'text');
+  if (!nextWorkout) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Dumbbell className="h-5 w-5" />
+            Your Next Workout
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">No workouts found for your active Transformation Path. This might happen if your session length is too short for any workouts.</p>
+          <Button onClick={() => router.push('/profile')} className="mt-4">Adjust Session Length</Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const workoutColorClass = getWorkoutColorClass(nextWorkout.template_name, 'text');
 
   return (
     <Card>
@@ -91,13 +156,13 @@ export const NextWorkoutCard = () => {
       <CardContent>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h3 className={cn("text-lg font-semibold", workoutColorClass)}>{tPath.template_name}</h3>
+            <h3 className={cn("text-lg font-semibold", workoutColorClass)}>{nextWorkout.template_name}</h3>
             <div className="flex items-center gap-1 text-muted-foreground">
               <Clock className="h-4 w-4" />
-              <span>Estimated 45-60 min</span>
+              <span>Estimated 45-60 min</span> {/* This is a placeholder, could be dynamic */}
             </div>
           </div>
-          <Button onClick={() => router.push(`/workout-session/${tPath.id}`)}>
+          <Button onClick={() => router.push(`/workout-session/${nextWorkout.id}`)}>
             Start Workout
           </Button>
         </div>

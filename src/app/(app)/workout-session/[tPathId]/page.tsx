@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { WorkoutSessionHeader } from '@/components/workout-session/workout-session-header';
 import { WorkoutSessionFooter } from '@/components/workout-session/workout-session-footer';
 import { toast } from 'sonner';
+import React from 'react'; // Import React to use React.use
 
 // Define a simple interface for the expected params structure
 interface PageParams {
@@ -20,8 +21,13 @@ interface PageParams {
 }
 
 // Use a generic type for the component props to bypass Next.js's internal type inference bug
-export default function WorkoutSessionPage<T extends { params: PageParams }>({ params }: T) {
-  const { tPathId } = params;
+export default function WorkoutSessionPage({ params }: { params: any }) {
+  // Use React.use to unwrap the params promise as suggested by Next.js
+  // We wrap params in a resolved promise to satisfy the React.use signature,
+  // as params might not always be a promise in client components, but Next.js's
+  // type generation expects it.
+  const resolvedParams = React.use(Promise.resolve(params));
+  const { tPathId } = resolvedParams;
 
   const { session, supabase } = useSession();
   const router = useRouter();
