@@ -10,9 +10,8 @@ export default {
   theme: {
   	extend: {
       fontFamily: {
-        sans: ["var(--font-geist-sans)"],
-        mono: ["var(--font-geist-mono)"],
-        display: ["var(--font-display)"],
+        sans: ["var(--font-inter)", "sans-serif"], // Default sans-serif to Inter
+        display: ["var(--font-satoshi)", "sans-serif"], // Use Satoshi for display
       },
   		colors: {
   			background: 'hsl(var(--background))',

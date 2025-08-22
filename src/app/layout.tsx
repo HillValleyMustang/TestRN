@@ -1,26 +1,24 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import { Poppins } from "next/font/google";
+import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { SessionContextProvider } from "@/components/session-context-provider";
 import { cn } from "@/lib/utils";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Configure Inter font
+const inter = Inter({
   subsets: ["latin"],
+  variable: "--font-inter",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+// Configure Satoshi local font
+// IMPORTANT: Ensure you have 'Satoshi-Variable.woff2' in your public/fonts directory.
+// You can download Satoshi from its official source or similar font providers.
+const satoshi = localFont({
+  src: "../../public/fonts/Satoshi-Variable.woff2",
+  variable: "--font-satoshi",
+  display: "swap",
 });
-
-// Reverted Poppins import to be commented out or removed if not used elsewhere
-// const poppins = Poppins({
-//   variable: "--font-display",
-//   subsets: ["latin"],
-//   weight: ["700", "800"],
-// });
 
 export const metadata: Metadata = {
   title: "My Workout Tracker",
@@ -36,10 +34,9 @@ export default function RootLayout({
     <html lang="en">
       <body
         className={cn(
-          geistSans.variable,
-          geistMono.variable,
-          // Removed poppins.variable from here
-          "antialiased glow-background"
+          inter.variable,
+          satoshi.variable,
+          "font-sans antialiased glow-background"
         )}
       >
         <SessionContextProvider>
