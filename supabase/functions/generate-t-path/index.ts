@@ -201,30 +201,59 @@ const getSupabaseClients = (authHeader: string) => {
   return { supabaseAuthClient, supabaseServiceRoleClient };
 };
 
-// Helper function to upsert exercise definitions
+// Helper function to upsert exercise definitions manually
 const upsertExerciseDefinitions = async (supabaseServiceRoleClient: any) => {
-  console.log('Starting upsert of exercise_definitions...');
+  console.log('Starting manual upsert of exercise_definitions...');
   for (const ex of exerciseLibraryData) {
-    const { error: upsertError } = await supabaseServiceRoleClient
+    // 1. Check if an exercise with this library_id already exists
+    const { data: existingExercise, error: selectError } = await supabaseServiceRoleClient
       .from('exercise_definitions')
-      .upsert({
-        library_id: ex.exercise_id,
-        name: ex.name,
-        main_muscle: ex.main_muscle,
-        type: ex.type,
-        category: ex.category,
-        description: ex.description,
-        pro_tip: ex.pro_tip,
-        video_url: ex.video_url,
-        user_id: null
-      }, { onConflict: 'library_id' });
+      .select('id')
+      .eq('library_id', ex.exercise_id)
+      .is('user_id', null) // Ensure we're checking against global exercises
+      .single();
 
-    if (upsertError) {
-      console.error(`Error upserting exercise definition ${ex.name}:`, upsertError.message);
-      throw upsertError;
+    if (selectError && selectError.code !== 'PGRST116') { // PGRST116 means no rows found, which is fine
+      console.error(`Error checking for existing exercise ${ex.name}:`, selectError.message);
+      throw selectError;
+    }
+
+    const exerciseData = {
+      library_id: ex.exercise_id,
+      name: ex.name,
+      main_muscle: ex.main_muscle,
+      type: ex.type,
+      category: ex.category,
+      description: ex.description,
+      pro_tip: ex.pro_tip,
+      video_url: ex.video_url,
+      user_id: null
+    };
+
+    if (existingExercise) {
+      // 2a. If it exists, update it
+      const { error: updateError } = await supabaseServiceRoleClient
+        .from('exercise_definitions')
+        .update(exerciseData)
+        .eq('id', existingExercise.id);
+      
+      if (updateError) {
+        console.error(`Error updating exercise definition ${ex.name}:`, updateError.message);
+        throw updateError;
+      }
+    } else {
+      // 2b. If it does not exist, insert it
+      const { error: insertError } = await supabaseServiceRoleClient
+        .from('exercise_definitions')
+        .insert(exerciseData);
+
+      if (insertError) {
+        console.error(`Error inserting exercise definition ${ex.name}:`, insertError.message);
+        throw insertError;
+      }
     }
   }
-  console.log('Finished upsert of exercise_definitions.');
+  console.log('Finished manual upsert of exercise_definitions.');
 };
 
 // Helper function to upsert workout exercise structure
