@@ -95,7 +95,7 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
       setWorkouts(workoutsWithLastDate);
 
       // Determine the next workout
-      let nextWorkoutCandidate: WorkoutDisplayData | null = null;
+      let nextWorkoutCandidate: WorkoutDisplayData | null = null; // Explicitly type here
       let oldestCompletionDate: Date | null = null;
 
       workoutsWithLastDate.forEach(workout => {
