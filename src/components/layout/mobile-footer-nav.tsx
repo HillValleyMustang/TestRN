@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 const navLinks = [
   { href: "/dashboard", label: "Home", icon: Home },
-  { href: "/start-t-path", label: "Workout", icon: Dumbbell }, // Corrected path
+  { href: "/workout-session/ad-hoc", label: "Start Workout", icon: Dumbbell }, // Changed to directly start ad-hoc workout
   { href: "/manage-exercises", label: "Exercises", icon: BookOpen },
   { href: "/progress", label: "Progress", icon: BarChart3 },
   { href: "/profile", label: "Profile", icon: User },
