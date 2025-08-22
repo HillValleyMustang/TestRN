@@ -9,7 +9,7 @@
 
     --foreground: 0 0% 3.9%;
 
-    --card: 0 0% 100%;
+    --card: 0 0% 100%; /* Base color for card */
 
     --card-foreground: 0 0% 3.9%;
 
@@ -131,7 +131,7 @@
 
     --foreground: 0 0% 98%;
 
-    --card: 0 0% 3.9%;
+    --card: 0 0% 3.9%; /* Base color for card */
 
     --card-foreground: 0 0% 98%;
 
@@ -331,4 +331,11 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Apply transparency and backdrop blur to cards */
+.card {
+  background-color: hsl(var(--card) / 0.85); /* 85% opaque */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px); /* For Safari compatibility */
 }
