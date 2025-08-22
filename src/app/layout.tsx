@@ -1,23 +1,14 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import localFont from "next/font/local";
+import { Poppins } from "next/font/google"; // Import Poppins
 import "./globals.css";
 import { SessionContextProvider } from "@/components/session-context-provider";
 import { cn } from "@/lib/utils";
 
-// Configure Inter font
-const inter = Inter({
+// Configure Poppins font
+const poppins = Poppins({
   subsets: ["latin"],
-  variable: "--font-inter",
-});
-
-// Configure Satoshi local font
-// IMPORTANT: Ensure you have 'Satoshi-Variable.woff2' in your public/fonts directory.
-// You can download Satoshi from its official source or similar font providers.
-const satoshi = localFont({
-  src: "/fonts/Satoshi-Variable.woff2", // Corrected path
-  variable: "--font-satoshi",
-  display: "swap",
+  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"], // Include all weights for flexibility
+  variable: "--font-sans", // Use --font-sans for Poppins
 });
 
 export const metadata: Metadata = {
@@ -34,8 +25,7 @@ export default function RootLayout({
     <html lang="en">
       <body
         className={cn(
-          inter.variable,
-          satoshi.variable,
+          poppins.variable, // Use poppins variable
           "font-sans antialiased glow-background"
         )}
       >

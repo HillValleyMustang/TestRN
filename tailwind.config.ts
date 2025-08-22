@@ -10,8 +10,8 @@ export default {
   theme: {
   	extend: {
       fontFamily: {
-        sans: ["var(--font-inter)", "sans-serif"], // Default sans-serif to Inter
-        display: ["var(--font-satoshi)", "sans-serif"], // Use Satoshi for display
+        sans: ["var(--font-sans)", "sans-serif"], // Default sans-serif to Poppins
+        // Removed display font as Satoshi is no longer used
       },
   		colors: {
   			background: 'hsl(var(--background))',
