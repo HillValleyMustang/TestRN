@@ -101,7 +101,7 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
         .eq('template_id', tPathId)
         .order('order_index', { ascending: true });
 
-      console.log('useTPathSession: Fetched tPathExercisesData:', tPathExercisesData);
+      console.log('useTPathSession: Raw tPathExercisesData from Supabase:', tPathExercisesData);
 
       if (fetchTPathExercisesError) {
         console.error('useTPathSession: Error fetching tPathExercisesData:', fetchTPathExercisesError.message);
@@ -110,13 +110,19 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
       }
 
       const fetchedExercises: WorkoutExercise[] = (tPathExercisesData as TPathExerciseJoin[])
-        .filter(te => te.exercise_definitions && te.exercise_definitions.length > 0) // Ensure exercise_definitions is not null and not empty
+        .filter(te => {
+          const hasExerciseDef = te.exercise_definitions && te.exercise_definitions.length > 0;
+          if (!hasExerciseDef) {
+            console.warn(`useTPathSession: Filtering out t_path_exercise ${te.id} because exercise_definitions is missing or empty.`);
+          }
+          return hasExerciseDef;
+        })
         .map(te => ({
           ...(te.exercise_definitions![0] as Tables<'exercise_definitions'>), // Access the first element
           is_bonus_exercise: !!te.is_bonus_exercise, // Add the bonus flag and ensure it's boolean
         }));
       
-      console.log('useTPathSession: Mapped fetchedExercises:', fetchedExercises);
+      console.log('useTPathSession: Mapped fetchedExercises (after filter/map):', fetchedExercises);
       setExercisesForTPath(fetchedExercises);
 
       // 3. Fetch the ID of the most recent previous workout session for the user

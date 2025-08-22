@@ -6,7 +6,7 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { useTPathSession } from '@/hooks/use-t-path-session';
 import { SetLogState, WorkoutExercise } from '@/types/supabase';
-import { useState, useEffect } from 'react'; // Import useEffect
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dumbbell, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -14,15 +14,12 @@ import { WorkoutSessionHeader } from '@/components/workout-session/workout-sessi
 import { WorkoutSessionFooter } from '@/components/workout-session/workout-session-footer';
 import { toast } from 'sonner';
 
-interface PageParams {
+// Force re-evaluation of types
+type PageParams = {
   tPathId: string;
-}
+};
 
-interface WorkoutSessionPageProps {
-  params: PageParams;
-}
-
-export default function WorkoutSessionPage({ params }: WorkoutSessionPageProps) {
+export default function WorkoutSessionPage({ params }: { params: PageParams }) {
   const { tPathId } = params;
 
   const { session, supabase } = useSession();
@@ -37,14 +34,12 @@ export default function WorkoutSessionPage({ params }: WorkoutSessionPageProps) 
     currentSessionId,
     sessionStartTime,
     setExercisesWithSets,
-    refreshExercisesForTPath, // New function to refresh exercises
+    refreshExercisesForTPath,
   } = useTPathSession({ tPathId: tPathId || '', session, supabase, router });
 
-  // State to track completed exercises for progress bar
   const [completedExerciseCount, setCompletedExerciseCount] = useState(0);
 
   useEffect(() => {
-    // Calculate completed exercises: an exercise is 'completed' if it has at least one saved set
     const count = exercisesForTPath.filter(exercise => 
       exercisesWithSets[exercise.id]?.some(set => set.isSaved)
     ).length;
@@ -59,7 +54,6 @@ export default function WorkoutSessionPage({ params }: WorkoutSessionPageProps) 
     );
   }
 
-  // Display the error from the hook if it exists
   if (error) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background text-destructive p-4 sm:p-8">
@@ -90,9 +84,7 @@ export default function WorkoutSessionPage({ params }: WorkoutSessionPageProps) 
   const handleSubstituteExercise = (oldExerciseId: string, newExercise: WorkoutExercise) => {
     setExercisesWithSets(prev => {
       const newExercisesWithSets = { ...prev };
-      // Remove old exercise's sets
       delete newExercisesWithSets[oldExerciseId];
-      // Add new exercise with an initial empty set
       newExercisesWithSets[newExercise.id] = [{
         id: null,
         created_at: null,
@@ -112,7 +104,6 @@ export default function WorkoutSessionPage({ params }: WorkoutSessionPageProps) 
       }];
       return newExercisesWithSets;
     });
-    // Trigger a refresh of the exercises list to update the displayed exercise
     refreshExercisesForTPath(oldExerciseId, newExercise);
     toast.success(`Replaced with ${newExercise.name}`);
   };
@@ -123,7 +114,6 @@ export default function WorkoutSessionPage({ params }: WorkoutSessionPageProps) 
       delete newExercisesWithSets[exerciseId];
       return newExercisesWithSets;
     });
-    // Trigger a refresh of the exercises list to remove the exercise
     refreshExercisesForTPath(exerciseId, null);
     toast.success("Exercise removed from this workout");
   };
@@ -153,7 +143,7 @@ export default function WorkoutSessionPage({ params }: WorkoutSessionPageProps) 
               <ExerciseCard
                 key={exercise.id}
                 exercise={exercise}
-                exerciseNumber={index + 1} // Pass exercise number
+                exerciseNumber={index + 1}
                 currentSessionId={currentSessionId}
                 supabase={supabase}
                 onUpdateGlobalSets={(exerciseId: string, newSets: SetLogState[]) => {
@@ -165,7 +155,7 @@ export default function WorkoutSessionPage({ params }: WorkoutSessionPageProps) 
                 initialSets={exercisesWithSets[exercise.id] || []}
                 onSubstituteExercise={handleSubstituteExercise}
                 onRemoveExercise={handleRemoveExercise}
-                workoutTemplateName={tPath.template_name} // Pass the workout's template name
+                workoutTemplateName={tPath.template_name}
               />
             ))}
           </div>
