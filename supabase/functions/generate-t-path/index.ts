@@ -441,37 +441,24 @@ serve(async (req: Request) => {
 
           const actualExercise = exerciseDefData;
 
-          let isBonus = false;
-          let includeExercise = false;
-          let orderCriteriaValue: number | null = null;
+          // ** THE FIX: Simplified and corrected inclusion logic **
+          const inclusionThreshold = entry.min_session_minutes;
+          console.log(`  Exercise: ${actualExercise.name}, inclusionThreshold: ${inclusionThreshold}, maxAllowedMinutes: ${maxAllowedMinutes}`);
 
-          if (entry.bonus_for_time_group === null) {
-            // This is a main exercise
-            orderCriteriaValue = entry.min_session_minutes;
-            console.log(`  Exercise: ${actualExercise.name}, Type: Main, min_session_minutes: ${orderCriteriaValue}, maxAllowedMinutes: ${maxAllowedMinutes}`);
-            if (orderCriteriaValue !== null && orderCriteriaValue <= maxAllowedMinutes) {
-              includeExercise = true;
-            }
-          } else {
-            // This is a bonus exercise
-            isBonus = true;
-            orderCriteriaValue = entry.bonus_for_time_group;
-            console.log(`  Exercise: ${actualExercise.name}, Type: Bonus, bonus_for_time_group: ${orderCriteriaValue}, maxAllowedMinutes: ${maxAllowedMinutes}`);
-            if (orderCriteriaValue !== null && orderCriteriaValue <= maxAllowedMinutes) {
-              includeExercise = true;
-            }
-          }
+          if (inclusionThreshold !== null && inclusionThreshold <= maxAllowedMinutes) {
+            const isBonus = entry.bonus_for_time_group !== null;
+            const orderCriteriaValue = isBonus ? entry.bonus_for_time_group : entry.min_session_minutes;
 
-          if (includeExercise) {
             exercisesToInclude.push({
               exercise_id: actualExercise.id,
               is_bonus_exercise: isBonus,
               order_criteria: orderCriteriaValue,
               original_order: exercisesToInclude.length
             });
+
             if (isBonus) bonusExerciseCount++;
             else mainExerciseCount++;
-            console.log(`    -> Included: ${actualExercise.name} (ID: ${actualExercise.id})`);
+            console.log(`    -> Included: ${actualExercise.name} (ID: ${actualExercise.id}) as ${isBonus ? 'Bonus' : 'Main'}`);
           } else {
             console.log(`    -> Excluded: ${actualExercise.name}`);
           }
