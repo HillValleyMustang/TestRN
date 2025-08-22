@@ -4,14 +4,14 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
-import { useTPathSession } => '@/hooks/use-t-path-session';
+import { useTPathSession } from '@/hooks/use-t-path-session'; // Corrected '=>' to 'from'
 import { SetLogState, WorkoutExercise } from '@/types/supabase';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dumbbell, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
 import { WorkoutSessionHeader } from '@/components/workout-session/workout-session-header';
-import { WorkoutSessionFooter } from '@/components/workout-session/workout-session-footer'; // Corrected '=>' to 'from'
+import { WorkoutSessionFooter } from '@/components/workout-session/workout-session-footer';
 import { toast } from 'sonner';
 import React from 'react'; // Keep React import for general use
 
