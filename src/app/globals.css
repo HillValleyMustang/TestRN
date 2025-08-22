@@ -116,6 +116,14 @@
     --workout-bonus-bg: 210 90% 95%; /* Light Blue for Bonus background */
     --workout-bonus-text: 210 90% 30%; /* Dark Blue for Bonus text */
     --workout-bonus-border: 210 90% 50%; /* More vibrant border */
+
+    /* New Aurora Colors (Light Mode) */
+    --aurora-blue: 210 90% 50%;
+    --aurora-purple: 270 80% 60%;
+    --aurora-orange: 30 90% 60%;
+    --aurora-green: 150 70% 40%;
+    --aurora-pink: 330 80% 70%;
+    --aurora-yellow: 45 100% 70%;
   }
   .dark {
 
@@ -228,6 +236,14 @@
     --workout-bonus-bg: 210 90% 25%; /* Darker Blue for Bonus background */
     --workout-bonus-text: 210 90% 90%; /* Light Blue for Bonus text */
     --workout-bonus-border: 210 90% 50%; /* Medium Blue for Bonus border */
+
+    /* Dark mode Aurora Colors */
+    --aurora-blue: 210 90% 40%;
+    --aurora-purple: 270 70% 50%;
+    --aurora-orange: 30 80% 50%;
+    --aurora-green: 150 60% 30%;
+    --aurora-pink: 330 70% 60%;
+    --aurora-yellow: 45 100% 40%;
   }
 }
 
@@ -237,10 +253,33 @@
   }
   body {
     @apply bg-background text-foreground;
+    overflow-x: hidden; /* Prevent horizontal scroll from large gradients */
+    position: relative; /* Needed for pseudo-elements to be positioned relative to body */
   }
+  /* Aurora background effect */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* Layered radial gradients for Aurora effect */
+    background-image:
+      radial-gradient(circle at 10% 10%, hsl(var(--aurora-blue) / 0.15), transparent 50%),
+      radial-gradient(circle at 90% 30%, hsl(var(--aurora-purple) / 0.15), transparent 50%),
+      radial-gradient(circle at 30% 80%, hsl(var(--aurora-orange) / 0.15), transparent 50%),
+      radial-gradient(circle at 70% 50%, hsl(var(--aurora-green) / 0.15), transparent 50%),
+      radial-gradient(circle at 50% 0%, hsl(var(--aurora-pink) / 0.15), transparent 50%);
+    filter: blur(100px); /* Apply blur to the gradients */
+    z-index: -1; /* Behind content, above noise */
+    pointer-events: none;
+    animation: aurora-pulse 15s infinite alternate ease-in-out;
+  }
+  /* The noise overlay */
   body::after {
     content: '';
-    position: fixed; /* Changed to fixed for parallax */
+    position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
@@ -248,18 +287,7 @@
     background-image: url(/noise.svg);
     opacity: 0.02;
     pointer-events: none;
-    z-index: -2;
-  }
-  .glow-background::before {
-    content: '';
-    position: fixed; /* Changed to fixed for parallax */
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: radial-gradient(circle at 50% 20%, hsl(var(--action-primary) / 0.15), transparent 50%);
-    filter: blur(100px);
-    z-index: -1;
+    z-index: -2; /* Keep it behind everything */
   }
 }
 
@@ -269,6 +297,31 @@
   -webkit-backdrop-filter: blur(8px); /* For Safari compatibility */
 }
 
+/* Keyframes for subtle aurora animation */
+@keyframes aurora-pulse {
+  0% {
+    transform: scale(1) translate(0, 0);
+    opacity: 1;
+  }
+  25% {
+    transform: scale(1.05) translate(5%, -5%);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1) translate(-5%, 5%);
+    opacity: 1;
+  }
+  75% {
+    transform: scale(1.05) translate(5%, 5%);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1) translate(0, 0);
+    opacity: 1;
+  }
+}
+
+/* Existing fade-in-slide-up animation */
 @keyframes fade-in-slide-up {
   from {
     opacity: 0;

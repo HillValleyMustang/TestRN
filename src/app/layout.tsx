@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Poppins } from "next/font/google"; // Import Poppins
+import { Poppins } from "next/font/google";
 import "./globals.css";
 import { SessionContextProvider } from "@/components/session-context-provider";
 import { cn } from "@/lib/utils";
@@ -26,7 +26,7 @@ export default function RootLayout({
       <body
         className={cn(
           poppins.variable, // Use poppins variable
-          "font-sans antialiased glow-background"
+          "font-sans antialiased" // Removed glow-background class
         )}
       >
         <SessionContextProvider>
