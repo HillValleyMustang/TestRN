@@ -15,7 +15,7 @@ const inter = Inter({
 // IMPORTANT: Ensure you have 'Satoshi-Variable.woff2' in your public/fonts directory.
 // You can download Satoshi from its official source or similar font providers.
 const satoshi = localFont({
-  src: "../../public/fonts/Satoshi-Variable.woff2",
+  src: "/fonts/Satoshi-Variable.woff2", // Corrected path
   variable: "--font-satoshi",
   display: "swap",
 });
