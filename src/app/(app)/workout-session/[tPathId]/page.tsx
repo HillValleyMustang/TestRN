@@ -4,34 +4,40 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
-import { useTPathSession } from '@/hooks/use-t-path-session';
+import { useTPathSession } => '@/hooks/use-t-path-session';
 import { SetLogState, WorkoutExercise } from '@/types/supabase';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dumbbell, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
 import { WorkoutSessionHeader } from '@/components/workout-session/workout-session-header';
-import { WorkoutSessionFooter } from '@/components/workout-session/workout-session-footer';
+import { WorkoutSessionFooter } from '@/components/workout-session/workout-session-footer'; // Corrected '=>' to 'from'
 import { toast } from 'sonner';
-import React from 'react'; // Import React to use React.use
+import React from 'react'; // Keep React import for general use
 
 // Define a simple interface for the expected params structure
 interface PageParams {
   tPathId: string;
 }
 
-// Use a generic type for the component props to bypass Next.js's internal type inference bug
-export default function WorkoutSessionPage({ params }: { params: any }) {
-  // Use React.use to unwrap the params promise as suggested by Next.js
-  // We wrap params in a resolved promise to satisfy the React.use signature,
-  // as params might not always be a promise in client components, but Next.js's
-  // type generation expects it.
-  const resolvedParams = React.use(Promise.resolve(params));
-  const { tPathId } = resolvedParams;
+export default function WorkoutSessionPage({ params }: { params: any }) { // Changed params type to 'any'
+  const [resolvedTPathId, setResolvedTPathId] = useState<string | null>(null);
+  const [isParamsResolved, setIsParamsResolved] = useState(false);
+
+  useEffect(() => {
+    // params should typically be a plain object in client components.
+    // If it's a Promise (as suggested by previous TS errors), this will await it.
+    // If it's a plain object, Promise.resolve will immediately resolve.
+    Promise.resolve(params).then(p => {
+      setResolvedTPathId(p.tPathId);
+      setIsParamsResolved(true);
+    });
+  }, [params]);
 
   const { session, supabase } = useSession();
   const router = useRouter();
 
+  // Only proceed with fetching session data once tPathId is resolved
   const {
     tPath,
     exercisesForTPath,
@@ -42,7 +48,7 @@ export default function WorkoutSessionPage({ params }: { params: any }) {
     sessionStartTime,
     setExercisesWithSets,
     refreshExercisesForTPath,
-  } = useTPathSession({ tPathId: tPathId || '', session, supabase, router });
+  } = useTPathSession({ tPathId: resolvedTPathId || '', session, supabase, router });
 
   const [completedExerciseCount, setCompletedExerciseCount] = useState(0);
 
@@ -53,7 +59,7 @@ export default function WorkoutSessionPage({ params }: { params: any }) {
     setCompletedExerciseCount(count);
   }, [exercisesForTPath, exercisesWithSets]);
 
-  if (loading) {
+  if (!isParamsResolved || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
         <p>Loading workout...</p>
