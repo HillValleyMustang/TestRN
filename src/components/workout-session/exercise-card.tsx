@@ -13,7 +13,7 @@ import { useExerciseSets } from '@/hooks/use-exercise-sets';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { useSession } from '@/components/session-context-provider';
 import { formatWeight, convertWeight } from '@/lib/unit-conversions';
-import { ExerciseSwapDialog } from '../exercise-swap-dialog'; // Use the global ExerciseSwapDialog
+import { ExerciseSwapDialog } from './exercise-swap-dialog';
 import { CantDoToggle } from './cant-do-toggle';
 import { WorkoutBadge } from '../workout-badge';
 import {
@@ -37,8 +37,8 @@ interface ExerciseCardProps {
   onSubstituteExercise?: (oldExerciseId: string, newExercise: WorkoutExercise) => void;
   onRemoveExercise?: (exerciseId: string) => void;
   workoutTemplateName: string;
-  onFirstSetSaved: (timestamp: string) => void;
-  onExerciseCompleted: (exerciseId: string, isNewPR: boolean) => void;
+  onFirstSetSaved: (timestamp: string) => void; // New prop
+  onExerciseCompleted: (exerciseId: string, isNewPR: boolean) => void; // New prop for parent
 }
 
 export const ExerciseCard = ({
@@ -60,7 +60,7 @@ export const ExerciseCard = ({
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeLeft, setTimeLeft] = useState(defaultRestTime);
   const timerRef = React.useRef<NodeJS.Timeout | null>(null);
-  const [isExerciseSaved, setIsExerciseSaved] = useState(false);
+  const [isExerciseSaved, setIsExerciseSaved] = useState(false); // New state for exercise completion
 
   const [showSwapDialog, setShowSwapDialog] = useState(false);
   const [showCantDoDialog, setShowCantDoDialog] = useState(false);
@@ -99,12 +99,12 @@ export const ExerciseCard = ({
     handleSaveSet,
     handleEditSet,
     handleDeleteSet,
-    handleSaveExercise,
-    exercisePR,
+    handleSaveExercise, // New function
+    exercisePR, // New state
     loadingPR,
   } = useExerciseSets({
     exerciseId: exercise.id,
-    exerciseName: exercise.name,
+    exerciseName: exercise.name, // Pass exercise.name here
     exerciseType: exercise.type,
     exerciseCategory: exercise.category,
     currentSessionId,
@@ -112,8 +112,8 @@ export const ExerciseCard = ({
     onUpdateSets: onUpdateGlobalSets,
     initialSets,
     preferredWeightUnit,
-    onFirstSetSaved,
-    onExerciseComplete: async (id, isNewPR) => {
+    onFirstSetSaved, // Pass the new prop
+    onExerciseComplete: async (id, isNewPR) => { // Implement the callback
       setIsExerciseSaved(true);
       onExerciseCompleted(id, isNewPR);
     },
@@ -150,7 +150,8 @@ export const ExerciseCard = ({
             clearInterval(timerRef.current!);
             timerRef.current = null;
             setIsTimerRunning(false);
-            // Consider adding a sound notification here
+            const audio = new Audio('/path/to/chime.mp3');
+            audio.play().catch(e => console.error("Error playing audio:", e));
             toast.info("Rest time is over!");
             return 0;
           }

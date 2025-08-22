@@ -8,18 +8,18 @@ import { Dumbbell, Clock } from 'lucide-react';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { cn, getWorkoutColorClass, getMaxMinutes } from '@/lib/utils';
+import { cn, getWorkoutColorClass, getMaxMinutes } from '@/lib/utils'; // Import getMaxMinutes
 
 type TPath = Tables<'t_paths'>;
-type Profile = Tables<'profiles'>;
+type Profile = Tables<'profiles'>; // Import Profile type
 
 export const NextWorkoutCard = () => {
   const { session, supabase } = useSession();
   const router = useRouter();
-  const [mainTPath, setMainTPath] = useState<TPath | null>(null);
-  const [nextWorkout, setNextWorkout] = useState<TPath | null>(null);
+  const [mainTPath, setMainTPath] = useState<TPath | null>(null); // Stores the user's active main T-Path
+  const [nextWorkout, setNextWorkout] = useState<TPath | null>(null); // Stores the specific child workout to display
   const [loading, setLoading] = useState(true);
-  const [estimatedDuration, setEstimatedDuration] = useState<string>('N/A');
+  const [estimatedDuration, setEstimatedDuration] = useState<string>('N/A'); // New state for estimated duration
 
   useEffect(() => {
     const fetchNextWorkout = async () => {
@@ -34,7 +34,7 @@ export const NextWorkoutCard = () => {
           .eq('id', session.user.id)
           .single();
 
-        if (profileError && profileError.code !== 'PGRST116') {
+        if (profileError && profileError.code !== 'PGRST116') { // PGRST116 means no rows found
           throw profileError;
         }
 
@@ -61,7 +61,7 @@ export const NextWorkoutCard = () => {
           .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
           .eq('id', activeMainTPathId)
           .eq('user_id', session.user.id)
-          .is('parent_t_path_id', null)
+          .is('parent_t_path_id', null) // Correctly identify a main T-Path
           .single();
 
         if (mainTPathError || !mainTPathData) {
@@ -78,36 +78,18 @@ export const NextWorkoutCard = () => {
           .from('t_paths')
           .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
           .eq('parent_t_path_id', mainTPathData.id)
-          .eq('is_bonus', true)
-          .order('template_name', { ascending: true });
+          .eq('is_bonus', true) // These are the actual individual workouts
+          .order('template_name', { ascending: true }); // Order for consistent "next" selection
 
         if (childWorkoutsError) {
           throw childWorkoutsError;
         }
 
-        // 4. Determine the "next" workout (e.g., the least recently completed)
+        // 4. Determine the "next" workout (e.g., the first one in the list)
         if (childWorkoutsData && childWorkoutsData.length > 0) {
-          const workoutsWithLastDate = await Promise.all((childWorkoutsData as TPath[] || []).map(async (workout) => {
-            const { data: lastSessionDate, error: lastSessionError } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
-            
-            if (lastSessionError) {
-              console.error(`Error fetching last session date for workout ${workout.template_name}:`, lastSessionError);
-            }
-            
-            return {
-              ...workout,
-              last_completed_at: lastSessionDate && lastSessionDate.length > 0 ? lastSessionDate[0].session_date : null,
-            };
-          }));
-
-          const sortedByLastCompleted = [...workoutsWithLastDate].sort((a, b) => {
-            const dateA = a.last_completed_at ? new Date(a.last_completed_at).getTime() : 0;
-            const dateB = b.last_completed_at ? new Date(b.last_completed_at).getTime() : 0;
-            return dateA - dateB; // Ascending order, so least recent is first
-          });
-          setNextWorkout(sortedByLastCompleted[0]);
+          setNextWorkout(childWorkoutsData[0]); // Set the first child workout as the next one
         } else {
-          setNextWorkout(null);
+          setNextWorkout(null); // No child workouts found for this main T-Path
         }
 
       } catch (err: any) {
@@ -170,8 +152,9 @@ export const NextWorkoutCard = () => {
     );
   }
 
+  // Removed workoutBorderClass as it's no longer needed for the border
   return (
-    <Card>
+    <Card> {/* Removed cn("border-2", workoutBorderClass) */}
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Dumbbell className="h-5 w-5" />
@@ -187,7 +170,7 @@ export const NextWorkoutCard = () => {
               <span>Estimated {estimatedDuration}</span>
             </div>
           </div>
-          <Button onClick={() => router.push(`/workout?workoutId=${nextWorkout.id}`)} variant="brand" size="lg">
+          <Button onClick={() => router.push(`/workout-session/${nextWorkout.id}`)} variant="brand" size="lg">
             Start Workout
           </Button>
         </div>
