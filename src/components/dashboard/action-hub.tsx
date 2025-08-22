@@ -38,22 +38,22 @@ export const ActionHub = () => {
       <div className="grid grid-cols-3 grid-rows-2 gap-3 p-4 border rounded-xl bg-card">
         <ActionButton
           title="Log Activity"
-          icon={<Activity className="h-5 w-5 text-chart-2" />}
+          icon={<Activity className="h-5 w-5 text-chart-2" strokeWidth={2.5} />}
           onClick={() => setIsActivityLogOpen(true)}
         />
         <ActionButton
           title="AI Coach"
-          icon={<Sparkles className="h-5 w-5 text-chart-4" />}
+          icon={<Sparkles className="h-5 w-5 text-chart-4" strokeWidth={2.5} />}
           onClick={() => setIsAiCoachOpen(true)}
         />
         <ActionButton
           title="Workout Log"
-          icon={<History className="h-5 w-5 text-chart-1" />}
+          icon={<History className="h-5 w-5 text-chart-1" strokeWidth={2.5} />}
           onClick={() => setIsWorkoutLogOpen(true)}
         />
         <ActionButton
           title="Consistency Calendar"
-          icon={<CalendarDays className="h-5 w-5 text-chart-5" />}
+          icon={<CalendarDays className="h-5 w-5 text-chart-5" strokeWidth={2.5} />}
           onClick={() => setIsCalendarOpen(true)}
           className="col-span-2"
         />
@@ -64,21 +64,21 @@ export const ActionHub = () => {
               variant="outline"
               className="h-full w-full p-2 flex flex-col items-center justify-center text-center whitespace-normal gap-1 font-semibold text-sm leading-tight border-0 shadow-sm hover:shadow-md transition-shadow bg-card"
             >
-              {isMoreMenuOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+              {isMoreMenuOpen ? <ChevronUp className="h-5 w-5" strokeWidth={2.5} /> : <ChevronDown className="h-5 w-5" strokeWidth={2.5} />}
               <span>More</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onSelect={() => router.push('/start-t-path')}>
-              <Dumbbell className="mr-2 h-4 w-4" />
+              <Dumbbell className="mr-2 h-4 w-4" strokeWidth={2.5} />
               <span>Start Workout</span>
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => router.push('/manage-exercises')}>
-              <Dumbbell className="mr-2 h-4 w-4" />
+              <Dumbbell className="mr-2 h-4 w-4" strokeWidth={2.5} />
               <span>Manage Exercises</span>
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => router.push('/manage-t-paths')}>
-              <LayoutTemplate className="mr-2 h-4 w-4" />
+              <LayoutTemplate className="mr-2 h-4 w-4" strokeWidth={2.5} />
               <span>Manage T-Paths</span>
             </DropdownMenuItem>
           </DropdownMenuContent>

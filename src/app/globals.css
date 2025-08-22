@@ -38,6 +38,7 @@
     --destructive-foreground: 0 0% 98%;
 
     --action-primary: 217 91% 60%; /* New premium blue for primary actions */
+    --action-primary-light: 217 91% 70%; /* Lighter shade for gradient */
     --action-primary-foreground: 0 0% 100%;
 
     --border: 0 0% 89.8%;
@@ -151,6 +152,7 @@
     --destructive-foreground: 0 0% 98%;
 
     --action-primary: 217 91% 60%;
+    --action-primary-light: 217 91% 70%;
     --action-primary-foreground: 0 0% 100%;
 
     --border: 0 0% 14.9%;
@@ -235,6 +237,29 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-image: url(/noise.svg);
+    opacity: 0.02;
+    pointer-events: none;
+    z-index: -2;
+  }
+  .glow-background::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: radial-gradient(circle at 50% 20%, hsl(var(--action-primary) / 0.15), transparent 50%);
+    filter: blur(100px);
+    z-index: -1;
   }
 }
 

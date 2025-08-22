@@ -31,7 +31,7 @@ export function MobileFooterNav() {
                 isActive ? "text-action" : "text-muted-foreground hover:text-foreground/80"
               )}
             >
-              <Icon className="h-5 w-5" />
+              <Icon className="h-5 w-5" strokeWidth={2.5} />
               <span>{link.label}</span>
             </Link>
           );
