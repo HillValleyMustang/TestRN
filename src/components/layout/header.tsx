@@ -9,6 +9,8 @@ import { UserNav } from "./user-nav";
 import { NotificationBell } from "./notification-bell";
 import { ActivityLoggingDialog } from "../activity-logging-dialog";
 import { StreakPill } from "./streak-pill";
+import { useScrollPosition } from "@/hooks/use-scroll-position"; // Import the new hook
+import { cn } from "@/lib/utils"; // Ensure cn is imported
 
 const mobileNavLinks = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -21,10 +23,15 @@ const mobileNavLinks = [
 
 export function Header() {
   const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
+  const isScrolled = useScrollPosition(); // Use the new hook
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+      <header className={cn(
+        "sticky top-0 z-30 flex h-14 items-center gap-4 border-b px-4 sm:static sm:h-auto sm:border-0 sm:px-6",
+        "transition-all duration-300 ease-in-out", // Smooth transition
+        isScrolled ? "bg-background/80 backdrop-blur-md border-b-transparent" : "bg-background border-b" // Apply glassmorphism on scroll
+      )}>
         <Sheet>
           <SheetTrigger asChild>
             <Button size="icon" variant="outline" className="sm:hidden">
