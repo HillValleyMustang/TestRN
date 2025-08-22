@@ -20,7 +20,7 @@ export interface SetLogState extends Omit<Tables<'set_logs'>, 'id' | 'created_at
   id: string | null; // Explicitly allow null for new sets
   created_at: string | null; // Explicitly allow null for new sets
   isSaved: boolean;
-  isPR: boolean;
+  isPR: boolean; // This is for set-level PR
   lastWeight?: number | null;
   lastReps?: number | null;
   lastTimeSeconds?: number | null;
@@ -51,3 +51,8 @@ export type SetLogWithExercise = Pick<Tables<'set_logs'>, 'id' | 'weight_kg' | '
 export type WorkoutExercise = Tables<'exercise_definitions'> & {
   is_bonus_exercise: boolean;
 };
+
+// New type for user_exercise_prs table
+export type UserExercisePR = Tables<'user_exercise_prs'>;
+export type UserExercisePRInsert = TablesInsert<'user_exercise_prs'>;
+export type UserExercisePRUpdate = TablesUpdate<'user_exercise_prs'>;

@@ -34,7 +34,6 @@ export default function WorkoutSessionPage({ params }: { params: any }) {
   const { session, supabase } = useSession();
   const router = useRouter();
 
-  // Call useTPathSession unconditionally
   const {
     tPath,
     exercisesForTPath,
@@ -45,19 +44,13 @@ export default function WorkoutSessionPage({ params }: { params: any }) {
     sessionStartTime,
     setExercisesWithSets,
     refreshExercisesForTPath,
-  } = useTPathSession({ tPathId: resolvedTPathId || '', session, supabase, router }); // Pass resolvedTPathId or empty string
+    updateSessionStartTime, // New
+    markExerciseAsCompleted, // New
+    completedExercises, // New
+  } = useTPathSession({ tPathId: resolvedTPathId || '', session, supabase, router });
 
-  const [completedExerciseCount, setCompletedExerciseCount] = useState(0);
-
-  useEffect(() => {
-    // Only update completed count if exercisesForTPath is not empty (i.e., after data is loaded)
-    if (exercisesForTPath.length > 0) {
-      const count = exercisesForTPath.filter(exercise => 
-        exercisesWithSets[exercise.id]?.some(set => set.isSaved)
-      ).length;
-      setCompletedExerciseCount(count);
-    }
-  }, [exercisesForTPath, exercisesWithSets]);
+  // `completedExerciseCount` is now derived from `completedExercises.size`
+  const completedExerciseCount = completedExercises.size;
 
   // Show loading state if params are not resolved OR if the hook is still loading
   if (!isParamsResolved || loading) {
@@ -99,7 +92,7 @@ export default function WorkoutSessionPage({ params }: { params: any }) {
     setExercisesWithSets(prev => {
       const newExercisesWithSets = { ...prev };
       delete newExercisesWithSets[oldExerciseId];
-      newExercisesWithSets[newExercise.id] = [{
+      newExercisesWithSets[newExercise.id] = Array.from({ length: 3 }).map(() => ({ // Initialize with 3 sets
         id: null,
         created_at: null,
         session_id: currentSessionId,
@@ -115,7 +108,7 @@ export default function WorkoutSessionPage({ params }: { params: any }) {
         lastWeight: null,
         lastReps: null,
         lastTimeSeconds: null,
-      }];
+      }));
       return newExercisesWithSets;
     });
     refreshExercisesForTPath(oldExerciseId, newExercise);
@@ -129,6 +122,7 @@ export default function WorkoutSessionPage({ params }: { params: any }) {
       return newExercisesWithSets;
     });
     refreshExercisesForTPath(exerciseId, null);
+    markExerciseAsCompleted(exerciseId, false); // Mark as completed (removed) to update progress bar
     toast.success("Exercise removed from this workout");
   };
 
@@ -170,6 +164,8 @@ export default function WorkoutSessionPage({ params }: { params: any }) {
                 onSubstituteExercise={handleSubstituteExercise}
                 onRemoveExercise={handleRemoveExercise}
                 workoutTemplateName={tPath.template_name}
+                onFirstSetSaved={updateSessionStartTime}
+                onExerciseCompleted={markExerciseAsCompleted}
               />
             ))}
           </div>

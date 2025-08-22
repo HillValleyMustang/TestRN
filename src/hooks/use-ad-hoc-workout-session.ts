@@ -17,7 +17,7 @@ interface UseAdHocWorkoutSessionProps {
 
 interface UseAdHocWorkoutSessionReturn {
   allExercises: ExerciseDefinition[];
-  exercisesForSession: WorkoutExercise[]; // Changed to WorkoutExercise[]
+  exercisesForSession: WorkoutExercise[];
   exercisesWithSets: Record<string, SetLogState[]>;
   loading: boolean;
   error: string | null;
@@ -26,16 +26,45 @@ interface UseAdHocWorkoutSessionReturn {
   addExerciseToSession: (exercise: ExerciseDefinition) => void;
   removeExerciseFromSession: (exerciseId: string) => void;
   setExercisesWithSets: React.Dispatch<React.SetStateAction<Record<string, SetLogState[]>>>;
+  updateSessionStartTime: (timestamp: string) => void; // New function to update session start time
+  markExerciseAsCompleted: (exerciseId: string, isNewPR: boolean) => void; // New function to mark exercise complete
+  completedExercises: Set<string>; // New state to track completed exercises
 }
+
+const DEFAULT_INITIAL_SETS = 3; // Define default initial sets for ad-hoc
 
 export const useAdHocWorkoutSession = ({ session, supabase, router }: UseAdHocWorkoutSessionProps): UseAdHocWorkoutSessionReturn => {
   const [allExercises, setAllExercises] = useState<ExerciseDefinition[]>([]);
-  const [exercisesForSession, setExercisesForSession] = useState<WorkoutExercise[]>([]); // Changed to WorkoutExercise[]
+  const [exercisesForSession, setExercisesForSession] = useState<WorkoutExercise[]>([]);
   const [exercisesWithSets, setExercisesWithSets] = useState<Record<string, SetLogState[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
+  const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set()); // Track completed exercises
+
+  const updateSessionStartTime = useCallback(async (timestamp: string) => {
+    if (!currentSessionId) return;
+
+    // Only update if sessionStartTime hasn't been set yet (i.e., this is the very first set saved)
+    if (!sessionStartTime) {
+      const { error: updateError } = await supabase
+        .from('workout_sessions')
+        .update({ session_date: timestamp })
+        .eq('id', currentSessionId);
+
+      if (updateError) {
+        console.error("Failed to update workout session start time:", updateError);
+        toast.error("Failed to record workout start time.");
+      } else {
+        setSessionStartTime(new Date(timestamp));
+      }
+    }
+  }, [currentSessionId, sessionStartTime, supabase]);
+
+  const markExerciseAsCompleted = useCallback((exerciseId: string, isNewPR: boolean) => {
+    setCompletedExercises(prev => new Set(prev).add(exerciseId));
+  }, []);
 
   const fetchInitialData = useCallback(async () => {
     if (!session) {
@@ -49,22 +78,23 @@ export const useAdHocWorkoutSession = ({ session, supabase, router }: UseAdHocWo
       // 1. Fetch all available exercise definitions for the user
       const { data: exercisesData, error: fetchExercisesError } = await supabase
         .from('exercise_definitions')
-        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, is_favorite, created_at, user_id') // Specify all columns required by ExerciseDefinition
+        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, is_favorite, created_at, user_id')
         .eq('user_id', session.user.id)
         .order('name', { ascending: true });
 
       if (fetchExercisesError) {
         throw new Error(fetchExercisesError.message);
       }
-      setAllExercises(exercisesData as ExerciseDefinition[] || []); // Explicitly cast
+      setAllExercises(exercisesData as ExerciseDefinition[] || []);
 
       // 2. Create a new ad-hoc workout session entry
+      // Initially set session_date to current time, will be updated by onFirstSetSaved
       const { data: sessionData, error: sessionError } = await supabase
         .from('workout_sessions')
         .insert({
           user_id: session.user.id,
-          template_name: 'Ad Hoc Workout', // Name for ad-hoc sessions
-          session_date: new Date().toISOString(),
+          template_name: 'Ad Hoc Workout',
+          session_date: new Date().toISOString(), // Initial timestamp
         })
         .select('id')
         .single();
@@ -73,7 +103,7 @@ export const useAdHocWorkoutSession = ({ session, supabase, router }: UseAdHocWo
         throw new Error(sessionError?.message || "Failed to create ad-hoc workout session.");
       }
       setCurrentSessionId(sessionData.id);
-      setSessionStartTime(new Date());
+      setSessionStartTime(new Date(sessionData.session_date)); // Set initial session start time
 
     } catch (err: any) {
       console.error("Failed to initialize ad-hoc workout:", err);
@@ -122,14 +152,14 @@ export const useAdHocWorkoutSession = ({ session, supabase, router }: UseAdHocWo
 
     setExercisesForSession(prev => {
       const newWorkoutExercise: WorkoutExercise = {
-        ...exercise, // Spread the existing ExerciseDefinition properties
-        is_bonus_exercise: false, // Ad-hoc exercises are not bonus
+        ...exercise,
+        is_bonus_exercise: false,
       };
       const updatedExercises = [...prev, newWorkoutExercise];
       // Initialize sets for the newly added exercise with last set data
       setExercisesWithSets(prevSets => ({
         ...prevSets,
-        [newWorkoutExercise.id]: [{
+        [newWorkoutExercise.id]: Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({ // Initialize with 3 sets
           id: null,
           created_at: null,
           session_id: currentSessionId,
@@ -145,18 +175,23 @@ export const useAdHocWorkoutSession = ({ session, supabase, router }: UseAdHocWo
           lastWeight: lastWeight,
           lastReps: lastReps,
           lastTimeSeconds: lastTimeSeconds,
-        }],
+        })),
       }));
       return updatedExercises;
     });
-  }, [currentSessionId, supabase]); // Added supabase to dependencies
+  }, [currentSessionId, supabase]);
 
   const removeExerciseFromSession = useCallback((exerciseId: string) => {
     setExercisesForSession(prev => prev.filter(ex => ex.id !== exerciseId));
     setExercisesWithSets(prevSets => {
       const newSets = { ...prevSets };
-      delete newSets[exerciseId]; // Remove sets associated with the removed exercise
+      delete newSets[exerciseId];
       return newSets;
+    });
+    setCompletedExercises(prev => {
+      const newCompleted = new Set(prev);
+      newCompleted.delete(exerciseId);
+      return newCompleted;
     });
   }, []);
 
@@ -171,5 +206,8 @@ export const useAdHocWorkoutSession = ({ session, supabase, router }: UseAdHocWo
     addExerciseToSession,
     removeExerciseFromSession,
     setExercisesWithSets,
+    updateSessionStartTime,
+    markExerciseAsCompleted,
+    completedExercises,
   };
 };

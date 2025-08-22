@@ -4,11 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, CheckCircle2, Trophy, Edit, Trash2, Timer, RefreshCcw, Info, History, Menu, Play, Pause, RotateCcw } from 'lucide-react';
+import { Plus, CheckCircle2, Trophy, Edit, Trash2, Timer, RefreshCcw, Info, History, Menu, Play, Pause, RotateCcw, Save } from 'lucide-react';
 import { ExerciseHistoryDialog } from '@/components/exercise-history-dialog';
 import { ExerciseInfoDialog } from '@/components/exercise-info-dialog';
 import { ExerciseProgressionDialog } from '@/components/exercise-progression-dialog';
-import { Tables, SetLogState, WorkoutExercise } from '@/types/supabase';
+import { Tables, SetLogState, WorkoutExercise, UserExercisePR } from '@/types/supabase';
 import { useExerciseSets } from '@/hooks/use-exercise-sets';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { useSession } from '@/components/session-context-provider';
@@ -23,7 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn, getWorkoutColorClass } from '@/lib/utils';
-import { toast } from 'sonner'; // Explicitly import toast
+import { toast } from 'sonner';
 
 type Profile = Tables<'profiles'>;
 
@@ -36,7 +36,9 @@ interface ExerciseCardProps {
   initialSets: SetLogState[];
   onSubstituteExercise?: (oldExerciseId: string, newExercise: WorkoutExercise) => void;
   onRemoveExercise?: (exerciseId: string) => void;
-  workoutTemplateName: string; // New prop for the parent workout's template name
+  workoutTemplateName: string;
+  onFirstSetSaved: (timestamp: string) => void; // New prop
+  onExerciseCompleted: (exerciseId: string, isNewPR: boolean) => void; // New prop for parent
 }
 
 export const ExerciseCard = ({
@@ -48,7 +50,9 @@ export const ExerciseCard = ({
   initialSets,
   onSubstituteExercise,
   onRemoveExercise,
-  workoutTemplateName, // Destructure new prop
+  workoutTemplateName,
+  onFirstSetSaved,
+  onExerciseCompleted,
 }: ExerciseCardProps) => {
   const { session } = useSession();
   const [preferredWeightUnit, setPreferredWeightUnit] = useState<Profile['preferred_weight_unit']>('kg');
@@ -56,6 +60,7 @@ export const ExerciseCard = ({
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeLeft, setTimeLeft] = useState(defaultRestTime);
   const timerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const [isExerciseSaved, setIsExerciseSaved] = useState(false); // New state for exercise completion
 
   const [showSwapDialog, setShowSwapDialog] = useState(false);
   const [showCantDoDialog, setShowCantDoDialog] = useState(false);
@@ -63,7 +68,6 @@ export const ExerciseCard = ({
   const [showExerciseHistoryDialog, setShowExerciseHistoryDialog] = useState(false);
   const [showExerciseProgressionDialog, setShowExerciseProgressionDialog] = useState(false);
 
-  // Use the new workoutTemplateName prop for color classes
   const workoutColorClass = getWorkoutColorClass(workoutTemplateName, 'text');
   const workoutBorderClass = getWorkoutColorClass(workoutTemplateName, 'border');
   const workoutBgClass = getWorkoutColorClass(workoutTemplateName, 'bg');
@@ -82,13 +86,23 @@ export const ExerciseCard = ({
       } else if (profileData) {
         setPreferredWeightUnit(profileData.preferred_weight_unit || 'kg');
         setDefaultRestTime(profileData.default_rest_time_seconds || 60);
-        setTimeLeft(profileData.default_rest_time_seconds || 60); // Initialize timer with default
+        setTimeLeft(profileData.default_rest_time_seconds || 60);
       }
     };
     fetchUserProfile();
   }, [session, supabase]);
 
-  const { sets, handleAddSet, handleInputChange, handleSaveSet, handleEditSet, handleDeleteSet } = useExerciseSets({
+  const {
+    sets,
+    handleAddSet,
+    handleInputChange,
+    handleSaveSet,
+    handleEditSet,
+    handleDeleteSet,
+    handleSaveExercise, // New function
+    exercisePR, // New state
+    loadingPR,
+  } = useExerciseSets({
     exerciseId: exercise.id,
     exerciseType: exercise.type,
     exerciseCategory: exercise.category,
@@ -97,13 +111,17 @@ export const ExerciseCard = ({
     onUpdateSets: onUpdateGlobalSets,
     initialSets,
     preferredWeightUnit,
+    onFirstSetSaved, // Pass the new prop
+    onExerciseComplete: async (id, isNewPR) => { // Implement the callback
+      setIsExerciseSaved(true);
+      onExerciseCompleted(id, isNewPR);
+    },
   });
 
   const handleSaveSetAndStartTimer = async (setIndex: number) => {
     await handleSaveSet(setIndex);
-    // Manually start timer after saving
     setIsTimerRunning(true);
-    setTimeLeft(defaultRestTime); // Reset timer to default time
+    setTimeLeft(defaultRestTime);
   };
 
   const handleToggleTimer = () => {
@@ -115,6 +133,13 @@ export const ExerciseCard = ({
     setTimeLeft(defaultRestTime);
   };
 
+  const handleCompleteExercise = async () => {
+    const success = await handleSaveExercise();
+    if (success) {
+      setIsExerciseSaved(true);
+    }
+  };
+
   useEffect(() => {
     if (isTimerRunning) {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -124,8 +149,7 @@ export const ExerciseCard = ({
             clearInterval(timerRef.current!);
             timerRef.current = null;
             setIsTimerRunning(false);
-            // Play audio cue
-            const audio = new Audio('/path/to/chime.mp3'); // You'll need to add an audio file
+            const audio = new Audio('/path/to/chime.mp3');
             audio.play().catch(e => console.error("Error playing audio:", e));
             toast.info("Rest time is over!");
             return 0;
@@ -153,8 +177,13 @@ export const ExerciseCard = ({
     return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
+  const isNewExercisePR = !loadingPR && exercisePR && (
+    (exercise.type === 'weight' && sets.reduce((total, set) => total + ((set.weight_kg || 0) * (set.reps || 0)), 0) > (exercisePR.best_volume_kg || 0)) ||
+    (exercise.type === 'timed' && sets.map(set => set.time_seconds).filter((time): time is number => time !== null).length > 0 && Math.min(...sets.map(set => set.time_seconds).filter((time): time is number => time !== null)) < (exercisePR.best_time_seconds || Infinity))
+  );
+
   return (
-    <Card className={cn("mb-6 border-2", workoutBorderClass)}>
+    <Card className={cn("mb-6 border-2", workoutBorderClass, { "opacity-70": isExerciseSaved })}>
       <CardHeader className="flex flex-row items-center justify-between pb-4">
         <div>
           <CardTitle className={cn("text-xl flex items-center gap-2", workoutColorClass)}>
@@ -191,86 +220,90 @@ export const ExerciseCard = ({
       <CardContent>
         <div className="space-y-4">
           {sets.map((set, setIndex) => (
-            <div key={set.id || `new-${setIndex}`} className={cn("p-4 border rounded-md", {
-              "border-primary ring-1 ring-primary": !set.isSaved, // Highlight unsaved sets
-              "bg-accent/50": set.isSaved, // Subtle background for saved sets
+            <div key={set.id || `new-${setIndex}`} className={cn("p-3 border rounded-md", {
+              "border-primary ring-1 ring-primary": !set.isSaved && !isExerciseSaved,
+              "bg-accent/50": set.isSaved,
             })}>
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="font-semibold text-lg">Set {setIndex + 1}</h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold text-base">Set {setIndex + 1}</h3>
                 {set.isSaved && set.isPR && (
-                  <span className="text-yellow-500 flex items-center text-sm font-semibold">
-                    <Trophy className="h-4 w-4 mr-1" /> New PR!
+                  <span className="text-yellow-500 flex items-center text-xs font-semibold">
+                    <Trophy className="h-3 w-3 mr-1" /> Set PR!
                   </span>
                 )}
               </div>
-              <p className="text-muted-foreground text-sm mb-3">
-                {exercise.type === 'weight' && set.lastWeight && set.lastReps && `Last: ${formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs')} x ${set.lastReps} reps`}
-                {exercise.type === 'timed' && set.lastTimeSeconds && `Last: ${set.lastTimeSeconds}s`}
-                {!set.lastWeight && !set.lastReps && !set.lastTimeSeconds && "No previous data"}
-              </p>
 
               <div className="grid grid-cols-2 gap-3">
                 {exercise.type === 'weight' && (
                   <>
                     <div>
-                      <label htmlFor={`weight-${setIndex}`} className="text-sm font-medium">Weight ({preferredWeightUnit})</label>
                       <Input
                         id={`weight-${setIndex}`}
                         type="number"
                         step="0.1"
+                        placeholder={`Weight (${preferredWeightUnit})`}
                         value={convertWeight(set.weight_kg, 'kg', preferredWeightUnit as 'kg' | 'lbs') ?? ''}
                         onChange={(e) => handleInputChange(setIndex, 'weight_kg', e.target.value)}
-                        disabled={set.isSaved}
+                        disabled={set.isSaved || isExerciseSaved}
                         className="mt-1"
                       />
+                      <p className="text-muted-foreground text-xs mt-1">
+                        {set.lastWeight ? `Last: ${formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs')}` : "No last weight"}
+                      </p>
                     </div>
                     <div>
-                      <label htmlFor={`reps-${setIndex}`} className="text-sm font-medium">Reps</label>
                       <Input
                         id={`reps-${setIndex}`}
                         type="number"
+                        placeholder="Reps"
                         value={set.reps ?? ''}
                         onChange={(e) => handleInputChange(setIndex, 'reps', e.target.value)}
-                        disabled={set.isSaved}
+                        disabled={set.isSaved || isExerciseSaved}
                         className="mt-1"
                       />
+                      <p className="text-muted-foreground text-xs mt-1">
+                        {set.lastReps ? `Last: ${set.lastReps} reps` : "No last reps"}
+                      </p>
                     </div>
                   </>
                 )}
                 {exercise.type === 'timed' && (
                   <div className="col-span-2">
-                    <label htmlFor={`time-${setIndex}`} className="text-sm font-medium">Time (seconds)</label>
                     <Input
                       id={`time-${setIndex}`}
                       type="number"
+                      placeholder="Time (seconds)"
                       value={set.time_seconds ?? ''}
                       onChange={(e) => handleInputChange(setIndex, 'time_seconds', e.target.value)}
-                      disabled={set.isSaved}
+                      disabled={set.isSaved || isExerciseSaved}
                       className="mt-1"
                     />
+                    <p className="text-muted-foreground text-xs mt-1">
+                      {set.lastTimeSeconds ? `Last: ${set.lastTimeSeconds}s` : "No last time"}
+                    </p>
                   </div>
                 )}
                 {exercise.category === 'Unilateral' && (
                   <>
                     <div>
-                      <label htmlFor={`reps-l-${setIndex}`} className="text-sm font-medium">Reps (L)</label>
                       <Input
                         id={`reps-l-${setIndex}`}
                         type="number"
+                        placeholder="Reps (L)"
                         value={set.reps_l ?? ''}
                         onChange={(e) => handleInputChange(setIndex, 'reps_l', e.target.value)}
-                        disabled={set.isSaved}
+                        disabled={set.isSaved || isExerciseSaved}
                         className="mt-1"
                       />
                     </div>
                     <div>
-                      <label htmlFor={`reps-r-${setIndex}`} className="text-sm font-medium">Reps (R)</label>
                       <Input
                         id={`reps-r-${setIndex}`}
                         type="number"
+                        placeholder="Reps (R)"
                         value={set.reps_r ?? ''}
                         onChange={(e) => handleInputChange(setIndex, 'reps_r', e.target.value)}
-                        disabled={set.isSaved}
+                        disabled={set.isSaved || isExerciseSaved}
                         className="mt-1"
                       />
                     </div>
@@ -278,20 +311,22 @@ export const ExerciseCard = ({
                 )}
               </div>
 
-              <div className="flex justify-end items-center mt-4 space-x-2">
+              <div className="flex justify-end items-center mt-3 space-x-2">
                 {set.isSaved ? (
                   <>
-                    <Button variant="ghost" size="sm" onClick={() => handleEditSet(setIndex)} title="Edit Set">
+                    <Button variant="ghost" size="sm" onClick={() => handleEditSet(setIndex)} title="Edit Set" disabled={isExerciseSaved}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDeleteSet(setIndex)} title="Delete Set">
+                    <Button variant="ghost" size="sm" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" disabled={isExerciseSaved}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </>
                 ) : (
                   <>
-                    <Button variant="secondary" size="sm" onClick={() => handleSaveSetAndStartTimer(setIndex)}>Save Set</Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDeleteSet(setIndex)} title="Delete Set">
+                    <Button variant="secondary" size="sm" onClick={() => handleSaveSetAndStartTimer(setIndex)} disabled={isExerciseSaved}>
+                      <Save className="h-4 w-4 mr-1" /> Save Set
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" disabled={isExerciseSaved}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </>
@@ -302,9 +337,12 @@ export const ExerciseCard = ({
         </div>
 
         <div className="flex justify-between items-center mt-6">
-          <Button variant="outline" onClick={handleAddSet}>
-            <Plus className="h-4 w-4 mr-2" /> Add Set
-          </Button>
+          {sets.length < 5 && (
+            <Button variant="outline" onClick={handleAddSet} disabled={isExerciseSaved}>
+              <Plus className="h-4 w-4 mr-2" /> Add Set
+            </Button>
+          )}
+          {sets.length >= 5 && <div />} {/* Spacer to keep layout consistent */}
           <div className="flex items-center space-x-2">
             <Button
               variant="outline"
@@ -320,9 +358,27 @@ export const ExerciseCard = ({
             </Button>
           </div>
         </div>
+
+        <div className="mt-6">
+          <Button
+            className={cn("w-full", { "bg-green-500 hover:bg-green-600 text-white": isExerciseSaved })}
+            onClick={handleCompleteExercise}
+            disabled={isExerciseSaved || sets.filter(s => s.isSaved).length === 0}
+          >
+            {isExerciseSaved ? (
+              <span className="flex items-center">
+                <CheckCircle2 className="h-4 w-4 mr-2" /> Saved
+                {isNewExercisePR && <Trophy className="h-4 w-4 ml-2 fill-white text-white" />}
+              </span>
+            ) : (
+              <span className="flex items-center">
+                <CheckCircle2 className="h-4 w-4 mr-2" /> Save Exercise
+              </span>
+            )}
+          </Button>
+        </div>
       </CardContent>
 
-      {/* Dialogs controlled by state */}
       <ExerciseHistoryDialog
         open={showExerciseHistoryDialog}
         onOpenChange={setShowExerciseHistoryDialog}

@@ -26,6 +26,9 @@ interface UseTPathSessionReturn {
   sessionStartTime: Date | null;
   setExercisesWithSets: React.Dispatch<React.SetStateAction<Record<string, SetLogState[]>>>;
   refreshExercisesForTPath: (oldExerciseId?: string, newExercise?: WorkoutExercise | null) => void;
+  updateSessionStartTime: (timestamp: string) => void; // New function to update session start time
+  markExerciseAsCompleted: (exerciseId: string, isNewPR: boolean) => void; // New function to mark exercise complete
+  completedExercises: Set<string>; // New state to track completed exercises
 }
 
 export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPathSessionProps): UseTPathSessionReturn => {
@@ -36,6 +39,31 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
   const [error, setError] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
+  const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set()); // Track completed exercises
+
+  const updateSessionStartTime = useCallback(async (timestamp: string) => {
+    if (!currentSessionId) return;
+
+    // Only update if sessionStartTime hasn't been set yet (i.e., this is the very first set saved)
+    if (!sessionStartTime) {
+      const { error: updateError } = await supabase
+        .from('workout_sessions')
+        .update({ session_date: timestamp })
+        .eq('id', currentSessionId);
+
+      if (updateError) {
+        console.error("Failed to update workout session start time:", updateError);
+        toast.error("Failed to record workout start time.");
+      } else {
+        setSessionStartTime(new Date(timestamp));
+      }
+    }
+  }, [currentSessionId, sessionStartTime, supabase]);
+
+  const markExerciseAsCompleted = useCallback((exerciseId: string, isNewPR: boolean) => {
+    setCompletedExercises(prev => new Set(prev).add(exerciseId));
+    // Optionally, you could log the PR status here if needed for a global view
+  }, []);
 
   const fetchWorkoutData = useCallback(async () => {
     if (!session) {
@@ -101,12 +129,13 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
       setExercisesForTPath(fetchedExercises);
 
       // 4. Create a new workout session entry
+      // Initially set session_date to current time, will be updated by onFirstSetSaved
       const { data: sessionData, error: sessionError } = await supabase
         .from('workout_sessions')
         .insert({
           user_id: session.user.id,
           template_name: tPathData.template_name,
-          session_date: new Date().toISOString(),
+          session_date: new Date().toISOString(), // Initial timestamp
         })
         .select('id')
         .single();
@@ -115,7 +144,7 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
         throw new Error(sessionError?.message || "Failed to create workout session.");
       }
       setCurrentSessionId(sessionData.id);
-      setSessionStartTime(new Date());
+      setSessionStartTime(new Date(sessionData.session_date)); // Set initial session start time
 
       // 5. Fetch last set data for each exercise
       const { data: lastSessionData, error: lastSessionError } = await supabase
@@ -205,5 +234,8 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
     sessionStartTime,
     setExercisesWithSets,
     refreshExercisesForTPath,
+    updateSessionStartTime,
+    markExerciseAsCompleted,
+    completedExercises,
   };
 };

@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 
 interface WorkoutSessionFooterProps {
   currentSessionId: string | null;
-  sessionStartTime: Date | null;
+  sessionStartTime: Date | null; // Now dynamically updated
   supabase: SupabaseClient;
 }
 
@@ -17,7 +17,7 @@ export const WorkoutSessionFooter = ({ currentSessionId, sessionStartTime, supab
 
   const handleFinishWorkout = async () => {
     if (!currentSessionId || !sessionStartTime) {
-      toast.error("Workout session not properly started.");
+      toast.error("Workout session not properly started or no sets logged yet.");
       return;
     }
 

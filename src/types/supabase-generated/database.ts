@@ -156,7 +156,7 @@ export type Database = {
           last_ai_coach_use_at?: string | null
           last_name?: string | null
           preferred_distance_unit?: string | null
-          preferred_muscles?: string | null
+          preferred_musape_generated/database.tscles?: string | null
           preferred_weight_unit?: string | null
           primary_goal?: string | null
           target_date?: string | null
@@ -444,6 +444,54 @@ export type Database = {
           created_at?: string | null;
         };
         Relationships: [];
+      };
+      user_exercise_prs: {
+        Row: {
+          id: string;
+          user_id: string;
+          exercise_id: string;
+          best_volume_kg: number | null;
+          best_time_seconds: number | null;
+          last_achieved_date: string;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          exercise_id: string;
+          best_volume_kg?: number | null;
+          best_time_seconds?: number | null;
+          last_achieved_date?: string;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          exercise_id?: string;
+          best_volume_kg?: number | null;
+          best_time_seconds?: number | null;
+          last_achieved_date?: string;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_exercise_prs_exercise_id_fkey";
+            columns: ["exercise_id"];
+            isOneToOne: false;
+            referencedRelation: "exercise_definitions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_exercise_prs_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
       };
     }
     Views: {

@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { Tables, TablesInsert, TablesUpdate, SetLogState } from '@/types/supabase';
+import { Tables, TablesInsert, TablesUpdate, SetLogState, UserExercisePRInsert, UserExercisePRUpdate } from '@/types/supabase';
 import { convertWeight } from '@/lib/unit-conversions';
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type SetLog = Tables<'set_logs'>;
 type Profile = Tables<'profiles'>;
+type UserExercisePR = Tables<'user_exercise_prs'>;
 
 interface UseExerciseSetsProps {
   exerciseId: string;
@@ -18,7 +19,9 @@ interface UseExerciseSetsProps {
   supabase: SupabaseClient;
   onUpdateSets: (exerciseId: string, newSets: SetLogState[]) => void;
   initialSets: SetLogState[];
-  preferredWeightUnit: Profile['preferred_weight_unit']; // New prop
+  preferredWeightUnit: Profile['preferred_weight_unit'];
+  onFirstSetSaved: (timestamp: string) => void; // New prop for updating session start time
+  onExerciseComplete: (exerciseId: string, isNewPR: boolean) => Promise<void>; // New prop for exercise completion
 }
 
 interface UseExerciseSetsReturn {
@@ -28,7 +31,13 @@ interface UseExerciseSetsReturn {
   handleSaveSet: (setIndex: number) => Promise<void>;
   handleEditSet: (setIndex: number) => void;
   handleDeleteSet: (setIndex: number) => Promise<void>;
+  handleSaveExercise: () => Promise<boolean>; // New function for saving the entire exercise
+  exercisePR: UserExercisePR | null; // State to hold the exercise-level PR
+  loadingPR: boolean;
 }
+
+const MAX_SETS = 5;
+const DEFAULT_INITIAL_SETS = 3;
 
 export const useExerciseSets = ({
   exerciseId,
@@ -39,15 +48,20 @@ export const useExerciseSets = ({
   onUpdateSets,
   initialSets,
   preferredWeightUnit,
+  onFirstSetSaved,
+  onExerciseComplete,
 }: UseExerciseSetsProps): UseExerciseSetsReturn => {
   const [sets, setSets] = useState<SetLogState[]>(initialSets);
+  const [exercisePR, setExercisePR] = useState<UserExercisePR | null>(null);
+  const [loadingPR, setLoadingPR] = useState(true);
+  const [hasFirstSetBeenSaved, setHasFirstSetBeenSaved] = useState(false);
 
-  const handleAddSet = useCallback(() => {
-    setSets(prev => {
-      const lastSet = prev[prev.length - 1];
-      const newSet: SetLogState = {
-        id: null, // New sets don't have an ID yet
-        created_at: null, // Will be set by DB
+  // Initialize sets with 3 empty sets if initialSets is empty
+  useEffect(() => {
+    if (initialSets.length === 0) {
+      const defaultSets: SetLogState[] = Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({
+        id: null,
+        created_at: null,
         session_id: currentSessionId,
         exercise_id: exerciseId,
         weight_kg: null,
@@ -55,7 +69,55 @@ export const useExerciseSets = ({
         reps_l: null,
         reps_r: null,
         time_seconds: null,
-        is_pb: false, // Default for new set
+        is_pb: false,
+        isSaved: false,
+        isPR: false,
+      }));
+      setSets(defaultSets);
+      onUpdateSets(exerciseId, defaultSets);
+    } else {
+      setSets(initialSets);
+    }
+  }, [initialSets, exerciseId, currentSessionId, onUpdateSets]);
+
+  // Fetch exercise-level PR on component mount
+  useEffect(() => {
+    const fetchExercisePR = async () => {
+      setLoadingPR(true);
+      const { data, error } = await supabase
+        .from('user_exercise_prs')
+        .select('*')
+        .eq('exercise_id', exerciseId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
+        console.error("Error fetching exercise PR:", error);
+      } else if (data) {
+        setExercisePR(data as UserExercisePR);
+      }
+      setLoadingPR(false);
+    };
+    fetchExercisePR();
+  }, [exerciseId, supabase]);
+
+  const handleAddSet = useCallback(() => {
+    if (sets.length >= MAX_SETS) {
+      toast.info(`Maximum of ${MAX_SETS} sets reached for this exercise.`);
+      return;
+    }
+    setSets(prev => {
+      const lastSet = prev[prev.length - 1];
+      const newSet: SetLogState = {
+        id: null,
+        created_at: null,
+        session_id: currentSessionId,
+        exercise_id: exerciseId,
+        weight_kg: null,
+        reps: null,
+        reps_l: null,
+        reps_r: null,
+        time_seconds: null,
+        is_pb: false,
         isSaved: false,
         isPR: false,
         lastWeight: lastSet?.weight_kg, // Stored in KG
@@ -63,10 +125,10 @@ export const useExerciseSets = ({
         lastTimeSeconds: lastSet?.time_seconds,
       };
       const updatedSets = [...prev, newSet];
-      onUpdateSets(exerciseId, updatedSets); // Update global state
+      onUpdateSets(exerciseId, updatedSets);
       return updatedSets;
     });
-  }, [exerciseId, onUpdateSets, currentSessionId]);
+  }, [exerciseId, onUpdateSets, currentSessionId, sets.length]);
 
   const handleInputChange = useCallback((setIndex: number, field: keyof TablesInsert<'set_logs'>, value: string) => {
     setSets(prev => {
@@ -74,7 +136,6 @@ export const useExerciseSets = ({
       let parsedValue: number | null = parseFloat(value);
       if (isNaN(parsedValue)) parsedValue = null;
 
-      // If the field is weight_kg, convert from preferred unit to kg for internal state
       if (field === 'weight_kg' && parsedValue !== null) {
         newSets[setIndex] = {
           ...newSets[setIndex],
@@ -86,7 +147,7 @@ export const useExerciseSets = ({
           [field]: parsedValue
         };
       }
-      onUpdateSets(exerciseId, newSets); // Update global state
+      onUpdateSets(exerciseId, newSets);
       return newSets;
     });
   }, [exerciseId, onUpdateSets, preferredWeightUnit]);
@@ -112,8 +173,8 @@ export const useExerciseSets = ({
       return;
     }
 
-    // Check for Personal Record (PR) before saving
-    let isPR = false;
+    // Check for Personal Record (PR) for this specific set
+    let isSetPR = false;
     const { data: allPreviousSets, error: fetchPreviousError } = await supabase
       .from('set_logs')
       .select('weight_kg, reps, time_seconds')
@@ -127,15 +188,13 @@ export const useExerciseSets = ({
 
       if (exerciseType === 'weight') {
         const currentVolume = (currentSet.weight_kg || 0) * (currentSet.reps || 0);
-        // A new PR if current volume is strictly greater than all previous volumes
-        isPR = relevantPreviousSets.every(prevSet => {
+        isSetPR = relevantPreviousSets.every(prevSet => {
           const prevVolume = (prevSet.weight_kg || 0) * (prevSet.reps || 0);
           return currentVolume > prevVolume;
         });
       } else if (exerciseType === 'timed') {
         const currentTime = currentSet.time_seconds || Infinity;
-        // A new PR if current time is strictly less than all previous times (for timed exercises, lower is better)
-        isPR = relevantPreviousSets.every(prevSet => {
+        isSetPR = relevantPreviousSets.every(prevSet => {
           const prevTime = prevSet.time_seconds || Infinity;
           return currentTime < prevTime;
         });
@@ -145,19 +204,18 @@ export const useExerciseSets = ({
     const setLogData: TablesInsert<'set_logs'> | TablesUpdate<'set_logs'> = {
       session_id: currentSessionId,
       exercise_id: exerciseId,
-      weight_kg: currentSet.weight_kg, // Already in KG due to handleInputChange
+      weight_kg: currentSet.weight_kg,
       reps: currentSet.reps,
       reps_l: currentSet.reps_l,
       reps_r: currentSet.reps_r,
       time_seconds: currentSet.time_seconds,
-      is_pb: isPR, // Save the calculated PR status
+      is_pb: isSetPR,
     };
 
     let error;
     let data;
 
     if (currentSet.id) {
-      // Update existing set
       const result = await supabase
         .from('set_logs')
         .update(setLogData as TablesUpdate<'set_logs'>)
@@ -167,7 +225,6 @@ export const useExerciseSets = ({
       error = result.error;
       data = result.data;
     } else {
-      // Insert new set
       const result = await supabase.from('set_logs').insert([setLogData as TablesInsert<'set_logs'>]).select().single();
       error = result.error;
       data = result.data;
@@ -181,25 +238,31 @@ export const useExerciseSets = ({
         const updatedSets = [...prev];
         updatedSets[setIndex] = {
           ...updatedSets[setIndex],
-          ...data, // Update with actual data from DB (e.g., id, created_at)
+          ...data,
           isSaved: true,
-          isPR: isPR,
+          isPR: isSetPR,
         };
-        onUpdateSets(exerciseId, updatedSets); // Update global state
+        onUpdateSets(exerciseId, updatedSets);
         return updatedSets;
       });
       toast.success("Set saved successfully!");
-      if (isPR) {
-        toast.success(`New Personal Record for ${exerciseType === 'weight' ? 'Volume' : 'Time'}!`);
+      if (isSetPR) {
+        toast.success(`New Personal Record for this set!`);
+      }
+
+      // If this is the very first set saved in the entire workout, update session_date
+      if (!hasFirstSetBeenSaved) {
+        onFirstSetSaved(data.created_at);
+        setHasFirstSetBeenSaved(true);
       }
     }
-  }, [currentSessionId, exerciseId, exerciseType, exerciseCategory, sets, supabase, onUpdateSets]);
+  }, [currentSessionId, exerciseId, exerciseType, exerciseCategory, sets, supabase, onUpdateSets, hasFirstSetBeenSaved, onFirstSetSaved]);
 
   const handleEditSet = useCallback((setIndex: number) => {
     setSets(prev => {
       const updatedSets = [...prev];
       updatedSets[setIndex] = { ...updatedSets[setIndex], isSaved: false };
-      onUpdateSets(exerciseId, updatedSets); // Update global state
+      onUpdateSets(exerciseId, updatedSets);
       return updatedSets;
     });
   }, [exerciseId, onUpdateSets]);
@@ -207,7 +270,6 @@ export const useExerciseSets = ({
   const handleDeleteSet = useCallback(async (setIndex: number) => {
     const setToDelete = sets[setIndex];
     if (!setToDelete.id) {
-      // If it's a new unsaved set, just remove from UI
       setSets(prev => {
         const updatedSets = prev.filter((_, i) => i !== setIndex);
         onUpdateSets(exerciseId, updatedSets);
@@ -231,12 +293,80 @@ export const useExerciseSets = ({
     } else {
       setSets(prev => {
         const updatedSets = prev.filter((_, i) => i !== setIndex);
-        onUpdateSets(exerciseId, updatedSets); // Update global state
+        onUpdateSets(exerciseId, updatedSets);
         return updatedSets;
       });
       toast.success("Set deleted successfully!");
     }
   }, [exerciseId, sets, supabase, onUpdateSets]);
+
+  const handleSaveExercise = useCallback(async (): Promise<boolean> => {
+    if (!currentSessionId) {
+      toast.error("Workout session not started. Please refresh.");
+      return false;
+    }
+
+    // Ensure all sets are saved before marking exercise complete
+    const unsavedSets = sets.filter(set => !set.isSaved && (set.weight_kg || set.reps || set.time_seconds || set.reps_l || set.reps_r));
+    if (unsavedSets.length > 0) {
+      toast.error("Please save all sets before completing the exercise.");
+      return false;
+    }
+
+    let currentExercisePRValue: number | null = null;
+    if (exerciseType === 'weight') {
+      currentExercisePRValue = sets.reduce((totalVolume, set) => totalVolume + ((set.weight_kg || 0) * (set.reps || 0)), 0);
+    } else if (exerciseType === 'timed') {
+      // For timed, lower is better, so find the minimum time
+      const validTimes = sets.map(set => set.time_seconds).filter((time): time is number => time !== null);
+      currentExercisePRValue = validTimes.length > 0 ? Math.min(...validTimes) : null;
+    }
+
+    let isNewPR = false;
+    if (currentExercisePRValue !== null) {
+      if (!exercisePR) {
+        // No previous PR, so this is a new PR
+        isNewPR = true;
+      } else if (exerciseType === 'weight' && exercisePR.best_volume_kg !== null) {
+        isNewPR = currentExercisePRValue > exercisePR.best_volume_kg;
+      } else if (exerciseType === 'timed' && exercisePR.best_time_seconds !== null) {
+        isNewPR = currentExercisePRValue < exercisePR.best_time_seconds; // Lower time is better
+      } else {
+        // Previous PR exists but is null for the current type, so this is a new PR
+        isNewPR = true;
+      }
+    }
+
+    try {
+      if (isNewPR) {
+        const prData: UserExercisePRInsert | UserExercisePRUpdate = {
+          user_id: (await supabase.auth.getUser()).data.user?.id || '',
+          exercise_id: exerciseId,
+          last_achieved_date: new Date().toISOString(),
+          best_volume_kg: exerciseType === 'weight' ? currentExercisePRValue : null,
+          best_time_seconds: exerciseType === 'timed' ? currentExercisePRValue : null,
+        };
+
+        const { error: upsertError, data: updatedPR } = await supabase
+          .from('user_exercise_prs')
+          .upsert(prData, { onConflict: 'user_id,exercise_id' })
+          .select()
+          .single();
+
+        if (upsertError) throw upsertError;
+        setExercisePR(updatedPR as UserExercisePR);
+        toast.success(`New Exercise Personal Record for ${exercise.name}!`);
+      }
+
+      await onExerciseComplete(exerciseId, isNewPR); // Notify parent component
+      toast.success(`${exercise.name} completed!`);
+      return true;
+    } catch (err: any) {
+      console.error("Error saving exercise completion or PR:", err);
+      toast.error("Failed to complete exercise: " + err.message);
+      return false;
+    }
+  }, [currentSessionId, sets, exerciseType, exerciseCategory, exercisePR, exerciseId, supabase, onExerciseComplete, exercise.name]);
 
   return {
     sets,
@@ -245,5 +375,8 @@ export const useExerciseSets = ({
     handleSaveSet,
     handleEditSet,
     handleDeleteSet,
+    handleSaveExercise,
+    exercisePR,
+    loadingPR,
   };
 };
