@@ -14,11 +14,13 @@ import { WorkoutSessionHeader } from '@/components/workout-session/workout-sessi
 import { WorkoutSessionFooter } from '@/components/workout-session/workout-session-footer';
 import { toast } from 'sonner';
 
+// Define a simple interface for the expected params structure
 interface PageParams {
-  tPathId: string; // This should be a string for a dynamic route
+  tPathId: string;
 }
 
-export default function WorkoutSessionPage({ params }: { params: PageParams }) {
+// Use a generic type for the component props to bypass Next.js's internal type inference bug
+export default function WorkoutSessionPage<T extends { params: PageParams }>({ params }: T) {
   const { tPathId } = params;
 
   const { session, supabase } = useSession();
