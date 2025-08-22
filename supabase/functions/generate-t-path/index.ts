@@ -55,7 +55,7 @@ const rawCsvData = [
   { name: 'Chest-Supported Row', main_muscle: 'Back, Biceps', type: 'weight', category: 'Bilateral', description: 'Lie face down on an incline bench holding dumbbells with your arms extended. Row the dumbbells up by pulling your elbows back and squeezing your shoulder blades together.', pro_tip: 'Keep your chest glued to the bench throughout the entire set. This removes all momentum and forces your back muscles to do 100% of the work.', video_url: 'https://www.youtube.com/embed/LuWGKt8B_7o', workout_name: 'Upper Body B', min_session_minutes: 30, bonus_for_time_group: 15 },
   { name: 'Pec Deck Fly', main_muscle: 'Chest', type: 'weight', category: 'Bilateral', description: 'Sit in the machine with your back flat against the pad. Place your forearms on the pads or grab the handles. Squeeze your chest to bring the handles together in front of you.', pro_tip: 'Imagine you have a pen in the middle of your chest that you are trying to squeeze with your pecs on every single repetition. This mind-muscle connection is key.', video_url: 'https://www.youtube.com/embed/jiitI2ma3J4', workout_name: 'Upper Body B', min_session_minutes: 30, bonus_for_time_group: 15 },
   { name: 'Rear Delt Fly', main_muscle: 'Shoulders', type: 'weight', category: 'Bilateral', description: 'Using a pec deck machine in reverse, or dumbbells while bent over. Move your arms back and out in a wide arc, focusing on squeezing your rear shoulder muscles and upper back.', pro_tip: 'Keep a slight bend in your elbows and think of leading with your pinky fingers. This helps to minimize tricep and lat involvement and isolate the rear delts.', video_url: 'https://www.youtube.com/embed/1jpBatm8RYw', workout_name: 'Upper Body B', min_session_minutes: 45, bonus_for_time_group: 30 },
-  { name: 'Assisted Dips', main_muscle: 'Triceps, Chest', type: 'weight', category: 'Bilateral', description: 'Set the machine\'s assistance level. Place your hands on the bars and your knees on the pad. Lower your body until your elbows are at a 90-degree angle, then press back up.', pro_tip: 'To target your chest, lean your torso forward. To target your triceps, keep your torso as upright and vertical as possible throughout the movement.', video_url: 'https://www.youtube.com/embed/kbmVlw-i0Vs', workout_name: 'Upper Body B', min_session_minutes: 45, bonus_for_time_group: 30 },
+  { name: 'Assisted Dips', main_muscle: 'Triceps, Chest', type: 'weight', category: 'Bilateral', description: 'Set the machine\'s assistance level. Place your hands on the bars and your knees on the pad. Lower your body until your elbows are at a 90-degree angle, then press back up.', pro_tip: 'To target your chest, lean your torso forward. To target your triceps, keep your torso as upright and vertical as possible.', video_url: 'https://www.youtube.com/embed/kbmVlw-i0Vs', workout_name: 'Upper Body B', min_session_minutes: 45, bonus_for_time_group: 30 },
   { name: 'Kneeling Single-Arm Row', main_muscle: 'Back, Biceps', type: 'weight', category: 'Unilateral', description: 'Kneel with one knee on a bench, placing your hand on the bench for support. Grab a dumbbell with your free hand and pull it up towards your hip, keeping your back straight.', pro_tip: 'Initiate the pull by retracting your scapula (pulling your shoulder blade back) before your arm even starts to bend. This ensures your back muscles are doing the work, not just your bicep.', video_url: 'https://www.youtube.com/embed/pYcpY20QaE8', workout_name: 'Upper Body B', min_session_minutes: 60, bonus_for_time_group: 45 },
   { name: 'Cable Bicep Curl', main_muscle: 'Biceps', type: 'weight', category: 'Unilateral', description: 'Stand facing a cable machine with a straight or EZ bar attached to the low pulley. Grab the bar and perform a bicep curl, keeping your elbows locked at your sides.', pro_tip: 'Take a step back from the machine. This ensures there is tension on the bicep throughout the entire range of motion, even at the very bottom of the rep.', video_url: 'https://www.youtube.com/embed/NFzTWp2qpiE', workout_name: 'Upper Body B', min_session_minutes: 60, bonus_for_time_group: 45 },
   { name: 'Tricep Rope Pushdown', main_muscle: 'Triceps', type: 'weight', category: 'Bilateral', description: 'Attach a rope to a high pulley. Grab the rope and push down until your arms are fully extended. At the bottom, pull the rope ends apart.', pro_tip: 'Keep your elbows pinned to your sides as if they were on a hinge. Do not let them drift forward as you push down; this turns the exercise into a chest press.', video_url: 'https://www.youtube.com/embed/2-LAMcpzODU', workout_name: 'Upper Body B', min_session_minutes: 60, bonus_for_time_group: 45 },
@@ -234,7 +234,7 @@ const upsertWorkoutExerciseStructure = async (supabaseServiceRoleClient: any) =>
     const { error: upsertError } = await supabaseServiceRoleClient
       .from('workout_exercise_structure')
       .upsert({
-        exercise_library_id: ws.exercise_library_id, // Corrected property name
+        exercise_library_id: ws.exercise_library_id,
         workout_split: ws.workout_split,
         workout_name: ws.workout_name,
         min_session_minutes: ws.min_session_minutes,
@@ -242,7 +242,7 @@ const upsertWorkoutExerciseStructure = async (supabaseServiceRoleClient: any) =>
       }, { onConflict: 'exercise_library_id,workout_split,workout_name' });
 
     if (upsertError) {
-      console.error(`Error upserting workout structure entry for ${ws.exercise_library_id} in ${ws.workout_name}:`, upsertError.message); // Corrected property name
+      console.error(`Error upserting workout structure entry for ${ws.exercise_library_id} in ${ws.workout_name}:`, upsertError.message);
       throw upsertError;
     }
   }
@@ -250,13 +250,14 @@ const upsertWorkoutExerciseStructure = async (supabaseServiceRoleClient: any) =>
 };
 
 // Helper function to clean up existing child workouts
-const cleanupExistingChildWorkouts = async (supabaseServiceRoleClient: any, tPathId: string) => {
-  console.log('Starting cleanup of existing child workouts...');
+const cleanupExistingChildWorkouts = async (supabaseServiceRoleClient: any, tPathId: string, userId: string) => {
+  console.log(`Starting cleanup of existing child workouts for parent T-Path ID: ${tPathId} and user: ${userId}`);
   const { data: existingChildWorkouts, error: fetchChildWorkoutsError } = await supabaseServiceRoleClient
     .from('t_paths')
     .select('id')
     .eq('parent_t_path_id', tPathId)
-    .eq('is_bonus', true); // Ensure we only target child workouts
+    .eq('is_bonus', true)
+    .eq('user_id', userId); // Added user_id filter for safety
 
   if (fetchChildWorkoutsError) {
     console.error('Error fetching existing child workouts for cleanup:', fetchChildWorkoutsError.message);
@@ -320,7 +321,7 @@ serve(async (req: Request) => {
     console.log(`User authenticated: ${user.id}`);
 
     const { tPathId } = await req.json();
-    console.log(`Received tPathId: ${tPathId}`);
+    console.log(`Received tPathId (main T-Path ID): ${tPathId}`);
 
     // --- Step 1: Ensure exercise_definitions and workout_exercise_structure are populated ---
     await upsertExerciseDefinitions(supabaseServiceRoleClient);
@@ -331,22 +332,23 @@ serve(async (req: Request) => {
     let preferredSessionLength: string | null | undefined;
 
     try {
-      console.log(`Fetching T-Path with ID ${tPathId}...`);
+      console.log(`Fetching main T-Path with ID ${tPathId}...`);
       const { data: tPathData, error: tPathError } = await supabaseServiceRoleClient
         .from('t_paths')
         .select('id, template_name, settings, user_id')
         .eq('id', tPathId)
+        .eq('user_id', user.id) // Ensure the main T-Path belongs to the user
         .single();
 
       if (tPathError) {
-        console.error(`Error fetching T-Path with ID ${tPathId}:`, tPathError.message);
+        console.error(`Error fetching main T-Path with ID ${tPathId}:`, tPathError.message);
         throw tPathError;
       }
       if (!tPathData) {
-        throw new Error('T-Path not found in database.');
+        throw new Error('Main T-Path not found in database or does not belong to user.');
       }
       tPath = tPathData;
-      console.log(`Fetched T-Path: ${JSON.stringify(tPath)}`);
+      console.log(`Fetched main T-Path: ${JSON.stringify(tPath)}`);
 
       console.log(`Fetching profile for user ID: ${user.id}`);
       const { data: profileData, error: profileError } = await supabaseServiceRoleClient
@@ -395,7 +397,7 @@ serve(async (req: Request) => {
 
     // --- Cleanup existing child workouts for this T-Path ---
     console.log(`Attempting to clean up existing child workouts for parent T-Path ID: ${tPath.id}`);
-    await cleanupExistingChildWorkouts(supabaseServiceRoleClient, tPath.id);
+    await cleanupExistingChildWorkouts(supabaseServiceRoleClient, tPath.id, user.id); // Pass user.id
     console.log(`Cleanup of existing child workouts for parent T-Path ID: ${tPath.id} completed.`);
 
     // Create workouts for this T-Path
@@ -405,7 +407,7 @@ serve(async (req: Request) => {
       try {
         const { data: rawStructureEntries, error: structureError } = await supabaseServiceRoleClient
           .from('workout_exercise_structure')
-          .select('exercise_library_id, min_session_minutes, bonus_for_time_group') // Specify columns
+          .select('exercise_library_id, min_session_minutes, bonus_for_time_group')
           .eq('workout_split', workoutSplit)
           .eq('workout_name', workoutName)
           .order('min_session_minutes', { ascending: true, nullsFirst: false })
@@ -415,7 +417,7 @@ serve(async (req: Request) => {
           console.error(`Error fetching raw workout structure for ${workoutName}:`, structureError.message);
           throw structureError;
         }
-        console.log(`Fetched ${rawStructureEntries?.length || 0} structure entries for ${workoutName}.`);
+        console.log(`Fetched ${rawStructureEntries?.length || 0} structure entries for ${workoutName}. Raw entries: ${JSON.stringify(rawStructureEntries)}`);
 
         const exercisesToInclude = [];
         let mainExerciseCount = 0;
@@ -424,7 +426,7 @@ serve(async (req: Request) => {
         for (const entry of rawStructureEntries || []) {
           const { data: exerciseDefData, error: exerciseDefError } = await supabaseServiceRoleClient
             .from('exercise_definitions')
-            .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id') // Specify columns
+            .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id')
             .eq('library_id', entry.exercise_library_id)
             .single();
 
@@ -455,8 +457,7 @@ serve(async (req: Request) => {
             isBonus = true;
             orderCriteriaValue = entry.bonus_for_time_group;
             console.log(`  Exercise: ${actualExercise.name}, Type: Bonus, bonus_for_time_group: ${orderCriteriaValue}, maxAllowedMinutes: ${maxAllowedMinutes}`);
-            // Changed condition for bonus exercises to be strictly less than maxAllowedMinutes
-            if (orderCriteriaValue !== null && orderCriteriaValue <= maxAllowedMinutes) { // Changed from < to <=
+            if (orderCriteriaValue !== null && orderCriteriaValue <= maxAllowedMinutes) {
               includeExercise = true;
             }
           }
@@ -470,7 +471,7 @@ serve(async (req: Request) => {
             });
             if (isBonus) bonusExerciseCount++;
             else mainExerciseCount++;
-            console.log(`    -> Included: ${actualExercise.name}`);
+            console.log(`    -> Included: ${actualExercise.name} (ID: ${actualExercise.id})`);
           } else {
             console.log(`    -> Excluded: ${actualExercise.name}`);
           }
@@ -483,7 +484,7 @@ serve(async (req: Request) => {
           return a.is_bonus_exercise ? 1 : -1;
         });
 
-        console.log(`Workout ${workoutName}: ${mainExerciseCount} main exercises, ${bonusExerciseCount} bonus exercises selected. Total: ${exercisesToInclude.length}`);
+        console.log(`Workout ${workoutName}: ${mainExerciseCount} main exercises, ${bonusExerciseCount} bonus exercises selected. Total: ${exercisesToInclude.length}. Exercises to include: ${JSON.stringify(exercisesToInclude)}`);
 
         if (exercisesToInclude.length === 0) {
           console.warn(`No exercises selected for workout ${workoutName} based on session length ${maxAllowedMinutes}. Skipping workout creation.`);
@@ -501,7 +502,7 @@ serve(async (req: Request) => {
             version: 1,
             settings: tPathSettings
           })
-          .select('id') // Specify columns
+          .select('id')
           .single();
 
         if (workoutError) {
@@ -522,7 +523,7 @@ serve(async (req: Request) => {
         }));
 
         if (tPathExercisesToInsert.length > 0) {
-          console.log(`Inserting ${tPathExercisesToInsert.length} exercises for workout ${workoutName}...`);
+          console.log(`Inserting ${tPathExercisesToInsert.length} exercises for workout ${workoutName}. Data: ${JSON.stringify(tPathExercisesToInsert)}`);
           const { error: insertTPathExercisesError } = await supabaseServiceRoleClient
             .from('t_path_exercises')
             .insert(tPathExercisesToInsert);
@@ -538,6 +539,8 @@ serve(async (req: Request) => {
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         console.error(`Error creating workout ${workoutName} or its exercises: ${errorMessage}`);
+        // Do not re-throw here, allow other workouts to be processed if one fails
+        // Or, if we want strict failure, re-throw. For now, let's re-throw to ensure full success.
         throw err;
       }
     }
@@ -552,7 +555,7 @@ serve(async (req: Request) => {
     console.error('Unhandled error in generate-t-path edge function:', errorMessage);
     return new Response(
       JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application' } }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
