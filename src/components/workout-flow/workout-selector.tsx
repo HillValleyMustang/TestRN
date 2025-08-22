@@ -8,15 +8,18 @@ import { PlusCircle, Dumbbell, CalendarDays } from 'lucide-react';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { formatDistanceToNowStrict } from 'date-fns';
-import { cn, getWorkoutColorClass, getMaxMinutes } from '@/lib/utils';
+import { cn, getWorkoutColorClass } from '@/lib/utils';
 
 type TPath = Tables<'t_paths'>;
-type Profile = Tables<'profiles'>;
 
 interface WorkoutWithLastCompleted extends TPath {
   last_completed_at: string | null;
+}
+
+interface GroupedTPath {
+  mainTPath: TPath;
+  childWorkouts: WorkoutWithLastCompleted[];
 }
 
 interface WorkoutSelectorProps {
@@ -26,12 +29,12 @@ interface WorkoutSelectorProps {
 
 export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutSelectorProps) => {
   const { session, supabase } = useSession();
-  const [activeMainTPath, setActiveMainTPath] = useState<TPath | null>(null);
-  const [childWorkouts, setChildWorkouts] = useState<WorkoutWithLastCompleted[]>([]);
+  const [groupedTPaths, setGroupedTPaths] = useState<GroupedTPath[]>([]);
   const [loading, setLoading] = useState(true);
   const [nextRecommendedWorkoutId, setNextRecommendedWorkoutId] = useState<string | null>(null);
+  const [activeMainTPathId, setActiveMainTPathId] = useState<string | null>(null);
 
-  const fetchActiveTPathAndWorkouts = useCallback(async () => {
+  const fetchWorkoutsAndProfile = useCallback(async () => {
     if (!session) return;
     setLoading(true);
     try {
@@ -45,44 +48,29 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
       if (profileError && profileError.code !== 'PGRST116') {
         throw profileError;
       }
+      setActiveMainTPathId(profileData?.active_t_path_id || null);
 
-      const activeTPathId = profileData?.active_t_path_id;
-
-      if (!activeTPathId) {
-        setActiveMainTPath(null);
-        setChildWorkouts([]);
-        setLoading(false);
-        return;
-      }
-
-      // 2. Fetch the specific active main T-Path
-      const { data: mainTPath, error: mainTPathError } = await supabase
+      // 2. Fetch all main T-Paths for the user
+      const { data: mainTPathsData, error: mainTPathsError } = await supabase
         .from('t_paths')
         .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
-        .eq('id', activeTPathId)
         .eq('user_id', session.user.id)
-        .is('parent_t_path_id', null) // Ensure it's a main T-Path
-        .single();
+        .is('parent_t_path_id', null)
+        .order('created_at', { ascending: true });
 
-      if (mainTPathError || !mainTPath) {
-        console.error("Active T-Path not found or invalid:", mainTPathError);
-        setActiveMainTPath(null);
-        setChildWorkouts([]);
-        setLoading(false);
-        return;
-      }
-      setActiveMainTPath(mainTPath);
+      if (mainTPathsError) throw mainTPathsError;
 
-      // 3. Fetch child workouts for the active main T-Path
-      const { data: workouts, error: workoutsError } = await supabase
+      // 3. Fetch all child workouts for the user
+      const { data: childWorkoutsData, error: childWorkoutsError } = await supabase
         .from('t_paths')
         .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
-        .eq('parent_t_path_id', mainTPath.id)
+        .eq('user_id', session.user.id)
+        .eq('is_bonus', true)
         .order('template_name', { ascending: true });
 
-      if (workoutsError) throw workoutsError;
+      if (childWorkoutsError) throw childWorkoutsError;
 
-      const workoutsWithLastDate = await Promise.all((workouts as TPath[] || []).map(async (workout) => {
+      const workoutsWithLastDatePromises = (childWorkoutsData as TPath[] || []).map(async (workout) => {
         const { data: lastSessionDate, error: lastSessionError } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
         
         if (lastSessionError) {
@@ -93,18 +81,31 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
           ...workout,
           last_completed_at: lastSessionDate && lastSessionDate.length > 0 ? lastSessionDate[0].session_date : null,
         };
+      });
+
+      const allChildWorkoutsWithLastDate = await Promise.all(workoutsWithLastDatePromises);
+
+      // Group child workouts under their respective main T-Paths
+      const newGroupedTPaths: GroupedTPath[] = (mainTPathsData as TPath[] || []).map(mainTPath => ({
+        mainTPath,
+        childWorkouts: allChildWorkoutsWithLastDate.filter(cw => cw.parent_t_path_id === mainTPath.id),
       }));
 
-      setChildWorkouts(workoutsWithLastDate);
+      setGroupedTPaths(newGroupedTPaths);
 
-      // Determine next recommended workout (e.g., least recently completed)
-      if (workoutsWithLastDate.length > 0) {
-        const sortedByLastCompleted = [...workoutsWithLastDate].sort((a, b) => {
-          const dateA = a.last_completed_at ? new Date(a.last_completed_at).getTime() : 0;
-          const dateB = b.last_completed_at ? new Date(b.last_completed_at).getTime() : 0;
-          return dateA - dateB; // Ascending order, so least recent is first
-        });
-        setNextRecommendedWorkoutId(sortedByLastCompleted[0].id);
+      // Determine next recommended workout (least recently completed within the active main T-Path)
+      if (activeMainTPathId) {
+        const activePathWorkouts = allChildWorkoutsWithLastDate.filter(cw => cw.parent_t_path_id === activeMainTPathId);
+        if (activePathWorkouts.length > 0) {
+          const sortedByLastCompleted = [...activePathWorkouts].sort((a, b) => {
+            const dateA = a.last_completed_at ? new Date(a.last_completed_at).getTime() : 0;
+            const dateB = b.last_completed_at ? new Date(b.last_completed_at).getTime() : 0;
+            return dateA - dateB; // Ascending order, so least recent is first
+          });
+          setNextRecommendedWorkoutId(sortedByLastCompleted[0].id);
+        } else {
+          setNextRecommendedWorkoutId(null);
+        }
       } else {
         setNextRecommendedWorkoutId(null);
       }
@@ -118,17 +119,17 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
   }, [session, supabase]);
 
   useEffect(() => {
-    fetchActiveTPathAndWorkouts();
-  }, [fetchActiveTPathAndWorkouts]);
+    fetchWorkoutsAndProfile();
+  }, [fetchWorkoutsAndProfile]);
 
   const formatLastCompleted = (dateString: string | null) => {
     if (!dateString) return 'Never completed';
     const date = new Date(dateString);
-    return `${formatDistanceToNowStrict(date, { addSuffix: true })} ago`;
+    return `Last: ${formatDistanceToNowStrict(date, { addSuffix: true })}`;
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <Card
         className={cn(
           "cursor-pointer hover:bg-accent transition-colors",
@@ -147,67 +148,65 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
         </CardHeader>
       </Card>
 
-      <h3 className="text-xl font-semibold pt-4">Your Active Path</h3>
+      <h3 className="text-xl font-semibold">Your Transformation Paths</h3>
 
-      <div className="space-y-2">
+      <div className="space-y-4">
         {loading ? (
           <>
-            <Skeleton className="h-20" />
-            <Skeleton className="h-20" />
-            <Skeleton className="h-20" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
           </>
-        ) : !activeMainTPath ? (
+        ) : groupedTPaths.length === 0 ? (
           <p className="text-muted-foreground text-center py-4">
-            You haven't selected an active Transformation Path yet. Please go to your <a href="/profile" className="text-primary underline">Profile Settings</a> to choose one.
+            You haven't created any Transformation Paths yet. Go to <a href="/manage-t-paths" className="text-primary underline">Manage T-Paths</a> to create one.
           </p>
         ) : (
-          <Card key={activeMainTPath.id} className="w-full">
-            <Accordion type="single" collapsible defaultValue={activeMainTPath.id} className="w-full">
-              <AccordionItem value={activeMainTPath.id}>
-                <AccordionTrigger className="flex items-center justify-between w-full p-6 text-lg font-semibold hover:no-underline data-[state=open]:border-b">
-                  <div className="flex items-center">
-                    <Dumbbell className="h-5 w-5 mr-2" />
-                    {activeMainTPath.template_name}
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="p-6 pt-0">
-                  <div className="grid grid-cols-1 gap-3">
-                    {childWorkouts.length === 0 ? (
-                      <p className="text-muted-foreground text-center py-2">No workouts defined for this path. This may happen if your session length is too short for any workouts.</p>
-                    ) : (
-                      childWorkouts.map(workout => {
-                        const workoutBorderClass = getWorkoutColorClass(workout.template_name, 'border');
-                        const isNextRecommended = workout.id === nextRecommendedWorkoutId;
-                        return (
-                          <Card 
-                            key={workout.id} 
-                            className={cn(
-                              "flex items-center justify-between p-4 border-2 cursor-pointer hover:bg-accent transition-colors",
-                              workoutBorderClass,
-                              selectedWorkoutId === workout.id && "border-primary ring-2 ring-primary",
-                              isNextRecommended && "border-green-500 ring-2 ring-green-500" // Highlight next recommended
-                            )}
-                            onClick={() => onWorkoutSelect(workout.id)}
-                          >
-                            <div>
-                              <CardTitle className="text-base">{workout.template_name}</CardTitle>
-                              <p className="text-sm text-muted-foreground flex items-center gap-1">
-                                <CalendarDays className="h-4 w-4" />
-                                {formatLastCompleted(workout.last_completed_at)}
-                              </p>
-                            </div>
-                            <Button onClick={() => onWorkoutSelect(workout.id)} variant="secondary">
-                              {isNextRecommended ? "Start Next" : "Start"}
-                            </Button>
-                          </Card>
-                        );
-                      })
-                    )}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </Card>
+          groupedTPaths.map(group => (
+            <div key={group.mainTPath.id} className="space-y-3">
+              <h4 className="text-lg font-semibold flex items-center gap-2">
+                <Dumbbell className="h-5 w-5 text-muted-foreground" />
+                {group.mainTPath.template_name}
+                {group.mainTPath.id === activeMainTPathId && (
+                  <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">Active</span>
+                )}
+              </h4>
+              {group.childWorkouts.length === 0 ? (
+                <p className="text-muted-foreground text-sm ml-7">No workouts defined for this path. This may happen if your session length is too short for any workouts.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 ml-7">
+                  {group.childWorkouts.map(workout => {
+                    const workoutBorderClass = getWorkoutColorClass(workout.template_name, 'border');
+                    const isNextRecommended = workout.id === nextRecommendedWorkoutId;
+                    const isSelected = selectedWorkoutId === workout.id;
+
+                    return (
+                      <Card 
+                        key={workout.id} 
+                        className={cn(
+                          "flex flex-col justify-between p-4 border-2 cursor-pointer hover:bg-accent transition-colors",
+                          workoutBorderClass,
+                          isSelected && "border-primary ring-2 ring-primary",
+                          isNextRecommended && "border-green-500 ring-2 ring-green-500"
+                        )}
+                        onClick={() => onWorkoutSelect(workout.id)}
+                      >
+                        <CardTitle className="text-base mb-2">{workout.template_name}</CardTitle>
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm text-muted-foreground">
+                            {formatLastCompleted(workout.last_completed_at)}
+                          </p>
+                          <Button onClick={() => onWorkoutSelect(workout.id)} variant="secondary" size="sm">
+                            {isNextRecommended ? "Start Next" : "Start"}
+                          </Button>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ))
         )}
       </div>
     </div>

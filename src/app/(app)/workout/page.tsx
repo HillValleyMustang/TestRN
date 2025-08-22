@@ -106,7 +106,7 @@ export default function WorkoutPage() {
 
   if (!isWorkoutSelected || !activeWorkout) {
     return (
-      <div className="flex flex-col gap-4 p-4 sm:p-8">
+      <div className="flex flex-col gap-4 p-4 sm:p-6 md:p-8 lg:p-10"> {/* Adjusted padding */}
         <header className="mb-4">
           <h1 className="text-3xl font-bold">Start Your Workout</h1>
           <p className="text-muted-foreground">
@@ -178,7 +178,7 @@ export default function WorkoutPage() {
                   exerciseNumber={index + 1}
                   currentSessionId={currentSessionId}
                   supabase={supabase}
-                  onUpdateGlobalSets={updateExerciseSets} // Passed the new function here
+                  onUpdateGlobalSets={updateExerciseSets} // Corrected to use the exposed function
                   initialSets={exercisesWithSets[exercise.id] || []}
                   onSubstituteExercise={substituteExercise}
                   onRemoveExercise={removeExerciseFromSession}
