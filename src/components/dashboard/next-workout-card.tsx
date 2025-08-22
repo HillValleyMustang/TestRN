@@ -61,7 +61,7 @@ export const NextWorkoutCard = () => {
           .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
           .eq('id', activeMainTPathId)
           .eq('user_id', session.user.id)
-          .is('is_bonus', null) // Main T-Paths have is_bonus as null or false
+          .is('parent_t_path_id', null) // Correctly identify a main T-Path
           .single();
 
         if (mainTPathError || !mainTPathData) {
