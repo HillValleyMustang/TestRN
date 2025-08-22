@@ -16,8 +16,8 @@ import { cn, getWorkoutColorClass } from '@/lib/utils'; // Import cn and getWork
 type TPath = Tables<'t_paths'>;
 type WorkoutSession = Tables<'workout_sessions'>;
 
-interface TPathWithWorkouts extends TPath {
-  workouts: (TPath & { last_completed_at: string | null })[];
+interface TPathWithWorkouts extends Tables<'t_paths'> { // Correctly extend Tables<'t_paths'>
+  workouts: (Tables<'t_paths'> & { last_completed_at: string | null })[]; // Correctly use Tables<'t_paths'>
 }
 
 export default function StartTPathPage() {
