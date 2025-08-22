@@ -170,7 +170,7 @@ export const NextWorkoutCard = () => {
               <span>Estimated {estimatedDuration}</span>
             </div>
           </div>
-          <Button onClick={() => router.push(`/workout-session/${nextWorkout.id}`)} variant="brand" size="lg">
+          <Button onClick={() => router.push(`/workout?workoutId=${nextWorkout.id}`)} variant="brand" size="lg"> {/* Updated path and added query param */}
             Start Workout
           </Button>
         </div>
