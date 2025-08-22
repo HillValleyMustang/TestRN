@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 const navLinks = [
   { href: "/dashboard", label: "Home", icon: Home },
-  { href: "/start-t-path", label: "Workout", icon: Dumbbell }, // Corrected path
+  { href: "/workout", label: "Workout", icon: Dumbbell }, // Updated path
   { href: "/manage-exercises", label: "Exercises", icon: BookOpen },
   { href: "/progress", label: "Progress", icon: BarChart3 },
   { href: "/profile", label: "Profile", icon: User },

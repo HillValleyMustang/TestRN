@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { Home, History, User, BarChart3, Dumbbell, LayoutTemplate } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button"; // Import Button component
+import { Button } from "@/components/ui/button";
 
 const mainNavLinks = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -28,7 +28,6 @@ export function Sidebar() {
           return (
             <Tooltip key={link.href}>
               <TooltipTrigger asChild>
-                {/* Updated Link usage: Link directly wraps Button, no legacyBehavior or explicit <a> */}
                 <Link href={link.href} passHref>
                   <Button
                     variant="ghost"

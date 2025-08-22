@@ -9,8 +9,8 @@ import { UserNav } from "./user-nav";
 import { NotificationBell } from "./notification-bell";
 import { ActivityLoggingDialog } from "../activity-logging-dialog";
 import { StreakPill } from "./streak-pill";
-import { useScrollPosition } from "@/hooks/use-scroll-position"; // Import the new hook
-import { cn } from "@/lib/utils"; // Ensure cn is imported
+import { useScrollPosition } from "@/hooks/use-scroll-position";
+import { cn } from "@/lib/utils";
 
 const mobileNavLinks = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -23,14 +23,14 @@ const mobileNavLinks = [
 
 export function Header() {
   const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
-  const isScrolled = useScrollPosition(); // Use the new hook
+  const isScrolled = useScrollPosition();
 
   return (
     <>
       <header className={cn(
         "sticky top-0 z-30 flex h-14 items-center gap-4 border-b px-4 sm:static sm:h-auto sm:border-0 sm:px-6",
-        "transition-all duration-300 ease-in-out", // Smooth transition
-        isScrolled ? "bg-background/80 backdrop-blur-md border-b-transparent" : "bg-background border-b" // Apply glassmorphism on scroll
+        "transition-all duration-300 ease-in-out",
+        isScrolled ? "bg-background/80 backdrop-blur-md border-b-transparent" : "bg-background border-b"
       )}>
         <Sheet>
           <SheetTrigger asChild>
@@ -53,7 +53,7 @@ export function Header() {
               ))}
               <hr className="my-2" />
               <Link
-                href="/start-t-path"
+                href="/workout" // Updated path
                 className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
               >
                 <Dumbbell className="h-5 w-5" />

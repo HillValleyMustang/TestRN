@@ -14,11 +14,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from 'sonner';
-import { Profile as ProfileType, ProfileUpdate, Tables } from '@/types/supabase'; // Use alias for Profile
+import { Profile as ProfileType, ProfileUpdate, Tables } from '@/types/supabase';
 import { TPathSwitcher } from '@/components/t-path-switcher';
-import { LoadingOverlay } from '@/components/loading-overlay'; // Import the new component
+import { LoadingOverlay } from '@/components/loading-overlay';
 
-type Profile = ProfileType; // Use the aliased type
+type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
 
 const profileSchema = z.object({
@@ -28,11 +28,11 @@ const profileSchema = z.object({
   body_fat_pct: z.coerce.number().min(0, "Body fat percentage must be 0 or greater.").max(100, "Body fat percentage cannot exceed 100.").optional().nullable(),
   primary_goal: z.string().optional().nullable(),
   health_notes: z.string().optional().nullable(),
-  preferred_weight_unit: z.enum(["kg", "lbs"]).optional(), // Allow both kg and lbs
-  preferred_distance_unit: z.enum(["km", "miles"]).optional(), // Allow both km and miles
+  preferred_weight_unit: z.enum(["kg", "lbs"]).optional(),
+  preferred_distance_unit: z.enum(["km", "miles"]).optional(),
   default_rest_time_seconds: z.coerce.number().min(0, "Rest time cannot be negative.").optional().nullable(),
   preferred_muscles: z.string().optional().nullable(),
-  preferred_session_length: z.enum(["15-30", "30-45", "45-60", "60-90"]).optional().nullable(), // New field
+  preferred_session_length: z.enum(["15-30", "30-45", "45-60", "60-90"]).optional().nullable(),
 });
 
 export default function ProfilePage() {
@@ -43,7 +43,7 @@ export default function ProfilePage() {
   const [activeTPathId, setActiveTPathId] = useState<string>('');
   const [activeTPathName, setActiveTPathName] = useState<string | null>(null);
   const [aiCoachUsage, setAiCoachUsage] = useState<{ count: number; lastUsed: string | null }>({ count: 0, lastUsed: null });
-  const [showRegenerationLoading, setShowRegenerationLoading] = useState(false); // New state for loading overlay
+  const [showRegenerationLoading, setShowRegenerationLoading] = useState(false);
 
   const form = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
@@ -54,11 +54,11 @@ export default function ProfilePage() {
       body_fat_pct: null,
       primary_goal: null,
       health_notes: null,
-      preferred_weight_unit: "kg", // Default to kg
-      preferred_distance_unit: "km", // Default to km
-      default_rest_time_seconds: 60, // Default to 60s
+      preferred_weight_unit: "kg",
+      preferred_distance_unit: "km",
+      default_rest_time_seconds: 60,
       preferred_muscles: null,
-      preferred_session_length: "45-60", // Default value
+      preferred_session_length: "45-60",
     },
   });
 
@@ -72,17 +72,16 @@ export default function ProfilePage() {
       setLoading(true);
       const { data, error } = await supabase
         .from('profiles')
-        .select('first_name, last_name, height_cm, weight_kg, body_fat_pct, primary_goal, health_notes, preferred_weight_unit, preferred_distance_unit, default_rest_time_seconds, preferred_muscles, preferred_session_length, active_t_path_id, last_ai_coach_use_at, created_at, full_name, id, target_date, updated_at') // Specify all columns required by Profile
+        .select('first_name, last_name, height_cm, weight_kg, body_fat_pct, primary_goal, health_notes, preferred_weight_unit, preferred_distance_unit, default_rest_time_seconds, preferred_muscles, preferred_session_length, active_t_path_id, last_ai_coach_use_at, created_at, full_name, id, target_date, updated_at')
         .eq('id', session.user.id)
         .single();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
+      if (error && error.code !== 'PGRST116') {
         toast.error("Failed to load profile: " + error.message);
         console.error("Error fetching profile:", error);
       } else if (data) {
-        setProfile(data as Profile); // Cast to the extended Profile type
+        setProfile(data as Profile);
         
-        // Fetch active T-Path name if active_t_path_id exists
         let currentTPathName: string | null = null;
         if (data.active_t_path_id) {
           const { data: tPathData, error: tPathError } = await supabase
@@ -106,17 +105,16 @@ export default function ProfilePage() {
           body_fat_pct: data.body_fat_pct,
           primary_goal: data.primary_goal,
           health_notes: data.health_notes,
-          preferred_weight_unit: data.preferred_weight_unit || "kg", // Use fetched value or default
-          preferred_distance_unit: data.preferred_distance_unit || "km", // Use fetched value or default
+          preferred_weight_unit: data.preferred_weight_unit || "kg",
+          preferred_distance_unit: data.preferred_distance_unit || "km",
           default_rest_time_seconds: data.default_rest_time_seconds || 60,
           preferred_muscles: data.preferred_muscles,
-          preferred_session_length: data.preferred_session_length || "45-60", // Set default if null
+          preferred_session_length: data.preferred_session_length || "45-60",
         });
         
-        // Set AI coach usage info
         if (data.last_ai_coach_use_at) {
           setAiCoachUsage({
-            count: 1, // Simplified
+            count: 1,
             lastUsed: new Date(data.last_ai_coach_use_at).toLocaleString()
           });
         }
@@ -135,7 +133,6 @@ export default function ProfilePage() {
 
     const oldSessionLength = profile?.preferred_session_length;
 
-    // Split preferred name into first and last name
     let firstName = "";
     let lastName = "";
     if (values.preferred_name) {
@@ -144,7 +141,7 @@ export default function ProfilePage() {
       lastName = nameParts.slice(1).join(" ");
     }
 
-    const updateData: ProfileUpdate = { // Use ProfileUpdate type
+    const updateData: ProfileUpdate = {
       first_name: firstName || null,
       last_name: lastName || null,
       height_cm: values.height_cm,
@@ -156,7 +153,7 @@ export default function ProfilePage() {
       preferred_distance_unit: values.preferred_distance_unit,
       default_rest_time_seconds: values.default_rest_time_seconds,
       preferred_muscles: values.preferred_muscles,
-      preferred_session_length: values.preferred_session_length, // Update preferred session length
+      preferred_session_length: values.preferred_session_length,
       updated_at: new Date().toISOString(),
     };
 
@@ -172,10 +169,9 @@ export default function ProfilePage() {
       toast.success("Profile updated successfully!");
       setProfile((prev: Profile | null) => ({ ...prev, ...updateData } as Profile));
 
-      // If session length changed and there's an active T-Path, regenerate workouts
       if (values.preferred_session_length !== oldSessionLength && activeTPathId) {
         toast.info("Session length changed. Regenerating T-Path workouts...");
-        setShowRegenerationLoading(true); // Show loading overlay
+        setShowRegenerationLoading(true);
         try {
           const response = await fetch(`/api/generate-t-path`, {
             method: 'POST',
@@ -190,19 +186,15 @@ export default function ProfilePage() {
             throw new Error('Failed to regenerate T-Path workouts');
           }
           toast.success("T-Path workouts updated successfully!");
-          // Add a small delay before redirecting to allow database changes to propagate
           setTimeout(() => {
-            router.push('/start-t-path'); 
-          }, 1000); // 1 second delay
+            router.push('/workout'); // Redirect to the unified workout page
+          }, 1000);
         } catch (regenError: any) {
           toast.error("Failed to regenerate T-Path workouts: " + regenError.message);
           console.error("Error regenerating T-Path:", regenError);
         } finally {
-          setShowRegenerationLoading(false); // Hide loading overlay
+          setShowRegenerationLoading(false);
         }
-      } else {
-        // If no regeneration, just stay on profile page or redirect to dashboard
-        // For now, let's just stay on the profile page if no regeneration happened
       }
     }
   }
@@ -211,7 +203,6 @@ export default function ProfilePage() {
     if (!session) return;
 
     try {
-      // Update the active_t_path_id in the user's profile
       const { error } = await supabase
         .from('profiles')
         .update({ active_t_path_id: newTPathId })
@@ -220,7 +211,6 @@ export default function ProfilePage() {
       if (error) throw error;
 
       setActiveTPathId(newTPathId);
-      // Re-fetch profile to update activeTPathName
       const { data: tPathData, error: tPathError } = await supabase
         .from('t_paths')
         .select('template_name')
@@ -234,20 +224,14 @@ export default function ProfilePage() {
 
       toast.success("Active T-Path switched successfully!");
 
-      // ********************************************************************
-      // IMPORTANT: After switching the T-Path, we need to regenerate its workouts.
-      // The `generate-t-path` function expects the ID of the *main* T-Path.
-      // The `newTPathId` passed here is the ID of the *main* T-Path.
-      // So, we can directly call the generation API for this newTPathId.
-      // ********************************************************************
-      setShowRegenerationLoading(true); // Show loading overlay for regeneration
+      setShowRegenerationLoading(true);
       const response = await fetch(`/api/generate-t-path`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ tPathId: newTPathId }) // Use the newTPathId here
+        body: JSON.stringify({ tPathId: newTPathId })
       });
 
       if (!response.ok) {
@@ -255,13 +239,13 @@ export default function ProfilePage() {
       }
       toast.success("New T-Path workouts generated successfully!");
       setTimeout(() => {
-        router.push('/start-t-path'); // Redirect to start-t-path to see the new workouts
+        router.push('/workout'); // Redirect to the unified workout page
       }, 1000);
     } catch (err: any) {
       toast.error("Failed to switch T-Path: " + err.message);
       console.error("Error switching T-Path:", err);
     } finally {
-      setShowRegenerationLoading(false); // Hide loading overlay
+      setShowRegenerationLoading(false);
     }
   };
 
@@ -279,7 +263,6 @@ export default function ProfilePage() {
         <h1 className="text-3xl font-bold">My Profile</h1>
       </header>
 
-      {/* Wrap all cards that contain form fields with the FormProvider and form tag */}
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <Card className="max-w-2xl">
@@ -496,7 +479,6 @@ export default function ProfilePage() {
         </form>
       </Form>
 
-      {/* This card is not part of the form submission, so it remains outside */}
       <Card className="max-w-2xl">
         <CardHeader>
           <CardTitle>AI Coach Usage</CardTitle>
