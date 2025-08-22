@@ -9,6 +9,7 @@ import { WeeklyVolumeChart } from '@/components/dashboard/weekly-volume-chart';
 import { NextWorkoutCard } from '@/components/dashboard/next-workout-card';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type Profile = Tables<'profiles'>;
 
@@ -85,8 +86,14 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p>Loading dashboard...</p>
+      <div className="flex flex-col gap-6">
+        <header>
+          <Skeleton className="h-10 w-3/4" />
+          <Skeleton className="h-4 w-1/2 mt-2" />
+        </header>
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-80 w-full" />
       </div>
     );
   }
@@ -96,22 +103,15 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <header>
-        <h1 className="text-3xl font-bold">Welcome Back, {welcomeName}</h1>
-        <p className="text-muted-foreground">Ready to Train? Let's get Started!</p>
+        <h1 className="text-4xl font-bold tracking-tight">Welcome Back, {welcomeName}</h1>
+        <p className="text-muted-foreground mt-2">Ready to Train? Let's get Started!</p>
       </header>
 
       <NextWorkoutCard />
-
-      <div className="grid gap-8 lg:grid-cols-3">
-        <div className="lg:col-span-1">
-          <ActionHub />
-        </div>
-        <div className="lg:col-span-2">
-          <WeeklyVolumeChart />
-        </div>
-      </div>
+      <ActionHub />
+      <WeeklyVolumeChart />
 
       <MadeWithDyad />
     </div>

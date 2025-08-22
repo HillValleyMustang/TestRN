@@ -7,8 +7,9 @@
  * Then, ensure other generated files (json, tables, enums) are consistent.
  */
 
-// Re-export generated Supabase types for convenience
-export type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums } from "./supabase-generated";
+// Import generated Supabase types to be used and re-exported
+import type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums } from "./supabase-generated";
+export type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums };
 
 // --- Custom Types ---
 // These are application-specific types that extend or combine Supabase-generated types.

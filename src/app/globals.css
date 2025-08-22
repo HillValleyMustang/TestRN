@@ -37,6 +37,9 @@
 
     --destructive-foreground: 0 0% 98%;
 
+    --action-primary: 217 91% 60%; /* Electric Blue */
+    --action-primary-foreground: 0 0% 100%;
+
     --border: 0 0% 89.8%;
 
     --input: 0 0% 89.8%;
@@ -146,6 +149,9 @@
     --destructive: 0 62.8% 30.6%;
 
     --destructive-foreground: 0 0% 98%;
+
+    --action-primary: 217 91% 60%;
+    --action-primary-foreground: 0 0% 100%;
 
     --border: 0 0% 14.9%;
 

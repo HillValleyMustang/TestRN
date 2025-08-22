@@ -152,10 +152,10 @@ export const NextWorkoutCard = () => {
     );
   }
 
-  const workoutColorClass = getWorkoutColorClass(nextWorkout.template_name, 'text');
+  const workoutBorderClass = getWorkoutColorClass(nextWorkout.template_name, 'border');
 
   return (
-    <Card>
+    <Card className={cn(workoutBorderClass)}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Dumbbell className="h-5 w-5" />
@@ -165,13 +165,13 @@ export const NextWorkoutCard = () => {
       <CardContent>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h3 className={cn("text-lg font-semibold", workoutColorClass)}>{nextWorkout.template_name}</h3>
+            <h3 className="text-lg font-semibold">{nextWorkout.template_name}</h3>
             <div className="flex items-center gap-1 text-muted-foreground">
               <Clock className="h-4 w-4" />
               <span>Estimated {estimatedDuration}</span>
             </div>
           </div>
-          <Button onClick={() => router.push(`/workout-session/${nextWorkout.id}`)}>
+          <Button onClick={() => router.push(`/workout-session/${nextWorkout.id}`)} variant="brand" size="lg">
             Start Workout
           </Button>
         </div>
