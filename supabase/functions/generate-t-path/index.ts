@@ -469,14 +469,18 @@ serve(async (req: Request) => {
           }
 
           const actualExercise = exerciseDefData;
+          const minSession = entry.min_session_minutes;
+          const bonusSession = entry.bonus_for_time_group;
 
-          // ** THE FIX: Simplified and corrected inclusion logic **
-          const inclusionThreshold = entry.min_session_minutes;
-          console.log(`  Exercise: ${actualExercise.name}, inclusionThreshold: ${inclusionThreshold}, maxAllowedMinutes: ${maxAllowedMinutes}`);
+          const isIncludedAsMain = minSession !== null && maxAllowedMinutes >= minSession;
+          const isIncludedAsBonus = bonusSession !== null && maxAllowedMinutes >= bonusSession;
 
-          if (inclusionThreshold !== null && inclusionThreshold <= maxAllowedMinutes) {
-            const isBonus = entry.bonus_for_time_group !== null;
-            const orderCriteriaValue = isBonus ? entry.bonus_for_time_group : entry.min_session_minutes;
+          console.log(`  Exercise: ${actualExercise.name}, minSession: ${minSession}, bonusSession: ${bonusSession}, maxAllowedMinutes: ${maxAllowedMinutes}`);
+
+          if (isIncludedAsMain || isIncludedAsBonus) {
+            // An exercise is a bonus if it's included, but NOT as a main exercise.
+            const isBonus = isIncludedAsBonus && !isIncludedAsMain;
+            const orderCriteriaValue = isBonus ? bonusSession : minSession;
 
             exercisesToInclude.push({
               exercise_id: actualExercise.id,

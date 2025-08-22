@@ -37,7 +37,7 @@ interface UserExerciseListProps {
   editingExercise: FetchedExerciseDefinition | null;
   onCancelEdit: () => void;
   onSaveSuccess: () => void;
-  exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean }[]>;
+  exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>;
   onRemoveFromWorkout: (workoutId: string, exerciseId: string) => void;
   onToggleFavorite: (exercise: FetchedExerciseDefinition) => void;
   onAddSuccess: () => void; // Prop to trigger refresh after adding to T-Path
@@ -114,14 +114,20 @@ export const UserExerciseList = ({
                           </span>
                         </span>
                         {exerciseWorkoutsMap[ex.id]?.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1">
+                          <div className="mt-2 flex flex-wrap gap-2">
                             {exerciseWorkoutsMap[ex.id].map(workout => (
-                              <WorkoutBadge 
-                                key={workout.id} 
-                                workoutName={workout.name}
-                              >
-                                {workout.name}
-                              </WorkoutBadge>
+                              <div key={workout.id} className="flex items-center gap-1 bg-muted p-1 rounded-md">
+                                <WorkoutBadge 
+                                  workoutName={workout.name}
+                                >
+                                  {workout.name}
+                                </WorkoutBadge>
+                                {workout.isBonus && (
+                                  <WorkoutBadge workoutName="Bonus">
+                                    Bonus
+                                  </WorkoutBadge>
+                                )}
+                              </div>
                             ))}
                           </div>
                         )}

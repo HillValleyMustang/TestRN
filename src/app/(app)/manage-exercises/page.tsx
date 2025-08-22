@@ -38,7 +38,7 @@ export default function ManageExercisesPage() {
   // Removed isDeleteDialogOpen, exerciseToDelete, setIsDeleteDialogOpen, confirmDeleteExercise
   const [selectedMuscleFilter, setSelectedMuscleFilter] = useState<string>('all');
   const [availableMuscleGroups, setAvailableMuscleGroups] = useState<string[]>([]);
-  const [exerciseWorkoutsMap, setExerciseWorkoutsMap] = useState<Record<string, { id: string; name: string; isUserOwned: boolean }[]>>({});
+  const [exerciseWorkoutsMap, setExerciseWorkoutsMap] = useState<Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>>({});
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("my-exercises");
 
@@ -118,7 +118,7 @@ export default function ManageExercisesPage() {
 
       const { data: tPathExercisesData, error: tPathExercisesError } = await supabase
         .from('t_path_exercises')
-        .select('exercise_id, template_id')
+        .select('exercise_id, template_id, is_bonus_exercise')
         .in('template_id', activeWorkoutIds); // Filter by active child workout IDs
 
       if (tPathExercisesError) {
@@ -126,7 +126,7 @@ export default function ManageExercisesPage() {
       }
 
       // Build exerciseWorkoutsMap
-      const newExerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean }[]> = {};
+      const newExerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]> = {};
       tPathExercisesData.forEach(tpe => {
         const workout = activeTPathChildWorkouts.find(tp => tp.id === tpe.template_id);
         if (workout) {
@@ -137,6 +137,7 @@ export default function ManageExercisesPage() {
             id: workout.id,
             name: workout.template_name,
             isUserOwned: workout.user_id === session.user.id,
+            isBonus: !!tpe.is_bonus_exercise,
           });
         }
       });

@@ -21,7 +21,7 @@ interface GlobalExerciseListProps {
   exercises: FetchedExerciseDefinition[];
   loading: boolean;
   onEdit: (exercise: FetchedExerciseDefinition) => void;
-  exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean }[]>; // New prop
+  exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>; // New prop
   onRemoveFromWorkout: (workoutId: string, exerciseId: string) => void; // New prop
   onToggleFavorite: (exercise: FetchedExerciseDefinition) => void; // New prop
   onAddSuccess: () => void; // New prop for refreshing after adding to T-Path
@@ -80,14 +80,20 @@ export const GlobalExerciseList = ({
                           {ex.name} <span className="text-sm text-muted-foreground">({ex.main_muscle})</span>
                         </span>
                         {exerciseWorkoutsMap[ex.id]?.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1">
+                          <div className="mt-2 flex flex-wrap gap-2">
                             {exerciseWorkoutsMap[ex.id].map(workout => (
-                              <WorkoutBadge 
-                                key={workout.id} 
-                                workoutName={workout.name}
-                              >
-                                {workout.name}
-                              </WorkoutBadge>
+                              <div key={workout.id} className="flex items-center gap-1 bg-muted p-1 rounded-md">
+                                <WorkoutBadge 
+                                  workoutName={workout.name}
+                                >
+                                  {workout.name}
+                                </WorkoutBadge>
+                                {workout.isBonus && (
+                                  <WorkoutBadge workoutName="Bonus">
+                                    Bonus
+                                  </WorkoutBadge>
+                                )}
+                              </div>
                             ))}
                           </div>
                         )}
