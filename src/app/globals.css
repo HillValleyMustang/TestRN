@@ -293,8 +293,8 @@
 
 /* Custom class for backdrop blur */
 .backdrop-blur-md {
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px); /* For Safari compatibility */
+  backdrop-filter: blur(12px); /* Updated blur to 12px */
+  -webkit-backdrop-filter: blur(12px); /* For Safari compatibility */
 }
 
 /* Keyframes for subtle aurora animation */
@@ -335,7 +335,7 @@
 
 /* Apply transparency and backdrop blur to cards */
 .card {
-  background-color: hsl(var(--card) / 0.85); /* 85% opaque */
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px); /* For Safari compatibility */
+  background-color: hsl(var(--card) / 0.7); /* Updated opacity to 0.7 */
+  backdrop-filter: blur(12px); /* Updated blur to 12px */
+  -webkit-backdrop-filter: blur(12px); /* For Safari compatibility */
 }
