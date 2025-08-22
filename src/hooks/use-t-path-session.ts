@@ -49,11 +49,23 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
 
-  const fetchWorkoutData = useCallback(async () => {
-    console.log('useTPathSession: Starting fetchWorkoutData...');
-    console.log('useTPathSession: tPathId:', tPathId);
-    console.log('useTPathSession: session:', session ? 'present' : 'null');
+  const logToSupabase = useCallback(async (logType: string, data: any) => {
+    if (!session?.user?.id) return;
+    try {
+      const { error: logError } = await supabase.from('client_logs').insert({
+        user_id: session.user.id,
+        log_type: logType,
+        data: data,
+      });
+      if (logError) {
+        console.error(`Failed to log to Supabase (${logType}):`, logError.message);
+      }
+    } catch (err) {
+      console.error(`Unexpected error logging to Supabase (${logType}):`, err);
+    }
+  }, [session, supabase]);
 
+  const fetchWorkoutData = useCallback(async () => {
     if (!session) {
       router.push('/login');
       return;
@@ -62,8 +74,7 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
     if (!tPathId) {
       setLoading(false);
       setError("Transformation Path ID is missing.");
-      console.error('useTPathSession: Transformation Path ID is missing.');
-      toast.error("Transformation Path ID is missing."); // Added toast
+      toast.error("Transformation Path ID is missing.");
       return;
     }
 
@@ -73,21 +84,18 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
       // 1. Fetch the specific workout (which is a child T-Path)
       const { data: tPathData, error: fetchTPathError } = await supabase
         .from('t_paths')
-        .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id') // Specify all columns required by TPath
+        .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
         .eq('id', tPathId)
-        .eq('user_id', session.user.id) // Ensure it belongs to the current user
-        .eq('is_bonus', true) // It must be a child workout
+        .eq('user_id', session.user.id)
+        .eq('is_bonus', true)
         .single();
-
-      console.log('useTPathSession: Fetched tPathData:', tPathData);
 
       if (fetchTPathError || !tPathData) {
         const errorMessage = fetchTPathError?.message || "Workout not found or not accessible.";
-        console.error('useTPathSession: Error fetching tPathData:', errorMessage);
-        toast.error(errorMessage); // Added toast
+        toast.error(errorMessage);
         throw new Error(errorMessage);
       }
-      setTPath(tPathData as TPath); // Explicitly cast
+      setTPath(tPathData as TPath);
 
       // 2. Fetch all exercises associated with this specific workout (child T-Path)
       const { data: tPathExercisesData, error: fetchTPathExercisesError } = await supabase
@@ -101,11 +109,10 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
         .eq('template_id', tPathId)
         .order('order_index', { ascending: true });
 
-      console.log('useTPathSession: Raw tPathExercisesData from Supabase:', tPathExercisesData);
+      await logToSupabase('raw_tpath_exercises_data', tPathExercisesData);
 
       if (fetchTPathExercisesError) {
-        console.error('useTPathSession: Error fetching tPathExercisesData:', fetchTPathExercisesError.message);
-        toast.error(fetchTPathExercisesError.message); // Added toast
+        toast.error(fetchTPathExercisesError.message);
         throw new Error(fetchTPathExercisesError.message);
       }
 
@@ -113,16 +120,17 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
         .filter(te => {
           const hasExerciseDef = te.exercise_definitions && te.exercise_definitions.length > 0;
           if (!hasExerciseDef) {
-            console.warn(`useTPathSession: Filtering out t_path_exercise ${te.id} because exercise_definitions is missing or empty.`);
+            // Log filtered out exercises
+            logToSupabase('filtered_out_exercise', { t_path_exercise_id: te.id, reason: 'missing_exercise_definition' });
           }
           return hasExerciseDef;
         })
         .map(te => ({
-          ...(te.exercise_definitions![0] as Tables<'exercise_definitions'>), // Access the first element
-          is_bonus_exercise: !!te.is_bonus_exercise, // Add the bonus flag and ensure it's boolean
+          ...(te.exercise_definitions![0] as Tables<'exercise_definitions'>),
+          is_bonus_exercise: !!te.is_bonus_exercise,
         }));
       
-      console.log('useTPathSession: Mapped fetchedExercises (after filter/map):', fetchedExercises);
+      await logToSupabase('mapped_fetched_exercises', fetchedExercises);
       setExercisesForTPath(fetchedExercises);
 
       // 3. Fetch the ID of the most recent previous workout session for the user
@@ -130,15 +138,13 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
         .from('workout_sessions')
         .select('id')
         .eq('user_id', session.user.id)
-        .eq('template_name', tPathData.template_name) // Filter by the specific workout name
+        .eq('template_name', tPathData.template_name)
         .order('session_date', { ascending: false })
         .limit(1)
         .single();
 
-      console.log('useTPathSession: Fetched lastSessionData:', lastSessionData);
-
       if (lastSessionError && lastSessionError.code !== 'PGRST116') {
-        console.warn("useTPathSession: Error fetching last session ID:", lastSessionError.message);
+        logToSupabase('last_session_fetch_warning', { error: lastSessionError.message });
       }
 
       const lastSessionId = lastSessionData ? lastSessionData.id : null;
@@ -151,13 +157,13 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
             .from('set_logs')
             .select('weight_kg, reps, time_seconds')
             .eq('exercise_id', ex.id)
-            .eq('session_id', lastSessionId) // Ensure it's from the last session of THIS workout
+            .eq('session_id', lastSessionId)
             .order('created_at', { ascending: false })
             .limit(1)
             .single();
 
           if (lastSetError && lastSetError.code !== 'PGRST116') {
-            console.warn(`useTPathSession: Could not fetch last set for exercise ${ex.name}:`, lastSetError.message);
+            logToSupabase('last_set_fetch_warning', { exercise_id: ex.id, error: lastSetError.message });
           }
           if (lastSet) {
             lastSetsData[ex.id] = {
@@ -168,26 +174,25 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
           }
         }
       }
-      console.log('useTPathSession: lastSetsData:', lastSetsData);
+      await logToSupabase('last_sets_data', lastSetsData);
 
       // 5. Create a new workout session entry
       const { data: sessionData, error: sessionError } = await supabase
         .from('workout_sessions')
         .insert({
           user_id: session.user.id,
-          template_name: tPathData.template_name, // Use the specific workout's name
+          template_name: tPathData.template_name,
           session_date: new Date().toISOString(),
         })
         .select('id')
         .single();
-
-      console.log('useTPathSession: Created new sessionData:', sessionData);
 
       if (sessionError || !sessionData) {
         throw new Error(sessionError?.message || "Failed to create workout session.");
       }
       setCurrentSessionId(sessionData.id);
       setSessionStartTime(new Date());
+      await logToSupabase('new_workout_session_created', { session_id: sessionData.id, template_name: tPathData.template_name });
 
       // 6. Initialize sets for each exercise with last set data
       const initialSets: Record<string, SetLogState[]> = {};
@@ -211,35 +216,29 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
           lastTimeSeconds: lastSet?.time_seconds,
         }];
       });
-      console.log('useTPathSession: Initialized initialSets:', initialSets);
+      await logToSupabase('initial_sets_initialized', initialSets);
       setExercisesWithSets(initialSets);
 
     } catch (err: any) {
-      console.error("useTPathSession: Caught error in fetchWorkoutData:", err);
       setError(err.message || "Failed to load workout. Please try again.");
       toast.error(err.message || "Failed to load workout.");
+      logToSupabase('fetch_workout_data_error', { error: err.message, stack: err.stack });
     } finally {
       setLoading(false);
-      console.log('useTPathSession: fetchWorkoutData finished. Loading set to false.');
     }
-  }, [tPathId, session, supabase, router]);
+  }, [tPathId, session, supabase, router, logToSupabase]);
 
   useEffect(() => {
     fetchWorkoutData();
   }, [fetchWorkoutData]);
 
-  // New function to refresh the exercises list
   const refreshExercisesForTPath = useCallback((oldExerciseId?: string, newExercise?: WorkoutExercise | null) => {
     setExercisesForTPath(prevExercises => {
       if (oldExerciseId && newExercise) {
-        // Substitute an exercise
         return prevExercises.map(ex => ex.id === oldExerciseId ? newExercise : ex);
       } else if (oldExerciseId && newExercise === null) {
-        // Remove an exercise
         return prevExercises.filter(ex => ex.id !== oldExerciseId);
       }
-      // If no specific old/new exercise, just re-fetch all (though this might be less efficient)
-      // For now, we'll rely on the explicit substitute/remove logic.
       return prevExercises;
     });
   }, []);

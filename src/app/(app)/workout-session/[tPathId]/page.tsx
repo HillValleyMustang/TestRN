@@ -14,10 +14,9 @@ import { WorkoutSessionHeader } from '@/components/workout-session/workout-sessi
 import { WorkoutSessionFooter } from '@/components/workout-session/workout-session-footer';
 import { toast } from 'sonner';
 
-// Force re-evaluation of types
-type PageParams = {
-  tPathId: string;
-};
+interface PageParams {
+  tPathId: string; // This should be a string for a dynamic route
+}
 
 export default function WorkoutSessionPage({ params }: { params: PageParams }) {
   const { tPathId } = params;
