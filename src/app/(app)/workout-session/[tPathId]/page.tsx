@@ -14,8 +14,12 @@ import { WorkoutSessionHeader } from '@/components/workout-session/workout-sessi
 import { WorkoutSessionFooter } from '@/components/workout-session/workout-session-footer';
 import { toast } from 'sonner';
 
+interface PageParams {
+  tPathId: string;
+}
+
 interface WorkoutSessionPageProps {
-  params: { tPathId: string };
+  params: PageParams;
 }
 
 export default function WorkoutSessionPage({ params }: WorkoutSessionPageProps) {
@@ -55,18 +59,28 @@ export default function WorkoutSessionPage({ params }: WorkoutSessionPageProps) 
     );
   }
 
+  // Display the error from the hook if it exists
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-destructive">
-        <p>{error}</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background text-destructive p-4 sm:p-8">
+        <Dumbbell className="h-16 w-16 text-destructive mb-4" />
+        <h2 className="text-2xl font-bold mb-2">Error Loading Workout</h2>
+        <p className="text-lg text-center mb-4">{error}</p>
+        <Button onClick={() => router.push('/dashboard')}>Back to Dashboard</Button>
       </div>
     );
   }
 
   if (!tPath) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
-        <p>Transformation Path not found.</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground p-4 sm:p-8">
+        <Dumbbell className="h-16 w-16 text-muted-foreground mb-4" />
+        <h2 className="text-2xl font-bold mb-2">Transformation Path Not Found</h2>
+        <p className="text-muted-foreground mb-4 text-center">
+          The workout you are trying to access could not be found or is not accessible.
+          This might happen if the T-Path was deleted or if there's a data issue.
+        </p>
+        <Button onClick={() => router.push('/dashboard')}>Back to Dashboard</Button>
       </div>
     );
   }

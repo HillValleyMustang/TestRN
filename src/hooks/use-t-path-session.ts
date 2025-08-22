@@ -50,6 +50,10 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
 
   const fetchWorkoutData = useCallback(async () => {
+    console.log('useTPathSession: Starting fetchWorkoutData...');
+    console.log('useTPathSession: tPathId:', tPathId);
+    console.log('useTPathSession: session:', session ? 'present' : 'null');
+
     if (!session) {
       router.push('/login');
       return;
@@ -58,6 +62,8 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
     if (!tPathId) {
       setLoading(false);
       setError("Transformation Path ID is missing.");
+      console.error('useTPathSession: Transformation Path ID is missing.');
+      toast.error("Transformation Path ID is missing."); // Added toast
       return;
     }
 
@@ -73,8 +79,13 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
         .eq('is_bonus', true) // It must be a child workout
         .single();
 
+      console.log('useTPathSession: Fetched tPathData:', tPathData);
+
       if (fetchTPathError || !tPathData) {
-        throw new Error(fetchTPathError?.message || "Workout not found or not accessible.");
+        const errorMessage = fetchTPathError?.message || "Workout not found or not accessible.";
+        console.error('useTPathSession: Error fetching tPathData:', errorMessage);
+        toast.error(errorMessage); // Added toast
+        throw new Error(errorMessage);
       }
       setTPath(tPathData as TPath); // Explicitly cast
 
@@ -90,7 +101,11 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
         .eq('template_id', tPathId)
         .order('order_index', { ascending: true });
 
+      console.log('useTPathSession: Fetched tPathExercisesData:', tPathExercisesData);
+
       if (fetchTPathExercisesError) {
+        console.error('useTPathSession: Error fetching tPathExercisesData:', fetchTPathExercisesError.message);
+        toast.error(fetchTPathExercisesError.message); // Added toast
         throw new Error(fetchTPathExercisesError.message);
       }
 
@@ -100,6 +115,8 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
           ...(te.exercise_definitions![0] as Tables<'exercise_definitions'>), // Access the first element
           is_bonus_exercise: !!te.is_bonus_exercise, // Add the bonus flag and ensure it's boolean
         }));
+      
+      console.log('useTPathSession: Mapped fetchedExercises:', fetchedExercises);
       setExercisesForTPath(fetchedExercises);
 
       // 3. Fetch the ID of the most recent previous workout session for the user
@@ -112,8 +129,10 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
         .limit(1)
         .single();
 
+      console.log('useTPathSession: Fetched lastSessionData:', lastSessionData);
+
       if (lastSessionError && lastSessionError.code !== 'PGRST116') {
-        console.warn("Error fetching last session ID:", lastSessionError.message);
+        console.warn("useTPathSession: Error fetching last session ID:", lastSessionError.message);
       }
 
       const lastSessionId = lastSessionData ? lastSessionData.id : null;
@@ -132,7 +151,7 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
             .single();
 
           if (lastSetError && lastSetError.code !== 'PGRST116') {
-            console.warn(`Could not fetch last set for exercise ${ex.name}:`, lastSetError.message);
+            console.warn(`useTPathSession: Could not fetch last set for exercise ${ex.name}:`, lastSetError.message);
           }
           if (lastSet) {
             lastSetsData[ex.id] = {
@@ -143,6 +162,7 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
           }
         }
       }
+      console.log('useTPathSession: lastSetsData:', lastSetsData);
 
       // 5. Create a new workout session entry
       const { data: sessionData, error: sessionError } = await supabase
@@ -154,6 +174,8 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
         })
         .select('id')
         .single();
+
+      console.log('useTPathSession: Created new sessionData:', sessionData);
 
       if (sessionError || !sessionData) {
         throw new Error(sessionError?.message || "Failed to create workout session.");
@@ -183,14 +205,16 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
           lastTimeSeconds: lastSet?.time_seconds,
         }];
       });
+      console.log('useTPathSession: Initialized initialSets:', initialSets);
       setExercisesWithSets(initialSets);
 
     } catch (err: any) {
-      console.error("Failed to fetch workout data:", err);
+      console.error("useTPathSession: Caught error in fetchWorkoutData:", err);
       setError(err.message || "Failed to load workout. Please try again.");
       toast.error(err.message || "Failed to load workout.");
     } finally {
       setLoading(false);
+      console.log('useTPathSession: fetchWorkoutData finished. Loading set to false.');
     }
   }, [tPathId, session, supabase, router]);
 
