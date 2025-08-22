@@ -8,7 +8,7 @@ import { Dumbbell, Clock } from 'lucide-react';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { cn, getWorkoutColorClass } from '@/lib/utils'; // Import cn and getWorkoutColorClass
+import { cn, getWorkoutColorClass, getMaxMinutes } from '@/lib/utils'; // Import getMaxMinutes
 
 type TPath = Tables<'t_paths'>;
 type Profile = Tables<'profiles'>; // Import Profile type
@@ -19,6 +19,7 @@ export const NextWorkoutCard = () => {
   const [mainTPath, setMainTPath] = useState<TPath | null>(null); // Stores the user's active main T-Path
   const [nextWorkout, setNextWorkout] = useState<TPath | null>(null); // Stores the specific child workout to display
   const [loading, setLoading] = useState(true);
+  const [estimatedDuration, setEstimatedDuration] = useState<string>('N/A'); // New state for estimated duration
 
   useEffect(() => {
     const fetchNextWorkout = async () => {
@@ -26,10 +27,10 @@ export const NextWorkoutCard = () => {
       
       setLoading(true);
       try {
-        // 1. Fetch user profile to get active_t_path_id
+        // 1. Fetch user profile to get active_t_path_id AND preferred_session_length
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('active_t_path_id')
+          .select('active_t_path_id, preferred_session_length')
           .eq('id', session.user.id)
           .single();
 
@@ -38,6 +39,14 @@ export const NextWorkoutCard = () => {
         }
 
         const activeMainTPathId = profileData?.active_t_path_id;
+        const preferredSessionLength = profileData?.preferred_session_length;
+
+        if (preferredSessionLength) {
+          const maxMinutes = getMaxMinutes(preferredSessionLength);
+          setEstimatedDuration(`${preferredSessionLength} minutes`);
+        } else {
+          setEstimatedDuration('N/A');
+        }
 
         if (!activeMainTPathId) {
           setMainTPath(null);
@@ -159,7 +168,7 @@ export const NextWorkoutCard = () => {
             <h3 className={cn("text-lg font-semibold", workoutColorClass)}>{nextWorkout.template_name}</h3>
             <div className="flex items-center gap-1 text-muted-foreground">
               <Clock className="h-4 w-4" />
-              <span>Estimated 45-60 min</span> {/* This is a placeholder, could be dynamic */}
+              <span>Estimated {estimatedDuration}</span>
             </div>
           </div>
           <Button onClick={() => router.push(`/workout-session/${nextWorkout.id}`)}>
