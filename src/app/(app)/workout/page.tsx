@@ -50,6 +50,7 @@ export default function WorkoutPage() {
 
   useEffect(() => {
     if (initialWorkoutIdFromParams && !activeWorkout && !loading && !error) {
+      // If there's an initial workout ID from params, try to select it
       selectWorkout(initialWorkoutIdFromParams);
     }
   }, [initialWorkoutIdFromParams, activeWorkout, loading, error, selectWorkout]);
@@ -59,8 +60,9 @@ export default function WorkoutPage() {
   }, [activeWorkout]);
 
   const handleWorkoutSelect = useCallback(async (workoutId: string | null) => {
+    // This function now directly triggers the workout selection logic in the manager hook
+    // without navigating to a new page.
     await selectWorkout(workoutId);
-    // The useWorkoutFlowManager hook will handle setting activeWorkout and loading exercises
   }, [selectWorkout]);
 
   const handleAddExercise = () => {
@@ -79,7 +81,7 @@ export default function WorkoutPage() {
 
   const handleBackToSelection = () => {
     resetWorkoutSession();
-    router.replace('/workout'); // Clear workoutId from URL
+    // No router.replace needed here, as the state change will cause re-render
   };
 
   const totalExercises = exercisesForSession.length;
@@ -106,7 +108,7 @@ export default function WorkoutPage() {
 
   if (!isWorkoutSelected || !activeWorkout) {
     return (
-      <div className="flex flex-col gap-4 p-4 sm:p-6 md:p-8 lg:p-10"> {/* Adjusted padding */}
+      <div className="flex flex-col gap-4 p-4 sm:px-4 sm:py-4 md:px-6 lg:px-8"> {/* Adjusted padding */}
         <header className="mb-4">
           <h1 className="text-3xl font-bold">Start Your Workout</h1>
           <p className="text-muted-foreground">
@@ -127,7 +129,7 @@ export default function WorkoutPage() {
         totalExercises={totalExercises}
       />
 
-      <main className="flex-1 p-4 sm:px-6 sm:py-4 overflow-y-auto">
+      <main className="flex-1 p-4 sm:px-4 sm:py-4 overflow-y-auto"> {/* Adjusted padding */}
         {activeWorkout.id === 'ad-hoc' && (
           <section className="mb-8 p-4 border rounded-lg bg-card">
             <h2 className="text-xl font-semibold mb-4">Add Exercises</h2>
