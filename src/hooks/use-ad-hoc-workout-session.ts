@@ -29,6 +29,7 @@ interface UseAdHocWorkoutSessionReturn {
   updateSessionStartTime: (timestamp: string) => void; // New function to update session start time
   markExerciseAsCompleted: (exerciseId: string, isNewPR: boolean) => void; // New function to mark exercise complete
   completedExercises: Set<string>; // New state to track completed exercises
+  setExercisesForSession: React.Dispatch<React.SetStateAction<WorkoutExercise[]>>; // Expose setter
 }
 
 const DEFAULT_INITIAL_SETS = 3; // Define default initial sets for ad-hoc
@@ -96,7 +97,7 @@ export const useAdHocWorkoutSession = ({ session, supabase, router }: UseAdHocWo
           template_name: 'Ad Hoc Workout',
           session_date: new Date().toISOString(), // Initial timestamp
         })
-        .select('id')
+        .select('id, session_date') // Select session_date to ensure it's available
         .single();
 
       if (sessionError || !sessionData) {
@@ -209,5 +210,6 @@ export const useAdHocWorkoutSession = ({ session, supabase, router }: UseAdHocWo
     updateSessionStartTime,
     markExerciseAsCompleted,
     completedExercises,
+    setExercisesForSession, // Expose setter
   };
 };

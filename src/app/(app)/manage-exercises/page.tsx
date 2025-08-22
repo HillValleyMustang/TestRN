@@ -394,7 +394,7 @@ export default function ManageExercisesPage() {
                       loading={loading}
                       onEdit={handleEditClick}
                       onDelete={handleDeleteExercise} // Pass the new delete handler
-                      // Removed isDeleteDialogOpen, exerciseToDelete, setIsDeleteDialogOpen, confirmDeleteExercise
+                      // Removed isDeleteDialogOpen, exerciseToDelete, setIsDeleteDialogOpen, confirmDeleteTPath
                       editingExercise={editingExercise}
                       onCancelEdit={handleCancelEdit}
                       onSaveSuccess={handleSaveSuccess}

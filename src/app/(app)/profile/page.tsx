@@ -28,8 +28,8 @@ const profileSchema = z.object({
   body_fat_pct: z.coerce.number().min(0, "Body fat percentage must be 0 or greater.").max(100, "Body fat percentage cannot exceed 100.").optional().nullable(),
   primary_goal: z.string().optional().nullable(),
   health_notes: z.string().optional().nullable(),
-  preferred_weight_unit: z.enum(["kg"]).optional(), // Fixed to kg only
-  preferred_distance_unit: z.enum(["km"]).optional(), // Fixed to km only
+  preferred_weight_unit: z.enum(["kg", "lbs"]).optional(), // Allow both kg and lbs
+  preferred_distance_unit: z.enum(["km", "miles"]).optional(), // Allow both km and miles
   default_rest_time_seconds: z.coerce.number().min(0, "Rest time cannot be negative.").optional().nullable(),
   preferred_muscles: z.string().optional().nullable(),
   preferred_session_length: z.enum(["15-30", "30-45", "45-60", "60-90"]).optional().nullable(), // New field
@@ -54,8 +54,8 @@ export default function ProfilePage() {
       body_fat_pct: null,
       primary_goal: null,
       health_notes: null,
-      preferred_weight_unit: "kg", // Fixed to kg only
-      preferred_distance_unit: "km", // Fixed to km only
+      preferred_weight_unit: "kg", // Default to kg
+      preferred_distance_unit: "km", // Default to km
       default_rest_time_seconds: 60, // Default to 60s
       preferred_muscles: null,
       preferred_session_length: "45-60", // Default value
@@ -106,8 +106,8 @@ export default function ProfilePage() {
           body_fat_pct: data.body_fat_pct,
           primary_goal: data.primary_goal,
           health_notes: data.health_notes,
-          preferred_weight_unit: "kg", // Fixed to kg only
-          preferred_distance_unit: "km", // Fixed to km only
+          preferred_weight_unit: data.preferred_weight_unit || "kg", // Use fetched value or default
+          preferred_distance_unit: data.preferred_distance_unit || "km", // Use fetched value or default
           default_rest_time_seconds: data.default_rest_time_seconds || 60,
           preferred_muscles: data.preferred_muscles,
           preferred_session_length: data.preferred_session_length || "45-60", // Set default if null
@@ -152,8 +152,8 @@ export default function ProfilePage() {
       body_fat_pct: values.body_fat_pct,
       primary_goal: values.primary_goal,
       health_notes: values.health_notes,
-      preferred_weight_unit: "kg", // Fixed to kg only
-      preferred_distance_unit: "km", // Fixed to km only
+      preferred_weight_unit: values.preferred_weight_unit,
+      preferred_distance_unit: values.preferred_distance_unit,
       default_rest_time_seconds: values.default_rest_time_seconds,
       preferred_muscles: values.preferred_muscles,
       preferred_session_length: values.preferred_session_length, // Update preferred session length
@@ -364,7 +364,7 @@ export default function ProfilePage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Weight Unit</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} disabled>
+                      <Select onValueChange={field.onChange} value={field.value || 'kg'}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select unit" />
@@ -372,10 +372,10 @@ export default function ProfilePage() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="kg">Kilograms (kg)</SelectItem>
+                          <SelectItem value="lbs">Pounds (lbs)</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
-                      <p className="text-xs text-muted-foreground">Fixed to kg for MVP</p>
                     </FormItem>
                   )}
                 />
@@ -385,7 +385,7 @@ export default function ProfilePage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Distance Unit</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} disabled>
+                      <Select onValueChange={field.onChange} value={field.value || 'km'}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select unit" />
@@ -393,10 +393,10 @@ export default function ProfilePage() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="km">Kilometers (km)</SelectItem>
+                          <SelectItem value="miles">Miles (miles)</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
-                      <p className="text-xs text-muted-foreground">Fixed to km for MVP</p>
                     </FormItem>
                   )}
                 />

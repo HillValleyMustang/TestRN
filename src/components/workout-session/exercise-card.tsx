@@ -104,6 +104,7 @@ export const ExerciseCard = ({
     loadingPR,
   } = useExerciseSets({
     exerciseId: exercise.id,
+    exerciseName: exercise.name, // Pass exercise.name here
     exerciseType: exercise.type,
     exerciseCategory: exercise.category,
     currentSessionId,

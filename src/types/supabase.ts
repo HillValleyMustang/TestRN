@@ -27,20 +27,11 @@ export interface SetLogState extends Omit<Tables<'set_logs'>, 'id' | 'created_at
 }
 
 // Explicitly define extended Profile types to include preferred_session_length and active_t_path_id
-export type Profile = Tables<'profiles'> & {
-  preferred_session_length: string | null;
-  active_t_path_id: string | null;
-};
+export type Profile = Tables<'profiles'>;
 
-export type ProfileInsert = TablesInsert<'profiles'> & {
-  preferred_session_length?: string | null;
-  active_t_path_id?: string | null;
-};
+export type ProfileInsert = TablesInsert<'profiles'>;
 
-export type ProfileUpdate = TablesUpdate<'profiles'> & {
-  preferred_session_length?: string | null;
-  active_t_path_id?: string | null;
-};
+export type ProfileUpdate = TablesUpdate<'profiles'>;
 
 // Define a type for set logs joined with exercise definitions, including is_pb
 export type SetLogWithExercise = Pick<Tables<'set_logs'>, 'id' | 'weight_kg' | 'reps' | 'reps_l' | 'reps_r' | 'time_seconds' | 'is_pb' | 'created_at' | 'exercise_id' | 'session_id'> & {

@@ -124,6 +124,8 @@ export type Database = {
           target_date: string | null
           updated_at: string | null
           weight_kg: number | null
+          preferred_session_length: string | null
+          active_t_path_id: string | null
         }
         Insert: {
           body_fat_pct?: number | null
@@ -143,6 +145,8 @@ export type Database = {
           target_date?: string | null
           updated_at?: string | null
           weight_kg?: number | null
+          preferred_session_length?: string | null
+          active_t_path_id?: string | null
         }
         Update: {
           body_fat_pct?: number | null
@@ -156,12 +160,14 @@ export type Database = {
           last_ai_coach_use_at?: string | null
           last_name?: string | null
           preferred_distance_unit?: string | null
-          preferred_musape_generated/database.tscles?: string | null
+          preferred_muscles?: string | null
           preferred_weight_unit?: string | null
           primary_goal?: string | null
           target_date?: string | null
           updated_at?: string | null
           weight_kg?: number | null
+          preferred_session_length?: string | null
+          active_t_path_id?: string | null
         }
         Relationships: [
           {
@@ -234,6 +240,7 @@ export type Database = {
           id: string
           order_index: number
           template_id: string
+          is_bonus_exercise: boolean | null
         }
         Insert: {
           created_at?: string | null
@@ -241,6 +248,7 @@ export type Database = {
           id?: string
           order_index: number
           template_id: string
+          is_bonus_exercise?: boolean | null
         }
         Update: {
           created_at?: string | null
@@ -248,6 +256,7 @@ export type Database = {
           id?: string
           order_index?: number
           template_id?: string
+          is_bonus_exercise?: boolean | null
         }
         Relationships: [
           {

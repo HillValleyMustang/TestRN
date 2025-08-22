@@ -35,6 +35,7 @@ export default function AdHocWorkoutSessionPage() {
     updateSessionStartTime, // New
     markExerciseAsCompleted, // New
     completedExercises, // New
+    setExercisesForSession, // Destructure the setter for exercisesForSession
   } = useAdHocWorkoutSession({ session, supabase, router });
 
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
@@ -77,7 +78,7 @@ export default function AdHocWorkoutSessionPage() {
       return newExercisesWithSets;
     });
     // Update exercisesForSession to reflect the substitution
-    setExercisesForSession(prev => prev.map(ex => ex.id === oldExerciseId ? newExercise : ex));
+    setExercisesForSession((prev: WorkoutExercise[]) => prev.map((ex: WorkoutExercise) => ex.id === oldExerciseId ? newExercise : ex));
     toast.success(`Replaced with ${newExercise.name}`);
   };
 

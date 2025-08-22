@@ -13,6 +13,7 @@ type UserExercisePR = Tables<'user_exercise_prs'>;
 
 interface UseExerciseSetsProps {
   exerciseId: string;
+  exerciseName: string; // Added exerciseName
   exerciseType: ExerciseDefinition['type'];
   exerciseCategory?: ExerciseDefinition['category'] | null;
   currentSessionId: string | null;
@@ -41,6 +42,7 @@ const DEFAULT_INITIAL_SETS = 3;
 
 export const useExerciseSets = ({
   exerciseId,
+  exerciseName, // Destructure exerciseName
   exerciseType,
   exerciseCategory,
   currentSessionId,
@@ -201,7 +203,7 @@ export const useExerciseSets = ({
       }
     }
 
-    const setLogData: TablesInsert<'set_logs'> | TablesUpdate<'set_logs'> = {
+    const setLogData: TablesInsert<'set_logs'> = {
       session_id: currentSessionId,
       exercise_id: exerciseId,
       weight_kg: currentSet.weight_kg,
@@ -225,7 +227,7 @@ export const useExerciseSets = ({
       error = result.error;
       data = result.data;
     } else {
-      const result = await supabase.from('set_logs').insert([setLogData as TablesInsert<'set_logs'>]).select().single();
+      const result = await supabase.from('set_logs').insert([setLogData]).select().single();
       error = result.error;
       data = result.data;
     }
@@ -355,18 +357,18 @@ export const useExerciseSets = ({
 
         if (upsertError) throw upsertError;
         setExercisePR(updatedPR as UserExercisePR);
-        toast.success(`New Exercise Personal Record for ${exercise.name}!`);
+        toast.success(`New Exercise Personal Record for ${exerciseName}!`); // Use exerciseName here
       }
 
       await onExerciseComplete(exerciseId, isNewPR); // Notify parent component
-      toast.success(`${exercise.name} completed!`);
+      toast.success(`${exerciseName} completed!`); // Use exerciseName here
       return true;
     } catch (err: any) {
       console.error("Error saving exercise completion or PR:", err);
       toast.error("Failed to complete exercise: " + err.message);
       return false;
     }
-  }, [currentSessionId, sets, exerciseType, exerciseCategory, exercisePR, exerciseId, supabase, onExerciseComplete, exercise.name]);
+  }, [currentSessionId, sets, exerciseType, exerciseCategory, exercisePR, exerciseId, supabase, onExerciseComplete, exerciseName]); // Added exerciseName to dependency array
 
   return {
     sets,

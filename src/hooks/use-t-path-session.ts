@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { Tables, TablesInsert, SetLogState, WorkoutExercise } from '@/types/supabase';
 
 type TPath = Tables<'t_paths'>;
-type SetLogInsert = TablesInsert<'set_logs'>;
+type SetLogInsert = TablesInsert<'set_logs'>; // Corrected type argument
 
 interface UseTPathSessionProps {
   tPathId: string;
@@ -137,7 +137,7 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
           template_name: tPathData.template_name,
           session_date: new Date().toISOString(), // Initial timestamp
         })
-        .select('id')
+        .select('id, session_date') // Select session_date to ensure it's available
         .single();
 
       if (sessionError || !sessionData) {

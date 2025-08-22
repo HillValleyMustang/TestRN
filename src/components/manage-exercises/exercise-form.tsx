@@ -95,7 +95,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
 
   useEffect(() => {
     if (editingExercise) {
-      const muscleGroups = editingExercise.main_muscle ? editingExercise.main_muscle.split(',').map(m => m.trim()) : [];
+      const muscleGroups = editingExercise.main_muscle ? editingExercise.main_muscle.split(',').map((m: string) => m.trim()) : [];
       
       form.reset({
         name: editingExercise.name,
@@ -149,7 +149,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
     onCancelEdit(); // Clear any existing editing state
     setIsExpanded(true); // Ensure the form is open
 
-    const muscleGroups = identifiedData.main_muscle ? identifiedData.main_muscle.split(',').map(m => m.trim()) : [];
+    const muscleGroups = identifiedData.main_muscle ? identifiedData.main_muscle.split(',').map((m: string) => m.trim()) : [];
     const exerciseType = identifiedData.type ? [identifiedData.type] as ("weight" | "timed")[] : [];
 
     form.reset({
