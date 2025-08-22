@@ -152,10 +152,9 @@ export const NextWorkoutCard = () => {
     );
   }
 
-  const workoutBorderClass = getWorkoutColorClass(nextWorkout.template_name, 'border');
-
+  // Removed workoutBorderClass as it's no longer needed for the border
   return (
-    <Card className={cn("border-2", workoutBorderClass)}>
+    <Card> {/* Removed cn("border-2", workoutBorderClass) */}
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Dumbbell className="h-5 w-5" />

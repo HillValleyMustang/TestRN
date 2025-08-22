@@ -109,9 +109,9 @@ export default function WorkoutHistoryPage() { // Renamed component
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {workoutSessions.map((sessionItem) => {
               const workoutName = sessionItem.template_name || 'Ad Hoc Workout';
-              const workoutBorderClass = getWorkoutColorClass(workoutName, 'border');
+              // Removed workoutBorderClass as it's no longer needed for the border
               return (
-                <Card key={sessionItem.id} className={cn("border-2", workoutBorderClass)}>
+                <Card key={sessionItem.id}> {/* Removed cn("border-2", workoutBorderClass) */}
                   <CardHeader>
                     <CardTitle>{workoutName}</CardTitle>
                     <p className="text-sm text-muted-foreground">
