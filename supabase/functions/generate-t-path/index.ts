@@ -196,11 +196,11 @@ const getSupabaseClients = (authHeader: string) => {
   return { supabaseAuthClient, supabaseServiceRoleClient };
 };
 
-// New robust "wipe and repopulate" function
-const wipeAndRepopulateSourceData = async (supabaseServiceRoleClient: any) => {
-    console.log('Starting wipe and repopulate of source data...');
+// New robust "synchronize" function using upsert
+const synchronizeSourceData = async (supabaseServiceRoleClient: any) => {
+    console.log('Starting synchronization of source data...');
     
-    // 1. Delete all from workout_exercise_structure
+    // 1. Safely wipe and repopulate workout_exercise_structure (this is safe as it has no dependencies)
     const { error: deleteStructureError } = await supabaseServiceRoleClient
         .from('workout_exercise_structure')
         .delete()
@@ -208,16 +208,14 @@ const wipeAndRepopulateSourceData = async (supabaseServiceRoleClient: any) => {
     if (deleteStructureError) throw deleteStructureError;
     console.log('Successfully wiped workout_exercise_structure.');
 
-    // 2. Delete all global exercises
-    const { error: deleteGlobalExercisesError } = await supabaseServiceRoleClient
-        .from('exercise_definitions')
-        .delete()
-        .is('user_id', null);
-    if (deleteGlobalExercisesError) throw deleteGlobalExercisesError;
-    console.log('Successfully wiped global exercise_definitions.');
+    const { error: insertStructureError } = await supabaseServiceRoleClient
+        .from('workout_exercise_structure')
+        .insert(workoutStructureData);
+    if (insertStructureError) throw insertStructureError;
+    console.log(`Successfully re-inserted ${workoutStructureData.length} workout structure rules.`);
 
-    // 3. Re-insert all global exercises
-    const exercisesToInsert = exerciseLibraryData.map(ex => ({
+    // 2. Safely upsert global exercises. This will update existing ones and insert new ones without deleting.
+    const exercisesToUpsert = exerciseLibraryData.map(ex => ({
         library_id: ex.exercise_id,
         name: ex.name,
         main_muscle: ex.main_muscle,
@@ -228,18 +226,17 @@ const wipeAndRepopulateSourceData = async (supabaseServiceRoleClient: any) => {
         video_url: ex.video_url,
         user_id: null
     }));
-    const { error: insertExercisesError } = await supabaseServiceRoleClient
-        .from('exercise_definitions')
-        .insert(exercisesToInsert);
-    if (insertExercisesError) throw insertExercisesError;
-    console.log(`Successfully re-inserted ${exercisesToInsert.length} global exercises.`);
 
-    // 4. Re-insert all workout structure rules
-    const { error: insertStructureError } = await supabaseServiceRoleClient
-        .from('workout_exercise_structure')
-        .insert(workoutStructureData);
-    if (insertStructureError) throw insertStructureError;
-    console.log(`Successfully re-inserted ${workoutStructureData.length} workout structure rules.`);
+    // Use `library_id` as the conflict target. This requires `library_id` to have a UNIQUE constraint for global exercises.
+    const { error: upsertExercisesError } = await supabaseServiceRoleClient
+        .from('exercise_definitions')
+        .upsert(exercisesToUpsert, { onConflict: 'library_id', ignoreDuplicates: false });
+        
+    if (upsertExercisesError) {
+        console.error("Upsert error details:", upsertExercisesError);
+        throw upsertExercisesError;
+    }
+    console.log(`Successfully synchronized ${exercisesToUpsert.length} global exercises.`);
 };
 
 
@@ -302,8 +299,8 @@ serve(async (req: Request) => {
     if (!tPathId) throw new Error('tPathId is required');
     console.log(`Received tPathId (main T-Path ID): ${tPathId}`);
 
-    // --- Step 1: WIPE AND REPOPULATE SOURCE DATA ---
-    await wipeAndRepopulateSourceData(supabaseServiceRoleClient);
+    // --- Step 1: SYNCHRONIZE SOURCE DATA ---
+    await synchronizeSourceData(supabaseServiceRoleClient);
 
     // --- Step 2: Fetch T-Path details and user's preferred session length ---
     const { data: tPathData, error: tPathError } = await supabaseServiceRoleClient
