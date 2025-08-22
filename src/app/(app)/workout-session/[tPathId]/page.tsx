@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
-import { useTPathSession } from '@/hooks/use-t-path-session'; // Corrected '=>' to 'from'
+import { useTPathSession } from '@/hooks/use-t-path-session';
 import { SetLogState, WorkoutExercise } from '@/types/supabase';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -20,14 +20,11 @@ interface PageParams {
   tPathId: string;
 }
 
-export default function WorkoutSessionPage({ params }: { params: any }) { // Changed params type to 'any'
+export default function WorkoutSessionPage({ params }: { params: any }) {
   const [resolvedTPathId, setResolvedTPathId] = useState<string | null>(null);
   const [isParamsResolved, setIsParamsResolved] = useState(false);
 
   useEffect(() => {
-    // params should typically be a plain object in client components.
-    // If it's a Promise (as suggested by previous TS errors), this will await it.
-    // If it's a plain object, Promise.resolve will immediately resolve.
     Promise.resolve(params).then(p => {
       setResolvedTPathId(p.tPathId);
       setIsParamsResolved(true);
@@ -37,7 +34,21 @@ export default function WorkoutSessionPage({ params }: { params: any }) { // Cha
   const { session, supabase } = useSession();
   const router = useRouter();
 
-  // Only proceed with fetching session data once tPathId is resolved
+  // Conditionally call useTPathSession only when resolvedTPathId is available
+  const tPathSessionHookResult = resolvedTPathId
+    ? useTPathSession({ tPathId: resolvedTPathId, session, supabase, router })
+    : {
+        tPath: null,
+        exercisesForTPath: [],
+        exercisesWithSets: {},
+        loading: true, // Indicate loading while params are resolving
+        error: null, // No error yet, just waiting
+        currentSessionId: null,
+        sessionStartTime: null,
+        setExercisesWithSets: () => {},
+        refreshExercisesForTPath: () => {},
+      };
+
   const {
     tPath,
     exercisesForTPath,
@@ -48,15 +59,18 @@ export default function WorkoutSessionPage({ params }: { params: any }) { // Cha
     sessionStartTime,
     setExercisesWithSets,
     refreshExercisesForTPath,
-  } = useTPathSession({ tPathId: resolvedTPathId || '', session, supabase, router });
+  } = tPathSessionHookResult;
 
   const [completedExerciseCount, setCompletedExerciseCount] = useState(0);
 
   useEffect(() => {
-    const count = exercisesForTPath.filter(exercise => 
-      exercisesWithSets[exercise.id]?.some(set => set.isSaved)
-    ).length;
-    setCompletedExerciseCount(count);
+    // Only update completed count if exercisesForTPath is not empty (i.e., after data is loaded)
+    if (exercisesForTPath.length > 0) {
+      const count = exercisesForTPath.filter(exercise => 
+        exercisesWithSets[exercise.id]?.some(set => set.isSaved)
+      ).length;
+      setCompletedExerciseCount(count);
+    }
   }, [exercisesForTPath, exercisesWithSets]);
 
   if (!isParamsResolved || loading) {

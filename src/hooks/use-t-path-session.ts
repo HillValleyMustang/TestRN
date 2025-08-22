@@ -71,12 +71,9 @@ export const useTPathSession = ({ tPathId, session, supabase, router }: UseTPath
       return;
     }
 
-    if (!tPathId) {
-      setLoading(false);
-      setError("Transformation Path ID is missing.");
-      toast.error("Transformation Path ID is missing.");
-      return;
-    }
+    // No explicit check for !tPathId here.
+    // The parent component will ensure tPathId is a non-empty string before calling this hook.
+    // If it somehow still ends up empty, the Supabase query will gracefully return no results.
 
     setLoading(true);
     setError(null);
