@@ -15,11 +15,12 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const poppins = Poppins({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["700", "800"],
-});
+// Reverted Poppins import to be commented out or removed if not used elsewhere
+// const poppins = Poppins({
+//   variable: "--font-display",
+//   subsets: ["latin"],
+//   weight: ["700", "800"],
+// });
 
 export const metadata: Metadata = {
   title: "My Workout Tracker",
@@ -37,7 +38,7 @@ export default function RootLayout({
         className={cn(
           geistSans.variable,
           geistMono.variable,
-          poppins.variable,
+          // Removed poppins.variable from here
           "antialiased glow-background"
         )}
       >

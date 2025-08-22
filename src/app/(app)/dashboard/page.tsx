@@ -104,14 +104,20 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header>
-        <h1 className="text-4xl font-display font-bold tracking-tight">Welcome Back, {welcomeName}</h1>
+      <header className="animate-fade-in-slide-up" style={{ animationDelay: '0s' }}>
+        <h1 className="text-4xl font-bold tracking-tight">Welcome Back, {welcomeName}</h1>
         <p className="text-muted-foreground mt-2">Ready to Train? Let's get Started!</p>
       </header>
 
-      <NextWorkoutCard />
-      <ActionHub />
-      <WeeklyVolumeChart />
+      <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.1s' }}>
+        <NextWorkoutCard />
+      </div>
+      <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.2s' }}>
+        <ActionHub />
+      </div>
+      <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.3s' }}>
+        <WeeklyVolumeChart />
+      </div>
 
       <MadeWithDyad />
     </div>
