@@ -94,28 +94,29 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
 
       setWorkouts(workoutsWithLastDate);
 
-      // Determine the next workout
+      // Determine the next workout: prioritize uncompleted, then oldest completed
       let nextWorkoutCandidate: WorkoutDisplayData | null = null;
       let oldestCompletionDate: Date | null = null;
 
-      workoutsWithLastDate.forEach(workout => {
+      for (const workout of workoutsWithLastDate) {
         if (workout.last_completed_at) {
           const completionDate = new Date(workout.last_completed_at);
           if (!oldestCompletionDate || completionDate < oldestCompletionDate) {
             oldestCompletionDate = completionDate;
             nextWorkoutCandidate = workout;
           }
-        } else if (!nextWorkoutCandidate) {
-          // If a workout has never been completed, it's a strong candidate for "next"
+        } else {
+          // If a workout has never been completed, it's the highest priority "next" workout
           nextWorkoutCandidate = workout;
+          break; // Found an uncompleted workout, prioritize it and stop searching
         }
-      });
+      }
 
       if (nextWorkoutCandidate) {
-        const confirmedNextWorkout = nextWorkoutCandidate; // Introduce a local constant
-        setNextWorkoutId(confirmedNextWorkout.id);
+        setNextWorkoutId(nextWorkoutCandidate.id);
       } else if (workoutsWithLastDate.length > 0) {
-        // If all have been completed, just pick the first one as a fallback
+        // Fallback: if all workouts have been completed, pick the first one alphabetically
+        // (since workoutsWithLastDate is already sorted by template_name)
         setNextWorkoutId(workoutsWithLastDate[0].id);
       } else {
         setNextWorkoutId(null);
