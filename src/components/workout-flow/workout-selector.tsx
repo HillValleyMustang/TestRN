@@ -208,7 +208,7 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
                           {Icon && <Icon className={cn("h-5 w-5", workoutColorClass)} />}
                           <span className={cn("font-semibold text-base", workoutColorClass)}>{workout.template_name}</span>
                         </div>
-                        <p className="text-xs text-muted-foreground">
+                        <p className={cn("text-xs", workoutColorClass)}> {/* Apply workoutColorClass here */}
                           {formatLastCompleted(workout.last_completed_at)}
                         </p>
                         {isNextRecommended && (
