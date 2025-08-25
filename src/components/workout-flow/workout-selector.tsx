@@ -112,7 +112,8 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
       });
 
       if (nextWorkoutCandidate) {
-        setNextWorkoutId(nextWorkoutCandidate!.id); // Re-added non-null assertion
+        const confirmedNextWorkout = nextWorkoutCandidate; // Introduce a local constant
+        setNextWorkoutId(confirmedNextWorkout.id);
       } else if (workoutsWithLastDate.length > 0) {
         // If all have been completed, just pick the first one as a fallback
         setNextWorkoutId(workoutsWithLastDate[0].id);
