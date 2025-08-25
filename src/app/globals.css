@@ -102,17 +102,17 @@
     --workout-push-text: 0 0% 100%;
     --workout-push-border: 0 0% 100%;
 
-    --workout-pull-base: 270 50% 32%; /* Deep Purple (same as Upper Body B) */
-    --workout-pull-bg: 270 50% 32%;
+    --workout-pull-base: 5 88% 59%; /* Tomato Red #F24C3D */
+    --workout-pull-bg: 5 88% 59%;
     --workout-pull-text: 0 0% 100%;
     --workout-pull-border: 0 0% 100%;
 
-    --workout-legs-base: 58 98% 73%; /* Pale Yellow (same as Push) */
-    --workout-legs-bg: 58 98% 73%;
+    --workout-legs-base: 0 0% 22%; /* Soft Charcoal #383838 */
+    --workout-legs-bg: 0 0% 22%;
     --workout-legs-text: 0 0% 100%;
     --workout-legs-border: 0 0% 100%;
 
-    --workout-bonus-base: 324 100% 44%; /* Hot Magenta (same as Lower Body B) */
+    --workout-bonus-base: 324 100% 44%; /* Hot Magenta (reused from Lower Body B) */
     --workout-bonus-bg: 324 100% 44%;
     --workout-bonus-text: 0 0% 100%;
     --workout-bonus-border: 0 0% 100%;
@@ -222,17 +222,17 @@
     --workout-push-text: 0 0% 100%;
     --workout-push-border: 0 0% 100%;
 
-    --workout-pull-base: 270 50% 45%; /* Brighter Deep Purple (same as Upper Body B) */
-    --workout-pull-bg: 270 50% 45%;
+    --workout-pull-base: 5 88% 70%; /* Brighter Tomato Red */
+    --workout-pull-bg: 5 88% 70%;
     --workout-pull-text: 0 0% 100%;
     --workout-pull-border: 0 0% 100%;
 
-    --workout-legs-base: 58 98% 80%; /* Brighter Pale Yellow (same as Push) */
-    --workout-legs-bg: 58 98% 80%;
+    --workout-legs-base: 0 0% 35%; /* Brighter Soft Charcoal */
+    --workout-legs-bg: 0 0% 35%;
     --workout-legs-text: 0 0% 100%;
     --workout-legs-border: 0 0% 100%;
 
-    --workout-bonus-base: 324 100% 55%; /* Brighter Hot Magenta (same as Lower Body B) */
+    --workout-bonus-base: 324 100% 55%; /* Brighter Hot Magenta (reused from Lower Body B) */
     --workout-bonus-bg: 324 100% 55%;
     --workout-bonus-text: 0 0% 100%;
     --workout-bonus-border: 0 0% 100%;

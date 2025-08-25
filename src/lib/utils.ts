@@ -14,11 +14,13 @@ export function getWorkoutColorClass(workoutName: string, type: 'text' | 'border
       colorKey = 'upper-body-a';
       break;
     case 'Lower Body A':
-    case 'Lower Body B':
-      colorKey = 'lower-body-a';
+      colorKey = 'lower-body-a'; // Distinct key for Lower Body A
       break;
     case 'Upper Body B':
       colorKey = 'upper-body-b';
+      break;
+    case 'Lower Body B': // Distinct key for Lower Body B
+      colorKey = 'lower-body-b';
       break;
     case 'Push':
     case '3-Day Push/Pull/Legs': // Map main T-Path to its first workout's color
