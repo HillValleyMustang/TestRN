@@ -77,25 +77,25 @@
     --sidebar-ring: 217.2 91.2% 59.8%;
 
     /* New Workout Colors (Light Mode) - Directly from 90s Retro Palette */
-    --workout-upper-body-a-base: 170 100% 40%; /* Vibrant Teal/Mint */
-    --workout-upper-body-a-bg: 170 100% 90%; /* Very light background */
-    --workout-upper-body-a-text: 170 100% 20%; /* Darker text for contrast */
-    --workout-upper-body-a-border: 170 100% 40%; /* Vibrant border */
+    --workout-upper-body-a-base: 100 80% 45%; /* Vibrant Green */
+    --workout-upper-body-a-bg: 100 80% 90%; /* Light background */
+    --workout-upper-body-a-text: 100 80% 25%; /* Darker text for contrast */
+    --workout-upper-body-a-border: 100 80% 45%; /* Vibrant border */
 
     --workout-upper-body-b-base: 270 80% 40%; /* Deep Purple */
     --workout-upper-body-b-bg: 270 80% 90%;
     --workout-upper-body-b-text: 270 80% 20%;
     --workout-upper-body-b-border: 270 80% 40%;
 
-    --workout-lower-body-a-base: 200 100% 55%; /* Light Blue */
+    --workout-lower-body-a-base: 200 100% 55%; /* Bright Clear Blue */
     --workout-lower-body-a-bg: 200 100% 95%;
     --workout-lower-body-a-text: 200 100% 30%;
     --workout-lower-body-a-border: 200 100% 55%;
 
-    --workout-lower-body-b-base: 324 100% 50%; /* Hot Pink/Magenta */
-    --workout-lower-body-b-bg: 324 100% 95%;
-    --workout-lower-body-b-text: 324 100% 30%;
-    --workout-lower-body-b-border: 324 100% 50%;
+    --workout-lower-body-b-base: 180 100% 40%; /* Vibrant Cyan/Turquoise */
+    --workout-lower-body-b-bg: 180 100% 90%;
+    --workout-lower-body-b-text: 180 100% 20%;
+    --workout-lower-body-b-border: 180 100% 40%;
 
     --workout-push-base: 50 100% 50%; /* Bright Yellow */
     --workout-push-bg: 50 100% 95%;
@@ -112,17 +112,17 @@
     --workout-legs-text: 50 100% 30%;
     --workout-legs-border: 50 100% 50%;
 
-    --workout-bonus-base: 324 100% 50%; /* Hot Pink/Magenta (same as Lower Body B) */
-    --workout-bonus-bg: 324 100% 95%;
-    --workout-bonus-text: 324 100% 30%;
-    --workout-bonus-border: 324 100% 50%;
+    --workout-bonus-base: 180 100% 40%; /* Vibrant Cyan/Turquoise (same as Lower Body B) */
+    --workout-bonus-bg: 180 100% 90%;
+    --workout-bonus-text: 180 100% 20%;
+    --workout-bonus-border: 180 100% 40%;
 
     /* New Aurora Colors (Light Mode) - Adjusted to retro palette */
     --aurora-blue: 200 100% 55%;
     --aurora-purple: 270 80% 40%;
     --aurora-orange: 50 100% 50%;
-    --aurora-green: 170 100% 40%;
-    --aurora-pink: 324 100% 50%;
+    --aurora-green: 100 80% 45%;
+    --aurora-pink: 324 100% 50%; /* Keeping a distinct pink for aurora */
     --aurora-yellow: 50 100% 50%;
   }
   .dark {
@@ -197,10 +197,10 @@
     --sidebar-ring: 217.2 91.2% 59.8%;
 
     /* Dark mode adjustments for new workout colors - Directly from 90s Retro Palette */
-    --workout-upper-body-a-base: 170 100% 45%; /* Slightly lighter Teal/Mint */
-    --workout-upper-body-a-bg: 170 100% 15%; /* Dark background */
-    --workout-upper-body-a-text: 170 100% 85%; /* Light text for contrast */
-    --workout-upper-body-a-border: 170 100% 45%; /* Medium border */
+    --workout-upper-body-a-base: 100 80% 55%; /* Brighter Green */
+    --workout-upper-body-a-bg: 100 80% 15%; /* Dark background */
+    --workout-upper-body-a-text: 100 80% 90%; /* Light text for contrast */
+    --workout-upper-body-a-border: 100 80% 55%; /* Medium border */
 
     --workout-upper-body-b-base: 270 80% 50%; /* More saturated Deep Purple */
     --workout-upper-body-b-bg: 270 80% 15%;
@@ -212,36 +212,36 @@
     --workout-lower-body-a-text: 200 100% 90%;
     --workout-lower-body-a-border: 200 100% 65%;
 
-    --workout-lower-body-b-base: 324 100% 60%; /* Brighter Hot Pink/Magenta */
-    --workout-lower-body-b-bg: 324 100% 15%;
-    --workout-lower-body-b-text: 324 100% 90%;
-    --workout-lower-body-b-border: 324 100% 60%;
+    --workout-lower-body-b-base: 180 100% 50%; /* Brighter Cyan/Turquoise */
+    --workout-lower-body-b-bg: 180 100% 15%;
+    --workout-lower-body-b-text: 180 100% 90%;
+    --workout-lower-body-b-border: 180 100% 50%;
 
     --workout-push-base: 50 100% 60%; /* Brighter Yellow */
     --workout-push-bg: 50 100% 15%;
     --workout-push-text: 50 100% 90%;
     --workout-push-border: 50 100% 60%;
 
-    --workout-pull-base: 270 80% 50%; /* Deep Purple (same as Upper Body B) */
+    --workout-pull-base: 270 80% 50%; /* More saturated Deep Purple (same as Upper Body B) */
     --workout-pull-bg: 270 80% 15%;
     --workout-pull-text: 270 80% 85%;
     --workout-pull-border: 270 80% 50%;
 
-    --workout-legs-base: 50 100% 60%; /* Bright Yellow (same as Push) */
+    --workout-legs-base: 50 100% 60%; /* Brighter Yellow (same as Push) */
     --workout-legs-bg: 50 100% 15%;
     --workout-legs-text: 50 100% 90%;
     --workout-legs-border: 50 100% 60%;
 
-    --workout-bonus-base: 324 100% 60%; /* Hot Pink/Magenta (same as Lower Body B) */
-    --workout-bonus-bg: 324 100% 15%;
-    --workout-bonus-text: 324 100% 90%;
-    --workout-bonus-border: 324 100% 60%;
+    --workout-bonus-base: 180 100% 50%; /* Brighter Cyan/Turquoise (same as Lower Body B) */
+    --workout-bonus-bg: 180 100% 15%;
+    --workout-bonus-text: 180 100% 90%;
+    --workout-bonus-border: 180 100% 50%;
 
     /* Dark mode Aurora Colors - Adjusted to retro palette */
     --aurora-blue: 200 100% 65%;
     --aurora-purple: 270 80% 50%;
     --aurora-orange: 50 100% 60%;
-    --aurora-green: 170 100% 45%;
+    --aurora-green: 100 80% 55%;
     --aurora-pink: 324 100% 60%;
     --aurora-yellow: 50 100% 60%;
   }
