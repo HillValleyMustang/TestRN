@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"; // Import Button component
 
 const mainNavLinks = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
+  { href: "/workout", label: "Workout", icon: Dumbbell }, // Updated path
   { href: "/workout-history", label: "Workout History", icon: History },
   { href: "/activity-logs", label: "Activity Logs", icon: BarChart3 },
   { href: "/manage-exercises", label: "Manage Exercises", icon: Dumbbell },
