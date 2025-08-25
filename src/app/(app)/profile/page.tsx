@@ -192,7 +192,7 @@ export default function ProfilePage() {
           toast.success("T-Path workouts updated successfully!");
           // Add a small delay before redirecting to allow database changes to propagate
           setTimeout(() => {
-            router.push('/workout'); // Updated path
+            router.push('/start-t-path'); 
           }, 1000); // 1 second delay
         } catch (regenError: any) {
           toast.error("Failed to regenerate T-Path workouts: " + regenError.message);
@@ -255,7 +255,7 @@ export default function ProfilePage() {
       }
       toast.success("New T-Path workouts generated successfully!");
       setTimeout(() => {
-        router.push('/workout'); // Updated path
+        router.push('/start-t-path'); // Redirect to start-t-path to see the new workouts
       }, 1000);
     } catch (err: any) {
       toast.error("Failed to switch T-Path: " + err.message);

@@ -52,9 +52,8 @@ export function Header() {
                 </Link>
               ))}
               <hr className="my-2" />
-              {/* Updated path */}
               <Link
-                href="/workout"
+                href="/start-t-path"
                 className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
               >
                 <Dumbbell className="h-5 w-5" />
