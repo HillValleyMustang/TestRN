@@ -35,8 +35,6 @@ interface UseWorkoutFlowManagerReturn {
   markExerciseAsCompleted: (exerciseId: string, isNewPR: boolean) => void;
   resetWorkoutSession: () => void;
   updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
-  previousActiveWorkout: TPath | null; // New state to hold the previous workout data
-  previousExercisesForSession: WorkoutExercise[]; // New state to hold previous exercises
 }
 
 const DEFAULT_INITIAL_SETS = 3;
@@ -53,10 +51,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
   const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(initialWorkoutId ?? null);
 
-  // New states to hold the previous workout data during loading
-  const [previousActiveWorkout, setPreviousActiveWorkout] = useState<TPath | null>(null);
-  const [previousExercisesForSession, setPreviousExercisesForSession] = useState<WorkoutExercise[]>([]);
-
   const resetWorkoutSession = useCallback(() => {
     setActiveWorkout(null);
     setExercisesForSession([]);
@@ -65,8 +59,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     setSessionStartTime(null);
     setCompletedExercises(new Set());
     setSelectedWorkoutId(null);
-    setPreviousActiveWorkout(null); // Clear previous states too
-    setPreviousExercisesForSession([]); // Clear previous states too
     setLoading(false);
   }, []);
 
@@ -111,13 +103,9 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       return;
     }
 
-    // Capture current state before starting to load new data
-    setPreviousActiveWorkout(activeWorkout);
-    setPreviousExercisesForSession(exercisesForSession);
-
     setLoading(true);
     setError(null);
-    // IMPORTANT: Do NOT call resetWorkoutSession() here. Let old data persist.
+    resetWorkoutSession();
 
     try {
       await fetchAllAvailableExercises();
@@ -188,7 +176,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
         return;
       }
 
-      // Only update states AFTER all data is successfully fetched
       setActiveWorkout(currentWorkout);
       setExercisesForSession(exercises);
 
@@ -270,20 +257,11 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     } catch (err: any) {
       setError(err.message || "Failed to load workout. Please try again.");
       toast.error(err.message || "Failed to load workout.");
-      // On error, revert to previous state if it existed, or clear if it was a fresh start
-      if (previousActiveWorkout) {
-        setActiveWorkout(previousActiveWorkout);
-        setExercisesForSession(previousExercisesForSession);
-      } else {
-        setActiveWorkout(null);
-        setExercisesForSession([]);
-      }
-      setPreviousActiveWorkout(null); // Clear previous states after attempt
-      setPreviousExercisesForSession([]); // Clear previous states after attempt
+      resetWorkoutSession();
     } finally {
       setLoading(false);
     }
-  }, [session, supabase, router, fetchAllAvailableExercises, activeWorkout, exercisesForSession, previousActiveWorkout, previousExercisesForSession]); // Added dependencies
+  }, [session, supabase, router, resetWorkoutSession, fetchAllAvailableExercises]);
 
   useEffect(() => {
     if (session && selectedWorkoutId !== null) {
@@ -432,7 +410,5 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     markExerciseAsCompleted,
     resetWorkoutSession,
     updateExerciseSets,
-    previousActiveWorkout, // Return new states
-    previousExercisesForSession, // Return new states
   };
 };
