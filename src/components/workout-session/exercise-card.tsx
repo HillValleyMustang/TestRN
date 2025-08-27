@@ -199,18 +199,18 @@ export const ExerciseCard = ({
     <> {/* Added React Fragment */}
       <Card className={cn("mb-6 border-2", workoutBorderClass, { "opacity-70": isExerciseSaved })}>
         <CardHeader 
-          className="flex flex-row items-center justify-between pb-4 cursor-pointer"
+          className="flex flex-row items-center justify-between p-4 cursor-pointer"
           onClick={() => setIsExpanded(!isExpanded)}
         >
-          <div className="flex-1">
+          <div className="flex flex-col flex-1"> {/* Left section: Title and Muscle */}
             <CardTitle className={cn("text-xl flex items-center gap-2", workoutColorClass)}>
               {exerciseNumber}. {exercise.name}
               {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus">Bonus</WorkoutBadge>}
-              {isExerciseSaved && <CheckCircle2 className="h-5 w-5 text-green-500 ml-2" />} {/* Green checkmark icon */}
+              {isExerciseSaved && <CheckCircle2 className="h-5 w-5 text-green-500" />}
             </CardTitle>
-            <p className="text-sm text-muted-foreground">{exercise.main_muscle}</p>
+            <p className="text-sm text-muted-foreground mt-1">{exercise.main_muscle}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2"> {/* Right section: Menu and Chevron */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" title="More Options" onClick={(e) => e.stopPropagation()}>
