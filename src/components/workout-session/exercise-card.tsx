@@ -185,6 +185,15 @@ export const ExerciseCard = ({
     (exercise.type === 'timed' && sets.map(set => set.time_seconds).filter((time): time is number => time !== null).length > 0 && Math.min(...sets.map(set => set.time_seconds).filter((time): time is number => time !== null)) < (exercisePR.best_time_seconds || Infinity))
   );
 
+  // Determine if any set has valid input data
+  const hasAnyInput = sets.some(s => 
+    (s.weight_kg !== null && s.weight_kg > 0) || 
+    (s.reps !== null && s.reps > 0) || 
+    (s.time_seconds !== null && s.time_seconds > 0) || 
+    (s.reps_l !== null && s.reps_l > 0) || 
+    (s.reps_r !== null && s.reps_r > 0)
+  );
+
   return (
     <> {/* Added React Fragment */}
       <Card className={cn("mb-6 border-2", workoutBorderClass, { "opacity-70": isExerciseSaved })}>
@@ -365,9 +374,15 @@ export const ExerciseCard = ({
 
             <div className="mt-4">
               <Button
-                className={cn("w-full", { "bg-green-500 hover:bg-green-600 text-white": isExerciseSaved })}
+                className={cn(
+                  "w-full",
+                  {
+                    "bg-orange-500 text-black hover:bg-orange-600": hasAnyInput && !isExerciseSaved,
+                    "bg-green-700 text-white hover:bg-green-800": isExerciseSaved,
+                  }
+                )}
                 onClick={handleCompleteExercise}
-                disabled={isExerciseSaved || sets.filter(s => s.isSaved).length === 0}
+                disabled={isExerciseSaved || !hasAnyInput}
               >
                 {isExerciseSaved ? (
                   <span className="flex items-center">
@@ -376,7 +391,7 @@ export const ExerciseCard = ({
                   </span>
                 ) : (
                   <span className="flex items-center">
-                    <CheckCircle2 className="h-4 w-4 mr-2" /> {sets.filter(s => s.isSaved).length === 0 ? "Save Exercise (Add sets first)" : "Save Exercise"}
+                    Save Exercise
                   </span>
                 )}
               </Button>
