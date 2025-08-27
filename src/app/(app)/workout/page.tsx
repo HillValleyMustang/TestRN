@@ -1,19 +1,20 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { MadeWithDyad } from "@/components/made-with-dyad";
+import { useWorkoutFlowManager } from '@/hooks/use-workout-flow-manager';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Dumbbell, ChevronDown, ChevronUp } from 'lucide-react';
+import { Dumbbell, PlusCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { cn, getWorkoutColorClass, getWorkoutIcon } from '@/lib/utils';
-import { useWorkoutFlowManager } from '@/hooks/use-workout-flow-manager';
-import { useRouter } from 'next/navigation';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { SetLogState, WorkoutExercise } from '@/types/supabase';
 import { WorkoutSessionFooter } from '@/components/workout-session/workout-session-footer';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 type TPath = Tables<'t_paths'>;
 
@@ -46,6 +47,7 @@ interface WorkoutSelectorProps {
   updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
 }
 
+// Component for the workout selector logic
 export const WorkoutSelector = ({ 
   onWorkoutSelect, 
   selectedWorkoutId,
@@ -433,3 +435,33 @@ export const WorkoutSelector = ({
     </div>
   );
 };
+
+// Default export for the page component
+export default function WorkoutPage() {
+  const { session, supabase } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialWorkoutId = searchParams.get('workoutId');
+
+  // State for selected workout ID, managed by the page component
+  const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(initialWorkoutId);
+
+  const workoutFlowManagerProps = useWorkoutFlowManager({
+    initialWorkoutId: initialWorkoutId,
+    session,
+    supabase,
+    router,
+  });
+
+  // Render the WorkoutSelector component with the props
+  return (
+    <div className="p-4 sm:p-8">
+      <WorkoutSelector 
+        {...workoutFlowManagerProps} 
+        selectedWorkoutId={selectedWorkoutId} // Pass selectedWorkoutId state
+        onWorkoutSelect={setSelectedWorkoutId} // Pass the setter function
+      />
+      <MadeWithDyad />
+    </div>
+  );
+}

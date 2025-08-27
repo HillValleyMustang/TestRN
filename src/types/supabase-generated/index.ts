@@ -3,10 +3,17 @@
  * It is part of the Supabase generated types, refactored for modularity.
  */
 
-export type { Json } from "./json";
-export type { Database } from "./database";
-export * from "./tables"; // Correctly re-export all from tables.ts
-export * from "./enums";  // Correctly re-export all from enums.ts
+// Import generated Supabase types to be used and re-exported
+import type { Json } from "./json";
+import type { Database } from "./database";
+import type { Tables, TablesInsert, TablesUpdate } from "./tables";
+import type { Enums } from "./enums";
+
+export type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums };
+
+// Re-exporting all from tables.ts and enums.ts to ensure they are available
+export * from "./tables";
+export * from "./enums";
 
 // No individual table/function exports here to avoid circular dependencies.
 // Application code should use `Tables<'table_name'>` or `Database['public']['Tables']['table_name']['Row']`
