@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { MadeWithDyad } from "@/components/made-with-dyad";
@@ -47,7 +47,7 @@ interface WorkoutSelectorProps {
   updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
 }
 
-export const WorkoutSelector = ({ 
+const WorkoutSelector = ({ 
   onWorkoutSelect, 
   selectedWorkoutId,
   activeWorkout,
@@ -75,82 +75,83 @@ export const WorkoutSelector = ({
   const [isAdHocExpanded, setIsAdHocExpanded] = useState(false);
   const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, WorkoutExercise[]>>({}); // Cache for exercises
 
-  const fetchWorkoutsAndProfile = useCallback(async () => {
-    if (!session) return;
-    setLoading(true);
-    try {
-      // 1. Fetch user profile to get active_t_path_id
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('active_t_path_id')
-        .eq('id', session.user.id)
-        .single();
+  // Fetch workouts and profile data
+  useEffect(() => {
+    const fetchWorkoutsAndProfile = async () => {
+      if (!session) return;
+      setLoading(true);
+      try {
+        // 1. Fetch user profile to get active_t_path_id
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('active_t_path_id')
+          .eq('id', session.user.id)
+          .single();
 
-      if (profileError && profileError.code !== 'PGRST116') {
-        throw profileError;
-      }
-      const fetchedActiveMainTPathId = profileData?.active_t_path_id || null;
-      setActiveMainTPathId(fetchedActiveMainTPathId);
+        if (profileError && profileError.code !== 'PGRST116') {
+          throw profileError;
+        }
+        const fetchedActiveMainTPathId = profileData?.active_t_path_id || null;
+        setActiveMainTPathId(fetchedActiveMainTPathId);
 
-      let mainTPathsData: TPath[] | null = [];
-      if (fetchedActiveMainTPathId) {
-        // 2. Fetch ONLY the active main T-Path for the user
-        const { data, error: mainTPathsError } = await supabase
+        let mainTPathsData: TPath[] | null = [];
+        if (fetchedActiveMainTPathId) {
+          // 2. Fetch ONLY the active main T-Path for the user
+          const { data, error: mainTPathsError } = await supabase
+            .from('t_paths')
+            .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
+            .eq('user_id', session.user.id)
+            .is('parent_t_path_id', null)
+            .eq('id', fetchedActiveMainTPathId) // Filter by active T-Path ID
+            .order('created_at', { ascending: true });
+
+          if (mainTPathsError) throw mainTPathsError;
+          mainTPathsData = data as TPath[];
+        }
+
+        // 3. Fetch all child workouts for the user (these will be filtered by parent_t_path_id later)
+        const { data: childWorkoutsData, error: childWorkoutsError } = await supabase
           .from('t_paths')
           .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
           .eq('user_id', session.user.id)
-          .is('parent_t_path_id', null)
-          .eq('id', fetchedActiveMainTPathId) // Filter by active T-Path ID
-          .order('created_at', { ascending: true });
+          .eq('is_bonus', true)
+          .order('template_name', { ascending: true });
 
-        if (mainTPathsError) throw mainTPathsError;
-        mainTPathsData = data as TPath[];
+        if (childWorkoutsError) throw childWorkoutsError;
+
+        const workoutsWithLastDatePromises = (childWorkoutsData as TPath[] || []).map(async (workout) => {
+          const { data: lastSessionDate, error: lastSessionError } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
+          
+          if (lastSessionError) {
+            console.error(`Error fetching last session date for workout ${workout.template_name}:`, lastSessionError);
+          }
+          
+          return {
+            ...workout,
+            last_completed_at: lastSessionDate && lastSessionDate.length > 0 ? lastSessionDate[0].session_date : null,
+          };
+        });
+
+        const allChildWorkoutsWithLastDate = await Promise.all(workoutsWithLastDatePromises);
+
+        // Group child workouts under their respective main T-Paths
+        const newGroupedTPaths: GroupedTPath[] = (mainTPathsData as TPath[] || []).map(mainTPath => ({
+          mainTPath,
+          childWorkouts: allChildWorkoutsWithLastDate.filter(cw => cw.parent_t_path_id === mainTPath.id),
+        }));
+
+        setGroupedTPaths(newGroupedTPaths);
+
+      } catch (err: any) {
+        toast.error("Failed to load Transformation Paths: " + err.message);
+        console.error("Error fetching T-Paths:", err);
+      } finally {
+        setLoading(false);
       }
+    };
 
-      // 3. Fetch all child workouts for the user (these will be filtered by parent_t_path_id later)
-      const { data: childWorkoutsData, error: childWorkoutsError } = await supabase
-        .from('t_paths')
-        .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
-        .eq('user_id', session.user.id)
-        .eq('is_bonus', true)
-        .order('template_name', { ascending: true });
-
-      if (childWorkoutsError) throw childWorkoutsError;
-
-      const workoutsWithLastDatePromises = (childWorkoutsData as TPath[] || []).map(async (workout) => {
-        const { data: lastSessionDate, error: lastSessionError } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
-        
-        if (lastSessionError) {
-          console.error(`Error fetching last session date for workout ${workout.template_name}:`, lastSessionError);
-        }
-        
-        return {
-          ...workout,
-          last_completed_at: lastSessionDate && lastSessionDate.length > 0 ? lastSessionDate[0].session_date : null,
-        };
-      });
-
-      const allChildWorkoutsWithLastDate = await Promise.all(workoutsWithLastDatePromises);
-
-      // Group child workouts under their respective main T-Paths
-      const newGroupedTPaths: GroupedTPath[] = (mainTPathsData as TPath[] || []).map(mainTPath => ({
-        mainTPath,
-        childWorkouts: allChildWorkoutsWithLastDate.filter(cw => cw.parent_t_path_id === mainTPath.id),
-      }));
-
-      setGroupedTPaths(newGroupedTPaths);
-
-    } catch (err: any) {
-      toast.error("Failed to load Transformation Paths: " + err.message);
-      console.error("Error fetching T-Paths:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [session, supabase]);
-
-  useEffect(() => {
     fetchWorkoutsAndProfile();
-  }, [fetchWorkoutsAndProfile]);
+  }, [session, supabase]);
 
   const fetchExercisesForWorkout = useCallback(async (workoutId: string) => {
     if (!session || !workoutId) return [];
@@ -258,7 +259,7 @@ export const WorkoutSelector = ({
 
   return (
     <div className="space-y-6">
-      <header className="mb-4"> {/* Page heading */}
+      <header className="mb-4">
         <h1 className="text-3xl font-bold">Start Your Workout</h1>
         <p className="text-muted-foreground">Select a Transformation Path or start an ad-hoc session.</p>
       </header>
@@ -430,7 +431,7 @@ export const WorkoutSelector = ({
             <PlusCircle className="h-4 w-4 mr-2" />
             Start Ad-Hoc Workout
           </CardTitle>
-          <CardDescription className="text-xs"> {/* Corrected closing tag */}
+          <CardDescription className="text-xs">
             Start a workout without a T-Path. Add exercises as you go.
           </CardDescription>
         </CardHeader>
@@ -458,12 +459,12 @@ export default function WorkoutPage() {
 
   // Render the WorkoutSelector component with the props
   return (
-    <div className="p-4 sm:p-8"> {/* Corrected className prop placement */}
-      <h1 className="text-3xl font-bold mb-6">Start Your Workout</h1> {/* Added page heading */}
+    <div className="p-4 sm:p-8">
+      <h1 className="text-3xl font-bold mb-6">Start Your Workout</h1>
       <WorkoutSelector 
         {...workoutFlowManagerProps} 
-        selectedWorkoutId={selectedWorkoutId} // Pass selectedWorkoutId state
-        onWorkoutSelect={setSelectedWorkoutId} // Pass the setter function
+        selectedWorkoutId={selectedWorkoutId}
+        onWorkoutSelect={setSelectedWorkoutId}
       />
       <MadeWithDyad />
     </div>

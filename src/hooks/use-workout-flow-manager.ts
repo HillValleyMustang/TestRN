@@ -11,7 +11,7 @@ type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 interface UseWorkoutFlowManagerProps {
-  initialWorkoutId?: string | null; // Added this property
+  initialWorkoutId?: string | null;
   session: Session | null;
   supabase: SupabaseClient;
   router: ReturnType<typeof useRouter>;
@@ -412,34 +412,3 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     updateExerciseSets,
   };
 };
-
-// Default export for the page component
-export default function WorkoutPage() {
-  const { session, supabase } = useSession();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const initialWorkoutId = searchParams.get('workoutId');
-
-  // State for selected workout ID, managed by the page component
-  const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(initialWorkoutId);
-
-  const workoutFlowManagerProps = useWorkoutFlowManager({
-    initialWorkoutId: initialWorkoutId,
-    session,
-    supabase,
-    router,
-  });
-
-  // Render the WorkoutSelector component with the props
-  return (
-    <div className="p-4 sm:p-8">
-      <h1 className="text-3xl font-bold mb-6">Start Your Workout</h1> {/* Added page heading */}
-      <WorkoutSelector 
-        {...workoutFlowManagerProps} 
-        selectedWorkoutId={selectedWorkoutId} // Pass selectedWorkoutId state
-        onWorkoutSelect={setSelectedWorkoutId} // Pass the setter function
-      />
-      <MadeWithDyad />
-    </div>
-  );
-}
