@@ -237,11 +237,32 @@ export const ExerciseCard = ({
               })}>
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-semibold text-base">Set {setIndex + 1}</h3>
-                  {set.isSaved && set.isPR && (
-                    <span className="text-yellow-500 flex items-center text-xs font-semibold">
-                      <Trophy className="h-3 w-3 mr-1" /> Set PR!
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {set.isSaved ? (
+                      <>
+                        <Button variant="ghost" size="icon" onClick={() => handleEditSet(setIndex)} title="Edit Set" disabled={isExerciseSaved}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" disabled={isExerciseSaved}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button variant="secondary" size="icon" onClick={() => handleSaveSetAndStartTimer(setIndex)} disabled={isExerciseSaved} title="Save Set">
+                          <Save className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" disabled={isExerciseSaved}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </>
+                    )}
+                    {set.isSaved && set.isPR && (
+                      <span className="text-yellow-500 flex items-center text-xs font-semibold">
+                        <Trophy className="h-3 w-3 mr-1" /> Set PR!
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -318,28 +339,6 @@ export const ExerciseCard = ({
                           className="mt-1"
                         />
                       </div>
-                    </>
-                  )}
-                </div>
-
-                <div className="flex justify-end items-center mt-3 space-x-2">
-                  {set.isSaved ? (
-                    <>
-                      <Button variant="ghost" size="sm" onClick={() => handleEditSet(setIndex)} title="Edit Set" disabled={isExerciseSaved}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" disabled={isExerciseSaved}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button variant="secondary" size="sm" onClick={() => handleSaveSetAndStartTimer(setIndex)} disabled={isExerciseSaved}>
-                        <Save className="h-4 w-4 mr-1" /> Save Set
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" disabled={isExerciseSaved}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
                     </>
                   )}
                 </div>
