@@ -199,22 +199,24 @@ export const ExerciseCard = ({
     <> {/* Added React Fragment */}
       <Card className={cn("mb-6 border-2", workoutBorderClass, { "opacity-70": isExerciseSaved })}>
         <CardHeader 
-          className="flex items-center justify-between p-4 cursor-pointer"
+          className="flex flex-row items-center justify-between p-4 cursor-pointer"
           onClick={() => setIsExpanded(!isExpanded)}
         >
-          {/* Left side: Exercise details */}
+          {/* Left section: Exercise details */}
           <div className="flex flex-col flex-1 min-w-0"> {/* min-w-0 to allow shrinking */}
-            <div className="flex items-center gap-2"> {/* Line 1: Number, Name, Bonus, Check */}
-              <CardTitle className={cn("text-xl font-bold leading-none", workoutColorClass)}>
+            <div className="flex items-center justify-between w-full"> {/* New flex container for title and right-aligned badges */}
+              <CardTitle className={cn("text-xl font-bold leading-none flex items-center gap-2", workoutColorClass)}>
                 {exerciseNumber}. {exercise.name}
               </CardTitle>
-              {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus" className="flex-shrink-0">Bonus</WorkoutBadge>}
-              {isExerciseSaved && <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />}
+              <div className="flex items-center gap-2 flex-shrink-0"> {/* Badges go here, right-aligned */}
+                {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus">Bonus</WorkoutBadge>}
+                {isExerciseSaved && <CheckCircle2 className="h-5 w-5 text-green-500" />}
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground mt-1 truncate">{exercise.main_muscle}</p> {/* Line 2: Muscle Group */}
+            <p className="text-sm text-muted-foreground mt-1 truncate text-center">{exercise.main_muscle}</p> {/* Line 2: Muscle Group, now centered */}
           </div>
 
-          {/* Right side: Menu and Chevron */}
+          {/* Right section: Menu and Chevron */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
