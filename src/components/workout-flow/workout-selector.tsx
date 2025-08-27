@@ -136,7 +136,6 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
 
   return (
     <div className="space-y-6">
-      {/* Moved the Ad-hoc workout card below the Transformation Paths */}
       <div className="space-y-4">
         {groupedTPaths.length === 0 ? (
           <p className="text-muted-foreground text-center py-4">
