@@ -283,75 +283,74 @@ export const ExerciseCard = ({
                       </div>
                     </div>
 
-                    {/* Input fields and 'Last' info */}
-                    <div className="flex flex-col gap-1"> {/* New flex container for 'Last' and inputs */}
-                      {(set.lastWeight !== null || set.lastReps !== null || set.lastTimeSeconds !== null) && (
-                        <p className="text-muted-foreground text-xs text-right">
-                          Last: {exercise.type === 'weight' ?
-                            `${set.lastWeight !== null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${set.lastReps !== null ? set.lastReps : '-'}` :
-                            `${set.lastTimeSeconds !== null ? `${set.lastTimeSeconds}s` : '-'}`}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-2"> {/* Input fields */}
-                        {exercise.type === 'weight' && (
-                          <>
-                            <Input
-                              id={`weight-${setIndex}`}
-                              type="number"
-                              step="0.1"
-                              placeholder="kg"
-                              value={convertWeight(set.weight_kg, 'kg', preferredWeightUnit as 'kg' | 'lbs') ?? ''}
-                              onChange={(e) => handleInputChange(setIndex, 'weight_kg', e.target.value)}
-                              disabled={set.isSaved || isExerciseSaved}
-                              className="w-20 text-center h-8 text-sm" // Added text-sm
-                            />
-                            <span className="text-muted-foreground text-sm">x</span>
-                            <Input
-                              id={`reps-${setIndex}`}
-                              type="number"
-                              placeholder="reps"
-                              value={set.reps ?? ''}
-                              onChange={(e) => handleInputChange(setIndex, 'reps', e.target.value)}
-                              disabled={set.isSaved || isExerciseSaved}
-                              className="w-20 text-center h-8 text-sm" // Added text-sm
-                            />
-                          </>
-                        )}
-                        {exercise.type === 'timed' && (
+                    {/* Input fields */}
+                    <div className="flex items-center gap-2 mt-2"> {/* Input fields */}
+                      {exercise.type === 'weight' && (
+                        <>
                           <Input
-                            id={`time-${setIndex}`}
+                            id={`weight-${setIndex}`}
                             type="number"
-                            placeholder="Time (seconds)"
-                            value={set.time_seconds ?? ''}
-                            onChange={(e) => handleInputChange(setIndex, 'time_seconds', e.target.value)}
+                            step="0.1"
+                            placeholder="kg"
+                            value={convertWeight(set.weight_kg, 'kg', preferredWeightUnit as 'kg' | 'lbs') ?? ''}
+                            onChange={(e) => handleInputChange(setIndex, 'weight_kg', e.target.value)}
+                            disabled={set.isSaved || isExerciseSaved}
+                            className="w-20 text-center h-8 text-sm" // Added text-sm
+                          />
+                          <span className="text-muted-foreground text-sm">x</span>
+                          <Input
+                            id={`reps-${setIndex}`}
+                            type="number"
+                            placeholder="reps"
+                            value={set.reps ?? ''}
+                            onChange={(e) => handleInputChange(setIndex, 'reps', e.target.value)}
+                            disabled={set.isSaved || isExerciseSaved}
+                            className="w-20 text-center h-8 text-sm" // Added text-sm
+                          />
+                        </>
+                      )}
+                      {exercise.type === 'timed' && (
+                        <Input
+                          id={`time-${setIndex}`}
+                          type="number"
+                          placeholder="Time (seconds)"
+                          value={set.time_seconds ?? ''}
+                          onChange={(e) => handleInputChange(setIndex, 'time_seconds', e.target.value)}
+                          disabled={set.isSaved || isExerciseSaved}
+                          className="flex-1 h-8 text-sm" // Added text-sm
+                        />
+                      )}
+                      {exercise.category === 'Unilateral' && (
+                        <>
+                          <Input
+                            id={`reps-l-${setIndex}`}
+                            type="number"
+                            placeholder="Reps (L)"
+                            value={set.reps_l ?? ''}
+                            onChange={(e) => handleInputChange(setIndex, 'reps_l', e.target.value)}
                             disabled={set.isSaved || isExerciseSaved}
                             className="flex-1 h-8 text-sm" // Added text-sm
                           />
-                        )}
-                        {exercise.category === 'Unilateral' && (
-                          <>
-                            <Input
-                              id={`reps-l-${setIndex}`}
-                              type="number"
-                              placeholder="Reps (L)"
-                              value={set.reps_l ?? ''}
-                              onChange={(e) => handleInputChange(setIndex, 'reps_l', e.target.value)}
-                              disabled={set.isSaved || isExerciseSaved}
-                              className="flex-1 h-8 text-sm" // Added text-sm
-                            />
-                            <Input
-                              id={`reps-r-${setIndex}`}
-                              type="number"
-                              placeholder="Reps (R)"
-                              value={set.reps_r ?? ''}
-                              onChange={(e) => handleInputChange(setIndex, 'reps_r', e.target.value)}
-                              disabled={set.isSaved || isExerciseSaved}
-                              className="flex-1 h-8 text-sm" // Added text-sm
-                            />
-                          </>
-                        )}
-                      </div>
+                          <Input
+                            id={`reps-r-${setIndex}`}
+                            type="number"
+                            placeholder="Reps (R)"
+                            value={set.reps_r ?? ''}
+                            onChange={(e) => handleInputChange(setIndex, 'reps_r', e.target.value)}
+                            disabled={set.isSaved || isExerciseSaved}
+                            className="flex-1 h-8 text-sm" // Added text-sm
+                          />
+                        </>
+                      )}
                     </div>
+                    {/* 'Last' info */}
+                    {(set.lastWeight !== null || set.lastReps !== null || set.lastTimeSeconds !== null) && (
+                      <p className="text-muted-foreground text-xs mt-1"> {/* Added mt-1 for spacing */}
+                        Last: {exercise.type === 'weight' ?
+                          `${set.lastWeight !== null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${set.lastReps !== null ? set.lastReps : '-'}` :
+                          `${set.lastTimeSeconds !== null ? `${set.lastTimeSeconds}s` : '-'}`}
+                      </p>
+                    )}
                   </div>
                   {setIndex < sets.length - 1 && <Separator className="my-4" />} {/* Separator between sets */}
                 </React.Fragment>
