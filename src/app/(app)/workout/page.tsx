@@ -8,7 +8,7 @@ import { useWorkoutFlowManager } from '@/hooks/use-workout-flow-manager';
 import { SetLogState, WorkoutExercise, Tables } from '@/types/supabase';
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dumbbell, PlusCircle, Clock, Info, ChevronDown, ChevronUp } from 'lucide-react';
+import { Dumbbell, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
 import { WorkoutSessionHeader } from '@/components/workout-session/workout-session-header';
 import { WorkoutSessionFooter } from '@/components/workout-session/workout-session-footer';
@@ -16,12 +16,6 @@ import { toast } from 'sonner';
 import React from 'react';
 import { WorkoutSelector } from '@/components/workout-flow/workout-selector';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"; // Import Collapsible components
-import { cn, getWorkoutColorClass, getMaxMinutes } from '@/lib/utils'; // Import utility functions
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -32,7 +26,7 @@ export default function WorkoutPage() {
   const initialWorkoutIdFromParams = searchParams.get('workoutId');
 
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
-  const [openWorkoutId, setOpenWorkoutId] = useState<string | null>(initialWorkoutIdFromParams || null); // Manage expanded workout state
+  const [isWorkoutSelected, setIsWorkoutSelected] = useState(false);
 
   const {
     activeWorkout,
@@ -52,21 +46,20 @@ export default function WorkoutPage() {
     markExerciseAsCompleted,
     resetWorkoutSession,
     updateExerciseSets,
-  } = useWorkoutFlowManager({ initialWorkoutId: openWorkoutId, session, supabase, router });
+  } = useWorkoutFlowManager({ initialWorkoutId: initialWorkoutIdFromParams, session, supabase, router });
 
   useEffect(() => {
-    // If initialWorkoutIdFromParams is provided and no workout is active, select it
     if (initialWorkoutIdFromParams && !activeWorkout && !loading && !error) {
       selectWorkout(initialWorkoutIdFromParams);
-    } else if (!initialWorkoutIdFromParams && !activeWorkout && !loading && !error) {
-      // If no initial workout ID, ensure we are in the selection state
-      selectWorkout(null);
     }
   }, [initialWorkoutIdFromParams, activeWorkout, loading, error, selectWorkout]);
 
+  useEffect(() => {
+    setIsWorkoutSelected(!!activeWorkout && activeWorkout.id !== null);
+  }, [activeWorkout]);
+
   const handleWorkoutSelect = useCallback(async (workoutId: string | null) => {
     await selectWorkout(workoutId);
-    setOpenWorkoutId(workoutId); // Update the open state
   }, [selectWorkout]);
 
   const handleAddExercise = () => {
@@ -85,7 +78,6 @@ export default function WorkoutPage() {
 
   const handleBackToSelection = () => {
     resetWorkoutSession();
-    setOpenWorkoutId(null); // Reset the open state
   };
 
   const totalExercises = exercisesForSession.length;
@@ -110,7 +102,7 @@ export default function WorkoutPage() {
     );
   }
 
-  if (!openWorkoutId) { // Check openWorkoutId instead of activeWorkout directly
+  if (!isWorkoutSelected || !activeWorkout) {
     return (
       <div className="flex flex-col gap-4 p-4 sm:px-4 sm:py-4 md:px-6 lg:px-8">
         <header className="mb-4">
@@ -119,23 +111,22 @@ export default function WorkoutPage() {
             Choose an ad-hoc session or one of your personalised Transformation Paths.
           </p>
         </header>
-        <WorkoutSelector onWorkoutSelect={handleWorkoutSelect} selectedWorkoutId={openWorkoutId} />
+        <WorkoutSelector onWorkoutSelect={handleWorkoutSelect} selectedWorkoutId={initialWorkoutIdFromParams} />
         <MadeWithDyad />
       </div>
     );
   }
 
-  // Render the workout session header and main content
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <WorkoutSessionHeader
-        tPathName={activeWorkout?.template_name || 'Ad Hoc Workout'} // Use optional chaining for safety
+        tPathName={activeWorkout.template_name}
         currentExerciseCount={completedExerciseCount}
         totalExercises={totalExercises}
       />
 
       <main className="flex-1 p-4 sm:px-4 sm:py-4 overflow-y-auto">
-        {activeWorkout?.id === 'ad-hoc' && (
+        {activeWorkout.id === 'ad-hoc' && (
           <section className="mb-8 p-4 border rounded-lg bg-card">
             <h2 className="text-xl font-semibold mb-4">Add Exercises</h2>
             <div className="flex flex-col sm:flex-row gap-2">
@@ -149,7 +140,7 @@ export default function WorkoutPage() {
                   ) : (
                     allAvailableExercises
                       .filter((ex: ExerciseDefinition) => !exercisesForSession.some((sessionEx: WorkoutExercise) => sessionEx.id === ex.id))
-                      .map((exercise: ExerciseDefinition) => (
+                      .map((exercise: ExerciseDefinition) => ( // Explicitly type 'exercise'
                         <SelectItem key={exercise.id} value={exercise.id}>
                           {exercise.name} ({exercise.main_muscle})
                         </SelectItem>
@@ -157,7 +148,7 @@ export default function WorkoutPage() {
                   )}
                 </SelectContent>
               </Select>
-              <Button onClick={handleAddExercise} disabled={!selectedExerciseToAdd} className="flex-shrink-0"> {/* Added flex-shrink-0 */}
+              <Button onClick={handleAddExercise} disabled={!selectedExerciseToAdd}>
                 <PlusCircle className="h-4 w-4 mr-2" /> Add Exercise
               </Button>
             </div>
@@ -168,7 +159,7 @@ export default function WorkoutPage() {
           {exercisesForSession.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-12">
               <Dumbbell className="h-16 w-16 text-muted-foreground mb-4" />
-              <h2 className="text-2xl font-bold mb-2">No exercises for this workout</h2>
+              <h2 className="text-2xl font-bold mb-2">No exercises found for this workout.</h2>
               <p className="text-muted-foreground mb-4 text-center">
                 Please add exercises to this workout to begin. You can add exercises to your workout within the{" "}
                 <Link href="/manage-exercises" className="font-bold text-primary hover:underline">Exercises</Link> page and by clicking the <PlusCircle className="inline-block h-4 w-4" /> icon next to an exercise.
@@ -179,63 +170,27 @@ export default function WorkoutPage() {
           ) : (
             <div className="space-y-6">
               {exercisesForSession.map((exercise, index) => (
-                <Collapsible
+                <ExerciseCard
                   key={exercise.id}
-                  open={openWorkoutId === exercise.id}
-                  onOpenChange={(isOpen) => {
-                    if (isOpen) {
-                      setOpenWorkoutId(exercise.id);
-                    } else {
-                      setOpenWorkoutId(null);
-                    }
-                  }}
-                >
-                  <CollapsibleTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "h-auto p-4 flex items-center justify-between w-full transition-colors relative",
-                        "border-2",
-                        getWorkoutColorClass(activeWorkout?.template_name || 'Ad Hoc Workout', 'border'),
-                        getWorkoutColorClass(activeWorkout?.template_name || 'Ad Hoc Workout', 'bg'),
-                        openWorkoutId === exercise.id && "ring-2 ring-primary",
-                        "hover:brightness-90 dark:hover:brightness-110"
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Dumbbell className="h-5 w-5 text-muted-foreground" />
-                        <span className={cn("font-semibold text-base", getWorkoutColorClass(activeWorkout?.template_name || 'Ad Hoc Workout', 'text'))}>
-                          {index + 1}. {exercise.name}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {openWorkoutId === exercise.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                      </div>
-                    </Button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="mt-3">
-                    <ExerciseCard
-                      exercise={exercise}
-                      exerciseNumber={index + 1}
-                      currentSessionId={currentSessionId}
-                      supabase={supabase}
-                      onUpdateGlobalSets={updateExerciseSets}
-                      initialSets={exercisesWithSets[exercise.id] || []}
-                      onSubstituteExercise={substituteExercise}
-                      onRemoveExercise={removeExerciseFromSession}
-                      workoutTemplateName={activeWorkout?.template_name || 'Ad Hoc Workout'}
-                      onFirstSetSaved={updateSessionStartTime}
-                      onExerciseCompleted={markExerciseAsCompleted}
-                    />
-                  </CollapsibleContent>
-                </Collapsible>
+                  exercise={exercise}
+                  exerciseNumber={index + 1}
+                  currentSessionId={currentSessionId}
+                  supabase={supabase}
+                  onUpdateGlobalSets={updateExerciseSets}
+                  initialSets={exercisesWithSets[exercise.id] || []}
+                  onSubstituteExercise={substituteExercise}
+                  onRemoveExercise={removeExerciseFromSession}
+                  workoutTemplateName={activeWorkout.template_name}
+                  onFirstSetSaved={updateSessionStartTime}
+                  onExerciseCompleted={markExerciseAsCompleted}
+                />
               ))}
             </div>
           )}
         </section>
       </main>
 
-      {totalExercises > 0 && currentSessionId && (
+      {totalExercises > 0 && (
         <WorkoutSessionFooter
           currentSessionId={currentSessionId}
           sessionStartTime={sessionStartTime}

@@ -4,20 +4,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from '@/components/session-context-provider';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Dumbbell, Clock, Info, ChevronDown, ChevronUp } from 'lucide-react'; // Added Chevron icons
+import { PlusCircle, Dumbbell } from 'lucide-react';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNowStrict } from 'date-fns';
-import { cn, getWorkoutColorClass, getWorkoutIcon, getMaxMinutes } from '@/lib/utils'; // Import getWorkoutIcon and getMaxMinutes
-import {
-  Collapsible, // Import Collapsible for expandable sections
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"; // Import Collapsible components
+import { cn, getWorkoutColorClass, getWorkoutIcon } from '@/lib/utils'; // Import getWorkoutIcon
 
 type TPath = Tables<'t_paths'>;
-type ExerciseDefinition = Tables<'exercise_definitions'>; // Import ExerciseDefinition
 
 interface WorkoutWithLastCompleted extends TPath {
   last_completed_at: string | null;
@@ -39,16 +33,15 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
   const [loading, setLoading] = useState(true);
   const [nextRecommendedWorkoutId, setNextRecommendedWorkoutId] = useState<string | null>(null);
   const [activeMainTPathId, setActiveMainTPathId] = useState<string | null>(null);
-  const [openWorkoutId, setOpenWorkoutId] = useState<string | null>(selectedWorkoutId); // Initialize with selectedWorkoutId
 
   const fetchWorkoutsAndProfile = useCallback(async () => {
     if (!session) return;
     setLoading(true);
     try {
-      // 1. Fetch user profile to get active_t_path_id AND preferred_session_length
+      // 1. Fetch user profile to get active_t_path_id
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('active_t_path_id, preferred_session_length')
+        .select('active_t_path_id')
         .eq('id', session.user.id)
         .single();
 
@@ -64,9 +57,9 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
         const { data, error: mainTPathsError } = await supabase
           .from('t_paths')
           .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
-          .eq('id', fetchedActiveMainTPathId)
           .eq('user_id', session.user.id)
-          .is('parent_t_path_id', null) // Correctly identify a main T-Path
+          .is('parent_t_path_id', null)
+          .eq('id', fetchedActiveMainTPathId) // Filter by active T-Path ID
           .order('created_at', { ascending: true });
 
         if (mainTPathsError) throw mainTPathsError;
@@ -143,7 +136,6 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
 
   return (
     <div className="space-y-6">
-      {/* Ad Hoc Workout Card - Moved to be the first item */}
       <Card
         className={cn(
           "cursor-pointer hover:bg-accent transition-colors",
@@ -162,7 +154,6 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
         </CardHeader>
       </Card>
 
-      {/* Transformation Paths Section - Moved above Ad Hoc */}
       <h3 className="text-xl font-semibold">Your Transformation Paths</h3>
 
       <div className="space-y-4">
@@ -199,52 +190,31 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
                     const isSelected = selectedWorkoutId === workout.id;
 
                     return (
-                      <Collapsible
+                      <Button
                         key={workout.id}
-                        open={isSelected} // Control open state based on selectedWorkoutId
-                        onOpenChange={(isOpen) => {
-                          if (isOpen) {
-                            onWorkoutSelect(workout.id);
-                          } else {
-                            onWorkoutSelect(null); // Deselect if closing
-                          }
-                        }}
+                        variant="outline"
+                        className={cn(
+                          "h-auto p-4 flex flex-col items-start justify-between text-left transition-colors relative",
+                          "border-2",
+                          workoutBorderClass,
+                          workoutBgClass,
+                          isSelected && "ring-2 ring-primary",
+                          isNextRecommended && "ring-2 ring-green-500",
+                          "hover:brightness-90 dark:hover:brightness-110"
+                        )}
+                        onClick={() => onWorkoutSelect(workout.id)}
                       >
-                        <CollapsibleTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "h-auto p-4 flex flex-col items-start justify-between w-full transition-colors relative",
-                              "border-2",
-                              workoutBorderClass,
-                              workoutBgClass,
-                              isSelected && "ring-2 ring-primary",
-                              isNextRecommended && "ring-2 ring-green-500",
-                              "hover:brightness-90 dark:hover:brightness-110"
-                            )}
-                          >
-                            <div className="flex items-center gap-2 mb-2">
-                              {Icon && <Icon className={cn("h-5 w-5", workoutColorClass)} />}
-                              <span className={cn("font-semibold text-base", workoutColorClass)}>{workout.template_name}</span>
-                            </div>
-                            <p className={cn("text-xs", workoutColorClass)}>
-                              {formatLastCompleted(workout.last_completed_at)}
-                            </p>
-                            {isNextRecommended && (
-                              <span className="absolute top-2 right-2 text-xs font-medium text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900 px-2 py-0.5 rounded-full">Next</span>
-                            )}
-                            <div className="absolute bottom-2 right-2">
-                              {isSelected ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                            </div>
-                          </Button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="mt-3">
-                          {/* Placeholder for exercises - this will be populated by the parent component */}
-                          <div className="p-3 border rounded-md bg-secondary/30">
-                            <p className="text-sm text-muted-foreground">Exercises will appear here when selected.</p>
-                          </div>
-                        </CollapsibleContent>
-                      </Collapsible>
+                        <div className="flex items-center gap-2 mb-2">
+                          {Icon && <Icon className={cn("h-5 w-5", workoutColorClass)} />}
+                          <span className={cn("font-semibold text-base", workoutColorClass)}>{workout.template_name}</span>
+                        </div>
+                        <p className={cn("text-xs", workoutColorClass)}> {/* Apply workoutColorClass here */}
+                          {formatLastCompleted(workout.last_completed_at)}
+                        </p>
+                        {isNextRecommended && (
+                          <span className="absolute top-2 right-2 text-xs font-medium text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900 px-2 py-0.5 rounded-full">Next</span>
+                        )}
+                      </Button>
                     );
                   })}
                 </div>

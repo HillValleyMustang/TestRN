@@ -7,11 +7,10 @@ import {
   Sparkles,
   History,
   CalendarDays,
-  ChevronDown, // Import ChevronDown
-  ChevronUp, // Import ChevronUp
+  ChevronDown,
+  ChevronUp,
   Dumbbell,
-  LayoutTemplate,
-  PlusCircle // Import PlusCircle
+  LayoutTemplate
 } from 'lucide-react';
 import { AiCoachDialog } from './ai-coach-dialog';
 import { ActivityLoggingDialog } from '../activity-logging-dialog';
@@ -25,16 +24,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { WorkoutLogModal } from './workout-log-modal';
 import { ConsistencyCalendarModal } from './consistency-calendar-modal';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"; // Import Collapsible components
-import { cn, getWorkoutColorClass } from '@/lib/utils'; // Import cn and getWorkoutColorClass
-import { WorkoutSelector } from '../workout-flow/workout-selector'; // Import WorkoutSelector
-import { Tables } from '@/types/supabase';
-
-type TPath = Tables<'t_paths'>;
 
 export const ActionHub = () => {
   const router = useRouter();
@@ -43,11 +32,6 @@ export const ActionHub = () => {
   const [isWorkoutLogOpen, setIsWorkoutLogOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
-  const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null); // State to manage selected workout
-
-  const handleWorkoutSelect = (workoutId: string | null) => {
-    setSelectedWorkoutId(workoutId);
-  };
 
   return (
     <>
@@ -78,7 +62,7 @@ export const ActionHub = () => {
           <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
-              className="h-full w-full p-2 flex flex-col items-center justify-center text-center whitespace-normal gap-1 font-semibold text-sm leading-tight border-0 shadow-sm hover:shadow-md transition-shadow active:scale-[0.98] active:shadow-sm bg-card"
+              className="h-full w-full p-2 flex flex-col items-center justify-center text-center whitespace-normal gap-1 font-semibold text-sm leading-tight border-0 shadow-sm hover:shadow-md transition-shadow bg-card"
             >
               {isMoreMenuOpen ? <ChevronUp className="h-5 w-5" strokeWidth={2.5} /> : <ChevronDown className="h-5 w-5" strokeWidth={2.5} />}
               <span>More</span>

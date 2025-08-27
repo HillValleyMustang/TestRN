@@ -56,6 +56,8 @@
     --chart-4: 43 74% 66%;
 
     --chart-5: 27 87% 67%;
+
+    --radius: 0.75rem; /* Increased corner radius */
   ;
 
     --sidebar-background: 0 0% 98%;
@@ -271,6 +273,7 @@
       radial-gradient(circle at 50% 0%, hsl(var(--aurora-pink) / 0.15), transparent 50%);
     filter: blur(100px); /* Apply blur to the gradients */
     z-index: -1; /* Behind content, above noise */
+    pointer-events: none;
     animation: aurora-pulse 15s infinite alternate ease-in-out;
   }
   /* The noise overlay */
@@ -283,6 +286,7 @@
     height: 100vh;
     background-image: url(/noise.svg);
     opacity: 0.02;
+    pointer-events: none;
     z-index: -2; /* Keep it behind everything */
   }
 }
