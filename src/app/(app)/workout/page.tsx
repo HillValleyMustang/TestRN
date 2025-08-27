@@ -77,84 +77,131 @@ const WorkoutSelector = ({
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null);
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
   const [isAdHocExpanded, setIsAdHocExpanded] = useState(false);
+  const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, WorkoutExercise[]>>({}); // Cache for exercises
 
-  // Fetch workouts and profile data
-  useEffect(() => {
-    const fetchWorkoutsAndProfile = async () => {
-      if (!session) return;
-      setLoadingTPaths(true); // Use renamed loading state
-      try {
-        // 1. Fetch user profile to get active_t_path_id
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('active_t_path_id')
-          .eq('id', session.user.id)
-          .single();
+  const fetchWorkoutsAndProfile = useCallback(async () => {
+    if (!session) return;
+    setLoadingTPaths(true); // Use renamed loading state
+    try {
+      // 1. Fetch user profile to get active_t_path_id
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('active_t_path_id')
+        .eq('id', session.user.id)
+        .single();
 
-        if (profileError && profileError.code !== 'PGRST116') {
-          throw profileError;
-        }
-        const fetchedActiveMainTPathId = profileData?.active_t_path_id || null;
-        setActiveMainTPathId(fetchedActiveMainTPathId);
+      if (profileError && profileError.code !== 'PGRST116') {
+        throw profileError;
+      }
+      const fetchedActiveMainTPathId = profileData?.active_t_path_id || null;
+      setActiveMainTPathId(fetchedActiveMainTPathId);
 
-        let mainTPathsData: TPath[] | null = [];
-        if (fetchedActiveMainTPathId) {
-          // 2. Fetch ONLY the active main T-Path for the user
-          const { data, error: mainTPathsError } = await supabase
-            .from('t_paths')
-            .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
-            .eq('user_id', session.user.id)
-            .is('parent_t_path_id', null)
-            .eq('id', fetchedActiveMainTPathId) // Filter by active T-Path ID
-            .order('created_at', { ascending: true });
-
-          if (mainTPathsError) throw mainTPathsError;
-          mainTPathsData = data as TPath[];
-        }
-
-        // 3. Fetch all child workouts for the user (these will be filtered by parent_t_path_id later)
-        const { data: childWorkoutsData, error: childWorkoutsError } = await supabase
+      let mainTPathsData: TPath[] | null = [];
+      if (fetchedActiveMainTPathId) {
+        // 2. Fetch ONLY the active main T-Path for the user
+        const { data, error: mainTPathsError } = await supabase
           .from('t_paths')
           .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
           .eq('user_id', session.user.id)
-          .eq('is_bonus', true)
-          .order('template_name', { ascending: true });
+          .is('parent_t_path_id', null)
+          .eq('id', fetchedActiveMainTPathId) // Filter by active T-Path ID
+          .order('created_at', { ascending: true });
 
-        if (childWorkoutsError) throw childWorkoutsError;
-
-        const workoutsWithLastDatePromises = (childWorkoutsData as TPath[] || []).map(async (workout) => {
-          const { data: lastSessionDate, error: lastSessionError } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
-          
-          if (lastSessionError) {
-            console.error(`Error fetching last session date for workout ${workout.template_name}:`, lastSessionError);
-          }
-          
-          return {
-            ...workout,
-            last_completed_at: lastSessionDate && lastSessionDate.length > 0 ? lastSessionDate[0].session_date : null,
-          };
-        });
-
-        const allChildWorkoutsWithLastDate = await Promise.all(workoutsWithLastDatePromises);
-
-        // Group child workouts under their respective main T-Paths
-        const newGroupedTPaths: GroupedTPath[] = (mainTPathsData as TPath[] || []).map(mainTPath => ({
-          mainTPath,
-          childWorkouts: allChildWorkoutsWithLastDate.filter(cw => cw.parent_t_path_id === mainTPath.id),
-        }));
-
-        setGroupedTPaths(newGroupedTPaths);
-
-      } catch (err: any) {
-        toast.error("Failed to load Transformation Paths: " + err.message);
-        console.error("Error fetching T-Paths:", err);
-      } finally {
-        setLoadingTPaths(false); // Use renamed loading state
+        if (mainTPathsError) throw mainTPathsError;
+        mainTPathsData = data as TPath[];
       }
-    };
 
-    fetchWorkoutsAndProfile();
+      // 3. Fetch all child workouts for the user (these will be filtered by parent_t_path_id later)
+      const { data: childWorkoutsData, error: childWorkoutsError } = await supabase
+        .from('t_paths')
+        .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
+        .eq('user_id', session.user.id)
+        .eq('is_bonus', true)
+        .order('template_name', { ascending: true });
+
+      if (childWorkoutsError) throw childWorkoutsError;
+
+      const workoutsWithLastDatePromises = (childWorkoutsData as TPath[] || []).map(async (workout) => {
+        const { data: lastSessionDate, error: lastSessionError } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
+        
+        if (lastSessionError) {
+          console.error(`Error fetching last session date for workout ${workout.template_name}:`, lastSessionError);
+        }
+        
+        return {
+          ...workout,
+          last_completed_at: lastSessionDate && lastSessionDate.length > 0 ? lastSessionDate[0].session_date : null,
+        };
+      });
+
+      const allChildWorkoutsWithLastDate = await Promise.all(workoutsWithLastDatePromises);
+
+      // Group child workouts under their respective main T-Paths
+      const newGroupedTPaths: GroupedTPath[] = (mainTPathsData as TPath[] || []).map(mainTPath => ({
+        mainTPath,
+        childWorkouts: allChildWorkoutsWithLastDate.filter(cw => cw.parent_t_path_id === mainTPath.id),
+      }));
+
+      setGroupedTPaths(newGroupedTPaths);
+
+    } catch (err: any) {
+      toast.error("Failed to load Transformation Paths: " + err.message);
+      console.error("Error fetching T-Paths:", err);
+    } finally {
+      setLoadingTPaths(false); // Use renamed loading state
+    }
   }, [session, supabase]);
+
+  useEffect(() => {
+    fetchWorkoutsAndProfile();
+  }, [fetchWorkoutsAndProfile]);
+
+  const fetchExercisesForWorkout = useCallback(async (workoutId: string) => {
+    if (!session || !workoutId) return [];
+    if (workoutExercisesCache[workoutId]) {
+      return workoutExercisesCache[workoutId]; // Return cached exercises
+    }
+
+    try {
+      const { data: tPathExercises, error: fetchLinksError } = await supabase
+        .from('t_path_exercises')
+        .select('exercise_id, is_bonus_exercise, order_index')
+        .eq('template_id', workoutId)
+        .order('order_index', { ascending: true });
+
+      if (fetchLinksError) throw fetchLinksError;
+
+      if (!tPathExercises || tPathExercises.length === 0) {
+        return [];
+      }
+
+      const exerciseIds = tPathExercises.map(e => e.exercise_id);
+      const exerciseInfoMap = new Map(tPathExercises.map(e => [e.exercise_id, { is_bonus_exercise: !!e.is_bonus_exercise, order_index: e.order_index }]));
+
+      const { data: exerciseDetails, error: fetchDetailsError } = await supabase
+        .from('exercise_definitions')
+        .select('*')
+        .in('id', exerciseIds);
+
+      if (fetchDetailsError) throw fetchDetailsError;
+
+      const exercises = (exerciseDetails as Tables<'exercise_definitions'>[] || [])
+        .map(ex => ({
+          ...ex,
+          is_bonus_exercise: exerciseInfoMap.get(ex.id)?.is_bonus_exercise || false,
+        }))
+        .sort((a, b) => (exerciseInfoMap.get(a.id)?.order_index || 0) - (exerciseInfoMap.get(b.id)?.order_index || 0));
+      
+      // Cache the fetched exercises
+      setWorkoutExercisesCache(prev => ({ ...prev, [workoutId]: exercises }));
+      return exercises;
+
+    } catch (err: any) {
+      toast.error(`Failed to fetch exercises for workout: ${err.message}`);
+      console.error("Error fetching exercises:", err);
+      return [];
+    }
+  }, [session, supabase, workoutExercisesCache]);
 
   const formatLastCompleted = (dateString: string | null) => {
     if (!dateString) return 'Never completed';
@@ -163,35 +210,39 @@ const WorkoutSelector = ({
   };
 
   const handleWorkoutClick = async (workoutId: string) => {
+    // If clicking the already expanded workout, collapse it
     if (expandedWorkoutId === workoutId) {
       setExpandedWorkoutId(null);
-      resetWorkoutSession(); // Only reset when collapsing the current workout
+      resetWorkoutSession();
+      onWorkoutSelect(null); // Deselect workout
       return;
     }
     
+    // Collapse ad-hoc if expanded
     if (isAdHocExpanded) {
       setIsAdHocExpanded(false);
     }
     
+    // Expand the clicked workout
     setExpandedWorkoutId(workoutId);
     onWorkoutSelect(workoutId);
-    await selectWorkout(workoutId);
   };
 
   const handleAdHocClick = () => {
     if (isAdHocExpanded) {
       setIsAdHocExpanded(false);
-      resetWorkoutSession(); // Only reset when collapsing ad-hoc
+      resetWorkoutSession();
+      onWorkoutSelect(null); // Deselect workout
       return;
     }
     
+    // Collapse any expanded workout
     if (expandedWorkoutId) {
       setExpandedWorkoutId(null);
     }
     
     setIsAdHocExpanded(true);
     onWorkoutSelect('ad-hoc');
-    selectWorkout('ad-hoc');
   };
 
   const handleAddExercise = () => {
@@ -243,19 +294,23 @@ const WorkoutSelector = ({
                     const workoutBorderClass = getWorkoutColorClass(workout.template_name, 'border');
                     const Icon = getWorkoutIcon(workout.template_name);
                     const isSelected = selectedWorkoutId === workout.id;
-                    const isExpanded = expandedWorkoutId === workout.id;
+                    const isInitiallyLit = selectedWorkoutId === null;
 
                     return (
                       <Button
                         key={workout.id}
                         variant="outline"
                         className={cn(
-                          "h-auto p-3 flex flex-col items-center justify-center text-center transition-colors relative w-full",
+                          "h-auto p-3 flex flex-col items-center justify-center text-center relative w-full",
                           "border-2",
                           workoutBorderClass,
                           workoutBgClass,
-                          isSelected && "ring-2 ring-primary",
-                          "hover:brightness-90 dark:hover:brightness-110"
+                          // Opacity and hover logic
+                          isInitiallyLit || isSelected
+                            ? "opacity-100 hover:brightness-90 dark:hover:brightness-110" // Lit state
+                            : "opacity-50 hover:opacity-75", // Dimmed state
+                          // Ring only if selected
+                          isSelected && "ring-2 ring-primary"
                         )}
                         onClick={() => handleWorkoutClick(workout.id)}
                       >
@@ -267,7 +322,7 @@ const WorkoutSelector = ({
                           <span className={cn("text-xs mt-1", workoutColorClass)}>
                             {formatLastCompleted(workout.last_completed_at)}
                           </span>
-                          {isExpanded && (
+                          {expandedWorkoutId === workout.id && (
                             <ChevronUp className="h-4 w-4 mt-1" />
                           )}
                         </div>
@@ -284,26 +339,6 @@ const WorkoutSelector = ({
       {/* Expanded Workout Section - Full Width Below */}
       {(expandedWorkoutId || isAdHocExpanded) && (
         <div className="mt-4 border-t pt-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold">
-              {isAdHocExpanded ? "Ad-Hoc Workout" : (activeWorkout?.template_name || "Workout")}
-            </h2>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => {
-                if (isAdHocExpanded) {
-                  setIsAdHocExpanded(false);
-                } else {
-                  setExpandedWorkoutId(null);
-                }
-                resetWorkoutSession(); // Reset when explicitly closing the expanded view
-              }}
-            >
-              <ChevronUp className="h-4 w-4" />
-            </Button>
-          </div>
-
           {loadingWorkoutFlow ? ( // Use loading state from hook
             <div className="flex flex-col items-center justify-center text-center py-8">
               <Dumbbell className="h-12 w-12 text-muted-foreground mb-3 animate-bounce" />
@@ -387,8 +422,15 @@ const WorkoutSelector = ({
       {/* Ad-hoc workout card moved to the bottom */}
       <Card
         className={cn(
-          "cursor-pointer hover:bg-accent transition-colors",
-          (selectedWorkoutId === 'ad-hoc' || isAdHocExpanded) && "border-primary ring-2 ring-primary"
+          "cursor-pointer transition-colors",
+          "h-auto p-3 flex flex-col items-start justify-start relative w-full",
+          "border-2", // Always has a border
+          // Opacity and hover logic
+          selectedWorkoutId === null || selectedWorkoutId === 'ad-hoc'
+            ? "opacity-100 hover:bg-accent" // Lit state
+            : "opacity-50 hover:opacity-75", // Dimmed state
+          // Ring only if selected
+          selectedWorkoutId === 'ad-hoc' && "ring-2 ring-primary"
         )}
         onClick={handleAdHocClick}
       >
