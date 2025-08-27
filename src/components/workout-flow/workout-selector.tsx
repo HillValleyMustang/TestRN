@@ -224,7 +224,7 @@ export const WorkoutSelector = ({
               {group.childWorkouts.length === 0 ? (
                 <p className="text-muted-foreground text-sm ml-7">No workouts defined for this path. This may happen if your session length is too short for any workouts.</p>
               ) : (
-                <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
                   {group.childWorkouts.map(workout => {
                     const workoutColorClass = getWorkoutColorClass(workout.template_name, 'text');
                     const workoutBgClass = getWorkoutColorClass(workout.template_name, 'bg');
@@ -240,7 +240,7 @@ export const WorkoutSelector = ({
                           key={workout.id}
                           variant="outline"
                           className={cn(
-                            "h-auto p-4 flex flex-col items-start text-left transition-colors relative w-full",
+                            "h-auto p-3 flex flex-col items-center justify-center text-center transition-colors relative w-full",
                             "border-2",
                             workoutBorderClass,
                             workoutBgClass,
@@ -250,41 +250,35 @@ export const WorkoutSelector = ({
                           )}
                           onClick={() => handleWorkoutClick(workout.id)}
                         >
-                          <div className="flex items-center justify-between w-full">
-                            <div className="flex items-center gap-2">
-                              {Icon && <Icon className={cn("h-5 w-5", workoutColorClass)} />}
-                              <span className={cn("font-semibold text-base", workoutColorClass)}>{workout.template_name}</span>
+                          <div className="flex flex-col items-center gap-1 w-full">
+                            <div className="flex items-center justify-center">
+                              {Icon && <Icon className={cn("h-4 w-4", workoutColorClass)} />}
                             </div>
-                            {isNextRecommended && (
-                              <span className="text-xs font-medium text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900 px-2 py-0.5 rounded-full">Next</span>
-                            )}
-                          </div>
-                          <div className="flex items-center justify-between w-full mt-2">
-                            <span className={cn("text-xs", workoutColorClass)}>
+                            <span className={cn("font-semibold text-sm", workoutColorClass)}>{workout.template_name}</span>
+                            <span className={cn("text-xs mt-1", workoutColorClass)}>
                               {formatLastCompleted(workout.last_completed_at)}
                             </span>
-                            <div className="flex items-center">
-                              {isExpanded ? (
-                                <ChevronUp className="h-5 w-5" />
-                              ) : (
-                                <ChevronDown className="h-5 w-5" />
-                              )}
-                            </div>
+                            {isNextRecommended && (
+                              <span className="text-xs font-medium text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900 px-1.5 py-0.5 rounded-full mt-1">Next</span>
+                            )}
+                            {isExpanded && (
+                              <ChevronUp className="h-4 w-4 mt-1" />
+                            )}
                           </div>
                         </Button>
 
                         {isExpanded && activeWorkout?.id === workout.id && (
-                          <div className="ml-4 pl-4 border-l-2 border-muted">
+                          <div className="ml-2 pl-2 border-l-2 border-muted">
                             {activeWorkout.id === 'ad-hoc' && (
-                              <section className="mb-6 p-4 border rounded-lg bg-card">
-                                <h2 className="text-xl font-semibold mb-4">Add Exercises</h2>
-                                <div className="flex flex-col sm:flex-row gap-2">
+                              <section className="mb-4 p-3 border rounded-lg bg-card">
+                                <h2 className="text-lg font-semibold mb-3">Add Exercises</h2>
+                                <div className="flex flex-col gap-2">
                                   <select 
                                     value={selectedExerciseToAdd}
                                     onChange={(e) => setSelectedExerciseToAdd(e.target.value)}
-                                    className="flex-1 p-2 border rounded"
+                                    className="w-full p-2 border rounded text-sm"
                                   >
-                                    <option value="">Select an exercise</option>
+                                    <option value="">Select exercise</option>
                                     {allAvailableExercises
                                       .filter((ex) => !exercisesForSession.some((sessionEx) => sessionEx.id === ex.id))
                                       .map((exercise) => (
@@ -293,24 +287,24 @@ export const WorkoutSelector = ({
                                         </option>
                                       ))}
                                   </select>
-                                  <Button onClick={handleAddExercise} disabled={!selectedExerciseToAdd}>
-                                    <PlusCircle className="h-4 w-4 mr-2" /> Add Exercise
+                                  <Button onClick={handleAddExercise} disabled={!selectedExerciseToAdd} className="text-sm py-1 px-2">
+                                    <PlusCircle className="h-3 w-3 mr-1" /> Add
                                   </Button>
                                 </div>
                               </section>
                             )}
 
-                            <section className="mb-6">
+                            <section className="mb-4">
                               {exercisesForSession.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center text-center py-8">
-                                  <Dumbbell className="h-12 w-12 text-muted-foreground mb-4" />
-                                  <h2 className="text-xl font-bold mb-2">No exercises found for this workout.</h2>
-                                  <p className="text-muted-foreground mb-4">
-                                    Please add exercises to this workout to begin.
+                                <div className="flex flex-col items-center justify-center text-center py-4">
+                                  <Dumbbell className="h-8 w-8 text-muted-foreground mb-2" />
+                                  <h2 className="text-base font-bold mb-1">No exercises</h2>
+                                  <p className="text-muted-foreground text-xs mb-2">
+                                    Add exercises to begin.
                                   </p>
                                 </div>
                               ) : (
-                                <div className="space-y-6">
+                                <div className="space-y-4">
                                   {exercisesForSession.map((exercise, index) => (
                                     <ExerciseCard
                                       key={exercise.id}
@@ -358,12 +352,12 @@ export const WorkoutSelector = ({
         )}
         onClick={() => onWorkoutSelect('ad-hoc')}
       >
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <PlusCircle className="h-5 w-5 mr-2" />
+        <CardHeader className="p-4">
+          <CardTitle className="flex items-center text-base">
+            <PlusCircle className="h-4 w-4 mr-2" />
             Start Ad-Hoc Workout
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-xs">
             Start a workout without a T-Path. Add exercises as you go.
           </CardDescription>
         </CardHeader>
