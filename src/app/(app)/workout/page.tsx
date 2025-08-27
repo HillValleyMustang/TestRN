@@ -303,10 +303,9 @@ const WorkoutSelector = ({
                           "border-2",
                           workoutBorderClass,
                           workoutBgClass,
-                          // Apply ring only if selected, and ensure no filter
                           isSelected 
-                            ? "ring-2 ring-primary filter-none hover:brightness-90 dark:hover:brightness-110" 
-                            : "filter brightness-50 hover:brightness-75 dark:hover:brightness-90", // Apply dimming and dimmed hover only if NOT selected
+                            ? "ring-2 ring-primary opacity-100 hover:brightness-90 dark:hover:brightness-110" 
+                            : "opacity-50 hover:opacity-75", // Use opacity for dimming
                         )}
                         onClick={() => handleWorkoutClick(workout.id)}
                       >
