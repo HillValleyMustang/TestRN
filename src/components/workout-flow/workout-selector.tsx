@@ -136,14 +136,9 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
 
   return (
     <div className="space-y-6">
+      {/* Moved the Ad-hoc workout card below the Transformation Paths */}
       <div className="space-y-4">
-        {loading ? (
-          <>
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-          </>
-        ) : groupedTPaths.length === 0 ? (
+        {groupedTPaths.length === 0 ? (
           <p className="text-muted-foreground text-center py-4">
             You haven't created any Transformation Paths yet. Go to <a href="/manage-t-paths" className="text-primary underline">Manage T-Paths</a> to create one.
           </p>
@@ -154,7 +149,7 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
                 <Dumbbell className="h-5 w-5 text-muted-foreground" />
                 {group.mainTPath.template_name}
                 {group.mainTPath.id === activeMainTPathId && (
-                  <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", "text-primary bg-primary/10")}>Active</span>
+                  <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">Active</span>
                 )}
               </h4>
               {group.childWorkouts.length === 0 ? (
@@ -174,7 +169,7 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
                         key={workout.id}
                         variant="outline"
                         className={cn(
-                          "h-auto p-3 flex flex-col items-start justify-between text-left transition-colors relative",
+                          "h-auto p-4 flex flex-col items-start justify-between text-left transition-colors relative",
                           "border-2",
                           workoutBorderClass,
                           workoutBgClass,
@@ -184,7 +179,7 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
                         )}
                         onClick={() => onWorkoutSelect(workout.id)}
                       >
-                        <div className="flex items-center gap-2 mb-1"> {/* Reduced margin-bottom */}
+                        <div className="flex items-center gap-2 mb-2">
                           {Icon && <Icon className={cn("h-5 w-5", workoutColorClass)} />}
                           <span className={cn("font-semibold text-base", workoutColorClass)}>{workout.template_name}</span>
                         </div>
@@ -192,7 +187,7 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
                           {formatLastCompleted(workout.last_completed_at)}
                         </p>
                         {isNextRecommended && (
-                          <span className={cn("absolute top-1 right-1 text-xs font-medium text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900 px-1.5 py-0.5 rounded-full")}>Next</span> {/* Corrected className placement */}
+                          <span className="absolute top-2 right-2 text-xs font-medium text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900 px-2 py-0.5 rounded-full">Next</span>
                         )}
                       </Button>
                     );
@@ -204,6 +199,7 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
         )}
       </div>
 
+      {/* Ad-hoc workout card moved here */}
       <Card
         className={cn(
           "cursor-pointer hover:bg-accent transition-colors",
