@@ -254,29 +254,32 @@ export const ExerciseCard = ({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold text-base">Set {setIndex + 1}</h3>
+                        {(set.lastWeight !== null || set.lastReps !== null || set.lastTimeSeconds !== null) && (
+                          <span className="text-muted-foreground text-xs">
+                            (Last: {exercise.type === 'weight' ?
+                              `${set.lastWeight !== null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${set.lastReps !== null ? set.lastReps : '-'}` :
+                              `${set.lastTimeSeconds !== null ? `${set.lastTimeSeconds}s` : '-'}`})
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2"> {/* Increased gap for better spacing */}
+                        {set.isSaved && set.isPR && (
+                          <span className="text-yellow-500 flex items-center text-xs font-semibold">
+                            <Trophy className="h-3 w-3" /> PR!
+                          </span>
+                        )}
                         {!set.isSaved && !isExerciseSaved && (
                           <Button variant="ghost" size="icon" onClick={() => handleSaveSetAndStartTimer(setIndex)} disabled={isExerciseSaved} title="Save Set" className="h-6 w-6">
                             <Save className="h-4 w-4" />
                           </Button>
                         )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {set.isSaved && set.isPR && (
-                          <span className="text-yellow-500 flex items-center text-xs font-semibold">
-                            <Trophy className="h-3 w-3 ml-1" /> PR!
-                          </span>
+                        {set.isSaved && !isExerciseSaved && (
+                          <Button variant="ghost" size="icon" onClick={() => handleEditSet(setIndex)} title="Edit Set" className="h-6 w-6">
+                            <Edit className="h-4 w-4" />
+                          </Button>
                         )}
-                        {set.isSaved ? (
-                          <>
-                            <Button variant="ghost" size="icon" onClick={() => handleEditSet(setIndex)} title="Edit Set" disabled={isExerciseSaved} className="h-6 w-6">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" disabled={isExerciseSaved} className="h-6 w-6">
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </>
-                        ) : (
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" disabled={isExerciseSaved} className="h-6 w-6">
+                        {!isExerciseSaved && ( // Delete button always visible unless exercise is saved
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" className="h-6 w-6">
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         )}
@@ -343,14 +346,6 @@ export const ExerciseCard = ({
                         </>
                       )}
                     </div>
-                    {/* 'Last' info */}
-                    {(set.lastWeight !== null || set.lastReps !== null || set.lastTimeSeconds !== null) && (
-                      <p className="text-muted-foreground text-xs mt-1"> {/* Added mt-1 for spacing */}
-                        Last: {exercise.type === 'weight' ?
-                          `${set.lastWeight !== null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${set.lastReps !== null ? set.lastReps : '-'}` :
-                          `${set.lastTimeSeconds !== null ? `${set.lastTimeSeconds}s` : '-'}`}
-                      </p>
-                    )}
                   </div>
                   {setIndex < sets.length - 1 && <Separator className="my-4" />} {/* Separator between sets */}
                 </React.Fragment>
