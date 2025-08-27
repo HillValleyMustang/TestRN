@@ -136,34 +136,9 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
 
   return (
     <div className="space-y-6">
-      <Card
-        className={cn(
-          "cursor-pointer hover:bg-accent transition-colors",
-          selectedWorkoutId === 'ad-hoc' && "border-primary ring-2 ring-primary"
-        )}
-        onClick={() => onWorkoutSelect('ad-hoc')}
-      >
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <PlusCircle className="h-5 w-5 mr-2" />
-            Start Ad-Hoc Workout
-          </CardTitle>
-          <CardDescription>
-            Start a workout without a T-Path. Add exercises as you go.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-
-      <h3 className="text-xl font-semibold">Your Transformation Paths</h3>
-
+      {/* Moved the Ad-hoc workout card below the Transformation Paths */}
       <div className="space-y-4">
-        {loading ? (
-          <>
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-          </>
-        ) : groupedTPaths.length === 0 ? (
+        {groupedTPaths.length === 0 ? (
           <p className="text-muted-foreground text-center py-4">
             You haven't created any Transformation Paths yet. Go to <a href="/manage-t-paths" className="text-primary underline">Manage T-Paths</a> to create one.
           </p>
@@ -223,6 +198,25 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
           ))
         )}
       </div>
+
+      {/* Ad-hoc workout card moved here */}
+      <Card
+        className={cn(
+          "cursor-pointer hover:bg-accent transition-colors",
+          selectedWorkoutId === 'ad-hoc' && "border-primary ring-2 ring-primary"
+        )}
+        onClick={() => onWorkoutSelect('ad-hoc')}
+      >
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <PlusCircle className="h-5 w-5 mr-2" />
+            Start Ad-Hoc Workout
+          </CardTitle>
+          <CardDescription>
+            Start a workout without a T-Path. Add exercises as you go.
+          </CardDescription>
+        </CardHeader>
+      </Card>
     </div>
   );
 };
