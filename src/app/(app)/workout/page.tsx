@@ -214,6 +214,7 @@ const WorkoutSelector = ({
     if (expandedWorkoutId === workoutId) {
       setExpandedWorkoutId(null);
       resetWorkoutSession();
+      onWorkoutSelect(null); // Deselect workout
       return;
     }
     
@@ -231,6 +232,7 @@ const WorkoutSelector = ({
     if (isAdHocExpanded) {
       setIsAdHocExpanded(false);
       resetWorkoutSession();
+      onWorkoutSelect(null); // Deselect workout
       return;
     }
     
@@ -292,7 +294,7 @@ const WorkoutSelector = ({
                     const workoutBorderClass = getWorkoutColorClass(workout.template_name, 'border');
                     const Icon = getWorkoutIcon(workout.template_name);
                     const isSelected = selectedWorkoutId === workout.id;
-                    const isExpanded = expandedWorkoutId === workout.id;
+                    const isInitiallyLit = selectedWorkoutId === null;
 
                     return (
                       <Button
@@ -303,9 +305,12 @@ const WorkoutSelector = ({
                           "border-2",
                           workoutBorderClass,
                           workoutBgClass,
-                          isSelected 
-                            ? "ring-2 ring-primary opacity-100 hover:brightness-90 dark:hover:brightness-110" 
-                            : "opacity-50 hover:opacity-75", // Use opacity for dimming
+                          // Opacity and hover logic
+                          isInitiallyLit || isSelected
+                            ? "opacity-100 hover:brightness-90 dark:hover:brightness-110" // Lit state
+                            : "opacity-50 hover:opacity-75", // Dimmed state
+                          // Ring only if selected
+                          isSelected && "ring-2 ring-primary"
                         )}
                         onClick={() => handleWorkoutClick(workout.id)}
                       >
@@ -317,7 +322,7 @@ const WorkoutSelector = ({
                           <span className={cn("text-xs mt-1", workoutColorClass)}>
                             {formatLastCompleted(workout.last_completed_at)}
                           </span>
-                          {isExpanded && (
+                          {expandedWorkoutId === workout.id && (
                             <ChevronUp className="h-4 w-4 mt-1" />
                           )}
                         </div>
@@ -417,8 +422,15 @@ const WorkoutSelector = ({
       {/* Ad-hoc workout card moved to the bottom */}
       <Card
         className={cn(
-          "cursor-pointer transition-colors hover:bg-accent", // Default hover effect for Ad-Hoc
-          (selectedWorkoutId === 'ad-hoc' || isAdHocExpanded) && "border-primary ring-2 ring-primary" // Only apply ring/border when selected
+          "cursor-pointer transition-colors",
+          "h-auto p-3 flex flex-col items-start justify-start relative w-full",
+          "border-2", // Always has a border
+          // Opacity and hover logic
+          selectedWorkoutId === null || selectedWorkoutId === 'ad-hoc'
+            ? "opacity-100 hover:bg-accent" // Lit state
+            : "opacity-50 hover:opacity-75", // Dimmed state
+          // Ring only if selected
+          selectedWorkoutId === 'ad-hoc' && "ring-2 ring-primary"
         )}
         onClick={handleAdHocClick}
       >
