@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { SetLogState, WorkoutExercise } from '@/types/supabase';
 import { WorkoutSessionFooter } from '@/components/workout-session/workout-session-footer';
+import { WorkoutBadge } from '../workout-badge'; // Import WorkoutBadge
 
 type TPath = Tables<'t_paths'>;
 
@@ -324,24 +325,13 @@ export const WorkoutSelector = ({
       {/* Expanded Workout Section - Full Width Below */}
       {(expandedWorkoutId || isAdHocExpanded) && activeWorkout && (
         <div className="mt-4 border-t pt-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold">
-              {isAdHocExpanded ? "Ad-Hoc Workout" : activeWorkout.template_name}
-            </h2>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => {
-                if (isAdHocExpanded) {
-                  setIsAdHocExpanded(false);
-                } else {
-                  setExpandedWorkoutId(null);
-                }
-                resetWorkoutSession();
-              }}
+          <div className="flex justify-center mb-4"> {/* Centering container */}
+            <WorkoutBadge 
+              workoutName={isAdHocExpanded ? "Ad Hoc Workout" : (activeWorkout?.template_name || "Workout")} 
+              className="text-lg px-4 py-2"
             >
-              <ChevronUp className="h-4 w-4" />
-            </Button>
+              {isAdHocExpanded ? "Ad-Hoc Workout" : (activeWorkout?.template_name || "Workout")}
+            </WorkoutBadge>
           </div>
 
           {isAdHocExpanded && (
@@ -377,7 +367,7 @@ export const WorkoutSelector = ({
                 <p className="text-muted-foreground mb-4">
                   {isAdHocExpanded 
                     ? "Add exercises to begin your workout." 
-                    : "This workout has no exercises. This may happen if your session length is too short."}
+                    : "This workout has no exercises. This may happen if your session length is too short for any workouts."}
                 </p>
               </div>
             ) : (
