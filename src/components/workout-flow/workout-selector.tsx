@@ -154,7 +154,7 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
                 <Dumbbell className="h-5 w-5 text-muted-foreground" />
                 {group.mainTPath.template_name}
                 {group.mainTPath.id === activeMainTPathId && (
-                  <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">Active</span>
+                  <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", "text-primary bg-primary/10")}>Active</span>
                 )}
               </h4>
               {group.childWorkouts.length === 0 ? (
