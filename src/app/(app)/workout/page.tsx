@@ -47,7 +47,6 @@ interface WorkoutSelectorProps {
   updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
 }
 
-// Component for the workout selector logic
 export const WorkoutSelector = ({ 
   onWorkoutSelect, 
   selectedWorkoutId,
@@ -259,6 +258,10 @@ export const WorkoutSelector = ({
 
   return (
     <div className="space-y-6">
+      <header className="mb-4"> {/* Page heading */}
+        <h1 className="text-3xl font-bold">Start Your Workout</h1>
+        <p className="text-muted-foreground">Select a Transformation Path or start an ad-hoc session.</p>
+      </header>
       <div className="space-y-4">
         {groupedTPaths.length === 0 ? (
           <p className="text-muted-foreground text-center py-4">
