@@ -230,7 +230,6 @@ export const WorkoutSelector = ({
                     const workoutBgClass = getWorkoutColorClass(workout.template_name, 'bg');
                     const workoutBorderClass = getWorkoutColorClass(workout.template_name, 'border');
                     const Icon = getWorkoutIcon(workout.template_name);
-                    const isNextRecommended = workout.id === nextRecommendedWorkoutId;
                     const isSelected = selectedWorkoutId === workout.id;
                     const isExpanded = expandedWorkoutId === workout.id;
 
@@ -245,7 +244,6 @@ export const WorkoutSelector = ({
                             workoutBorderClass,
                             workoutBgClass,
                             isSelected && "ring-2 ring-primary",
-                            isNextRecommended && "ring-2 ring-green-500",
                             "hover:brightness-90 dark:hover:brightness-110"
                           )}
                           onClick={() => handleWorkoutClick(workout.id)}
@@ -258,9 +256,6 @@ export const WorkoutSelector = ({
                             <span className={cn("text-xs mt-1", workoutColorClass)}>
                               {formatLastCompleted(workout.last_completed_at)}
                             </span>
-                            {isNextRecommended && (
-                              <span className="text-xs font-medium text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900 px-1.5 py-0.5 rounded-full mt-1">Next</span>
-                            )}
                             {isExpanded && (
                               <ChevronUp className="h-4 w-4 mt-1" />
                             )}
