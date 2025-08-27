@@ -386,7 +386,7 @@ export const ExerciseCard = ({
               >
                 {isExerciseSaved ? (
                   <span className="flex items-center">
-                    <CheckCircle2 className="h-4 w-4 mr-2" /> Saved
+                    Saved
                     {isNewExercisePR && <Trophy className="h-4 w-4 ml-2 fill-white text-white" />}
                   </span>
                 ) : (
