@@ -197,7 +197,7 @@ export const ExerciseCard = ({
 
   return (
     <> {/* Added React Fragment */}
-      <Card className={cn("mb-6 border-4", workoutBorderClass)}> {/* Changed border-2 to border-4 and removed opacity-70 */}
+      <Card className={cn("mb-6 border-2", workoutBorderClass, { "opacity-70": isExerciseSaved })}>
         <CardHeader 
           className="flex items-center justify-between p-4 cursor-pointer"
           onClick={() => setIsExpanded(!isExpanded)}
