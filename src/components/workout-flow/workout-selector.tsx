@@ -240,7 +240,7 @@ export const WorkoutSelector = ({
                           key={workout.id}
                           variant="outline"
                           className={cn(
-                            "h-auto p-4 flex items-center justify-between text-left transition-colors relative w-full",
+                            "h-auto p-4 flex flex-col items-start text-left transition-colors relative w-full",
                             "border-2",
                             workoutBorderClass,
                             workoutBgClass,
@@ -250,22 +250,26 @@ export const WorkoutSelector = ({
                           )}
                           onClick={() => handleWorkoutClick(workout.id)}
                         >
-                          <div className="flex items-center gap-2">
-                            {Icon && <Icon className={cn("h-5 w-5", workoutColorClass)} />}
-                            <span className={cn("font-semibold text-base", workoutColorClass)}>{workout.template_name}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className={cn("text-xs", workoutColorClass)}>
-                              {formatLastCompleted(workout.last_completed_at)}
-                            </span>
+                          <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center gap-2">
+                              {Icon && <Icon className={cn("h-5 w-5", workoutColorClass)} />}
+                              <span className={cn("font-semibold text-base", workoutColorClass)}>{workout.template_name}</span>
+                            </div>
                             {isNextRecommended && (
                               <span className="text-xs font-medium text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900 px-2 py-0.5 rounded-full">Next</span>
                             )}
-                            {isExpanded ? (
-                              <ChevronUp className="h-5 w-5" />
-                            ) : (
-                              <ChevronDown className="h-5 w-5" />
-                            )}
+                          </div>
+                          <div className="flex items-center justify-between w-full mt-2">
+                            <span className={cn("text-xs", workoutColorClass)}>
+                              {formatLastCompleted(workout.last_completed_at)}
+                            </span>
+                            <div className="flex items-center">
+                              {isExpanded ? (
+                                <ChevronUp className="h-5 w-5" />
+                              ) : (
+                                <ChevronDown className="h-5 w-5" />
+                              )}
+                            </div>
                           </div>
                         </Button>
 
