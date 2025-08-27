@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { SetLogState, WorkoutExercise } from '@/types/supabase';
 import { WorkoutSessionFooter } from '@/components/workout-session/workout-session-footer';
+import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
 
 type TPath = Tables<'t_paths'>;
 
@@ -74,6 +75,7 @@ export const WorkoutSelector = ({
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
   const [isAdHocExpanded, setIsAdHocExpanded] = useState(false);
   const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, WorkoutExercise[]>>({}); // Cache for exercises
+  const [workoutLoadingState, setWorkoutLoadingState] = useState<Record<string, boolean>>({}); // Cache for loading state
 
   const fetchWorkoutsAndProfile = useCallback(async () => {
     if (!session) return;
@@ -158,6 +160,8 @@ export const WorkoutSelector = ({
       return workoutExercisesCache[workoutId]; // Return cached exercises
     }
 
+    setWorkoutLoadingState(prev => ({ ...prev, [workoutId]: true })); // Set loading state for this workout
+
     try {
       const { data: tPathExercises, error: fetchLinksError } = await supabase
         .from('t_path_exercises')
@@ -196,6 +200,8 @@ export const WorkoutSelector = ({
       toast.error(`Failed to fetch exercises for workout: ${err.message}`);
       console.error("Error fetching exercises:", err);
       return [];
+    } finally {
+      setWorkoutLoadingState(prev => ({ ...prev, [workoutId]: false })); // Reset loading state
     }
   }, [session, supabase, workoutExercisesCache]);
 
@@ -284,6 +290,7 @@ export const WorkoutSelector = ({
                     const Icon = getWorkoutIcon(workout.template_name);
                     const isSelected = selectedWorkoutId === workout.id;
                     const isExpanded = expandedWorkoutId === workout.id;
+                    const isLoading = workoutLoadingState[workout.id]; // Get loading state for this workout
 
                     return (
                       <Button
@@ -298,10 +305,15 @@ export const WorkoutSelector = ({
                           "hover:brightness-90 dark:hover:brightness-110"
                         )}
                         onClick={() => handleWorkoutClick(workout.id)}
+                        disabled={isLoading} // Disable button while loading
                       >
                         <div className="flex flex-col items-center gap-1 w-full">
                           <div className="flex items-center justify-center">
-                            {Icon && <Icon className={cn("h-4 w-4", workoutColorClass)} />}
+                            {isLoading ? (
+                              <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-primary border-solid"></div>
+                            ) : (
+                              Icon && <Icon className={cn("h-4 w-4", workoutColorClass)} />
+                            )}
                           </div>
                           <span className={cn("font-semibold text-sm", workoutColorClass)}>{workout.template_name}</span>
                           <span className={cn("text-xs mt-1", workoutColorClass)}>
@@ -320,25 +332,6 @@ export const WorkoutSelector = ({
           ))
         )}
       </div>
-
-      {/* Ad-hoc workout card */}
-      <Card
-        className={cn(
-          "cursor-pointer hover:bg-accent transition-colors",
-          (selectedWorkoutId === 'ad-hoc' || isAdHocExpanded) && "border-primary ring-2 ring-primary"
-        )}
-        onClick={handleAdHocClick}
-      >
-        <CardHeader className="p-4">
-          <CardTitle className="flex items-center text-base">
-            <PlusCircle className="h-4 w-4 mr-2" />
-            Start Ad-Hoc Workout
-          </CardTitle>
-          <CardDescription className="text-xs">
-            Start a workout without a T-Path. Add exercises as you go.
-          </CardDescription>
-        </CardHeader>
-      </Card>
 
       {/* Expanded Workout Section - Full Width Below */}
       {(expandedWorkoutId || isAdHocExpanded) && activeWorkout && (
@@ -431,6 +424,25 @@ export const WorkoutSelector = ({
           )}
         </div>
       )}
+
+      {/* Ad-hoc workout card moved to the bottom */}
+      <Card
+        className={cn(
+          "cursor-pointer hover:bg-accent transition-colors",
+          (selectedWorkoutId === 'ad-hoc' || isAdHocExpanded) && "border-primary ring-2 ring-primary"
+        )}
+        onClick={handleAdHocClick}
+      >
+        <CardHeader className="p-4">
+          <CardTitle className="flex items-center text-base">
+            <PlusCircle className="h-4 w-4 mr-2" />
+            Start Ad-Hoc Workout
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Start a workout without a T-Path. Add exercises as you go.
+          </CardDescription>
+        </CardHeader>
+      </Card>
     </div>
   );
 };
