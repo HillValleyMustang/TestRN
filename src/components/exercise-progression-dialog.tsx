@@ -98,15 +98,7 @@ export const ExerciseProgressionDialog = ({ open, onOpenChange, exerciseId, exer
 
   return (
     <Dialog open={currentOpen} onOpenChange={setCurrentOpen}>
-      {trigger ? (
-        <DialogTrigger asChild>{trigger}</DialogTrigger>
-      ) : (
-        <DialogTrigger asChild>
-          <Button variant="outline" size="icon" title="Suggest Progression">
-            <Lightbulb className="h-4 w-4" />
-          </Button>
-        </DialogTrigger>
-      )}
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>} {/* Only render trigger if provided */}
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Progression Suggestion for {exerciseName}</DialogTitle>

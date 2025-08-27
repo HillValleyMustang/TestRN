@@ -100,15 +100,7 @@ export const ExerciseHistoryDialog = ({ open, onOpenChange, exerciseId, exercise
 
   return (
     <Dialog open={currentOpen} onOpenChange={setCurrentOpen}>
-      {trigger ? (
-        <DialogTrigger asChild>{trigger}</DialogTrigger>
-      ) : (
-        <DialogTrigger asChild>
-          <Button variant="outline" size="icon" title="History">
-            <History className="h-4 w-4" />
-          </Button>
-        </DialogTrigger>
-      )}
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>} {/* Only render trigger if provided */}
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>History for {exerciseName}</DialogTitle>

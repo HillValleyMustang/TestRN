@@ -79,15 +79,7 @@ export const ExerciseInfoDialog = ({ open, onOpenChange, exercise, trigger, exer
 
   return (
     <Dialog open={currentOpen} onOpenChange={setCurrentOpen}>
-      {trigger ? (
-        <DialogTrigger asChild>{trigger}</DialogTrigger>
-      ) : (
-        <DialogTrigger asChild>
-          <Button variant="outline" size="icon" title="Info">
-            <Info className="h-4 w-4" />
-          </Button>
-        </DialogTrigger>
-      )}
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>} {/* Only render trigger if provided */}
       <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col p-0">
         <DialogHeader className="p-6 pb-4">
           <DialogTitle>{exercise.name} Information</DialogTitle>
