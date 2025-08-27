@@ -328,7 +328,7 @@ export const WorkoutSelector = ({
           <div className="flex justify-center mb-4"> {/* Centering container */}
             <WorkoutBadge 
               workoutName={isAdHocExpanded ? "Ad Hoc Workout" : (activeWorkout?.template_name || "Workout")} 
-              className="text-lg px-4 py-2"
+              className="text-xl px-6 py-3" // Increased font size and padding
             >
               {isAdHocExpanded ? "Ad-Hoc Workout" : (activeWorkout?.template_name || "Workout")}
             </WorkoutBadge>

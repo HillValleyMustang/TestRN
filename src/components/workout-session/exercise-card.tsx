@@ -285,11 +285,11 @@ export const ExerciseCard = ({
 
                     {/* Input fields and 'Last' info */}
                     <div className="flex flex-col gap-1"> {/* New flex container for 'Last' and inputs */}
-                      {(set.lastWeight || set.lastReps || set.lastTimeSeconds) && (
-                        <p className="text-muted-foreground text-xs text-right"> {/* Removed mt-1 */}
+                      {(set.lastWeight !== null || set.lastReps !== null || set.lastTimeSeconds !== null) && (
+                        <p className="text-muted-foreground text-xs text-right">
                           Last: {exercise.type === 'weight' ?
-                            `${set.lastWeight ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : ''} x ${set.lastReps || ''}` :
-                            `${set.lastTimeSeconds ? `${set.lastTimeSeconds}s` : ''}`}
+                            `${set.lastWeight !== null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${set.lastReps !== null ? set.lastReps : '-'}` :
+                            `${set.lastTimeSeconds !== null ? `${set.lastTimeSeconds}s` : '-'}`}
                         </p>
                       )}
                       <div className="flex items-center gap-2"> {/* Input fields */}
@@ -358,7 +358,7 @@ export const ExerciseCard = ({
               ))}
             </div>
 
-            <div className="flex justify-between items-center mt-4">
+            <div className="flex justify-between items-center mt-4 gap-4"> {/* Added gap-4 here */}
               {sets.length < 5 && (
                 <Button variant="outline" onClick={handleAddSet} disabled={isExerciseSaved}>
                   <Plus className="h-4 w-4 mr-2" /> Set

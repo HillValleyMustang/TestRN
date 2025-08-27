@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { WorkoutStatsCard } from '@/components/workout-summary/workout-stats-card';
 import { WorkoutRatingCard } from '@/components/workout-summary/workout-rating-card';
 import { ExerciseSummaryCard } from '@/components/workout-summary/exercise-summary-card';
+import { type PageProps } from 'next'; // Import PageProps from next
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
@@ -25,9 +26,8 @@ type ExerciseGroup = {
   id: string;
 };
 
-interface WorkoutSummaryPageProps {
-  params: { sessionId: string };
-}
+// Extend Next.js's PageProps to correctly type the component's props
+interface WorkoutSummaryPageProps extends PageProps<{ sessionId: string }> {}
 
 export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) {
   const { session, supabase } = useSession();
