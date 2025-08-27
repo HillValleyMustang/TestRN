@@ -50,7 +50,7 @@ export default function LoginPage() {
   }, [session, router]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-2">
       <div className="w-full max-w-md p-8 space-y-6 bg-card rounded-lg shadow-lg">
         <h2 className="text-2xl font-bold text-center text-foreground">Welcome to My Workout Tracker</h2>
         <p className="text-center text-muted-foreground">Sign in or create an account to get started.</p>

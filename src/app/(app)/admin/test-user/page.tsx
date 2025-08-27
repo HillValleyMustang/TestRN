@@ -33,7 +33,7 @@ export default function TestUserPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-4 sm:p-8">
+    <div className="min-h-screen bg-background p-2 sm:p-4">
       <header className="mb-8">
         <h1 className="text-3xl font-bold">Admin Test User Creation</h1>
       </header>

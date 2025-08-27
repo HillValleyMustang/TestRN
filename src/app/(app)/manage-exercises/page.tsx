@@ -341,7 +341,7 @@ export default function ManageExercisesPage() {
   }, [emblaApi]);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 p-2 sm:p-4">
       <header className="mb-4">
         <h1 className="text-3xl font-bold">Manage Exercises</h1>
       </header>

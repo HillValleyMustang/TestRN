@@ -71,7 +71,7 @@ export default function ManageTPathsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 p-2 sm:p-4">
       <header className="mb-4"><h1 className="text-3xl font-bold">Manage Transformation Paths</h1></header>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1">

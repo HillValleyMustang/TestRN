@@ -133,7 +133,7 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-4 sm:p-8">
+    <div className="min-h-screen bg-background p-2 sm:p-4">
       <div className="max-w-2xl mx-auto">
         <header className="mb-8 text-center">
           <h1 className="text-3xl font-bold">Welcome to Your Fitness Journey</h1>

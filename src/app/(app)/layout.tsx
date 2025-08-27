@@ -14,7 +14,7 @@ export default function AppLayout({
         <Sidebar />
         <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
           <Header />
-          <main className="flex-1 p-4 sm:px-6 sm:py-0 pb-20 sm:pb-4">{children}</main>
+          <main className="flex-1 p-2 sm:px-4 sm:py-0 pb-20 sm:pb-2">{children}</main>
         </div>
         <MobileFooterNav />
       </div>

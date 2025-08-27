@@ -94,7 +94,7 @@ export default function WorkoutHistoryPage() { // Renamed component
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-4 sm:p-8">
+    <div className="min-h-screen bg-background text-foreground p-2 sm:p-4">
       <header className="mb-8 flex justify-between items-center">
         <h1 className="text-3xl font-bold">Workout History</h1> {/* Renamed title */}
         <Button variant="outline" onClick={() => router.push('/dashboard')}>

@@ -86,7 +86,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 p-2 sm:p-4">
         <header>
           <Skeleton className="h-10 w-3/4" />
           <Skeleton className="h-4 w-1/2 mt-2" />
@@ -103,7 +103,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 p-2 sm:p-4">
       <header className="animate-fade-in-slide-up" style={{ animationDelay: '0s' }}>
         <h1 className="text-4xl font-bold tracking-tight">Welcome Back, {welcomeName}</h1>
         <p className="text-muted-foreground mt-2">Ready to Train? Let's get Started!</p>
