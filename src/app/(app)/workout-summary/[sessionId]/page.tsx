@@ -25,14 +25,12 @@ type ExerciseGroup = {
   id: string;
 };
 
-// Removed the WorkoutSummaryPageProps interface definition
-
 export default function WorkoutSummaryPage({ 
   params, 
   searchParams 
 }: { 
-  params: { sessionId: string }; 
-  searchParams?: { [key: string]: string | string[] | undefined } 
+  params: Readonly<{ sessionId: string }>; // Explicitly mark params as Readonly
+  searchParams?: Readonly<{ [key: string]: string | string[] | undefined }>; // Also mark searchParams as Readonly
 }) {
   const { session, supabase } = useSession();
   const router = useRouter();
