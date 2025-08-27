@@ -363,18 +363,20 @@ const WorkoutSelector = ({
                     onExerciseCompleted={markExerciseAsCompleted}
                   />
                 ))}
+                
+                {/* WorkoutSessionFooter moved inside the exercises section */}
+                {totalExercises > 0 && (
+                  <div className="mt-6">
+                    <WorkoutSessionFooter
+                      currentSessionId={currentSessionId}
+                      sessionStartTime={sessionStartTime}
+                      supabase={supabase}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </section>
-
-          {/* WorkoutSessionFooter is now correctly positioned */}
-          {totalExercises > 0 && (
-            <WorkoutSessionFooter
-              currentSessionId={currentSessionId}
-              sessionStartTime={sessionStartTime}
-              supabase={supabase}
-            />
-          )}
         </div>
       )}
 
