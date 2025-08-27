@@ -417,10 +417,8 @@ const WorkoutSelector = ({
       {/* Ad-hoc workout card moved to the bottom */}
       <Card
         className={cn(
-          "cursor-pointer transition-colors", // Removed hover:bg-accent here
-          (selectedWorkoutId === 'ad-hoc' || isAdHocExpanded) 
-            ? "border-primary ring-2 ring-primary hover:bg-accent" // Add hover effect only when selected
-            : "filter brightness-50 hover:brightness-75 dark:hover:brightness-90" // Dim with brightness filter
+          "cursor-pointer transition-colors hover:bg-accent", // Default hover effect for Ad-Hoc
+          (selectedWorkoutId === 'ad-hoc' || isAdHocExpanded) && "border-primary ring-2 ring-primary" // Only apply ring/border when selected
         )}
         onClick={handleAdHocClick}
       >
