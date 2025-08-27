@@ -74,6 +74,9 @@ export const useExerciseSets = ({
         is_pb: false,
         isSaved: false,
         isPR: false,
+        lastWeight: null, // Corrected: Initialize to null if no initialSets
+        lastReps: null,   // Corrected: Initialize to null if no initialSets
+        lastTimeSeconds: null, // Corrected: Initialize to null if no initialSets
       }));
       setSets(defaultSets);
       onUpdateSets(exerciseId, defaultSets);
@@ -156,23 +159,29 @@ export const useExerciseSets = ({
 
   const handleSaveSet = useCallback(async (setIndex: number) => {
     if (!currentSessionId) {
-      toast.error("Workout session not started. Please refresh.");
+      toast.error("Workout session not started. Please refresh the page to begin logging sets.");
       return;
     }
 
     const currentSet = sets[setIndex];
 
-    if (exerciseType === 'weight' && (!currentSet.weight_kg || !currentSet.reps)) {
-      toast.error("Please enter weight and reps for this set.");
-      return;
+    if (exerciseType === 'weight') {
+      if (currentSet.weight_kg === null || currentSet.reps === null || currentSet.weight_kg <= 0 || currentSet.reps <= 0) {
+        toast.error("For weight exercises, please enter valid positive weight and reps for this set.");
+        return;
+      }
+    } else if (exerciseType === 'timed') {
+      if (currentSet.time_seconds === null || currentSet.time_seconds <= 0) {
+        toast.error("For timed exercises, please enter a valid positive time in seconds for this set.");
+        return;
+      }
     }
-    if (exerciseType === 'timed' && !currentSet.time_seconds) {
-      toast.error("Please enter time for this set.");
-      return;
-    }
-    if (exerciseCategory === 'Unilateral' && (!currentSet.reps_l || !currentSet.reps_r)) {
-      toast.error("Please enter reps for both left and right sides.");
-      return;
+
+    if (exerciseCategory === 'Unilateral') {
+      if (currentSet.reps_l === null || currentSet.reps_r === null || currentSet.reps_l < 0 || currentSet.reps_r < 0) {
+        toast.error("For unilateral exercises, please enter valid positive reps for both left and right sides.");
+        return;
+      }
     }
 
     // Check for Personal Record (PR) for this specific set
@@ -311,7 +320,7 @@ export const useExerciseSets = ({
     // Ensure all sets are saved before marking exercise complete
     const unsavedSets = sets.filter(set => !set.isSaved && (set.weight_kg || set.reps || set.time_seconds || set.reps_l || set.reps_r));
     if (unsavedSets.length > 0) {
-      toast.error("Please save all sets before completing the exercise.");
+      toast.error("Please save all individual sets before completing the exercise.");
       return false;
     }
 

@@ -376,7 +376,7 @@ export const ExerciseCard = ({
                   </span>
                 ) : (
                   <span className="flex items-center">
-                    <CheckCircle2 className="h-4 w-4 mr-2" /> Save Exercise
+                    <CheckCircle2 className="h-4 w-4 mr-2" /> {sets.filter(s => s.isSaved).length === 0 ? "Save Exercise (Add sets first)" : "Save Exercise"}
                   </span>
                 )}
               </Button>
