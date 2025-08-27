@@ -222,6 +222,11 @@ const WorkoutSelector = ({
     // Expand the clicked workout
     setExpandedWorkoutId(workoutId);
     onWorkoutSelect(workoutId);
+    
+    // Fetch exercises for this workout
+    const exercises = await fetchExercisesForWorkout(workoutId);
+    // Update the exercises in the session
+    // Note: This is a simplified approach - in a real implementation, you'd want to properly integrate this with the workout flow manager
   };
 
   const handleAdHocClick = () => {
@@ -259,10 +264,7 @@ const WorkoutSelector = ({
 
   return (
     <div className="space-y-6">
-      <header className="mb-4">
-        <h1 className="text-3xl font-bold">Start Your Workout</h1>
-        <p className="text-muted-foreground">Select a Transformation Path or start an ad-hoc session.</p>
-      </header>
+      {/* Removed duplicate header */}
       <div className="space-y-4">
         {groupedTPaths.length === 0 ? (
           <p className="text-muted-foreground text-center py-4">
@@ -327,11 +329,11 @@ const WorkoutSelector = ({
       </div>
 
       {/* Expanded Workout Section - Full Width Below */}
-      {(expandedWorkoutId || isAdHocExpanded) && activeWorkout && (
+      {(expandedWorkoutId || isAdHocExpanded) && (
         <div className="mt-4 border-t pt-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold">
-              {isAdHocExpanded ? "Ad-Hoc Workout" : activeWorkout.template_name}
+              {isAdHocExpanded ? "Ad-Hoc Workout" : (activeWorkout?.template_name || "Workout")}
             </h2>
             <Button 
               variant="ghost" 
@@ -398,7 +400,7 @@ const WorkoutSelector = ({
                     initialSets={exercisesWithSets[exercise.id] || []}
                     onSubstituteExercise={substituteExercise}
                     onRemoveExercise={removeExerciseFromSession}
-                    workoutTemplateName={activeWorkout.template_name}
+                    workoutTemplateName={activeWorkout?.template_name || "Workout"}
                     onFirstSetSaved={updateSessionStartTime}
                     onExerciseCompleted={markExerciseAsCompleted}
                   />
@@ -460,7 +462,7 @@ export default function WorkoutPage() {
   // Render the WorkoutSelector component with the props
   return (
     <div className="p-4 sm:p-8">
-      <h1 className="text-3xl font-bold mb-6">Start Your Workout</h1>
+      {/* Removed duplicate heading */}
       <WorkoutSelector 
         {...workoutFlowManagerProps} 
         selectedWorkoutId={selectedWorkoutId}
