@@ -273,25 +273,6 @@ export const WorkoutSelector = ({
         )}
       </div>
 
-      {/* Ad-hoc workout card */}
-      <Card
-        className={cn(
-          "cursor-pointer hover:bg-accent transition-colors",
-          (selectedWorkoutId === 'ad-hoc' || isAdHocExpanded) && "border-primary ring-2 ring-primary"
-        )}
-        onClick={handleAdHocClick}
-      >
-        <CardHeader className="p-4">
-          <CardTitle className="flex items-center text-base">
-            <PlusCircle className="h-4 w-4 mr-2" />
-            Start Ad-Hoc Workout
-          </CardTitle>
-          <CardDescription className="text-xs">
-            Start a workout without a T-Path. Add exercises as you go.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-
       {/* Expanded Workout Section - Full Width Below */}
       {(expandedWorkoutId || isAdHocExpanded) && activeWorkout && (
         <div className="mt-4 border-t pt-4">
@@ -382,6 +363,25 @@ export const WorkoutSelector = ({
           )}
         </div>
       )}
+
+      {/* Ad-hoc workout card moved to the bottom */}
+      <Card
+        className={cn(
+          "cursor-pointer hover:bg-accent transition-colors",
+          (selectedWorkoutId === 'ad-hoc' || isAdHocExpanded) && "border-primary ring-2 ring-primary"
+        )}
+        onClick={handleAdHocClick}
+      >
+        <CardHeader className="p-4">
+          <CardTitle className="flex items-center text-base">
+            <PlusCircle className="h-4 w-4 mr-2" />
+            Start Ad-Hoc Workout
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Start a workout without a T-Path. Add exercises as you go.
+          </CardDescription>
+        </CardHeader>
+      </Card>
     </div>
   );
 };
