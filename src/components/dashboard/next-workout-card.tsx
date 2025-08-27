@@ -34,7 +34,7 @@ export const NextWorkoutCard = () => {
           .eq('id', session.user.id)
           .single();
 
-        if (profileError && profileError.code !== 'PGRST116') { // PGRST116 means no rows found
+        if (profileError && profileError.code !== 'PGRST116') {
           throw profileError;
         }
 
@@ -62,7 +62,7 @@ export const NextWorkoutCard = () => {
           .eq('id', activeMainTPathId)
           .eq('user_id', session.user.id)
           .is('parent_t_path_id', null) // Correctly identify a main T-Path
-          .single();
+          .order('created_at', { ascending: true });
 
         if (mainTPathError || !mainTPathData) {
           console.error("Active main T-Path not found or invalid:", mainTPathError);
@@ -152,9 +152,8 @@ export const NextWorkoutCard = () => {
     );
   }
 
-  // Removed workoutBorderClass as it's no longer needed for the border
   return (
-    <Card> {/* Removed cn("border-2", workoutBorderClass) */}
+    <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Dumbbell className="h-5 w-5" />
