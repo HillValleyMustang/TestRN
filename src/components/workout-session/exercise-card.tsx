@@ -180,7 +180,7 @@ export const ExerciseCard = ({
   };
 
   const isNewExercisePR = !loadingPR && exercisePR && (
-    (exercise.type === 'weight' && sets.reduce((total, set) => total + ((set.weight_kg || 0) * (set.reps || 0)), 0) > (exercisePR.best_volume_kg || 0)) ||
+    (exercise.type === 'weight' && sets.reduce((totalVolume, set) => totalVolume + ((set.weight_kg || 0) * (set.reps || 0)), 0) > (exercisePR.best_volume_kg || 0)) ||
     (exercise.type === 'timed' && sets.map(set => set.time_seconds).filter((time): time is number => time !== null).length > 0 && Math.min(...sets.map(set => set.time_seconds).filter((time): time is number => time !== null)) < (exercisePR.best_time_seconds || Infinity))
   );
 
