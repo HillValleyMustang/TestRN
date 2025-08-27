@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { ArrowUp, ArrowDown, ArrowRight, ArrowLeft, Footprints, LucideIcon, Star } from "lucide-react"; // Import Star icon
+import { ArrowUp, ArrowDown, ArrowRight, ArrowLeft, Footprints, LucideIcon, Star, Dumbbell } from "lucide-react"; // Import Star and Dumbbell icons
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -44,7 +44,7 @@ export function getWorkoutColorClass(workoutName: string, type: 'text' | 'border
   } else if (type === 'bg') {
     return `bg-workout-${colorKey}-bg`;
   } else if (type === 'border') {
-    return `border-workout-${colorKey}-border`; // Use the new border variant
+    return `border-workout-${colorKey}-base`; // Changed to use the -base color for borders
   }
   return '';
 }
@@ -53,20 +53,23 @@ export function getWorkoutIcon(workoutName: string): LucideIcon | null {
   switch (workoutName) {
     case 'Upper Body A':
     case 'Upper Body B':
-      return ArrowUp; // Up arrow for Upper body
+      return ArrowUp;
     case 'Lower Body A':
     case 'Lower Body B':
-      return ArrowDown; // Down arrow for Lower body
+      return ArrowDown;
     case 'Push':
-      return ArrowRight; // Represents pushing forward/away
+      return ArrowRight;
     case 'Pull':
-      return ArrowLeft; // Represents pulling towards
+      return ArrowLeft;
     case 'Legs':
-      return Footprints; // Represents leg movement
-    case 'Bonus': // New case for bonus exercises
-      return Star; // Star icon for bonus
+      return Footprints;
+    case 'Bonus':
+      return Star;
+    case '4-Day Upper/Lower':
+    case '3-Day Push/Pull/Legs':
+      return Dumbbell; // Generic icon for main T-Paths
     default:
-      return null; // No specific icon for other workouts or 'Ad Hoc Workout'
+      return null;
   }
 }
 
