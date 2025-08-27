@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from '@/components/session-context-provider';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
@@ -73,6 +73,7 @@ export const WorkoutSelector = ({
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null);
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
   const [isAdHocExpanded, setIsAdHocExpanded] = useState(false);
+  const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, WorkoutExercise[]>>({}); // Cache for exercises
 
   const fetchWorkoutsAndProfile = useCallback(async () => {
     if (!session) return;
@@ -150,6 +151,53 @@ export const WorkoutSelector = ({
   useEffect(() => {
     fetchWorkoutsAndProfile();
   }, [fetchWorkoutsAndProfile]);
+
+  const fetchExercisesForWorkout = useCallback(async (workoutId: string) => {
+    if (!session || !workoutId) return [];
+    if (workoutExercisesCache[workoutId]) {
+      return workoutExercisesCache[workoutId]; // Return cached exercises
+    }
+
+    try {
+      const { data: tPathExercises, error: fetchLinksError } = await supabase
+        .from('t_path_exercises')
+        .select('exercise_id, is_bonus_exercise, order_index')
+        .eq('template_id', workoutId)
+        .order('order_index', { ascending: true });
+
+      if (fetchLinksError) throw fetchLinksError;
+
+      if (!tPathExercises || tPathExercises.length === 0) {
+        return [];
+      }
+
+      const exerciseIds = tPathExercises.map(e => e.exercise_id);
+      const exerciseInfoMap = new Map(tPathExercises.map(e => [e.exercise_id, { is_bonus_exercise: !!e.is_bonus_exercise, order_index: e.order_index }]));
+
+      const { data: exerciseDetails, error: fetchDetailsError } = await supabase
+        .from('exercise_definitions')
+        .select('*')
+        .in('id', exerciseIds);
+
+      if (fetchDetailsError) throw fetchDetailsError;
+
+      const exercises = (exerciseDetails as Tables<'exercise_definitions'>[] || [])
+        .map(ex => ({
+          ...ex,
+          is_bonus_exercise: exerciseInfoMap.get(ex.id)?.is_bonus_exercise || false,
+        }))
+        .sort((a, b) => (exerciseInfoMap.get(a.id)?.order_index || 0) - (exerciseInfoMap.get(b.id)?.order_index || 0));
+      
+      // Cache the fetched exercises
+      setWorkoutExercisesCache(prev => ({ ...prev, [workoutId]: exercises }));
+      return exercises;
+
+    } catch (err: any) {
+      toast.error(`Failed to fetch exercises for workout: ${err.message}`);
+      console.error("Error fetching exercises:", err);
+      return [];
+    }
+  }, [session, supabase, workoutExercisesCache]);
 
   const formatLastCompleted = (dateString: string | null) => {
     if (!dateString) return 'Never completed';
@@ -273,6 +321,25 @@ export const WorkoutSelector = ({
         )}
       </div>
 
+      {/* Ad-hoc workout card */}
+      <Card
+        className={cn(
+          "cursor-pointer hover:bg-accent transition-colors",
+          (selectedWorkoutId === 'ad-hoc' || isAdHocExpanded) && "border-primary ring-2 ring-primary"
+        )}
+        onClick={handleAdHocClick}
+      >
+        <CardHeader className="p-4">
+          <CardTitle className="flex items-center text-base">
+            <PlusCircle className="h-4 w-4 mr-2" />
+            Start Ad-Hoc Workout
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Start a workout without a T-Path. Add exercises as you go.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+
       {/* Expanded Workout Section - Full Width Below */}
       {(expandedWorkoutId || isAdHocExpanded) && activeWorkout && (
         <div className="mt-4 border-t pt-4">
@@ -354,6 +421,7 @@ export const WorkoutSelector = ({
             )}
           </section>
 
+          {/* WorkoutSessionFooter is now correctly positioned */}
           {totalExercises > 0 && (
             <WorkoutSessionFooter
               currentSessionId={currentSessionId}
@@ -363,25 +431,6 @@ export const WorkoutSelector = ({
           )}
         </div>
       )}
-
-      {/* Ad-hoc workout card moved to the bottom */}
-      <Card
-        className={cn(
-          "cursor-pointer hover:bg-accent transition-colors",
-          (selectedWorkoutId === 'ad-hoc' || isAdHocExpanded) && "border-primary ring-2 ring-primary"
-        )}
-        onClick={handleAdHocClick}
-      >
-        <CardHeader className="p-4">
-          <CardTitle className="flex items-center text-base">
-            <PlusCircle className="h-4 w-4 mr-2" />
-            Start Ad-Hoc Workout
-          </CardTitle>
-          <CardDescription className="text-xs">
-            Start a workout without a T-Path. Add exercises as you go.
-          </CardDescription>
-        </CardHeader>
-      </Card>
     </div>
   );
 };
