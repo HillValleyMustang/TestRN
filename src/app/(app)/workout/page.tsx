@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { MadeWithDyad } from "@/components/made-with-dyad";
@@ -46,7 +47,9 @@ interface WorkoutSelectorProps {
   resetWorkoutSession: () => void;
   updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
   selectWorkout: (workoutId: string | null) => Promise<void>;
-  loadingWorkoutFlow: boolean; // Added loading prop from useWorkoutFlowManager
+  loadingWorkoutFlow: boolean;
+  previousActiveWorkout: TPath | null; // New prop
+  previousExercisesForSession: WorkoutExercise[]; // New prop
 }
 
 const WorkoutSelector = ({ 
@@ -67,7 +70,9 @@ const WorkoutSelector = ({
   resetWorkoutSession,
   updateExerciseSets,
   selectWorkout,
-  loadingWorkoutFlow // Destructure the new prop
+  loadingWorkoutFlow, // Destructure the new prop
+  previousActiveWorkout, // Destructure new prop
+  previousExercisesForSession, // Destructure new prop
 }: WorkoutSelectorProps) => {
   const { session, supabase } = useSession();
   const router = useRouter();
@@ -163,16 +168,20 @@ const WorkoutSelector = ({
   };
 
   const handleWorkoutClick = async (workoutId: string) => {
+    // If clicking the already expanded workout, collapse it
     if (expandedWorkoutId === workoutId) {
       setExpandedWorkoutId(null);
-      resetWorkoutSession(); // Only reset when collapsing the current workout
+      resetWorkoutSession(); // Only reset when explicitly collapsing the current workout
       return;
     }
     
+    // Collapse ad-hoc if expanded
     if (isAdHocExpanded) {
       setIsAdHocExpanded(false);
+      resetWorkoutSession(); // Only reset when explicitly collapsing ad-hoc
     }
     
+    // Expand the clicked workout
     setExpandedWorkoutId(workoutId);
     onWorkoutSelect(workoutId);
     await selectWorkout(workoutId);
@@ -181,12 +190,14 @@ const WorkoutSelector = ({
   const handleAdHocClick = () => {
     if (isAdHocExpanded) {
       setIsAdHocExpanded(false);
-      resetWorkoutSession(); // Only reset when collapsing ad-hoc
+      resetWorkoutSession(); // Only reset when explicitly collapsing ad-hoc
       return;
     }
     
+    // Collapse any expanded workout
     if (expandedWorkoutId) {
       setExpandedWorkoutId(null);
+      resetWorkoutSession(); // Only reset when explicitly collapsing the current workout
     }
     
     setIsAdHocExpanded(true);
@@ -210,6 +221,10 @@ const WorkoutSelector = ({
 
   const totalExercises = exercisesForSession.length;
   const completedExerciseCount = completedExercises.size;
+
+  // Determine which workout data to display
+  const displayWorkout = loadingWorkoutFlow && previousActiveWorkout ? previousActiveWorkout : activeWorkout;
+  const displayExercises = loadingWorkoutFlow && previousExercisesForSession.length > 0 ? previousExercisesForSession : exercisesForSession;
 
   return (
     <div className="space-y-6">
@@ -283,11 +298,11 @@ const WorkoutSelector = ({
       </div>
 
       {/* Expanded Workout Section - Full Width Below */}
-      {(expandedWorkoutId || isAdHocExpanded) && (
+      {(expandedWorkoutId || isAdHocExpanded) && (displayWorkout || loadingWorkoutFlow) && ( // Check displayWorkout or loading
         <div className="mt-4 border-t pt-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold">
-              {isAdHocExpanded ? "Ad-Hoc Workout" : (activeWorkout?.template_name || "Workout")}
+              {isAdHocExpanded ? "Ad-Hoc Workout" : (displayWorkout?.template_name || "Workout")}
             </h2>
             <Button 
               variant="ghost" 
@@ -306,10 +321,33 @@ const WorkoutSelector = ({
           </div>
 
           {loadingWorkoutFlow ? ( // Use loading state from hook
-            <div className="flex flex-col items-center justify-center text-center py-8">
-              <Dumbbell className="h-12 w-12 text-muted-foreground mb-3 animate-bounce" />
-              <h3 className="text-lg font-bold mb-2">Loading Workout...</h3>
-              <p className="text-muted-foreground mb-4">Preparing your exercises.</p>
+            <div className="relative min-h-[200px]"> {/* Added relative and min-height */}
+              {/* Render previous workout content underneath */}
+              {displayExercises.length > 0 && (
+                <div className="space-y-4 opacity-50 pointer-events-none"> {/* Dim and disable interaction */}
+                  {displayExercises.map((exercise, index) => (
+                    <ExerciseCard
+                      key={exercise.id}
+                      exercise={exercise}
+                      exerciseNumber={index + 1}
+                      currentSessionId={currentSessionId}
+                      supabase={supabase}
+                      onUpdateGlobalSets={updateExerciseSets}
+                      initialSets={exercisesWithSets[exercise.id] || []}
+                      onSubstituteExercise={substituteExercise}
+                      onRemoveExercise={removeExerciseFromSession}
+                      workoutTemplateName={displayWorkout?.template_name || "Workout"}
+                      onFirstSetSaved={updateSessionStartTime}
+                      onExerciseCompleted={markExerciseAsCompleted}
+                    />
+                  ))}
+                </div>
+              )}
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center bg-background/80 backdrop-blur-sm z-10">
+                <Dumbbell className="h-12 w-12 text-muted-foreground mb-3 animate-bounce" />
+                <h3 className="text-lg font-bold mb-2">Loading Workout...</h3>
+                <p className="text-muted-foreground mb-4">Preparing your exercises.</p>
+              </div>
             </div>
           ) : (
             <>
@@ -339,7 +377,7 @@ const WorkoutSelector = ({
               )}
 
               <section className="mb-6">
-                {exercisesForSession.length === 0 ? (
+                {displayExercises.length === 0 ? ( // Use displayExercises here
                   <div className="flex flex-col items-center justify-center text-center py-8">
                     <Dumbbell className="h-12 w-12 text-muted-foreground mb-3" />
                     <h3 className="text-lg font-bold mb-2">No exercises added</h3>
@@ -351,7 +389,7 @@ const WorkoutSelector = ({
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {exercisesForSession.map((exercise, index) => (
+                    {displayExercises.map((exercise, index) => ( // Use displayExercises here
                       <ExerciseCard
                         key={exercise.id}
                         exercise={exercise}
@@ -362,7 +400,7 @@ const WorkoutSelector = ({
                         initialSets={exercisesWithSets[exercise.id] || []}
                         onSubstituteExercise={substituteExercise}
                         onRemoveExercise={removeExerciseFromSession}
-                        workoutTemplateName={activeWorkout?.template_name || "Workout"}
+                        workoutTemplateName={displayWorkout?.template_name || "Workout"} // Use displayWorkout
                         onFirstSetSaved={updateSessionStartTime}
                         onExerciseCompleted={markExerciseAsCompleted}
                       />
@@ -441,6 +479,8 @@ export default function WorkoutPage() {
         selectedWorkoutId={selectedWorkoutId}
         onWorkoutSelect={setSelectedWorkoutId}
         loadingWorkoutFlow={workoutFlowManagerProps.loading} // Pass loading state
+        previousActiveWorkout={workoutFlowManagerProps.previousActiveWorkout} // Pass new prop
+        previousExercisesForSession={workoutFlowManagerProps.previousExercisesForSession} // Pass new prop
       />
       <MadeWithDyad />
     </div>
