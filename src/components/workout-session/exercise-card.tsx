@@ -185,210 +185,212 @@ export const ExerciseCard = ({
   );
 
   return (
-    <Card className={cn("mb-6 border-2", workoutBorderClass, { "opacity-70": isExerciseSaved })}>
-      <CardHeader 
-        className="flex flex-row items-center justify-between pb-4 cursor-pointer"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex-1">
-          <CardTitle className={cn("text-xl flex items-center gap-2", workoutColorClass)}>
-            {exerciseNumber}. {exercise.name}
-            {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus">Bonus</WorkoutBadge>}
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">{exercise.main_muscle}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" title="More Options" onClick={(e) => e.stopPropagation()}>
-                <Menu className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => setShowExerciseHistoryDialog(true)}>
-                <History className="h-4 w-4 mr-2" /> History
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setShowExerciseInfoDialog(true)}>
-                <Info className="h-4 w-4 mr-2" /> Info
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setShowExerciseProgressionDialog(true)}>
-                <Trophy className="h-4 w-4 mr-2" /> Progression
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setShowSwapDialog(true)}>
-                <RefreshCcw className="h-4 w-4 mr-2" /> Swap Exercise
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setShowCantDoDialog(true)} className="text-destructive">
-                <Trash2 className="h-4 w-4 mr-2" /> Can't Do
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }} title={isExpanded ? "Collapse" : "Expand"}>
-            {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-          </Button>
-        </div>
-      </CardHeader>
-      {isExpanded && (
-        <CardContent>
-          <div className="space-y-4">
-            {sets.map((set, setIndex) => (
-              <div key={set.id || `new-${setIndex}`} className={cn("p-3 border rounded-md", {
-                "border-primary ring-1 ring-primary": !set.isSaved && !isExerciseSaved,
-                "bg-accent/50": set.isSaved,
-              })}>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold text-base">Set {setIndex + 1}</h3>
-                  <div className="flex items-center gap-2">
-                    {set.isSaved ? (
+    <> {/* Added React Fragment */}
+      <Card className={cn("mb-6 border-2", workoutBorderClass, { "opacity-70": isExerciseSaved })}>
+        <CardHeader 
+          className="flex flex-row items-center justify-between pb-4 cursor-pointer"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          <div className="flex-1">
+            <CardTitle className={cn("text-xl flex items-center gap-2", workoutColorClass)}>
+              {exerciseNumber}. {exercise.name}
+              {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus">Bonus</WorkoutBadge>}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">{exercise.main_muscle}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" title="More Options" onClick={(e) => e.stopPropagation()}>
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => setShowExerciseHistoryDialog(true)}>
+                  <History className="h-4 w-4 mr-2" /> History
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setShowExerciseInfoDialog(true)}>
+                  <Info className="h-4 w-4 mr-2" /> Info
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setShowExerciseProgressionDialog(true)}>
+                  <Trophy className="h-4 w-4 mr-2" /> Progression
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setShowSwapDialog(true)}>
+                  <RefreshCcw className="h-4 w-4 mr-2" /> Swap Exercise
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setShowCantDoDialog(true)} className="text-destructive">
+                  <Trash2 className="h-4 w-4 mr-2" /> Can't Do
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }} title={isExpanded ? "Collapse" : "Expand"}>
+              {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+            </Button>
+          </div>
+        </CardHeader>
+        {isExpanded && (
+          <CardContent>
+            <div className="space-y-2"> {/* Reduced space-y from 4 to 2 */}
+              {sets.map((set, setIndex) => (
+                <div key={set.id || `new-${setIndex}`} className={cn("p-2 border rounded-md", { // Reduced p-3 to p-2
+                  "border-primary ring-1 ring-primary": !set.isSaved && !isExerciseSaved,
+                  "bg-accent/50": set.isSaved,
+                })}>
+                  <div className="flex items-center justify-between"> {/* Removed mb-2 */}
+                    <h3 className="font-semibold text-base">Set {setIndex + 1}</h3>
+                    <div className="flex items-center gap-1"> {/* Reduced gap-2 to gap-1 */}
+                      {set.isSaved ? (
+                        <>
+                          <Button variant="ghost" size="icon" onClick={() => handleEditSet(setIndex)} title="Edit Set" disabled={isExerciseSaved}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" disabled={isExerciseSaved}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button variant="secondary" size="icon" onClick={() => handleSaveSetAndStartTimer(setIndex)} disabled={isExerciseSaved} title="Save Set">
+                            <Save className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" disabled={isExerciseSaved}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </>
+                      )}
+                      {set.isSaved && set.isPR && (
+                        <span className="text-yellow-500 flex items-center text-xs font-semibold">
+                          <Trophy className="h-3 w-3 ml-1" /> PR! {/* Reduced mr-1 to ml-1 */}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 mt-2"> {/* Reduced gap-3 to gap-2, added mt-2 */}
+                    {exercise.type === 'weight' && (
                       <>
-                        <Button variant="ghost" size="icon" onClick={() => handleEditSet(setIndex)} title="Edit Set" disabled={isExerciseSaved}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" disabled={isExerciseSaved}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Button variant="secondary" size="icon" onClick={() => handleSaveSetAndStartTimer(setIndex)} disabled={isExerciseSaved} title="Save Set">
-                          <Save className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" disabled={isExerciseSaved}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <div>
+                          <Input
+                            id={`weight-${setIndex}`}
+                            type="number"
+                            step="0.1"
+                            placeholder={`Weight (${preferredWeightUnit})`}
+                            value={convertWeight(set.weight_kg, 'kg', preferredWeightUnit as 'kg' | 'lbs') ?? ''}
+                            onChange={(e) => handleInputChange(setIndex, 'weight_kg', e.target.value)}
+                            disabled={set.isSaved || isExerciseSaved}
+                            className="mt-0.5" // Reduced mt-1 to mt-0.5
+                          />
+                          <p className="text-muted-foreground text-xs mt-0.5"> {/* Reduced mt-1 to mt-0.5 */}
+                            {set.lastWeight ? `Last: ${formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs')}` : "No last weight"}
+                          </p>
+                        </div>
+                        <div>
+                          <Input
+                            id={`reps-${setIndex}`}
+                            type="number"
+                            placeholder="Reps"
+                            value={set.reps ?? ''}
+                            onChange={(e) => handleInputChange(setIndex, 'reps', e.target.value)}
+                            disabled={set.isSaved || isExerciseSaved}
+                            className="mt-0.5" // Reduced mt-1 to mt-0.5
+                          />
+                          <p className="text-muted-foreground text-xs mt-0.5"> {/* Reduced mt-1 to mt-0.5 */}
+                            {set.lastReps ? `Last: ${set.lastReps} reps` : "No last reps"}
+                          </p>
+                        </div>
                       </>
                     )}
-                    {set.isSaved && set.isPR && (
-                      <span className="text-yellow-500 flex items-center text-xs font-semibold">
-                        <Trophy className="h-3 w-3 mr-1" /> Set PR!
-                      </span>
+                    {exercise.type === 'timed' && (
+                      <div className="col-span-2">
+                        <Input
+                          id={`time-${setIndex}`}
+                          type="number"
+                          placeholder="Time (seconds)"
+                          value={set.time_seconds ?? ''}
+                          onChange={(e) => handleInputChange(setIndex, 'time_seconds', e.target.value)}
+                          disabled={set.isSaved || isExerciseSaved}
+                          className="mt-0.5" // Reduced mt-1 to mt-0.5
+                        />
+                        <p className="text-muted-foreground text-xs mt-0.5"> {/* Reduced mt-1 to mt-0.5 */}
+                          {set.lastTimeSeconds ? `Last: ${set.lastTimeSeconds}s` : "No last time"}
+                        </p>
+                      </div>
+                    )}
+                    {exercise.category === 'Unilateral' && (
+                      <>
+                        <div>
+                          <Input
+                            id={`reps-l-${setIndex}`}
+                            type="number"
+                            placeholder="Reps (L)"
+                            value={set.reps_l ?? ''}
+                            onChange={(e) => handleInputChange(setIndex, 'reps_l', e.target.value)}
+                            disabled={set.isSaved || isExerciseSaved}
+                            className="mt-0.5" // Reduced mt-1 to mt-0.5
+                          />
+                        </div>
+                        <div>
+                          <Input
+                            id={`reps-r-${setIndex}`}
+                            type="number"
+                            placeholder="Reps (R)"
+                            value={set.reps_r ?? ''}
+                            onChange={(e) => handleInputChange(setIndex, 'reps_r', e.target.value)}
+                            disabled={set.isSaved || isExerciseSaved}
+                            className="mt-0.5" // Reduced mt-1 to mt-0.5
+                          />
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
+              ))}
+            </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  {exercise.type === 'weight' && (
-                    <>
-                      <div>
-                        <Input
-                          id={`weight-${setIndex}`}
-                          type="number"
-                          step="0.1"
-                          placeholder={`Weight (${preferredWeightUnit})`}
-                          value={convertWeight(set.weight_kg, 'kg', preferredWeightUnit as 'kg' | 'lbs') ?? ''}
-                          onChange={(e) => handleInputChange(setIndex, 'weight_kg', e.target.value)}
-                          disabled={set.isSaved || isExerciseSaved}
-                          className="mt-1"
-                        />
-                        <p className="text-muted-foreground text-xs mt-1">
-                          {set.lastWeight ? `Last: ${formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs')}` : "No last weight"}
-                        </p>
-                      </div>
-                      <div>
-                        <Input
-                          id={`reps-${setIndex}`}
-                          type="number"
-                          placeholder="Reps"
-                          value={set.reps ?? ''}
-                          onChange={(e) => handleInputChange(setIndex, 'reps', e.target.value)}
-                          disabled={set.isSaved || isExerciseSaved}
-                          className="mt-1"
-                        />
-                        <p className="text-muted-foreground text-xs mt-1">
-                          {set.lastReps ? `Last: ${set.lastReps} reps` : "No last reps"}
-                        </p>
-                      </div>
-                    </>
-                  )}
-                  {exercise.type === 'timed' && (
-                    <div className="col-span-2">
-                      <Input
-                        id={`time-${setIndex}`}
-                        type="number"
-                        placeholder="Time (seconds)"
-                        value={set.time_seconds ?? ''}
-                        onChange={(e) => handleInputChange(setIndex, 'time_seconds', e.target.value)}
-                        disabled={set.isSaved || isExerciseSaved}
-                        className="mt-1"
-                      />
-                      <p className="text-muted-foreground text-xs mt-1">
-                        {set.lastTimeSeconds ? `Last: ${set.lastTimeSeconds}s` : "No last time"}
-                      </p>
-                    </div>
-                  )}
-                  {exercise.category === 'Unilateral' && (
-                    <>
-                      <div>
-                        <Input
-                          id={`reps-l-${setIndex}`}
-                          type="number"
-                          placeholder="Reps (L)"
-                          value={set.reps_l ?? ''}
-                          onChange={(e) => handleInputChange(setIndex, 'reps_l', e.target.value)}
-                          disabled={set.isSaved || isExerciseSaved}
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <Input
-                          id={`reps-r-${setIndex}`}
-                          type="number"
-                          placeholder="Reps (R)"
-                          value={set.reps_r ?? ''}
-                          onChange={(e) => handleInputChange(setIndex, 'reps_r', e.target.value)}
-                          disabled={set.isSaved || isExerciseSaved}
-                          className="mt-1"
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
+            <div className="flex justify-between items-center mt-4"> {/* Reduced mt-6 to mt-4 */}
+              {sets.length < 5 && (
+                <Button variant="outline" onClick={handleAddSet} disabled={isExerciseSaved}>
+                  <Plus className="h-4 w-4 mr-2" /> Add Set
+                </Button>
+              )}
+              {sets.length >= 5 && <div />} {/* Spacer to keep layout consistent */}
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleToggleTimer}
+                  className="w-24 justify-center"
+                >
+                  {isTimerRunning ? <Pause className="h-4 w-4 mr-1" /> : <Play className="h-4 w-4 mr-1" />}
+                  {formatTime(timeLeft)}
+                </Button>
+                <Button variant="ghost" size="icon" onClick={handleResetTimer} title="Reset Timer">
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
               </div>
-            ))}
-          </div>
+            </div>
 
-          <div className="flex justify-between items-center mt-6">
-            {sets.length < 5 && (
-              <Button variant="outline" onClick={handleAddSet} disabled={isExerciseSaved}>
-                <Plus className="h-4 w-4 mr-2" /> Add Set
-              </Button>
-            )}
-            {sets.length >= 5 && <div />} {/* Spacer to keep layout consistent */}
-            <div className="flex items-center space-x-2">
+            <div className="mt-4"> {/* Reduced mt-6 to mt-4 */}
               <Button
-                variant="outline"
-                size="sm"
-                onClick={handleToggleTimer}
-                className="w-24 justify-center"
+                className={cn("w-full", { "bg-green-500 hover:bg-green-600 text-white": isExerciseSaved })}
+                onClick={handleCompleteExercise}
+                disabled={isExerciseSaved || sets.filter(s => s.isSaved).length === 0}
               >
-                {isTimerRunning ? <Pause className="h-4 w-4 mr-1" /> : <Play className="h-4 w-4 mr-1" />}
-                {formatTime(timeLeft)}
-              </Button>
-              <Button variant="ghost" size="icon" onClick={handleResetTimer} title="Reset Timer">
-                <RotateCcw className="h-4 w-4" />
+                {isExerciseSaved ? (
+                  <span className="flex items-center">
+                    <CheckCircle2 className="h-4 w-4 mr-2" /> Saved
+                    {isNewExercisePR && <Trophy className="h-4 w-4 ml-2 fill-white text-white" />}
+                  </span>
+                ) : (
+                  <span className="flex items-center">
+                    <CheckCircle2 className="h-4 w-4 mr-2" /> Save Exercise
+                  </span>
+                )}
               </Button>
             </div>
-          </div>
-
-          <div className="mt-6">
-            <Button
-              className={cn("w-full", { "bg-green-500 hover:bg-green-600 text-white": isExerciseSaved })}
-              onClick={handleCompleteExercise}
-              disabled={isExerciseSaved || sets.filter(s => s.isSaved).length === 0}
-            >
-              {isExerciseSaved ? (
-                <span className="flex items-center">
-                  <CheckCircle2 className="h-4 w-4 mr-2" /> Saved
-                  {isNewExercisePR && <Trophy className="h-4 w-4 ml-2 fill-white text-white" />}
-                </span>
-              ) : (
-                <span className="flex items-center">
-                  <CheckCircle2 className="h-4 w-4 mr-2" /> Save Exercise
-                </span>
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      )}
+          </CardContent>
+        )}
+      </Card>
 
       <ExerciseHistoryDialog
         open={showExerciseHistoryDialog}
@@ -438,6 +440,6 @@ export const ExerciseCard = ({
           setShowCantDoDialog(false);
         }}
       />
-    </Card>
+    </> // Added React Fragment
   );
 };
