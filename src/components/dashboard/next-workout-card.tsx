@@ -20,6 +20,7 @@ export const NextWorkoutCard = () => {
   const [nextWorkout, setNextWorkout] = useState<TPath | null>(null); // Stores the specific child workout to display
   const [loading, setLoading] = useState(true);
   const [estimatedDuration, setEstimatedDuration] = useState<string>('N/A'); // New state for estimated duration
+  const [activeMainTPathId, setActiveMainTPathId] = useState<string | null>(null); // State to store the active T-Path ID
 
   useEffect(() => {
     const fetchNextWorkout = async () => {
@@ -37,7 +38,8 @@ export const NextWorkoutCard = () => {
         if (profileError && profileError.code !== 'PGRST116') {
           throw profileError;
         }
-        const fetchedActiveMainTPathId = profileData?.active_t_path_id; // Removed || null as it's handled below
+        const fetchedActiveMainTPathId = profileData?.active_t_path_id; // Use fetched value
+        setActiveMainTPathId(fetchedActiveMainTPathId); // Set state for dependency array
         
         if (!fetchedActiveMainTPathId) {
           setMainTPath(null);
@@ -69,9 +71,9 @@ export const NextWorkoutCard = () => {
         
         const activeMainTPath = mainTPathData[0]; // Use the first element as the active T-Path
 
-        if (preferredSessionLength) {
-          const maxMinutes = getMaxMinutes(preferredSessionLength);
-          setEstimatedDuration(`${preferredSessionLength} minutes`);
+        // Use the fetched preferredSessionLength directly
+        if (profileData?.preferred_session_length) {
+          setEstimatedDuration(`${profileData.preferred_session_length} minutes`);
         } else {
           setEstimatedDuration('N/A');
         }
@@ -104,7 +106,7 @@ export const NextWorkoutCard = () => {
     };
 
     fetchNextWorkout();
-  }, [session, supabase, fetchedActiveMainTPathId]); // Added fetchedActiveMainTPathId to dependency array
+  }, [session, supabase, fetchedActiveMainTPathId, activeMainTPathId]); // Added activeMainTPathId to dependency array
 
   if (loading) {
     return (
