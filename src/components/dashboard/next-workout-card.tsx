@@ -8,7 +8,7 @@ import { Dumbbell, Clock } from 'lucide-react';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { cn, getWorkoutColorClass, getMaxMinutes } from '@/lib/utils'; // Import getMaxMinutes
+import { cn, getWorkoutColorClass, getMaxMinutes } from '@/lib/utils';
 
 type TPath = Tables<'t_paths'>;
 type Profile = Tables<'profiles'>; // Import Profile type
@@ -37,18 +37,9 @@ export const NextWorkoutCard = () => {
         if (profileError && profileError.code !== 'PGRST116') {
           throw profileError;
         }
-
-        const activeMainTPathId = profileData?.active_t_path_id;
-        const preferredSessionLength = profileData?.preferred_session_length;
-
-        if (preferredSessionLength) {
-          const maxMinutes = getMaxMinutes(preferredSessionLength);
-          setEstimatedDuration(`${preferredSessionLength} minutes`);
-        } else {
-          setEstimatedDuration('N/A');
-        }
-
-        if (!activeMainTPathId) {
+        const fetchedActiveMainTPathId = profileData?.active_t_path_id; // Removed || null as it's handled below
+        
+        if (!fetchedActiveMainTPathId) {
           setMainTPath(null);
           setNextWorkout(null);
           setLoading(false);
@@ -59,25 +50,37 @@ export const NextWorkoutCard = () => {
         const { data: mainTPathData, error: mainTPathError } = await supabase
           .from('t_paths')
           .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
-          .eq('id', activeMainTPathId)
+          .eq('id', fetchedActiveMainTPathId)
           .eq('user_id', session.user.id)
           .is('parent_t_path_id', null) // Correctly identify a main T-Path
           .order('created_at', { ascending: true });
 
-        if (mainTPathError || !mainTPathData) {
-          console.error("Active main T-Path not found or invalid:", mainTPathError);
-          setMainTPath(null);
+        if (mainTPathError) {
+          throw mainTPathError;
+        }
+        // Fix for Error 1: Ensure mainTPathData is treated as a single object or null
+        setMainTPath(mainTPathData && mainTPathData.length > 0 ? mainTPathData[0] : null); 
+
+        if (!mainTPathData || mainTPathData.length === 0) {
           setNextWorkout(null);
           setLoading(false);
           return;
         }
-        setMainTPath(mainTPathData);
+        
+        const activeMainTPath = mainTPathData[0]; // Use the first element as the active T-Path
+
+        if (preferredSessionLength) {
+          const maxMinutes = getMaxMinutes(preferredSessionLength);
+          setEstimatedDuration(`${preferredSessionLength} minutes`);
+        } else {
+          setEstimatedDuration('N/A');
+        }
 
         // 3. Fetch child workouts for this main T-Path
         const { data: childWorkoutsData, error: childWorkoutsError } = await supabase
           .from('t_paths')
           .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
-          .eq('parent_t_path_id', mainTPathData.id)
+          .eq('parent_t_path_id', fetchedActiveMainTPathId) // Fix for Error 2: Use fetchedActiveMainTPathId here
           .eq('is_bonus', true) // These are the actual individual workouts
           .order('template_name', { ascending: true }); // Order for consistent "next" selection
 
@@ -101,7 +104,7 @@ export const NextWorkoutCard = () => {
     };
 
     fetchNextWorkout();
-  }, [session, supabase]);
+  }, [session, supabase, fetchedActiveMainTPathId]); // Added fetchedActiveMainTPathId to dependency array
 
   if (loading) {
     return (
