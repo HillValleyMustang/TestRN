@@ -291,7 +291,7 @@ export const WorkoutSelector = ({
                         key={workout.id}
                         variant="outline"
                         className={cn(
-                          "h-auto p-3 flex flex-col items-center justify-center text-center transition-colors relative w-full",
+                          "h-auto p-3 flex flex-col items-start justify-start relative w-full", // Changed to items-start, justify-start
                           "border-2",
                           workoutBorderClass,
                           workoutBgClass,
@@ -300,18 +300,20 @@ export const WorkoutSelector = ({
                         )}
                         onClick={() => handleWorkoutClick(workout.id)}
                       >
-                        <div className="flex flex-col items-center gap-1 w-full">
-                          <div className="flex items-center justify-center">
-                            {Icon && <Icon className={cn("h-4 w-4", workoutColorClass)} />}
+                        <div className="flex justify-between items-center w-full mb-2"> {/* Header-like row */}
+                          <div className="flex items-center gap-2">
+                            {Icon && <Icon className={cn("h-5 w-5", workoutColorClass)} />} {/* Slightly larger icon */}
+                            <span className={cn("font-bold text-lg", workoutColorClass)}>{workout.template_name}</span> {/* Larger, bolder text */}
                           </div>
-                          <span className={cn("font-semibold text-sm", workoutColorClass)}>{workout.template_name}</span>
-                          <span className={cn("text-xs mt-1", workoutColorClass)}>
-                            {formatLastCompleted(workout.last_completed_at)}
-                          </span>
-                          {isExpanded && (
-                            <ChevronUp className="h-4 w-4 mt-1" />
+                          {isExpanded ? (
+                            <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="h-5 w-5 text-muted-foreground" />
                           )}
                         </div>
+                        <span className={cn("text-xs w-full text-center", workoutColorClass)}> {/* Centered last completed */}
+                          {formatLastCompleted(workout.last_completed_at)}
+                        </span>
                       </Button>
                     );
                   })}
