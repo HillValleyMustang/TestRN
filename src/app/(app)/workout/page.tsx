@@ -45,6 +45,7 @@ interface WorkoutSelectorProps {
   markExerciseAsCompleted: (exerciseId: string, isNewPR: boolean) => void;
   resetWorkoutSession: () => void;
   updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
+  selectWorkout: (workoutId: string | null) => Promise<void>;
 }
 
 const WorkoutSelector = ({ 
@@ -63,7 +64,8 @@ const WorkoutSelector = ({
   updateSessionStartTime,
   markExerciseAsCompleted,
   resetWorkoutSession,
-  updateExerciseSets
+  updateExerciseSets,
+  selectWorkout
 }: WorkoutSelectorProps) => {
   const { session, supabase } = useSession();
   const router = useRouter();
@@ -73,7 +75,6 @@ const WorkoutSelector = ({
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null);
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
   const [isAdHocExpanded, setIsAdHocExpanded] = useState(false);
-  const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, WorkoutExercise[]>>({}); // Cache for exercises
 
   // Fetch workouts and profile data
   useEffect(() => {
@@ -153,53 +154,6 @@ const WorkoutSelector = ({
     fetchWorkoutsAndProfile();
   }, [session, supabase]);
 
-  const fetchExercisesForWorkout = useCallback(async (workoutId: string) => {
-    if (!session || !workoutId) return [];
-    if (workoutExercisesCache[workoutId]) {
-      return workoutExercisesCache[workoutId]; // Return cached exercises
-    }
-
-    try {
-      const { data: tPathExercises, error: fetchLinksError } = await supabase
-        .from('t_path_exercises')
-        .select('exercise_id, is_bonus_exercise, order_index')
-        .eq('template_id', workoutId)
-        .order('order_index', { ascending: true });
-
-      if (fetchLinksError) throw fetchLinksError;
-
-      if (!tPathExercises || tPathExercises.length === 0) {
-        return [];
-      }
-
-      const exerciseIds = tPathExercises.map(e => e.exercise_id);
-      const exerciseInfoMap = new Map(tPathExercises.map(e => [e.exercise_id, { is_bonus_exercise: !!e.is_bonus_exercise, order_index: e.order_index }]));
-
-      const { data: exerciseDetails, error: fetchDetailsError } = await supabase
-        .from('exercise_definitions')
-        .select('*')
-        .in('id', exerciseIds);
-
-      if (fetchDetailsError) throw fetchDetailsError;
-
-      const exercises = (exerciseDetails as Tables<'exercise_definitions'>[] || [])
-        .map(ex => ({
-          ...ex,
-          is_bonus_exercise: exerciseInfoMap.get(ex.id)?.is_bonus_exercise || false,
-        }))
-        .sort((a, b) => (exerciseInfoMap.get(a.id)?.order_index || 0) - (exerciseInfoMap.get(b.id)?.order_index || 0));
-      
-      // Cache the fetched exercises
-      setWorkoutExercisesCache(prev => ({ ...prev, [workoutId]: exercises }));
-      return exercises;
-
-    } catch (err: any) {
-      toast.error(`Failed to fetch exercises for workout: ${err.message}`);
-      console.error("Error fetching exercises:", err);
-      return [];
-    }
-  }, [session, supabase, workoutExercisesCache]);
-
   const formatLastCompleted = (dateString: string | null) => {
     if (!dateString) return 'Never completed';
     const date = new Date(dateString);
@@ -223,10 +177,8 @@ const WorkoutSelector = ({
     setExpandedWorkoutId(workoutId);
     onWorkoutSelect(workoutId);
     
-    // Fetch exercises for this workout and update the session
-    const exercises = await fetchExercisesForWorkout(workoutId);
-    // In a real implementation, we would update the workout flow manager with these exercises
-    // For now, we'll rely on the workoutFlowManager to handle this properly
+    // Use the workout flow manager to select the workout
+    await selectWorkout(workoutId);
   };
 
   const handleAdHocClick = () => {
@@ -243,6 +195,9 @@ const WorkoutSelector = ({
     
     setIsAdHocExpanded(true);
     onWorkoutSelect('ad-hoc');
+    
+    // Use the workout flow manager to select ad-hoc workout
+    selectWorkout('ad-hoc');
   };
 
   const handleAddExercise = () => {
@@ -452,15 +407,24 @@ export default function WorkoutPage() {
   const searchParams = useSearchParams();
   const initialWorkoutId = searchParams.get('workoutId');
 
-  // State for selected workout ID, managed by the page component
-  const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(initialWorkoutId);
-
   const workoutFlowManagerProps = useWorkoutFlowManager({
     initialWorkoutId: initialWorkoutId,
     session,
     supabase,
     router,
   });
+
+  // State for selected workout ID, managed by the page component
+  const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(initialWorkoutId || null);
+
+  // Update selected workout ID when workoutFlowManagerProps.activeWorkout changes
+  useEffect(() => {
+    if (workoutFlowManagerProps.activeWorkout) {
+      setSelectedWorkoutId(workoutFlowManagerProps.activeWorkout.id);
+    } else if (workoutFlowManagerProps.activeWorkout === null && selectedWorkoutId !== 'ad-hoc') {
+      setSelectedWorkoutId(null);
+    }
+  }, [workoutFlowManagerProps.activeWorkout, selectedWorkoutId]);
 
   // Render the WorkoutSelector component with the props
   return (
