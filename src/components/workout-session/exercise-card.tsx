@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn, getWorkoutColorClass } from '@/lib/utils';
 import { toast } from 'sonner';
+import { Separator } from '@/components/ui/separator'; // Import Separator
 
 type Profile = Tables<'profiles'>;
 
@@ -230,78 +231,69 @@ export const ExerciseCard = ({
         </CardHeader>
         {isExpanded && (
           <CardContent>
-            <div className="space-y-2"> {/* Reduced space-y from 4 to 2 */}
+            <div className="space-y-4"> {/* This div now wraps all sets and separators */}
               {sets.map((set, setIndex) => (
-                <div key={set.id || `new-${setIndex}`} className={cn("p-2 border rounded-md", { // Reduced p-3 to p-2
-                  "border-primary ring-1 ring-primary": !set.isSaved && !isExerciseSaved,
-                  "bg-accent/50": set.isSaved,
-                })}>
-                  <div className="flex items-center justify-between"> {/* Removed mb-2 */}
-                    <h3 className="font-semibold text-base">Set {setIndex + 1}</h3>
-                    <div className="flex items-center gap-1"> {/* Reduced gap-2 to gap-1 */}
-                      {set.isSaved ? (
-                        <>
-                          <Button variant="ghost" size="icon" onClick={() => handleEditSet(setIndex)} title="Edit Set" disabled={isExerciseSaved}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" disabled={isExerciseSaved}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button variant="secondary" size="icon" onClick={() => handleSaveSetAndStartTimer(setIndex)} disabled={isExerciseSaved} title="Save Set">
+                <React.Fragment key={set.id || `new-${setIndex}`}>
+                  <div className="space-y-1"> {/* Container for each set's content */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-base">Set {setIndex + 1}</h3>
+                        {!set.isSaved && !isExerciseSaved && (
+                          <Button variant="ghost" size="icon" onClick={() => handleSaveSetAndStartTimer(setIndex)} disabled={isExerciseSaved} title="Save Set" className="h-6 w-6">
                             <Save className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" disabled={isExerciseSaved}>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {set.isSaved && set.isPR && (
+                          <span className="text-yellow-500 flex items-center text-xs font-semibold">
+                            <Trophy className="h-3 w-3 ml-1" /> PR!
+                          </span>
+                        )}
+                        {set.isSaved ? (
+                          <>
+                            <Button variant="ghost" size="icon" onClick={() => handleEditSet(setIndex)} title="Edit Set" disabled={isExerciseSaved} className="h-6 w-6">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" disabled={isExerciseSaved} className="h-6 w-6">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </>
+                        ) : (
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" disabled={isExerciseSaved} className="h-6 w-6">
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
-                        </>
-                      )}
-                      {set.isSaved && set.isPR && (
-                        <span className="text-yellow-500 flex items-center text-xs font-semibold">
-                          <Trophy className="h-3 w-3 ml-1" /> PR! {/* Reduced mr-1 to ml-1 */}
-                        </span>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-2 mt-2"> {/* Reduced gap-3 to gap-2, added mt-2 */}
-                    {exercise.type === 'weight' && (
-                      <>
-                        <div>
+                    {/* Input fields and 'Last' info */}
+                    <div className="flex items-center gap-2">
+                      {exercise.type === 'weight' && (
+                        <>
                           <Input
                             id={`weight-${setIndex}`}
                             type="number"
                             step="0.1"
-                            placeholder={`Weight (${preferredWeightUnit})`}
+                            placeholder="kg"
                             value={convertWeight(set.weight_kg, 'kg', preferredWeightUnit as 'kg' | 'lbs') ?? ''}
                             onChange={(e) => handleInputChange(setIndex, 'weight_kg', e.target.value)}
                             disabled={set.isSaved || isExerciseSaved}
-                            className="mt-0.5" // Reduced mt-1 to mt-0.5
+                            className="w-20 text-center h-8" // Added h-8 for height
                           />
-                          <p className="text-muted-foreground text-xs mt-0.5"> {/* Reduced mt-1 to mt-0.5 */}
-                            {set.lastWeight ? `Last: ${formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs')}` : "No last weight"}
-                          </p>
-                        </div>
-                        <div>
+                          <span className="text-muted-foreground text-sm">x</span>
                           <Input
                             id={`reps-${setIndex}`}
                             type="number"
-                            placeholder="Reps"
+                            placeholder="reps"
                             value={set.reps ?? ''}
                             onChange={(e) => handleInputChange(setIndex, 'reps', e.target.value)}
                             disabled={set.isSaved || isExerciseSaved}
-                            className="mt-0.5" // Reduced mt-1 to mt-0.5
+                            className="w-20 text-center h-8" // Added h-8 for height
                           />
-                          <p className="text-muted-foreground text-xs mt-0.5"> {/* Reduced mt-1 to mt-0.5 */}
-                            {set.lastReps ? `Last: ${set.lastReps} reps` : "No last reps"}
-                          </p>
-                        </div>
-                      </>
-                    )}
-                    {exercise.type === 'timed' && (
-                      <div className="col-span-2">
+                        </>
+                      )}
+                      {exercise.type === 'timed' && (
                         <Input
                           id={`time-${setIndex}`}
                           type="number"
@@ -309,16 +301,11 @@ export const ExerciseCard = ({
                           value={set.time_seconds ?? ''}
                           onChange={(e) => handleInputChange(setIndex, 'time_seconds', e.target.value)}
                           disabled={set.isSaved || isExerciseSaved}
-                          className="mt-0.5" // Reduced mt-1 to mt-0.5
+                          className="flex-1 h-8" // Added h-8 for height
                         />
-                        <p className="text-muted-foreground text-xs mt-0.5"> {/* Reduced mt-1 to mt-0.5 */}
-                          {set.lastTimeSeconds ? `Last: ${set.lastTimeSeconds}s` : "No last time"}
-                        </p>
-                      </div>
-                    )}
-                    {exercise.category === 'Unilateral' && (
-                      <>
-                        <div>
+                      )}
+                      {exercise.category === 'Unilateral' && (
+                        <>
                           <Input
                             id={`reps-l-${setIndex}`}
                             type="number"
@@ -326,10 +313,8 @@ export const ExerciseCard = ({
                             value={set.reps_l ?? ''}
                             onChange={(e) => handleInputChange(setIndex, 'reps_l', e.target.value)}
                             disabled={set.isSaved || isExerciseSaved}
-                            className="mt-0.5" // Reduced mt-1 to mt-0.5
+                            className="flex-1 h-8"
                           />
-                        </div>
-                        <div>
                           <Input
                             id={`reps-r-${setIndex}`}
                             type="number"
@@ -337,17 +322,25 @@ export const ExerciseCard = ({
                             value={set.reps_r ?? ''}
                             onChange={(e) => handleInputChange(setIndex, 'reps_r', e.target.value)}
                             disabled={set.isSaved || isExerciseSaved}
-                            className="mt-0.5" // Reduced mt-1 to mt-0.5
+                            className="flex-1 h-8"
                           />
-                        </div>
-                      </>
+                        </>
+                      )}
+                    </div>
+                    {(set.lastWeight || set.lastReps || set.lastTimeSeconds) && (
+                      <p className="text-muted-foreground text-xs mt-1 text-right"> {/* Aligned right */}
+                        Last: {exercise.type === 'weight' ?
+                          `${set.lastWeight ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : ''} x ${set.lastReps || ''}` :
+                          `${set.lastTimeSeconds ? `${set.lastTimeSeconds}s` : ''}`}
+                      </p>
                     )}
                   </div>
-                </div>
+                  {setIndex < sets.length - 1 && <Separator className="my-4" />} {/* Separator between sets */}
+                </React.Fragment>
               ))}
             </div>
 
-            <div className="flex justify-between items-center mt-4"> {/* Reduced mt-6 to mt-4 */}
+            <div className="flex justify-between items-center mt-4">
               {sets.length < 5 && (
                 <Button variant="outline" onClick={handleAddSet} disabled={isExerciseSaved}>
                   <Plus className="h-4 w-4 mr-2" /> Add Set
@@ -370,7 +363,7 @@ export const ExerciseCard = ({
               </div>
             </div>
 
-            <div className="mt-4"> {/* Reduced mt-6 to mt-4 */}
+            <div className="mt-4">
               <Button
                 className={cn("w-full", { "bg-green-500 hover:bg-green-600 text-white": isExerciseSaved })}
                 onClick={handleCompleteExercise}
@@ -440,6 +433,6 @@ export const ExerciseCard = ({
           setShowCantDoDialog(false);
         }}
       />
-    </> // Added React Fragment
+    </>
   );
 };
