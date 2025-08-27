@@ -46,6 +46,7 @@ interface WorkoutSelectorProps {
   resetWorkoutSession: () => void;
   updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
   selectWorkout: (workoutId: string | null) => Promise<void>;
+  loadingWorkoutFlow: boolean; // Added loading prop from useWorkoutFlowManager
 }
 
 const WorkoutSelector = ({ 
@@ -65,12 +66,13 @@ const WorkoutSelector = ({
   markExerciseAsCompleted,
   resetWorkoutSession,
   updateExerciseSets,
-  selectWorkout
+  selectWorkout,
+  loadingWorkoutFlow // Destructure the new prop
 }: WorkoutSelectorProps) => {
   const { session, supabase } = useSession();
   const router = useRouter();
   const [groupedTPaths, setGroupedTPaths] = useState<GroupedTPath[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingTPaths, setLoadingTPaths] = useState(true); // Renamed to avoid conflict
   const [activeMainTPathId, setActiveMainTPathId] = useState<string | null>(null);
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null);
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
@@ -80,7 +82,7 @@ const WorkoutSelector = ({
   useEffect(() => {
     const fetchWorkoutsAndProfile = async () => {
       if (!session) return;
-      setLoading(true);
+      setLoadingTPaths(true); // Use renamed loading state
       try {
         // 1. Fetch user profile to get active_t_path_id
         const { data: profileData, error: profileError } = await supabase
@@ -147,7 +149,7 @@ const WorkoutSelector = ({
         toast.error("Failed to load Transformation Paths: " + err.message);
         console.error("Error fetching T-Paths:", err);
       } finally {
-        setLoading(false);
+        setLoadingTPaths(false); // Use renamed loading state
       }
     };
 
@@ -161,42 +163,34 @@ const WorkoutSelector = ({
   };
 
   const handleWorkoutClick = async (workoutId: string) => {
-    // If clicking the already expanded workout, collapse it
     if (expandedWorkoutId === workoutId) {
       setExpandedWorkoutId(null);
-      resetWorkoutSession();
+      resetWorkoutSession(); // Only reset when collapsing the current workout
       return;
     }
     
-    // Collapse ad-hoc if expanded
     if (isAdHocExpanded) {
       setIsAdHocExpanded(false);
     }
     
-    // Expand the clicked workout
     setExpandedWorkoutId(workoutId);
     onWorkoutSelect(workoutId);
-    
-    // Use the workout flow manager to select the workout
     await selectWorkout(workoutId);
   };
 
   const handleAdHocClick = () => {
     if (isAdHocExpanded) {
       setIsAdHocExpanded(false);
-      resetWorkoutSession();
+      resetWorkoutSession(); // Only reset when collapsing ad-hoc
       return;
     }
     
-    // Collapse any expanded workout
     if (expandedWorkoutId) {
       setExpandedWorkoutId(null);
     }
     
     setIsAdHocExpanded(true);
     onWorkoutSelect('ad-hoc');
-    
-    // Use the workout flow manager to select ad-hoc workout
     selectWorkout('ad-hoc');
   };
 
@@ -224,7 +218,9 @@ const WorkoutSelector = ({
         <p className="text-muted-foreground">Select a Transformation Path or start an ad-hoc session.</p>
       </header>
       <div className="space-y-4">
-        {groupedTPaths.length === 0 ? (
+        {loadingTPaths ? ( // Use renamed loading state
+          <p className="text-muted-foreground text-center py-4">Loading Transformation Paths...</p>
+        ) : groupedTPaths.length === 0 ? (
           <p className="text-muted-foreground text-center py-4">
             You haven't created any Transformation Paths yet. Go to <a href="/manage-t-paths" className="text-primary underline">Manage T-Paths</a> to create one.
           </p>
@@ -302,81 +298,90 @@ const WorkoutSelector = ({
                 } else {
                   setExpandedWorkoutId(null);
                 }
-                resetWorkoutSession();
+                resetWorkoutSession(); // Reset when explicitly closing the expanded view
               }}
             >
               <ChevronUp className="h-4 w-4" />
             </Button>
           </div>
 
-          {isAdHocExpanded && (
-            <section className="mb-6 p-4 border rounded-lg bg-card">
-              <h3 className="text-lg font-semibold mb-3">Add Exercises</h3>
-              <div className="flex flex-col gap-3">
-                <select 
-                  value={selectedExerciseToAdd}
-                  onChange={(e) => setSelectedExerciseToAdd(e.target.value)}
-                  className="w-full p-2 border rounded"
-                >
-                  <option value="">Select exercise</option>
-                  {allAvailableExercises
-                    .filter((ex) => !exercisesForSession.some((sessionEx) => sessionEx.id === ex.id))
-                    .map((exercise) => (
-                      <option key={exercise.id} value={exercise.id}>
-                        {exercise.name} ({exercise.main_muscle})
-                      </option>
-                    ))}
-                </select>
-                <Button onClick={handleAddExercise} disabled={!selectedExerciseToAdd} className="w-full">
-                  <PlusCircle className="h-4 w-4 mr-2" /> Add Exercise
-                </Button>
-              </div>
-            </section>
-          )}
+          {loadingWorkoutFlow ? ( // Use loading state from hook
+            <div className="flex flex-col items-center justify-center text-center py-8">
+              <Dumbbell className="h-12 w-12 text-muted-foreground mb-3 animate-bounce" />
+              <h3 className="text-lg font-bold mb-2">Loading Workout...</h3>
+              <p className="text-muted-foreground mb-4">Preparing your exercises.</p>
+            </div>
+          ) : (
+            <>
+              {isAdHocExpanded && (
+                <section className="mb-6 p-4 border rounded-lg bg-card">
+                  <h3 className="text-lg font-semibold mb-3">Add Exercises</h3>
+                  <div className="flex flex-col gap-3">
+                    <select 
+                      value={selectedExerciseToAdd}
+                      onChange={(e) => setSelectedExerciseToAdd(e.target.value)}
+                      className="w-full p-2 border rounded"
+                    >
+                      <option value="">Select exercise</option>
+                      {allAvailableExercises
+                        .filter((ex) => !exercisesForSession.some((sessionEx) => sessionEx.id === ex.id))
+                        .map((exercise) => (
+                          <option key={exercise.id} value={exercise.id}>
+                            {exercise.name} ({exercise.main_muscle})
+                          </option>
+                        ))}
+                    </select>
+                    <Button onClick={handleAddExercise} disabled={!selectedExerciseToAdd} className="w-full">
+                      <PlusCircle className="h-4 w-4 mr-2" /> Add Exercise
+                    </Button>
+                  </div>
+                </section>
+              )}
 
-          <section className="mb-6">
-            {exercisesForSession.length === 0 ? (
-              <div className="flex flex-col items-center justify-center text-center py-8">
-                <Dumbbell className="h-12 w-12 text-muted-foreground mb-3" />
-                <h3 className="text-lg font-bold mb-2">No exercises added</h3>
-                <p className="text-muted-foreground mb-4">
-                  {isAdHocExpanded 
-                    ? "Add exercises to begin your workout." 
-                    : "This workout has no exercises. This may happen if your session length is too short."}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {exercisesForSession.map((exercise, index) => (
-                  <ExerciseCard
-                    key={exercise.id}
-                    exercise={exercise}
-                    exerciseNumber={index + 1}
-                    currentSessionId={currentSessionId}
-                    supabase={supabase}
-                    onUpdateGlobalSets={updateExerciseSets}
-                    initialSets={exercisesWithSets[exercise.id] || []}
-                    onSubstituteExercise={substituteExercise}
-                    onRemoveExercise={removeExerciseFromSession}
-                    workoutTemplateName={activeWorkout?.template_name || "Workout"}
-                    onFirstSetSaved={updateSessionStartTime}
-                    onExerciseCompleted={markExerciseAsCompleted}
-                  />
-                ))}
-                
-                {/* WorkoutSessionFooter moved inside the exercises section */}
-                {totalExercises > 0 && (
-                  <div className="mt-6">
-                    <WorkoutSessionFooter
-                      currentSessionId={currentSessionId}
-                      sessionStartTime={sessionStartTime}
-                      supabase={supabase}
-                    />
+              <section className="mb-6">
+                {exercisesForSession.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center text-center py-8">
+                    <Dumbbell className="h-12 w-12 text-muted-foreground mb-3" />
+                    <h3 className="text-lg font-bold mb-2">No exercises added</h3>
+                    <p className="text-muted-foreground mb-4">
+                      {isAdHocExpanded 
+                        ? "Add exercises to begin your workout." 
+                        : "This workout has no exercises. This may happen if your session length is too short."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {exercisesForSession.map((exercise, index) => (
+                      <ExerciseCard
+                        key={exercise.id}
+                        exercise={exercise}
+                        exerciseNumber={index + 1}
+                        currentSessionId={currentSessionId}
+                        supabase={supabase}
+                        onUpdateGlobalSets={updateExerciseSets}
+                        initialSets={exercisesWithSets[exercise.id] || []}
+                        onSubstituteExercise={substituteExercise}
+                        onRemoveExercise={removeExerciseFromSession}
+                        workoutTemplateName={activeWorkout?.template_name || "Workout"}
+                        onFirstSetSaved={updateSessionStartTime}
+                        onExerciseCompleted={markExerciseAsCompleted}
+                      />
+                    ))}
+                    
+                    {totalExercises > 0 && (
+                      <div className="mt-6">
+                        <WorkoutSessionFooter
+                          currentSessionId={currentSessionId}
+                          sessionStartTime={sessionStartTime}
+                          supabase={supabase}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
-            )}
-          </section>
+              </section>
+            </>
+          )}
         </div>
       )}
 
@@ -435,6 +440,7 @@ export default function WorkoutPage() {
         {...workoutFlowManagerProps} 
         selectedWorkoutId={selectedWorkoutId}
         onWorkoutSelect={setSelectedWorkoutId}
+        loadingWorkoutFlow={workoutFlowManagerProps.loading} // Pass loading state
       />
       <MadeWithDyad />
     </div>
