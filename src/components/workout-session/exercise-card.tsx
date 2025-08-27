@@ -140,6 +140,7 @@ export const ExerciseCard = ({
     const success = await handleSaveExercise();
     if (success) {
       setIsExerciseSaved(true);
+      setIsExpanded(false); // Collapse the card on successful save
     }
   };
 
@@ -205,6 +206,7 @@ export const ExerciseCard = ({
             <CardTitle className={cn("text-xl flex items-center gap-2", workoutColorClass)}>
               {exerciseNumber}. {exercise.name}
               {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus">Bonus</WorkoutBadge>}
+              {isExerciseSaved && <CheckCircle2 className="h-5 w-5 text-green-500 ml-2" />} {/* Green checkmark icon */}
             </CardTitle>
             <p className="text-sm text-muted-foreground">{exercise.main_muscle}</p>
           </div>
@@ -382,7 +384,7 @@ export const ExerciseCard = ({
                   }
                 )}
                 onClick={handleCompleteExercise}
-                disabled={isExerciseSaved || !hasAnyInput}
+                disabled={!hasAnyInput} // Only disable if no input
               >
                 {isExerciseSaved ? (
                   <span className="flex items-center">
