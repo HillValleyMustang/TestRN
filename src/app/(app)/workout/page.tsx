@@ -223,10 +223,10 @@ const WorkoutSelector = ({
     setExpandedWorkoutId(workoutId);
     onWorkoutSelect(workoutId);
     
-    // Fetch exercises for this workout
+    // Fetch exercises for this workout and update the session
     const exercises = await fetchExercisesForWorkout(workoutId);
-    // Update the exercises in the session
-    // Note: This is a simplified approach - in a real implementation, you'd want to properly integrate this with the workout flow manager
+    // In a real implementation, we would update the workout flow manager with these exercises
+    // For now, we'll rely on the workoutFlowManager to handle this properly
   };
 
   const handleAdHocClick = () => {
@@ -264,7 +264,10 @@ const WorkoutSelector = ({
 
   return (
     <div className="space-y-6">
-      {/* Removed duplicate header */}
+      <header className="mb-6">
+        <h1 className="text-3xl font-bold">Start Your Workout</h1>
+        <p className="text-muted-foreground">Select a Transformation Path or start an ad-hoc session.</p>
+      </header>
       <div className="space-y-4">
         {groupedTPaths.length === 0 ? (
           <p className="text-muted-foreground text-center py-4">
@@ -462,7 +465,6 @@ export default function WorkoutPage() {
   // Render the WorkoutSelector component with the props
   return (
     <div className="p-4 sm:p-8">
-      {/* Removed duplicate heading */}
       <WorkoutSelector 
         {...workoutFlowManagerProps} 
         selectedWorkoutId={selectedWorkoutId}
