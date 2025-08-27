@@ -71,9 +71,9 @@ export const NextWorkoutCard = () => {
         
         const activeMainTPath = mainTPathData[0]; // Use the first element as the active T-Path
 
-        // Use the fetched preferredSessionLength directly
-        if (profileData?.preferred_session_length) {
-          setEstimatedDuration(`${profileData.preferred_session_length} minutes`);
+        if (preferredSessionLength) {
+          const maxMinutes = getMaxMinutes(preferredSessionLength);
+          setEstimatedDuration(`${preferredSessionLength} minutes`);
         } else {
           setEstimatedDuration('N/A');
         }
