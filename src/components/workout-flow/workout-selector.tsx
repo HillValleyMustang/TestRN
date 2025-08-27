@@ -4,12 +4,16 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from '@/components/session-context-provider';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Dumbbell } from 'lucide-react';
+import { PlusCircle, Dumbbell, ChevronDown, ChevronUp } from 'lucide-react';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
-import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNowStrict } from 'date-fns';
-import { cn, getWorkoutColorClass, getWorkoutIcon } from '@/lib/utils'; // Import getWorkoutIcon
+import { cn, getWorkoutColorClass, getWorkoutIcon } from '@/lib/utils';
+import { useWorkoutFlowManager } from '@/hooks/use-workout-flow-manager';
+import { useRouter } from 'next/navigation';
+import { ExerciseCard } from '@/components/workout-session/exercise-card';
+import { SetLogState, WorkoutExercise } from '@/types/supabase';
+import { WorkoutSessionFooter } from '@/components/workout-session/workout-session-footer';
 
 type TPath = Tables<'t_paths'>;
 
@@ -25,14 +29,50 @@ interface GroupedTPath {
 interface WorkoutSelectorProps {
   onWorkoutSelect: (workoutId: string | null) => void;
   selectedWorkoutId: string | null;
+  // New props for inline workout flow
+  activeWorkout: TPath | null;
+  exercisesForSession: WorkoutExercise[];
+  exercisesWithSets: Record<string, SetLogState[]>;
+  allAvailableExercises: Tables<'exercise_definitions'>[];
+  currentSessionId: string | null;
+  sessionStartTime: Date | null;
+  completedExercises: Set<string>;
+  addExerciseToSession: (exercise: Tables<'exercise_definitions'>) => void;
+  removeExerciseFromSession: (exerciseId: string) => void;
+  substituteExercise: (oldExerciseId: string, newExercise: WorkoutExercise) => void;
+  updateSessionStartTime: (timestamp: string) => void;
+  markExerciseAsCompleted: (exerciseId: string, isNewPR: boolean) => void;
+  resetWorkoutSession: () => void;
+  updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
 }
 
-export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutSelectorProps) => {
+export const WorkoutSelector = ({ 
+  onWorkoutSelect, 
+  selectedWorkoutId,
+  // New props for inline workout flow
+  activeWorkout,
+  exercisesForSession,
+  exercisesWithSets,
+  allAvailableExercises,
+  currentSessionId,
+  sessionStartTime,
+  completedExercises,
+  addExerciseToSession,
+  removeExerciseFromSession,
+  substituteExercise,
+  updateSessionStartTime,
+  markExerciseAsCompleted,
+  resetWorkoutSession,
+  updateExerciseSets
+}: WorkoutSelectorProps) => {
   const { session, supabase } = useSession();
+  const router = useRouter();
   const [groupedTPaths, setGroupedTPaths] = useState<GroupedTPath[]>([]);
   const [loading, setLoading] = useState(true);
   const [nextRecommendedWorkoutId, setNextRecommendedWorkoutId] = useState<string | null>(null);
   const [activeMainTPathId, setActiveMainTPathId] = useState<string | null>(null);
+  const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null);
+  const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
 
   const fetchWorkoutsAndProfile = useCallback(async () => {
     if (!session) return;
@@ -134,6 +174,36 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
     return `Last: ${formatDistanceToNowStrict(date, { addSuffix: true })}`;
   };
 
+  const handleWorkoutClick = async (workoutId: string) => {
+    // If clicking the already expanded workout, collapse it
+    if (expandedWorkoutId === workoutId) {
+      setExpandedWorkoutId(null);
+      resetWorkoutSession();
+      return;
+    }
+    
+    // Expand the clicked workout
+    setExpandedWorkoutId(workoutId);
+    onWorkoutSelect(workoutId);
+  };
+
+  const handleAddExercise = () => {
+    if (selectedExerciseToAdd) {
+      const exercise = allAvailableExercises.find((ex) => ex.id === selectedExerciseToAdd);
+      if (exercise) {
+        addExerciseToSession(exercise);
+        setSelectedExerciseToAdd("");
+      } else {
+        toast.error("Selected exercise not found.");
+      }
+    } else {
+      toast.error("Please select an exercise to add.");
+    }
+  };
+
+  const totalExercises = exercisesForSession.length;
+  const completedExerciseCount = completedExercises.size;
+
   return (
     <div className="space-y-6">
       <div className="space-y-4">
@@ -154,7 +224,7 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
               {group.childWorkouts.length === 0 ? (
                 <p className="text-muted-foreground text-sm ml-7">No workouts defined for this path. This may happen if your session length is too short for any workouts.</p>
               ) : (
-                <div className="grid grid-cols-2 gap-3 mt-4">
+                <div className="space-y-3">
                   {group.childWorkouts.map(workout => {
                     const workoutColorClass = getWorkoutColorClass(workout.template_name, 'text');
                     const workoutBgClass = getWorkoutColorClass(workout.template_name, 'bg');
@@ -162,33 +232,111 @@ export const WorkoutSelector = ({ onWorkoutSelect, selectedWorkoutId }: WorkoutS
                     const Icon = getWorkoutIcon(workout.template_name);
                     const isNextRecommended = workout.id === nextRecommendedWorkoutId;
                     const isSelected = selectedWorkoutId === workout.id;
+                    const isExpanded = expandedWorkoutId === workout.id;
 
                     return (
-                      <Button
-                        key={workout.id}
-                        variant="outline"
-                        className={cn(
-                          "h-auto p-4 flex flex-col items-start justify-between text-left transition-colors relative",
-                          "border-2",
-                          workoutBorderClass,
-                          workoutBgClass,
-                          isSelected && "ring-2 ring-primary",
-                          isNextRecommended && "ring-2 ring-green-500",
-                          "hover:brightness-90 dark:hover:brightness-110"
+                      <div key={workout.id} className="space-y-2">
+                        <Button
+                          key={workout.id}
+                          variant="outline"
+                          className={cn(
+                            "h-auto p-4 flex items-center justify-between text-left transition-colors relative w-full",
+                            "border-2",
+                            workoutBorderClass,
+                            workoutBgClass,
+                            isSelected && "ring-2 ring-primary",
+                            isNextRecommended && "ring-2 ring-green-500",
+                            "hover:brightness-90 dark:hover:brightness-110"
+                          )}
+                          onClick={() => handleWorkoutClick(workout.id)}
+                        >
+                          <div className="flex items-center gap-2">
+                            {Icon && <Icon className={cn("h-5 w-5", workoutColorClass)} />}
+                            <span className={cn("font-semibold text-base", workoutColorClass)}>{workout.template_name}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={cn("text-xs", workoutColorClass)}>
+                              {formatLastCompleted(workout.last_completed_at)}
+                            </span>
+                            {isNextRecommended && (
+                              <span className="text-xs font-medium text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900 px-2 py-0.5 rounded-full">Next</span>
+                            )}
+                            {isExpanded ? (
+                              <ChevronUp className="h-5 w-5" />
+                            ) : (
+                              <ChevronDown className="h-5 w-5" />
+                            )}
+                          </div>
+                        </Button>
+
+                        {isExpanded && activeWorkout?.id === workout.id && (
+                          <div className="ml-4 pl-4 border-l-2 border-muted">
+                            {activeWorkout.id === 'ad-hoc' && (
+                              <section className="mb-6 p-4 border rounded-lg bg-card">
+                                <h2 className="text-xl font-semibold mb-4">Add Exercises</h2>
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                  <select 
+                                    value={selectedExerciseToAdd}
+                                    onChange={(e) => setSelectedExerciseToAdd(e.target.value)}
+                                    className="flex-1 p-2 border rounded"
+                                  >
+                                    <option value="">Select an exercise</option>
+                                    {allAvailableExercises
+                                      .filter((ex) => !exercisesForSession.some((sessionEx) => sessionEx.id === ex.id))
+                                      .map((exercise) => (
+                                        <option key={exercise.id} value={exercise.id}>
+                                          {exercise.name} ({exercise.main_muscle})
+                                        </option>
+                                      ))}
+                                  </select>
+                                  <Button onClick={handleAddExercise} disabled={!selectedExerciseToAdd}>
+                                    <PlusCircle className="h-4 w-4 mr-2" /> Add Exercise
+                                  </Button>
+                                </div>
+                              </section>
+                            )}
+
+                            <section className="mb-6">
+                              {exercisesForSession.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center text-center py-8">
+                                  <Dumbbell className="h-12 w-12 text-muted-foreground mb-4" />
+                                  <h2 className="text-xl font-bold mb-2">No exercises found for this workout.</h2>
+                                  <p className="text-muted-foreground mb-4">
+                                    Please add exercises to this workout to begin.
+                                  </p>
+                                </div>
+                              ) : (
+                                <div className="space-y-6">
+                                  {exercisesForSession.map((exercise, index) => (
+                                    <ExerciseCard
+                                      key={exercise.id}
+                                      exercise={exercise}
+                                      exerciseNumber={index + 1}
+                                      currentSessionId={currentSessionId}
+                                      supabase={supabase}
+                                      onUpdateGlobalSets={updateExerciseSets}
+                                      initialSets={exercisesWithSets[exercise.id] || []}
+                                      onSubstituteExercise={substituteExercise}
+                                      onRemoveExercise={removeExerciseFromSession}
+                                      workoutTemplateName={activeWorkout.template_name}
+                                      onFirstSetSaved={updateSessionStartTime}
+                                      onExerciseCompleted={markExerciseAsCompleted}
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                            </section>
+
+                            {totalExercises > 0 && (
+                              <WorkoutSessionFooter
+                                currentSessionId={currentSessionId}
+                                sessionStartTime={sessionStartTime}
+                                supabase={supabase}
+                              />
+                            )}
+                          </div>
                         )}
-                        onClick={() => onWorkoutSelect(workout.id)}
-                      >
-                        <div className="flex items-center gap-2 mb-2">
-                          {Icon && <Icon className={cn("h-5 w-5", workoutColorClass)} />}
-                          <span className={cn("font-semibold text-base", workoutColorClass)}>{workout.template_name}</span>
-                        </div>
-                        <p className={cn("text-xs", workoutColorClass)}> {/* Apply workoutColorClass here */}
-                          {formatLastCompleted(workout.last_completed_at)}
-                        </p>
-                        {isNextRecommended && (
-                          <span className="absolute top-2 right-2 text-xs font-medium text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900 px-2 py-0.5 rounded-full">Next</span>
-                        )}
-                      </Button>
+                      </div>
                     );
                   })}
                 </div>
