@@ -199,18 +199,23 @@ export const ExerciseCard = ({
     <> {/* Added React Fragment */}
       <Card className={cn("mb-6 border-2", workoutBorderClass, { "opacity-70": isExerciseSaved })}>
         <CardHeader 
-          className="flex flex-row items-center justify-between p-4 cursor-pointer"
+          className="flex items-center justify-between p-4 cursor-pointer"
           onClick={() => setIsExpanded(!isExpanded)}
         >
-          <div className="flex flex-col flex-1"> {/* Left section: Title and Muscle */}
-            <CardTitle className={cn("text-xl flex items-center gap-2", workoutColorClass)}>
-              {exerciseNumber}. {exercise.name}
-              {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus">Bonus</WorkoutBadge>}
-              {isExerciseSaved && <CheckCircle2 className="h-5 w-5 text-green-500" />}
-            </CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">{exercise.main_muscle}</p>
+          {/* Left side: Exercise details */}
+          <div className="flex flex-col flex-1 min-w-0"> {/* min-w-0 to allow shrinking */}
+            <div className="flex items-center gap-2"> {/* Line 1: Number, Name, Bonus, Check */}
+              <CardTitle className={cn("text-xl font-bold leading-none", workoutColorClass)}>
+                {exerciseNumber}. {exercise.name}
+              </CardTitle>
+              {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus" className="flex-shrink-0">Bonus</WorkoutBadge>}
+              {isExerciseSaved && <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />}
+            </div>
+            <p className="text-sm text-muted-foreground mt-1 truncate">{exercise.main_muscle}</p> {/* Line 2: Muscle Group */}
           </div>
-          <div className="flex items-center gap-2"> {/* Right section: Menu and Chevron */}
+
+          {/* Right side: Menu and Chevron */}
+          <div className="flex items-center gap-2 flex-shrink-0">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" title="More Options" onClick={(e) => e.stopPropagation()}>
