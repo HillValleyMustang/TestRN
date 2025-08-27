@@ -255,6 +255,8 @@ const WorkoutSelector = ({
                           workoutBorderClass,
                           workoutBgClass,
                           isSelected && "ring-2 ring-primary",
+                          // Apply opacity-50 if something is selected AND this is NOT the selected workout
+                          (selectedWorkoutId !== null && !isSelected) && "opacity-50",
                           "hover:brightness-90 dark:hover:brightness-110"
                         )}
                         onClick={() => handleWorkoutClick(workout.id)}
@@ -388,7 +390,9 @@ const WorkoutSelector = ({
       <Card
         className={cn(
           "cursor-pointer hover:bg-accent transition-colors",
-          (selectedWorkoutId === 'ad-hoc' || isAdHocExpanded) && "border-primary ring-2 ring-primary"
+          (selectedWorkoutId === 'ad-hoc' || isAdHocExpanded) && "border-primary ring-2 ring-primary",
+          // Apply opacity-50 if something is selected AND this is NOT the ad-hoc workout
+          (selectedWorkoutId !== null && selectedWorkoutId !== 'ad-hoc') && "opacity-50"
         )}
         onClick={handleAdHocClick}
       >
