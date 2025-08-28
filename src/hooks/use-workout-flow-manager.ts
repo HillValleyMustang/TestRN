@@ -196,37 +196,43 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       setSessionStartTime(new Date(sessionData.session_date));
 
       const lastSetsData: Record<string, { weight_kg: number | null, reps: number | null, time_seconds: number | null }> = {};
-      // This logic should apply to all workout types, including Ad Hoc
-      const { data: lastWorkoutSession, error: lastWorkoutSessionError } = await supabase
-        .from('workout_sessions')
-        .select('id')
-        .eq('user_id', session.user.id)
-        .eq('template_name', sessionTemplateName) // Use the sessionTemplateName
-        .order('session_date', { ascending: false })
-        .limit(1)
-        .single();
+      
+      const exerciseIdsInCurrentWorkout = exercises.map(ex => ex.id);
 
-      if (lastWorkoutSessionError && lastWorkoutSessionError.code !== 'PGRST116') {
-        console.warn("Error fetching last workout session for template:", lastWorkoutSessionError);
-      }
+      if (exerciseIdsInCurrentWorkout.length > 0) {
+        // Fetch all previous sets for the exercises in the current workout,
+        // ensuring they belong to the current user and are not from the session being initialized.
+        const { data: previousSets, error: previousSetsError } = await supabase
+          .from('set_logs')
+          .select(`
+            exercise_id,
+            weight_kg,
+            reps,
+            time_seconds,
+            workout_sessions!inner(user_id)
+          `)
+          .in('exercise_id', exerciseIdsInCurrentWorkout)
+          .eq('workout_sessions.user_id', session.user.id)
+          .neq('session_id', sessionData.id) // Exclude the current session being created
+          .order('created_at', { ascending: false }); // Order by created_at to get the most recent
 
-      const lastSessionId = lastWorkoutSession ? lastWorkoutSession.id : null;
-      if (lastSessionId) {
-        for (const ex of exercises) {
-          const { data: lastSet, error: lastSetError } = await supabase
-            .from('set_logs')
-            .select('weight_kg, reps, time_seconds')
-            .eq('exercise_id', ex.id)
-            .eq('session_id', lastSessionId)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-          if (lastSetError && lastSetError.code !== 'PGRST116') {
-            console.warn(`Could not fetch last set for ${ex.name}: ${lastSetError.message}`);
+        if (previousSetsError) {
+          console.warn("Error fetching previous sets for last workout data:", previousSetsError);
+        } else {
+          // Group the fetched sets by exercise_id and take the most recent one for each
+          const mostRecentPreviousSets = new Map<string, { weight_kg: number | null, reps: number | null, time_seconds: number | null }>();
+          for (const set of previousSets || []) {
+            if (!mostRecentPreviousSets.has(set.exercise_id)) {
+              mostRecentPreviousSets.set(set.exercise_id, {
+                weight_kg: set.weight_kg,
+                reps: set.reps,
+                time_seconds: set.time_seconds,
+              });
+            }
           }
-          if (lastSet) {
-            lastSetsData[ex.id] = lastSet;
-          }
+          mostRecentPreviousSets.forEach((value, key) => {
+            lastSetsData[key] = value;
+          });
         }
       }
       
