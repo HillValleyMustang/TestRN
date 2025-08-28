@@ -282,7 +282,7 @@ export const WorkoutSelector = ({
                         key={workout.id}
                         variant="outline"
                         className={cn(
-                          "h-auto p-3 flex flex-col items-start justify-start relative w-full text-left", // Reduced py, added text-left
+                          "h-auto p-2 flex flex-col items-start justify-start relative w-full text-left", // Reduced p-3 to p-2
                           "border-2",
                           workoutBorderClass,
                           workoutBgClass,
@@ -291,11 +291,11 @@ export const WorkoutSelector = ({
                         )}
                         onClick={() => handleWorkoutClick(workout.id)}
                       >
-                        <div className="flex items-center gap-1 mb-1"> {/* Reduced gap */}
-                          {Icon && <Icon className={cn("h-5 w-5", workoutColorClass)} />} {/* Smaller icon */}
-                          <span className={cn("text-lg font-semibold leading-tight", workoutColorClass)}>{workout.template_name}</span> {/* Smaller, less bold text */}
+                        <div className="flex items-center gap-1 mb-0.5"> {/* Reduced mb-1 to mb-0.5 */}
+                          {Icon && <Icon className={cn("h-4 w-4", workoutColorClass)} />} {/* Reduced h-5 w-5 to h-4 w-4 */}
+                          <span className={cn("text-sm font-medium leading-tight", workoutColorClass)}>{workout.template_name}</span> {/* Reduced text-lg font-semibold to text-sm font-medium */}
                         </div>
-                        <span className={cn("text-xs text-white/90")}> {/* Smaller, less opaque "Last" text */}
+                        <span className={cn("text-xs text-white/70")}> {/* Reduced text-white/90 to text-white/70 */}
                           {formatLastCompleted(workout.last_completed_at)}
                         </span>
                       </Button>
