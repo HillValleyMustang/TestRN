@@ -46,7 +46,7 @@ interface WorkoutSelectorProps {
   loadingWorkoutFlow: boolean;
   groupedTPaths: GroupedTPath[];
   isCreatingSession: boolean;
-  createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>; // New prop
+  createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>;
 }
 
 export const WorkoutSelector = ({ 
@@ -70,7 +70,7 @@ export const WorkoutSelector = ({
   loadingWorkoutFlow,
   groupedTPaths,
   isCreatingSession,
-  createWorkoutSessionInDb // Destructure new prop
+  createWorkoutSessionInDb
 }: WorkoutSelectorProps) => {
   const { supabase } = useSession();
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
@@ -161,14 +161,7 @@ export const WorkoutSelector = ({
 
       {selectedWorkoutId && activeWorkout && (
         <div className="mt-4 border-t pt-4">
-          <div className="flex justify-center mb-4">
-            <WorkoutBadge 
-              workoutName={selectedWorkoutId === 'ad-hoc' ? "Ad Hoc Workout" : (activeWorkout?.template_name || "Workout")} 
-              className="text-xl px-6 py-3"
-            >
-              {selectedWorkoutId === 'ad-hoc' ? "Ad Hoc Workout" : (activeWorkout?.template_name || "Workout")}
-            </WorkoutBadge>
-          </div>
+          {/* Removed the WorkoutBadge heading here */}
 
           {selectedWorkoutId === 'ad-hoc' && (
             <section className="mb-6 p-4 border rounded-lg bg-card">
@@ -217,7 +210,6 @@ export const WorkoutSelector = ({
                     onRemoveExercise={removeExerciseFromSession}
                     workoutTemplateName={activeWorkout.template_name}
                     onFirstSetSaved={async (timestamp) => {
-                      // Call the new function from useWorkoutFlowManager
                       return await createWorkoutSessionInDb(activeWorkout.template_name, timestamp);
                     }}
                     onExerciseCompleted={markExerciseAsCompleted}
