@@ -35,7 +35,6 @@ interface UseWorkoutFlowManagerReturn {
   markExerciseAsCompleted: (exerciseId: string, isNewPR: boolean) => void;
   resetWorkoutSession: () => void;
   updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
-  selectedWorkoutId: string | null; // Added this line
 }
 
 const DEFAULT_INITIAL_SETS = 3;
@@ -417,6 +416,5 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     markExerciseAsCompleted,
     resetWorkoutSession,
     updateExerciseSets,
-    selectedWorkoutId,
   };
 };
