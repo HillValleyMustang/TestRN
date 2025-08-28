@@ -38,7 +38,7 @@ interface ExerciseCardProps {
   onSubstituteExercise?: (oldExerciseId: string, newExercise: WorkoutExercise) => void;
   onRemoveExercise?: (exerciseId: string) => void;
   workoutTemplateName: string;
-  onFirstSetSaved: (timestamp: string) => void; // New prop
+  onFirstSetSaved: (timestamp: string) => Promise<string>; // Updated prop type
   onExerciseCompleted: (exerciseId: string, isNewPR: boolean) => void; // New prop for parent
 }
 
@@ -114,11 +114,12 @@ export const ExerciseCard = ({
     onUpdateSets: onUpdateGlobalSets,
     initialSets,
     preferredWeightUnit,
-    onFirstSetSaved, // Pass the new prop
+    onFirstSetSaved: onFirstSetSaved, // Pass the new prop
     onExerciseComplete: async (id, isNewPR) => { // Implement the callback
       setIsExerciseSaved(true);
       onExerciseCompleted(id, isNewPR);
     },
+    workoutTemplateName, // Pass workoutTemplateName
   });
 
   const handleSaveSetAndStartTimer = async (setIndex: number) => {

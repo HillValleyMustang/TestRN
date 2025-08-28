@@ -31,6 +31,7 @@ export default function WorkoutPage() {
         selectedWorkoutId={workoutFlowManager.activeWorkout?.id || null}
         onWorkoutSelect={handleWorkoutSelect}
         loadingWorkoutFlow={workoutFlowManager.loading}
+        createWorkoutSessionInDb={workoutFlowManager.createWorkoutSessionInDb} // Pass the new function
       />
       <MadeWithDyad />
     </div>

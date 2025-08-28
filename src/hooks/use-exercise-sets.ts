@@ -16,13 +16,14 @@ interface UseExerciseSetsProps {
   exerciseName: string; // Added exerciseName
   exerciseType: ExerciseDefinition['type'];
   exerciseCategory?: ExerciseDefinition['category'] | null;
-  currentSessionId: string | null;
+  currentSessionId: string | null; // This will now be null initially
   supabase: SupabaseClient;
   onUpdateSets: (exerciseId: string, newSets: SetLogState[]) => void;
   initialSets: SetLogState[];
   preferredWeightUnit: Profile['preferred_weight_unit'];
-  onFirstSetSaved: (timestamp: string) => void; // New prop for updating session start time
+  onFirstSetSaved: (timestamp: string) => Promise<string>; // Now expects to return the new session ID
   onExerciseComplete: (exerciseId: string, isNewPR: boolean) => Promise<void>; // New prop for exercise completion
+  workoutTemplateName: string; // Added workoutTemplateName
 }
 
 interface UseExerciseSetsReturn {
@@ -45,18 +46,24 @@ export const useExerciseSets = ({
   exerciseName, // Destructure exerciseName
   exerciseType,
   exerciseCategory,
-  currentSessionId,
+  currentSessionId: propCurrentSessionId, // Renamed to avoid conflict with state
   supabase,
   onUpdateSets,
   initialSets,
   preferredWeightUnit,
   onFirstSetSaved,
   onExerciseComplete,
+  workoutTemplateName, // Destructure workoutTemplateName
 }: UseExerciseSetsProps): UseExerciseSetsReturn => {
   const [sets, setSets] = useState<SetLogState[]>(initialSets);
   const [exercisePR, setExercisePR] = useState<UserExercisePR | null>(null);
   const [loadingPR, setLoadingPR] = useState(true);
-  const hasFirstSetBeenSavedRef = useRef(false); // Use ref for hasFirstSetBeenSaved
+  const [internalSessionId, setInternalSessionId] = useState<string | null>(propCurrentSessionId); // Internal state for session ID
+
+  // Update internalSessionId when propCurrentSessionId changes
+  useEffect(() => {
+    setInternalSessionId(propCurrentSessionId);
+  }, [propCurrentSessionId]);
 
   // Initialize sets with 3 empty sets if initialSets is empty
   useEffect(() => {
@@ -64,7 +71,7 @@ export const useExerciseSets = ({
       const defaultSets: SetLogState[] = Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({
         id: null,
         created_at: null,
-        session_id: currentSessionId,
+        session_id: internalSessionId, // Use internalSessionId
         exercise_id: exerciseId,
         weight_kg: null,
         reps: null,
@@ -83,7 +90,7 @@ export const useExerciseSets = ({
     } else {
       setSets(initialSets);
     }
-  }, [initialSets, exerciseId, currentSessionId, onUpdateSets]);
+  }, [initialSets, exerciseId, internalSessionId, onUpdateSets]); // Depend on internalSessionId
 
   // Fetch exercise-level PR on component mount
   useEffect(() => {
@@ -115,7 +122,7 @@ export const useExerciseSets = ({
       const newSet: SetLogState = {
         id: null,
         created_at: null,
-        session_id: currentSessionId,
+        session_id: internalSessionId, // Use internalSessionId
         exercise_id: exerciseId,
         weight_kg: null,
         reps: null,
@@ -133,7 +140,7 @@ export const useExerciseSets = ({
       onUpdateSets(exerciseId, updatedSets);
       return updatedSets;
     });
-  }, [exerciseId, onUpdateSets, currentSessionId, sets.length]);
+  }, [exerciseId, onUpdateSets, internalSessionId, sets.length]); // Depend on internalSessionId
 
   const handleInputChange = useCallback((setIndex: number, field: keyof TablesInsert<'set_logs'>, value: string) => {
     setSets(prev => {
@@ -159,10 +166,23 @@ export const useExerciseSets = ({
     });
   }, [exerciseId, onUpdateSets, preferredWeightUnit]);
 
-  const saveSingleSetToDatabase = useCallback(async (set: SetLogState, setIndex: number) => {
-    if (!currentSessionId) {
-      toast.error("Workout session not started. Please refresh the page to begin logging sets.");
-      return null;
+  const saveSingleSetToDatabase = useCallback(async (set: SetLogState, setIndex: number): Promise<SetLogState | null> => {
+    let currentSessionIdToUse = internalSessionId;
+
+    // If session hasn't been created yet, create it now
+    if (!currentSessionIdToUse) {
+      try {
+        const newSessionId = await onFirstSetSaved(new Date().toISOString());
+        currentSessionIdToUse = newSessionId;
+        setInternalSessionId(newSessionId); // Update internal state
+        // Update all sets in the current exercise to link to this new session
+        setSets(prevSets => prevSets.map(s => ({ ...s, session_id: newSessionId })));
+        onUpdateSets(exerciseId, sets.map(s => ({ ...s, session_id: newSessionId }))); // Also update global state
+      } catch (err) {
+        toast.error("Failed to start workout session. Please try again.");
+        console.error("Error creating session on first set save:", err);
+        return null;
+      }
     }
 
     if (exerciseType === 'weight') {
@@ -213,7 +233,7 @@ export const useExerciseSets = ({
     }
 
     const setLogData: TablesInsert<'set_logs'> = {
-      session_id: currentSessionId,
+      session_id: currentSessionIdToUse, // Use the determined session ID
       exercise_id: exerciseId,
       weight_kg: set.weight_kg,
       reps: set.reps,
@@ -251,7 +271,7 @@ export const useExerciseSets = ({
       }
       return { ...set, ...data, isSaved: true, isPR: isSetPR };
     }
-  }, [currentSessionId, exerciseId, exerciseType, exerciseCategory, supabase]);
+  }, [internalSessionId, exerciseId, exerciseType, exerciseCategory, supabase, onFirstSetSaved, onUpdateSets, sets]); // Added sets to dependencies
 
   const handleSaveSet = useCallback(async (setIndex: number) => {
     const updatedSet = await saveSingleSetToDatabase(sets[setIndex], setIndex);
@@ -263,14 +283,8 @@ export const useExerciseSets = ({
         return newSets;
       });
       toast.success(`Set ${setIndex + 1} saved successfully!`);
-
-      // If this is the very first set saved in the entire workout, update session_date
-      if (!hasFirstSetBeenSavedRef.current) {
-        onFirstSetSaved(updatedSet.created_at);
-        hasFirstSetBeenSavedRef.current = true;
-      }
     }
-  }, [sets, onUpdateSets, exerciseId, onFirstSetSaved, saveSingleSetToDatabase]);
+  }, [sets, onUpdateSets, exerciseId, saveSingleSetToDatabase]);
 
   const handleEditSet = useCallback((setIndex: number) => {
     setSets(prev => {
@@ -315,8 +329,8 @@ export const useExerciseSets = ({
   }, [exerciseId, sets, supabase, onUpdateSets]);
 
   const handleSaveExercise = useCallback(async (): Promise<boolean> => {
-    if (!currentSessionId) {
-      toast.error("Workout session not started. Please refresh.");
+    if (!internalSessionId && sets.filter(s => s.isSaved).length === 0) {
+      toast.error("Workout session not started and no sets logged. Please log at least one set.");
       return false;
     }
 
@@ -338,10 +352,6 @@ export const useExerciseSets = ({
         if (savedSet) {
           updatedSetsState.push(savedSet);
           anySetSavedInThisCall = true;
-          if (!hasFirstSetBeenSavedRef.current) {
-            onFirstSetSaved(savedSet.created_at);
-            hasFirstSetBeenSavedRef.current = true;
-          }
         } else {
           hasError = true;
           updatedSetsState.push(currentSet); // Keep original if save failed
@@ -416,7 +426,7 @@ export const useExerciseSets = ({
       toast.error("Failed to complete exercise: " + err.message);
       return false;
     }
-  }, [currentSessionId, sets, exerciseType, exerciseCategory, exercisePR, exerciseId, supabase, onExerciseComplete, exerciseName, onFirstSetSaved, saveSingleSetToDatabase]);
+  }, [internalSessionId, sets, exerciseType, exerciseCategory, exercisePR, exerciseId, supabase, onExerciseComplete, exerciseName, saveSingleSetToDatabase]);
 
   return {
     sets,

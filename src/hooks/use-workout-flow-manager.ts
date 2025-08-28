@@ -45,6 +45,7 @@ interface UseWorkoutFlowManagerReturn {
   updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
   groupedTPaths: GroupedTPath[];
   isCreatingSession: boolean;
+  createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>; // Added this line
 }
 
 const DEFAULT_INITIAL_SETS = 3;
@@ -165,38 +166,66 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     prefetchAllData();
   }, [session, supabase]);
 
-  const startWorkoutSession = useCallback(async (workoutId: string) => {
-    if (!session) return;
+  // New function to create the workout session in the database
+  const createWorkoutSessionInDb = useCallback(async (templateName: string, firstSetTimestamp: string): Promise<string> => {
+    if (!session) throw new Error("User not authenticated.");
     setIsCreatingSession(true);
-    resetWorkoutSession();
     try {
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('workout_sessions')
+        .insert({ user_id: session.user.id, template_name: templateName, session_date: firstSetTimestamp })
+        .select('id, session_date')
+        .single();
+
+      if (sessionError || !sessionData) {
+        throw new Error(sessionError?.message || "Failed to create workout session in DB.");
+      }
+      setCurrentSessionId(sessionData.id);
+      setSessionStartTime(new Date(sessionData.session_date));
+      toast.success("Workout session started!");
+      return sessionData.id;
+    } catch (err: any) {
+      setError(err.message || "Failed to create workout session.");
+      toast.error(err.message || "Failed to create workout session.");
+      throw err; // Re-throw to propagate the error
+    } finally {
+      setIsCreatingSession(false);
+    }
+  }, [session, supabase]);
+
+  const selectWorkout = useCallback(async (workoutId: string | null) => {
+    setSelectedWorkoutId(workoutId);
+    if (workoutId) {
+      // Reset session-specific states, but don't create DB entry yet
+      resetWorkoutSession();
+
       let currentWorkout: TPath | null = null;
       let exercises: WorkoutExercise[] = [];
-      let sessionTemplateName: string = 'Ad Hoc Workout';
+      // let sessionTemplateName: string = 'Ad Hoc Workout'; // This is now handled by createWorkoutSessionInDb
 
       if (workoutId === 'ad-hoc') {
-        currentWorkout = { id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: session.user.id, created_at: new Date().toISOString(), version: 1, settings: null, progression_settings: null, parent_t_path_id: null };
+        currentWorkout = { id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: session?.user.id || null, created_at: new Date().toISOString(), version: 1, settings: null, progression_settings: null, parent_t_path_id: null };
         exercises = [];
       } else {
         const group = groupedTPaths.find(g => g.childWorkouts.some(cw => cw.id === workoutId));
         currentWorkout = group?.childWorkouts.find((w: WorkoutWithLastCompleted) => w.id === workoutId) || null;
-        if (!currentWorkout) throw new Error("Workout not found in pre-fetched list.");
-        sessionTemplateName = currentWorkout.template_name;
+        if (!currentWorkout) {
+          toast.error("Selected workout not found.");
+          resetWorkoutSession();
+          return;
+        }
+        // sessionTemplateName = currentWorkout.template_name; // This is now handled by createWorkoutSessionInDb
         exercises = workoutExercisesCache[workoutId] || [];
       }
 
       setActiveWorkout(currentWorkout);
       setExercisesForSession(exercises);
 
-      const { data: sessionData, error: sessionError } = await supabase.from('workout_sessions').insert({ user_id: session.user.id, template_name: sessionTemplateName, session_date: new Date().toISOString() }).select('id, session_date').single();
-      if (sessionError || !sessionData) throw new Error(sessionError?.message || "Failed to create workout session.");
-      setCurrentSessionId(sessionData.id);
-      setSessionStartTime(new Date(sessionData.session_date));
-
+      // Fetch last sets data for initial display (without creating session)
       const exerciseIdsInWorkout = exercises.map(ex => ex.id);
       const lastSetsData: Record<string, { weight_kg: number | null, reps: number | null, time_seconds: number | null }> = {};
-      if (exerciseIdsInWorkout.length > 0) {
-        const { data: previousSets } = await supabase.from('set_logs').select(`exercise_id, weight_kg, reps, time_seconds, workout_sessions!inner(user_id)`).in('exercise_id', exerciseIdsInWorkout).eq('workout_sessions.user_id', session.user.id).neq('session_id', sessionData.id).order('created_at', { ascending: false });
+      if (exerciseIdsInWorkout.length > 0 && session) {
+        const { data: previousSets } = await supabase.from('set_logs').select(`exercise_id, weight_kg, reps, time_seconds, workout_sessions!inner(user_id)`).in('exercise_id', exerciseIdsInWorkout).eq('workout_sessions.user_id', session.user.id).order('created_at', { ascending: false });
         const mostRecentPreviousSets = new Map<string, { weight_kg: number | null, reps: number | null, time_seconds: number | null }>();
         for (const set of previousSets || []) { if (!mostRecentPreviousSets.has(set.exercise_id)) { mostRecentPreviousSets.set(set.exercise_id, { weight_kg: set.weight_kg, reps: set.reps, time_seconds: set.time_seconds }); } }
         mostRecentPreviousSets.forEach((value, key) => { lastSetsData[key] = value; });
@@ -205,26 +234,14 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       const initialSets: Record<string, SetLogState[]> = {};
       exercises.forEach(ex => {
         const lastSet = lastSetsData[ex.id];
-        initialSets[ex.id] = Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({ id: null, created_at: null, session_id: sessionData.id, exercise_id: ex.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: lastSet?.weight_kg, lastReps: lastSet?.reps, lastTimeSeconds: lastSet?.time_seconds }));
+        initialSets[ex.id] = Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({ id: null, created_at: null, session_id: null, exercise_id: ex.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: lastSet?.weight_kg, lastReps: lastSet?.reps, lastTimeSeconds: lastSet?.time_seconds }));
       });
       setExercisesWithSets(initialSets);
-    } catch (err: any) {
-      setError(err.message || "Failed to start workout session.");
-      toast.error(err.message || "Failed to start workout session.");
-      resetWorkoutSession();
-    } finally {
-      setIsCreatingSession(false);
-    }
-  }, [session, supabase, resetWorkoutSession, groupedTPaths, workoutExercisesCache]);
 
-  const selectWorkout = useCallback(async (workoutId: string | null) => {
-    setSelectedWorkoutId(workoutId);
-    if (workoutId) {
-      await startWorkoutSession(workoutId);
     } else {
       resetWorkoutSession();
     }
-  }, [startWorkoutSession, resetWorkoutSession]);
+  }, [session, supabase, resetWorkoutSession, groupedTPaths, workoutExercisesCache]);
 
   useEffect(() => {
     if (initialWorkoutId && !loading) {
@@ -233,10 +250,14 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
   }, [initialWorkoutId, loading, selectWorkout]);
 
   const updateSessionStartTime = useCallback(async (timestamp: string) => {
-    if (!currentSessionId || sessionStartTime) return;
-    const { error } = await supabase.from('workout_sessions').update({ session_date: timestamp }).eq('id', currentSessionId);
-    if (error) toast.error("Failed to record workout start time.");
-    else setSessionStartTime(new Date(timestamp));
+    // This function is now redundant as session creation is handled by createWorkoutSessionInDb
+    // and sessionStartTime is set there.
+    // However, if it's called, we ensure currentSessionId exists before attempting to update.
+    if (currentSessionId && !sessionStartTime) {
+      const { error } = await supabase.from('workout_sessions').update({ session_date: timestamp }).eq('id', currentSessionId);
+      if (error) toast.error("Failed to record workout start time.");
+      else setSessionStartTime(new Date(timestamp));
+    }
   }, [currentSessionId, sessionStartTime, supabase]);
 
   const markExerciseAsCompleted = useCallback((exerciseId: string, isNewPR: boolean) => {
@@ -244,13 +265,13 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
   }, []);
 
   const addExerciseToSession = useCallback(async (exercise: ExerciseDefinition) => {
-    if (!currentSessionId) return;
+    if (!session) return; // Ensure session exists for user_id
     let lastWeight = null, lastReps = null, lastTimeSeconds = null;
     const { data: lastSet } = await supabase.from('set_logs').select('weight_kg, reps, time_seconds').eq('exercise_id', exercise.id).order('created_at', { ascending: false }).limit(1).single();
     if (lastSet) { lastWeight = lastSet.weight_kg; lastReps = lastSet.reps; lastTimeSeconds = lastSet.time_seconds; }
     setExercisesForSession(prev => [{ ...exercise, is_bonus_exercise: false }, ...prev]);
     setExercisesWithSets(prev => ({ ...prev, [exercise.id]: Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({ id: null, created_at: null, session_id: currentSessionId, exercise_id: exercise.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight, lastReps, lastTimeSeconds })) }));
-  }, [currentSessionId, supabase]);
+  }, [currentSessionId, session, supabase]);
 
   const removeExerciseFromSession = useCallback((exerciseId: string) => {
     setExercisesForSession(prev => prev.filter(ex => ex.id !== exerciseId));
@@ -275,5 +296,5 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     setExercisesWithSets(prev => ({ ...prev, [exerciseId]: newSets }));
   }, []);
 
-  return { activeWorkout, exercisesForSession, exercisesWithSets, allAvailableExercises, loading, error, currentSessionId, sessionStartTime, completedExercises, selectWorkout, addExerciseToSession, removeExerciseFromSession, substituteExercise, updateSessionStartTime, markExerciseAsCompleted, resetWorkoutSession, updateExerciseSets, groupedTPaths, isCreatingSession };
+  return { activeWorkout, exercisesForSession, exercisesWithSets, allAvailableExercises, loading, error, currentSessionId, sessionStartTime, completedExercises, selectWorkout, addExerciseToSession, removeExerciseFromSession, substituteExercise, updateSessionStartTime, markExerciseAsCompleted, resetWorkoutSession, updateExerciseSets, groupedTPaths, isCreatingSession, createWorkoutSessionInDb };
 };

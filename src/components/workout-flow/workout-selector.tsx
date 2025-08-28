@@ -46,6 +46,7 @@ interface WorkoutSelectorProps {
   loadingWorkoutFlow: boolean;
   groupedTPaths: GroupedTPath[];
   isCreatingSession: boolean;
+  createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>; // New prop
 }
 
 export const WorkoutSelector = ({ 
@@ -68,7 +69,8 @@ export const WorkoutSelector = ({
   selectWorkout,
   loadingWorkoutFlow,
   groupedTPaths,
-  isCreatingSession
+  isCreatingSession,
+  createWorkoutSessionInDb // Destructure new prop
 }: WorkoutSelectorProps) => {
   const { supabase } = useSession();
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
@@ -214,7 +216,10 @@ export const WorkoutSelector = ({
                     onSubstituteExercise={substituteExercise}
                     onRemoveExercise={removeExerciseFromSession}
                     workoutTemplateName={activeWorkout.template_name}
-                    onFirstSetSaved={updateSessionStartTime}
+                    onFirstSetSaved={async (timestamp) => {
+                      // Call the new function from useWorkoutFlowManager
+                      return await createWorkoutSessionInDb(activeWorkout.template_name, timestamp);
+                    }}
                     onExerciseCompleted={markExerciseAsCompleted}
                   />
                 ))}
