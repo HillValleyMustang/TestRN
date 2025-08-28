@@ -15,8 +15,6 @@ import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { SetLogState, WorkoutExercise } from '@/types/supabase';
 import { WorkoutSessionFooter } from '@/components/workout-session/workout-session-footer';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { LoadingOverlay } from '@/components/loading-overlay'; // Import LoadingOverlay
-import { WorkoutBadge } from '@/components/workout-badge'; // Import WorkoutBadge
 
 type TPath = Tables<'t_paths'>;
 
@@ -48,7 +46,7 @@ interface WorkoutSelectorProps {
   resetWorkoutSession: () => void;
   updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
   selectWorkout: (workoutId: string | null) => Promise<void>;
-  loadingWorkoutFlow: boolean;
+  loadingWorkoutFlow: boolean; // Added loading prop from useWorkoutFlowManager
 }
 
 const WorkoutSelector = ({ 
@@ -69,20 +67,22 @@ const WorkoutSelector = ({
   resetWorkoutSession,
   updateExerciseSets,
   selectWorkout,
-  loadingWorkoutFlow
+  loadingWorkoutFlow // Destructure the new prop
 }: WorkoutSelectorProps) => {
   const { session, supabase } = useSession();
   const router = useRouter();
   const [groupedTPaths, setGroupedTPaths] = useState<GroupedTPath[]>([]);
-  const [loadingTPaths, setLoadingTPaths] = useState(true);
+  const [loadingTPaths, setLoadingTPaths] = useState(true); // Renamed to avoid conflict
   const [activeMainTPathId, setActiveMainTPathId] = useState<string | null>(null);
+  const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null);
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
+  const [isAdHocExpanded, setIsAdHocExpanded] = useState(false);
 
   // Fetch workouts and profile data
   useEffect(() => {
     const fetchWorkoutsAndProfile = async () => {
       if (!session) return;
-      setLoadingTPaths(true);
+      setLoadingTPaths(true); // Use renamed loading state
       try {
         // 1. Fetch user profile to get active_t_path_id
         const { data: profileData, error: profileError } = await supabase
@@ -105,7 +105,7 @@ const WorkoutSelector = ({
             .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
             .eq('user_id', session.user.id)
             .is('parent_t_path_id', null)
-            .eq('id', fetchedActiveMainTPathId)
+            .eq('id', fetchedActiveMainTPathId) // Filter by active T-Path ID
             .order('created_at', { ascending: true });
 
           if (mainTPathsError) throw mainTPathsError;
@@ -149,7 +149,7 @@ const WorkoutSelector = ({
         toast.error("Failed to load Transformation Paths: " + err.message);
         console.error("Error fetching T-Paths:", err);
       } finally {
-        setLoadingTPaths(false);
+        setLoadingTPaths(false); // Use renamed loading state
       }
     };
 
@@ -163,27 +163,35 @@ const WorkoutSelector = ({
   };
 
   const handleWorkoutClick = async (workoutId: string) => {
-    if (selectedWorkoutId === workoutId) {
-      // If clicking the already selected workout, deselect it
-      onWorkoutSelect(null);
-      resetWorkoutSession();
-    } else {
-      // Select a new workout
-      onWorkoutSelect(workoutId);
-      await selectWorkout(workoutId);
+    if (expandedWorkoutId === workoutId) {
+      setExpandedWorkoutId(null);
+      resetWorkoutSession(); // Only reset when collapsing the current workout
+      return;
     }
+    
+    if (isAdHocExpanded) {
+      setIsAdHocExpanded(false);
+    }
+    
+    setExpandedWorkoutId(workoutId);
+    onWorkoutSelect(workoutId);
+    await selectWorkout(workoutId);
   };
 
-  const handleAdHocClick = async () => {
-    if (selectedWorkoutId === 'ad-hoc') {
-      // If clicking the already selected ad-hoc, deselect it
-      onWorkoutSelect(null);
-      resetWorkoutSession();
-    } else {
-      // Select ad-hoc workout
-      onWorkoutSelect('ad-hoc');
-      await selectWorkout('ad-hoc');
+  const handleAdHocClick = () => {
+    if (isAdHocExpanded) {
+      setIsAdHocExpanded(false);
+      resetWorkoutSession(); // Only reset when collapsing ad-hoc
+      return;
     }
+    
+    if (expandedWorkoutId) {
+      setExpandedWorkoutId(null);
+    }
+    
+    setIsAdHocExpanded(true);
+    onWorkoutSelect('ad-hoc');
+    selectWorkout('ad-hoc');
   };
 
   const handleAddExercise = () => {
@@ -201,6 +209,7 @@ const WorkoutSelector = ({
   };
 
   const totalExercises = exercisesForSession.length;
+  const completedExerciseCount = completedExercises.size;
 
   return (
     <div className="space-y-6">
@@ -208,7 +217,7 @@ const WorkoutSelector = ({
         <h1 className="text-3xl font-bold">Start Your Workout</h1>
       </header>
       <div className="space-y-4">
-        {loadingTPaths ? (
+        {loadingTPaths ? ( // Use renamed loading state
           <p className="text-muted-foreground text-center py-4">Loading Transformation Paths...</p>
         ) : groupedTPaths.length === 0 ? (
           <p className="text-muted-foreground text-center py-4">
@@ -234,35 +243,38 @@ const WorkoutSelector = ({
                     const workoutBorderClass = getWorkoutColorClass(workout.template_name, 'border');
                     const Icon = getWorkoutIcon(workout.template_name);
                     const isSelected = selectedWorkoutId === workout.id;
+                    const isExpanded = expandedWorkoutId === workout.id;
 
                     return (
                       <Button
                         key={workout.id}
                         variant="outline"
                         className={cn(
-                          "h-auto p-3 flex flex-col items-start justify-start relative w-full",
+                          "h-auto p-3 flex flex-col items-center justify-center text-center relative w-full",
                           "border-2",
                           workoutBorderClass,
                           workoutBgClass,
+                          "!hover:bg-transparent", // Keep the background color on hover
                           isSelected && "ring-2 ring-primary",
-                          "hover:brightness-90 dark:hover:brightness-110"
+                          // Apply opacity-50 if something is selected AND this is NOT the selected workout
+                          (selectedWorkoutId !== null && !isSelected) && "opacity-50",
+                          // Apply hover effect only if not selected
+                          !isSelected && "transition-transform hover:scale-[1.02] duration-200 ease-out"
                         )}
                         onClick={() => handleWorkoutClick(workout.id)}
                       >
-                        <div className="flex justify-between items-center w-full mb-2">
-                          <div className="flex items-center gap-2">
-                            {Icon && <Icon className={cn("h-5 w-5", workoutColorClass)} />}
-                            <span className={cn("font-bold text-lg", workoutColorClass)}>{workout.template_name}</span>
+                        <div className="flex flex-col items-center gap-1 w-full">
+                          <div className="flex items-center justify-center">
+                            {Icon && <Icon className={cn("h-4 w-4", workoutColorClass)} />}
                           </div>
-                          {isSelected ? (
-                            <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                          ) : (
-                            <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                          <span className={cn("font-semibold text-sm", workoutColorClass)}>{workout.template_name}</span>
+                          <span className={cn("text-xs mt-1", workoutColorClass)}>
+                            {formatLastCompleted(workout.last_completed_at)}
+                          </span>
+                          {isExpanded && (
+                            <ChevronUp className="h-4 w-4 mt-1" />
                           )}
                         </div>
-                        <span className={cn("text-xs w-full text-center", workoutColorClass)}>
-                          {formatLastCompleted(workout.last_completed_at)}
-                        </span>
                       </Button>
                     );
                   })}
@@ -274,88 +286,104 @@ const WorkoutSelector = ({
       </div>
 
       {/* Expanded Workout Section - Full Width Below */}
-      {selectedWorkoutId && activeWorkout && (
+      {(expandedWorkoutId || isAdHocExpanded) && (
         <div className="mt-4 border-t pt-4">
-          <div className="flex justify-center mb-4">
-            <WorkoutBadge 
-              workoutName={selectedWorkoutId === 'ad-hoc' ? "Ad Hoc Workout" : (activeWorkout?.template_name || "Workout")} 
-              className="text-xl px-6 py-3"
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold">
+              {isAdHocExpanded ? "Ad-Hoc Workout" : (activeWorkout?.template_name || "Workout")}
+            </h2>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => {
+                if (isAdHocExpanded) {
+                  setIsAdHocExpanded(false);
+                } else {
+                  setExpandedWorkoutId(null);
+                }
+                resetWorkoutSession(); // Reset when explicitly closing the expanded view
+              }}
             >
-              {selectedWorkoutId === 'ad-hoc' ? "Ad-Hoc Workout" : (activeWorkout?.template_name || "Workout")}
-            </WorkoutBadge>
+              <ChevronUp className="h-4 w-4" />
+            </Button>
           </div>
 
-          {selectedWorkoutId === 'ad-hoc' && (
-            <section className="mb-6 p-4 border rounded-lg bg-card">
-              <h3 className="text-lg font-semibold mb-3">Add Exercises</h3>
-              <div className="flex flex-col gap-3">
-                <select 
-                  value={selectedExerciseToAdd}
-                  onChange={(e) => setSelectedExerciseToAdd(e.target.value)}
-                  className="w-full p-2 border rounded"
-                >
-                  <option value="">Select exercise</option>
-                  {allAvailableExercises
-                    .filter((ex) => !exercisesForSession.some((sessionEx) => sessionEx.id === ex.id))
-                    .map((exercise) => (
-                      <option key={exercise.id} value={exercise.id}>
-                        {exercise.name} ({exercise.main_muscle})
-                      </option>
+          {loadingWorkoutFlow ? ( // Use loading state from hook
+            <div className="flex flex-col items-center justify-center text-center py-8">
+              <Dumbbell className="h-12 w-12 text-muted-foreground mb-3 animate-bounce" />
+              <h3 className="text-lg font-bold mb-2">Loading Workout...</h3>
+              <p className="text-muted-foreground mb-4">Preparing your exercises.</p>
+            </div>
+          ) : (
+            <>
+              {isAdHocExpanded && (
+                <section className="mb-6 p-4 border rounded-lg bg-card">
+                  <h3 className="text-lg font-semibold mb-3">Add Exercises</h3>
+                  <div className="flex flex-col gap-3">
+                    <select 
+                      value={selectedExerciseToAdd}
+                      onChange={(e) => setSelectedExerciseToAdd(e.target.value)}
+                      className="w-full p-2 border rounded"
+                    >
+                      <option value="">Select exercise</option>
+                      {allAvailableExercises
+                        .filter((ex) => !exercisesForSession.some((sessionEx) => sessionEx.id === ex.id))
+                        .map((exercise) => (
+                          <option key={exercise.id} value={exercise.id}>
+                            {exercise.name} ({exercise.main_muscle})
+                          </option>
+                        ))}
+                    </select>
+                    <Button onClick={handleAddExercise} disabled={!selectedExerciseToAdd} className="w-full">
+                      <PlusCircle className="h-4 w-4 mr-2" /> Add Exercise
+                    </Button>
+                  </div>
+                </section>
+              )}
+
+              <section className="mb-6">
+                {exercisesForSession.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center text-center py-8">
+                    <Dumbbell className="h-12 w-12 text-muted-foreground mb-3" />
+                    <h3 className="text-lg font-bold mb-2">No exercises added</h3>
+                    <p className="text-muted-foreground mb-4">
+                      {isAdHocExpanded 
+                        ? "Add exercises to begin your workout." 
+                        : "This workout has no exercises. This may happen if your session length is too short."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {exercisesForSession.map((exercise, index) => (
+                      <ExerciseCard
+                        key={exercise.id}
+                        exercise={exercise}
+                        exerciseNumber={index + 1}
+                        currentSessionId={currentSessionId}
+                        supabase={supabase}
+                        onUpdateGlobalSets={updateExerciseSets}
+                        initialSets={exercisesWithSets[exercise.id] || []}
+                        onSubstituteExercise={substituteExercise}
+                        onRemoveExercise={removeExerciseFromSession}
+                        workoutTemplateName={activeWorkout?.template_name || "Workout"}
+                        onFirstSetSaved={updateSessionStartTime}
+                        onExerciseCompleted={markExerciseAsCompleted}
+                      />
                     ))}
-                </select>
-                <Button onClick={handleAddExercise} disabled={!selectedExerciseToAdd} className="w-full">
-                  <PlusCircle className="h-4 w-4 mr-2" /> Add Exercise
-                </Button>
-              </div>
-            </section>
-          )}
-
-          <section className="mb-6">
-            {loadingWorkoutFlow ? (
-              <div className="flex flex-col items-center justify-center text-center py-8">
-                <Dumbbell className="h-12 w-12 text-muted-foreground mb-3 animate-bounce" />
-                <h3 className="text-lg font-bold mb-2">Loading Workout...</h3>
-                <p className="text-muted-foreground mb-4">Preparing your exercises.</p>
-              </div>
-            ) : exercisesForSession.length === 0 ? (
-              <div className="flex flex-col items-center justify-center text-center py-8">
-                <Dumbbell className="h-12 w-12 text-muted-foreground mb-3" />
-                <h3 className="text-lg font-bold mb-2">No exercises added</h3>
-                <p className="text-muted-foreground mb-4">
-                  {selectedWorkoutId === 'ad-hoc'
-                    ? "Add exercises to begin your workout."
-                    : "This workout has no exercises. This may happen if your session length is too short."}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {exercisesForSession.map((exercise, index) => (
-                  <ExerciseCard
-                    key={exercise.id}
-                    exercise={exercise}
-                    exerciseNumber={index + 1}
-                    currentSessionId={currentSessionId}
-                    supabase={supabase}
-                    onUpdateGlobalSets={updateExerciseSets}
-                    initialSets={exercisesWithSets[exercise.id] || []}
-                    onSubstituteExercise={substituteExercise}
-                    onRemoveExercise={removeExerciseFromSession}
-                    workoutTemplateName={activeWorkout.template_name}
-                    onFirstSetSaved={updateSessionStartTime}
-                    onExerciseCompleted={markExerciseAsCompleted}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* WorkoutSessionFooter is now correctly positioned */}
-          {totalExercises > 0 && (
-            <WorkoutSessionFooter
-              currentSessionId={currentSessionId}
-              sessionStartTime={sessionStartTime}
-              supabase={supabase}
-            />
+                    
+                    {totalExercises > 0 && (
+                      <div className="mt-6">
+                        <WorkoutSessionFooter
+                          currentSessionId={currentSessionId}
+                          sessionStartTime={sessionStartTime}
+                          supabase={supabase}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+            </>
           )}
         </div>
       )}
@@ -363,8 +391,12 @@ const WorkoutSelector = ({
       {/* Ad-hoc workout card moved to the bottom */}
       <Card
         className={cn(
-          "cursor-pointer hover:bg-accent transition-colors",
-          selectedWorkoutId === 'ad-hoc' && "border-primary ring-2 ring-primary"
+          "cursor-pointer", // Removed transition-colors
+          (selectedWorkoutId === 'ad-hoc' || isAdHocExpanded) && "border-primary ring-2 ring-primary",
+          // Apply opacity-50 if something is selected AND this is NOT the ad-hoc workout
+          (selectedWorkoutId !== null && selectedWorkoutId !== 'ad-hoc') && "opacity-50",
+          // Apply hover effect only if not selected
+          !(selectedWorkoutId === 'ad-hoc' || isAdHocExpanded) && "transition-transform hover:scale-[1.02] duration-200 ease-out"
         )}
         onClick={handleAdHocClick}
       >
@@ -401,16 +433,12 @@ export default function WorkoutPage() {
 
   // Update selected workout ID when workoutFlowManagerProps.activeWorkout changes
   useEffect(() => {
-    // If workoutFlowManagerProps.activeWorkout is null, it means no workout is active or it was reset.
-    // In this case, we should also clear selectedWorkoutId to hide the exercise list.
-    if (workoutFlowManagerProps.activeWorkout === null) {
-      setSelectedWorkoutId(null);
-    } else if (workoutFlowManagerProps.activeWorkout.id !== selectedWorkoutId) {
-      // If a new workout becomes active, update selectedWorkoutId
+    if (workoutFlowManagerProps.activeWorkout) {
       setSelectedWorkoutId(workoutFlowManagerProps.activeWorkout.id);
+    } else if (workoutFlowManagerProps.activeWorkout === null && selectedWorkoutId !== 'ad-hoc') {
+      setSelectedWorkoutId(null);
     }
-  }, [workoutFlowManagerProps.activeWorkout]);
-
+  }, [workoutFlowManagerProps.activeWorkout, selectedWorkoutId]);
 
   // Render the WorkoutSelector component with the props
   return (
@@ -419,14 +447,9 @@ export default function WorkoutPage() {
         {...workoutFlowManagerProps} 
         selectedWorkoutId={selectedWorkoutId}
         onWorkoutSelect={setSelectedWorkoutId}
-        loadingWorkoutFlow={workoutFlowManagerProps.loading}
+        loadingWorkoutFlow={workoutFlowManagerProps.loading} // Pass loading state
       />
       <MadeWithDyad />
-      <LoadingOverlay 
-        isOpen={workoutFlowManagerProps.loading} 
-        title="Loading Workout" 
-        description="Please wait while your workout is being prepared." 
-      />
     </div>
   );
 }
