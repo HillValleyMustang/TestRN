@@ -1,21 +1,18 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useSession } from '@/components/session-context-provider';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import React, { useState, useCallback } from 'react';
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Dumbbell, ChevronDown, ChevronUp } from 'lucide-react';
+import { PlusCircle, Dumbbell } from 'lucide-react';
 import { Tables } from '@/types/supabase';
-import { toast } from 'sonner';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { cn, getWorkoutColorClass, getWorkoutIcon } from '@/lib/utils';
-import { useWorkoutFlowManager } from '@/hooks/use-workout-flow-manager';
-import { useRouter } from 'next/navigation';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { SetLogState, WorkoutExercise } from '@/types/supabase';
 import { WorkoutSessionFooter } from '@/components/workout-session/workout-session-footer';
-import { WorkoutBadge } from '../workout-badge'; // Import WorkoutBadge
-import { LoadingOverlay } from '../loading-overlay'; // Import LoadingOverlay
+import { WorkoutBadge } from '../workout-badge';
+import { LoadingOverlay } from '../loading-overlay';
+import { useSession } from '@/components/session-context-provider';
 
 type TPath = Tables<'t_paths'>;
 
@@ -46,7 +43,9 @@ interface WorkoutSelectorProps {
   resetWorkoutSession: () => void;
   updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
   selectWorkout: (workoutId: string | null) => Promise<void>;
-  loadingWorkoutFlow: boolean; // Added loading prop
+  loadingWorkoutFlow: boolean;
+  groupedTPaths: GroupedTPath[];
+  isCreatingSession: boolean;
 }
 
 export const WorkoutSelector = ({ 
@@ -67,92 +66,12 @@ export const WorkoutSelector = ({
   resetWorkoutSession,
   updateExerciseSets,
   selectWorkout,
-  loadingWorkoutFlow // Destructure the new prop
+  loadingWorkoutFlow,
+  groupedTPaths,
+  isCreatingSession
 }: WorkoutSelectorProps) => {
-  const { session, supabase } = useSession();
-  const router = useRouter();
-  const [groupedTPaths, setGroupedTPaths] = useState<GroupedTPath[]>([]);
-  const [loadingTPaths, setLoadingTPaths] = useState(true);
-  const [activeMainTPathId, setActiveMainTPathId] = useState<string | null>(null);
+  const { supabase } = useSession();
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
-  const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, WorkoutExercise[]>>({}); // Cache for exercises
-
-  const fetchWorkoutsAndProfile = useCallback(async () => {
-    if (!session) return;
-    setLoadingTPaths(true);
-    try {
-      // 1. Fetch user profile to get active_t_path_id
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('active_t_path_id')
-        .eq('id', session.user.id)
-        .single();
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        throw profileError;
-      }
-      const fetchedActiveMainTPathId = profileData?.active_t_path_id || null;
-      setActiveMainTPathId(fetchedActiveMainTPathId);
-
-      let mainTPathsData: TPath[] | null = [];
-      if (fetchedActiveMainTPathId) {
-        // 2. Fetch ONLY the active main T-Path for the user
-        const { data, error: mainTPathsError } = await supabase
-          .from('t_paths')
-          .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
-          .eq('user_id', session.user.id)
-          .is('parent_t_path_id', null)
-          .eq('id', fetchedActiveMainTPathId) // Filter by active T-Path ID
-          .order('created_at', { ascending: true });
-
-        if (mainTPathsError) throw mainTPathsError;
-        mainTPathsData = data as TPath[];
-      }
-
-      // 3. Fetch all child workouts for the user (these will be filtered by parent_t_path_id later)
-      const { data: childWorkoutsData, error: childWorkoutsError } = await supabase
-        .from('t_paths')
-        .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
-        .eq('user_id', session.user.id)
-        .eq('is_bonus', true)
-        .order('template_name', { ascending: true });
-
-      if (childWorkoutsError) throw childWorkoutsError;
-
-      const workoutsWithLastDatePromises = (childWorkoutsData as TPath[] || []).map(async (workout) => {
-        const { data: lastSessionDate, error: lastSessionError } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
-        
-        if (lastSessionError) {
-          console.error(`Error fetching last session date for workout ${workout.template_name}:`, lastSessionError);
-        }
-        
-        return {
-          ...workout,
-          last_completed_at: lastSessionDate && lastSessionDate.length > 0 ? lastSessionDate[0].session_date : null,
-        };
-      });
-
-      const allChildWorkoutsWithLastDate = await Promise.all(workoutsWithLastDatePromises);
-
-      // Group child workouts under their respective main T-Paths
-      const newGroupedTPaths: GroupedTPath[] = (mainTPathsData as TPath[] || []).map(mainTPath => ({
-        mainTPath,
-        childWorkouts: allChildWorkoutsWithLastDate.filter(cw => cw.parent_t_path_id === mainTPath.id),
-      }));
-
-      setGroupedTPaths(newGroupedTPaths);
-
-    } catch (err: any) {
-      toast.error("Failed to load Transformation Paths: " + err.message);
-      console.error("Error fetching T-Paths:", err);
-    } finally {
-      setLoadingTPaths(false);
-    }
-  }, [session, supabase]);
-
-  useEffect(() => {
-    fetchWorkoutsAndProfile();
-  }, [fetchWorkoutsAndProfile]);
 
   const formatLastCompleted = (dateString: string | null) => {
     if (!dateString) return 'Never completed';
@@ -174,11 +93,7 @@ export const WorkoutSelector = ({
       if (exercise) {
         addExerciseToSession(exercise);
         setSelectedExerciseToAdd("");
-      } else {
-        toast.error("Selected exercise not found.");
       }
-    } else {
-      toast.error("Please select an exercise to add.");
     }
   };
 
@@ -187,7 +102,7 @@ export const WorkoutSelector = ({
   return (
     <div className="space-y-6">
       <div className="space-y-4">
-        {loadingTPaths ? (
+        {loadingWorkoutFlow ? (
           <p className="text-muted-foreground text-center py-4">Loading Transformation Paths...</p>
         ) : groupedTPaths.length === 0 ? (
           <p className="text-muted-foreground text-center py-4">
@@ -199,9 +114,6 @@ export const WorkoutSelector = ({
               <h4 className="text-lg font-semibold flex items-center gap-2">
                 <Dumbbell className="h-5 w-5 text-muted-foreground" />
                 {group.mainTPath.template_name}
-                {group.mainTPath.id === activeMainTPathId && (
-                  <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">Active</span>
-                )}
               </h4>
               {group.childWorkouts.length === 0 ? (
                 <p className="text-muted-foreground text-sm ml-7">No workouts defined for this path. This may happen if your session length is too short for any workouts.</p>
@@ -245,7 +157,6 @@ export const WorkoutSelector = ({
         )}
       </div>
 
-      {/* Expanded Workout Section - Full Width Below */}
       {selectedWorkoutId && activeWorkout && (
         <div className="mt-4 border-t pt-4">
           <div className="flex justify-center mb-4">
@@ -283,21 +194,11 @@ export const WorkoutSelector = ({
           )}
 
           <section className="mb-6">
-            {loadingWorkoutFlow ? (
-              <div className="flex flex-col items-center justify-center text-center py-8">
-                <Dumbbell className="h-12 w-12 text-muted-foreground mb-3 animate-bounce" />
-                <h3 className="text-lg font-bold mb-2">Loading Workout...</h3>
-                <p className="text-muted-foreground mb-4">Preparing your exercises.</p>
-              </div>
-            ) : exercisesForSession.length === 0 ? (
+            {exercisesForSession.length === 0 && selectedWorkoutId !== 'ad-hoc' ? (
               <div className="flex flex-col items-center justify-center text-center py-8">
                 <Dumbbell className="h-12 w-12 text-muted-foreground mb-3" />
-                <h3 className="text-lg font-bold mb-2">No exercises added</h3>
-                <p className="text-muted-foreground mb-4">
-                  {selectedWorkoutId === 'ad-hoc'
-                    ? "Add exercises to begin your workout."
-                    : "This workout has no exercises. This may happen if your session length is too short."}
-                </p>
+                <h3 className="text-lg font-bold mb-2">No exercises for this workout</h3>
+                <p className="text-muted-foreground mb-4">This may happen if your session length is too short.</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -321,7 +222,6 @@ export const WorkoutSelector = ({
             )}
           </section>
 
-          {/* WorkoutSessionFooter is now correctly positioned */}
           {totalExercises > 0 && (
             <WorkoutSessionFooter
               currentSessionId={currentSessionId}
@@ -332,7 +232,6 @@ export const WorkoutSelector = ({
         </div>
       )}
 
-      {/* Ad-hoc workout card moved to the bottom */}
       <Card
         className={cn(
           "cursor-pointer hover:bg-accent transition-colors",
@@ -350,6 +249,7 @@ export const WorkoutSelector = ({
           </CardDescription>
         </CardHeader>
       </Card>
+      <LoadingOverlay isOpen={isCreatingSession} title="Starting Workout..." description="Please wait while your session is being prepared." />
     </div>
   );
 };

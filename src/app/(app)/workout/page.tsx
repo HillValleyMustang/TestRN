@@ -13,7 +13,7 @@ export default function WorkoutPage() {
   const searchParams = useSearchParams();
   const initialWorkoutId = searchParams.get('workoutId');
 
-  const workoutFlowManagerProps = useWorkoutFlowManager({
+  const workoutFlowManager = useWorkoutFlowManager({
     initialWorkoutId: initialWorkoutId,
     session,
     supabase,
@@ -21,18 +21,16 @@ export default function WorkoutPage() {
   });
 
   const handleWorkoutSelect = (workoutId: string | null) => {
-    const currentSelectedId = workoutFlowManagerProps.activeWorkout?.id;
-    const newWorkoutId = currentSelectedId === workoutId ? null : workoutId;
-    workoutFlowManagerProps.selectWorkout(newWorkoutId);
+    workoutFlowManager.selectWorkout(workoutId);
   };
 
   return (
     <div className="p-2 sm:p-4">
       <WorkoutSelector 
-        {...workoutFlowManagerProps} 
-        selectedWorkoutId={workoutFlowManagerProps.activeWorkout?.id || null}
+        {...workoutFlowManager} 
+        selectedWorkoutId={workoutFlowManager.activeWorkout?.id || null}
         onWorkoutSelect={handleWorkoutSelect}
-        loadingWorkoutFlow={workoutFlowManagerProps.loading}
+        loadingWorkoutFlow={workoutFlowManager.loading}
       />
       <MadeWithDyad />
     </div>
