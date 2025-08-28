@@ -254,6 +254,7 @@ const WorkoutSelector = ({
                           "border-2",
                           workoutBorderClass,
                           workoutBgClass,
+                          "!hover:bg-transparent", // Keep the background color on hover
                           isSelected && "ring-2 ring-primary",
                           // Apply opacity-50 if something is selected AND this is NOT the selected workout
                           (selectedWorkoutId !== null && !isSelected) && "opacity-50",
