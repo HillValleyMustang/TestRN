@@ -294,7 +294,7 @@ export const WorkoutSelector = ({
                         <div className="flex justify-between items-center w-full mb-2">
                           <div className="flex items-center gap-2">
                             {Icon && <Icon className={cn("h-5 w-5", workoutColorClass)} />}
-                            <span className={cn("font-bold text-lg", workoutColorClass)}>{workout.template_name}</span>
+                            <span className={cn("font-bold text-base", workoutColorClass)}>{workout.template_name}</span>
                           </div>
                           {isSelected ? (
                             <ChevronUp className="h-5 w-5 text-muted-foreground" />
