@@ -250,14 +250,15 @@ const WorkoutSelector = ({
                         key={workout.id}
                         variant="outline"
                         className={cn(
-                          "h-auto p-3 flex flex-col items-center justify-center text-center transition-colors relative w-full",
+                          "h-auto p-3 flex flex-col items-center justify-center text-center relative w-full",
                           "border-2",
                           workoutBorderClass,
                           workoutBgClass,
                           isSelected && "ring-2 ring-primary",
                           // Apply opacity-50 if something is selected AND this is NOT the selected workout
                           (selectedWorkoutId !== null && !isSelected) && "opacity-50",
-                          // Removed hover effect
+                          // Apply hover effect only if not selected
+                          !isSelected && "transition-transform hover:scale-[1.02] duration-200 ease-out"
                         )}
                         onClick={() => handleWorkoutClick(workout.id)}
                       >
@@ -389,10 +390,12 @@ const WorkoutSelector = ({
       {/* Ad-hoc workout card moved to the bottom */}
       <Card
         className={cn(
-          "cursor-pointer transition-colors", // Removed hover:bg-accent
+          "cursor-pointer", // Removed transition-colors
           (selectedWorkoutId === 'ad-hoc' || isAdHocExpanded) && "border-primary ring-2 ring-primary",
           // Apply opacity-50 if something is selected AND this is NOT the ad-hoc workout
-          (selectedWorkoutId !== null && selectedWorkoutId !== 'ad-hoc') && "opacity-50"
+          (selectedWorkoutId !== null && selectedWorkoutId !== 'ad-hoc') && "opacity-50",
+          // Apply hover effect only if not selected
+          !(selectedWorkoutId === 'ad-hoc' || isAdHocExpanded) && "transition-transform hover:scale-[1.02] duration-200 ease-out"
         )}
         onClick={handleAdHocClick}
       >
