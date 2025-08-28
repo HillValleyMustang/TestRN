@@ -282,7 +282,7 @@ export const WorkoutSelector = ({
                         key={workout.id}
                         variant="outline"
                         className={cn(
-                          "h-auto px-2 py-5 flex flex-col items-start justify-start relative w-full", // Increased py, added items-start
+                          "h-auto p-3 flex flex-col items-start justify-start relative w-full text-left", // Reduced py, added text-left
                           "border-2",
                           workoutBorderClass,
                           workoutBgClass,
@@ -291,11 +291,11 @@ export const WorkoutSelector = ({
                         )}
                         onClick={() => handleWorkoutClick(workout.id)}
                       >
-                        <div className="flex items-center gap-2">
-                          {Icon && <Icon className={cn("h-7 w-7", workoutColorClass)} />} {/* Larger icon */}
-                          <span className={cn("text-2xl font-bold", workoutColorClass)}>{workout.template_name}</span> {/* Larger, bold text */}
+                        <div className="flex items-center gap-1 mb-1"> {/* Reduced gap */}
+                          {Icon && <Icon className={cn("h-5 w-5", workoutColorClass)} />} {/* Smaller icon */}
+                          <span className={cn("text-lg font-semibold leading-tight", workoutColorClass)}>{workout.template_name}</span> {/* Smaller, less bold text */}
                         </div>
-                        <span className={cn("text-base mt-1 text-white")}> {/* "Last" text below, text-base, mt-1, explicitly white */}
+                        <span className={cn("text-xs text-white/90")}> {/* Smaller, less opaque "Last" text */}
                           {formatLastCompleted(workout.last_completed_at)}
                         </span>
                       </Button>
