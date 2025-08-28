@@ -291,11 +291,11 @@ export const WorkoutSelector = ({
                         )}
                         onClick={() => handleWorkoutClick(workout.id)}
                       >
-                        <div className="flex items-center gap-1 mb-0.5">
-                          {Icon && <Icon className={cn("h-4 w-4 flex-shrink-0", workoutColorClass)} />}
-                          <span className={cn("text-sm font-medium leading-tight truncate", workoutColorClass)}>{workout.template_name}</span>
+                        <div className="flex items-center gap-1 mb-0.5 min-w-0"> {/* Added min-w-0 */}
+                          {Icon && <Icon className={cn("h-3 w-3 flex-shrink-0", workoutColorClass)} />} {/* Reduced h-4 w-4 to h-3 w-3 */}
+                          <span className={cn("text-xs font-medium leading-tight flex-shrink-0 min-w-0", workoutColorClass)}>{workout.template_name}</span> {/* Reduced text-sm to text-xs, added min-w-0, flex-shrink-0 */}
                         </div>
-                        <span className={cn("text-xs text-muted-foreground")}>
+                        <span className={cn("text-[0.65rem] text-muted-foreground min-w-0")}> {/* Reduced text-xs to text-[0.65rem], changed to text-muted-foreground, added min-w-0 */}
                           {formatLastCompleted(workout.last_completed_at)}
                         </span>
                       </Button>
