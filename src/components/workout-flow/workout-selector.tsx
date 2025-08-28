@@ -14,7 +14,7 @@ import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { SetLogState, WorkoutExercise } from '@/types/supabase';
 import { WorkoutSessionFooter } from '@/components/workout-session/workout-session-footer';
 import { WorkoutBadge } from '../workout-badge'; // Import WorkoutBadge
-import { useWorkoutFlowManager } '@/hooks/use-workout-flow-manager';
+import { useWorkoutFlowManager } from '@/hooks/use-workout-flow-manager'; // Corrected import statement
 
 type TPath = Tables<'t_paths'>;
 
