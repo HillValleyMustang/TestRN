@@ -282,7 +282,7 @@ export const WorkoutSelector = ({
                         key={workout.id}
                         variant="outline"
                         className={cn(
-                          "h-auto p-3 flex flex-col items-start justify-start relative w-full",
+                          "h-auto px-2 py-3 flex flex-col items-start justify-start relative w-full", // Changed p-3 to px-2 py-3
                           "border-2",
                           workoutBorderClass,
                           workoutBgClass,
@@ -292,14 +292,14 @@ export const WorkoutSelector = ({
                         onClick={() => handleWorkoutClick(workout.id)}
                       >
                         <div className="flex justify-between items-center w-full mb-2">
-                          <div className="flex items-center gap-2">
-                            {Icon && <Icon className={cn("h-5 w-5", workoutColorClass)} />}
-                            <span className={cn("font-bold text-sm", workoutColorClass)}>{workout.template_name}</span>
+                          <div className="flex items-center gap-1">
+                            {Icon && <Icon className={cn("h-4 w-4", workoutColorClass)} />}
+                            <span className={cn("text-xs", workoutColorClass)}>{workout.template_name}</span>
                           </div>
                           {isSelected ? (
-                            <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                            <ChevronUp className="h-4 w-4 text-muted-foreground" /> 
                           ) : (
-                            <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
                           )}
                         </div>
                         <span className={cn("text-xs w-full text-center", workoutColorClass)}>
