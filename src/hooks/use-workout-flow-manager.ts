@@ -196,40 +196,40 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       setSessionStartTime(new Date(sessionData.session_date));
 
       const lastSetsData: Record<string, { weight_kg: number | null, reps: number | null, time_seconds: number | null }> = {};
-      if (currentWorkout?.template_name !== 'Ad Hoc Workout') {
-        const { data: lastWorkoutSession, error: lastWorkoutSessionError } = await supabase
-          .from('workout_sessions')
-          .select('id')
-          .eq('user_id', session.user.id)
-          .eq('template_name', currentWorkout?.template_name)
-          .order('session_date', { ascending: false })
-          .limit(1)
-          .single();
+      // This logic should apply to all workout types, including Ad Hoc
+      const { data: lastWorkoutSession, error: lastWorkoutSessionError } = await supabase
+        .from('workout_sessions')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .eq('template_name', sessionTemplateName) // Use the sessionTemplateName
+        .order('session_date', { ascending: false })
+        .limit(1)
+        .single();
 
-        if (lastWorkoutSessionError && lastWorkoutSessionError.code !== 'PGRST116') {
-          console.warn("Error fetching last workout session for template:", lastWorkoutSessionError);
-        }
+      if (lastWorkoutSessionError && lastWorkoutSessionError.code !== 'PGRST116') {
+        console.warn("Error fetching last workout session for template:", lastWorkoutSessionError);
+      }
 
-        const lastSessionId = lastWorkoutSession ? lastWorkoutSession.id : null;
-        if (lastSessionId) {
-          for (const ex of exercises) {
-            const { data: lastSet, error: lastSetError } = await supabase
-              .from('set_logs')
-              .select('weight_kg, reps, time_seconds')
-              .eq('exercise_id', ex.id)
-              .eq('session_id', lastSessionId)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .single();
-            if (lastSetError && lastSetError.code !== 'PGRST116') {
-              console.warn(`Could not fetch last set for ${ex.name}: ${lastSetError.message}`);
-            }
-            if (lastSet) {
-              lastSetsData[ex.id] = lastSet;
-            }
+      const lastSessionId = lastWorkoutSession ? lastWorkoutSession.id : null;
+      if (lastSessionId) {
+        for (const ex of exercises) {
+          const { data: lastSet, error: lastSetError } = await supabase
+            .from('set_logs')
+            .select('weight_kg, reps, time_seconds')
+            .eq('exercise_id', ex.id)
+            .eq('session_id', lastSessionId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+          if (lastSetError && lastSetError.code !== 'PGRST116') {
+            console.warn(`Could not fetch last set for ${ex.name}: ${lastSetError.message}`);
+          }
+          if (lastSet) {
+            lastSetsData[ex.id] = lastSet;
           }
         }
       }
+      
 
       const initialSets: Record<string, SetLogState[]> = {};
       exercises.forEach(ex => {
