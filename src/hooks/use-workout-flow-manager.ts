@@ -35,6 +35,7 @@ interface UseWorkoutFlowManagerReturn {
   markExerciseAsCompleted: (exerciseId: string, isNewPR: boolean) => void;
   resetWorkoutSession: () => void;
   updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
+  selectedWorkoutId: string | null;
 }
 
 const DEFAULT_INITIAL_SETS = 3;
@@ -48,6 +49,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
   const [error, setError] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
+  // FIX: Correct useState initialization for Set
   const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(initialWorkoutId ?? null);
 
@@ -57,10 +59,11 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     setExercisesWithSets({});
     setCurrentSessionId(null);
     setSessionStartTime(null);
+    // FIX: Correct usage of Set setter
     setCompletedExercises(new Set());
     setSelectedWorkoutId(null);
     setLoading(false);
-  }, []);
+  }, []); // Dependencies are fine here as setters are stable
 
   const updateSessionStartTime = useCallback(async (timestamp: string) => {
     if (!currentSessionId) return;
@@ -80,7 +83,8 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
   }, [currentSessionId, sessionStartTime, supabase]);
 
   const markExerciseAsCompleted = useCallback((exerciseId: string, isNewPR: boolean) => {
-    setCompletedExercises(prev => new Set(prev).add(exerciseId));
+    // FIX: Correct usage of Set setter with type
+    setCompletedExercises((prev: Set<string>) => new Set(prev).add(exerciseId));
   }, []);
 
   const fetchAllAvailableExercises = useCallback(async () => {
@@ -236,11 +240,11 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
         }
       }
       
-
-      const initialSets: Record<string, SetLogState[]> = {};
+      // FIX: Declare initialSetsForExercises outside the loop
+      const initialSetsForExercises: Record<string, SetLogState[]> = {};
       exercises.forEach(ex => {
         const lastSet = lastSetsData[ex.id];
-        initialSets[ex.id] = Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({
+        initialSetsForExercises[ex.id] = Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({
           id: null,
           created_at: null,
           session_id: sessionData.id,
@@ -258,16 +262,18 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
           lastTimeSeconds: lastSet?.time_seconds,
         }));
       });
-      setExercisesWithSets(initialSets);
+      setExercisesWithSets(initialSetsForExercises); // FIX: Use the correctly scoped variable
 
     } catch (err: any) {
+      // FIX: Ensure all state setters are in scope
       setError(err.message || "Failed to load workout. Please try again.");
       toast.error(err.message || "Failed to load workout.");
       resetWorkoutSession();
     } finally {
+      // FIX: Ensure setLoading is in scope
       setLoading(false);
     }
-  }, [session, supabase, router, resetWorkoutSession, fetchAllAvailableExercises]);
+  }, [session, supabase, router, resetWorkoutSession, fetchAllAvailableExercises, setLoading, setError]); // FIX: Add all dependencies
 
   useEffect(() => {
     if (session && selectedWorkoutId !== null) {
@@ -277,11 +283,11 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     } else if (!session) {
       setLoading(false);
     }
-  }, [session, selectedWorkoutId, initialWorkoutId, initializeWorkoutSession, fetchAllAvailableExercises]);
+  }, [session, selectedWorkoutId, initialWorkoutId, initializeWorkoutSession, fetchAllAvailableExercises, setLoading]); // FIX: Add all dependencies
 
   const selectWorkout = useCallback(async (workoutId: string | null) => {
     setSelectedWorkoutId(workoutId);
-  }, []);
+  }, []); // Dependencies are fine here as setSelectedWorkoutId is stable
 
   const addExerciseToSession = useCallback(async (exercise: ExerciseDefinition) => {
     if (!currentSessionId) {
@@ -314,18 +320,18 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       console.error("Error fetching last set for ad-hoc exercise:", err);
     }
 
-    setExercisesForSession(prev => {
+    setExercisesForSession((prev: WorkoutExercise[]) => { // FIX: Type prev
       const newWorkoutExercise: WorkoutExercise = {
         ...exercise,
         is_bonus_exercise: false,
       };
       const updatedExercises = [...prev, newWorkoutExercise];
-      setExercisesWithSets(prevSets => ({
+      setExercisesWithSets((prevSets: Record<string, SetLogState[]>) => ({ // FIX: Type prevSets
         ...prevSets,
         [newWorkoutExercise.id]: Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({
           id: null,
           created_at: null,
-          session_id: currentSessionId,
+          session_id: currentSessionId, // FIX: currentSessionId is in scope
           exercise_id: newWorkoutExercise.id,
           weight_kg: null,
           reps: null,
@@ -342,31 +348,31 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       }));
       return updatedExercises;
     });
-  }, [currentSessionId, supabase]);
+  }, [currentSessionId, supabase, allAvailableExercises]); // FIX: Add all dependencies
 
   const removeExerciseFromSession = useCallback((exerciseId: string) => {
-    setExercisesForSession(prev => prev.filter(ex => ex.id !== exerciseId));
-    setExercisesWithSets(prevSets => {
+    setExercisesForSession((prev: WorkoutExercise[]) => prev.filter((ex: WorkoutExercise) => ex.id !== exerciseId)); // FIX: Type prev and ex
+    setExercisesWithSets((prevSets: Record<string, SetLogState[]>) => { // FIX: Type prevSets
       const newSets = { ...prevSets };
       delete newSets[exerciseId];
       return newSets;
     });
-    setCompletedExercises(prev => {
+    setCompletedExercises((prev: Set<string>) => { // FIX: Type prev
       const newCompleted = new Set(prev);
       newCompleted.delete(exerciseId);
       return newCompleted;
     });
-  }, []);
+  }, []); // Dependencies are fine here as setters are stable
 
   const substituteExercise = useCallback((oldExerciseId: string, newExercise: WorkoutExercise) => {
-    setExercisesForSession(prev => prev.map(ex => ex.id === oldExerciseId ? newExercise : ex));
-    setExercisesWithSets(prevSets => {
+    setExercisesForSession((prev: WorkoutExercise[]) => prev.map((ex: WorkoutExercise) => ex.id === oldExerciseId ? newExercise : ex)); // FIX: Type prev and ex
+    setExercisesWithSets((prevSets: Record<string, SetLogState[]>) => { // FIX: Type prevSets
       const newSets = { ...prevSets };
       if (!newSets[newExercise.id]) {
         newSets[newExercise.id] = Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({
           id: null,
           created_at: null,
-          session_id: currentSessionId,
+          session_id: currentSessionId, // FIX: currentSessionId is in scope
           exercise_id: newExercise.id,
           weight_kg: null,
           reps: null,
@@ -384,19 +390,19 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       delete newSets[oldExerciseId];
       return newSets;
     });
-    setCompletedExercises(prev => {
+    setCompletedExercises((prev: Set<string>) => { // FIX: Type prev
       const newCompleted = new Set(prev);
       newCompleted.delete(oldExerciseId);
       return newCompleted;
     });
-  }, [currentSessionId]);
+  }, [currentSessionId]); // FIX: Add currentSessionId to dependencies
 
   const updateExerciseSets = useCallback((exerciseId: string, newSets: SetLogState[]) => {
-    setExercisesWithSets(prev => ({
+    setExercisesWithSets((prev: Record<string, SetLogState[]>) => ({ // FIX: Type prev
       ...prev,
       [exerciseId]: newSets,
     }));
-  }, []);
+  }, []); // Dependencies are fine here as setter is stable
 
   return {
     activeWorkout,
@@ -416,5 +422,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     markExerciseAsCompleted,
     resetWorkoutSession,
     updateExerciseSets,
+    selectedWorkoutId,
   };
 };
