@@ -11,7 +11,7 @@ type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 interface UseWorkoutFlowManagerProps {
-  initialWorkoutId?: string | null;
+  activeWorkoutId?: string | null; // Renamed from initialWorkoutId
   session: Session | null;
   supabase: SupabaseClient;
   router: ReturnType<typeof useRouter>;
@@ -27,7 +27,6 @@ interface UseWorkoutFlowManagerReturn {
   currentSessionId: string | null;
   sessionStartTime: Date | null;
   completedExercises: Set<string>;
-  selectWorkout: (workoutId: string | null) => Promise<void>;
   addExerciseToSession: (exercise: ExerciseDefinition) => void;
   removeExerciseFromSession: (exerciseId: string) => void;
   substituteExercise: (oldExerciseId: string, newExercise: WorkoutExercise) => void;
@@ -39,7 +38,7 @@ interface UseWorkoutFlowManagerReturn {
 
 const DEFAULT_INITIAL_SETS = 3;
 
-export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, router }: UseWorkoutFlowManagerProps): UseWorkoutFlowManagerReturn => {
+export const useWorkoutFlowManager = ({ activeWorkoutId, session, supabase, router }: UseWorkoutFlowManagerProps): UseWorkoutFlowManagerReturn => {
   const [activeWorkout, setActiveWorkout] = useState<TPath | null>(null);
   const [exercisesForSession, setExercisesForSession] = useState<WorkoutExercise[]>([]);
   const [exercisesWithSets, setExercisesWithSets] = useState<Record<string, SetLogState[]>>({});
@@ -49,7 +48,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
   const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
-  const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(initialWorkoutId ?? null);
 
   const resetWorkoutSession = useCallback(() => {
     setActiveWorkout(null);
@@ -58,7 +56,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     setCurrentSessionId(null);
     setSessionStartTime(null);
     setCompletedExercises(new Set());
-    setSelectedWorkoutId(null);
     setLoading(false);
   }, []);
 
@@ -97,13 +94,13 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     setAllAvailableExercises(exercisesData as ExerciseDefinition[] || []);
   }, [session, supabase]);
 
-  const initializeWorkoutSession = useCallback(async (workoutId: string | null) => {
+  const initializeWorkoutSession = useCallback(async (workoutIdToInitialize: string | null) => {
     if (!session) {
       router.push('/login');
       return;
     }
 
-    setLoading(true);
+    setLoading(true); // Start loading when a workout is selected
     setError(null);
     resetWorkoutSession();
 
@@ -114,7 +111,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       let exercises: WorkoutExercise[] = [];
       let sessionTemplateName: string = 'Ad Hoc Workout';
 
-      if (workoutId === 'ad-hoc') {
+      if (workoutIdToInitialize === 'ad-hoc') {
         currentWorkout = {
           id: 'ad-hoc',
           template_name: 'Ad Hoc Workout',
@@ -128,13 +125,13 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
         };
         sessionTemplateName = 'Ad Hoc Workout';
         exercises = [];
-      } else if (workoutId) {
+      } else if (workoutIdToInitialize) {
         const { data: tPathData, error: fetchTPathError } = await supabase
           .from('t_paths')
           .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
-          .eq('id', workoutId)
+          .eq('id', workoutIdToInitialize)
           .eq('user_id', session.user.id)
-          .eq('is_bonus', true)
+          .eq('is_bonus', true) // Ensure it's a child workout
           .single();
 
         if (fetchTPathError || !tPathData) {
@@ -146,7 +143,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
         const { data: tPathExercises, error: fetchLinksError } = await supabase
           .from('t_path_exercises')
           .select('exercise_id, is_bonus_exercise, order_index')
-          .eq('template_id', workoutId)
+          .eq('template_id', workoutIdToInitialize)
           .order('order_index', { ascending: true });
 
         if (fetchLinksError) throw fetchLinksError;
@@ -173,6 +170,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
         }
       } else {
         setLoading(false);
+        // If no workoutIdToInitialize, just return without setting activeWorkout
         return;
       }
 
@@ -195,7 +193,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       setCurrentSessionId(sessionData.id);
       setSessionStartTime(new Date(sessionData.session_date));
 
-      const lastSetsData: Record<string, { weight_kg: number | null, reps: number | null, time_seconds: number | null }> = {};
+      const lastSetsData: Record<string, { weight_kg: number | null, reps: number | null, time_seconds: number | null }> = {}; // Cache for last set data
       
       const exerciseIdsInCurrentWorkout = exercises.map(ex => ex.id);
 
@@ -212,7 +210,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
             workout_sessions!inner(user_id)
           `)
           .in('exercise_id', exerciseIdsInCurrentWorkout)
-          .eq('workout_sessions.user_id', session.user.id)
+          .eq('workout_sessions.user_id', session.user.id) // Ensure sets belong to the current user
           .neq('session_id', sessionData.id) // Exclude the current session being created
           .order('created_at', { ascending: false }); // Order by created_at to get the most recent
 
@@ -266,22 +264,18 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       resetWorkoutSession();
     } finally {
       setLoading(false);
-    }
-  }, [session, supabase, router, resetWorkoutSession, fetchAllAvailableExercises]);
+    } // End of try-catch-finally
+  }, [session, supabase, router, resetWorkoutSession, fetchAllAvailableExercises]); // Dependencies for initializeWorkoutSession
 
-  useEffect(() => {
-    if (session && selectedWorkoutId !== null) {
-      initializeWorkoutSession(selectedWorkoutId);
-    } else if (session && initialWorkoutId === null) {
+  useEffect(() => { // This useEffect now reacts to activeWorkoutId prop
+    if (session && activeWorkoutId !== undefined) { // Check if activeWorkoutId is explicitly set (even to null)
+      initializeWorkoutSession(activeWorkoutId);
+    } else if (session) { // If no activeWorkoutId is provided, just fetch all exercises
       fetchAllAvailableExercises().finally(() => setLoading(false));
     } else if (!session) {
       setLoading(false);
     }
-  }, [session, selectedWorkoutId, initialWorkoutId, initializeWorkoutSession, fetchAllAvailableExercises]);
-
-  const selectWorkout = useCallback(async (workoutId: string | null) => {
-    setSelectedWorkoutId(workoutId);
-  }, []);
+  }, [session, activeWorkoutId, initializeWorkoutSession, fetchAllAvailableExercises]); // Dependencies for this useEffect
 
   const addExerciseToSession = useCallback(async (exercise: ExerciseDefinition) => {
     if (!currentSessionId) {
@@ -408,7 +402,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     currentSessionId,
     sessionStartTime,
     completedExercises,
-    selectWorkout,
     addExerciseToSession,
     removeExerciseFromSession,
     substituteExercise,
