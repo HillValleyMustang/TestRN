@@ -9,7 +9,6 @@ import { formatDistanceToNowStrict } from 'date-fns';
 import { cn, getWorkoutColorClass, getWorkoutIcon } from '@/lib/utils';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { SetLogState, WorkoutExercise } from '@/types/supabase';
-import { WorkoutSessionFooter } from '@/components/workout-session/workout-session-footer';
 import { WorkoutBadge } from '../workout-badge';
 import { LoadingOverlay } from '../loading-overlay';
 import { useSession } from '@/components/session-context-provider';
@@ -46,7 +45,8 @@ interface WorkoutSelectorProps {
   loadingWorkoutFlow: boolean;
   groupedTPaths: GroupedTPath[];
   isCreatingSession: boolean;
-  createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>; // New prop
+  createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>;
+  finishWorkoutSession: () => Promise<void>; // New prop
 }
 
 export const WorkoutSelector = ({ 
@@ -70,7 +70,8 @@ export const WorkoutSelector = ({
   loadingWorkoutFlow,
   groupedTPaths,
   isCreatingSession,
-  createWorkoutSessionInDb // Destructure new prop
+  createWorkoutSessionInDb,
+  finishWorkoutSession // Destructure new prop
 }: WorkoutSelectorProps) => {
   const { supabase } = useSession();
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
@@ -228,11 +229,9 @@ export const WorkoutSelector = ({
           </section>
 
           {totalExercises > 0 && (
-            <WorkoutSessionFooter
-              currentSessionId={currentSessionId}
-              sessionStartTime={sessionStartTime}
-              supabase={supabase}
-            />
+            <Button size="lg" onClick={finishWorkoutSession} className="w-full mt-6">
+              Finish Workout
+            </Button>
           )}
         </div>
       )}

@@ -45,7 +45,8 @@ interface UseWorkoutFlowManagerReturn {
   updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
   groupedTPaths: GroupedTPath[];
   isCreatingSession: boolean;
-  createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>; // Added this line
+  createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>;
+  finishWorkoutSession: () => Promise<void>; // Added this line
 }
 
 const DEFAULT_INITIAL_SETS = 3;
@@ -296,5 +297,42 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     setExercisesWithSets(prev => ({ ...prev, [exerciseId]: newSets }));
   }, []);
 
-  return { activeWorkout, exercisesForSession, exercisesWithSets, allAvailableExercises, loading, error, currentSessionId, sessionStartTime, completedExercises, selectWorkout, addExerciseToSession, removeExerciseFromSession, substituteExercise, updateSessionStartTime, markExerciseAsCompleted, resetWorkoutSession, updateExerciseSets, groupedTPaths, isCreatingSession, createWorkoutSessionInDb };
+  const finishWorkoutSession = useCallback(async () => {
+    if (!currentSessionId || !sessionStartTime) {
+      toast.error("Workout session not properly started or no sets logged yet.");
+      return;
+    }
+
+    const endTime = new Date();
+    const durationMs = endTime.getTime() - sessionStartTime.getTime();
+    const durationMinutes = Math.round(durationMs / (1000 * 60));
+
+    let durationString = '';
+    if (durationMinutes < 60) {
+      durationString = `${durationMinutes} minutes`;
+    } else {
+      const hours = Math.floor(durationMinutes / 60);
+      const minutes = durationMinutes % 60;
+      durationString = `${hours}h ${minutes}m`;
+    }
+
+    try {
+      const { error: updateError } = await supabase
+        .from('workout_sessions')
+        .update({ duration_string: durationString })
+        .eq('id', currentSessionId);
+
+      if (updateError) {
+        throw new Error(updateError.message);
+      }
+      toast.success("Workout session finished and duration saved!");
+      router.push(`/workout-summary/${currentSessionId}`);
+      resetWorkoutSession(); // Reset state after finishing
+    } catch (err: any) {
+      toast.error("Failed to save workout duration: " + err.message);
+      console.error("Error saving duration:", err);
+    }
+  }, [currentSessionId, sessionStartTime, supabase, router, resetWorkoutSession]);
+
+  return { activeWorkout, exercisesForSession, exercisesWithSets, allAvailableExercises, loading, error, currentSessionId, sessionStartTime, completedExercises, selectWorkout, addExerciseToSession, removeExerciseFromSession, substituteExercise, updateSessionStartTime, markExerciseAsCompleted, resetWorkoutSession, updateExerciseSets, groupedTPaths, isCreatingSession, createWorkoutSessionInDb, finishWorkoutSession };
 };
