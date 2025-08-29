@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import { Profile as ProfileType, ProfileUpdate, Tables } from '@/types/supabase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Edit, Save, LogOut, ArrowLeft, BarChart2, User, Settings, Flame, Dumbbell, Trophy, Star, Weight, Ruler, Percent, HeartPulse, StickyNote, Bot } from 'lucide-react';
+import { Edit, Save, LogOut, ArrowLeft, BarChart2, User, Settings, Flame, Dumbbell, Trophy, Star, Footprints, Bot } from 'lucide-react'; // Added Footprints import
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { TPathSwitcher } from '@/components/t-path-switcher';
@@ -156,10 +156,10 @@ export default function ProfilePage() {
 
   const getFitnessLevel = () => {
     const workouts = stats.totalWorkouts;
-    if (workouts < 10) return { level: 'Rookie', color: 'bg-gray-500', progress: (workouts / 10) * 100 };
-    if (workouts < 30) return { level: 'Warrior', color: 'bg-blue-500', progress: (workouts / 30) * 100 };
-    if (workouts < 60) return { level: 'Champion', color: 'bg-purple-500', progress: (workouts / 60) * 100 };
-    return { level: 'Legend', color: 'bg-yellow-500', progress: 100 };
+    if (workouts < 10) return { level: 'Rookie', color: 'bg-gray-500', progress: (workouts / 10) * 100, icon: <Footprints className="h-8 w-8" /> };
+    if (workouts < 30) return { level: 'Warrior', color: 'bg-blue-500', progress: (workouts / 30) * 100, icon: <Dumbbell className="h-8 w-8" /> };
+    if (workouts < 60) return { level: 'Champion', color: 'bg-purple-500', progress: (workouts / 60) * 100, icon: <Trophy className="h-8 w-8" /> };
+    return { level: 'Legend', color: 'bg-yellow-500', progress: 100, icon: <Star className="h-8 w-8" /> };
   };
   const fitnessLevel = getFitnessLevel();
 
@@ -229,7 +229,26 @@ export default function ProfilePage() {
         </TabsContent>
 
         <TabsContent value="stats" className="mt-6 space-y-6">
-          <Card><CardHeader><CardTitle>Fitness Level: {fitnessLevel.level}</CardTitle><CardDescription>Keep pushing to reach the next level!</CardDescription></CardHeader><CardContent><Progress value={fitnessLevel.progress} className="w-full" /></CardContent></Card>
+          <Card className={cn("relative overflow-hidden p-6 text-center text-primary-foreground shadow-lg", fitnessLevel.color)}>
+            <div className="absolute inset-0 opacity-20" style={{
+              background: `linear-gradient(45deg, ${fitnessLevel.color.replace('bg-', 'var(--')} / 0.8), transparent)`,
+              filter: 'blur(50px)',
+              transform: 'scale(1.5)'
+            }}></div>
+            <div className="relative z-10 flex flex-col items-center justify-center">
+              <div className="mb-3 text-white">
+                {fitnessLevel.icon}
+              </div>
+              <CardTitle className="text-3xl font-extrabold tracking-tight text-white mb-2">
+                {fitnessLevel.level}
+              </CardTitle>
+              <CardDescription className="text-sm text-white/80 mb-4">
+                Keep pushing to reach the next level!
+              </CardDescription>
+              <Progress value={fitnessLevel.progress} className="w-full h-3 bg-white/30" indicatorClassName={cn(fitnessLevel.color.replace('bg-', 'bg-'))} />
+              <p className="text-xs text-white/70 mt-2">{Math.round(fitnessLevel.progress)}% to next level</p>
+            </div>
+          </Card>
           <Card><CardHeader><CardTitle>Weekly Progress</CardTitle></CardHeader><CardContent className="flex items-end justify-between space-x-2 h-24">{['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (<div key={i} className="flex-1 flex flex-col items-center gap-2"><div className="w-full bg-gradient-to-t from-blue-400 to-purple-400 rounded-t-lg" style={{ height: `${[60, 80, 45, 90, 70, 0, 30][i]}%` }} /><div className="text-muted-foreground text-xs">{day}</div></div>))}</CardContent></Card>
         </TabsContent>
 
@@ -240,15 +259,15 @@ export default function ProfilePage() {
                 <CardHeader><CardTitle>Personal Info</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField control={form.control} name="full_name" render={({ field }) => (<FormItem><FormLabel>Full Name</FormLabel><FormControl><Input {...field} disabled={!isEditing} /></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="height_cm" render={({ field }) => (<FormItem><FormLabel>Height (cm)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} disabled={!isEditing} className="w-full sm:w-32" /></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="weight_kg" render={({ field }) => (<FormItem><FormLabel>Weight (kg)</FormLabel><FormControl><Input type="number" step="0.1" {...field} value={field.value ?? ''} disabled={!isEditing} className="w-full sm:w-32" /></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="body_fat_pct" render={({ field }) => (<FormItem><FormLabel>Body Fat (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} value={field.value ?? ''} disabled={!isEditing} className="w-full sm:w-32" /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="height_cm" render={({ field }) => (<FormItem><FormLabel>Height (cm)</FormLabel><FormControl><Input type="number" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="w-full sm:w-28" /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="weight_kg" render={({ field }) => (<FormItem><FormLabel>Weight (kg)</FormLabel><FormControl><Input type="number" step="0.1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="w-full sm:w-28" /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="body_fat_pct" render={({ field }) => (<FormItem><FormLabel>Body Fat (%)</FormLabel><FormControl><Input type="number" step="0.1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="w-full sm:w-28" /></FormControl><FormMessage /></FormItem>)} />
                 </CardContent>
               </Card>
               <Card><CardHeader><CardTitle>Workout Preferences</CardTitle></CardHeader><CardContent className="space-y-4"><FormField control={form.control} name="primary_goal" render={({ field }) => (<FormItem><FormLabel>Primary Goal</FormLabel><Select onValueChange={field.onChange} value={field.value || ''} disabled={!isEditing}><FormControl><SelectTrigger><SelectValue placeholder="Select your goal" /></SelectTrigger></FormControl><SelectContent><SelectItem value="muscle_gain">Muscle Gain</SelectItem><SelectItem value="fat_loss">Fat Loss</SelectItem><SelectItem value="strength_increase">Strength Increase</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} /><FormField control={form.control} name="preferred_session_length" render={({ field }) => (<FormItem><FormLabel>Preferred Session Length</FormLabel><Select onValueChange={field.onChange} value={field.value || ''} disabled={!isEditing}><FormControl><SelectTrigger><SelectValue placeholder="Select length" /></SelectTrigger></FormControl><SelectContent><SelectItem value="15-30">15-30 mins</SelectItem><SelectItem value="30-45">30-45 mins</SelectItem><SelectItem value="45-60">45-60 mins</SelectItem><SelectItem value="60-90">60-90 mins</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} /></CardContent></Card>
               <Card>
                 <CardHeader><CardTitle>Active T-Path</CardTitle><CardDescription>Your Transformation Path is a pre-designed workout program tailored to your goals. Changing it here will regenerate your entire workout plan on the 'Workout' page, replacing your current set of exercises with a new one based on your preferences.</CardDescription></CardHeader>
-                <CardContent>{activeTPath && <TPathSwitcher currentTPathId={activeTPath.id} onTPathChange={(newId) => { toast.info("T-Path changed! Refreshing data..."); fetchData(); }} />}</CardContent>
+                <CardContent>{activeTPath && <TPathSwitcher currentTPathId={activeTPath.id} onTPathChange={(newId) => { toast.info("T-Path changed! Refreshing data..."); fetchData(); }} disabled={!isEditing} />}</CardContent>
               </Card>
               <Card>
                 <CardHeader><CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5" /> AI Coach Usage</CardTitle></CardHeader>

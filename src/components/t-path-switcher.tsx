@@ -29,9 +29,10 @@ type TPath = Tables<'t_paths'>;
 interface TPathSwitcherProps {
   currentTPathId: string;
   onTPathChange: (newTPathId: string) => void;
+  disabled?: boolean; // Added disabled prop
 }
 
-export const TPathSwitcher = ({ currentTPathId, onTPathChange }: TPathSwitcherProps) => {
+export const TPathSwitcher = ({ currentTPathId, onTPathChange, disabled }: TPathSwitcherProps) => {
   const { session, supabase } = useSession();
   const [tPaths, setTPaths] = useState<TPath[]>([]);
   const [selectedTPathId, setSelectedTPathId] = useState(currentTPathId);
@@ -113,7 +114,7 @@ export const TPathSwitcher = ({ currentTPathId, onTPathChange }: TPathSwitcherPr
     <>
       <div className="space-y-2">
         <label className="text-sm font-medium">Switch Active T-Path</label>
-        <Select value={selectedTPathId} onValueChange={handleTPathChange}>
+        <Select value={selectedTPathId} onValueChange={handleTPathChange} disabled={disabled}> {/* Apply disabled prop here */}
           <SelectTrigger>
             <SelectValue>
               {currentTPath ? currentTPath.template_name : "Select T-Path"}
