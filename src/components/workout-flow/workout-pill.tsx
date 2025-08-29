@@ -17,13 +17,14 @@ export interface WorkoutPillProps {
 export const WorkoutPill = ({
   id,
   title,
+  workoutType, // Pass workoutType to getPillStyles
   category,
   variant,
   completedAt,
   isSelected,
   onClick,
 }: WorkoutPillProps) => {
-  const { Icon, selectedClass, defaultTextClass, borderColorVar } = getPillStyles(category, variant);
+  const { Icon, selectedClass, defaultTextClass, borderColorVar } = getPillStyles(workoutType, category, variant);
 
   return (
     <button

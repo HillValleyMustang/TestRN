@@ -51,26 +51,30 @@ interface WorkoutSelectorProps {
 
 const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName: string): Omit<WorkoutPillProps, 'isSelected' | 'onClick'> => {
   const lowerTitle = workout.template_name.toLowerCase();
-  const isUpperLower = mainTPathName.toLowerCase().includes('upper/lower');
+  const isUpperLowerSplit = mainTPathName.toLowerCase().includes('upper/lower');
+  const workoutType: WorkoutPillProps['workoutType'] = isUpperLowerSplit ? 'upper-lower' : 'push-pull-legs';
   
-  let category: WorkoutPillProps['category'] = 'push'; // default
-  let variant: WorkoutPillProps['variant'];
+  let category: WorkoutPillProps['category'];
+  let variant: WorkoutPillProps['variant'] = undefined;
 
-  if (isUpperLower) {
+  if (isUpperLowerSplit) {
     if (lowerTitle.includes('upper')) category = 'upper';
-    if (lowerTitle.includes('lower')) category = 'lower';
+    else if (lowerTitle.includes('lower')) category = 'lower';
+    else category = 'upper'; // Default if neither, though should not happen with current data
+    
     if (lowerTitle.includes(' a')) variant = 'a';
-    if (lowerTitle.includes(' b')) variant = 'b';
+    else if (lowerTitle.includes(' b')) variant = 'b';
   } else { // push-pull-legs
     if (lowerTitle.includes('push')) category = 'push';
-    if (lowerTitle.includes('pull')) category = 'pull';
-    if (lowerTitle.includes('legs')) category = 'legs';
+    else if (lowerTitle.includes('pull')) category = 'pull';
+    else if (lowerTitle.includes('legs')) category = 'legs';
+    else category = 'push'; // Default if neither, though should not happen with current data
   }
 
   return {
     id: workout.id,
     title: workout.template_name,
-    workoutType: isUpperLower ? 'upper-lower' : 'push-pull-legs',
+    workoutType, // Pass workoutType here
     category,
     variant,
     completedAt: workout.last_completed_at ? new Date(workout.last_completed_at) : null,

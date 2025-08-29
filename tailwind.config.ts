@@ -69,11 +69,11 @@ export default {
   				ring: 'hsl(var(--sidebar-ring))'
   			},
         pill: {
-          red: 'hsl(var(--pill-red-start))',
-          pink: 'hsl(var(--pill-pink-start))',
-          purple: 'hsl(var(--pill-purple-start))',
-          blue: 'hsl(var(--pill-blue-start))',
+          'navy-blue': 'hsl(var(--pill-navy-blue-start))',
+          'coral-red': 'hsl(var(--pill-coral-red-start))',
           teal: 'hsl(var(--pill-teal-start))',
+          purple: 'hsl(var(--pill-purple-start))',
+          'adidas-green': 'hsl(var(--pill-adidas-green-start))',
         },
   		},
   		borderRadius: {

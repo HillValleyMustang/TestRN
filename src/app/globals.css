@@ -76,17 +76,17 @@
 
     --sidebar-ring: 217.2 91.2% 59.8%;
 
-    /* New Expanded Workout Pill Colors */
-    --pill-red-start: 0 90% 60%;
-    --pill-red-end: 0 85% 55%;
-    --pill-pink-start: 320 85% 55%;
-    --pill-pink-end: 320 80% 50%;
-    --pill-purple-start: 260 70% 45%;
-    --pill-purple-end: 260 65% 40%;
-    --pill-blue-start: 210 80% 55%;
-    --pill-blue-end: 210 75% 50%;
-    --pill-teal-start: 170 75% 45%;
-    --pill-teal-end: 170 70% 40%;
+    /* New Workout Pill Colors (from user's specific hex codes) */
+    --pill-navy-blue-start: 220 68% 32%; /* #1e3a8a */
+    --pill-navy-blue-end: 221 77% 39%; /* #1d4ed8 */
+    --pill-coral-red-start: 0 84% 60%; /* #ef4444 */
+    --pill-coral-red-end: 0 70% 51%; /* #dc2626 */
+    --pill-teal-start: 190 86% 36%; /* #0891b2 */
+    --pill-teal-end: 190 83% 31%; /* #0e7490 */
+    --pill-purple-start: 270 67% 40%; /* #6b21a8 */
+    --pill-purple-end: 270 69% 32%; /* #581c87 */
+    --pill-adidas-green-start: 145 72% 29%; /* #15803d */
+    --pill-adidas-green-end: 145 66% 24%; /* #166534 */
 
     /* New Aurora Colors (Light Mode) - Adjusted to retro palette */
     --aurora-blue: 200 100% 78%; /* Sky Blue */
@@ -312,14 +312,19 @@
 }
 
 /* New Workout Pill Styles */
-.workout-pill-selected-red {
-  background: linear-gradient(135deg, hsl(var(--pill-red-start)), hsl(var(--pill-red-end)));
-  box-shadow: 0 4px 16px hsl(var(--pill-red-start) / 0.3), 0 0 12px hsl(var(--pill-red-start) / 0.2);
+.workout-pill-selected-navy-blue {
+  background: linear-gradient(135deg, hsl(var(--pill-navy-blue-start)), hsl(var(--pill-navy-blue-end)));
+  box-shadow: 0 4px 16px hsl(var(--pill-navy-blue-start) / 0.3), 0 0 12px hsl(var(--pill-navy-blue-start) / 0.2);
 }
 
-.workout-pill-selected-pink {
-  background: linear-gradient(135deg, hsl(var(--pill-pink-start)), hsl(var(--pill-pink-end)));
-  box-shadow: 0 4px 16px hsl(var(--pill-pink-start) / 0.3), 0 0 12px hsl(var(--pill-pink-start) / 0.2);
+.workout-pill-selected-coral-red {
+  background: linear-gradient(135deg, hsl(var(--pill-coral-red-start)), hsl(var(--pill-coral-red-end)));
+  box-shadow: 0 4px 16px hsl(var(--pill-coral-red-start) / 0.3), 0 0 12px hsl(var(--pill-coral-red-start) / 0.2);
+}
+
+.workout-pill-selected-teal {
+  background: linear-gradient(135deg, hsl(var(--pill-teal-start)), hsl(var(--pill-teal-end)));
+  box-shadow: 0 4px 16px hsl(var(--pill-teal-start) / 0.3), 0 0 12px hsl(var(--pill-teal-start) / 0.2);
 }
 
 .workout-pill-selected-purple {
@@ -327,14 +332,9 @@
   box-shadow: 0 4px 16px hsl(var(--pill-purple-start) / 0.3), 0 0 12px hsl(var(--pill-purple-start) / 0.2);
 }
 
-.workout-pill-selected-blue {
-  background: linear-gradient(135deg, hsl(var(--pill-blue-start)), hsl(var(--pill-blue-end)));
-  box-shadow: 0 4px 16px hsl(var(--pill-blue-start) / 0.3), 0 0 12px hsl(var(--pill-blue-start) / 0.2);
-}
-
-.workout-pill-selected-teal {
-  background: linear-gradient(135deg, hsl(var(--pill-teal-start)), hsl(var(--pill-teal-end)));
-  box-shadow: 0 4px 16px hsl(var(--pill-teal-start) / 0.3), 0 0 12px hsl(var(--pill-teal-start) / 0.2);
+.workout-pill-selected-adidas-green {
+  background: linear-gradient(135deg, hsl(var(--pill-adidas-green-start)), hsl(var(--pill-adidas-green-end)));
+  box-shadow: 0 4px 16px hsl(var(--pill-adidas-green-start) / 0.3), 0 0 12px hsl(var(--pill-adidas-green-start) / 0.2);
 }
 
 .workout-pill-accent-border {
