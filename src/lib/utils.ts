@@ -145,17 +145,15 @@ export function getWorkoutPillClasses(workoutName: string, isSelected: boolean):
   }
 
   const buttonClasses = cn(
-    "flex items-center gap-3 p-[12px_18px] rounded-[20px] font-semibold border-0 cursor-pointer transition-all duration-200 ease-in-out min-w-[200px] h-12 relative bg-white shadow-sm opacity-70 scale-[0.98]",
-    `text-workout-${colorKey}-color`, // Base text color
-    isSelected && `bg-gradient-to-br from-workout-${colorKey}-gradient-start to-workout-${colorKey}-gradient-end text-white opacity-100 scale-100 shadow-md`,
-    !isSelected && `hover:scale-[1.02] hover:shadow-md`,
-    isSelected && `hover:scale-[1.05]`
+    "flex items-center gap-3 p-[12px_18px] rounded-[20px] font-semibold border-0 cursor-pointer transition-all duration-200 ease-in-out min-w-[200px] h-12 relative",
+    isSelected ? 
+      `bg-gradient-to-br from-workout-${colorKey}-gradient-start to-workout-${colorKey}-gradient-end text-white opacity-100 scale-100 shadow-md hover:scale-[1.05]` :
+      `bg-white shadow-sm opacity-70 scale-[0.98] hover:scale-[1.02] hover:shadow-md`
   );
 
   const beforeClasses = cn(
     "absolute inset-0.5 rounded-[18px] border-[1.5px] pointer-events-none transition-all duration-200 ease-in-out",
-    `border-workout-${colorKey}-color`, // Base border color
-    isSelected && `border-white/30`
+    isSelected ? `border-white/30` : `border-workout-${colorKey}-color`
   );
 
   const iconClasses = cn(
