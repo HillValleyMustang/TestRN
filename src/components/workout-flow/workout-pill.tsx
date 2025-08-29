@@ -51,7 +51,7 @@ export const WorkoutPill = ({
     >
       <Icon className={cn("w-6 h-6 flex-shrink-0", isSelected ? 'text-white' : unselectedTextClass)} strokeWidth={2.5} />
       <div className="flex flex-col gap-0 text-left">
-        <span className={cn("text-base font-bold leading-tight", isSelected ? 'text-white' : unselectedTextClass)}>{title}</span>
+        <span className={cn("text-sm font-semibold leading-tight", isSelected ? 'text-white' : unselectedTextClass)}>{title}</span>
         <span className={cn(
           "text-xs font-medium leading-tight",
           isSelected ? 'text-white opacity-70' : cn(unselectedTextClass, 'opacity-80')
