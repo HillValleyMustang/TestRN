@@ -80,7 +80,7 @@ export default function ManageExercisesPage() {
       // Fetch all exercises (user's own and global ones)
       const { data: allExercisesData, error: allExercisesError } = await supabase
         .from('exercise_definitions')
-        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite')
+        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url')
         .or(`user_id.eq.${session.user.id},user_id.is.null`)
         .order('name', { ascending: true });
 

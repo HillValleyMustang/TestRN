@@ -206,6 +206,13 @@ export const ExerciseCard = ({
           {/* Left side: Exercise details */}
           <div className="flex flex-col flex-1 min-w-0"> {/* min-w-0 to allow shrinking */}
             <div className="flex items-center gap-2"> {/* Line 1: Number, Name, Bonus, Check */}
+              {exercise.icon_url && (
+                <img 
+                  src={exercise.icon_url} 
+                  alt={`${exercise.name} icon`} 
+                  className="h-8 w-8 object-contain flex-shrink-0 rounded-sm"
+                />
+              )}
               <CardTitle className={cn("text-xl font-bold leading-none", workoutColorClass)}>
                 {exerciseNumber}. {exercise.name}
               </CardTitle>

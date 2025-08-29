@@ -66,6 +66,7 @@ export type Database = {
           video_url: string | null;
           library_id: string | null;
           is_favorite: boolean | null;
+          icon_url: string | null;
         };
         Insert: {
           category?: string | null;
@@ -80,6 +81,7 @@ export type Database = {
           video_url?: string | null;
           library_id?: string | null;
           is_favorite?: boolean | null;
+          icon_url?: string | null;
         };
         Update: {
           category?: string | null;
@@ -94,6 +96,7 @@ export type Database = {
           video_url?: string | null;
           library_id?: string | null;
           is_favorite?: boolean | null;
+          icon_url?: string | null;
         };
         Relationships: [
           {

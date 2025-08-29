@@ -87,7 +87,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       try {
         const { data: exercisesData, error: fetchExercisesError } = await supabase
           .from('exercise_definitions')
-          .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, is_favorite, created_at, user_id')
+          .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, is_favorite, created_at, user_id, icon_url')
           .or(`user_id.eq.${session.user.id},user_id.is.null`)
           .order('name', { ascending: true });
         if (fetchExercisesError) throw fetchExercisesError;
