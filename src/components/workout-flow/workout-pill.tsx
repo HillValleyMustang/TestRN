@@ -28,43 +28,33 @@ export const WorkoutPill = ({
     Icon,
     selectedBgClass,
     selectedTextClass,
-    selectedTimeTextClass,
     selectedBorderClass,
     selectedShadowClass,
     unselectedBgClass,
     unselectedTextClass,
-    unselectedTimeTextClass,
     unselectedBorderClass,
     unselectedShadowClass,
-    accentStripBgClass, // New class for the accent strip
   } = getPillStyles(workoutType, category, variant);
 
   return (
     <button
       onClick={() => onClick(id)}
       className={cn(
-        'relative flex items-center gap-2 h-14 pl-4 pr-5 rounded-2xl border-2 min-w-[12rem]', // Reverted to rounded-2xl, adjusted gap
+        'flex items-center gap-3 h-14 pl-4 pr-5 rounded-2xl border-2', // Added border-2 here
         'font-sans cursor-pointer',
-        'transition-all duration-200 ease-out',
+        'transition-all duration-200 ease-out w-fit',
         isSelected
-          ? cn(selectedBgClass, selectedBorderClass, selectedShadowClass)
-          : cn(unselectedBgClass, unselectedBorderClass, unselectedShadowClass),
-        'hover:scale-[1.01] active:scale-[0.99]',
-        'flex-1' // Add flex-1 to make it fill the grid column
+          ? cn(selectedBgClass, selectedTextClass, selectedBorderClass, selectedShadowClass, 'opacity-100 scale-100')
+          : cn(unselectedBgClass, unselectedTextClass, unselectedBorderClass, unselectedShadowClass, 'opacity-70 scale-98'),
+        'hover:scale-102 active:scale-98'
       )}
     >
-      {isSelected && (
-        <div className={cn(
-          "absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 rounded-full",
-          accentStripBgClass // Use the new accent strip class
-        )} />
-      )}
-      <Icon className={cn("w-6 h-6 flex-shrink-0", isSelected ? selectedTextClass : unselectedTextClass)} strokeWidth={2.5} />
+      <Icon className={cn("w-6 h-6 flex-shrink-0", isSelected ? 'text-white' : unselectedTextClass)} strokeWidth={2.5} />
       <div className="flex flex-col gap-0 text-left">
-        <span className={cn("text-base font-bold leading-tight", isSelected ? selectedTextClass : unselectedTextClass)}>{title}</span>
+        <span className={cn("text-base font-bold leading-tight", isSelected ? 'text-white' : unselectedTextClass)}>{title}</span>
         <span className={cn(
           "text-xs font-medium leading-tight",
-          isSelected ? selectedTimeTextClass : unselectedTimeTextClass
+          isSelected ? 'text-white opacity-70' : cn(unselectedTextClass, 'opacity-80')
         )}>
           {formatTimeAgo(completedAt)}
         </span>

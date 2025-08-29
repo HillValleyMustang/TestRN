@@ -70,21 +70,13 @@ export default {
   			},
         workout: {
           'upper-body-a': 'hsl(var(--workout-upper-body-a))',
-          'upper-body-a-light': 'hsl(var(--workout-upper-body-a-light))',
           'upper-body-b': 'hsl(var(--workout-upper-body-b))',
-          'upper-body-b-light': 'hsl(var(--workout-upper-body-b-light))',
           'lower-body-a': 'hsl(var(--workout-lower-body-a))',
-          'lower-body-a-light': 'hsl(var(--workout-lower-body-a-light))',
           'lower-body-b': 'hsl(var(--workout-lower-body-b))',
-          'lower-body-b-light': 'hsl(var(--workout-lower-body-b-light))',
           'push': 'hsl(var(--workout-push))',
-          'push-light': 'hsl(var(--workout-push-light))',
           'pull': 'hsl(var(--workout-pull))',
-          'pull-light': 'hsl(var(--workout-pull-light))',
           'legs': 'hsl(var(--workout-legs))',
-          'legs-light': 'hsl(var(--workout-legs-light))',
           'bonus': 'hsl(var(--workout-bonus))',
-          'bonus-light': 'hsl(var(--workout-bonus-light))',
         },
   		},
   		borderRadius: {
@@ -120,14 +112,14 @@ export default {
         'fade-in-slide-up': 'fade-in-slide-up 0.6s ease-out forwards',
   		},
       boxShadow: {
-        'workout-pill-selected': '0 15px 30px -10px rgba(0, 0, 0, 0.4)', // More pronounced shadow
+        'workout-pill-selected': '0 8px 20px -6px rgba(0, 0, 0, 0.2)', // A subtle, diffused shadow
       },
   	}
   },
   plugins: [require("tailwindcss-animate")],
   safelist: [
     {
-      pattern: /(bg|text|border)-workout-(upper-body-a|lower-body-a|upper-body-b|lower-body-b|push|pull|legs|bonus|upper-body-a-light|upper-body-b-light|lower-body-a-light|lower-body-b-light|push-light|pull-light|legs-light|bonus-light)/,
+      pattern: /(bg|text|border)-workout-(upper-body-a|lower-body-a|upper-body-b|lower-body-b|push|pull|legs|bonus)/,
     },
   ],
 } satisfies Config;
