@@ -36,21 +36,29 @@ export const WorkoutPill = ({
     unselectedTimeTextClass,
     unselectedBorderClass,
     unselectedShadowClass,
+    accentStripBgClass, // New class for the accent strip
   } = getPillStyles(workoutType, category, variant);
 
   return (
     <button
       onClick={() => onClick(id)}
       className={cn(
-        'flex items-center gap-3 h-14 pl-4 pr-5 rounded-2xl border-2 min-w-[12rem]', // Adjusted height to h-14, added min-w
+        'relative flex items-center gap-2 h-14 pl-4 pr-5 rounded-2xl border-2 min-w-[12rem]', // Reverted to rounded-2xl, adjusted gap
         'font-sans cursor-pointer',
-        'transition-all duration-200 ease-out w-fit',
+        'transition-all duration-200 ease-out',
         isSelected
-          ? cn(selectedBgClass, selectedBorderClass, selectedShadowClass, 'opacity-100 scale-100')
-          : cn(unselectedBgClass, unselectedBorderClass, unselectedShadowClass, 'opacity-100 scale-100'), // Removed opacity and scale for unselected
-        'hover:scale-[1.01] active:scale-[0.99]' // Slightly toned down hover/active
+          ? cn(selectedBgClass, selectedBorderClass, selectedShadowClass)
+          : cn(unselectedBgClass, unselectedBorderClass, unselectedShadowClass),
+        'hover:scale-[1.01] active:scale-[0.99]',
+        'flex-1' // Add flex-1 to make it fill the grid column
       )}
     >
+      {isSelected && (
+        <div className={cn(
+          "absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 rounded-full",
+          accentStripBgClass // Use the new accent strip class
+        )} />
+      )}
       <Icon className={cn("w-6 h-6 flex-shrink-0", isSelected ? selectedTextClass : unselectedTextClass)} strokeWidth={2.5} />
       <div className="flex flex-col gap-0 text-left">
         <span className={cn("text-base font-bold leading-tight", isSelected ? selectedTextClass : unselectedTextClass)}>{title}</span>

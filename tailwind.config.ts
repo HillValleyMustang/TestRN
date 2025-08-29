@@ -120,7 +120,7 @@ export default {
         'fade-in-slide-up': 'fade-in-slide-up 0.6s ease-out forwards',
   		},
       boxShadow: {
-        'workout-pill-selected': '0 10px 25px -8px rgba(0, 0, 0, 0.3)', // More pronounced shadow
+        'workout-pill-selected': '0 15px 30px -10px rgba(0, 0, 0, 0.4)', // More pronounced shadow
       },
   	}
   },

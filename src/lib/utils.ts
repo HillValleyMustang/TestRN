@@ -103,44 +103,53 @@ type WorkoutPillVariant = 'a' | 'b';
 export const getPillStyles = (workoutType: 'upper-lower' | 'push-pull-legs', category: WorkoutPillCategory, variant?: WorkoutPillVariant) => {
   let Icon: LucideIcon = Zap; // Default
   let colorKey: string;
-  let lightColorKey: string;
+  let lightColorKey: string; // For unselected time text
+  let accentColorKey: string; // For the accent strip (lighter version of main color)
 
   if (workoutType === 'upper-lower') {
     if (category === 'upper') {
       Icon = ChevronUp;
       colorKey = variant === 'a' ? 'upper-body-a' : 'upper-body-b';
       lightColorKey = variant === 'a' ? 'upper-body-a-light' : 'upper-body-b-light';
+      accentColorKey = variant === 'a' ? 'upper-body-a-light' : 'upper-body-b-light'; // Use light for accent
     } else if (category === 'lower') {
       Icon = ChevronDown;
       colorKey = variant === 'a' ? 'lower-body-a' : 'lower-body-b';
       lightColorKey = variant === 'a' ? 'lower-body-a-light' : 'lower-body-b-light';
+      accentColorKey = variant === 'a' ? 'lower-body-a-light' : 'lower-body-b-light'; // Use light for accent
     } else { // Fallback, though should not happen with current data
       Icon = Dumbbell;
       colorKey = 'bonus';
       lightColorKey = 'bonus-light';
+      accentColorKey = 'bonus-light';
     }
   } else if (workoutType === 'push-pull-legs') {
     if (category === 'push') {
       Icon = ArrowUpRight;
       colorKey = 'push';
       lightColorKey = 'push-light';
+      accentColorKey = 'push-light';
     } else if (category === 'pull') {
       Icon = ArrowDownLeft;
       colorKey = 'pull';
       lightColorKey = 'pull-light';
+      accentColorKey = 'pull-light';
     } else if (category === 'legs') {
       Icon = Footprints;
       colorKey = 'legs';
       lightColorKey = 'legs-light';
+      accentColorKey = 'legs-light';
     } else { // Fallback, though should not happen with current data
       Icon = Dumbbell;
       colorKey = 'bonus';
       lightColorKey = 'bonus-light';
+      accentColorKey = 'bonus-light';
     }
   } else { // Default to a bonus color if no specific workout type/category matches
     Icon = Star; // Default bonus icon
     colorKey = 'bonus';
     lightColorKey = 'bonus-light';
+    accentColorKey = 'bonus-light';
   }
 
   const selectedBgClass = `bg-workout-${colorKey}`;
@@ -155,6 +164,8 @@ export const getPillStyles = (workoutType: 'upper-lower' | 'push-pull-legs', cat
   const unselectedBorderClass = `border-workout-${colorKey}`;
   const unselectedShadowClass = `shadow-none`;
 
+  const accentStripBgClass = `bg-workout-${accentColorKey}`; // New class for the accent strip
+
   return {
     Icon,
     selectedBgClass,
@@ -167,5 +178,6 @@ export const getPillStyles = (workoutType: 'upper-lower' | 'push-pull-legs', cat
     unselectedTimeTextClass,
     unselectedBorderClass,
     unselectedShadowClass,
+    accentStripBgClass, // Return the new class
   };
 };
