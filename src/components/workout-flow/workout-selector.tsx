@@ -171,7 +171,7 @@ export const WorkoutSelector = ({
           <div className="flex justify-center mb-4">
             <WorkoutBadge 
               workoutName={selectedWorkoutId === 'ad-hoc' ? "Ad Hoc Workout" : (activeWorkout?.template_name || "Workout")} 
-              className="text-xl px-6 py-3"
+              className="text-lg px-4 py-2" // Adjusted styling here
             >
               {selectedWorkoutId === 'ad-hoc' ? "Ad Hoc Workout" : (activeWorkout?.template_name || "Workout")}
             </WorkoutBadge>

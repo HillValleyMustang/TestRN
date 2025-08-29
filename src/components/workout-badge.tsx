@@ -10,18 +10,14 @@ interface WorkoutBadgeProps extends BadgeProps {
 
 const WorkoutBadge = ({ workoutName, className, ...props }: WorkoutBadgeProps) => {
   const bgColorClass = getWorkoutColorClass(workoutName, 'bg');
-  const textColorClass = getWorkoutColorClass(workoutName, 'text');
-  const borderColorClass = getWorkoutColorClass(workoutName, 'border');
   const Icon = getWorkoutIcon(workoutName);
 
   return (
     <Badge
-      variant="outline" // Use outline variant as it's less opinionated about bg/text
       className={cn(
         "px-2 py-0.5 text-xs flex items-center gap-1",
-        bgColorClass,
-        textColorClass,
-        borderColorClass,
+        bgColorClass, // Apply the background color
+        "text-white", // Force text to white for readability on dark backgrounds
         className
       )}
       {...props}
