@@ -78,13 +78,21 @@
 
     /* New Workout Pill Colors (from user's specific hex codes) */
     --workout-upper-body-a: 220 68% 32%; /* #1e3a8a */
+    --workout-upper-body-a-light: 220 68% 50%; /* Lighter blue for unselected time */
     --workout-upper-body-b: 0 84% 60%; /* #ef4444 */
+    --workout-upper-body-b-light: 0 84% 75%; /* Lighter red/pink for unselected time */
     --workout-lower-body-a: 190 86% 36%; /* #0891b2 */
+    --workout-lower-body-a-light: 190 86% 55%; /* Lighter teal for unselected time */
     --workout-lower-body-b: 270 67% 40%; /* #6b21a8 */
+    --workout-lower-body-b-light: 270 67% 60%; /* Lighter purple for unselected time */
     --workout-push: 0 84% 60%; /* #ef4444 */
+    --workout-push-light: 0 84% 75%; /* Lighter red/pink for unselected time */
     --workout-pull: 190 86% 36%; /* #0891b2 */
+    --workout-pull-light: 190 86% 55%; /* Lighter teal for unselected time */
     --workout-legs: 145 72% 29%; /* #15803d */
+    --workout-legs-light: 145 72% 45%; /* Lighter green for unselected time */
     --workout-bonus: 43 74% 66%; /* chart-4 */
+    --workout-bonus-light: 43 74% 80%; /* Lighter bonus color for unselected time */
 
 
     /* New Aurora Colors (Light Mode) - Adjusted to retro palette */
@@ -168,13 +176,21 @@
 
     /* Dark mode adjustments for new workout colors - Directly from 90s Retro Palette */
     --workout-upper-body-a: 220 68% 32%; /* #1e3a8a */
+    --workout-upper-body-a-light: 220 68% 50%; /* Lighter blue for unselected time */
     --workout-upper-body-b: 0 84% 60%; /* #ef4444 */
+    --workout-upper-body-b-light: 0 84% 75%; /* Lighter red/pink for unselected time */
     --workout-lower-body-a: 190 86% 36%; /* #0891b2 */
+    --workout-lower-body-a-light: 190 86% 55%; /* Lighter teal for unselected time */
     --workout-lower-body-b: 270 67% 40%; /* #6b21a8 */
+    --workout-lower-body-b-light: 270 67% 60%; /* Lighter purple for unselected time */
     --workout-push: 0 84% 60%; /* #ef4444 */
+    --workout-push-light: 0 84% 75%; /* Lighter red/pink for unselected time */
     --workout-pull: 190 86% 36%; /* #0891b2 */
+    --workout-pull-light: 190 86% 55%; /* Lighter teal for unselected time */
     --workout-legs: 145 72% 29%; /* #15803d */
+    --workout-legs-light: 145 72% 45%; /* Lighter green for unselected time */
     --workout-bonus: 43 74% 66%; /* chart-4 */
+    --workout-bonus-light: 43 74% 80%; /* Lighter bonus color for unselected time */
 
     /* Dark mode Aurora Colors - Adjusted to retro palette */
     --aurora-blue: 200 100% 85%;

@@ -102,42 +102,56 @@ type WorkoutPillVariant = 'a' | 'b';
 
 export const getPillStyles = (workoutType: 'upper-lower' | 'push-pull-legs', category: WorkoutPillCategory, variant?: WorkoutPillVariant) => {
   let Icon: LucideIcon = Zap; // Default
-  let colorKey = '';
+  let colorKey: string;
+  let lightColorKey: string;
 
   if (workoutType === 'upper-lower') {
     if (category === 'upper') {
       Icon = ChevronUp;
       colorKey = variant === 'a' ? 'upper-body-a' : 'upper-body-b';
+      lightColorKey = variant === 'a' ? 'upper-body-a-light' : 'upper-body-b-light';
     } else if (category === 'lower') {
       Icon = ChevronDown;
       colorKey = variant === 'a' ? 'lower-body-a' : 'lower-body-b';
+      lightColorKey = variant === 'a' ? 'lower-body-a-light' : 'lower-body-b-light';
+    } else { // Fallback, though should not happen with current data
+      Icon = Dumbbell;
+      colorKey = 'bonus';
+      lightColorKey = 'bonus-light';
     }
   } else if (workoutType === 'push-pull-legs') {
     if (category === 'push') {
       Icon = ArrowUpRight;
       colorKey = 'push';
+      lightColorKey = 'push-light';
     } else if (category === 'pull') {
       Icon = ArrowDownLeft;
       colorKey = 'pull';
+      lightColorKey = 'pull-light';
     } else if (category === 'legs') {
       Icon = Footprints;
       colorKey = 'legs';
+      lightColorKey = 'legs-light';
+    } else { // Fallback, though should not happen with current data
+      Icon = Dumbbell;
+      colorKey = 'bonus';
+      lightColorKey = 'bonus-light';
     }
-  }
-
-  // Default to a bonus color if no specific workout type/category matches
-  if (!colorKey) {
-    colorKey = 'bonus';
+  } else { // Default to a bonus color if no specific workout type/category matches
     Icon = Star; // Default bonus icon
+    colorKey = 'bonus';
+    lightColorKey = 'bonus-light';
   }
 
   const selectedBgClass = `bg-workout-${colorKey}`;
   const selectedTextClass = `text-white`;
+  const selectedTimeTextClass = `text-white/70`; // Slightly muted white for time
   const selectedBorderClass = `border-transparent`;
   const selectedShadowClass = `shadow-workout-pill-selected`;
 
   const unselectedBgClass = `bg-white`;
   const unselectedTextClass = `text-workout-${colorKey}`;
+  const unselectedTimeTextClass = `text-workout-${lightColorKey}`; // Use lighter shade for time
   const unselectedBorderClass = `border-workout-${colorKey}`;
   const unselectedShadowClass = `shadow-none`;
 
@@ -145,10 +159,12 @@ export const getPillStyles = (workoutType: 'upper-lower' | 'push-pull-legs', cat
     Icon,
     selectedBgClass,
     selectedTextClass,
+    selectedTimeTextClass,
     selectedBorderClass,
     selectedShadowClass,
     unselectedBgClass,
     unselectedTextClass,
+    unselectedTimeTextClass,
     unselectedBorderClass,
     unselectedShadowClass,
   };
