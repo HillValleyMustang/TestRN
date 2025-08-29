@@ -298,7 +298,7 @@ export default function ProfilePage() {
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent><SelectItem value="km">Kilometers (km)</SelectItem><SelectItem value="miles">Miles (miles)</SelectItem></SelectContent>
                     </Select>
-                  ) : <p className="font-semibold">{field.value === 'miles' ? 'Miles (miles)' : 'Kilometers (km)'}</p>}
+                  ) : <p className="font-semibold">{field.value === 'miles' ? 'Miles (miles)' : 'Kilograms (km)'}</p>}
                   <FormMessage />
                 </FormItem>
               )} />
