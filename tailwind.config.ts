@@ -69,38 +69,46 @@ export default {
   				ring: 'hsl(var(--sidebar-ring))'
   			},
   			workout: {
-  				'upper-body-a-base': 'hsl(var(--workout-upper-body-a-base))',
-  				'upper-body-a-bg': 'hsl(var(--workout-upper-body-a-bg))',
-  				'upper-body-a-text': 'hsl(var(--workout-upper-body-a-text))',
-  				'upper-body-a-border': 'hsl(var(--workout-upper-body-a-border))',
-  				'lower-body-a-base': 'hsl(var(--workout-lower-body-a-base))',
-  				'lower-body-a-bg': 'hsl(var(--workout-lower-body-a-bg))',
-  				'lower-body-a-text': 'hsl(var(--workout-lower-body-a-text))',
-  				'lower-body-a-border': 'hsl(var(--workout-lower-body-a-border))',
-  				'upper-body-b-base': 'hsl(var(--workout-upper-body-b-base))',
-  				'upper-body-b-bg': 'hsl(var(--workout-upper-body-b-bg))',
-  				'upper-body-b-text': 'hsl(var(--workout-upper-body-b-text))',
-  				'upper-body-b-border': 'hsl(var(--workout-upper-body-b-border))',
-  				'lower-body-b-base': 'hsl(var(--workout-lower-body-b-base))',
-  				'lower-body-b-bg': 'hsl(var(--workout-lower-body-b-bg))',
-  				'lower-body-b-text': 'hsl(var(--workout-lower-body-b-text))',
-  				'lower-body-b-border': 'hsl(var(--workout-lower-body-b-border))',
-  				'push-base': 'hsl(var(--workout-push-base))',
-  				'push-bg': 'hsl(var(--workout-push-bg))',
-  				'push-text': 'hsl(var(--workout-push-text))',
-  				'push-border': 'hsl(var(--workout-push-border))',
-  				'pull-base': 'hsl(var(--workout-pull-base))',
-  				'pull-bg': 'hsl(var(--workout-pull-bg))',
-  				'pull-text': 'hsl(var(--workout-pull-text))',
-  				'pull-border': 'hsl(var(--workout-pull-border))',
-  				'legs-base': 'hsl(var(--workout-legs-base))',
-  				'legs-bg': 'hsl(var(--workout-legs-bg))',
-  				'legs-text': 'hsl(var(--workout-legs-text))',
-  				'legs-border': 'hsl(var(--workout-legs-border))',
-  				'bonus-base': 'hsl(var(--workout-bonus-base))',
-  				'bonus-bg': 'hsl(var(--workout-bonus-bg))',
-  				'bonus-text': 'hsl(var(--workout-bonus-text))',
-  				'bonus-border': 'hsl(var(--workout-bonus-border))',
+          'upper-body-a': {
+            color: 'hsl(var(--workout-upper-body-a-color))',
+            'gradient-start': 'hsl(var(--workout-upper-body-a-gradient-start))',
+            'gradient-end': 'hsl(var(--workout-upper-body-a-gradient-end))',
+          },
+          'lower-body-a': {
+            color: 'hsl(var(--workout-lower-body-a-color))',
+            'gradient-start': 'hsl(var(--workout-lower-body-a-gradient-start))',
+            'gradient-end': 'hsl(var(--workout-lower-body-a-gradient-end))',
+          },
+          'upper-body-b': {
+            color: 'hsl(var(--workout-upper-body-b-color))',
+            'gradient-start': 'hsl(var(--workout-upper-body-b-gradient-start))',
+            'gradient-end': 'hsl(var(--workout-upper-body-b-gradient-end))',
+          },
+          'lower-body-b': {
+            color: 'hsl(var(--workout-lower-body-b-color))',
+            'gradient-start': 'hsl(var(--workout-lower-body-b-gradient-start))',
+            'gradient-end': 'hsl(var(--workout-lower-body-b-gradient-end))',
+          },
+          'push': {
+            color: 'hsl(var(--workout-push-color))',
+            'gradient-start': 'hsl(var(--workout-push-gradient-start))',
+            'gradient-end': 'hsl(var(--workout-push-gradient-end))',
+          },
+          'pull': {
+            color: 'hsl(var(--workout-pull-color))',
+            'gradient-start': 'hsl(var(--workout-pull-gradient-start))',
+            'gradient-end': 'hsl(var(--workout-pull-gradient-end))',
+          },
+          'legs': {
+            color: 'hsl(var(--workout-legs-color))',
+            'gradient-start': 'hsl(var(--workout-legs-gradient-start))',
+            'gradient-end': 'hsl(var(--workout-legs-gradient-end))',
+          },
+          'bonus': {
+            color: 'hsl(var(--workout-bonus-color))',
+            'gradient-start': 'hsl(var(--workout-bonus-gradient-start))',
+            'gradient-end': 'hsl(var(--workout-bonus-gradient-end))',
+          },
   			}
   		},
   		borderRadius: {
@@ -140,7 +148,7 @@ export default {
   plugins: [require("tailwindcss-animate")],
   safelist: [
     {
-      pattern: /(text|bg|border)-workout-(upper-body-a|lower-body-a|upper-body-b|lower-body-b|push|pull|legs|bonus)-(base|bg|text|border)/,
+      pattern: /(text|bg|border)-workout-(upper-body-a|lower-body-a|upper-body-b|lower-body-b|push|pull|legs|bonus)-(color|gradient-start|gradient-end)/,
     },
   ],
 } satisfies Config;
