@@ -200,29 +200,32 @@ export const ExerciseCard = ({
     <> {/* Added React Fragment */}
       <Card className={cn("mb-6 border-2", workoutBorderClass, { "opacity-70": isExerciseSaved })}>
         <CardHeader 
-          className="flex items-center justify-between p-4 cursor-pointer"
+          className="flex items-end justify-between p-4 cursor-pointer min-h-[80px]" // items-end to align children to bottom, min-h to ensure space
           onClick={() => setIsExpanded(!isExpanded)}
         >
-          {/* Left side: Exercise details */}
-          <div className="flex flex-col flex-1 min-w-0"> {/* min-w-0 to allow shrinking */}
-            <div className="flex items-center gap-2"> {/* Line 1: Number, Name, Bonus, Check */}
-              {exercise.icon_url && (
-                <img 
-                  src={exercise.icon_url} 
-                  alt={`${exercise.name} icon`} 
-                  className="h-8 w-8 object-contain flex-shrink-0 rounded-sm"
-                />
-              )}
-              <CardTitle className={cn("text-xl font-bold leading-none", workoutColorClass)}>
-                {exerciseNumber}. {exercise.name}
-              </CardTitle>
-              {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus" className="flex-shrink-0">Bonus</WorkoutBadge>}
-              {isExerciseSaved && <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />}
+          {/* Left side: Exercise details (text top, icon bottom within this column) */}
+          <div className="flex flex-col justify-between flex-1 min-w-0 h-full"> {/* Added h-full and justify-between */}
+            <div className="flex flex-col"> {/* Text content */}
+              <div className="flex items-center gap-2">
+                <CardTitle className={cn("text-xl font-bold leading-none", workoutColorClass)}>
+                  {exerciseNumber}. {exercise.name}
+                </CardTitle>
+                {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus" className="flex-shrink-0">Bonus</WorkoutBadge>}
+                {isExerciseSaved && <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />}
+              </div>
+              <p className="text-sm text-muted-foreground mt-1 truncate">{exercise.main_muscle}</p>
             </div>
-            <p className="text-sm text-muted-foreground mt-1 truncate">{exercise.main_muscle}</p> {/* Line 2: Muscle Group */}
+            {/* Icon (bottom-left aligned within this column) */}
+            {exercise.icon_url && (
+              <img
+                src={exercise.icon_url}
+                alt={`${exercise.name} icon`}
+                className="h-8 w-8 object-contain flex-shrink-0 rounded-sm"
+              />
+            )}
           </div>
 
-          {/* Right side: Menu and Chevron */}
+          {/* Right side: Menu and Chevron (bottom-aligned with the left content due to items-end on CardHeader) */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
