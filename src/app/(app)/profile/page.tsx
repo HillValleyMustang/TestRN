@@ -229,24 +229,24 @@ export default function ProfilePage() {
         </TabsContent>
 
         <TabsContent value="stats" className="mt-6 space-y-6">
-          <Card className={cn("relative overflow-hidden p-6 text-center text-primary-foreground shadow-lg", fitnessLevel.color)}>
+          <Card className={cn("relative overflow-hidden p-6 text-center text-primary-foreground shadow-lg group", fitnessLevel.color, "transition-all duration-300 ease-in-out hover:scale-[1.01] hover:shadow-xl")}>
             <div className="absolute inset-0 opacity-20" style={{
               background: `linear-gradient(45deg, ${fitnessLevel.color.replace('bg-', 'var(--')} / 0.8), transparent)`,
               filter: 'blur(50px)',
               transform: 'scale(1.5)'
             }}></div>
             <div className="relative z-10 flex flex-col items-center justify-center">
-              <div className="mb-3 text-white">
-                {fitnessLevel.icon}
+              <div className="mb-4 text-white transition-transform duration-300 ease-in-out group-hover:scale-110">
+                {React.cloneElement(fitnessLevel.icon, { className: "h-12 w-12" })}
               </div>
-              <CardTitle className="text-3xl font-extrabold tracking-tight text-white mb-2">
+              <CardTitle className="text-4xl font-extrabold tracking-tight text-white mb-2">
                 {fitnessLevel.level}
               </CardTitle>
-              <CardDescription className="text-sm text-white/80 mb-4">
+              <CardDescription className="text-base text-white/90 mb-4">
                 Keep pushing to reach the next level!
               </CardDescription>
               <Progress value={fitnessLevel.progress} className="w-full h-3 bg-white/30" indicatorClassName={cn(fitnessLevel.color.replace('bg-', 'bg-'))} />
-              <p className="text-xs text-white/70 mt-2">{Math.round(fitnessLevel.progress)}% to next level</p>
+              <p className="text-sm text-white/80 mt-2">{Math.round(fitnessLevel.progress)}% to next level</p>
             </div>
           </Card>
           <Card><CardHeader><CardTitle>Weekly Progress</CardTitle></CardHeader><CardContent className="flex items-end justify-between space-x-2 h-24">{['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (<div key={i} className="flex-1 flex flex-col items-center gap-2"><div className="w-full bg-gradient-to-t from-blue-400 to-purple-400 rounded-t-lg" style={{ height: `${[60, 80, 45, 90, 70, 0, 30][i]}%` }} /><div className="text-muted-foreground text-xs">{day}</div></div>))}</CardContent></Card>
@@ -257,9 +257,9 @@ export default function ProfilePage() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <Card>
                 <CardHeader><CardTitle>Personal Info</CardTitle></CardHeader>
-                <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField control={form.control} name="full_name" render={({ field }) => (
-                    <FormItem className="sm:col-span-3">
+                    <FormItem className="sm:col-span-2">
                       <FormLabel>Full Name</FormLabel>
                       <FormControl><Input {...field} disabled={!isEditing} /></FormControl>
                       <FormMessage />
@@ -268,21 +268,21 @@ export default function ProfilePage() {
                   <FormField control={form.control} name="height_cm" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Height (cm)</FormLabel>
-                      <FormControl><Input type="number" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="w-full sm:w-24" /></FormControl>
+                      <FormControl><Input type="number" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="w-full sm:max-w-[120px]" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="weight_kg" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Weight (kg)</FormLabel>
-                      <FormControl><Input type="number" step="0.1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="w-full sm:w-24" /></FormControl>
+                      <FormControl><Input type="number" step="0.1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="w-full sm:max-w-[120px]" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="body_fat_pct" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Body Fat (%)</FormLabel>
-                      <FormControl><Input type="number" step="0.1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="w-full sm:w-24" /></FormControl>
+                      <FormControl><Input type="number" step="0.1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="w-full sm:max-w-[120px]" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
