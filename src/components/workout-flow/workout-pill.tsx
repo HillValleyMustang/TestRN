@@ -24,29 +24,37 @@ export const WorkoutPill = ({
   isSelected,
   onClick,
 }: WorkoutPillProps) => {
-  const { Icon, selectedClass, defaultTextClass, borderColorVar } = getPillStyles(workoutType, category, variant);
+  const {
+    Icon,
+    selectedBgClass,
+    selectedTextClass,
+    selectedBorderClass,
+    selectedShadowClass,
+    unselectedBgClass,
+    unselectedTextClass,
+    unselectedBorderClass,
+    unselectedShadowClass,
+  } = getPillStyles(workoutType, category, variant);
 
   return (
     <button
       onClick={() => onClick(id)}
       className={cn(
-        'flex items-center gap-3 h-14 pl-4 pr-5 rounded-2xl',
-        'font-sans border-none cursor-pointer',
+        'flex items-center gap-3 h-14 pl-4 pr-5 rounded-2xl border-2', // Added border-2 here
+        'font-sans cursor-pointer',
         'transition-all duration-200 ease-out w-fit',
-        'workout-pill-accent-border',
-        isSelected 
-          ? `opacity-100 scale-100 text-white ${selectedClass}` 
-          : `opacity-70 scale-98 bg-white ${defaultTextClass}`,
+        isSelected
+          ? cn(selectedBgClass, selectedTextClass, selectedBorderClass, selectedShadowClass, 'opacity-100 scale-100')
+          : cn(unselectedBgClass, unselectedTextClass, unselectedBorderClass, unselectedShadowClass, 'opacity-70 scale-98'),
         'hover:scale-102 active:scale-98'
       )}
-      style={{ '--border-color': isSelected ? 'transparent' : `hsl(var(--${borderColorVar}))` } as React.CSSProperties}
     >
-      <Icon className="w-6 h-6 flex-shrink-0" strokeWidth={2.5} />
+      <Icon className={cn("w-6 h-6 flex-shrink-0", isSelected ? 'text-white' : unselectedTextClass)} strokeWidth={2.5} />
       <div className="flex flex-col gap-0 text-left">
-        <span className="text-base font-bold leading-tight">{title}</span>
+        <span className={cn("text-base font-bold leading-tight", isSelected ? 'text-white' : unselectedTextClass)}>{title}</span>
         <span className={cn(
           "text-xs font-medium leading-tight",
-          isSelected ? 'opacity-70' : 'opacity-80'
+          isSelected ? 'text-white opacity-70' : cn(unselectedTextClass, 'opacity-80')
         )}>
           {formatTimeAgo(completedAt)}
         </span>

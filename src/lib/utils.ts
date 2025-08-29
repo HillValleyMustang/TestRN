@@ -38,13 +38,13 @@ export function getWorkoutColorClass(workoutName: string, type: 'text' | 'border
     default: return ''; // No specific color for other workouts or 'Ad Hoc Workout'
   }
 
-  // Return the appropriate color variant based on the type
+  // Use the single color variable for all types
   if (type === 'text') {
-    return `text-workout-${colorKey}-text`;
+    return `text-workout-${colorKey}`;
   } else if (type === 'bg') {
-    return `bg-workout-${colorKey}-bg`;
+    return `bg-workout-${colorKey}`;
   } else if (type === 'border') {
-    return `border-workout-${colorKey}-base`; // Changed to use the -base color for borders
+    return `border-workout-${colorKey}`;
   }
   return '';
 }
@@ -102,52 +102,54 @@ type WorkoutPillVariant = 'a' | 'b';
 
 export const getPillStyles = (workoutType: 'upper-lower' | 'push-pull-legs', category: WorkoutPillCategory, variant?: WorkoutPillVariant) => {
   let Icon: LucideIcon = Zap; // Default
-  let selectedClass = '';
-  let defaultTextClass = '';
-  let borderColorVar = '';
+  let colorKey = '';
 
   if (workoutType === 'upper-lower') {
     if (category === 'upper') {
       Icon = ChevronUp;
-      if (variant === 'a') { // Upper Body A: Navy Blue
-        selectedClass = 'workout-pill-selected-navy-blue';
-        defaultTextClass = 'text-pill-navy-blue';
-        borderColorVar = 'pill-navy-blue-start';
-      } else { // Upper Body B: Coral Red
-        selectedClass = 'workout-pill-selected-coral-red';
-        defaultTextClass = 'text-pill-coral-red';
-        borderColorVar = 'pill-coral-red-start';
-      }
+      colorKey = variant === 'a' ? 'upper-body-a' : 'upper-body-b';
     } else if (category === 'lower') {
       Icon = ChevronDown;
-      if (variant === 'a') { // Lower Body A: Teal
-        selectedClass = 'workout-pill-selected-teal';
-        defaultTextClass = 'text-pill-teal';
-        borderColorVar = 'pill-teal-start';
-      } else { // Lower Body B: Purple
-        selectedClass = 'workout-pill-selected-purple';
-        defaultTextClass = 'text-pill-purple';
-        borderColorVar = 'pill-purple-start';
-      }
+      colorKey = variant === 'a' ? 'lower-body-a' : 'lower-body-b';
     }
   } else if (workoutType === 'push-pull-legs') {
-    if (category === 'push') { // Push: Coral Red
+    if (category === 'push') {
       Icon = ArrowUpRight;
-      selectedClass = 'workout-pill-selected-coral-red';
-      defaultTextClass = 'text-pill-coral-red';
-      borderColorVar = 'pill-coral-red-start';
-    } else if (category === 'pull') { // Pull: Teal
+      colorKey = 'push';
+    } else if (category === 'pull') {
       Icon = ArrowDownLeft;
-      selectedClass = 'workout-pill-selected-teal';
-      defaultTextClass = 'text-pill-teal';
-      borderColorVar = 'pill-teal-start';
-    } else if (category === 'legs') { // Legs: Classic Adidas Green
+      colorKey = 'pull';
+    } else if (category === 'legs') {
       Icon = Footprints;
-      selectedClass = 'workout-pill-selected-adidas-green';
-      defaultTextClass = 'text-pill-adidas-green';
-      borderColorVar = 'pill-adidas-green-start';
+      colorKey = 'legs';
     }
   }
 
-  return { Icon, selectedClass, defaultTextClass, borderColorVar };
+  // Default to a bonus color if no specific workout type/category matches
+  if (!colorKey) {
+    colorKey = 'bonus';
+    Icon = Star; // Default bonus icon
+  }
+
+  const selectedBgClass = `bg-workout-${colorKey}`;
+  const selectedTextClass = `text-white`;
+  const selectedBorderClass = `border-transparent`;
+  const selectedShadowClass = `shadow-workout-pill-selected`;
+
+  const unselectedBgClass = `bg-white`;
+  const unselectedTextClass = `text-workout-${colorKey}`;
+  const unselectedBorderClass = `border-workout-${colorKey}`;
+  const unselectedShadowClass = `shadow-none`;
+
+  return {
+    Icon,
+    selectedBgClass,
+    selectedTextClass,
+    selectedBorderClass,
+    selectedShadowClass,
+    unselectedBgClass,
+    unselectedTextClass,
+    unselectedBorderClass,
+    unselectedShadowClass,
+  };
 };

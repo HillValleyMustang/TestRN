@@ -77,16 +77,15 @@
     --sidebar-ring: 217.2 91.2% 59.8%;
 
     /* New Workout Pill Colors (from user's specific hex codes) */
-    --pill-navy-blue-start: 220 68% 32%; /* #1e3a8a */
-    --pill-navy-blue-end: 221 77% 39%; /* #1d4ed8 */
-    --pill-coral-red-start: 0 84% 60%; /* #ef4444 */
-    --pill-coral-red-end: 0 70% 51%; /* #dc2626 */
-    --pill-teal-start: 190 86% 36%; /* #0891b2 */
-    --pill-teal-end: 190 83% 31%; /* #0e7490 */
-    --pill-purple-start: 270 67% 40%; /* #6b21a8 */
-    --pill-purple-end: 270 69% 32%; /* #581c87 */
-    --pill-adidas-green-start: 145 72% 29%; /* #15803d */
-    --pill-adidas-green-end: 145 66% 24%; /* #166534 */
+    --workout-upper-body-a: 220 68% 32%; /* #1e3a8a */
+    --workout-upper-body-b: 0 84% 60%; /* #ef4444 */
+    --workout-lower-body-a: 190 86% 36%; /* #0891b2 */
+    --workout-lower-body-b: 270 67% 40%; /* #6b21a8 */
+    --workout-push: 0 84% 60%; /* #ef4444 */
+    --workout-pull: 190 86% 36%; /* #0891b2 */
+    --workout-legs: 145 72% 29%; /* #15803d */
+    --workout-bonus: 43 74% 66%; /* chart-4 */
+
 
     /* New Aurora Colors (Light Mode) - Adjusted to retro palette */
     --aurora-blue: 200 100% 78%; /* Sky Blue */
@@ -168,45 +167,14 @@
     --sidebar-ring: 217.2 91.2% 59.8%;
 
     /* Dark mode adjustments for new workout colors - Directly from 90s Retro Palette */
-    --workout-upper-body-a-base: 160 100% 55%; /* Brighter Vibrant Mint */
-    --workout-upper-body-a-bg: 160 100% 55%;
-    --workout-upper-body-a-text: 0 0% 22%; /* Soft Charcoal #383838 */
-    --workout-upper-body-a-border: 270 50% 45%; /* Brighter Deep Purple */
-
-    --workout-upper-body-b-base: 270 50% 45%; /* Brighter Deep Purple */
-    --workout-upper-body-b-bg: 270 50% 45%;
-    --workout-upper-body-b-text: 58 98% 80%; /* Brighter Pale Yellow */
-    --workout-upper-body-b-border: 324 100% 55%; /* Brighter Hot Magenta */
-
-    --workout-lower-body-a-base: 200 100% 85%; /* Brighter Sky Blue */
-    --workout-lower-body-a-bg: 200 100% 85%;
-    --workout-lower-body-a-text: 270 50% 45%; /* Brighter Deep Purple */
-    --workout-lower-body-a-border: 270 50% 45%; /* Brighter Deep Purple */
-
-    --workout-lower-body-b-base: 324 100% 55%; /* Brighter Hot Magenta */
-    --workout-lower-body-b-bg: 324 100% 55%;
-    --workout-lower-body-b-text: 58 98% 80%; /* Brighter Pale Yellow */
-    --workout-lower-body-b-border: 270 50% 45%; /* Brighter Deep Purple */
-
-    --workout-push-base: 58 98% 80%; /* Brighter Pale Yellow */
-    --workout-push-bg: 58 98% 80%;
-    --workout-push-text: 0 0% 22%; /* Soft Charcoal #383838 */
-    --workout-push-border: 5 88% 70%; /* Brighter Tomato Red */
-
-    --workout-pull-base: 5 88% 70%; /* Brighter Tomato Red */
-    --workout-pull-bg: 5 88% 70%;
-    --workout-pull-text: 58 98% 80%; /* Brighter Pale Yellow */
-    --workout-pull-border: 0 0% 22%; /* Soft Charcoal #383838 */
-
-    --workout-legs-base: 0 0% 35%; /* Brighter Soft Charcoal */
-    --workout-legs-bg: 0 0% 35%;
-    --workout-legs-text: 160 100% 55%; /* Brighter Vibrant Mint */
-    --workout-legs-border: 160 100% 55%; /* Brighter Vibrant Mint */
-
-    --workout-bonus-base: 324 100% 55%; /* Brighter Hot Magenta (reused from Lower Body B) */
-    --workout-bonus-bg: 324 100% 55%;
-    --workout-bonus-text: 58 98% 80%; /* Brighter Pale Yellow */
-    --workout-bonus-border: 270 50% 45%; /* Brighter Deep Purple */
+    --workout-upper-body-a: 220 68% 32%; /* #1e3a8a */
+    --workout-upper-body-b: 0 84% 60%; /* #ef4444 */
+    --workout-lower-body-a: 190 86% 36%; /* #0891b2 */
+    --workout-lower-body-b: 270 67% 40%; /* #6b21a8 */
+    --workout-push: 0 84% 60%; /* #ef4444 */
+    --workout-pull: 190 86% 36%; /* #0891b2 */
+    --workout-legs: 145 72% 29%; /* #15803d */
+    --workout-bonus: 43 74% 66%; /* chart-4 */
 
     /* Dark mode Aurora Colors - Adjusted to retro palette */
     --aurora-blue: 200 100% 85%;
@@ -311,8 +279,8 @@
   -webkit-backdrop-filter: blur(12px); /* For Safari compatibility */
 }
 
-/* New Workout Pill Styles */
-.workout-pill-selected-navy-blue {
+/* Removed old workout pill styles */
+/* .workout-pill-selected-navy-blue {
   background: linear-gradient(135deg, hsl(var(--pill-navy-blue-start)), hsl(var(--pill-navy-blue-end)));
   box-shadow: 0 4px 16px hsl(var(--pill-navy-blue-start) / 0.3), 0 0 12px hsl(var(--pill-navy-blue-start) / 0.2);
 }
@@ -352,4 +320,4 @@
   border: 1.5px solid var(--border-color, transparent);
   pointer-events: none;
   transition: all 0.2s ease;
-}
+} */

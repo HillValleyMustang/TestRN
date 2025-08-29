@@ -68,12 +68,15 @@ export default {
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
   			},
-        pill: {
-          'navy-blue': 'hsl(var(--pill-navy-blue-start))',
-          'coral-red': 'hsl(var(--pill-coral-red-start))',
-          teal: 'hsl(var(--pill-teal-start))',
-          purple: 'hsl(var(--pill-purple-start))',
-          'adidas-green': 'hsl(var(--pill-adidas-green-start))',
+        workout: {
+          'upper-body-a': 'hsl(var(--workout-upper-body-a))',
+          'upper-body-b': 'hsl(var(--workout-upper-body-b))',
+          'lower-body-a': 'hsl(var(--workout-lower-body-a))',
+          'lower-body-b': 'hsl(var(--workout-lower-body-b))',
+          'push': 'hsl(var(--workout-push))',
+          'pull': 'hsl(var(--workout-pull))',
+          'legs': 'hsl(var(--workout-legs))',
+          'bonus': 'hsl(var(--workout-bonus))',
         },
   		},
   		borderRadius: {
@@ -107,13 +110,16 @@ export default {
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out',
         'fade-in-slide-up': 'fade-in-slide-up 0.6s ease-out forwards',
-  		}
+  		},
+      boxShadow: {
+        'workout-pill-selected': '0 8px 20px -6px rgba(0, 0, 0, 0.2)', // A subtle, diffused shadow
+      },
   	}
   },
   plugins: [require("tailwindcss-animate")],
   safelist: [
     {
-      pattern: /(text|bg|border)-workout-(upper-body-a|lower-body-a|upper-body-b|lower-body-b|push|pull|legs|bonus)-(base|bg|text|border)/,
+      pattern: /(bg|text|border)-workout-(upper-body-a|lower-body-a|upper-body-b|lower-body-b|push|pull|legs|bonus)/,
     },
   ],
 } satisfies Config;
