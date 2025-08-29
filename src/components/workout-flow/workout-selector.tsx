@@ -5,13 +5,13 @@ import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/ca
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Dumbbell } from 'lucide-react';
 import { Tables } from '@/types/supabase';
-import { formatDistanceToNowStrict } from 'date-fns';
-import { cn, getWorkoutColorClass, getWorkoutIcon } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { SetLogState, WorkoutExercise } from '@/types/supabase';
 import { WorkoutBadge } from '../workout-badge';
 import { LoadingOverlay } from '../loading-overlay';
 import { useSession } from '@/components/session-context-provider';
+import { WorkoutPill, WorkoutPillProps } from './workout-pill';
 
 type TPath = Tables<'t_paths'>;
 
@@ -46,8 +46,36 @@ interface WorkoutSelectorProps {
   groupedTPaths: GroupedTPath[];
   isCreatingSession: boolean;
   createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>;
-  finishWorkoutSession: () => Promise<void>; // New prop
+  finishWorkoutSession: () => Promise<void>;
 }
+
+const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName: string): Omit<WorkoutPillProps, 'isSelected' | 'onClick'> => {
+  const lowerTitle = workout.template_name.toLowerCase();
+  const isUpperLower = mainTPathName.toLowerCase().includes('upper/lower');
+  
+  let category: WorkoutPillProps['category'] = 'push'; // default
+  let variant: WorkoutPillProps['variant'];
+
+  if (isUpperLower) {
+    if (lowerTitle.includes('upper')) category = 'upper';
+    if (lowerTitle.includes('lower')) category = 'lower';
+    if (lowerTitle.includes(' a')) variant = 'a';
+    if (lowerTitle.includes(' b')) variant = 'b';
+  } else { // push-pull-legs
+    if (lowerTitle.includes('push')) category = 'push';
+    if (lowerTitle.includes('pull')) category = 'pull';
+    if (lowerTitle.includes('legs')) category = 'legs';
+  }
+
+  return {
+    id: workout.id,
+    title: workout.template_name,
+    workoutType: isUpperLower ? 'upper-lower' : 'push-pull-legs',
+    category,
+    variant,
+    completedAt: workout.last_completed_at ? new Date(workout.last_completed_at) : null,
+  };
+};
 
 export const WorkoutSelector = ({ 
   onWorkoutSelect, 
@@ -71,16 +99,10 @@ export const WorkoutSelector = ({
   groupedTPaths,
   isCreatingSession,
   createWorkoutSessionInDb,
-  finishWorkoutSession // Destructure new prop
+  finishWorkoutSession
 }: WorkoutSelectorProps) => {
   const { supabase } = useSession();
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
-
-  const formatLastCompleted = (dateString: string | null) => {
-    if (!dateString) return 'Never completed';
-    const date = new Date(dateString);
-    return `Last: ${formatDistanceToNowStrict(date, { addSuffix: true })}`;
-  };
 
   const handleWorkoutClick = (workoutId: string) => {
     onWorkoutSelect(workoutId);
@@ -121,36 +143,16 @@ export const WorkoutSelector = ({
               {group.childWorkouts.length === 0 ? (
                 <p className="text-muted-foreground text-sm ml-7">No workouts defined for this path. This may happen if your session length is too short for any workouts.</p>
               ) : (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   {group.childWorkouts.map(workout => {
-                    const workoutColorClass = getWorkoutColorClass(workout.template_name, 'text');
-                    const workoutBgClass = getWorkoutColorClass(workout.template_name, 'bg');
-                    const workoutBorderClass = getWorkoutColorClass(workout.template_name, 'border');
-                    const Icon = getWorkoutIcon(workout.template_name);
-                    const isSelected = selectedWorkoutId === workout.id;
-
+                    const pillProps = mapWorkoutToPillProps(workout, group.mainTPath.template_name);
                     return (
-                      <Button
+                      <WorkoutPill
                         key={workout.id}
-                        variant="outline"
-                        className={cn(
-                          "h-auto p-2 flex flex-col items-start justify-start relative w-full text-left",
-                          "border-2",
-                          workoutBorderClass,
-                          workoutBgClass,
-                          isSelected && "ring-2 ring-primary",
-                          "hover:brightness-90 dark:hover:brightness-110"
-                        )}
-                        onClick={() => handleWorkoutClick(workout.id)}
-                      >
-                        <div className="flex items-center gap-1 mb-0.5 min-w-0">
-                          {Icon && <Icon className={cn("h-3 w-3 flex-shrink-0", workoutColorClass)} />}
-                          <span className={cn("text-xs font-medium leading-tight flex-shrink-0 min-w-0", workoutColorClass)}>{workout.template_name}</span>
-                        </div>
-                        <span className={cn("text-[0.65rem] text-muted-foreground min-w-0")}>
-                          {formatLastCompleted(workout.last_completed_at)}
-                        </span>
-                      </Button>
+                        {...pillProps}
+                        isSelected={selectedWorkoutId === workout.id}
+                        onClick={handleWorkoutClick}
+                      />
                     );
                   })}
                 </div>
@@ -218,7 +220,6 @@ export const WorkoutSelector = ({
                     onRemoveExercise={removeExerciseFromSession}
                     workoutTemplateName={activeWorkout.template_name}
                     onFirstSetSaved={async (timestamp) => {
-                      // Call the new function from useWorkoutFlowManager
                       return await createWorkoutSessionInDb(activeWorkout.template_name, timestamp);
                     }}
                     onExerciseCompleted={markExerciseAsCompleted}

@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { ArrowUp, ArrowDown, ArrowRight, ArrowLeft, Footprints, LucideIcon, Star, Dumbbell } from "lucide-react"; // Import Star and Dumbbell icons
+import { ArrowUp, ArrowDown, ArrowRight, ArrowLeft, Footprints, LucideIcon, Star, Dumbbell, ChevronUp, ChevronDown, ArrowUpRight, ArrowDownLeft, Zap } from "lucide-react";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -83,3 +83,75 @@ export function getMaxMinutes(sessionLength: string | null | undefined): number 
     default: return 90; // Default to longest if unknown or null
   }
 }
+
+// New function for pill button props
+export function getWorkoutPillProps(workoutName: string): { accent: 'blue' | 'red' | 'yellow' | 'green', direction: 'up' | 'down' } {
+  const lowerCaseName = workoutName.toLowerCase();
+
+  if (lowerCaseName.includes('upper body a') || lowerCaseName.includes('push')) {
+    return { accent: 'blue', direction: 'up' };
+  }
+  if (lowerCaseName.includes('lower body a') || lowerCaseName.includes('pull')) {
+    return { accent: 'red', direction: 'down' };
+  }
+  if (lowerCaseName.includes('upper body b')) {
+    return { accent: 'yellow', direction: 'up' };
+  }
+  if (lowerCaseName.includes('lower body b') || lowerCaseName.includes('legs')) {
+    return { accent: 'green', direction: 'down' };
+  }
+  // Default for other cases
+  return { accent: 'blue', direction: 'up' };
+}
+
+// New utility function to format time ago
+export const formatTimeAgo = (date: Date | null): string => {
+  if (!date) return 'Never';
+  const now = new Date();
+  const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / 60000);
+  
+  if (diffInMinutes < 1) return 'Just now';
+  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+  if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
+  return `${Math.floor(diffInMinutes / 1440)}d ago`;
+};
+
+// New utility function to get color and icon classes for the new pill
+type WorkoutPillCategory = 'upper' | 'lower' | 'push' | 'pull' | 'legs';
+type WorkoutPillVariant = 'a' | 'b';
+
+export const getPillStyles = (category: WorkoutPillCategory, variant?: WorkoutPillVariant) => {
+  let Icon: LucideIcon = Zap;
+  let colorClasses = {
+    selected: 'workout-pill-selected-green',
+    defaultText: 'text-green-600',
+    borderColor: 'border-green-500',
+  };
+
+  if (category === 'upper') {
+    Icon = ChevronUp;
+    if (variant === 'a') {
+      colorClasses = { selected: 'workout-pill-selected-navy', defaultText: 'text-blue-800', borderColor: 'border-blue-800' };
+    } else { // variant 'b'
+      colorClasses = { selected: 'workout-pill-selected-red', defaultText: 'text-red-500', borderColor: 'border-red-500' };
+    }
+  } else if (category === 'lower') {
+    Icon = ChevronDown;
+    if (variant === 'a') {
+      colorClasses = { selected: 'workout-pill-selected-teal', defaultText: 'text-teal-600', borderColor: 'border-teal-600' };
+    } else { // variant 'b'
+      colorClasses = { selected: 'workout-pill-selected-purple', defaultText: 'text-purple-800', borderColor: 'border-purple-800' };
+    }
+  } else if (category === 'push') {
+    Icon = ArrowUpRight;
+    colorClasses = { selected: 'workout-pill-selected-red', defaultText: 'text-red-500', borderColor: 'border-red-500' };
+  } else if (category === 'pull') {
+    Icon = ArrowDownLeft;
+    colorClasses = { selected: 'workout-pill-selected-teal', defaultText: 'text-teal-600', borderColor: 'border-teal-600' };
+  } else if (category === 'legs') {
+    Icon = Zap;
+    colorClasses = { selected: 'workout-pill-selected-green', defaultText: 'text-green-600', borderColor: 'border-green-500' };
+  }
+
+  return { Icon, ...colorClasses };
+};
