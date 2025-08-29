@@ -84,26 +84,6 @@ export function getMaxMinutes(sessionLength: string | null | undefined): number 
   }
 }
 
-// New function for pill button props
-export function getWorkoutPillProps(workoutName: string): { accent: 'blue' | 'red' | 'yellow' | 'green', direction: 'up' | 'down' } {
-  const lowerCaseName = workoutName.toLowerCase();
-
-  if (lowerCaseName.includes('upper body a') || lowerCaseName.includes('push')) {
-    return { accent: 'blue', direction: 'up' };
-  }
-  if (lowerCaseName.includes('lower body a') || lowerCaseName.includes('pull')) {
-    return { accent: 'red', direction: 'down' };
-  }
-  if (lowerCaseName.includes('upper body b')) {
-    return { accent: 'yellow', direction: 'up' };
-  }
-  if (lowerCaseName.includes('lower body b') || lowerCaseName.includes('legs')) {
-    return { accent: 'green', direction: 'down' };
-  }
-  // Default for other cases
-  return { accent: 'blue', direction: 'up' };
-}
-
 // New utility function to format time ago
 export const formatTimeAgo = (date: Date | null): string => {
   if (!date) return 'Never';
@@ -122,47 +102,47 @@ type WorkoutPillVariant = 'a' | 'b';
 
 export const getPillStyles = (category: WorkoutPillCategory, variant?: WorkoutPillVariant) => {
   let Icon: LucideIcon = Zap;
-  let selectedClass = 'workout-pill-selected-green';
-  let defaultTextClass = 'text-workout-legs-text';
-  let borderColorVar = 'workout-legs-border';
+  let selectedClass = 'workout-pill-selected-pink'; // Default to pink
+  let defaultTextClass = 'text-pill-pink';
+  let borderColorVar = 'pill-pink-start'; // Use the CSS variable name part
 
   if (category === 'upper') {
     Icon = ChevronUp;
-    if (variant === 'a') {
-      selectedClass = 'workout-pill-selected-navy';
-      defaultTextClass = 'text-blue-800'; // Simplified for clarity
-      borderColorVar = 'workout-upper-body-a-border';
-    } else { // variant 'b'
+    if (variant === 'a') { // Upper A is Pink
+      selectedClass = 'workout-pill-selected-pink';
+      defaultTextClass = 'text-pill-pink';
+      borderColorVar = 'pill-pink-start';
+    } else { // Upper B is Red
       selectedClass = 'workout-pill-selected-red';
-      defaultTextClass = 'text-red-500';
-      borderColorVar = 'workout-upper-body-b-border';
+      defaultTextClass = 'text-pill-red';
+      borderColorVar = 'pill-red-start';
     }
   } else if (category === 'lower') {
     Icon = ChevronDown;
-    if (variant === 'a') {
-      selectedClass = 'workout-pill-selected-teal';
-      defaultTextClass = 'text-teal-600';
-      borderColorVar = 'workout-lower-body-a-border';
-    } else { // variant 'b'
+    if (variant === 'a') { // Lower A is Purple
       selectedClass = 'workout-pill-selected-purple';
-      defaultTextClass = 'text-purple-800';
-      borderColorVar = 'workout-lower-body-b-border';
+      defaultTextClass = 'text-pill-purple';
+      borderColorVar = 'pill-purple-start';
+    } else { // Lower B is Pink
+      selectedClass = 'workout-pill-selected-pink';
+      defaultTextClass = 'text-pill-pink';
+      borderColorVar = 'pill-pink-start';
     }
-  } else if (category === 'push') {
+  } else if (category === 'push') { // Push is Red
     Icon = ArrowUpRight;
     selectedClass = 'workout-pill-selected-red';
-    defaultTextClass = 'text-red-500';
-    borderColorVar = 'workout-push-border';
-  } else if (category === 'pull') {
+    defaultTextClass = 'text-pill-red';
+    borderColorVar = 'pill-red-start';
+  } else if (category === 'pull') { // Pull is Purple
     Icon = ArrowDownLeft;
-    selectedClass = 'workout-pill-selected-teal';
-    defaultTextClass = 'text-teal-600';
-    borderColorVar = 'workout-pull-border';
-  } else if (category === 'legs') {
+    selectedClass = 'workout-pill-selected-purple';
+    defaultTextClass = 'text-pill-purple';
+    borderColorVar = 'pill-purple-start';
+  } else if (category === 'legs') { // Legs is Pink
     Icon = Zap;
-    selectedClass = 'workout-pill-selected-green';
-    defaultTextClass = 'text-green-600';
-    borderColorVar = 'workout-legs-border';
+    selectedClass = 'workout-pill-selected-pink';
+    defaultTextClass = 'text-pill-pink';
+    borderColorVar = 'pill-pink-start';
   }
 
   return { Icon, selectedClass, defaultTextClass, borderColorVar };

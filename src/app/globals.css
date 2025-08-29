@@ -76,46 +76,13 @@
 
     --sidebar-ring: 217.2 91.2% 59.8%;
 
-    /* New Workout Colors (Light Mode) - Directly from 90s Retro Palette */
-    --workout-upper-body-a-base: 160 100% 43%; /* Vibrant Mint #00db96 */
-    --workout-upper-body-a-bg: 160 100% 43%;
-    --workout-upper-body-a-text: 0 0% 22%; /* Soft Charcoal #383838 */
-    --workout-upper-body-a-border: 270 50% 32%; /* Deep Purple #49297e */
-
-    --workout-upper-body-b-base: 270 50% 32%; /* Deep Purple #49297e */
-    --workout-upper-body-b-bg: 270 50% 32%;
-    --workout-upper-body-b-text: 58 98% 73%; /* Pale Yellow #fdfb76 */
-    --workout-upper-body-b-border: 324 100% 44%; /* Hot Magenta #e10086 */
-
-    --workout-lower-body-a-base: 200 100% 78%; /* Sky Blue #90dcff */
-    --workout-lower-body-a-bg: 200 100% 78%;
-    --workout-lower-body-a-text: 270 50% 32%; /* Deep Purple #49297e */
-    --workout-lower-body-a-border: 270 50% 32%; /* Deep Purple #49297e */
-
-    --workout-lower-body-b-base: 324 100% 44%; /* Hot Magenta #e10086 */
-    --workout-lower-body-b-bg: 324 100% 44%;
-    --workout-lower-body-b-text: 58 98% 73%; /* Pale Yellow #fdfb76 */
-    --workout-lower-body-b-border: 270 50% 32%; /* Deep Purple #49297e */
-
-    --workout-push-base: 58 98% 73%; /* Pale Yellow #fdfb76 */
-    --workout-push-bg: 58 98% 73%;
-    --workout-push-text: 0 0% 22%; /* Soft Charcoal #383838 */
-    --workout-push-border: 5 88% 59%; /* Tomato Red #F24C3D */
-
-    --workout-pull-base: 5 88% 59%; /* Tomato Red #F24C3D */
-    --workout-pull-bg: 5 88% 59%;
-    --workout-pull-text: 58 98% 73%; /* Pale Yellow #fdfb76 */
-    --workout-pull-border: 0 0% 22%; /* Soft Charcoal #383838 */
-
-    --workout-legs-base: 0 0% 22%; /* Soft Charcoal #383838 */
-    --workout-legs-bg: 0 0% 22%;
-    --workout-legs-text: 160 100% 43%; /* Vibrant Mint #00db96 */
-    --workout-legs-border: 160 100% 43%; /* Vibrant Mint #00db96 */
-
-    --workout-bonus-base: 324 100% 44%; /* Hot Magenta (reused from Lower Body B) */
-    --workout-bonus-bg: 324 100% 44%;
-    --workout-bonus-text: 58 98% 73%; /* Pale Yellow */
-    --workout-bonus-border: 270 50% 32%; /* Deep Purple */
+    /* New Workout Pill Colors (from screenshot) */
+    --pill-red-start: 0 90% 60%;
+    --pill-red-end: 0 85% 55%;
+    --pill-pink-start: 320 85% 55%;
+    --pill-pink-end: 320 80% 50%;
+    --pill-purple-start: 260 70% 45%;
+    --pill-purple-end: 260 65% 40%;
 
     /* New Aurora Colors (Light Mode) - Adjusted to retro palette */
     --aurora-blue: 200 100% 78%; /* Sky Blue */
@@ -341,34 +308,19 @@
 }
 
 /* New Workout Pill Styles */
-.workout-pill-selected-navy {
-  background: linear-gradient(135deg, #1e3a8a, #1d4ed8);
-  box-shadow: 0 4px 16px rgba(30, 58, 138, 0.3), 0 0 12px rgba(30, 58, 138, 0.2);
-}
-
 .workout-pill-selected-red {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3), 0 0 12px rgba(239, 68, 68, 0.2);
+  background: linear-gradient(135deg, hsl(var(--pill-red-start)), hsl(var(--pill-red-end)));
+  box-shadow: 0 4px 16px hsl(var(--pill-red-start) / 0.3), 0 0 12px hsl(var(--pill-red-start) / 0.2);
 }
 
-.workout-pill-selected-teal {
-  background: linear-gradient(135deg, #0891b2, #0e7490);
-  box-shadow: 0 4px 16px rgba(8, 145, 178, 0.3), 0 0 12px rgba(8, 145, 178, 0.2);
+.workout-pill-selected-pink {
+  background: linear-gradient(135deg, hsl(var(--pill-pink-start)), hsl(var(--pill-pink-end)));
+  box-shadow: 0 4px 16px hsl(var(--pill-pink-start) / 0.3), 0 0 12px hsl(var(--pill-pink-start) / 0.2);
 }
 
 .workout-pill-selected-purple {
-  background: linear-gradient(135deg, #6b21a8, #581c87);
-  box-shadow: 0 4px 16px rgba(107, 33, 168, 0.3), 0 0 12px rgba(107, 33, 168, 0.2);
-}
-
-.workout-pill-selected-green {
-  background: linear-gradient(135deg, #15803d, #166534);
-  box-shadow: 0 4px 16px rgba(21, 128, 61, 0.3), 0 0 12px rgba(21, 128, 61, 0.2);
-}
-
-.workout-pill-selected-gold {
-  background: linear-gradient(135deg, #d97706, #b45309);
-  box-shadow: 0 4px 16px rgba(217, 119, 6, 0.3), 0 0 12px rgba(217, 119, 6, 0.2);
+  background: linear-gradient(135deg, hsl(var(--pill-purple-start)), hsl(var(--pill-purple-end)));
+  box-shadow: 0 4px 16px hsl(var(--pill-purple-start) / 0.3), 0 0 12px hsl(var(--pill-purple-start) / 0.2);
 }
 
 .workout-pill-accent-border {
