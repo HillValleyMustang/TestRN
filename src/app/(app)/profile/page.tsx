@@ -26,8 +26,7 @@ type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
 
 const profileSchema = z.object({
-  first_name: z.string().min(1, "First name is required."),
-  last_name: z.string().optional(),
+  full_name: z.string().min(1, "Full name is required."),
   height_cm: z.coerce.number().positive("Height must be positive.").optional().nullable(),
   weight_kg: z.coerce.number().positive("Weight must be positive.").optional().nullable(),
   body_fat_pct: z.coerce.number().min(0, "Cannot be negative.").max(100, "Cannot exceed 100.").optional().nullable(),
@@ -47,7 +46,7 @@ export default function ProfilePage() {
 
   const form = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
-    defaultValues: { first_name: "", last_name: "", height_cm: null, weight_kg: null, body_fat_pct: null, primary_goal: null, health_notes: "", preferred_session_length: "" },
+    defaultValues: { full_name: "", height_cm: null, weight_kg: null, body_fat_pct: null, primary_goal: null, health_notes: "", preferred_session_length: "" },
   });
 
   const calculateStreak = useCallback((dates: string[]) => {
@@ -78,8 +77,7 @@ export default function ProfilePage() {
       if (profileData) {
         setProfile(profileData as Profile);
         form.reset({
-          first_name: profileData.first_name || "",
-          last_name: profileData.last_name || "",
+          full_name: [profileData.first_name, profileData.last_name].filter(Boolean).join(' '),
           height_cm: profileData.height_cm,
           weight_kg: profileData.weight_kg,
           body_fat_pct: profileData.body_fat_pct,
@@ -124,7 +122,17 @@ export default function ProfilePage() {
 
   async function onSubmit(values: z.infer<typeof profileSchema>) {
     if (!session) return;
-    const updateData: ProfileUpdate = { ...values, updated_at: new Date().toISOString() };
+    const nameParts = values.full_name.split(' ');
+    const firstName = nameParts.shift() || '';
+    const lastName = nameParts.join(' ');
+
+    const updateData: ProfileUpdate = { 
+      ...values, 
+      first_name: firstName,
+      last_name: lastName,
+      updated_at: new Date().toISOString() 
+    };
+    
     const { error } = await supabase.from('profiles').update(updateData).eq('id', session.user.id);
     if (error) {
       toast.error("Failed to update profile: " + error.message);
@@ -180,14 +188,27 @@ export default function ProfilePage() {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-3"><TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="stats">Stats</TabsTrigger><TabsTrigger value="settings">Settings</TabsTrigger></TabsList>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="overview"><User className="h-4 w-4 mr-2" />Overview</TabsTrigger>
+          <TabsTrigger value="stats"><BarChart2 className="h-4 w-4 mr-2" />Stats</TabsTrigger>
+          <TabsTrigger value="settings"><Settings className="h-4 w-4 mr-2" />Settings</TabsTrigger>
+        </TabsList>
         
         <TabsContent value="overview" className="mt-6 space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <Card className="bg-gradient-to-br from-orange-400 to-orange-500 text-primary-foreground shadow-lg"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Streak</CardTitle><Flame className="h-4 w-4" /></CardHeader><CardContent><div className="text-2xl font-bold">{stats.streak} Days</div></CardContent></Card>
             <Card className="bg-gradient-to-br from-blue-400 to-blue-500 text-primary-foreground shadow-lg"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Workouts</CardTitle><Dumbbell className="h-4 w-4" /></CardHeader><CardContent><div className="text-2xl font-bold">{stats.totalWorkouts}</div></CardContent></Card>
           </div>
-          <Card><CardHeader><CardTitle>Body Metrics</CardTitle></CardHeader><CardContent className="grid grid-cols-3 gap-4 text-center"><div><p className="text-2xl font-bold">{bmi || 'N/A'}</p><p className="text-xs text-muted-foreground">BMI</p></div><div><p className="text-2xl font-bold">{dailyCalories || 'N/A'}</p><p className="text-xs text-muted-foreground">Daily Cal (Est.)</p></div><div><p className="text-2xl font-bold">{profile.body_fat_pct || 'N/A'}%</p><p className="text-xs text-muted-foreground">Body Fat</p></div></CardContent></Card>
+          <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2"><BarChart2 className="h-5 w-5" /> Body Metrics</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
+              <div><p className="text-2xl font-bold">{bmi || 'N/A'}</p><p className="text-xs text-muted-foreground">BMI</p></div>
+              <div><p className="text-2xl font-bold">{profile.height_cm || 'N/A'}<span className="text-base">cm</span></p><p className="text-xs text-muted-foreground">Height</p></div>
+              <div><p className="text-2xl font-bold">{profile.weight_kg || 'N/A'}<span className="text-base">kg</span></p><p className="text-xs text-muted-foreground">Weight</p></div>
+              <div><p className="text-2xl font-bold">{dailyCalories || 'N/A'}</p><p className="text-xs text-muted-foreground">Daily Cal (Est.)</p></div>
+              <div><p className="text-2xl font-bold">{profile.body_fat_pct || 'N/A'}%</p><p className="text-xs text-muted-foreground">Body Fat</p></div>
+            </CardContent>
+          </Card>
           <Card><CardHeader><CardTitle>Achievements</CardTitle></CardHeader><CardContent className="grid grid-cols-3 sm:grid-cols-6 gap-3">{achievements.map((a, i) => (<div key={i} className={cn("text-center p-3 rounded-xl border-2", a.completed ? 'bg-yellow-400/20 border-yellow-500/50 text-yellow-600' : 'bg-muted/50 border-border text-muted-foreground')}><div className="text-2xl mb-1">{a.icon}</div><div className="text-xs font-medium">{a.name}</div></div>))}</CardContent></Card>
         </TabsContent>
 
@@ -199,8 +220,20 @@ export default function ProfilePage() {
         <TabsContent value="settings" className="mt-6 space-y-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <Card><CardHeader><CardTitle>Personal Info</CardTitle></CardHeader><CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4"><FormField control={form.control} name="first_name" render={({ field }) => (<FormItem><FormLabel>First Name</FormLabel><FormControl><Input {...field} disabled={!isEditing} /></FormControl><FormMessage /></FormItem>)} /><FormField control={form.control} name="last_name" render={({ field }) => (<FormItem><FormLabel>Last Name</FormLabel><FormControl><Input {...field} value={field.value ?? ''} disabled={!isEditing} /></FormControl><FormMessage /></FormItem>)} /></CardContent></Card>
-              <Card><CardHeader><CardTitle>Body Metrics</CardTitle></CardHeader><CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4"><FormField control={form.control} name="height_cm" render={({ field }) => (<FormItem><FormLabel>Height (cm)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} disabled={!isEditing} /></FormControl><FormMessage /></FormItem>)} /><FormField control={form.control} name="weight_kg" render={({ field }) => (<FormItem><FormLabel>Weight (kg)</FormLabel><FormControl><Input type="number" step="0.1" {...field} value={field.value ?? ''} disabled={!isEditing} /></FormControl><FormMessage /></FormItem>)} /><FormField control={form.control} name="body_fat_pct" render={({ field }) => (<FormItem><FormLabel>Body Fat (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} value={field.value ?? ''} disabled={!isEditing} /></FormControl><FormMessage /></FormItem>)} /></CardContent></Card>
+              <Card>
+                <CardHeader><CardTitle>Personal Info</CardTitle></CardHeader>
+                <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField control={form.control} name="full_name" render={({ field }) => (<FormItem><FormLabel>Full Name</FormLabel><FormControl><Input {...field} disabled={!isEditing} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="height_cm" render={({ field }) => (<FormItem><FormLabel>Height (cm)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} disabled={!isEditing} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="weight_kg" render={({ field }) => (<FormItem><FormLabel>Weight (kg)</FormLabel><FormControl><Input type="number" step="0.1" {...field} value={field.value ?? ''} disabled={!isEditing} /></FormControl><FormMessage /></FormItem>)} />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader><CardTitle>Body Metrics</CardTitle></CardHeader>
+                <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <FormField control={form.control} name="body_fat_pct" render={({ field }) => (<FormItem><FormLabel>Body Fat (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} value={field.value ?? ''} disabled={!isEditing} /></FormControl><FormMessage /></FormItem>)} />
+                </CardContent>
+              </Card>
               <Card><CardHeader><CardTitle>Workout Preferences</CardTitle></CardHeader><CardContent className="space-y-4"><FormField control={form.control} name="primary_goal" render={({ field }) => (<FormItem><FormLabel>Primary Goal</FormLabel><Select onValueChange={field.onChange} value={field.value || ''} disabled={!isEditing}><FormControl><SelectTrigger><SelectValue placeholder="Select your goal" /></SelectTrigger></FormControl><SelectContent><SelectItem value="muscle_gain">Muscle Gain</SelectItem><SelectItem value="fat_loss">Fat Loss</SelectItem><SelectItem value="strength_increase">Strength Increase</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} /><FormField control={form.control} name="preferred_session_length" render={({ field }) => (<FormItem><FormLabel>Preferred Session Length</FormLabel><Select onValueChange={field.onChange} value={field.value || ''} disabled={!isEditing}><FormControl><SelectTrigger><SelectValue placeholder="Select length" /></SelectTrigger></FormControl><SelectContent><SelectItem value="15-30">15-30 mins</SelectItem><SelectItem value="30-45">30-45 mins</SelectItem><SelectItem value="45-60">45-60 mins</SelectItem><SelectItem value="60-90">60-90 mins</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} /></CardContent></Card>
               <Card><CardHeader><CardTitle>Active T-Path</CardTitle><CardDescription>Switch your main workout program here.</CardDescription></CardHeader><CardContent>{activeTPath && <TPathSwitcher currentTPathId={activeTPath.id} onTPathChange={(newId) => { toast.info("T-Path changed! Refreshing data..."); fetchData(); }} />}</CardContent></Card>
             </form>
