@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import { Profile as ProfileType, ProfileUpdate, Tables } from '@/types/supabase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Edit, Save, LogOut, ArrowLeft, BarChart2, User, Settings, Flame, Dumbbell, Trophy, Star } from 'lucide-react';
+import { Edit, Save, LogOut, ArrowLeft, BarChart2, User, Settings, Flame, Dumbbell, Trophy, Star, Weight, Ruler, Percent, HeartPulse, StickyNote, Bot } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { TPathSwitcher } from '@/components/t-path-switcher';
@@ -43,6 +43,8 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [stats, setStats] = useState({ totalWorkouts: 0, streak: 0 });
   const [activeTPath, setActiveTPath] = useState<TPath | null>(null);
+  const [aiCoachUsageToday, setAiCoachUsageToday] = useState(0);
+  const AI_COACH_LIMIT_PER_SESSION = 2;
 
   const form = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
@@ -88,6 +90,15 @@ export default function ProfilePage() {
         if (profileData.active_t_path_id) {
           const { data: tpathData, error: tpathError } = await supabase.from('t_paths').select('*').eq('id', profileData.active_t_path_id).single();
           if (tpathError) toast.error("Failed to load active T-Path"); else setActiveTPath(tpathData as TPath);
+        }
+
+        // AI Coach Usage
+        if (profileData.last_ai_coach_use_at) {
+          const lastUsedDate = new Date(profileData.last_ai_coach_use_at).toDateString();
+          const today = new Date().toDateString();
+          setAiCoachUsageToday(lastUsedDate === today ? 1 : 0); // Simplified: 1 use if used today, else 0
+        } else {
+          setAiCoachUsageToday(0);
         }
       }
 
@@ -161,6 +172,11 @@ export default function ProfilePage() {
     { name: 'Beast Mode', icon: '🦾', completed: false }, // Logic not implemented
   ];
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+  };
+
   if (loading) return <div className="p-4"><Skeleton className="h-screen w-full" /></div>;
   if (!profile) return <div className="p-4">Could not load profile.</div>;
 
@@ -201,7 +217,7 @@ export default function ProfilePage() {
           </div>
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><BarChart2 className="h-5 w-5" /> Body Metrics</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
+            <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 text-center">
               <div><p className="text-2xl font-bold">{bmi || 'N/A'}</p><p className="text-xs text-muted-foreground">BMI</p></div>
               <div><p className="text-2xl font-bold">{profile.height_cm || 'N/A'}<span className="text-base">cm</span></p><p className="text-xs text-muted-foreground">Height</p></div>
               <div><p className="text-2xl font-bold">{profile.weight_kg || 'N/A'}<span className="text-base">kg</span></p><p className="text-xs text-muted-foreground">Weight</p></div>
@@ -224,20 +240,32 @@ export default function ProfilePage() {
                 <CardHeader><CardTitle>Personal Info</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField control={form.control} name="full_name" render={({ field }) => (<FormItem><FormLabel>Full Name</FormLabel><FormControl><Input {...field} disabled={!isEditing} /></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="height_cm" render={({ field }) => (<FormItem><FormLabel>Height (cm)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} disabled={!isEditing} /></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="weight_kg" render={({ field }) => (<FormItem><FormLabel>Weight (kg)</FormLabel><FormControl><Input type="number" step="0.1" {...field} value={field.value ?? ''} disabled={!isEditing} /></FormControl><FormMessage /></FormItem>)} />
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader><CardTitle>Body Metrics</CardTitle></CardHeader>
-                <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <FormField control={form.control} name="body_fat_pct" render={({ field }) => (<FormItem><FormLabel>Body Fat (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} value={field.value ?? ''} disabled={!isEditing} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="height_cm" render={({ field }) => (<FormItem><FormLabel>Height (cm)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} disabled={!isEditing} className="w-full sm:w-32" /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="weight_kg" render={({ field }) => (<FormItem><FormLabel>Weight (kg)</FormLabel><FormControl><Input type="number" step="0.1" {...field} value={field.value ?? ''} disabled={!isEditing} className="w-full sm:w-32" /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="body_fat_pct" render={({ field }) => (<FormItem><FormLabel>Body Fat (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} value={field.value ?? ''} disabled={!isEditing} className="w-full sm:w-32" /></FormControl><FormMessage /></FormItem>)} />
                 </CardContent>
               </Card>
               <Card><CardHeader><CardTitle>Workout Preferences</CardTitle></CardHeader><CardContent className="space-y-4"><FormField control={form.control} name="primary_goal" render={({ field }) => (<FormItem><FormLabel>Primary Goal</FormLabel><Select onValueChange={field.onChange} value={field.value || ''} disabled={!isEditing}><FormControl><SelectTrigger><SelectValue placeholder="Select your goal" /></SelectTrigger></FormControl><SelectContent><SelectItem value="muscle_gain">Muscle Gain</SelectItem><SelectItem value="fat_loss">Fat Loss</SelectItem><SelectItem value="strength_increase">Strength Increase</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} /><FormField control={form.control} name="preferred_session_length" render={({ field }) => (<FormItem><FormLabel>Preferred Session Length</FormLabel><Select onValueChange={field.onChange} value={field.value || ''} disabled={!isEditing}><FormControl><SelectTrigger><SelectValue placeholder="Select length" /></SelectTrigger></FormControl><SelectContent><SelectItem value="15-30">15-30 mins</SelectItem><SelectItem value="30-45">30-45 mins</SelectItem><SelectItem value="45-60">45-60 mins</SelectItem><SelectItem value="60-90">60-90 mins</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} /></CardContent></Card>
-              <Card><CardHeader><CardTitle>Active T-Path</CardTitle><CardDescription>Switch your main workout program here.</CardDescription></CardHeader><CardContent>{activeTPath && <TPathSwitcher currentTPathId={activeTPath.id} onTPathChange={(newId) => { toast.info("T-Path changed! Refreshing data..."); fetchData(); }} />}</CardContent></Card>
+              <Card>
+                <CardHeader><CardTitle>Active T-Path</CardTitle><CardDescription>Your Transformation Path is a pre-designed workout program tailored to your goals. Changing it here will regenerate your entire workout plan on the 'Workout' page, replacing your current set of exercises with a new one based on your preferences.</CardDescription></CardHeader>
+                <CardContent>{activeTPath && <TPathSwitcher currentTPathId={activeTPath.id} onTPathChange={(newId) => { toast.info("T-Path changed! Refreshing data..."); fetchData(); }} />}</CardContent>
+              </Card>
+              <Card>
+                <CardHeader><CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5" /> AI Coach Usage</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  <p className="text-sm">You have used the AI Coach <span className="font-semibold">{aiCoachUsageToday}</span> time(s) today.</p>
+                  <p className="text-sm">Limit: <span className="font-semibold">{AI_COACH_LIMIT_PER_SESSION}</span> uses per session.</p>
+                  <p className="text-xs text-muted-foreground">The AI Coach needs at least 3 workouts in the last 30 days to provide advice.</p>
+                </CardContent>
+              </Card>
             </form>
           </Form>
+          
+          <div className="flex justify-end mt-6">
+            <Button type="button" variant="ghost" className="text-destructive hover:text-destructive" onClick={handleSignOut}>
+              <LogOut className="h-4 w-4 mr-2" /> Sign Out
+            </Button>
+          </div>
         </TabsContent>
       </Tabs>
       <MadeWithDyad />
