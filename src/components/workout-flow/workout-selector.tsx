@@ -1,17 +1,16 @@
 "use client";
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Dumbbell } from 'lucide-react';
 import { Tables } from '@/types/supabase';
-import { formatDistanceToNowStrict } from 'date-fns';
-import { cn, getWorkoutColorClass, getWorkoutIcon } from '@/lib/utils';
-import { ExerciseCard } from '@/components/workout-session/exercise-card';
+import { cn, getWorkoutIcon, formatTimeAgoShort } from '@/lib/utils';
 import { SetLogState, WorkoutExercise } from '@/types/supabase';
 import { WorkoutBadge } from '../workout-badge';
 import { LoadingOverlay } from '../loading-overlay';
 import { useSession } from '@/components/session-context-provider';
+import { ExerciseCard } from '../workout-session/exercise-card';
 
 type TPath = Tables<'t_paths'>;
 
@@ -46,8 +45,59 @@ interface WorkoutSelectorProps {
   groupedTPaths: GroupedTPath[];
   isCreatingSession: boolean;
   createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>;
-  finishWorkoutSession: () => Promise<void>; // New prop
+  finishWorkoutSession: () => Promise<void>;
 }
+
+interface WorkoutPillButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  workoutName: string;
+  lastCompletedAt: string | null;
+  isSelected: boolean;
+}
+
+const WorkoutPillButton = React.forwardRef<HTMLButtonElement, WorkoutPillButtonProps>(
+  ({ workoutName, lastCompletedAt, isSelected, className, ...props }, ref) => {
+    const [timeAgo, setTimeAgo] = useState(formatTimeAgoShort(lastCompletedAt));
+
+    useEffect(() => {
+      const update = () => setTimeAgo(formatTimeAgoShort(lastCompletedAt));
+      update();
+      const intervalId = setInterval(update, 30000);
+      return () => clearInterval(intervalId);
+    }, [lastCompletedAt]);
+
+    const Icon = getWorkoutIcon(workoutName);
+    let colorKey = '';
+    switch (workoutName) {
+      case 'Upper Body A': colorKey = 'upper-body-a'; break;
+      case 'Lower Body A': colorKey = 'lower-body-a'; break;
+      case 'Upper Body B': colorKey = 'upper-body-b'; break;
+      case 'Lower Body B': colorKey = 'lower-body-b'; break;
+      default: colorKey = 'upper-body-a';
+    }
+
+    return (
+      <button
+        ref={ref}
+        className={cn(
+          "group flex items-center gap-3 p-[12px_18px] rounded-[20px] font-semibold border-2 bg-white shadow-sm min-w-[180px] h-12 transition-all duration-300 ease-in-out relative cursor-pointer",
+          `border-workout-${colorKey}-color text-workout-${colorKey}-color`,
+          isSelected && `text-white bg-gradient-to-br from-workout-${colorKey}-gradient-start to-workout-${colorKey}-gradient-end shadow-lg shadow-workout-${colorKey}-shadow/40`
+        )}
+        data-selected={isSelected}
+        {...props}
+      >
+        {Icon && <Icon className="w-5 h-5 flex-shrink-0 transition-colors duration-300 ease-in-out" />}
+        <div className="flex flex-col flex-1 text-left">
+          <div className="text-[15px] font-semibold leading-tight">{workoutName}</div>
+          <div className={cn("text-[11px] font-medium opacity-60 transition-opacity duration-300 ease-in-out", isSelected && "opacity-80")}>
+            {timeAgo}
+          </div>
+        </div>
+      </button>
+    );
+  }
+);
+WorkoutPillButton.displayName = "WorkoutPillButton";
 
 export const WorkoutSelector = ({ 
   onWorkoutSelect, 
@@ -71,16 +121,10 @@ export const WorkoutSelector = ({
   groupedTPaths,
   isCreatingSession,
   createWorkoutSessionInDb,
-  finishWorkoutSession // Destructure new prop
+  finishWorkoutSession
 }: WorkoutSelectorProps) => {
   const { supabase } = useSession();
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
-
-  const formatLastCompleted = (dateString: string | null) => {
-    if (!dateString) return 'Never completed';
-    const date = new Date(dateString);
-    return `Last: ${formatDistanceToNowStrict(date, { addSuffix: true })}`;
-  };
 
   const handleWorkoutClick = (workoutId: string) => {
     onWorkoutSelect(workoutId);
@@ -121,36 +165,17 @@ export const WorkoutSelector = ({
               {group.childWorkouts.length === 0 ? (
                 <p className="text-muted-foreground text-sm ml-7">No workouts defined for this path. This may happen if your session length is too short for any workouts.</p>
               ) : (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-4 w-full max-w-md mx-auto">
                   {group.childWorkouts.map(workout => {
-                    const workoutColorClass = getWorkoutColorClass(workout.template_name, 'text');
-                    const workoutBgClass = getWorkoutColorClass(workout.template_name, 'bg');
-                    const workoutBorderClass = getWorkoutColorClass(workout.template_name, 'border');
-                    const Icon = getWorkoutIcon(workout.template_name);
                     const isSelected = selectedWorkoutId === workout.id;
-
                     return (
-                      <Button
+                      <WorkoutPillButton
                         key={workout.id}
-                        variant="outline"
-                        className={cn(
-                          "h-auto p-2 flex flex-col items-start justify-start relative w-full text-left",
-                          "border-2",
-                          workoutBorderClass,
-                          workoutBgClass,
-                          isSelected && "ring-2 ring-primary",
-                          "hover:brightness-90 dark:hover:brightness-110"
-                        )}
+                        workoutName={workout.template_name}
+                        lastCompletedAt={workout.last_completed_at}
+                        isSelected={isSelected}
                         onClick={() => handleWorkoutClick(workout.id)}
-                      >
-                        <div className="flex items-center gap-1 mb-0.5 min-w-0">
-                          {Icon && <Icon className={cn("h-3 w-3 flex-shrink-0", workoutColorClass)} />}
-                          <span className={cn("text-xs font-medium leading-tight flex-shrink-0 min-w-0", workoutColorClass)}>{workout.template_name}</span>
-                        </div>
-                        <span className={cn("text-[0.65rem] text-muted-foreground min-w-0")}>
-                          {formatLastCompleted(workout.last_completed_at)}
-                        </span>
-                      </Button>
+                      />
                     );
                   })}
                 </div>
@@ -217,8 +242,7 @@ export const WorkoutSelector = ({
                     onSubstituteExercise={substituteExercise}
                     onRemoveExercise={removeExerciseFromSession}
                     workoutTemplateName={activeWorkout.template_name}
-                    onFirstSetSaved={async (timestamp) => {
-                      // Call the new function from useWorkoutFlowManager
+                    onFirstSetSaved={async (timestamp: string) => {
                       return await createWorkoutSessionInDb(activeWorkout.template_name, timestamp);
                     }}
                     onExerciseCompleted={markExerciseAsCompleted}

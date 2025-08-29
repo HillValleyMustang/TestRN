@@ -1,6 +1,9 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { ArrowUp, ArrowDown, ArrowRight, ArrowLeft, Footprints, LucideIcon, Star, Dumbbell } from "lucide-react"; // Import Star and Dumbbell icons
+import { LucideIcon, Star, Dumbbell } from "lucide-react";
+import { formatDistanceToNowStrict } from 'date-fns';
+import { UpArrowInCircle } from "@/components/icons/UpArrowInCircle";
+import { DownArrowInCircle } from "@/components/icons/DownArrowInCircle";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -10,20 +13,20 @@ export function getWorkoutColorClass(workoutName: string, type: 'text' | 'border
   let colorKey: string;
   switch (workoutName) {
     case 'Upper Body A':
-    case '4-Day Upper/Lower': // Map main T-Path to its first workout's color
+    case '4-Day Upper/Lower':
       colorKey = 'upper-body-a';
       break;
     case 'Lower Body A':
-      colorKey = 'lower-body-a'; // Distinct key for Lower Body A
+      colorKey = 'lower-body-a';
       break;
     case 'Upper Body B':
       colorKey = 'upper-body-b';
       break;
-    case 'Lower Body B': // Distinct key for Lower Body B
+    case 'Lower Body B':
       colorKey = 'lower-body-b';
       break;
     case 'Push':
-    case '3-Day Push/Pull/Legs': // Map main T-Path to its first workout's color
+    case '3-Day Push/Pull/Legs':
       colorKey = 'push';
       break;
     case 'Pull':
@@ -32,19 +35,18 @@ export function getWorkoutColorClass(workoutName: string, type: 'text' | 'border
     case 'Legs':
       colorKey = 'legs';
       break;
-    case 'Bonus': // New case for bonus exercises
+    case 'Bonus':
       colorKey = 'bonus';
       break;
-    default: return ''; // No specific color for other workouts or 'Ad Hoc Workout'
+    default: return '';
   }
 
-  // Return the appropriate color variant based on the type
   if (type === 'text') {
-    return `text-workout-${colorKey}-text`;
-  } else if (type === 'bg') {
-    return `bg-workout-${colorKey}-bg`;
+    return `text-workout-${colorKey}-color`;
   } else if (type === 'border') {
-    return `border-workout-${colorKey}-base`; // Changed to use the -base color for borders
+    return `border-workout-${colorKey}-color`;
+  } else if (type === 'bg') {
+    return `bg-workout-${colorKey}-gradient-start`;
   }
   return '';
 }
@@ -53,33 +55,51 @@ export function getWorkoutIcon(workoutName: string): LucideIcon | null {
   switch (workoutName) {
     case 'Upper Body A':
     case 'Upper Body B':
-      return ArrowUp;
+      return UpArrowInCircle;
     case 'Lower Body A':
     case 'Lower Body B':
-      return ArrowDown;
+      return DownArrowInCircle;
     case 'Push':
-      return ArrowRight;
     case 'Pull':
-      return ArrowLeft;
     case 'Legs':
-      return Footprints;
     case 'Bonus':
-      return Star;
     case '4-Day Upper/Lower':
     case '3-Day Push/Pull/Legs':
-      return Dumbbell; // Generic icon for main T-Paths
+      return Dumbbell;
     default:
       return null;
   }
 }
 
-// Helper to get max minutes from sessionLength string
 export function getMaxMinutes(sessionLength: string | null | undefined): number {
   switch (sessionLength) {
     case '15-30': return 30;
     case '30-45': return 45;
     case '45-60': return 60;
     case '60-90': return 90;
-    default: return 90; // Default to longest if unknown or null
+    default: return 90;
   }
 }
+
+export const formatTimeAgoShort = (dateString: string | null): string => {
+  if (!dateString) return 'Never';
+  const date = new Date(dateString);
+  const now = new Date();
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  const minutes = Math.floor(seconds / 60);
+
+  if (minutes < 1) return '1m ago';
+  if (minutes < 60) return `${minutes}m ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+
+  const years = Math.floor(months / 12);
+  return `${years}y ago`;
+};
