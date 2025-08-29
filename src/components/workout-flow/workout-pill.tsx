@@ -23,20 +23,22 @@ export const WorkoutPill = ({
   isSelected,
   onClick,
 }: WorkoutPillProps) => {
-  const { Icon, selected, defaultText, borderColor } = getPillStyles(category, variant);
+  const { Icon, selectedClass, defaultTextClass, borderColorVar } = getPillStyles(category, variant);
 
   return (
     <button
       onClick={() => onClick(id)}
       className={cn(
         'flex items-center gap-2 h-10 pl-3.5 pr-4 rounded-2xl',
-        'font-sans border-none cursor-pointer',
+        'font-sans font-semibold border-none cursor-pointer',
         'transition-all duration-200 ease-out w-fit',
         'workout-pill-accent-border',
-        isSelected ? `opacity-100 scale-100 text-white ${selected}` : `opacity-70 scale-98 bg-white ${defaultText}`,
+        isSelected 
+          ? `opacity-100 scale-100 text-white ${selectedClass}` 
+          : `opacity-70 scale-98 bg-white ${defaultTextClass}`,
         'hover:scale-102'
       )}
-      style={{ '--border-color': isSelected ? 'transparent' : `var(--${borderColor.replace('border-', '')})` } as React.CSSProperties}
+      style={{ '--border-color': isSelected ? 'transparent' : `hsl(var(--${borderColorVar}))` } as React.CSSProperties}
     >
       <Icon className="w-4 h-4 flex-shrink-0" strokeWidth={3} />
       <div className="flex flex-col gap-0 text-left">

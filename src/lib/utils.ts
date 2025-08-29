@@ -122,36 +122,48 @@ type WorkoutPillVariant = 'a' | 'b';
 
 export const getPillStyles = (category: WorkoutPillCategory, variant?: WorkoutPillVariant) => {
   let Icon: LucideIcon = Zap;
-  let colorClasses = {
-    selected: 'workout-pill-selected-green',
-    defaultText: 'text-green-600',
-    borderColor: 'border-green-500',
-  };
+  let selectedClass = 'workout-pill-selected-green';
+  let defaultTextClass = 'text-workout-legs-text';
+  let borderColorVar = 'workout-legs-border';
 
   if (category === 'upper') {
     Icon = ChevronUp;
     if (variant === 'a') {
-      colorClasses = { selected: 'workout-pill-selected-navy', defaultText: 'text-blue-800', borderColor: 'border-blue-800' };
+      selectedClass = 'workout-pill-selected-navy';
+      defaultTextClass = 'text-blue-800'; // Simplified for clarity
+      borderColorVar = 'workout-upper-body-a-border';
     } else { // variant 'b'
-      colorClasses = { selected: 'workout-pill-selected-red', defaultText: 'text-red-500', borderColor: 'border-red-500' };
+      selectedClass = 'workout-pill-selected-red';
+      defaultTextClass = 'text-red-500';
+      borderColorVar = 'workout-upper-body-b-border';
     }
   } else if (category === 'lower') {
     Icon = ChevronDown;
     if (variant === 'a') {
-      colorClasses = { selected: 'workout-pill-selected-teal', defaultText: 'text-teal-600', borderColor: 'border-teal-600' };
+      selectedClass = 'workout-pill-selected-teal';
+      defaultTextClass = 'text-teal-600';
+      borderColorVar = 'workout-lower-body-a-border';
     } else { // variant 'b'
-      colorClasses = { selected: 'workout-pill-selected-purple', defaultText: 'text-purple-800', borderColor: 'border-purple-800' };
+      selectedClass = 'workout-pill-selected-purple';
+      defaultTextClass = 'text-purple-800';
+      borderColorVar = 'workout-lower-body-b-border';
     }
   } else if (category === 'push') {
     Icon = ArrowUpRight;
-    colorClasses = { selected: 'workout-pill-selected-red', defaultText: 'text-red-500', borderColor: 'border-red-500' };
+    selectedClass = 'workout-pill-selected-red';
+    defaultTextClass = 'text-red-500';
+    borderColorVar = 'workout-push-border';
   } else if (category === 'pull') {
     Icon = ArrowDownLeft;
-    colorClasses = { selected: 'workout-pill-selected-teal', defaultText: 'text-teal-600', borderColor: 'border-teal-600' };
+    selectedClass = 'workout-pill-selected-teal';
+    defaultTextClass = 'text-teal-600';
+    borderColorVar = 'workout-pull-border';
   } else if (category === 'legs') {
     Icon = Zap;
-    colorClasses = { selected: 'workout-pill-selected-green', defaultText: 'text-green-600', borderColor: 'border-green-500' };
+    selectedClass = 'workout-pill-selected-green';
+    defaultTextClass = 'text-green-600';
+    borderColorVar = 'workout-legs-border';
   }
 
-  return { Icon, ...colorClasses };
+  return { Icon, selectedClass, defaultTextClass, borderColorVar };
 };
