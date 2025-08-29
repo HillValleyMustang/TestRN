@@ -45,7 +45,7 @@ export const WorkoutPill = ({
         'transition-all duration-200 ease-out w-fit',
         isSelected
           ? cn(selectedBgClass, selectedTextClass, selectedBorderClass, selectedShadowClass, 'opacity-100 scale-100')
-          : cn(unselectedBgClass, unselectedTextClass, unselectedBorderClass, unselectedShadowClass, 'opacity-70 scale-98'),
+          : cn(unselectedBgClass, unselectedTextClass, unselectedBorderClass, unselectedShadowClass, 'opacity-100 scale-98'), // Changed opacity-70 to opacity-100
         'hover:scale-102 active:scale-98'
       )}
     >
