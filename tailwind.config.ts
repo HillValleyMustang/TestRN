@@ -72,6 +72,8 @@ export default {
           red: 'hsl(var(--pill-red-start))',
           pink: 'hsl(var(--pill-pink-start))',
           purple: 'hsl(var(--pill-purple-start))',
+          blue: 'hsl(var(--pill-blue-start))',
+          teal: 'hsl(var(--pill-teal-start))',
         },
   		},
   		borderRadius: {

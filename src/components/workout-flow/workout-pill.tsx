@@ -29,21 +29,24 @@ export const WorkoutPill = ({
     <button
       onClick={() => onClick(id)}
       className={cn(
-        'flex items-center gap-2 h-12 pl-3.5 pr-4 rounded-2xl',
-        'font-sans font-semibold border-none cursor-pointer',
+        'flex items-center gap-3 h-14 pl-4 pr-5 rounded-2xl',
+        'font-sans border-none cursor-pointer',
         'transition-all duration-200 ease-out w-fit',
         'workout-pill-accent-border',
         isSelected 
           ? `opacity-100 scale-100 text-white ${selectedClass}` 
           : `opacity-70 scale-98 bg-white ${defaultTextClass}`,
-        'hover:scale-102'
+        'hover:scale-102 active:scale-98'
       )}
       style={{ '--border-color': isSelected ? 'transparent' : `hsl(var(--${borderColorVar}))` } as React.CSSProperties}
     >
-      <Icon className="w-5 h-5 flex-shrink-0" strokeWidth={2.5} />
+      <Icon className="w-6 h-6 flex-shrink-0" strokeWidth={2.5} />
       <div className="flex flex-col gap-0 text-left">
         <span className="text-base font-bold leading-tight">{title}</span>
-        <span className={cn("text-sm font-medium leading-tight", isSelected ? 'opacity-60' : 'opacity-80')}>
+        <span className={cn(
+          "text-xs font-medium leading-tight",
+          isSelected ? 'opacity-70' : 'opacity-80'
+        )}>
           {formatTimeAgo(completedAt)}
         </span>
       </div>

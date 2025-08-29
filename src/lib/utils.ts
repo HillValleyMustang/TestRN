@@ -102,47 +102,47 @@ type WorkoutPillVariant = 'a' | 'b';
 
 export const getPillStyles = (category: WorkoutPillCategory, variant?: WorkoutPillVariant) => {
   let Icon: LucideIcon = Zap;
-  let selectedClass = 'workout-pill-selected-pink'; // Default to pink
+  let selectedClass = 'workout-pill-selected-pink';
   let defaultTextClass = 'text-pill-pink';
-  let borderColorVar = 'pill-pink-start'; // Use the CSS variable name part
+  let borderColorVar = 'pill-pink-start';
 
   if (category === 'upper') {
     Icon = ChevronUp;
-    if (variant === 'a') { // Upper A is Pink
+    if (variant === 'a') { // Upper A -> Pink
       selectedClass = 'workout-pill-selected-pink';
       defaultTextClass = 'text-pill-pink';
       borderColorVar = 'pill-pink-start';
-    } else { // Upper B is Red
+    } else { // Upper B -> Red
       selectedClass = 'workout-pill-selected-red';
       defaultTextClass = 'text-pill-red';
       borderColorVar = 'pill-red-start';
     }
   } else if (category === 'lower') {
     Icon = ChevronDown;
-    if (variant === 'a') { // Lower A is Purple
+    if (variant === 'a') { // Lower A -> Purple
       selectedClass = 'workout-pill-selected-purple';
       defaultTextClass = 'text-pill-purple';
       borderColorVar = 'pill-purple-start';
-    } else { // Lower B is Pink
-      selectedClass = 'workout-pill-selected-pink';
-      defaultTextClass = 'text-pill-pink';
-      borderColorVar = 'pill-pink-start';
+    } else { // Lower B -> Teal (New)
+      selectedClass = 'workout-pill-selected-teal';
+      defaultTextClass = 'text-pill-teal';
+      borderColorVar = 'pill-teal-start';
     }
-  } else if (category === 'push') { // Push is Red
+  } else if (category === 'push') { // Push -> Red
     Icon = ArrowUpRight;
     selectedClass = 'workout-pill-selected-red';
     defaultTextClass = 'text-pill-red';
     borderColorVar = 'pill-red-start';
-  } else if (category === 'pull') { // Pull is Purple
+  } else if (category === 'pull') { // Pull -> Blue (New)
     Icon = ArrowDownLeft;
+    selectedClass = 'workout-pill-selected-blue';
+    defaultTextClass = 'text-pill-blue';
+    borderColorVar = 'pill-blue-start';
+  } else if (category === 'legs') { // Legs -> Purple
+    Icon = Zap;
     selectedClass = 'workout-pill-selected-purple';
     defaultTextClass = 'text-pill-purple';
     borderColorVar = 'pill-purple-start';
-  } else if (category === 'legs') { // Legs is Pink
-    Icon = Zap;
-    selectedClass = 'workout-pill-selected-pink';
-    defaultTextClass = 'text-pill-pink';
-    borderColorVar = 'pill-pink-start';
   }
 
   return { Icon, selectedClass, defaultTextClass, borderColorVar };

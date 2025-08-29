@@ -76,13 +76,17 @@
 
     --sidebar-ring: 217.2 91.2% 59.8%;
 
-    /* New Workout Pill Colors (from screenshot) */
+    /* New Expanded Workout Pill Colors */
     --pill-red-start: 0 90% 60%;
     --pill-red-end: 0 85% 55%;
     --pill-pink-start: 320 85% 55%;
     --pill-pink-end: 320 80% 50%;
     --pill-purple-start: 260 70% 45%;
     --pill-purple-end: 260 65% 40%;
+    --pill-blue-start: 210 80% 55%;
+    --pill-blue-end: 210 75% 50%;
+    --pill-teal-start: 170 75% 45%;
+    --pill-teal-end: 170 70% 40%;
 
     /* New Aurora Colors (Light Mode) - Adjusted to retro palette */
     --aurora-blue: 200 100% 78%; /* Sky Blue */
@@ -321,6 +325,16 @@
 .workout-pill-selected-purple {
   background: linear-gradient(135deg, hsl(var(--pill-purple-start)), hsl(var(--pill-purple-end)));
   box-shadow: 0 4px 16px hsl(var(--pill-purple-start) / 0.3), 0 0 12px hsl(var(--pill-purple-start) / 0.2);
+}
+
+.workout-pill-selected-blue {
+  background: linear-gradient(135deg, hsl(var(--pill-blue-start)), hsl(var(--pill-blue-end)));
+  box-shadow: 0 4px 16px hsl(var(--pill-blue-start) / 0.3), 0 0 12px hsl(var(--pill-blue-start) / 0.2);
+}
+
+.workout-pill-selected-teal {
+  background: linear-gradient(135deg, hsl(var(--pill-teal-start)), hsl(var(--pill-teal-end)));
+  box-shadow: 0 4px 16px hsl(var(--pill-teal-start) / 0.3), 0 0 12px hsl(var(--pill-teal-start) / 0.2);
 }
 
 .workout-pill-accent-border {
