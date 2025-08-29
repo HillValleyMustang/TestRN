@@ -1,16 +1,16 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Dumbbell } from 'lucide-react';
 import { Tables } from '@/types/supabase';
-import { cn, getWorkoutIcon, formatTimeAgoShort } from '@/lib/utils';
+import { cn, getWorkoutIcon, formatLastCompletedShort, getWorkoutPillClasses } from '@/lib/utils'; // Import new functions
 import { SetLogState, WorkoutExercise } from '@/types/supabase';
 import { WorkoutBadge } from '../workout-badge';
 import { LoadingOverlay } from '../loading-overlay';
 import { useSession } from '@/components/session-context-provider';
-import { ExerciseCard } from '../workout-session/exercise-card';
+import { ExerciseCard } from '../workout-session/exercise-card'; // Import ExerciseCard
 
 type TPath = Tables<'t_paths'>;
 
@@ -48,6 +48,7 @@ interface WorkoutSelectorProps {
   finishWorkoutSession: () => Promise<void>;
 }
 
+// Custom WorkoutPillButton component to encapsulate the new styling
 interface WorkoutPillButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   workoutName: string;
   lastCompletedAt: string | null;
@@ -56,48 +57,27 @@ interface WorkoutPillButtonProps extends React.ButtonHTMLAttributes<HTMLButtonEl
 
 const WorkoutPillButton = React.forwardRef<HTMLButtonElement, WorkoutPillButtonProps>(
   ({ workoutName, lastCompletedAt, isSelected, className, ...props }, ref) => {
-    const [timeAgo, setTimeAgo] = useState(formatTimeAgoShort(lastCompletedAt));
-
-    useEffect(() => {
-      const update = () => setTimeAgo(formatTimeAgoShort(lastCompletedAt));
-      update();
-      const intervalId = setInterval(update, 30000);
-      return () => clearInterval(intervalId);
-    }, [lastCompletedAt]);
-
+    const { buttonClasses, beforeClasses, iconClasses, titleClasses, timeClasses } = getWorkoutPillClasses(workoutName, isSelected);
     const Icon = getWorkoutIcon(workoutName);
-    let colorKey = '';
-    switch (workoutName) {
-      case 'Upper Body A': colorKey = 'upper-body-a'; break;
-      case 'Lower Body A': colorKey = 'lower-body-a'; break;
-      case 'Upper Body B': colorKey = 'upper-body-b'; break;
-      case 'Lower Body B': colorKey = 'lower-body-b'; break;
-      default: colorKey = 'upper-body-a';
-    }
 
     return (
       <button
         ref={ref}
-        className={cn(
-          "group flex items-center gap-3 p-[12px_18px] rounded-[20px] font-semibold border-2 bg-white shadow-sm min-w-[180px] h-12 transition-all duration-300 ease-in-out relative cursor-pointer",
-          `border-workout-${colorKey}-color text-workout-${colorKey}-color`,
-          isSelected && `text-white bg-gradient-to-br from-workout-${colorKey}-gradient-start to-workout-${colorKey}-gradient-end shadow-lg shadow-workout-${colorKey}-shadow/40`
-        )}
-        data-selected={isSelected}
+        className={cn(buttonClasses, className)}
         {...props}
       >
-        {Icon && <Icon className="w-5 h-5 flex-shrink-0 transition-colors duration-300 ease-in-out" />}
-        <div className="flex flex-col flex-1 text-left">
-          <div className="text-[15px] font-semibold leading-tight">{workoutName}</div>
-          <div className={cn("text-[11px] font-medium opacity-60 transition-opacity duration-300 ease-in-out", isSelected && "opacity-80")}>
-            {timeAgo}
-          </div>
+        <span className={beforeClasses}></span> {/* Pseudo-element for border */}
+        {Icon && <Icon className={iconClasses} strokeWidth={3} />}
+        <div className="workout-info flex flex-col gap-px flex-1">
+          <div className={titleClasses}>{workoutName}</div>
+          <div className={timeClasses}>{formatLastCompletedShort(lastCompletedAt)}</div>
         </div>
       </button>
     );
   }
 );
 WorkoutPillButton.displayName = "WorkoutPillButton";
+
 
 export const WorkoutSelector = ({ 
   onWorkoutSelect, 
@@ -165,7 +145,7 @@ export const WorkoutSelector = ({
               {group.childWorkouts.length === 0 ? (
                 <p className="text-muted-foreground text-sm ml-7">No workouts defined for this path. This may happen if your session length is too short for any workouts.</p>
               ) : (
-                <div className="grid grid-cols-2 gap-4 w-full max-w-md mx-auto">
+                <div className="grid grid-cols-1 gap-2.5 max-w-60 w-full sm:grid-cols-2 sm:max-w-[500px] sm:gap-3">
                   {group.childWorkouts.map(workout => {
                     const isSelected = selectedWorkoutId === workout.id;
                     return (
