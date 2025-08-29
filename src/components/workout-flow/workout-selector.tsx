@@ -6,13 +6,12 @@ import { Button } from '@/components/ui/button';
 import { PlusCircle, Dumbbell } from 'lucide-react';
 import { Tables } from '@/types/supabase';
 import { formatDistanceToNowStrict } from 'date-fns';
-import { cn, getWorkoutPillProps } from '@/lib/utils';
+import { cn, getWorkoutColorClass, getWorkoutIcon } from '@/lib/utils';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { SetLogState, WorkoutExercise } from '@/types/supabase';
 import { WorkoutBadge } from '../workout-badge';
 import { LoadingOverlay } from '../loading-overlay';
 import { useSession } from '@/components/session-context-provider';
-import { WorkoutPillButton } from './workout-pill-button';
 
 type TPath = Tables<'t_paths'>;
 
@@ -122,21 +121,36 @@ export const WorkoutSelector = ({
               {group.childWorkouts.length === 0 ? (
                 <p className="text-muted-foreground text-sm ml-7">No workouts defined for this path. This may happen if your session length is too short for any workouts.</p>
               ) : (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   {group.childWorkouts.map(workout => {
-                    const { accent, direction } = getWorkoutPillProps(workout.template_name);
+                    const workoutColorClass = getWorkoutColorClass(workout.template_name, 'text');
+                    const workoutBgClass = getWorkoutColorClass(workout.template_name, 'bg');
+                    const workoutBorderClass = getWorkoutColorClass(workout.template_name, 'border');
+                    const Icon = getWorkoutIcon(workout.template_name);
                     const isSelected = selectedWorkoutId === workout.id;
 
                     return (
-                      <WorkoutPillButton
+                      <Button
                         key={workout.id}
-                        name={workout.template_name}
-                        time={formatLastCompleted(workout.last_completed_at)}
-                        accent={accent}
-                        selected={isSelected}
-                        direction={direction}
+                        variant="outline"
+                        className={cn(
+                          "h-auto p-2 flex flex-col items-start justify-start relative w-full text-left",
+                          "border-2",
+                          workoutBorderClass,
+                          workoutBgClass,
+                          isSelected && "ring-2 ring-primary",
+                          "hover:brightness-90 dark:hover:brightness-110"
+                        )}
                         onClick={() => handleWorkoutClick(workout.id)}
-                      />
+                      >
+                        <div className="flex items-center gap-1 mb-0.5 min-w-0">
+                          {Icon && <Icon className={cn("h-3 w-3 flex-shrink-0", workoutColorClass)} />}
+                          <span className={cn("text-xs font-medium leading-tight flex-shrink-0 min-w-0", workoutColorClass)}>{workout.template_name}</span>
+                        </div>
+                        <span className={cn("text-[0.65rem] text-muted-foreground min-w-0")}>
+                          {formatLastCompleted(workout.last_completed_at)}
+                        </span>
+                      </Button>
                     );
                   })}
                 </div>

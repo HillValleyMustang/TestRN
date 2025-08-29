@@ -83,23 +83,3 @@ export function getMaxMinutes(sessionLength: string | null | undefined): number 
     default: return 90; // Default to longest if unknown or null
   }
 }
-
-// New function for pill button props
-export function getWorkoutPillProps(workoutName: string): { accent: 'blue' | 'red' | 'yellow' | 'green', direction: 'up' | 'down' } {
-  const lowerCaseName = workoutName.toLowerCase();
-
-  if (lowerCaseName.includes('upper body a') || lowerCaseName.includes('push')) {
-    return { accent: 'blue', direction: 'up' };
-  }
-  if (lowerCaseName.includes('lower body a') || lowerCaseName.includes('pull')) {
-    return { accent: 'red', direction: 'down' };
-  }
-  if (lowerCaseName.includes('upper body b')) {
-    return { accent: 'yellow', direction: 'up' };
-  }
-  if (lowerCaseName.includes('lower body b') || lowerCaseName.includes('legs')) {
-    return { accent: 'green', direction: 'down' };
-  }
-  // Default for other cases
-  return { accent: 'blue', direction: 'up' };
-}
