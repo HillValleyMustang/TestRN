@@ -73,7 +73,7 @@ export const ExerciseCard = ({
   const workoutColorClass = getWorkoutColorClass(workoutTemplateName, 'text');
   const workoutBorderClass = getWorkoutColorClass(workoutTemplateName, 'border');
   const workoutBgClass = getWorkoutColorClass(workoutTemplateName, 'bg');
-  const WorkoutIcon = getWorkoutIcon(workoutTemplateName);
+  // Removed WorkoutIcon as it's no longer needed
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -220,10 +220,18 @@ export const ExerciseCard = ({
 
             {/* Bottom Row: Icon and Controls */}
             <div className="flex items-center justify-between">
-              <div>
-                {WorkoutIcon && <WorkoutIcon className={cn("h-5 w-5", workoutColorClass)} />}
-              </div>
+              {/* Exercise Icon */}
+              {exercise.icon_url && (
+                <img
+                  src={exercise.icon_url}
+                  alt={`${exercise.name} icon`}
+                  className="h-5 w-5 object-contain flex-shrink-0 rounded-sm"
+                />
+              )}
               <div className="flex items-center gap-2 flex-shrink-0">
+                {isExerciseSaved && (
+                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                )}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" title="More Options" onClick={(e) => e.stopPropagation()}>
@@ -255,11 +263,7 @@ export const ExerciseCard = ({
             </div>
           </div>
 
-          {isExerciseSaved && (
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-              <CheckCircle2 className="h-8 w-8 text-green-500" />
-            </div>
-          )}
+          {/* Removed the absolute positioned CheckCircle2 */}
         </CardHeader>
         {isExpanded && (
           <CardContent className="pb-16"> {/* Added bottom padding to make space for the icon */}
@@ -418,16 +422,7 @@ export const ExerciseCard = ({
           </CardContent>
         )}
 
-        {/* NEW: Icon at bottom left */}
-        {exercise.icon_url && (
-          <div className="absolute bottom-4 left-4 z-10"> {/* z-10 to ensure it's above other content */}
-            <img
-              src={exercise.icon_url}
-              alt={`${exercise.name} icon`}
-              className="h-10 w-10 object-contain flex-shrink-0 rounded-sm" // Increased size
-            />
-          </div>
-        )}
+        {/* Removed the absolute positioned exercise.icon_url */}
       </Card>
 
       <ExerciseHistoryDialog
