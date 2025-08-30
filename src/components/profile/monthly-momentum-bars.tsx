@@ -39,8 +39,6 @@ export const MonthlyMomentumBars = ({ profile }: MonthlyMomentumBarsProps) => {
   const profileCreatedAt = useMemo(() => profile?.created_at ? new Date(profile.created_at) : null, [profile]);
 
   const getColorClass = useCallback((workoutCount: number): string => {
-    // Note: requiredWorkoutsPerWeek is based on the *currently active* T-Path,
-    // and this logic is applied to all historical weekly data.
     const darkGreen = 'bg-green-600';
     const mediumGreen = 'bg-green-400';
     const lightGreen = 'bg-green-200';
@@ -118,66 +116,64 @@ export const MonthlyMomentumBars = ({ profile }: MonthlyMomentumBarsProps) => {
 
   const renderYearMomentum = () => {
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const today = getStartOfWeek(new Date()); // Current week's Monday
+    const today = getStartOfWeek(new Date());
 
-    const yearWeeksGroupedByMonth: { [month: number]: { date: Date; colorClass: string }[] } = {};
+    // Generate all weeks for the year up to today, and store them chronologically
+    const allWeeksInYear: { date: Date; workoutCount: number; colorClass: string }[] = [];
+    let currentWeekStart = getStartOfWeek(new Date(currentYear, 0, 1));
 
-    let currentWeekStart = getStartOfWeek(new Date(currentYear, 0, 1)); // Always start from Jan 1st of current year
-
-    // If profileCreatedAt is for a future year, no data to show for current year
-    if (profileCreatedAt && profileCreatedAt.getFullYear() > currentYear) {
-      return null;
-    }
-    
     while (currentWeekStart <= today) {
-      const monthIndex = currentWeekStart.getMonth();
-      if (!yearWeeksGroupedByMonth[monthIndex]) {
-        yearWeeksGroupedByMonth[monthIndex] = [];
-      }
-
       const weekKey = currentWeekStart.toISOString().split('T')[0];
       const workoutCount = weeklyWorkoutData.get(weekKey) || 0;
       const colorClass = getColorClass(workoutCount);
-
-      console.log(`Month: ${monthNames[monthIndex]}, Week: ${weekKey}, Workouts: ${workoutCount}, Color: ${colorClass}`);
-
-      yearWeeksGroupedByMonth[monthIndex].push({ date: new Date(currentWeekStart), colorClass });
-
-      currentWeekStart.setDate(currentWeekStart.getDate() + 7); // Move to next week
+      allWeeksInYear.push({ date: new Date(currentWeekStart), workoutCount, colorClass });
+      currentWeekStart.setDate(currentWeekStart.getDate() + 7);
     }
 
+    // Group weeks by quarter
+    const quarters: { [key: number]: typeof allWeeksInYear } = { 0: [], 1: [], 2: [], 3: [] }; // Q1, Q2, Q3, Q4
+    allWeeksInYear.forEach(week => {
+      const month = week.date.getMonth();
+      if (month >= 0 && month <= 2) quarters[0].push(week); // Jan-Mar
+      else if (month >= 3 && month <= 5) quarters[1].push(week); // Apr-Jun
+      else if (month >= 6 && month <= 8) quarters[2].push(week); // Jul-Sep
+      else if (month >= 9 && month <= 11) quarters[3].push(week); // Oct-Dec
+    });
+
     return (
-      <div className="grid grid-cols-1 gap-4">
-        {Array.from({ length: 4 }).map((_, rowIndex) => ( // 4 rows for quarters
-          <div key={rowIndex} className="grid grid-cols-3 gap-4"> {/* 3 months per row */}
-            {Array.from({ length: 3 }).map((_, colIndex) => {
-              const monthIndex = rowIndex * 3 + colIndex; // Calculate month index for 3 months per row
-              if (monthIndex > 11) return null; // Ensure we don't go beyond December
+      <div className="space-y-4"> {/* Vertical spacing between quarters */}
+        {Object.keys(quarters).map((quarterKey, quarterIndex) => {
+          const weeksInQuarter = quarters[parseInt(quarterKey)];
+          const startMonthIndex = quarterIndex * 3;
+          const monthsInQuarter = monthNames.slice(startMonthIndex, startMonthIndex + 3);
 
-              const monthName = monthNames[monthIndex];
-              const monthWeeks = yearWeeksGroupedByMonth[monthIndex] || [];
-
-              return (
-                <Card key={monthName} className="p-2">
-                  <CardTitle className="text-sm font-semibold mb-2 text-center">{monthName}</CardTitle>
-                  <div className="flex h-12 w-full rounded-md overflow-hidden border border-gray-300">
-                    {monthWeeks.length === 0 ? (
-                      <div className="flex-1 h-full bg-gray-100" /> // Empty gray bar for months with no data
-                    ) : (
-                      monthWeeks.map((week, weekIndex) => (
-                        <div
-                          key={weekIndex}
-                          className={cn("flex-1 h-full", week.colorClass)}
-                          title={`${week.date.toLocaleDateString()} - Workouts: ${weeklyWorkoutData.get(week.date.toISOString().split('T')[0]) || 0}`}
-                        />
-                      ))
-                    )}
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        ))}
+          return (
+            <div key={quarterKey} className="space-y-2">
+              {/* Month labels for the quarter, evenly distributed */}
+              <div className="flex justify-around px-1"> {/* Use justify-around for even spacing */}
+                {monthsInQuarter.map(monthName => (
+                  <span key={monthName} className="text-sm font-semibold text-muted-foreground flex-1 text-center">
+                    {monthName}
+                  </span>
+                ))}
+              </div>
+              {/* Continuous bar for weeks */}
+              <div className="flex h-12 w-full rounded-md overflow-hidden border border-gray-300">
+                {weeksInQuarter.length === 0 ? (
+                  <div className="flex-1 h-full bg-gray-100" /> // Empty gray bar for quarters with no data
+                ) : (
+                  weeksInQuarter.map((week, weekIndex) => (
+                    <div
+                      key={weekIndex}
+                      className={cn("flex-1 h-full", week.colorClass)}
+                      title={`${week.date.toLocaleDateString()} - Workouts: ${week.workoutCount}`}
+                    />
+                  ))
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     );
   };
