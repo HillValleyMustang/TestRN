@@ -20,6 +20,10 @@ export type ProfilesRow = {
   preferred_session_length: string | null;
   active_t_path_id: string | null;
   weight_kg: number | null;
+  total_points: number | null;
+  current_streak: number | null;
+  longest_streak: number | null;
+  last_workout_date: string | null;
 };
 export type ProfilesInsert = {
   body_fat_pct?: number | null;
@@ -41,6 +45,10 @@ export type ProfilesInsert = {
   weight_kg?: number | null;
   preferred_session_length?: string | null;
   active_t_path_id?: string | null;
+  total_points?: number | null;
+  current_streak?: number | null;
+  longest_streak?: number | null;
+  last_workout_date?: string | null;
 };
 export type ProfilesUpdate = {
   body_fat_pct?: number | null;
@@ -62,4 +70,8 @@ export type ProfilesUpdate = {
   weight_kg?: number | null;
   preferred_session_length?: string | null;
   active_t_path_id?: string | null;
+  total_points?: number | null;
+  current_streak?: number | null;
+  longest_streak?: number | null;
+  last_workout_date?: string | null;
 };
