@@ -301,7 +301,7 @@ export default function ProfilePage() {
                 <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
                   <ProfileStatsTab
                     fitnessLevel={fitnessLevel}
-                    profile={profile} {/* Pass profile here */}
+                    profile={profile}
                   />
                 </div>
 
