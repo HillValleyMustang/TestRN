@@ -26,16 +26,18 @@ import {
   FormMessage 
 } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, Edit, XCircle, ChevronDown, ChevronUp, Info, Sparkles, Dumbbell, Timer, Check } from "lucide-react"; // Added Dumbbell, Timer, Check icons
+import { PlusCircle, Edit, XCircle, ChevronDown, ChevronUp, Info, Sparkles, Dumbbell, Timer, Check } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { AnalyzeGymDialog } from "./analyze-gym-dialog"; 
 import { Label } from "@/components/ui/label";
-import { cn } from '@/lib/utils'; // Import cn for conditional classes
+import { cn } from '@/lib/utils';
+import { Badge } from "@/components/ui/badge"; // Added this import
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -269,7 +271,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
   };
 
   return (
-    <Card className="w-full"> {/* Added w-full here */}
+    <Card className="w-full">
       <CardHeader 
         className="flex items-center justify-between cursor-pointer"
         onClick={toggleExpand}
