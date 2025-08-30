@@ -21,6 +21,9 @@ const ACHIEVEMENT_IDS = {
   EARLY_BIRD: 'early_bird',
   THIRTY_DAY_STREAK: 'thirty_day_streak',
   VOLUME_MASTER: 'volume_master',
+  // New achievements from user request
+  CENTURY_CLUB: 'century_club',
+  AI_APPRENTICE: 'ai_apprentice',
 };
 
 // Define types for the data we're fetching
@@ -90,7 +93,6 @@ const check10DayStreak = async (
   return await checkAchievement(supabase, userId, ACHIEVEMENT_IDS.TEN_DAY_STREAK, currentStreak >= 10, existingAchievements);
 };
 
-// New: Check for 30-day streak
 const check30DayStreak = async (
   supabase: any,
   userId: string,
@@ -198,7 +200,6 @@ const checkPerfectWeek = async (
   return await checkAchievement(supabase, userId, ACHIEVEMENT_IDS.PERFECT_WEEK, perfectWeekAchieved, existingAchievements);
 };
 
-// New: Check for Weekend Warrior
 const checkWeekendWarrior = async (
   supabase: any,
   userId: string,
@@ -213,7 +214,6 @@ const checkWeekendWarrior = async (
   return await checkAchievement(supabase, userId, ACHIEVEMENT_IDS.WEEKEND_WARRIOR, weekendWorkouts >= 10, existingAchievements);
 };
 
-// New: Check for Early Bird
 const checkEarlyBird = async (
   supabase: any,
   userId: string,
@@ -228,7 +228,6 @@ const checkEarlyBird = async (
   return await checkAchievement(supabase, userId, ACHIEVEMENT_IDS.EARLY_BIRD, earlyBirdWorkouts >= 10, existingAchievements);
 };
 
-// New: Check for Volume Master
 const checkVolumeMaster = async (
   supabase: any,
   userId: string,
@@ -236,6 +235,32 @@ const checkVolumeMaster = async (
   existingAchievements: Set<string>
 ) => {
   return await checkAchievement(supabase, userId, ACHIEVEMENT_IDS.VOLUME_MASTER, totalSets >= 100, existingAchievements);
+};
+
+// New: Check for Century Club
+const checkCenturyClub = async (
+  supabase: any,
+  userId: string,
+  totalPoints: number,
+  existingAchievements: Set<string>
+) => {
+  // 100 workouts = 1000 total_points
+  return await checkAchievement(supabase, userId, ACHIEVEMENT_IDS.CENTURY_CLUB, totalPoints >= 1000, existingAchievements);
+};
+
+// Placeholder for AI Apprentice - requires more complex historical logging
+const checkAIApprentice = async (
+  supabase: any,
+  userId: string,
+  existingAchievements: Set<string>
+) => {
+  // This achievement requires tracking AI coach usage over consecutive weeks.
+  // The current 'profiles.last_ai_coach_use_at' only stores the most recent use.
+  // To implement "once a week across 3 consecutive weeks", a new table (e.g., 'ai_coach_usage_logs')
+  // would be needed to store each instance of AI coach usage with a timestamp.
+  // For now, this will always return null.
+  console.log(`AI Apprentice check for user ${userId}: Requires historical AI coach usage data not currently available.`);
+  return null; // Not implemented with current schema
 };
 
 
@@ -287,19 +312,22 @@ serve(async (req: Request) => {
     const totalWorkouts = (profileData?.total_points || 0) / 10; // 10 points per workout
     const currentStreak = profileData?.current_streak || 0;
     const activeTPathId = profileData?.active_t_path_id || null;
+    const totalPoints = profileData?.total_points || 0; // For Century Club
 
     // Run all achievement checks
     const achievementChecks = [
       checkFirstWorkout(supabaseServiceRoleClient, user_id, totalWorkouts, existingAchievementIds),
       check10DayStreak(supabaseServiceRoleClient, user_id, currentStreak, existingAchievementIds),
-      check30DayStreak(supabaseServiceRoleClient, user_id, currentStreak, existingAchievementIds), // New check
+      check30DayStreak(supabaseServiceRoleClient, user_id, currentStreak, existingAchievementIds),
       check25Workouts(supabaseServiceRoleClient, user_id, totalWorkouts, existingAchievementIds),
       check50Workouts(supabaseServiceRoleClient, user_id, totalWorkouts, existingAchievementIds),
       checkBeastMode(supabaseServiceRoleClient, user_id, allWorkoutSessions as WorkoutSession[] || [], existingAchievementIds),
       checkPerfectWeek(supabaseServiceRoleClient, user_id, allWorkoutSessions as WorkoutSession[] || [], activeTPathId, existingAchievementIds),
-      checkWeekendWarrior(supabaseServiceRoleClient, user_id, allWorkoutSessions as WorkoutSession[] || [], existingAchievementIds), // New check
-      checkEarlyBird(supabaseServiceRoleClient, user_id, allWorkoutSessions as WorkoutSession[] || [], existingAchievementIds),     // New check
-      checkVolumeMaster(supabaseServiceRoleClient, user_id, totalSets, existingAchievementIds), // New check
+      checkWeekendWarrior(supabaseServiceRoleClient, user_id, allWorkoutSessions as WorkoutSession[] || [], existingAchievementIds),
+      checkEarlyBird(supabaseServiceRoleClient, user_id, allWorkoutSessions as WorkoutSession[] || [], existingAchievementIds),
+      checkVolumeMaster(supabaseServiceRoleClient, user_id, totalSets, existingAchievementIds),
+      checkCenturyClub(supabaseServiceRoleClient, user_id, totalPoints, existingAchievementIds), // New check
+      checkAIApprentice(supabaseServiceRoleClient, user_id, existingAchievementIds), // Placeholder check
     ];
 
     const results = await Promise.all(achievementChecks);

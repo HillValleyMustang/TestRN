@@ -48,6 +48,9 @@ const ACHIEVEMENT_IDS = {
   EARLY_BIRD: 'early_bird',
   THIRTY_DAY_STREAK: 'thirty_day_streak',
   VOLUME_MASTER: 'volume_master',
+  // New achievements from user request
+  CENTURY_CLUB: 'century_club',
+  AI_APPRENTICE: 'ai_apprentice',
 };
 
 export default function ProfilePage() {
@@ -193,15 +196,17 @@ export default function ProfilePage() {
 
   const achievements = [
     { id: ACHIEVEMENT_IDS.FIRST_WORKOUT, name: 'First Workout', icon: '🏃' },
+    { id: ACHIEVEMENT_IDS.AI_APPRENTICE, name: 'AI Apprentice', icon: '🤖' }, // Moved to second
     { id: ACHIEVEMENT_IDS.TEN_DAY_STREAK, name: '10 Day Streak', icon: '🔥' },
-    { id: ACHIEVEMENT_IDS.THIRTY_DAY_STREAK, name: 'Consistency King', icon: '👑' }, // New
+    { id: ACHIEVEMENT_IDS.THIRTY_DAY_STREAK, name: 'Consistency King', icon: '👑' },
     { id: ACHIEVEMENT_IDS.TWENTY_FIVE_WORKOUTS, name: '25 Workouts', icon: '💪' },
     { id: ACHIEVEMENT_IDS.FIFTY_WORKOUTS, name: '50 Workouts', icon: '🏆' },
+    { id: ACHIEVEMENT_IDS.CENTURY_CLUB, name: 'Century Club', icon: '💯' }, // New
     { id: ACHIEVEMENT_IDS.PERFECT_WEEK, name: 'Perfect Week', icon: '🗓️' },
     { id: ACHIEVEMENT_IDS.BEAST_MODE, name: 'Beast Mode', icon: '💥' },
-    { id: ACHIEVEMENT_IDS.WEEKEND_WARRIOR, name: 'Weekend Warrior', icon: '🎉' }, // New
-    { id: ACHIEVEMENT_IDS.EARLY_BIRD, name: 'Early Bird', icon: '🌅' }, // New
-    { id: ACHIEVEMENT_IDS.VOLUME_MASTER, name: 'Volume Master', icon: '🏋️' }, // New
+    { id: ACHIEVEMENT_IDS.WEEKEND_WARRIOR, name: 'Weekend Warrior', icon: '🎉' },
+    { id: ACHIEVEMENT_IDS.EARLY_BIRD, name: 'Early Bird', icon: '🌅' },
+    { id: ACHIEVEMENT_IDS.VOLUME_MASTER, name: 'Volume Master', icon: '🏋️' },
   ];
 
   const handleSignOut = async () => {

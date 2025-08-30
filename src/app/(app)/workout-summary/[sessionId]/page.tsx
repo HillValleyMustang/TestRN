@@ -39,6 +39,9 @@ const ACHIEVEMENT_DISPLAY_INFO: Record<string, { name: string; icon: string }> =
   early_bird: { name: 'Early Bird', icon: '🌅' },
   thirty_day_streak: { name: 'Consistency King', icon: '👑' },
   volume_master: { name: 'Volume Master', icon: '🏋️' },
+  // New achievements from user request
+  century_club: { name: 'Century Club', icon: '💯' },
+  ai_apprentice: { name: 'AI Apprentice', icon: '🤖' },
 };
 
 export default function WorkoutSummaryPage({ 
@@ -232,7 +235,7 @@ export default function WorkoutSummaryPage({
       />
 
       <section className="mb-8">
-        <h2 className="text-2xl font-bold mb-4">Exercises Performed</h2>
+        <h2 className="2xl font-bold mb-4">Exercises Performed</h2>
         {Object.values(exercisesWithGroupedSets).length === 0 ? (
           <p className="text-muted-foreground">No exercises logged for this session.</p>
         ) : (
