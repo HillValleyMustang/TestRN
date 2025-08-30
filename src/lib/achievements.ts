@@ -77,3 +77,19 @@ export const ACHIEVEMENT_DISPLAY_INFO: Record<string, { name: string; icon: stri
     description: 'Use the AI Coach at least once a week for 3 consecutive weeks.' 
   },
 };
+
+// List of all achievements for display purposes
+export const achievementsList = [
+  { id: ACHIEVEMENT_IDS.FIRST_WORKOUT, name: 'First Workout', icon: '🏃' },
+  { id: ACHIEVEMENT_IDS.AI_APPRENTICE, name: 'AI Apprentice', icon: '🤖' },
+  { id: ACHIEVEMENT_IDS.TEN_DAY_STREAK, name: '10 Day Streak', icon: '🔥' },
+  { id: ACHIEVEMENT_IDS.THIRTY_DAY_STREAK, name: 'Consistency King', icon: '👑' },
+  { id: ACHIEVEMENT_IDS.TWENTY_FIVE_WORKOUTS, name: '25 Workouts', icon: '💪' },
+  { id: ACHIEVEMENT_IDS.FIFTY_WORKOUTS, name: '50 Workouts', icon: '🏆' },
+  { id: ACHIEVEMENT_IDS.CENTURY_CLUB, name: 'Century Club', icon: '💯' },
+  { id: ACHIEVEMENT_IDS.PERFECT_WEEK, name: 'Perfect Week', icon: '🗓️' },
+  { id: ACHIEVEMENT_IDS.BEAST_MODE, name: 'Beast Mode', icon: '💥' },
+  { id: ACHIEVEMENT_IDS.WEEKEND_WARRIOR, name: 'Weekend Warrior', icon: '🎉' },
+  { id: ACHIEVEMENT_IDS.EARLY_BIRD, name: 'Early Bird', icon: '🌅' },
+  { id: ACHIEVEMENT_IDS.VOLUME_MASTER, name: 'Volume Master', icon: '🏋️' },
+];

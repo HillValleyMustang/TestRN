@@ -11,7 +11,7 @@ import * as z from "zod";
 import { toast } from 'sonner';
 import { Profile as ProfileType, ProfileUpdate, Tables } from '@/types/supabase';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart2, User, Settings, ChevronLeft, ChevronRight, Flame, Dumbbell, Trophy, Star, Footprints } from 'lucide-react'; // Added missing icons
+import { BarChart2, User, Settings, ChevronLeft, ChevronRight, Flame, Dumbbell, Trophy, Star, Footprints } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, getLevelFromPoints } from '@/lib/utils';
 import { AchievementDetailDialog } from '@/components/profile/achievement-detail-dialog';
@@ -22,6 +22,7 @@ import { ProfileHeader } from '@/components/profile/profile-header';
 import { ProfileOverviewTab } from '@/components/profile/profile-overview-tab';
 import { ProfileStatsTab } from '@/components/profile/profile-stats-tab';
 import { ProfileSettingsTab } from '@/components/profile/profile-settings-tab';
+import { achievementsList } from '@/lib/achievements'; // Import achievementsList
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
@@ -44,35 +45,7 @@ const profileSchema = z.object({
 });
 
 // Achievement IDs (must match those in process-achievements Edge Function)
-const ACHIEVEMENT_IDS = {
-  FIRST_WORKOUT: 'first_workout',
-  TEN_DAY_STREAK: 'ten_day_streak',
-  TWENTY_FIVE_WORKOUTS: 'twenty_five_workouts',
-  FIFTY_WORKOUTS: 'fifty_workouts',
-  PERFECT_WEEK: 'perfect_week',
-  BEAST_MODE: 'beast_mode',
-  WEEKEND_WARRIOR: 'weekend_warrior',
-  EARLY_BIRD: 'early_bird',
-  THIRTY_DAY_STREAK: 'thirty_day_streak',
-  VOLUME_MASTER: 'volume_master',
-  CENTURY_CLUB: 'century_club',
-  AI_APPRENTICE: 'ai_apprentice',
-};
-
-const achievementsList = [
-  { id: ACHIEVEMENT_IDS.FIRST_WORKOUT, name: 'First Workout', icon: '🏃' },
-  { id: ACHIEVEMENT_IDS.AI_APPRENTICE, name: 'AI Apprentice', icon: '🤖' },
-  { id: ACHIEVEMENT_IDS.TEN_DAY_STREAK, name: '10 Day Streak', icon: '🔥' },
-  { id: ACHIEVEMENT_IDS.THIRTY_DAY_STREAK, name: 'Consistency King', icon: '👑' },
-  { id: ACHIEVEMENT_IDS.TWENTY_FIVE_WORKOUTS, name: '25 Workouts', icon: '💪' },
-  { id: ACHIEVEMENT_IDS.FIFTY_WORKOUTS, name: '50 Workouts', icon: '🏆' },
-  { id: ACHIEVEMENT_IDS.CENTURY_CLUB, name: 'Century Club', icon: '💯' },
-  { id: ACHIEVEMENT_IDS.PERFECT_WEEK, name: 'Perfect Week', icon: '🗓️' },
-  { id: ACHIEVEMENT_IDS.BEAST_MODE, name: 'Beast Mode', icon: '💥' },
-  { id: ACHIEVEMENT_IDS.WEEKEND_WARRIOR, name: 'Weekend Warrior', icon: '🎉' },
-  { id: ACHIEVEMENT_IDS.EARLY_BIRD, name: 'Early Bird', icon: '🌅' }, // Fixed syntax here
-  { id: ACHIEVEMENT_IDS.VOLUME_MASTER, name: 'Volume Master', icon: '🏋️' },
-];
+// Removed local definition, now imported from achievements.ts
 
 export default function ProfilePage() {
   const { session, supabase } = useSession();
