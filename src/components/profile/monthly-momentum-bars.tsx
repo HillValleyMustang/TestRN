@@ -103,6 +103,7 @@ export const MonthlyMomentumBars = ({ profile }: MonthlyMomentumBarsProps) => {
           newWeeklyWorkoutData.set(weekKey, (newWeeklyWorkoutData.get(weekKey) || 0) + 1);
         });
         setWeeklyWorkoutData(newWeeklyWorkoutData);
+        console.log("Weekly Workout Data Map:", newWeeklyWorkoutData); // Log the map
 
       } catch (err: any) {
         toast.error("Failed to load monthly workout data: " + err.message);
@@ -121,20 +122,13 @@ export const MonthlyMomentumBars = ({ profile }: MonthlyMomentumBarsProps) => {
 
     const yearWeeksGroupedByMonth: { [month: number]: { date: Date; colorClass: string }[] } = {};
 
-    let currentWeekStart = getStartOfWeek(new Date(currentYear, 0, 1)); // Start from Jan 1st of current year
+    let currentWeekStart = getStartOfWeek(new Date(currentYear, 0, 1)); // Always start from Jan 1st of current year
 
-    // Adjust start date if profile was created in the current year, starting from that week
-    if (profileCreatedAt && profileCreatedAt.getFullYear() === currentYear) {
-      const profileWeekStart = getStartOfWeek(profileCreatedAt);
-      if (profileWeekStart > currentWeekStart) {
-        currentWeekStart = profileWeekStart;
-      }
-    } else if (profileCreatedAt && profileCreatedAt.getFullYear() > currentYear) {
-      // If profile is for a future year, no data to show for current year
+    // If profileCreatedAt is for a future year, no data to show for current year
+    if (profileCreatedAt && profileCreatedAt.getFullYear() > currentYear) {
       return null;
     }
-    // If profileCreatedAt is from a previous year, currentWeekStart remains Jan 1st of currentYear
-
+    
     while (currentWeekStart <= today) {
       const monthIndex = currentWeekStart.getMonth();
       if (!yearWeeksGroupedByMonth[monthIndex]) {
@@ -145,8 +139,7 @@ export const MonthlyMomentumBars = ({ profile }: MonthlyMomentumBarsProps) => {
       const workoutCount = weeklyWorkoutData.get(weekKey) || 0;
       const colorClass = getColorClass(workoutCount);
 
-      // For debugging coloring issue:
-      // console.log(`Week: ${weekKey}, Workouts: ${workoutCount}, Color: ${colorClass}`);
+      console.log(`Month: ${monthNames[monthIndex]}, Week: ${weekKey}, Workouts: ${workoutCount}, Color: ${colorClass}`);
 
       yearWeeksGroupedByMonth[monthIndex].push({ date: new Date(currentWeekStart), colorClass });
 
