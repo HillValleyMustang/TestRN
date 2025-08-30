@@ -64,14 +64,11 @@ export default function DashboardPage() {
           return;
         }
 
-        // Set welcome name
-        const firstName = profileData.first_name;
-        if (firstName) {
-          setWelcomeName(firstName);
-        } else {
-          const userInitials = `${profileData.first_name ? profileData.first_name[0] : ''}${profileData.last_name ? profileData.last_name[0] : ''}`.toUpperCase();
-          setWelcomeName(`Athlete ${userInitials || session.user?.email?.[0].toUpperCase() || ''}`);
-        }
+        // Set welcome name based on initials
+        const firstNameInitial = profileData.first_name ? profileData.first_name[0].toUpperCase() : '';
+        const lastNameInitial = profileData.last_name ? profileData.last_name[0].toUpperCase() : '';
+        const initials = `${firstNameInitial}${lastNameInitial}`;
+        setWelcomeName(`Athlete ${initials}`);
 
       } catch (err: any) {
         console.error("Error checking onboarding status:", err);
