@@ -138,7 +138,7 @@ export const useExerciseSets = ({
       setLoadingPR(true);
       const { data, error } = await supabase
         .from('user_exercise_prs')
-        .select('*')
+        .select('id, user_id, exercise_id, best_volume_kg, best_time_seconds, last_achieved_date, created_at, updated_at') // Explicitly list columns
         .eq('exercise_id', exerciseId)
         .single();
 
