@@ -225,7 +225,7 @@ export const ExerciseCard = ({
                 <img
                   src={exercise.icon_url}
                   alt={`${exercise.name} icon`}
-                  className="h-8 w-8 object-contain flex-shrink-0 rounded-sm" // Increased size here
+                  className="h-10 w-10 object-contain flex-shrink-0 rounded-sm" // Increased size here
                 />
               )}
               <div className="flex items-center gap-2 flex-shrink-0">
@@ -277,7 +277,7 @@ export const ExerciseCard = ({
                         {(set.lastWeight != null || set.lastReps != null || set.lastTimeSeconds != null) && (
                           <span className="text-muted-foreground text-xs">
                             (Last: {exercise.type === 'weight' ?
-                              `${set.lastWeight != null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${set.lastReps != null ? set.lastReps : '-'}` :
+                              `${set.lastWeight != null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${set.lastReps != null ? set.reps : '-'}` :
                               `${set.lastTimeSeconds != null ? `${set.lastTimeSeconds}s` : '-'}`})
                           </span>
                         )}
