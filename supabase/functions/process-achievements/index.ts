@@ -377,6 +377,20 @@ serve(async (req: Request) => {
     const results = await Promise.all(achievementChecks);
     const newlyUnlockedAchievementIds = results.filter((id): id is string => id !== null);
 
+    // --- NEW: Invoke calculate-rolling-status Edge Function ---
+    const { error: rollingStatusInvokeError } = await supabaseServiceRoleClient.functions.invoke('calculate-rolling-status', {
+      body: { user_id },
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (rollingStatusInvokeError) {
+      console.error('Error invoking calculate-rolling-status Edge Function:', rollingStatusInvokeError.message);
+      // Do not throw, as achievement processing should still complete
+    }
+    // --- END NEW ---
+
     // If a session_id was provided, we only return achievements unlocked *during that session*
     // This requires a second fetch to filter by unlocked_at after the session_date
     let sessionSpecificAchievements: string[] = [];
@@ -399,10 +413,9 @@ serve(async (req: Request) => {
       if (sessionDetailsError || !sessionDetails) throw sessionDetailsError;
 
       const sessionStartDate = new Date(sessionDetails.session_date);
-      // Filter achievements unlocked very close to the session start time
+      // Allow a small window (e.g., 5 minutes) around session start for achievements
       sessionSpecificAchievements = (sessionAchievements || []).filter((ach: UserAchievement) => { // Explicitly typed ach
         const unlockedAt = new Date(ach.unlocked_at!);
-        // Allow a small window (e.g., 5 minutes) around session start for achievements
         return unlockedAt >= sessionStartDate && unlockedAt.getTime() <= (sessionStartDate.getTime() + 5 * 60 * 1000);
       }).map((ach: UserAchievement) => ach.achievement_id); // Explicitly typed ach
     } else if (!session_id) {

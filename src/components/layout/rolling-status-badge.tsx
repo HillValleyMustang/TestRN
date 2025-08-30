@@ -1,0 +1,85 @@
+"use client";
+
+import React, { useState, useEffect } from 'react';
+import { useSession } from '@/components/session-context-provider';
+import { Badge } from "@/components/ui/badge";
+import { Flame, Dumbbell, CheckCircle, Clock, AlertCircle } from "lucide-react"; // Added AlertCircle
+import { cn } from '@/lib/utils';
+
+export function RollingStatusBadge() {
+  const { session, supabase } = useSession();
+  const [status, setStatus] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStatusData = async () => {
+      if (!session) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      try {
+        const { data: profileData, error } = await supabase
+          .from('profiles')
+          .select('rolling_workout_status')
+          .eq('id', session.user.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
+          throw error;
+        }
+
+        setStatus(profileData?.rolling_workout_status || 'Ready to Start');
+      } catch (error) {
+        console.error("Failed to fetch rolling status data:", error);
+        setStatus('Error'); // Indicate an error state
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStatusData();
+  }, [session, supabase]);
+
+  if (loading) {
+    return (
+      <Badge variant="secondary" className="flex items-center gap-1">
+        <Clock className="h-4 w-4 text-muted-foreground" />
+        <span className="font-semibold text-muted-foreground">Loading Status...</span>
+      </Badge>
+    );
+  }
+
+  let badgeIcon: React.ReactNode;
+  let badgeColorClass: string;
+
+  switch (status) {
+    case 'Ready to Start':
+      badgeIcon = <Dumbbell className="h-4 w-4 text-gray-400" />;
+      badgeColorClass = 'bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
+      break;
+    case 'Building Momentum':
+      badgeIcon = <CheckCircle className="h-4 w-4 text-blue-500" />;
+      badgeColorClass = 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-800 dark:text-blue-300 dark:border-blue-700';
+      break;
+    case 'In the Zone':
+      badgeIcon = <Flame className="h-4 w-4 text-orange-500" />;
+      badgeColorClass = 'bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-800 dark:text-orange-300 dark:border-orange-700';
+      break;
+    case 'On Fire':
+      badgeIcon = <Flame className="h-4 w-4 text-red-500 fill-red-500" />;
+      badgeColorClass = 'bg-red-100 text-red-700 border-red-300 dark:bg-red-800 dark:text-red-300 dark:border-red-700';
+      break;
+    default:
+      badgeIcon = <AlertCircle className="h-4 w-4 text-destructive" />;
+      badgeColorClass = 'bg-destructive/10 text-destructive border-destructive/30';
+      break;
+  }
+
+  return (
+    <Badge variant="outline" className={cn("flex items-center gap-1 px-3 py-1 text-sm font-semibold", badgeColorClass)}>
+      {badgeIcon}
+      <span>{status}</span>
+    </Badge>
+  );
+}

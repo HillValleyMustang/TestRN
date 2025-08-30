@@ -24,6 +24,7 @@ export type ProfilesRow = {
   current_streak: number | null;
   longest_streak: number | null;
   last_workout_date: string | null;
+  rolling_workout_status: string | null;
 };
 export type ProfilesInsert = {
   body_fat_pct?: number | null;
@@ -49,6 +50,7 @@ export type ProfilesInsert = {
   current_streak?: number | null;
   longest_streak?: number | null;
   last_workout_date?: string | null;
+  rolling_workout_status?: string | null;
 };
 export type ProfilesUpdate = {
   body_fat_pct?: number | null;
@@ -74,4 +76,5 @@ export type ProfilesUpdate = {
   current_streak?: number | null;
   longest_streak?: number | null;
   last_workout_date?: string | null;
+  rolling_workout_status?: string | null;
 };

@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { UserNav } from "./user-nav";
 import { NotificationBell } from "./notification-bell";
 import { ActivityLoggingDialog } from "../activity-logging-dialog";
-import { StreakPill } from "./streak-pill";
 import { useScrollPosition } from "@/hooks/use-scroll-position"; // Import the new hook
 import { cn } from "@/lib/utils"; // Ensure cn is imported
+import { RollingStatusBadge } from "./rolling-status-badge"; // Import the new RollingStatusBadge
 
 const mobileNavLinks = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -68,7 +68,7 @@ export function Header() {
           </SheetContent>
         </Sheet>
         <div className="relative ml-auto flex flex-1 items-center justify-end gap-2 md:grow-0">
-          <StreakPill />
+          <RollingStatusBadge /> {/* Replaced StreakPill with RollingStatusBadge */}
           <NotificationBell />
           <UserNav />
         </div>
