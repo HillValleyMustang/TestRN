@@ -4,30 +4,24 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { MadeWithDyad } from "@/components/made-with-dyad";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useForm } from "react-hook-form";
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { FormProvider, useForm } from "react-hook-form"; // Import FormProvider
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from 'sonner';
-import { Profile as ProfileType, ProfileUpdate, Tables, UserAchievement } from '@/types/supabase';
+import { Profile as ProfileType, ProfileUpdate, Tables } from '@/types/supabase';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Edit, Save, LogOut, ArrowLeft, BarChart2, User, Settings, Flame, Dumbbell, Trophy, Star, Footprints, Bot, Crown, Sunrise, CalendarCheck, Weight, LayoutTemplate, Text, ChevronDown, X, ChevronLeft, ChevronRight } from 'lucide-react'; // Added ChevronLeft, ChevronRight for carousel nav
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
-import { TPathSwitcher } from '@/components/t-path-switcher';
+import { BarChart2, User, Settings, ChevronLeft, ChevronRight, Flame, Dumbbell, Trophy, Star, Footprints } from 'lucide-react'; // Added missing icons
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, getLevelFromPoints } from '@/lib/utils';
 import { AchievementDetailDialog } from '@/components/profile/achievement-detail-dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import useEmblaCarousel from 'embla-carousel-react'; // Import useEmblaCarousel
+import useEmblaCarousel from 'embla-carousel-react';
+
+// Import new modular components
+import { ProfileHeader } from '@/components/profile/profile-header';
+import { ProfileOverviewTab } from '@/components/profile/profile-overview-tab';
+import { ProfileStatsTab } from '@/components/profile/profile-stats-tab';
+import { ProfileSettingsTab } from '@/components/profile/profile-settings-tab';
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
@@ -64,6 +58,21 @@ const ACHIEVEMENT_IDS = {
   CENTURY_CLUB: 'century_club',
   AI_APPRENTICE: 'ai_apprentice',
 };
+
+const achievementsList = [
+  { id: ACHIEVEMENT_IDS.FIRST_WORKOUT, name: 'First Workout', icon: '🏃' },
+  { id: ACHIEVEMENT_IDS.AI_APPRENTICE, name: 'AI Apprentice', icon: '🤖' },
+  { id: ACHIEVEMENT_IDS.TEN_DAY_STREAK, name: '10 Day Streak', icon: '🔥' },
+  { id: ACHIEVEMENT_IDS.THIRTY_DAY_STREAK, name: 'Consistency King', icon: '👑' },
+  { id: ACHIEVEMENT_IDS.TWENTY_FIVE_WORKOUTS, name: '25 Workouts', icon: '💪' },
+  { id: ACHIEVEMENT_IDS.FIFTY_WORKOUTS, name: '50 Workouts', icon: '🏆' },
+  { id: ACHIEVEMENT_IDS.CENTURY_CLUB, name: 'Century Club', icon: '💯' },
+  { id: ACHIEVEMENT_IDS.PERFECT_WEEK, name: 'Perfect Week', icon: '🗓️' },
+  { id: ACHIEVEMENT_IDS.BEAST_MODE, name: 'Beast Mode', icon: '💥' },
+  { id: ACHIEVEMENT_IDS.WEEKEND_WARRIOR, name: 'Weekend Warrior', icon: '🎉' },
+  { id: ACHIEVEMENT_IDS.EARLY_BIRD, name: 'Early Bird', icon: '🌅' }, // Fixed syntax here
+  { id: ACHIEVEMENT_IDS.VOLUME_MASTER, name: 'Volume Master', icon: '🏋️' },
+];
 
 export default function ProfilePage() {
   const { session, supabase } = useSession();
@@ -224,20 +233,10 @@ export default function ProfilePage() {
     }
   }
 
-  const achievements = [
-    { id: ACHIEVEMENT_IDS.FIRST_WORKOUT, name: 'First Workout', icon: '🏃' },
-    { id: ACHIEVEMENT_IDS.AI_APPRENTICE, name: 'AI Apprentice', icon: '🤖' },
-    { id: ACHIEVEMENT_IDS.TEN_DAY_STREAK, name: '10 Day Streak', icon: '🔥' },
-    { id: ACHIEVEMENT_IDS.THIRTY_DAY_STREAK, name: 'Consistency King', icon: '👑' },
-    { id: ACHIEVEMENT_IDS.TWENTY_FIVE_WORKOUTS, name: '25 Workouts', icon: '💪' },
-    { id: ACHIEVEMENT_IDS.FIFTY_WORKOUTS, name: '50 Workouts', icon: '🏆' },
-    { id: ACHIEVEMENT_IDS.CENTURY_CLUB, name: 'Century Club', icon: '💯' },
-    { id: ACHIEVEMENT_IDS.PERFECT_WEEK, name: 'Perfect Week', icon: '🗓️' },
-    { id: ACHIEVEMENT_IDS.BEAST_MODE, name: 'Beast Mode', icon: '💥' },
-    { id: ACHIEVEMENT_IDS.WEEKEND_WARRIOR, name: 'Weekend Warrior', icon: '🎉' },
-    { id: ACHIEVEMENT_IDS.EARLY_BIRD, name: 'Early Bird', icon: '🌅' },
-    { id: ACHIEVEMENT_IDS.VOLUME_MASTER, name: 'Volume Master', icon: '🏋️' },
-  ];
+  const handleAchievementClick = (achievement: { id: string; name: string; icon: string }) => {
+    setSelectedAchievement(achievement);
+    setIsAchievementDetailOpen(true);
+  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -287,12 +286,11 @@ export default function ProfilePage() {
   return (
     <>
       <div className="p-2 sm:p-4 max-w-4xl mx-auto">
-        <header className="flex items-center justify-between mb-6">
-          <Button variant="ghost" onClick={() => router.back()}><ArrowLeft className="h-4 w-4 mr-2" /> Back</Button>
-          <Button onClick={() => isEditing ? form.handleSubmit(onSubmit)() : setIsEditing(true)}>
-            {isEditing ? <><Save className="h-4 w-4 mr-2" /> Save</> : <><Edit className="h-4 w-4 mr-2" /> Edit</>}
-          </Button>
-        </header>
+        <ProfileHeader
+          isEditing={isEditing}
+          onEditToggle={() => setIsEditing(true)}
+          onSave={form.handleSubmit(onSubmit)}
+        />
 
         <div className="text-center mb-8">
           <Avatar className="w-24 h-24 mx-auto mb-4 ring-4 ring-primary/20">
@@ -317,311 +315,55 @@ export default function ProfilePage() {
             <div className="overflow-hidden" ref={emblaRef}>
               <div className="flex">
                 <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
-                  <TabsContent value="overview" className="mt-6 space-y-6 border-none p-0">
-                    <div className="grid grid-cols-2 gap-4">
-                      <Card className="bg-gradient-to-br from-orange-400 to-orange-500 text-primary-foreground shadow-lg"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Current Streak</CardTitle><Flame className="h-4 w-4" /></CardHeader><CardContent><div className="text-2xl font-bold">{profile.current_streak || 0} Days</div></CardContent></Card>
-                      <Card className="bg-gradient-to-br from-blue-400 to-blue-500 text-primary-foreground shadow-lg"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Workouts</CardTitle><Dumbbell className="h-4 w-4" /></CardHeader><CardContent><div className="text-2xl font-bold">{(profile.total_points || 0) / 10}</div></CardContent></Card>
-                    </div>
-                    <Card>
-                      <CardHeader><CardTitle className="flex items-center gap-2"><BarChart2 className="h-5 w-5" /> Body Metrics</CardTitle></CardHeader>
-                      <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 text-center">
-                        <div><p className="text-2xl font-bold">{bmi || 'N/A'}</p><p className="text-xs text-muted-foreground">BMI</p></div>
-                        <div><p className="text-2xl font-bold">{profile.height_cm || 'N/A'}<span className="text-base">cm</span></p><p className="text-xs text-muted-foreground">Height</p></div>
-                        <div><p className="text-2xl font-bold">{profile.weight_kg || 'N/A'}<span className="text-base">kg</span></p><p className="text-xs text-muted-foreground">Weight</p></div>
-                        <div><p className="text-2xl font-bold">{dailyCalories || 'N/A'}</p><p className="text-xs text-muted-foreground">Daily Cal (Est.)</p></div>
-                        <div><p className="text-2xl font-bold">{profile.body_fat_pct || 'N/A'}%</p><p className="text-xs text-muted-foreground">Body Fat</p></div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader><CardTitle>Achievements</CardTitle></CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                          {achievements.map((a) => {
-                            const isAchUnlocked = unlockedAchievements.has(a.id);
-                            return (
-                              <Button
-                                key={a.id}
-                                variant="ghost"
-                                className={cn(
-                                  "flex flex-col items-center justify-center min-h-[7rem] w-full p-3 rounded-xl border-2 transition-all duration-200 ease-in-out group",
-                                  isAchUnlocked
-                                    ? 'bg-yellow-50 dark:bg-yellow-950/30 border-yellow-400 dark:border-yellow-700 text-yellow-800 dark:text-yellow-300 hover:scale-105'
-                                    : 'bg-gray-50 dark:bg-gray-900/30 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:scale-105'
-                                )}
-                                onClick={() => {
-                                  setSelectedAchievement(a);
-                                  setIsAchievementDetailOpen(true);
-                                }}
-                              >
-                                <div className="text-2xl mb-1 transition-transform duration-200 ease-in-out group-hover:scale-110">{a.icon}</div>
-                                <div className={cn(
-                                  "text-xs font-medium text-center leading-tight whitespace-normal",
-                                  isAchUnlocked ? "text-yellow-800 dark:text-yellow-300" : "text-gray-500 dark:text-gray-400"
-                                )}>
-                                  {isAchUnlocked ? a.name : a.name}
-                                </div>
-                              </Button>
-                            );
-                          })}
-                        </div>
-                        <p className="text-center text-muted-foreground text-sm mt-4">
-                          Tap to see requirements
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
+                  <ProfileOverviewTab
+                    profile={profile}
+                    bmi={bmi}
+                    dailyCalories={dailyCalories}
+                    achievements={achievementsList}
+                    unlockedAchievements={unlockedAchievements}
+                    onAchievementClick={handleAchievementClick}
+                  />
                 </div>
 
                 <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
-                  <TabsContent value="stats" className="mt-6 space-y-6 border-none p-0">
-                    <Card className={cn("relative overflow-hidden p-6 text-center text-primary-foreground shadow-lg group", fitnessLevel.color, "transition-all duration-300 ease-in-out hover:scale-[1.01] hover:shadow-xl")}>
-                      <div className="absolute inset-0 opacity-20" style={{
-                        background: `linear-gradient(45deg, ${fitnessLevel.color.replace('bg-', 'var(--')} / 0.8), transparent)`,
-                        filter: 'blur(50px)',
-                        transform: 'scale(1.5)'
-                      }}></div>
-                      <div className="relative z-10 flex flex-col items-center justify-center">
-                        <div className="mb-4 text-white transition-transform duration-300 ease-in-out group-hover:scale-110">
-                          {React.cloneElement(fitnessLevel.icon, { className: "h-12 w-12" })}
-                        </div>
-                        <CardTitle className="text-4xl font-extrabold tracking-tight text-white mb-2">
-                          {fitnessLevel.level}
-                        </CardTitle>
-                        <CardDescription className="text-base text-white/90 mb-4">
-                          {fitnessLevel.level === 'Legend' ? "You've reached the pinnacle of fitness!" : `Keep pushing to reach ${fitnessLevel.nextLevelPoints / 10} workouts for the next level!`}
-                        </CardDescription>
-                        <Progress value={fitnessLevel.progress} className="w-full h-3 bg-white/30" indicatorClassName={cn(fitnessLevel.color.replace('bg-', 'bg-'))} />
-                        <p className="text-sm text-white/80 mt-2">{Math.round(fitnessLevel.progress)}% to next level</p>
-                      </div>
-                    </Card>
-                    <Card><CardHeader><CardTitle>Weekly Progress</CardTitle></CardHeader><CardContent className="flex items-end justify-between space-x-2 h-24">{['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (<div key={i} className="flex-1 flex flex-col items-center gap-2"><div className="w-full bg-gradient-to-t from-blue-400 to-purple-400 rounded-t-lg" style={{ height: `${[60, 80, 45, 90, 70, 0, 30][i]}%` }} /><div className="text-muted-foreground text-xs">{day}</div></div>))}</CardContent></Card>
-                  </TabsContent>
+                  <ProfileStatsTab
+                    fitnessLevel={fitnessLevel}
+                  />
                 </div>
 
                 <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
-                  <TabsContent value="settings" className="mt-6 space-y-6 border-none p-0">
-                    <Form {...form}>
-                      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                        <Card className="bg-card">
-                          <CardHeader className="border-b border-border/50 pb-4">
-                            <CardTitle className="flex items-center gap-2">
-                              <User className="h-5 w-5 text-primary" /> Personal Info
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-6">
-                            <FormField control={form.control} name="full_name" render={({ field }) => (
-                              <FormItem className="sm:col-span-2">
-                                <FormLabel>Your Name</FormLabel>
-                                <FormControl><Input {...field} disabled={!isEditing} /></FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )} />
-                            <div className="flex flex-row gap-4 sm:col-span-2">
-                              <FormField control={form.control} name="height_cm" render={({ field }) => (
-                                <FormItem className="flex-1">
-                                  <FormLabel>Height (cm)</FormLabel>
-                                  <FormControl><Input type="number" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px]" /></FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )} />
-                              <FormField control={form.control} name="weight_kg" render={({ field }) => (
-                                <FormItem className="flex-1">
-                                  <FormLabel>Weight (kg)</FormLabel>
-                                  <FormControl><Input type="number" step="0.1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px]" /></FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )} />
-                            </div>
-                            <FormField control={form.control} name="body_fat_pct" render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Body Fat (%)</FormLabel>
-                                <FormControl><Input type="number" step="0.1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px]" /></FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )} />
-                            <FormField control={form.control} name="preferred_muscles" render={({ field }) => (
-                              <FormItem className="sm:col-span-2">
-                                <FormLabel>Preferred Muscles to Train (Optional)</FormLabel>
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      role="combobox"
-                                      className={cn(
-                                        "w-full justify-between",
-                                        !field.value?.length && "text-muted-foreground"
-                                      )}
-                                      disabled={!isEditing}
-                                    >
-                                      <div className="flex flex-wrap gap-1">
-                                        {field.value && field.value.length > 0 ? (
-                                          field.value.map((muscle) => (
-                                            <Badge key={muscle} variant="secondary" className="flex items-center gap-1">
-                                              {muscle}
-                                              <X className="h-3 w-3 cursor-pointer" onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (isEditing) {
-                                                  const newSelection = field.value?.filter((m) => m !== muscle);
-                                                  field.onChange(newSelection);
-                                                }
-                                              }} />
-                                            </Badge>
-                                          ))
-                                        ) : (
-                                          <span>Select muscles...</span>
-                                        )}
-                                      </div>
-                                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                                    <Command>
-                                      <CommandInput placeholder="Search muscles..." />
-                                      <CommandEmpty>No muscle found.</CommandEmpty>
-                                      <CommandGroup>
-                                        {mainMuscleGroups.map((muscle) => (
-                                          <CommandItem
-                                            key={muscle}
-                                            onSelect={() => {
-                                              if (!isEditing) return;
-                                              const currentSelection = new Set(field.value);
-                                              if (currentSelection.has(muscle)) {
-                                                currentSelection.delete(muscle);
-                                              } else {
-                                                currentSelection.add(muscle);
-                                              }
-                                              field.onChange(Array.from(currentSelection));
-                                            }}
-                                          >
-                                            <Checkbox
-                                              checked={field.value?.includes(muscle)}
-                                              onCheckedChange={(checked) => {
-                                                if (!isEditing) return;
-                                                const currentSelection = new Set(field.value);
-                                                if (checked) {
-                                                  currentSelection.add(muscle);
-                                                } else {
-                                                  currentSelection.delete(muscle);
-                                                }
-                                                field.onChange(Array.from(currentSelection));
-                                              }}
-                                              className="mr-2"
-                                            />
-                                            {muscle}
-                                          </CommandItem>
-                                        ))}
-                                      </CommandGroup>
-                                    </Command>
-                                  </PopoverContent>
-                                </Popover>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  Select muscle groups you'd like the AI Coach to prioritise in your recommendations.
-                                </p>
-                                <FormMessage />
-                              </FormItem>
-                            )} />
-                            <FormField control={form.control} name="health_notes" render={({ field }) => (
-                              <FormItem className="sm:col-span-2">
-                                <FormLabel>Health Notes / Constraints (Optional)</FormLabel>
-                                <FormControl><Textarea {...field} value={field.value ?? ''} disabled={!isEditing} placeholder="Any injuries, health conditions, or limitations..." /></FormControl>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  Share any relevant health information or limitations for the AI Coach to consider when generating advice.
-                                </p>
-                                <FormMessage />
-                              </FormItem>
-                            )} />
-                          </CardContent>
-                        </Card>
-                        <Card className="bg-card">
-                          <CardHeader className="border-b border-border/50 pb-4">
-                            <CardTitle className="flex items-center gap-2">
-                              <Dumbbell className="h-5 w-5 text-primary" /> Workout Preferences
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="space-y-4 pt-6">
-                            <FormField control={form.control} name="primary_goal" render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Primary Goal</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value || ''} disabled={!isEditing}>
-                                  <FormControl><SelectTrigger><SelectValue placeholder="Select your goal" /></SelectTrigger></FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="muscle_gain">Muscle Gain</SelectItem>
-                                    <SelectItem value="fat_loss">Fat Loss</SelectItem>
-                                    <SelectItem value="strength_increase">Strength Increase</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )} />
-                            <FormField control={form.control} name="preferred_session_length" render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Preferred Session Length</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value || ''} disabled={!isEditing}>
-                                  <FormControl><SelectTrigger><SelectValue placeholder="Select length" /></SelectTrigger></FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="15-30">15-30 mins</SelectItem>
-                                    <SelectItem value="30-45">30-45 mins</SelectItem>
-                                    <SelectItem value="45-60">45-60 mins</SelectItem>
-                                    <SelectItem value="60-90">60-90 mins</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )} />
-                          </CardContent>
-                        </Card>
-                        <Card className="bg-card">
-                          <CardHeader className="border-b border-border/50 pb-4">
-                            <CardTitle className="flex items-center gap-2">
-                              <LayoutTemplate className="h-5 w-5 text-primary" /> Active T-Path
-                            </CardTitle>
-                            <CardDescription>Your Transformation Path is a pre-designed workout program tailored to your goals. Changing it here will regenerate your entire workout plan on the 'Workout' page, replacing your current set of exercises with a new one based on your preferences.</CardDescription>
-                          </CardHeader>
-                          <CardContent className="pt-6">{activeTPath && <TPathSwitcher currentTPathId={activeTPath.id} onTPathChange={(newId) => { toast.info("T-Path changed! Refreshing data..."); fetchData(); }} disabled={!isEditing} />}</CardContent>
-                        </Card>
-                        <Card className="bg-card">
-                          <CardHeader className="border-b border-border/50 pb-4"><CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5 text-primary" /> AI Coach Usage</CardTitle></CardHeader>
-                          <CardContent className="space-y-2 pt-6">
-                            <div className="flex justify-between items-center text-sm mb-2">
-                              <p>Daily Uses</p>
-                              <p className="font-semibold">{aiCoachUsageToday} / {AI_COACH_LIMIT_PER_SESSION}</p>
-                            </div>
-                            <Progress value={(aiCoachUsageToday / AI_COACH_LIMIT_PER_SESSION) * 100} />
-                            <p className="text-xs text-muted-foreground pt-1">The AI Coach needs at least 3 workouts in the last 30 days to provide advice.</p>
-                          </CardContent>
-                        </Card>
-                      </form>
-                    </Form>
-                    
-                    <div className="flex justify-end mt-6">
-                      <Button type="button" variant="ghost" className="text-destructive hover:text-destructive" onClick={handleSignOut}>
-                        <LogOut className="h-4 w-4 mr-2" /> Sign Out
-                      </Button>
-                    </div>
-                  </TabsContent>
+                  <FormProvider {...form}> {/* Wrap settings tab with FormProvider */}
+                    <ProfileSettingsTab
+                      form={form}
+                      isEditing={isEditing}
+                      mainMuscleGroups={mainMuscleGroups}
+                      activeTPath={activeTPath}
+                      aiCoachUsageToday={aiCoachUsageToday}
+                      AI_COACH_LIMIT_PER_SESSION={AI_COACH_LIMIT_PER_SESSION}
+                      onTPathChange={fetchData}
+                      onSignOut={handleSignOut}
+                      onSubmit={onSubmit}
+                    />
+                  </FormProvider>
                 </div>
               </div>
             </div>
             
             {/* Navigation Buttons for Carousel */}
-            <Button
-              variant="ghost"
-              size="icon"
+            <button
               onClick={scrollPrev}
-              className="absolute left-2 top-1/2 -translate-y-1/2 z-10 hidden sm:flex"
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-10 hidden sm:flex p-2 rounded-full bg-background/50 hover:bg-background/70 transition-colors"
               disabled={activeTab === "overview"}
             >
               <ChevronLeft className="h-6 w-6" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
+            </button>
+            <button
               onClick={scrollNext}
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 hidden sm:flex"
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 hidden sm:flex p-2 rounded-full bg-background/50 hover:bg-background/70 transition-colors"
               disabled={activeTab === "settings"}
             >
               <ChevronRight className="h-6 w-6" />
-            </Button>
+            </button>
           </div>
         </Tabs>
         <MadeWithDyad />
