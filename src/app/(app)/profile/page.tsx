@@ -261,14 +261,14 @@ export default function ProfilePage() {
           </Avatar>
           <h1 className="text-3xl font-bold">{profile.first_name} {profile.last_name}</h1>
           <div className="flex items-center justify-center space-x-2 mt-2">
-            <span className={cn("px-3 py-1 rounded-full text-xs font-bold text-white", fitnessLevel.color)}>{fitnessLevel.level}</span>
+            <span className={cn("px-3 py-1 rounded-full text-xs font-bold !text-white", fitnessLevel.color)}>{fitnessLevel.level}</span>
             <span className="text-muted-foreground text-sm">•</span>
             <span className="text-muted-foreground text-sm">Member since {new Date(profile.created_at!).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
           </div>
         </div>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-3 bg-muted">
             <TabsTrigger value="overview"><User className="h-4 w-4 mr-2" />Overview</TabsTrigger>
             <TabsTrigger value="stats"><BarChart2 className="h-4 w-4 mr-2" />Stats</TabsTrigger>
             <TabsTrigger value="settings"><Settings className="h-4 w-4 mr-2" />Settings</TabsTrigger>
@@ -356,12 +356,12 @@ export default function ProfilePage() {
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <Card className="bg-card"> {/* Changed background color */}
-                  <CardHeader>
+                  <CardHeader className="border-b border-border/50 pb-4">
                     <CardTitle className="flex items-center gap-2">
                       <User className="h-5 w-5 text-primary" /> Personal Info
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-6">
                     <FormField control={form.control} name="full_name" render={({ field }) => (
                       <FormItem className="sm:col-span-2">
                         <FormLabel>Your Name</FormLabel>
@@ -486,12 +486,12 @@ export default function ProfilePage() {
                   </CardContent>
                 </Card>
                 <Card className="bg-card"> {/* Changed background color */}
-                  <CardHeader>
+                  <CardHeader className="border-b border-border/50 pb-4">
                     <CardTitle className="flex items-center gap-2">
                       <Dumbbell className="h-5 w-5 text-primary" /> Workout Preferences
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-4 pt-6">
                     <FormField control={form.control} name="primary_goal" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Primary Goal</FormLabel>
@@ -524,17 +524,17 @@ export default function ProfilePage() {
                   </CardContent>
                 </Card>
                 <Card className="bg-card"> {/* Changed background color */}
-                  <CardHeader>
+                  <CardHeader className="border-b border-border/50 pb-4">
                     <CardTitle className="flex items-center gap-2">
                       <LayoutTemplate className="h-5 w-5 text-primary" /> Active T-Path
                     </CardTitle>
                     <CardDescription>Your Transformation Path is a pre-designed workout program tailored to your goals. Changing it here will regenerate your entire workout plan on the 'Workout' page, replacing your current set of exercises with a new one based on your preferences.</CardDescription>
                   </CardHeader>
-                  <CardContent>{activeTPath && <TPathSwitcher currentTPathId={activeTPath.id} onTPathChange={(newId) => { toast.info("T-Path changed! Refreshing data..."); fetchData(); }} disabled={!isEditing} />}</CardContent>
+                  <CardContent className="pt-6">{activeTPath && <TPathSwitcher currentTPathId={activeTPath.id} onTPathChange={(newId) => { toast.info("T-Path changed! Refreshing data..."); fetchData(); }} disabled={!isEditing} />}</CardContent>
                 </Card>
                 <Card className="bg-card"> {/* Changed background color */}
-                  <CardHeader><CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5 text-primary" /> AI Coach Usage</CardTitle></CardHeader>
-                  <CardContent className="space-y-2">
+                  <CardHeader className="border-b border-border/50 pb-4"><CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5 text-primary" /> AI Coach Usage</CardTitle></CardHeader>
+                  <CardContent className="space-y-2 pt-6">
                     <p className="text-sm">You have used the AI Coach <span className="font-semibold">{aiCoachUsageToday}</span> time(s) today.</p>
                     <p className="text-sm">Limit: <span className="font-semibold">{AI_COACH_LIMIT_PER_SESSION}</span> uses per session.</p>
                     <p className="text-xs text-muted-foreground">The AI Coach needs at least 3 workouts in the last 30 days to provide advice.</p>
