@@ -26,7 +26,7 @@ import {
   FormMessage 
 } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, Edit, XCircle, ChevronDown, ChevronUp, Info, Sparkles, Dumbbell, Timer, Check } from "lucide-react";
+import { PlusCircle, Edit, XCircle, ChevronDown, ChevronUp, Info, Sparkles, Dumbbell, Timer } from "lucide-react"; // Removed Check icon
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Popover,
@@ -37,7 +37,7 @@ import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from "
 import { AnalyzeGymDialog } from "./analyze-gym-dialog"; 
 import { Label } from "@/components/ui/label";
 import { cn } from '@/lib/utils';
-import { Badge } from "@/components/ui/badge"; // Added this import
+import { Badge } from "@/components/ui/badge";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -119,28 +119,20 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
     }
   }, [editingExercise, form]);
 
-  const handleTypeChange = (type: "weight" | "timed", checked: boolean) => {
-    const currentTypes = form.getValues("type") || [];
-    let newTypes: ("weight" | "timed")[];
-    
-    if (checked) {
-      newTypes = [...currentTypes, type];
-    } else {
-      newTypes = currentTypes.filter((t) => t !== type);
-    }
-    
-    form.setValue("type", newTypes);
-    setSelectedTypes(newTypes);
+  const handleTypeChange = (type: "weight" | "timed") => {
+    // Ensure only one type is selected (radio-like behavior)
+    form.setValue("type", [type]);
+    setSelectedTypes([type]);
   };
 
-  const handleMuscleChange = (muscle: string, checked: boolean) => {
+  const handleMuscleToggle = (muscle: string) => {
     const currentMuscles = form.getValues("main_muscles") || [];
     let newMuscles;
     
-    if (checked) {
-      newMuscles = [...currentMuscles, muscle];
-    } else {
+    if (currentMuscles.includes(muscle)) {
       newMuscles = currentMuscles.filter((m) => m !== muscle);
+    } else {
+      newMuscles = [...currentMuscles, muscle];
     }
     
     form.setValue("main_muscles", newMuscles);
@@ -295,7 +287,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
         </span>
       </CardHeader>
       {isExpanded && (
-        <CardContent>
+        <CardContent className="px-4 py-6"> {/* Adjusted padding here */}
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="flex flex-col sm:flex-row gap-2 mb-4">
@@ -323,7 +315,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                 )} 
               />
               
-              {/* Main Muscle Group(s) as a multi-select dropdown */}
+              {/* Main Muscle Group(s) as a multi-select grid of buttons */}
               <FormField control={form.control} name="main_muscles" render={({ field }) => (
                 <FormItem>
                   <FormLabel className="font-bold">Main Muscle Group(s)</FormLabel>
@@ -357,48 +349,28 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                      <Command>
-                        <CommandInput placeholder="Search muscles..." />
-                        <CommandEmpty>No muscle found.</CommandEmpty>
-                        <CommandGroup>
-                          {mainMuscleGroups.map((muscle) => (
-                            <CommandItem
-                              key={muscle}
-                              onSelect={() => {
-                                const currentSelection = new Set(field.value);
-                                if (currentSelection.has(muscle)) {
-                                  currentSelection.delete(muscle);
-                                } else {
-                                  currentSelection.add(muscle);
-                                }
-                                field.onChange(Array.from(currentSelection));
-                              }}
-                            >
-                              <Checkbox
-                                checked={field.value?.includes(muscle)}
-                                onCheckedChange={(checked) => {
-                                  const currentSelection = new Set(field.value);
-                                  if (checked) {
-                                    currentSelection.add(muscle);
-                                  } else {
-                                    currentSelection.delete(muscle);
-                                  }
-                                  field.onChange(Array.from(currentSelection));
-                                }}
-                                className="mr-2"
-                              />
-                              {muscle}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </Command>
+                      <div className="grid grid-cols-2 gap-2 p-2"> {/* Grid for muscle buttons */}
+                        {mainMuscleGroups.map((muscle) => (
+                          <Button
+                            key={muscle}
+                            variant={selectedMuscles.includes(muscle) ? "default" : "outline"}
+                            onClick={() => handleMuscleToggle(muscle)}
+                            className={cn(
+                              "flex-1",
+                              selectedMuscles.includes(muscle) ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent"
+                            )}
+                          >
+                            {muscle}
+                          </Button>
+                        ))}
+                      </div>
                     </PopoverContent>
                   </Popover>
                   <FormMessage />
                 </FormItem>
               )} />
               
-              {/* Exercise Type as visual cards */}
+              {/* Exercise Type as visual cards (single-select) */}
               <div className="space-y-3">
                 <FormLabel className="font-bold">Exercise Type</FormLabel>
                 <div className="grid grid-cols-2 gap-3">
@@ -407,22 +379,20 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                       "flex flex-col items-center justify-center p-4 border-2 rounded-lg cursor-pointer transition-all",
                       selectedTypes.includes("weight") ? "border-primary bg-primary text-primary-foreground shadow-md" : "border-input bg-card hover:border-primary/50"
                     )}
-                    onClick={() => handleTypeChange("weight", !selectedTypes.includes("weight"))}
+                    onClick={() => handleTypeChange("weight")}
                   >
                     <Dumbbell className={cn("h-8 w-8 mb-2", selectedTypes.includes("weight") ? "text-primary-foreground" : "text-muted-foreground")} />
                     <span className={cn("font-medium", selectedTypes.includes("weight") ? "text-primary-foreground" : "text-foreground")}>Weight Training</span>
-                    {selectedTypes.includes("weight") && <Check className="h-4 w-4 text-primary-foreground mt-1" />}
                   </div>
                   <div 
                     className={cn(
                       "flex flex-col items-center justify-center p-4 border-2 rounded-lg cursor-pointer transition-all",
                       selectedTypes.includes("timed") ? "border-primary bg-primary text-primary-foreground shadow-md" : "border-input bg-card hover:border-primary/50"
                     )}
-                    onClick={() => handleTypeChange("timed", !selectedTypes.includes("timed"))}
+                    onClick={() => handleTypeChange("timed")}
                   >
                     <Timer className={cn("h-8 w-8 mb-2", selectedTypes.includes("timed") ? "text-primary-foreground" : "text-muted-foreground")} />
                     <span className={cn("font-medium", selectedTypes.includes("timed") ? "text-primary-foreground" : "text-foreground")}>Timed (e.g. Plank)</span>
-                    {selectedTypes.includes("timed") && <Check className="h-4 w-4 text-primary-foreground mt-1" />}
                   </div>
                 </div>
                 <FormMessage>
@@ -480,7 +450,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                   <FormItem>
                     <FormLabel className="font-bold">Description (Optional)</FormLabel>
                     <FormControl>
-                      <Textarea {...field} value={field.value ?? ''} />
+                      <Textarea {...field} value={field.value ?? ''} className="text-sm" /> {/* Added text-sm */}
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -494,7 +464,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                   <FormItem>
                     <FormLabel className="font-bold">Pro Tip (Optional)</FormLabel>
                     <FormControl>
-                      <Textarea {...field} value={field.value ?? ''} />
+                      <Textarea {...field} value={field.value ?? ''} className="text-sm" /> {/* Added text-sm */}
                     </FormControl>
                     <FormMessage />
                   </FormItem>
