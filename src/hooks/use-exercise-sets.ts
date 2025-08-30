@@ -65,10 +65,11 @@ export const useExerciseSets = ({
     setInternalSessionId(propCurrentSessionId);
   }, [propCurrentSessionId]);
 
-  // Synchronize local 'sets' state with 'initialSets' prop
+  // Effect to synchronize local 'sets' state with 'initialSets' prop
+  // This handles initial setup and when the parent explicitly changes initialSets
   useEffect(() => {
-    // If initialSets is empty, initialize with default sets
     if (initialSets.length === 0) {
+      // Only set default if initialSets is truly empty (e.g., for ad-hoc or new workout)
       const defaultSets: SetLogState[] = Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({
         id: null,
         created_at: null,
@@ -90,7 +91,13 @@ export const useExerciseSets = ({
     } else {
       setSets(initialSets);
     }
-  }, [initialSets, exerciseId, internalSessionId]);
+  }, [initialSets, exerciseId, internalSessionId]); // Dependencies for this effect
+
+  // NEW EFFECT: Report local 'sets' state changes back to the parent
+  // This runs AFTER the component has rendered with the new local 'sets' state
+  useEffect(() => {
+    onUpdateSets(exerciseId, sets);
+  }, [sets, exerciseId, onUpdateSets]); // Dependencies for this effect
 
 
   // Fetch exercise-level PR on component mount
@@ -137,11 +144,9 @@ export const useExerciseSets = ({
         lastReps: lastSet?.reps,
         lastTimeSeconds: lastSet?.time_seconds,
       };
-      const updatedSets = [...prev, newSet];
-      onUpdateSets(exerciseId, updatedSets); // Update parent state
-      return updatedSets;
+      return [...prev, newSet]; // Removed onUpdateSets here
     });
-  }, [exerciseId, onUpdateSets, internalSessionId, sets.length]);
+  }, [exerciseId, internalSessionId, sets.length]);
 
   const handleInputChange = useCallback((setIndex: number, field: keyof TablesInsert<'set_logs'>, value: string) => {
     setSets(prev => {
@@ -162,10 +167,9 @@ export const useExerciseSets = ({
       }
       // Mark set as unsaved if input changes
       newSets[setIndex].isSaved = false;
-      onUpdateSets(exerciseId, newSets); // Update parent state
-      return newSets;
+      return newSets; // Removed onUpdateSets here
     });
-  }, [exerciseId, onUpdateSets, preferredWeightUnit]);
+  }, [preferredWeightUnit]); // exerciseId and onUpdateSets are now in the new useEffect
 
   const saveSingleSetToDatabase = useCallback(async (set: SetLogState, setIndex: number): Promise<SetLogState | null> => {
     let currentSessionIdToUse = internalSessionId;
@@ -281,29 +285,26 @@ export const useExerciseSets = ({
       setSets(prev => {
         const newSets = [...prev];
         newSets[setIndex] = updatedSet;
-        onUpdateSets(exerciseId, newSets); // Update parent state
-        return newSets;
+        return newSets; // onUpdateSets will be called by the new useEffect
       });
       toast.success(`Set ${setIndex + 1} saved successfully!`);
     }
-  }, [sets, onUpdateSets, exerciseId, saveSingleSetToDatabase]);
+  }, [sets, exerciseId, saveSingleSetToDatabase]);
 
   const handleEditSet = useCallback((setIndex: number) => {
     setSets(prev => {
       const updatedSets = [...prev];
       updatedSets[setIndex] = { ...updatedSets[setIndex], isSaved: false };
-      onUpdateSets(exerciseId, updatedSets); // Update parent state
-      return updatedSets;
+      return updatedSets; // onUpdateSets will be called by the new useEffect
     });
-  }, [exerciseId, onUpdateSets]);
+  }, []);
 
   const handleDeleteSet = useCallback(async (setIndex: number) => {
     const setToDelete = sets[setIndex];
     if (!setToDelete.id) {
       setSets(prev => {
         const updatedSets = prev.filter((_, i) => i !== setIndex);
-        onUpdateSets(exerciseId, updatedSets); // Update parent state
-        return updatedSets;
+        return updatedSets; // onUpdateSets will be called by the new useEffect
       });
       toast.success("Unsaved set removed.");
       return;
@@ -323,12 +324,11 @@ export const useExerciseSets = ({
     } else {
       setSets(prev => {
         const updatedSets = prev.filter((_, i) => i !== setIndex);
-        onUpdateSets(exerciseId, updatedSets); // Update parent state
-        return updatedSets;
+        return updatedSets; // onUpdateSets will be called by the new useEffect
       });
       toast.success("Set deleted successfully!");
     }
-  }, [exerciseId, sets, supabase, onUpdateSets]);
+  }, [sets, supabase]);
 
   const handleSaveExercise = useCallback(async (): Promise<boolean> => {
     if (!internalSessionId && sets.filter(s => s.isSaved).length === 0) {
@@ -366,7 +366,6 @@ export const useExerciseSets = ({
     if (hasError) {
       toast.error("Some sets failed to save. Please check your inputs.");
       setSets(updatedSetsState); // Update local state with any successful saves
-      onUpdateSets(exerciseId, updatedSetsState); // Update parent state
       return false;
     }
 
@@ -376,7 +375,6 @@ export const useExerciseSets = ({
     }
 
     setSets(updatedSetsState); // Ensure local state is fully updated after all saves
-    onUpdateSets(exerciseId, updatedSetsState); // Update parent state
 
     let currentExercisePRValue: number | null = null;
     if (exerciseType === 'weight') {
@@ -428,7 +426,7 @@ export const useExerciseSets = ({
       toast.error("Failed to complete exercise: " + err.message);
       return false;
     }
-  }, [internalSessionId, sets, exerciseType, exerciseCategory, exercisePR, exerciseId, supabase, onExerciseComplete, exerciseName, saveSingleSetToDatabase, onUpdateSets]);
+  }, [internalSessionId, sets, exerciseType, exerciseCategory, exercisePR, exerciseId, supabase, onExerciseComplete, exerciseName, saveSingleSetToDatabase]);
 
   return {
     sets,
