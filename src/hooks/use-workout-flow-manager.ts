@@ -295,7 +295,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
   }, [currentSessionId, sessionStartTime, supabase]);
 
   const markExerciseAsCompleted = useCallback((exerciseId: string, isNewPR: boolean) => {
-    setCompletedExercises(prev => new Set(prev).add(exerciseId));
+    setCompletedExercises((prev: Set<string>) => new Set(prev).add(exerciseId));
   }, []);
 
   const addExerciseToSession = useCallback(async (exercise: ExerciseDefinition) => {
@@ -332,7 +332,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
   const removeExerciseFromSession = useCallback((exerciseId: string) => {
     setExercisesForSession(prev => prev.filter(ex => ex.id !== exerciseId));
     setExercisesWithSets(prev => { const newSets = { ...prev }; delete newSets[exerciseId]; return newSets; });
-    setCompletedExercises((prev) => { const newCompleted = new Set(prev); newCompleted.delete(exerciseId); return newCompleted; });
+    setCompletedExercises((prev: Set<string>) => { const newCompleted = new Set(prev); newCompleted.delete(exerciseId); return newCompleted; });
   }, []);
 
   const substituteExercise = useCallback((oldExerciseId: string, newExercise: WorkoutExercise) => {
@@ -345,7 +345,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       delete newSets[oldExerciseId];
       return newSets;
     });
-    setCompletedExercises((prev) => { const newCompleted = new Set(prev); newCompleted.delete(oldExerciseId); return newCompleted; });
+    setCompletedExercises((prev: Set<string>) => { const newCompleted = new Set(prev); newCompleted.delete(oldExerciseId); return newCompleted; });
   }, [currentSessionId]);
 
   const updateExerciseSets = useCallback((exerciseId: string, newSets: SetLogState[]) => {
