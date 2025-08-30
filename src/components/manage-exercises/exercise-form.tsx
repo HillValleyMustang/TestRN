@@ -319,56 +319,59 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
               <FormField control={form.control} name="main_muscles" render={({ field }) => (
                 <FormItem>
                   <FormLabel className="font-bold">Main Muscle Group(s)</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        className={cn(
-                          "w-full justify-between",
-                          !field.value?.length && "text-muted-foreground"
-                        )}
-                      >
-                        {/* Wrap children in a single span */}
-                        <span className="flex items-center justify-between w-full">
-                          <div className="flex flex-wrap gap-1">
-                            {field.value && field.value.length > 0 ? (
-                              field.value.map((muscle) => (
-                                <Badge key={muscle} variant="secondary" className="flex items-center gap-1">
-                                  {muscle}
-                                  <XCircle className="h-3 w-3 cursor-pointer" onClick={(e) => {
-                                    e.stopPropagation();
-                                    const newSelection = field.value?.filter((m) => m !== muscle);
-                                    field.onChange(newSelection);
-                                  }} />
-                                </Badge>
-                              ))
-                            ) : (
-                              <span>Select muscles...</span>
-                            )}
-                          </div>
-                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </span>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                      <div className="grid grid-cols-2 gap-2 p-2"> {/* Grid for muscle buttons */}
-                        {mainMuscleGroups.map((muscle) => (
-                          <Button
-                            key={muscle}
-                            variant={selectedMuscles.includes(muscle) ? "default" : "outline"}
-                            onClick={() => handleMuscleToggle(muscle)}
-                            className={cn(
-                              "flex-1",
-                              selectedMuscles.includes(muscle) ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent"
-                            )}
-                          >
-                            {muscle}
-                          </Button>
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                  <FormControl>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className={cn(
+                            "w-full justify-between",
+                            !field.value?.length && "text-muted-foreground"
+                          )}
+                        >
+                          {/* Wrap children in a single span */}
+                          <span className="flex items-center justify-between w-full">
+                            <div className="flex flex-wrap gap-1">
+                              {field.value && field.value.length > 0 ? (
+                                field.value.map((muscle) => (
+                                  <Badge key={muscle} variant="secondary" className="flex items-center gap-1">
+                                    {muscle}
+                                    <XCircle className="h-3 w-3 cursor-pointer" onClick={(e) => {
+                                      e.stopPropagation();
+                                      const newSelection = field.value?.filter((m) => m !== muscle);
+                                      field.onChange(newSelection);
+                                    }} />
+                                  </Badge>
+                                ))
+                              ) : (
+                                <span>Select muscles...</span>
+                              )}
+                            </div>
+                            <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                        <div className="grid grid-cols-2 gap-2 p-2"> {/* Grid for muscle buttons */}
+                          {mainMuscleGroups.map((muscle) => (
+                            <Button
+                              key={muscle}
+                              type="button"
+                              variant={selectedMuscles.includes(muscle) ? "default" : "outline"}
+                              onClick={() => handleMuscleToggle(muscle)}
+                              className={cn(
+                                "flex-1",
+                                selectedMuscles.includes(muscle) ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent"
+                              )}
+                            >
+                              {muscle}
+                            </Button>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
