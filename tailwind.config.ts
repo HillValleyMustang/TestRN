@@ -121,5 +121,10 @@ export default {
     {
       pattern: /(bg|text|border)-workout-(upper-body-a|lower-body-a|upper-body-b|lower-body-b|push|pull|legs|bonus)/,
     },
+    // Add the specific background colors for the fitness level badge to the safelist
+    'bg-gray-500',
+    'bg-blue-500',
+    'bg-purple-500',
+    'bg-yellow-500',
   ],
 } satisfies Config;
