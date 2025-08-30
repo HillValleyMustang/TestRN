@@ -204,15 +204,14 @@ export const ExerciseCard = ({
           onClick={() => setIsExpanded(!isExpanded)}
         >
           {/* Left side: Exercise details */}
-          <div className="flex flex-col flex-1 min-w-0 text-left"> {/* Added text-left here */}
+          <div className="flex flex-col flex-1 min-w-0 text-left">
             <div className="flex items-center gap-2">
-              <CardTitle className={cn("text-lg font-semibold leading-none", workoutColorClass)}>
+              <CardTitle className={cn("text-lg font-semibold leading-none text-left", workoutColorClass)}>
                 {exerciseNumber}. {exercise.name}
               </CardTitle>
               {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus" className="flex-shrink-0">Bonus</WorkoutBadge>}
-              {/* Removed CheckCircle2 from here */}
             </div>
-            <p className="text-sm text-muted-foreground mt-1 truncate">{exercise.main_muscle}</p>
+            <p className="text-sm text-muted-foreground mt-1 truncate text-left">{exercise.main_muscle}</p>
           </div>
 
           {/* Middle: Checkmark (if saved) */}
@@ -265,7 +264,7 @@ export const ExerciseCard = ({
                         {(set.lastWeight !== null || set.lastReps !== null || set.lastTimeSeconds !== null) && (
                           <span className="text-muted-foreground text-xs">
                             (Last: {exercise.type === 'weight' ?
-                              `${set.lastWeight !== null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${set.lastReps !== null ? set.lastReps : '-'}` :
+                              `${set.lastWeight !== null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${set.lastReps !== null ? set.reps : '-'}` :
                               `${set.lastTimeSeconds !== null ? `${set.lastTimeSeconds}s` : '-'}`})
                           </span>
                         )}
