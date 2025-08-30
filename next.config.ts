@@ -1,17 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  webpack: (config) => {
-    if (process.env.NODE_ENV === "development") {
-      config.module.rules.push({
-        test: /\.(jsx|tsx)$/,
-        exclude: /node_modules/,
-        enforce: "pre",
-        use: "@dyad-sh/nextjs-webpack-component-tagger",
-      });
-    }
-    return config;
-  },
+  // Removed custom webpack configuration for diagnostic purposes.
+  // If the issue is resolved, we can investigate re-integrating the tagger
+  // or finding an alternative solution if needed.
 };
 
 export default nextConfig;
