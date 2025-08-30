@@ -200,18 +200,51 @@ export const ExerciseCard = ({
     <> {/* Added React Fragment */}
       <Card className={cn("mb-6 border-2 relative", workoutBorderClass, { "opacity-70": isExerciseSaved })}>
         <CardHeader 
-          className="flex items-center justify-between p-4 cursor-pointer relative" // Use justify-between
+          className="p-0 cursor-pointer relative" // Remove padding from header itself
           onClick={() => setIsExpanded(!isExpanded)}
         >
-          {/* Left side: Exercise details */}
-          <div className="flex flex-col text-left"> {/* Removed flex-1, added text-left */}
-            <div className="flex items-center gap-2">
-              <CardTitle className={cn("text-lg font-semibold leading-none", workoutColorClass)}>
-                {exerciseNumber}. {exercise.name}
-              </CardTitle>
-              {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus" className="flex-shrink-0">Bonus</WorkoutBadge>}
+          <div className="flex items-center justify-between p-4"> {/* Add wrapper div for layout */}
+            {/* Left side: Exercise details */}
+            <div className="flex flex-col text-left">
+              <div className="flex items-center gap-2">
+                <CardTitle className={cn("text-lg font-semibold leading-none", workoutColorClass)}>
+                  {exerciseNumber}. {exercise.name}
+                </CardTitle>
+                {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus" className="flex-shrink-0">Bonus</WorkoutBadge>}
+              </div>
+              <p className="text-sm text-muted-foreground mt-1 truncate">{exercise.main_muscle}</p>
             </div>
-            <p className="text-sm text-muted-foreground mt-1 truncate">{exercise.main_muscle}</p>
+
+            {/* Right side: Menu and Chevron */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" title="More Options" onClick={(e) => e.stopPropagation()}>
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onSelect={() => setShowExerciseHistoryDialog(true)}>
+                    <History className="h-4 w-4 mr-2" /> History
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setShowExerciseInfoDialog(true)}>
+                    <Info className="h-4 w-4 mr-2" /> Info
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setShowExerciseProgressionDialog(true)}>
+                    <Trophy className="h-4 w-4 mr-2" /> Progression
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setShowSwapDialog(true)}>
+                    <RefreshCcw className="h-4 w-4 mr-2" /> Swap Exercise
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setShowCantDoDialog(true)} className="text-destructive">
+                    <Trash2 className="h-4 w-4 mr-2" /> Can't Do
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }} title={isExpanded ? "Collapse" : "Expand"}>
+                {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+              </Button>
+            </div>
           </div>
 
           {/* Middle: Checkmark (if saved) - Absolutely positioned */}
@@ -220,37 +253,6 @@ export const ExerciseCard = ({
               <CheckCircle2 className="h-8 w-8 text-green-500" />
             </div>
           )}
-
-          {/* Right side: Menu and Chevron */}
-          <div className="flex items-center gap-2 flex-shrink-0"> {/* Removed ml-auto */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" title="More Options" onClick={(e) => e.stopPropagation()}>
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={() => setShowExerciseHistoryDialog(true)}>
-                  <History className="h-4 w-4 mr-2" /> History
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setShowExerciseInfoDialog(true)}>
-                  <Info className="h-4 w-4 mr-2" /> Info
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setShowExerciseProgressionDialog(true)}>
-                  <Trophy className="h-4 w-4 mr-2" /> Progression
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setShowSwapDialog(true)}>
-                  <RefreshCcw className="h-4 w-4 mr-2" /> Swap Exercise
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setShowCantDoDialog(true)} className="text-destructive">
-                  <Trash2 className="h-4 w-4 mr-2" /> Can't Do
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }} title={isExpanded ? "Collapse" : "Expand"}>
-              {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-            </Button>
-          </div>
         </CardHeader>
         {isExpanded && (
           <CardContent className="pb-16"> {/* Added bottom padding to make space for the icon */}
