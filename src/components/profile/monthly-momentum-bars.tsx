@@ -16,16 +16,13 @@ interface MonthlyMomentumBarsProps {
   profile: Profile | null;
 }
 
-// Helper to get the start of the week (Monday)
-const getStartOfWeek = (date: Date): Date => {
+// Helper to get the start of the week (Monday) in UTC
+const getStartOfWeekUTC = (date: Date): Date => {
   const d = new Date(date);
-  const day = d.getDay(); // Sunday - 0, Monday - 1, ..., Saturday - 6
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
-  d.setDate(diff);
-  d.setHours(0, 0, 0, 0);
-  d.setMinutes(0, 0, 0);
-  d.setSeconds(0);
-  d.setMilliseconds(0);
+  d.setUTCHours(0, 0, 0, 0); // Normalize to UTC midnight
+  const day = d.getUTCDay(); // 0 for Sunday, 1 for Monday, ..., 6 for Saturday
+  const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday (UTC)
+  d.setUTCDate(diff);
   return d;
 };
 
@@ -91,17 +88,18 @@ export const MonthlyMomentumBars = ({ profile }: MonthlyMomentumBarsProps) => {
           .order('session_date', { ascending: true });
 
         if (sessionsError) throw sessionsError;
+        console.log("Raw workoutSessions from DB:", workoutSessions); // Log raw data
 
         const newWeeklyWorkoutData = new Map<string, number>(); // Key: YYYY-MM-DD (start of week)
         (workoutSessions || []).forEach(sessionItem => {
           const sessionDate = new Date(sessionItem.session_date);
-          const startOfWeek = getStartOfWeek(sessionDate);
+          const startOfWeek = getStartOfWeekUTC(sessionDate); // Use UTC version
           const weekKey = startOfWeek.toISOString().split('T')[0]; // e.g., "2023-01-02"
 
           newWeeklyWorkoutData.set(weekKey, (newWeeklyWorkoutData.get(weekKey) || 0) + 1);
         });
         setWeeklyWorkoutData(newWeeklyWorkoutData);
-        console.log("Weekly Workout Data Map:", newWeeklyWorkoutData); // Log the map
+        console.log("Processed Weekly Workout Data Map (UTC keys):", newWeeklyWorkoutData); // Log the map
 
       } catch (err: any) {
         toast.error("Failed to load monthly workout data: " + err.message);
@@ -116,24 +114,32 @@ export const MonthlyMomentumBars = ({ profile }: MonthlyMomentumBarsProps) => {
 
   const renderYearMomentum = () => {
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const today = getStartOfWeek(new Date());
+    const today = getStartOfWeekUTC(new Date()); // Use UTC version
 
     // Generate all weeks for the year up to today, and store them chronologically
     const allWeeksInYear: { date: Date; workoutCount: number; colorClass: string }[] = [];
-    let currentWeekStart = getStartOfWeek(new Date(currentYear, 0, 1));
+    let currentWeekStart = getStartOfWeekUTC(new Date(currentYear, 0, 1)); // Always start from Jan 1st of current year (UTC)
 
-    while (currentWeekStart <= today) {
+    // If profileCreatedAt is for a future year, no data to show for current year
+    if (profileCreatedAt && profileCreatedAt.getFullYear() > currentYear) {
+      return null;
+    }
+    
+    while (currentWeekStart.getTime() <= today.getTime()) { // Compare timestamps for Date objects
       const weekKey = currentWeekStart.toISOString().split('T')[0];
       const workoutCount = weeklyWorkoutData.get(weekKey) || 0;
       const colorClass = getColorClass(workoutCount);
+      
+      console.log(`[MomentumBars Render] Week: ${weekKey}, Workouts: ${workoutCount}, Color: ${colorClass}`);
+
       allWeeksInYear.push({ date: new Date(currentWeekStart), workoutCount, colorClass });
-      currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+      currentWeekStart.setUTCDate(currentWeekStart.getUTCDate() + 7); // Move to next week (UTC)
     }
 
     // Group weeks by quarter
     const quarters: { [key: number]: typeof allWeeksInYear } = { 0: [], 1: [], 2: [], 3: [] }; // Q1, Q2, Q3, Q4
     allWeeksInYear.forEach(week => {
-      const month = week.date.getMonth();
+      const month = week.date.getUTCMonth(); // Use UTC month
       if (month >= 0 && month <= 2) quarters[0].push(week); // Jan-Mar
       else if (month >= 3 && month <= 5) quarters[1].push(week); // Apr-Jun
       else if (month >= 6 && month <= 8) quarters[2].push(week); // Jul-Sep
@@ -141,14 +147,14 @@ export const MonthlyMomentumBars = ({ profile }: MonthlyMomentumBarsProps) => {
     });
 
     return (
-      <div className="space-y-4"> {/* Vertical spacing between quarters */}
+      <div className="space-y-3"> {/* Reduced vertical spacing between quarters */}
         {Object.keys(quarters).map((quarterKey, quarterIndex) => {
           const weeksInQuarter = quarters[parseInt(quarterKey)];
           const startMonthIndex = quarterIndex * 3;
           const monthsInQuarter = monthNames.slice(startMonthIndex, startMonthIndex + 3);
 
           return (
-            <div key={quarterKey} className="space-y-2">
+            <div key={quarterKey} className="space-y-1"> {/* Reduced vertical spacing */}
               {/* Month labels for the quarter, evenly distributed */}
               <div className="flex justify-around px-1"> {/* Use justify-around for even spacing */}
                 {monthsInQuarter.map(monthName => (
