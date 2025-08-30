@@ -41,18 +41,17 @@ export function StreakPill() {
 
   if (loading) {
     return (
-      <Badge variant="outline" className="flex items-center gap-1 border-orange-500/50 animate-pulse">
-        <Flame className="h-4 w-4 text-orange-500" />
-        <span className="font-semibold text-orange-600">Loading...</span>
+      <Badge variant="secondary" className="flex items-center gap-1">
+        <Flame className="h-4 w-4 text-orange-400" />
+        <span className="font-semibold text-muted-foreground">Loading...</span>
       </Badge>
     );
   }
 
-  // Always show the badge, even if streak is 0
   return (
-    <Badge variant="outline" className="flex items-center gap-1 border-orange-500/50">
-      <Flame className="h-4 w-4 text-orange-500" />
-      <span className="font-semibold text-orange-600">{streak} day streak</span>
+    <Badge variant="secondary" className="flex items-center gap-1">
+      <Flame className="h-4 w-4 text-orange-400" />
+      <span className="font-semibold text-muted-foreground">{streak} day streak</span>
     </Badge>
   );
 }
