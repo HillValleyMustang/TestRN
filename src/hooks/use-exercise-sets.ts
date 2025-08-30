@@ -86,11 +86,11 @@ export const useExerciseSets = ({
         lastTimeSeconds: null,
       }));
       setSets(defaultSets);
-      onUpdateSets(exerciseId, defaultSets);
+      // Removed: onUpdateSets(exerciseId, defaultSets);
     } else {
       setSets(initialSets);
     }
-  }, [initialSets, exerciseId, internalSessionId, onUpdateSets]); // Depend on internalSessionId
+  }, [initialSets, exerciseId, internalSessionId]);
 
   // Fetch exercise-level PR on component mount
   useEffect(() => {
@@ -140,7 +140,7 @@ export const useExerciseSets = ({
       onUpdateSets(exerciseId, updatedSets);
       return updatedSets;
     });
-  }, [exerciseId, onUpdateSets, internalSessionId, sets.length]); // Depend on internalSessionId
+  }, [exerciseId, onUpdateSets, internalSessionId, sets.length]);
 
   const handleInputChange = useCallback((setIndex: number, field: keyof TablesInsert<'set_logs'>, value: string) => {
     setSets(prev => {
@@ -271,7 +271,7 @@ export const useExerciseSets = ({
       }
       return { ...set, ...data, isSaved: true, isPR: isSetPR };
     }
-  }, [internalSessionId, exerciseId, exerciseType, exerciseCategory, supabase, onFirstSetSaved, onUpdateSets, sets]); // Added sets to dependencies
+  }, [internalSessionId, exerciseId, exerciseType, exerciseCategory, supabase, onFirstSetSaved, onUpdateSets, sets]);
 
   const handleSaveSet = useCallback(async (setIndex: number) => {
     const updatedSet = await saveSingleSetToDatabase(sets[setIndex], setIndex);
