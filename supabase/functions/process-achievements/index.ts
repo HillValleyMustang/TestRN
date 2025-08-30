@@ -248,19 +248,63 @@ const checkCenturyClub = async (
   return await checkAchievement(supabase, userId, ACHIEVEMENT_IDS.CENTURY_CLUB, totalPoints >= 1000, existingAchievements);
 };
 
-// Placeholder for AI Apprentice - requires more complex historical logging
+// New: Check for AI Apprentice
 const checkAIApprentice = async (
   supabase: any,
   userId: string,
   existingAchievements: Set<string>
 ) => {
-  // This achievement requires tracking AI coach usage over consecutive weeks.
-  // The current 'profiles.last_ai_coach_use_at' only stores the most recent use.
-  // To implement "once a week across 3 consecutive weeks", a new table (e.g., 'ai_coach_usage_logs')
-  // would be needed to store each instance of AI coach usage with a timestamp.
-  // For now, this will always return null.
-  console.log(`AI Apprentice check for user ${userId}: Requires historical AI coach usage data not currently available.`);
-  return null; // Not implemented with current schema
+  // Check for at least one use per week across 3 consecutive weeks.
+  const { data: usageLogs, error: fetchUsageError } = await supabase
+    .from('ai_coach_usage_logs')
+    .select('used_at')
+    .eq('user_id', userId)
+    .order('used_at', { ascending: true });
+
+  if (fetchUsageError) {
+    console.error("Error fetching AI coach usage logs for AI Apprentice:", fetchUsageError.message);
+    return null;
+  }
+
+  if (!usageLogs || usageLogs.length === 0) {
+    return null;
+  }
+
+  const weeklyUsage = new Map<string, boolean>(); // 'YYYY-WW' -> has_used_this_week
+  usageLogs.forEach((log: { used_at: string }) => {
+    const date = new Date(log.used_at);
+    const startOfWeek = new Date(date);
+    startOfWeek.setDate(date.getDate() - (date.getDay() + 6) % 7); // Adjust to Monday
+    startOfWeek.setHours(0, 0, 0, 0);
+    const weekKey = startOfWeek.toISOString().split('T')[0]; // YYYY-MM-DD for start of week
+    weeklyUsage.set(weekKey, true);
+  });
+
+  const sortedWeeks = Array.from(weeklyUsage.keys()).sort();
+  let consecutiveWeeks = 0;
+
+  if (sortedWeeks.length > 0) {
+    let prevWeekDate = new Date(sortedWeeks[0]);
+    consecutiveWeeks = 1; // Start with the first week
+
+    for (let i = 1; i < sortedWeeks.length; i++) {
+      const currentWeekDate = new Date(sortedWeeks[i]);
+      const diffDays = (currentWeekDate.getTime() - prevWeekDate.getTime()) / (1000 * 60 * 60 * 24);
+
+      if (diffDays <= 7) { // If current week is same as or immediately after previous week
+        consecutiveWeeks++;
+      } else {
+        consecutiveWeeks = 1; // Reset if gap found
+      }
+
+      if (consecutiveWeeks >= 3) {
+        break; // Found 3 consecutive weeks
+      }
+      prevWeekDate = currentWeekDate;
+    }
+  }
+
+  return await checkAchievement(supabase, userId, ACHIEVEMENT_IDS.AI_APPRENTICE, consecutiveWeeks >= 3, existingAchievements);
 };
 
 
@@ -327,7 +371,7 @@ serve(async (req: Request) => {
       checkEarlyBird(supabaseServiceRoleClient, user_id, allWorkoutSessions as WorkoutSession[] || [], existingAchievementIds),
       checkVolumeMaster(supabaseServiceRoleClient, user_id, totalSets, existingAchievementIds),
       checkCenturyClub(supabaseServiceRoleClient, user_id, totalPoints, existingAchievementIds), // New check
-      checkAIApprentice(supabaseServiceRoleClient, user_id, existingAchievementIds), // Placeholder check
+      checkAIApprentice(supabaseServiceRoleClient, user_id, existingAchievementIds), // New check
     ];
 
     const results = await Promise.all(achievementChecks);

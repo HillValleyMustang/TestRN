@@ -8,7 +8,7 @@
  */
 
 // Import generated Supabase types to be used and re-exported
-import type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums, UserAchievementsRow } from "./supabase-generated";
+import type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums, UserAchievementsRow, AiCoachUsageLogsRow } from "./supabase-generated";
 export type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums };
 
 // --- Custom Types ---
@@ -49,3 +49,6 @@ export type UserExercisePRUpdate = TablesUpdate<'user_exercise_prs'>;
 
 // Re-export UserAchievementRow for direct use
 export type UserAchievement = UserAchievementsRow;
+
+// New type for ai_coach_usage_logs table
+export type AiCoachUsageLog = AiCoachUsageLogsRow;

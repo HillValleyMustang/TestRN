@@ -8,6 +8,9 @@ import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { ScrollArea } from '../ui/scroll-area';
 import { LoadingOverlay } from '../loading-overlay'; // Import LoadingOverlay
+import { Tables } from '@/types/supabase'; // Ensure Tables is imported
+
+type AiCoachUsageLog = Tables<'ai_coach_usage_logs'>; // Define type for the new table
 
 interface AiCoachDialogProps {
   open: boolean;
@@ -19,35 +22,29 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
   const [analysis, setAnalysis] = useState("");
   const [loading, setLoading] = useState(false);
   const [usageCount, setUsageCount] = useState(0);
-  const [lastUsedAt, setLastUsedAt] = useState<string | null>(null);
+  const AI_COACH_LIMIT_PER_SESSION = 2; // Define the limit as a constant
 
   useEffect(() => {
     const fetchUsageData = async () => {
       if (!session) return;
       
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('last_ai_coach_use_at')
-          .eq('id', session.user.id)
-          .single();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Start of today
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1); // Start of tomorrow
+
+        const { data: usageLogs, error } = await supabase
+          .from('ai_coach_usage_logs')
+          .select('id') // Just need to count them
+          .eq('user_id', session.user.id)
+          .gte('used_at', today.toISOString())
+          .lt('used_at', tomorrow.toISOString());
 
         if (error) throw error;
         
-        if (data.last_ai_coach_use_at) {
-          setLastUsedAt(data.last_ai_coach_use_at);
-          
-          // Count how many times AI coach was used in the last session
-          // For simplicity, we'll just check if it was used today
-          const lastUsedDate = new Date(data.last_ai_coach_use_at).toDateString();
-          const today = new Date().toDateString();
-          
-          if (lastUsedDate === today) {
-            setUsageCount(1); // Simplified - in reality you'd track actual usage
-          } else {
-            setUsageCount(0);
-          }
-        }
+        setUsageCount(usageLogs?.length || 0);
+        
       } catch (err: any) {
         console.error("Failed to fetch AI coach usage data:", err);
       }
@@ -59,8 +56,8 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
   }, [open, session, supabase]);
 
   const handleAnalyze = async () => {
-    if (usageCount >= 2) {
-      toast.error("You've reached the limit of 2 AI coach uses per session.");
+    if (usageCount >= AI_COACH_LIMIT_PER_SESSION) { // Use the constant
+      toast.error(`You've reached the limit of ${AI_COACH_LIMIT_PER_SESSION} AI coach uses per session.`);
       return;
     }
 
@@ -79,16 +76,12 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
 
       setAnalysis(data.analysis);
       
-      // Update usage count and last used timestamp
+      // Increment usage count locally after successful invocation
       setUsageCount(prev => prev + 1);
       
-      // Update the profile with the last used timestamp
-      if (session) {
-        await supabase
-          .from('profiles')
-          .update({ last_ai_coach_use_at: new Date().toISOString() })
-          .eq('id', session.user.id);
-      }
+      // The profile.last_ai_coach_use_at is now updated by the ai-coach edge function itself
+      // No need to update profile here.
+      
     } catch (err: any) {
       console.error("AI Coach error:", err);
       toast.error("Failed to get AI analysis: " + err.message);
@@ -104,7 +97,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
     }
   }, [open]);
 
-  const canUseAiCoach = usageCount < 2;
+  const canUseAiCoach = usageCount < AI_COACH_LIMIT_PER_SESSION; // Use the constant
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -122,25 +115,17 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
                   <p>Get personalised feedback on your workout history from the last month.</p>
                   <Button onClick={handleAnalyze}>Analyse My Performance</Button>
                   <p className="text-sm text-muted-foreground">
-                    You have {2 - usageCount} uses remaining for this session.
+                    You have {AI_COACH_LIMIT_PER_SESSION - usageCount} uses remaining for this session.
                   </p>
                 </>
               ) : (
                 <div className="space-y-4">
                   <AlertCircle className="h-12 w-12 text-yellow-500 mx-auto" />
                   <p className="text-muted-foreground">
-                    You've reached the limit of 2 AI coach uses per session. 
+                    You've reached the limit of {AI_COACH_LIMIT_PER_SESSION} AI coach uses per session. 
                     The AI Coach needs at least 3 workouts in the last 30 days to provide advice.
                   </p>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      // Try to get analysis anyway to show the message about needing more workouts
-                      handleAnalyze();
-                    }}
-                  >
-                    Try Anyway
-                  </Button>
+                  {/* Removed "Try Anyway" button as it would still hit the limit */}
                 </div>
               )}
             </div>

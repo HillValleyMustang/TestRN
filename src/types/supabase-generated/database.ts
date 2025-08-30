@@ -52,6 +52,32 @@ export type Database = {
           },
         ];
       };
+      ai_coach_usage_logs: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          used_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          used_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string | null;
+          used_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ai_coach_usage_logs_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       exercise_definitions: {
         Row: {
           category: string | null;

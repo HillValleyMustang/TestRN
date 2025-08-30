@@ -49,6 +49,15 @@ serve(async (req: Request) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     );
 
+    // Initialize Supabase client with service role key for logging
+    // @ts-ignore
+    const supabaseServiceRoleClient = createClient(
+      // @ts-ignore
+      Deno.env.get('SUPABASE_URL') ?? '',
+      // @ts-ignore
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -124,6 +133,16 @@ serve(async (req: Request) => {
 
     const geminiData = await geminiResponse.json();
     const analysis = geminiData.candidates[0].content.parts[0].text;
+
+    // Log AI coach usage to the new table
+    const { error: logError } = await supabaseServiceRoleClient
+      .from('ai_coach_usage_logs')
+      .insert({ user_id: user.id, used_at: new Date().toISOString() });
+
+    if (logError) {
+      console.error("Error logging AI coach usage:", logError.message);
+      // Don't throw error, just log it, as the main function still succeeded
+    }
 
     return new Response(JSON.stringify({ analysis }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
