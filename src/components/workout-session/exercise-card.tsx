@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Check, Trophy, Edit, Trash2, Timer, RefreshCcw, Info, History, Menu, Play, Pause, RotateCcw, Save, ChevronDown, ChevronUp, Lightbulb } from 'lucide-react'; // Added Lightbulb icon
+import { Plus, Check, Trophy, Edit, Trash2, Timer, RefreshCcw, Info, History, Menu, Play, Pause, RotateCcw, Save, ChevronDown, ChevronUp, Lightbulb } from 'lucide-react';
 import { ExerciseHistoryDialog } from '@/components/exercise-history-dialog';
 import { ExerciseInfoDialog } from '@/components/exercise-info-dialog';
 import { Tables, SetLogState, WorkoutExercise, UserExercisePR } from '@/types/supabase';
@@ -277,7 +277,7 @@ export const ExerciseCard = ({
                         {(set.lastWeight != null || set.lastReps != null || set.lastTimeSeconds != null) && (
                           <span className="text-muted-foreground text-xs">
                             (Last: {exercise.type === 'weight' ?
-                              `${set.lastWeight != null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${set.lastReps != null ? set.reps : '-'}` :
+                              `${set.lastWeight != null ? formatWeight(convertWeight(set.weight_kg, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${set.lastReps != null ? set.reps : '-'}` :
                               `${set.lastTimeSeconds != null ? `${set.lastTimeSeconds}s` : '-'}`})
                           </span>
                         )}
@@ -318,7 +318,7 @@ export const ExerciseCard = ({
                             value={convertWeight(set.weight_kg, 'kg', preferredWeightUnit as 'kg' | 'lbs') ?? ''}
                             onChange={(e) => handleInputChange(setIndex, 'weight_kg', e.target.value)}
                             disabled={set.isSaved || isExerciseSaved}
-                            className="w-20 text-center h-8 text-xs" // Changed to text-xs
+                            className="w-20 text-center h-8 text-xs"
                           />
                           <span className="text-muted-foreground text-xs">x</span>
                           {exercise.category === 'Unilateral' ? (
@@ -330,7 +330,7 @@ export const ExerciseCard = ({
                                 value={set.reps_l ?? ''}
                                 onChange={(e) => handleInputChange(setIndex, 'reps_l', e.target.value)}
                                 disabled={set.isSaved || isExerciseSaved}
-                                className="w-24 h-8 text-xs" // Increased width to w-24
+                                className="w-28 h-8 text-xs" // Increased width to w-28
                               />
                               <Input
                                 id={`reps-r-${setIndex}`}
@@ -339,7 +339,7 @@ export const ExerciseCard = ({
                                 value={set.reps_r ?? ''}
                                 onChange={(e) => handleInputChange(setIndex, 'reps_r', e.target.value)}
                                 disabled={set.isSaved || isExerciseSaved}
-                                className="w-24 h-8 text-xs" // Increased width to w-24
+                                className="w-28 h-8 text-xs" // Increased width to w-28
                               />
                             </>
                           ) : (
@@ -350,7 +350,7 @@ export const ExerciseCard = ({
                               value={set.reps ?? ''}
                               onChange={(e) => handleInputChange(setIndex, 'reps', e.target.value)}
                               disabled={set.isSaved || isExerciseSaved}
-                              className="w-20 text-center h-8 text-xs" // Changed to text-xs
+                              className="w-20 text-center h-8 text-xs"
                             />
                           )}
                         </>
@@ -363,7 +363,7 @@ export const ExerciseCard = ({
                           value={set.time_seconds ?? ''}
                           onChange={(e) => handleInputChange(setIndex, 'time_seconds', e.target.value)}
                           disabled={set.isSaved || isExerciseSaved}
-                          className="flex-1 h-8 text-xs" // Changed to text-xs
+                          className="flex-1 h-8 text-xs"
                         />
                       )}
                     </div>
@@ -373,15 +373,15 @@ export const ExerciseCard = ({
               ))}
             </div>
 
-            <div className="flex justify-between items-center mt-4 gap-4"> {/* Added gap-4 here */}
+            <div className="flex justify-between items-center mt-4 gap-2"> {/* Reduced gap to gap-2 */}
               <div className="flex gap-2"> {/* Group Add Set and Suggest buttons */}
                 {sets.length < 5 && (
-                  <Button variant="outline" onClick={handleAddSet} disabled={isExerciseSaved}>
-                    <Plus className="h-4 w-4 mr-2" /> Set
+                  <Button variant="outline" onClick={handleAddSet} disabled={isExerciseSaved} size="icon" className="h-8 w-8"> {/* Made icon-only */}
+                    <Plus className="h-4 w-4" />
                   </Button>
                 )}
-                <Button variant="outline" onClick={handleSuggestProgression} disabled={isExerciseSaved}>
-                  <Lightbulb className="h-4 w-4 mr-2" /> Suggest
+                <Button variant="outline" onClick={handleSuggestProgression} disabled={isExerciseSaved} size="icon" className="h-8 w-8"> {/* Made icon-only */}
+                  <Lightbulb className="h-4 w-4 text-orange-500" /> {/* Orange lightbulb */}
                 </Button>
               </div>
               <div className="flex items-center space-x-2">
