@@ -200,29 +200,29 @@ export const ExerciseCard = ({
     <> {/* Added React Fragment */}
       <Card className={cn("mb-6 border-2 relative", workoutBorderClass, { "opacity-70": isExerciseSaved })}>
         <CardHeader 
-          className="flex items-center p-4 cursor-pointer relative" // Added relative
+          className="flex items-center justify-between p-4 cursor-pointer relative" // Use justify-between
           onClick={() => setIsExpanded(!isExpanded)}
         >
           {/* Left side: Exercise details */}
-          <div className="flex flex-col flex-1 min-w-0 items-start"> {/* Align flex items to the start */}
+          <div className="flex flex-col text-left"> {/* Removed flex-1, added text-left */}
             <div className="flex items-center gap-2">
-              <CardTitle className={cn("text-lg font-semibold leading-none text-left", workoutColorClass)}>
+              <CardTitle className={cn("text-lg font-semibold leading-none", workoutColorClass)}>
                 {exerciseNumber}. {exercise.name}
               </CardTitle>
               {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus" className="flex-shrink-0">Bonus</WorkoutBadge>}
             </div>
-            <p className="text-sm text-muted-foreground mt-1 truncate text-left">{exercise.main_muscle}</p>
+            <p className="text-sm text-muted-foreground mt-1 truncate">{exercise.main_muscle}</p>
           </div>
 
           {/* Middle: Checkmark (if saved) - Absolutely positioned */}
           {isExerciseSaved && (
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"> {/* Centered absolutely */}
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
               <CheckCircle2 className="h-8 w-8 text-green-500" />
             </div>
           )}
 
           {/* Right side: Menu and Chevron */}
-          <div className="flex items-center gap-2 flex-shrink-0 ml-auto"> {/* ml-auto pushes it to the right */}
+          <div className="flex items-center gap-2 flex-shrink-0"> {/* Removed ml-auto */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" title="More Options" onClick={(e) => e.stopPropagation()}>
