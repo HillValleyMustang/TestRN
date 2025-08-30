@@ -41,7 +41,6 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [stats, setStats] = useState({ totalWorkouts: 0, streak: 0 });
   const [activeTPath, setActiveTPath] = useState<TPath | null>(null);
   const [aiCoachUsageToday, setAiCoachUsageToday] = useState(0);
   const AI_COACH_LIMIT_PER_SESSION = 2;
@@ -50,25 +49,6 @@ export default function ProfilePage() {
     resolver: zodResolver(profileSchema),
     defaultValues: { full_name: "", height_cm: null, weight_kg: null, body_fat_pct: null, primary_goal: null, health_notes: "", preferred_session_length: "" },
   });
-
-  const calculateStreak = useCallback((dates: string[]) => {
-    if (dates.length === 0) return 0;
-    const uniqueDates = Array.from(new Set(dates));
-    const sortedUniqueDates = uniqueDates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-    let currentStreak = 0;
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const mostRecentDate = new Date(sortedUniqueDates[0]); mostRecentDate.setHours(0, 0, 0, 0);
-    const diffFromToday = Math.round((today.getTime() - mostRecentDate.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffFromToday > 1) return 0;
-    currentStreak = 1;
-    let lastDate = mostRecentDate;
-    for (let i = 1; i < sortedUniqueDates.length; i++) {
-      const currentDate = new Date(sortedUniqueDates[i]); currentDate.setHours(0, 0, 0, 0);
-      const diff = Math.round((lastDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
-      if (diff === 1) { currentStreak++; lastDate = currentDate; } else if (diff > 1) break;
-    }
-    return currentStreak;
-  }, []);
 
   const fetchData = useCallback(async () => {
     if (!session) return;
@@ -101,20 +81,12 @@ export default function ProfilePage() {
           setAiCoachUsageToday(0);
         }
       }
-
-      const { data: workoutDates, error: workoutError } = await supabase.from('workout_sessions').select('session_date').eq('user_id', session.user.id);
-      if (workoutError) throw workoutError;
-      const { data: activityDates, error: activityError } = await supabase.from('activity_logs').select('log_date').eq('user_id', session.user.id);
-      if (activityError) throw activityError;
-      const allDates = [...(workoutDates || []).map(d => d.session_date), ...(activityDates || []).map(d => d.log_date)].map(d => new Date(d).toISOString().split('T')[0]);
-      
-      setStats({ totalWorkouts: workoutDates?.length || 0, streak: calculateStreak(allDates) });
     } catch (err: any) {
       toast.error("Failed to load profile data: " + err.message);
     } finally {
       setLoading(false);
     }
-  }, [session, supabase, form, calculateStreak]);
+  }, [session, supabase, form]);
 
   useEffect(() => {
     if (!session) router.push('/login'); else fetchData();
@@ -130,6 +102,49 @@ export default function ProfilePage() {
     const caloriesValue = Math.round(bmr * 1.375);
     return { bmi: bmiValue, dailyCalories: caloriesValue.toLocaleString() };
   }, [profile]);
+
+  const getFitnessLevel = useCallback(() => {
+    const totalPoints = profile?.total_points || 0;
+    let level = 'Rookie';
+    let color = 'bg-gray-500';
+    let progress = 0;
+    let nextLevelPoints = 100; // Points needed for Warrior
+
+    if (totalPoints < 100) {
+      level = 'Rookie';
+      color = 'bg-gray-500';
+      progress = (totalPoints / 100) * 100;
+      nextLevelPoints = 100;
+    } else if (totalPoints < 300) {
+      level = 'Warrior';
+      color = 'bg-blue-500';
+      progress = ((totalPoints - 100) / 200) * 100; // 200 points range for Warrior
+      nextLevelPoints = 300;
+    } else if (totalPoints < 600) {
+      level = 'Champion';
+      color = 'bg-purple-500';
+      progress = ((totalPoints - 300) / 300) * 100; // 300 points range for Champion
+      nextLevelPoints = 600;
+    } else {
+      level = 'Legend';
+      color = 'bg-yellow-500';
+      progress = 100;
+      nextLevelPoints = 600; // No next level, but keep for display consistency
+    }
+
+    let icon: React.ReactElement<React.SVGProps<SVGSVGElement>>; // Explicitly type icon
+    switch (level) {
+      case 'Rookie': icon = <Footprints className="h-8 w-8" />; break;
+      case 'Warrior': icon = <Dumbbell className="h-8 w-8" />; break;
+      case 'Champion': icon = <Trophy className="h-8 w-8" />; break;
+      case 'Legend': icon = <Star className="h-8 w-8" />; break;
+      default: icon = <Footprints className="h-8 w-8" />;
+    }
+
+    return { level, color, progress, icon, nextLevelPoints };
+  }, [profile?.total_points]);
+
+  const fitnessLevel = getFitnessLevel();
 
   async function onSubmit(values: z.infer<typeof profileSchema>) {
     if (!session) return;
@@ -154,20 +169,11 @@ export default function ProfilePage() {
     }
   }
 
-  const getFitnessLevel = () => {
-    const workouts = stats.totalWorkouts;
-    if (workouts < 10) return { level: 'Rookie', color: 'bg-gray-500', progress: (workouts / 10) * 100, icon: <Footprints className="h-8 w-8" /> };
-    if (workouts < 30) return { level: 'Warrior', color: 'bg-blue-500', progress: (workouts / 30) * 100, icon: <Dumbbell className="h-8 w-8" /> };
-    if (workouts < 60) return { level: 'Champion', color: 'bg-purple-500', progress: (workouts / 60) * 100, icon: <Trophy className="h-8 w-8" /> };
-    return { level: 'Legend', color: 'bg-yellow-500', progress: 100, icon: <Star className="h-8 w-8" /> };
-  };
-  const fitnessLevel = getFitnessLevel();
-
   const achievements = [
-    { name: 'First Workout', icon: '🏃', completed: stats.totalWorkouts >= 1 },
-    { name: '10 Day Streak', icon: '🔥', completed: stats.streak >= 10 },
-    { name: '25 Workouts', icon: '💪', completed: stats.totalWorkouts >= 25 },
-    { name: '50 Workouts', icon: '🏆', completed: stats.totalWorkouts >= 50 },
+    { name: 'First Workout', icon: '🏃', completed: (profile?.total_points || 0) >= 10 },
+    { name: '10 Day Streak', icon: '🔥', completed: (profile?.current_streak || 0) >= 10 },
+    { name: '25 Workouts', icon: '💪', completed: (profile?.total_points || 0) >= 250 },
+    { name: '50 Workouts', icon: '🏆', completed: (profile?.total_points || 0) >= 500 },
     { name: 'Perfect Week', icon: '⭐', completed: false }, // Logic not implemented
     { name: 'Beast Mode', icon: '🦾', completed: false }, // Logic not implemented
   ];
@@ -212,8 +218,8 @@ export default function ProfilePage() {
         
         <TabsContent value="overview" className="mt-6 space-y-6">
           <div className="grid grid-cols-2 gap-4">
-            <Card className="bg-gradient-to-br from-orange-400 to-orange-500 text-primary-foreground shadow-lg"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Streak</CardTitle><Flame className="h-4 w-4" /></CardHeader><CardContent><div className="text-2xl font-bold">{stats.streak} Days</div></CardContent></Card>
-            <Card className="bg-gradient-to-br from-blue-400 to-blue-500 text-primary-foreground shadow-lg"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Workouts</CardTitle><Dumbbell className="h-4 w-4" /></CardHeader><CardContent><div className="text-2xl font-bold">{stats.totalWorkouts}</div></CardContent></Card>
+            <Card className="bg-gradient-to-br from-orange-400 to-orange-500 text-primary-foreground shadow-lg"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Current Streak</CardTitle><Flame className="h-4 w-4" /></CardHeader><CardContent><div className="text-2xl font-bold">{profile.current_streak || 0} Days</div></CardContent></Card>
+            <Card className="bg-gradient-to-br from-blue-400 to-blue-500 text-primary-foreground shadow-lg"><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Workouts</CardTitle><Dumbbell className="h-4 w-4" /></CardHeader><CardContent><div className="text-2xl font-bold">{(profile.total_points || 0) / 10}</div></CardContent></Card>
           </div>
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><BarChart2 className="h-5 w-5" /> Body Metrics</CardTitle></CardHeader>
@@ -243,7 +249,7 @@ export default function ProfilePage() {
                 {fitnessLevel.level}
               </CardTitle>
               <CardDescription className="text-base text-white/90 mb-4">
-                Keep pushing to reach the next level!
+                {fitnessLevel.level === 'Legend' ? "You've reached the pinnacle of fitness!" : `Keep pushing to reach ${fitnessLevel.nextLevelPoints / 10} workouts for the next level!`}
               </CardDescription>
               <Progress value={fitnessLevel.progress} className="w-full h-3 bg-white/30" indicatorClassName={cn(fitnessLevel.color.replace('bg-', 'bg-'))} />
               <p className="text-sm text-white/80 mt-2">{Math.round(fitnessLevel.progress)}% to next level</p>
