@@ -320,8 +320,8 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                 <FormItem>
                   <FormLabel className="font-bold">Main Muscle Group(s)</FormLabel>
                   <Popover>
-                    <FormControl>
-                      <PopoverTrigger asChild>
+                    <PopoverTrigger asChild>
+                      <FormControl>
                         <Button
                           variant="outline"
                           role="combobox"
@@ -351,8 +351,8 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </span>
                         </Button>
-                      </PopoverTrigger>
-                    </FormControl>
+                      </FormControl>
+                    </PopoverTrigger>
                     <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
                       <div className="grid grid-cols-2 gap-2 p-2"> {/* Grid for muscle buttons */}
                         {mainMuscleGroups.map((muscle) => (

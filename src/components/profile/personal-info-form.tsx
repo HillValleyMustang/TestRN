@@ -75,8 +75,8 @@ export const PersonalInfoForm = ({ form, isEditing, mainMuscleGroups }: Personal
           <FormItem className="sm:col-span-2">
             <FormLabel>Preferred Muscles to Train (Optional)</FormLabel>
             <Popover>
-              <FormControl>
-                <PopoverTrigger asChild>
+              <PopoverTrigger asChild>
+                <FormControl>
                   <Button
                     variant="outline"
                     role="combobox"
@@ -108,8 +108,8 @@ export const PersonalInfoForm = ({ form, isEditing, mainMuscleGroups }: Personal
                       <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </span>
                   </Button>
-                </PopoverTrigger>
-              </FormControl>
+                </FormControl>
+              </PopoverTrigger>
               <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
                 <Command>
                   <CommandInput placeholder="Search muscles..." />
