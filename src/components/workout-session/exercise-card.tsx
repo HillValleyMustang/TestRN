@@ -200,24 +200,29 @@ export const ExerciseCard = ({
     <> {/* Added React Fragment */}
       <Card className={cn("mb-6 border-2 relative", workoutBorderClass, { "opacity-70": isExerciseSaved })}>
         <CardHeader 
-          className="flex items-center justify-between p-4 cursor-pointer"
+          className="flex items-center p-4 cursor-pointer" // Removed justify-between here
           onClick={() => setIsExpanded(!isExpanded)}
         >
           {/* Left side: Exercise details */}
-          <div className="flex flex-col flex-1 min-w-0"> {/* min-w-0 to allow shrinking */}
-            <div className="flex items-center gap-2"> {/* Line 1: Number, Name, Bonus, Check */}
-              {/* REMOVED: exercise.icon_url img tag from here */}
-              <CardTitle className={cn("text-lg font-semibold leading-none", workoutColorClass)}> {/* Adjusted font size/weight */}
+          <div className="flex flex-col flex-1 min-w-0"> {/* flex-1 to take available space */}
+            <div className="flex items-center gap-2">
+              <CardTitle className={cn("text-lg font-semibold leading-none", workoutColorClass)}>
                 {exerciseNumber}. {exercise.name}
               </CardTitle>
               {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus" className="flex-shrink-0">Bonus</WorkoutBadge>}
-              {isExerciseSaved && <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />}
             </div>
-            <p className="text-sm text-muted-foreground mt-1 truncate">{exercise.main_muscle}</p> {/* Line 2: Muscle Group */}
+            <p className="text-sm text-muted-foreground mt-1 truncate">{exercise.main_muscle}</p>
           </div>
 
+          {/* Middle: Checkmark (if saved) */}
+          {isExerciseSaved && (
+            <div className="flex-1 flex justify-center"> {/* This will push it to the middle */}
+              <CheckCircle2 className="h-8 w-8 text-green-500" /> {/* Larger checkmark */}
+            </div>
+          )}
+
           {/* Right side: Menu and Chevron */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0 ml-auto"> {/* ml-auto to push to far right */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" title="More Options" onClick={(e) => e.stopPropagation()}>
@@ -259,7 +264,7 @@ export const ExerciseCard = ({
                         {(set.lastWeight !== null || set.lastReps !== null || set.lastTimeSeconds !== null) && (
                           <span className="text-muted-foreground text-xs">
                             (Last: {exercise.type === 'weight' ?
-                              `${set.lastWeight !== null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${set.lastReps !== null ? set.lastReps : '-'}` :
+                              `${set.lastWeight !== null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${set.lastReps !== null ? set.reps : '-'}` :
                               `${set.lastTimeSeconds !== null ? `${set.lastTimeSeconds}s` : '-'}`})
                           </span>
                         )}
