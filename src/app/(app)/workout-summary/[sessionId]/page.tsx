@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { WorkoutStatsCard } from '@/components/workout-summary/workout-stats-card';
 import { WorkoutRatingCard } from '@/components/workout-summary/workout-rating-card';
 import { ExerciseSummaryCard } from '@/components/workout-summary/exercise-summary-card';
+import { getLevelFromPoints } from '@/lib/utils'; // New import
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
@@ -111,16 +112,43 @@ export default function WorkoutSummaryPage({
         // Check if this is a new workout completion and show toast
         const isNewWorkout = searchParams?.isNewWorkout === 'true';
         if (isNewWorkout && !hasShownSuccessToast) {
-          const { data: profileData, error: profileFetchError } = await supabase
+          const { data: currentProfileData, error: profileFetchError } = await supabase
             .from('profiles')
-            .select('total_points, current_streak')
+            .select('total_points, current_streak, longest_streak')
             .eq('id', session.user.id)
             .single();
 
           if (profileFetchError) {
             console.error("Error fetching profile for toast:", profileFetchError);
-          } else if (profileData) {
-            toast.success(`+10 Points! 🔥 Current streak: ${profileData.current_streak || 0} days`);
+          } else if (currentProfileData) {
+            const previousTotalPoints = parseInt(searchParams?.previousTotalPoints as string || '0');
+            const previousCurrentStreak = parseInt(searchParams?.previousCurrentStreak as string || '0');
+            const previousLongestStreak = parseInt(searchParams?.previousLongestStreak as string || '0');
+
+            const currentTotalPoints = currentProfileData.total_points || 0;
+            const currentCurrentStreak = currentProfileData.current_streak || 0;
+            const currentLongestStreak = currentProfileData.longest_streak || 0;
+
+            // 1. Points and Streak Update
+            toast.success(`+10 Points! 🔥 Current streak: ${currentCurrentStreak} days`);
+
+            // 2. Level Up Check
+            const previousLevel = getLevelFromPoints(previousTotalPoints).level;
+            const currentLevel = getLevelFromPoints(currentTotalPoints).level;
+            if (currentLevel !== previousLevel && currentTotalPoints > previousTotalPoints) {
+              toast.info(`Moving On Up! You're now at ${currentLevel} Level! ⚔️`);
+            }
+
+            // 3. 7-Day Streak Check
+            if (currentCurrentStreak === 7 && previousCurrentStreak < 7) {
+              toast.success('Week Streak! Bonus points! 🔥');
+            }
+
+            // 4. New Longest Streak Check
+            if (currentLongestStreak > previousLongestStreak) {
+              toast.success('New Personal Best Streak! 🏆');
+            }
+            
             setHasShownSuccessToast(true); // Mark toast as shown
             // Remove the query parameter from the URL
             router.replace(`/workout-summary/${sessionId}`, undefined);

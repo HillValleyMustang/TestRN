@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { Tables, SetLogState, WorkoutExercise } from '@/types/supabase';
+import { Tables, SetLogState, WorkoutExercise, Profile as ProfileType } from '@/types/supabase'; // Import ProfileType
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -46,7 +46,8 @@ interface UseWorkoutFlowManagerReturn {
   groupedTPaths: GroupedTPath[];
   isCreatingSession: boolean;
   createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>;
-  finishWorkoutSession: () => Promise<void>; // Added this line
+  finishWorkoutSession: () => Promise<void>;
+  initialProfileData: ProfileType | null; // Add this to return
 }
 
 const DEFAULT_INITIAL_SETS = 3;
@@ -65,6 +66,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
   const [groupedTPaths, setGroupedTPaths] = useState<GroupedTPath[]>([]);
   const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, WorkoutExercise[]>>({});
   const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [initialProfileData, setInitialProfileData] = useState<ProfileType | null>(null); // New state
 
   const resetWorkoutSession = useCallback(() => {
     setActiveWorkout(null);
@@ -93,12 +95,17 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
         if (fetchExercisesError) throw fetchExercisesError;
         setAllAvailableExercises(exercisesData as ExerciseDefinition[] || []);
 
+        // Fetch initial profile data
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('active_t_path_id')
+          .select('total_points, current_streak, longest_streak, active_t_path_id') // Select relevant fields
           .eq('id', session.user.id)
           .single();
         if (profileError && profileError.code !== 'PGRST116') throw profileError;
+        if (profileData) {
+          setInitialProfileData(profileData as ProfileType); // Store initial profile
+        }
+
         const activeMainTPathId = profileData?.active_t_path_id || null;
 
         let mainTPathsData: TPath[] = [];
@@ -268,7 +275,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
   const addExerciseToSession = useCallback(async (exercise: ExerciseDefinition) => {
     if (!session) return; // Ensure session exists for user_id
     let lastWeight = null, lastReps = null, lastTimeSeconds = null;
-    const { data: lastSet } = await supabase.from('set_logs').select('weight_kg, reps, time_seconds').eq('exercise_id', exercise.id).order('created_at', { ascending: false }).limit(1).single();
+    const { data: lastSet } = await supabase.from('set_logs').select('weight_kg, reps, time_seconds').eq('exercise.id', exercise.id).order('created_at', { ascending: false }).limit(1).single();
     if (lastSet) { lastWeight = lastSet.weight_kg; lastReps = lastSet.reps; lastTimeSeconds = lastSet.time_seconds; }
     setExercisesForSession(prev => [{ ...exercise, is_bonus_exercise: false }, ...prev]);
     setExercisesWithSets(prev => ({ ...prev, [exercise.id]: Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({ id: null, created_at: null, session_id: currentSessionId, exercise_id: exercise.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight, lastReps, lastTimeSeconds })) }));
@@ -325,14 +332,24 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       if (updateError) {
         throw new Error(updateError.message);
       }
+
+      // Construct query parameters for achievements
+      const queryParams = new URLSearchParams();
+      queryParams.append('isNewWorkout', 'true');
+      if (initialProfileData) {
+        queryParams.append('previousTotalPoints', (initialProfileData.total_points || 0).toString());
+        queryParams.append('previousCurrentStreak', (initialProfileData.current_streak || 0).toString());
+        queryParams.append('previousLongestStreak', (initialProfileData.longest_streak || 0).toString());
+      }
+
       toast.success("Workout session finished and duration saved!");
-      router.push(`/workout-summary/${currentSessionId}?isNewWorkout=true`); // Add query parameter here
+      router.push(`/workout-summary/${currentSessionId}?${queryParams.toString()}`);
       resetWorkoutSession(); // Reset state after finishing
     } catch (err: any) {
       toast.error("Failed to save workout duration: " + err.message);
       console.error("Error saving duration:", err);
     }
-  }, [currentSessionId, sessionStartTime, supabase, router, resetWorkoutSession]);
+  }, [currentSessionId, sessionStartTime, supabase, router, resetWorkoutSession, initialProfileData]); // Add initialProfileData to dependencies
 
-  return { activeWorkout, exercisesForSession, exercisesWithSets, allAvailableExercises, loading, error, currentSessionId, sessionStartTime, completedExercises, selectWorkout, addExerciseToSession, removeExerciseFromSession, substituteExercise, updateSessionStartTime, markExerciseAsCompleted, resetWorkoutSession, updateExerciseSets, groupedTPaths, isCreatingSession, createWorkoutSessionInDb, finishWorkoutSession };
+  return { activeWorkout, exercisesForSession, exercisesWithSets, allAvailableExercises, loading, error, currentSessionId, sessionStartTime, completedExercises, selectWorkout, addExerciseToSession, removeExerciseFromSession, substituteExercise, updateSessionStartTime, markExerciseAsCompleted, resetWorkoutSession, updateExerciseSets, groupedTPaths, isCreatingSession, createWorkoutSessionInDb, finishWorkoutSession, initialProfileData };
 };

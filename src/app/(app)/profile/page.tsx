@@ -20,7 +20,7 @@ import { Edit, Save, LogOut, ArrowLeft, BarChart2, User, Settings, Flame, Dumbbe
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { TPathSwitcher } from '@/components/t-path-switcher';
-import { cn } from '@/lib/utils';
+import { cn, getLevelFromPoints } from '@/lib/utils'; // New import
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
@@ -105,34 +105,26 @@ export default function ProfilePage() {
 
   const getFitnessLevel = useCallback(() => {
     const totalPoints = profile?.total_points || 0;
-    let level = 'Rookie';
-    let color = 'bg-gray-500';
-    let progress = 0;
-    let nextLevelPoints = 100; // Points needed for Warrior
+    const { level, color } = getLevelFromPoints(totalPoints); // Use the utility function
 
-    if (totalPoints < 100) {
-      level = 'Rookie';
-      color = 'bg-gray-500';
-      progress = (totalPoints / 100) * 100;
+    let progress = 0;
+    let nextLevelPoints = 0;
+
+    if (level === 'Rookie') {
       nextLevelPoints = 100;
-    } else if (totalPoints < 300) {
-      level = 'Warrior';
-      color = 'bg-blue-500';
-      progress = ((totalPoints - 100) / 200) * 100; // 200 points range for Warrior
+      progress = (totalPoints / nextLevelPoints) * 100;
+    } else if (level === 'Warrior') {
       nextLevelPoints = 300;
-    } else if (totalPoints < 600) {
-      level = 'Champion';
-      color = 'bg-purple-500';
-      progress = ((totalPoints - 300) / 300) * 100; // 300 points range for Champion
+      progress = ((totalPoints - 100) / 200) * 100;
+    } else if (level === 'Champion') {
       nextLevelPoints = 600;
-    } else {
-      level = 'Legend';
-      color = 'bg-yellow-500';
+      progress = ((totalPoints - 300) / 300) * 100;
+    } else { // Legend
       progress = 100;
       nextLevelPoints = 600; // No next level, but keep for display consistency
     }
 
-    let icon: React.ReactElement<React.SVGProps<SVGSVGElement>>; // Explicitly type icon
+    let icon: React.ReactElement<React.SVGProps<SVGSVGElement>>;
     switch (level) {
       case 'Rookie': icon = <Footprints className="h-8 w-8" />; break;
       case 'Warrior': icon = <Dumbbell className="h-8 w-8" />; break;
