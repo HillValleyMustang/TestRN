@@ -26,7 +26,7 @@ import {
   FormMessage 
 } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, Edit, XCircle, ChevronDown, ChevronUp, Info, Sparkles } from "lucide-react";
+import { PlusCircle, Edit, XCircle, ChevronDown, ChevronUp, Info, Sparkles, Dumbbell, Timer, Check } from "lucide-react"; // Added Dumbbell, Timer, Check icons
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Popover,
@@ -34,7 +34,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { AnalyzeGymDialog } from "./analyze-gym-dialog"; 
-import { Label } from "@/components/ui/label"; // Import Label component
+import { Label } from "@/components/ui/label";
+import { cn } from '@/lib/utils'; // Import cn for conditional classes
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -42,10 +43,10 @@ const exerciseSchema = z.object({
   name: z.string().min(1, "Exercise name is required."),
   main_muscles: z.array(z.string()).min(1, "At least one main muscle group is required."),
   type: z.array(z.enum(["weight", "timed"])).min(1, "At least one exercise type is required."),
-  category: z.string().optional().nullable(), // Allow null for category
-  description: z.string().optional().nullable(), // Allow null for description
-  pro_tip: z.string().optional().nullable(), // Allow null for pro_tip
-  video_url: z.string().url("Must be a valid URL.").optional().or(z.literal('')).nullable(), // Allow null for video_url
+  category: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+  pro_tip: z.string().optional().nullable(),
+  video_url: z.string().url("Must be a valid URL.").optional().or(z.literal('')).nullable(),
 });
 
 interface ExerciseFormProps {
@@ -59,12 +60,12 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]);
-  const [showAnalyzeGymDialog, setShowAnalyzeGymDialog] = useState(false); // State for the new dialog
+  const [showAnalyzeGymDialog, setShowAnalyzeGymDialog] = useState(false);
 
   const mainMuscleGroups = [
     "Pectorals", "Deltoids", "Lats", "Traps", "Biceps", 
     "Triceps", "Quadriceps", "Hamstrings", "Glutes", "Calves", 
-    "Abdominals", "Core", "Full Body" // Added Full Body
+    "Abdominals", "Core", "Full Body"
   ];
 
   const categoryOptions = [
@@ -268,22 +269,21 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
   };
 
   return (
-    <Card>
+    <Card className="w-full"> {/* Added w-full here */}
       <CardHeader 
-        className="flex items-center justify-between cursor-pointer" // Apply flex and cursor here
+        className="flex items-center justify-between cursor-pointer"
         onClick={toggleExpand}
-        role="button" // Add role for accessibility
-        tabIndex={0} // Make it focusable
-        onKeyDown={(e) => { // Allow Enter key to trigger toggle
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             toggleExpand();
           }
         }}
       >
-        <CardTitle className="flex-1 text-base"> {/* flex-1 to make title take available space */}
+        <CardTitle className="flex-1 text-base">
           {editingExercise ? "Edit Exercise" : "Add New Exercise"}
         </CardTitle>
-        {/* Chevron directly inside CardHeader */}
         <span className="ml-2">
           {isExpanded ? (
             <ChevronUp className="h-4 w-4" />
@@ -321,58 +321,106 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                 )} 
               />
               
-              <div className="space-y-3">
-                <FormLabel className="font-bold">Main Muscle Group(s)</FormLabel>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {mainMuscleGroups.map((muscle) => (
-                    <div key={muscle} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`muscle-${muscle}`}
-                        checked={selectedMuscles.includes(muscle)}
-                        onCheckedChange={(checked) => handleMuscleChange(muscle, !!checked)}
-                      />
-                      <label
-                        htmlFor={`muscle-${muscle}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              {/* Main Muscle Group(s) as a multi-select dropdown */}
+              <FormField control={form.control} name="main_muscles" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-bold">Main Muscle Group(s)</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn(
+                          "w-full justify-between",
+                          !field.value?.length && "text-muted-foreground"
+                        )}
                       >
-                        {muscle}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-                <FormMessage>
-                  {form.formState.errors.main_muscles?.message}
-                </FormMessage>
-              </div>
+                        <div className="flex flex-wrap gap-1">
+                          {field.value && field.value.length > 0 ? (
+                            field.value.map((muscle) => (
+                              <Badge key={muscle} variant="secondary" className="flex items-center gap-1">
+                                {muscle}
+                                <XCircle className="h-3 w-3 cursor-pointer" onClick={(e) => {
+                                  e.stopPropagation();
+                                  const newSelection = field.value?.filter((m) => m !== muscle);
+                                  field.onChange(newSelection);
+                                }} />
+                              </Badge>
+                            ))
+                          ) : (
+                            <span>Select muscles...</span>
+                          )}
+                        </div>
+                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                      <Command>
+                        <CommandInput placeholder="Search muscles..." />
+                        <CommandEmpty>No muscle found.</CommandEmpty>
+                        <CommandGroup>
+                          {mainMuscleGroups.map((muscle) => (
+                            <CommandItem
+                              key={muscle}
+                              onSelect={() => {
+                                const currentSelection = new Set(field.value);
+                                if (currentSelection.has(muscle)) {
+                                  currentSelection.delete(muscle);
+                                } else {
+                                  currentSelection.add(muscle);
+                                }
+                                field.onChange(Array.from(currentSelection));
+                              }}
+                            >
+                              <Checkbox
+                                checked={field.value?.includes(muscle)}
+                                onCheckedChange={(checked) => {
+                                  const currentSelection = new Set(field.value);
+                                  if (checked) {
+                                    currentSelection.add(muscle);
+                                  } else {
+                                    currentSelection.delete(muscle);
+                                  }
+                                  field.onChange(Array.from(currentSelection));
+                                }}
+                                className="mr-2"
+                              />
+                              {muscle}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )} />
               
+              {/* Exercise Type as visual cards */}
               <div className="space-y-3">
                 <FormLabel className="font-bold">Exercise Type</FormLabel>
-                <div className="flex flex-col space-y-4 pt-1">
-                  <div className="flex items-center space-x-3">
-                    <Checkbox
-                      id="weight"
-                      checked={selectedTypes.includes("weight")}
-                      onCheckedChange={(checked) => handleTypeChange("weight", !!checked)}
-                    />
-                    <Label
-                      htmlFor="weight"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      Weight Training
-                    </Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div 
+                    className={cn(
+                      "flex flex-col items-center justify-center p-4 border-2 rounded-lg cursor-pointer transition-all",
+                      selectedTypes.includes("weight") ? "border-primary bg-primary text-primary-foreground shadow-md" : "border-input bg-card hover:border-primary/50"
+                    )}
+                    onClick={() => handleTypeChange("weight", !selectedTypes.includes("weight"))}
+                  >
+                    <Dumbbell className={cn("h-8 w-8 mb-2", selectedTypes.includes("weight") ? "text-primary-foreground" : "text-muted-foreground")} />
+                    <span className={cn("font-medium", selectedTypes.includes("weight") ? "text-primary-foreground" : "text-foreground")}>Weight Training</span>
+                    {selectedTypes.includes("weight") && <Check className="h-4 w-4 text-primary-foreground mt-1" />}
                   </div>
-                  <div className="flex items-center space-x-3">
-                    <Checkbox
-                      id="timed"
-                      checked={selectedTypes.includes("timed")}
-                      onCheckedChange={(checked) => handleTypeChange("timed", !!checked)}
-                    />
-                    <Label
-                      htmlFor="timed"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      Timed (e.g. Plank)
-                    </Label>
+                  <div 
+                    className={cn(
+                      "flex flex-col items-center justify-center p-4 border-2 rounded-lg cursor-pointer transition-all",
+                      selectedTypes.includes("timed") ? "border-primary bg-primary text-primary-foreground shadow-md" : "border-input bg-card hover:border-primary/50"
+                    )}
+                    onClick={() => handleTypeChange("timed", !selectedTypes.includes("timed"))}
+                  >
+                    <Timer className={cn("h-8 w-8 mb-2", selectedTypes.includes("timed") ? "text-primary-foreground" : "text-muted-foreground")} />
+                    <span className={cn("font-medium", selectedTypes.includes("timed") ? "text-primary-foreground" : "text-foreground")}>Timed (e.g. Plank)</span>
+                    {selectedTypes.includes("timed") && <Check className="h-4 w-4 text-primary-foreground mt-1" />}
                   </div>
                 </div>
                 <FormMessage>
