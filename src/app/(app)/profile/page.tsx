@@ -160,12 +160,12 @@ export default function ProfilePage() {
     } else if (level === 'Warrior') {
       nextLevelPoints = 300;
       progress = ((totalPoints - 100) / 200) * 100;
-    } else if (level === 'Champion') {
-      nextLevelPoints = 600;
+    } else { // Champion or Legend
+      nextLevelPoints = 600; // Max points for Champion before Legend
       progress = ((totalPoints - 300) / 300) * 100;
-    } else { // Legend
-      progress = 100;
-      nextLevelPoints = 600;
+      if (level === 'Legend') {
+        progress = 100; // Legend is maxed out
+      }
     }
 
     let icon: React.ReactElement<React.SVGProps<SVGSVGElement>>;
@@ -301,6 +301,7 @@ export default function ProfilePage() {
                 <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
                   <ProfileStatsTab
                     fitnessLevel={fitnessLevel}
+                    profile={profile} {/* Pass profile here */}
                   />
                 </div>
 

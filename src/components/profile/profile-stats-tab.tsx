@@ -4,6 +4,10 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from "@/components/ui/progress";
 import { cn } from '@/lib/utils';
+import { WeeklyMomentumBars } from './weekly-momentum-bars'; // Import the new component
+import { Tables } from '@/types/supabase'; // Import Tables for Profile type
+
+type Profile = Tables<'profiles'>; // Define Profile type
 
 interface ProfileStatsTabProps {
   fitnessLevel: {
@@ -13,9 +17,10 @@ interface ProfileStatsTabProps {
     icon: React.ReactElement<React.SVGProps<SVGSVGElement>>;
     nextLevelPoints: number;
   };
+  profile: Profile | null; // Add profile prop
 }
 
-export const ProfileStatsTab = ({ fitnessLevel }: ProfileStatsTabProps) => {
+export const ProfileStatsTab = ({ fitnessLevel, profile }: ProfileStatsTabProps) => {
   return (
     <div className="mt-6 space-y-6 border-none p-0">
       <Card className={cn("relative overflow-hidden p-6 text-center text-primary-foreground shadow-lg group", fitnessLevel.color, "transition-all duration-300 ease-in-out hover:scale-[1.01] hover:shadow-xl")}>
@@ -38,17 +43,11 @@ export const ProfileStatsTab = ({ fitnessLevel }: ProfileStatsTabProps) => {
           <p className="text-sm text-white/80 mt-2">{Math.round(fitnessLevel.progress)}% to next level</p>
         </div>
       </Card>
-      <Card>
-        <CardHeader><CardTitle>Weekly Progress</CardTitle></CardHeader>
-        <CardContent className="flex items-end justify-between space-x-2 h-24">
-          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
-            <div key={i} className="flex-1 flex flex-col items-center gap-2">
-              <div className="w-full bg-gradient-to-t from-blue-400 to-purple-400 rounded-t-lg" style={{ height: `${[60, 80, 45, 90, 70, 0, 30][i]}%` }} />
-              <div className="text-muted-foreground text-xs">{day}</div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+      
+      {/* Integrate WeeklyMomentumBars here */}
+      <WeeklyMomentumBars profile={profile} />
+
+      {/* Removed old weekly progress bar */}
     </div>
   );
 };

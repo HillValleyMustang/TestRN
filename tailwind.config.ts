@@ -126,5 +126,11 @@ export default {
     'bg-blue-500',
     'bg-purple-500',
     'bg-yellow-500',
+    // Added for WeeklyMomentumBars
+    'bg-gray-100',
+    'bg-gray-200',
+    'bg-green-200',
+    'bg-green-400',
+    'bg-green-600',
   ],
 } satisfies Config;
