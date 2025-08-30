@@ -130,18 +130,20 @@ export const useExerciseSets = ({
   useEffect(() => {
     const fetchExercisePR = async () => {
       setLoadingPR(true);
-      // MODIFIED: Removed .single() to debug 406 error
+      // MODIFIED: Re-added .single() for stricter data integrity
       const { data, error } = await supabase
         .from('user_exercise_prs')
         .select('id, user_id, exercise_id, best_volume_kg, best_time_seconds, last_achieved_date, created_at, updated_at') // Explicitly list columns
-        .eq('exercise_id', exerciseId);
+        .eq('exercise_id', exerciseId)
+        .single(); // Re-added .single()
 
-      if (error && error.code !== 'PGRST116') {
+      if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
         console.error("Error fetching exercise PR:", error);
         console.log("[DEBUG] PR Fetch Error:", error);
-      } else if (data && data.length > 0) { // Check if data exists and is not empty
-        setExercisePR(data[0] as UserExercisePR); // Take the first one if multiple are returned (should be unique)
-        console.log("[DEBUG] PR Data fetched:", data[0]);
+        setExercisePR(null); // Ensure PR is null on error
+      } else if (data) { // If data is returned (even if null for PGRST116)
+        setExercisePR(data as UserExercisePR);
+        console.log("[DEBUG] PR Data fetched:", data);
       } else {
         setExercisePR(null); // No PR found
         console.log("[DEBUG] No PR data found for exercise:", exerciseId);
