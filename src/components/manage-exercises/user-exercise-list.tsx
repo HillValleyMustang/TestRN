@@ -85,7 +85,7 @@ export const UserExerciseList = ({
           />
         </div>
 
-        <h3 className="text-xl font-semibold mb-4">My Exercises</h3>
+        <h3 className="text-lg font-semibold mb-4">My Exercises</h3>
         {loading ? (
           <div className="space-y-2">
             <Skeleton className="h-10 w-full" />

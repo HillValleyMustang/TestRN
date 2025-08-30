@@ -280,7 +280,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
           }
         }}
       >
-        <CardTitle className="flex-1"> {/* flex-1 to make title take available space */}
+        <CardTitle className="flex-1 text-base"> {/* flex-1 to make title take available space */}
           {editingExercise ? "Edit Exercise" : "Add New Exercise"}
         </CardTitle>
         {/* Chevron directly inside CardHeader */}
