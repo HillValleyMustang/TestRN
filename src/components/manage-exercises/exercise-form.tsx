@@ -329,7 +329,8 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                           !field.value?.length && "text-muted-foreground"
                         )}
                       >
-                        <span className="flex items-center justify-between w-full"> {/* Wrapped content in a single span */}
+                        {/* Wrap children in a single span */}
+                        <span className="flex items-center justify-between w-full">
                           <div className="flex flex-wrap gap-1">
                             {field.value && field.value.length > 0 ? (
                               field.value.map((muscle) => (
