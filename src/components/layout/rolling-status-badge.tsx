@@ -44,8 +44,11 @@ export function RollingStatusBadge() {
   if (loading) {
     return (
       <Badge variant="secondary" className="flex items-center gap-1">
-        <Clock className="h-4 w-4 text-muted-foreground" />
-        <span className="font-semibold text-muted-foreground">Loading Status...</span>
+        {/* Wrap children in a single span */}
+        <span>
+          <Clock className="h-4 w-4 text-muted-foreground" />
+          <span className="font-semibold text-muted-foreground">Loading Status...</span>
+        </span>
       </Badge>
     );
   }
@@ -78,8 +81,11 @@ export function RollingStatusBadge() {
 
   return (
     <Badge variant="outline" className={cn("flex items-center gap-1 px-3 py-1 text-sm font-semibold", badgeColorClass)}>
-      {badgeIcon}
-      <span>{status}</span>
+      {/* Wrap children in a single span */}
+      <span>
+        {badgeIcon}
+        <span>{status}</span>
+      </span>
     </Badge>
   );
 }
