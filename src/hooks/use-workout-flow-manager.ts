@@ -55,7 +55,7 @@ interface UseWorkoutFlowManagerReturn {
 
 const DEFAULT_INITIAL_SETS = 3;
 
-// Achievement IDs
+// Achievement IDs (kept here for reference, but logic moved to server)
 const ACHIEVEMENT_IDS = {
   FIRST_WORKOUT: 'first_workout',
   TEN_DAY_STREAK: 'ten_day_streak',
@@ -74,7 +74,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
   const [error, setError] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
-  const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set()); // Fixed: Correctly typed useState
+  const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(initialWorkoutId ?? null);
   const [groupedTPaths, setGroupedTPaths] = useState<GroupedTPath[]>([]);
   const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, WorkoutExercise[]>>({});
@@ -310,104 +310,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     setExercisesWithSets(prev => ({ ...prev, [exerciseId]: newSets }));
   }, []);
 
-  // Achievement Checkers
-  const checkAchievement = useCallback(async (achievementId: string, criteriaMet: boolean, existingAchievements: Set<string>) => {
-    if (!session || !criteriaMet || existingAchievements.has(achievementId)) {
-      return null;
-    }
-    const { error: insertError } = await supabase.from('user_achievements').insert({ user_id: session.user.id, achievement_id: achievementId });
-    if (insertError) {
-      console.error(`Error unlocking achievement ${achievementId}:`, insertError.message);
-      return null;
-    }
-    return achievementId;
-  }, [session, supabase]);
-
-  const checkFirstWorkout = useCallback(async (totalWorkouts: number, existingAchievements: Set<string>) => {
-    return await checkAchievement(ACHIEVEMENT_IDS.FIRST_WORKOUT, totalWorkouts >= 1, existingAchievements);
-  }, [checkAchievement]);
-
-  const check10DayStreak = useCallback(async (currentStreak: number, existingAchievements: Set<string>) => {
-    return await checkAchievement(ACHIEVEMENT_IDS.TEN_DAY_STREAK, currentStreak >= 10, existingAchievements);
-  }, [checkAchievement]);
-
-  const check25Workouts = useCallback(async (totalWorkouts: number, existingAchievements: Set<string>) => {
-    return await checkAchievement(ACHIEVEMENT_IDS.TWENTY_FIVE_WORKOUTS, totalWorkouts >= 25, existingAchievements);
-  }, [checkAchievement]);
-
-  const check50Workouts = useCallback(async (totalWorkouts: number, existingAchievements: Set<string>) => {
-    return await checkAchievement(ACHIEVEMENT_IDS.FIFTY_WORKOUTS, totalWorkouts >= 50, existingAchievements);
-  }, [checkAchievement]);
-
-  const checkBeastMode = useCallback(async (allWorkoutSessions: WorkoutSessionForAchievements[], existingAchievements: Set<string>) => {
-    const sessionsByDate = new Map<string, number>();
-    allWorkoutSessions.forEach(sessionItem => {
-      const dateKey = new Date(sessionItem.session_date).toISOString().split('T')[0];
-      sessionsByDate.set(dateKey, (sessionsByDate.get(dateKey) || 0) + 1);
-    });
-    const beastModeAchieved = Array.from(sessionsByDate.values()).some(count => count >= 2);
-    return await checkAchievement(ACHIEVEMENT_IDS.BEAST_MODE, beastModeAchieved, existingAchievements);
-  }, [checkAchievement]);
-
-  const checkPerfectWeek = useCallback(async (allWorkoutSessions: WorkoutSessionForAchievements[], activeTPathId: string | null, existingAchievements: Set<string>) => {
-    if (!activeTPathId) return null;
-
-    const { data: tpathData, error: tpathError } = await supabase.from('t_paths').select('settings').eq('id', activeTPathId).single();
-    if (tpathError || !tpathData?.settings) {
-      console.error("Error fetching active T-Path settings for Perfect Week:", tpathError);
-      return null;
-    }
-    const activeTPathType = (tpathData.settings as { tPathType: string }).tPathType;
-
-    let requiredWorkoutNames: string[] = [];
-    if (activeTPathType === 'ulul') {
-      requiredWorkoutNames = ['Upper Body A', 'Upper Body B', 'Lower Body A', 'Lower Body B'];
-    } else if (activeTPathType === 'ppl') {
-      requiredWorkoutNames = ['Push', 'Pull', 'Legs'];
-    }
-
-    if (requiredWorkoutNames.length === 0) return null;
-
-    const sessionsByDate = new Map<string, WorkoutSessionForAchievements[]>();
-    allWorkoutSessions.forEach(sessionItem => {
-      const dateKey = new Date(sessionItem.session_date).toISOString().split('T')[0];
-      if (!sessionsByDate.has(dateKey)) {
-        sessionsByDate.set(dateKey, []);
-      }
-      sessionsByDate.get(dateKey)?.push(sessionItem);
-    });
-
-    const sortedDates = Array.from(sessionsByDate.keys()).sort();
-    let perfectWeekAchieved = false;
-
-    for (let i = 0; i < sortedDates.length; i++) {
-      const startDate = new Date(sortedDates[i]);
-      const endDate = new Date(startDate);
-      endDate.setDate(startDate.getDate() + 6); // 7-day window (inclusive)
-
-      const workoutsInWindow = new Set<string>();
-      for (let j = i; j < sortedDates.length; j++) {
-        const currentDate = new Date(sortedDates[j]);
-        if (currentDate <= endDate) {
-          sessionsByDate.get(sortedDates[j])?.forEach(sessionItem => {
-            if (sessionItem.template_name) {
-              workoutsInWindow.add(sessionItem.template_name);
-            }
-          });
-        } else {
-          break;
-        }
-      }
-
-      const allRequiredFound = requiredWorkoutNames.every(requiredName => workoutsInWindow.has(requiredName));
-      if (allRequiredFound) {
-        perfectWeekAchieved = true;
-        break;
-      }
-    }
-    return await checkAchievement(ACHIEVEMENT_IDS.PERFECT_WEEK, perfectWeekAchieved, existingAchievements);
-  }, [checkAchievement, session, supabase]);
-
+  // Achievement Checkers (removed from here, now handled by server-side Edge Function)
 
   const finishWorkoutSession = useCallback(async () => {
     if (!currentSessionId || !sessionStartTime || !session) {
@@ -438,63 +341,16 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
         throw new Error(updateError.message);
       }
 
-      // --- Achievement Logic ---
-      const newlyUnlockedAchievements: string[] = [];
-
-      // Fetch all existing achievements for the user
-      const { data: existingUserAchievements, error: fetchAchievementsError } = await supabase
-        .from('user_achievements')
-        .select('achievement_id')
-        .eq('user_id', session.user.id);
-
-      if (fetchAchievementsError) throw fetchAchievementsError;
-      const existingAchievementIds = new Set((existingUserAchievements || []).map(a => a.achievement_id));
-
-      // Fetch all workout sessions and profile data for achievement checks
-      const { data: allWorkoutSessions, error: allSessionsError } = await supabase
-        .from('workout_sessions')
-        .select('session_date, template_name') // Select only necessary fields
-        .eq('user_id', session.user.id);
-      if (allSessionsError) throw allSessionsError;
-
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('total_points, current_streak, longest_streak, active_t_path_id')
-        .eq('id', session.user.id)
-        .single();
-      if (profileError) throw profileError;
-
-      const totalWorkouts = (profileData?.total_points || 0) / 10; // 10 points per workout
-      const currentStreak = profileData?.current_streak || 0;
-      const activeTPathId = profileData?.active_t_path_id || null;
-
-      // Run all achievement checks
-      const achievementChecks = [
-        checkFirstWorkout(totalWorkouts, existingAchievementIds),
-        check10DayStreak(currentStreak, existingAchievementIds),
-        check25Workouts(totalWorkouts, existingAchievementIds),
-        check50Workouts(totalWorkouts, existingAchievementIds),
-        checkBeastMode(allWorkoutSessions as WorkoutSessionForAchievements[] || [], existingAchievementIds), // Cast here
-        checkPerfectWeek(allWorkoutSessions as WorkoutSessionForAchievements[] || [], activeTPathId, existingAchievementIds), // Cast here
-      ];
-
-      const results = await Promise.all(achievementChecks);
-      results.forEach(id => {
-        if (id) newlyUnlockedAchievements.push(id);
-      });
-
-      // Construct query parameters for newly unlocked achievements
-      const queryParams = new URLSearchParams();
-      newlyUnlockedAchievements.forEach(id => queryParams.append('unlockedAchievement', id));
-
+      // Achievements are now processed server-side via database triggers.
+      // The workout-summary page will fetch newly unlocked achievements.
       toast.success("Workout session finished and duration saved!");
-      router.push(`/workout-summary/${currentSessionId}?${queryParams.toString()}`);
+      router.push(`/workout-summary/${currentSessionId}`); // No query params needed here
       resetWorkoutSession(); // Reset state after finishing
     } catch (err: any) {
-      toast.error("Failed to save workout duration or check achievements: " + err.message);
-      console.error("Error saving duration or achievements:", err);
+      toast.error("Failed to save workout duration: " + err.message);
+      console.error("Error saving duration:", err);
     }
-  }, [currentSessionId, sessionStartTime, session, supabase, router, resetWorkoutSession, checkAchievement, checkFirstWorkout, check10DayStreak, check25Workouts, check50Workouts, checkBeastMode, checkPerfectWeek]);
+  }, [currentSessionId, sessionStartTime, session, supabase, router, resetWorkoutSession]);
 
   return { activeWorkout, exercisesForSession, exercisesWithSets, allAvailableExercises, loading, error, currentSessionId, sessionStartTime, completedExercises, selectWorkout, addExerciseToSession, removeExerciseFromSession, substituteExercise, updateSessionStartTime, markExerciseAsCompleted, resetWorkoutSession, updateExerciseSets, groupedTPaths, isCreatingSession, createWorkoutSessionInDb, finishWorkoutSession };
 };

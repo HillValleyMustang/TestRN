@@ -118,25 +118,36 @@ export default function WorkoutSummaryPage({
         setTotalVolume(volume);
         setPrsAchieved(prCount);
 
-        // Display achievement toasts only once
-        if (!hasShownAchievementToasts && searchParams?.unlockedAchievement) {
-          const unlockedAchievements = Array.isArray(searchParams.unlockedAchievement)
-            ? searchParams.unlockedAchievement
-            : [searchParams.unlockedAchievement];
+        // Fetch newly unlocked achievements for this session
+        if (!hasShownAchievementToasts && session.user.id) {
+          const response = await fetch('/api/get-session-achievements', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ userId: session.user.id, sessionId: sessionId }),
+          });
 
-          unlockedAchievements.forEach(achievementId => {
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || 'Failed to fetch session achievements.');
+          }
+
+          const newlyUnlockedAchievements: string[] = data.newlyUnlockedAchievementIds || [];
+
+          newlyUnlockedAchievements.forEach(achievementId => {
             const displayInfo = ACHIEVEMENT_DISPLAY_INFO[achievementId];
             if (displayInfo) {
               toast.success(`Congrats! Achievement Unlocked: ${displayInfo.name}! ${displayInfo.icon}`);
             }
           });
           setHasShownAchievementToasts(true);
-          // Clean up URL params after showing toasts
-          router.replace(`/workout-summary/${sessionId}`, undefined);
         }
 
       } catch (err: any) {
-        console.error("Failed to fetch workout summary:", err);
+        console.error("Failed to fetch workout summary or achievements:", err);
         setError(err.message || "Failed to load workout summary. Please try again.");
         toast.error(err.message || "Failed to load workout summary.");
       } finally {
@@ -145,7 +156,7 @@ export default function WorkoutSummaryPage({
     };
 
     fetchWorkoutSummary();
-  }, [session, router, sessionId, supabase, searchParams, hasShownAchievementToasts]);
+  }, [session, router, sessionId, supabase, hasShownAchievementToasts]);
 
   const handleRatingChange = (rating: number) => {
     setCurrentRating(rating);
