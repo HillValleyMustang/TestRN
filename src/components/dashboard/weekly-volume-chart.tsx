@@ -17,9 +17,11 @@ interface ChartData {
   volume: number;
 }
 
-// Define a type for SetLog with joined ExerciseDefinition
-type SetLogWithExerciseDefinition = SetLog & {
+// Define a type for SetLog with joined ExerciseDefinition and WorkoutSession
+// This type now accurately reflects the fields selected in the Supabase query.
+type SetLogWithExerciseAndSession = Pick<SetLog, 'weight_kg' | 'reps'> & {
   exercise_definitions: Pick<ExerciseDefinition, 'type'>[] | null; // Changed to array
+  workout_sessions: Pick<WorkoutSession, 'session_date' | 'user_id'> | null;
 };
 
 export const WeeklyVolumeChart = () => {
@@ -35,63 +37,42 @@ export const WeeklyVolumeChart = () => {
       setLoading(true);
       setError(null);
       try {
-        // Fetch all workout sessions for the user
-        const { data: sessionsData, error: sessionsError } = await supabase
-          .from('workout_sessions')
-          .select('id, session_date')
-          .eq('user_id', session.user.id)
-          .order('session_date', { ascending: true }); // Order by date for chronological processing
-
-        if (sessionsError) {
-          throw new Error(sessionsError.message);
-        }
-
-        const sessionIds = sessionsData.map(s => s.id);
-
-        if (sessionIds.length === 0) {
-          setChartData([]);
-          setLoading(false);
-          return;
-        }
-
-        // Fetch all set logs associated with these sessions, selecting all SetLog columns and necessary exercise definition columns
+        // Fetch all set logs for the user, joining with workout_sessions to get session_date
+        // and exercise_definitions to get exercise type.
         const { data: setLogsData, error: setLogsError } = await supabase
           .from('set_logs')
           .select(`
-            id, created_at, exercise_id, is_pb, reps, reps_l, reps_r, session_id, time_seconds, weight_kg,
-            exercise_definitions (type)
+            weight_kg, reps,
+            exercise_definitions (type),
+            workout_sessions (session_date, user_id)
           `)
-          .in('session_id', sessionIds);
+          .eq('workout_sessions.user_id', session.user.id) // Filter by user_id directly on the joined table
+          .order('created_at', { ascending: true }); // Order by created_at for chronological processing
 
         if (setLogsError) {
           throw new Error(setLogsError.message);
         }
 
-        // Map session dates to session IDs for easy lookup
-        const sessionDateMap = new Map<string, string>(); // sessionId -> date string
-        sessionsData.forEach(session => {
-          sessionDateMap.set(session.id, new Date(session.session_date).toISOString().split('T')[0]);
-        });
-
         // Aggregate volume by week
         const weeklyVolumeMap = new Map<string, number>(); // 'YYYY-WW' -> total volume
 
-        (setLogsData as SetLogWithExerciseDefinition[]).forEach(log => { // Explicitly cast
-          const exerciseType = log.exercise_definitions?.[0]?.type; // Access the type from the first element of the array
-          if (exerciseType === 'weight' && log.weight_kg && log.reps && log.session_id) {
-            const sessionDateStr = sessionDateMap.get(log.session_id);
-            if (sessionDateStr) {
-              const date = new Date(sessionDateStr);
-              // Get the start of the week (e.g., Monday)
-              const startOfWeek = new Date(date);
-              startOfWeek.setDate(date.getDate() - (date.getDay() + 6) % 7); // Adjust to Monday
-              startOfWeek.setHours(0, 0, 0, 0);
+        (setLogsData as SetLogWithExerciseAndSession[]).forEach(log => {
+          // Access the first element of the exercise_definitions array
+          const exerciseType = log.exercise_definitions?.[0]?.type;
+          const sessionInfo = log.workout_sessions; // Access the workout_sessions object
+          const sessionDate = sessionInfo?.session_date; // Get session_date from the object
 
-              const weekKey = startOfWeek.toISOString().split('T')[0]; // Use start of week as key
+          if (exerciseType === 'weight' && log.weight_kg && log.reps && sessionDate) {
+            const date = new Date(sessionDate);
+            // Get the start of the week (e.g., Monday)
+            const startOfWeek = new Date(date);
+            startOfWeek.setDate(date.getDate() - (date.getDay() + 6) % 7); // Adjust to Monday
+            startOfWeek.setHours(0, 0, 0, 0);
 
-              const volume = (log.weight_kg || 0) * (log.reps || 0);
-              weeklyVolumeMap.set(weekKey, (weeklyVolumeMap.get(weekKey) || 0) + volume);
-            }
+            const weekKey = startOfWeek.toISOString().split('T')[0]; // Use start of week as key
+
+            const volume = (log.weight_kg || 0) * (log.reps || 0);
+            weeklyVolumeMap.set(weekKey, (weeklyVolumeMap.get(weekKey) || 0) + volume);
           }
         });
 
