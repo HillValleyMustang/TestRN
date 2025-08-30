@@ -76,7 +76,7 @@ export const UserExerciseList = ({
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="text-2xl font-semibold">My Custom Exercises</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-3"> {/* Adjusted padding here */}
         <div className="mb-6">
           <ExerciseForm
             editingExercise={editingExercise}
@@ -95,10 +95,10 @@ export const UserExerciseList = ({
         ) : exercises.length === 0 ? (
           <p className="text-muted-foreground">You haven't created any custom exercises yet.</p>
         ) : (
-          <ScrollArea className="pr-4">
+          <ScrollArea> {/* Removed pr-4 here */}
             <ul className="space-y-2">
               {exercises.map((ex) => (
-                <li key={ex.id} className="flex items-center justify-between p-2 border rounded-md">
+                <li key={ex.id} className="flex items-center justify-between py-1 px-2 border rounded-md"> {/* Adjusted padding here */}
                   {/* Main clickable area for info dialog */}
                   <ExerciseInfoDialog
                     exercise={ex}
@@ -106,7 +106,7 @@ export const UserExerciseList = ({
                     onRemoveFromWorkout={onRemoveFromWorkout}
                     onDeleteExercise={onDelete} // Pass the onDelete function here
                     trigger={
-                      <div className="flex-1 cursor-pointer py-1 pr-2">
+                      <div className="flex-1 cursor-pointer py-1 px-0"> {/* Adjusted padding here */}
                         <span className="font-medium">
                           {ex.name}{' '}
                           <span className="text-sm text-muted-foreground">
@@ -135,7 +135,7 @@ export const UserExerciseList = ({
                     }
                   />
                   {/* Action buttons group */}
-                  <div className="flex space-x-1">
+                  <div className="flex gap-1"> {/* Changed space-x-1 to gap-1 here */}
                     {/* New Info Button (redundant if main area is trigger, but kept for consistency with global list) */}
                     <ExerciseInfoDialog
                       exercise={ex}
