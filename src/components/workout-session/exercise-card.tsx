@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, CheckCircle2, Trophy, Edit, Trash2, Timer, RefreshCcw, Info, History, Menu, Play, Pause, RotateCcw, Save, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Check, Trophy, Edit, Trash2, Timer, RefreshCcw, Info, History, Menu, Play, Pause, RotateCcw, Save, ChevronDown, ChevronUp } from 'lucide-react';
 import { ExerciseHistoryDialog } from '@/components/exercise-history-dialog';
 import { ExerciseInfoDialog } from '@/components/exercise-info-dialog';
 import { ExerciseProgressionDialog } from '@/components/exercise-progression-dialog';
@@ -230,7 +230,7 @@ export const ExerciseCard = ({
               )}
               <div className="flex items-center gap-2 flex-shrink-0">
                 {isExerciseSaved && (
-                  <CheckCircle2 className="h-8 w-8 text-green-500 fill-green-500" />
+                  <Check className="h-8 w-8 text-green-500" />
                 )}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
