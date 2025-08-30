@@ -5,9 +5,9 @@ import { Tables } from "@/types/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Edit, Trash2, Heart, Info, PlusCircle } from "lucide-react"; // Import PlusCircle icon
+import { Edit, Trash2, Heart, Info, PlusCircle } from "lucide-react";
 import {
-  AlertDialog, // Keep AlertDialog import as it might be used elsewhere or for other purposes
+  AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
@@ -20,8 +20,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ExerciseForm } from "@/components/manage-exercises/exercise-form";
 import { ExerciseInfoDialog } from "@/components/exercise-info-dialog";
 import { cn, getWorkoutColorClass } from "@/lib/utils";
-import { WorkoutBadge } from "@/components/workout-badge"; // Import WorkoutBadge
-import { AddExerciseToTPathDialog } from "./add-exercise-to-tpath-dialog"; // Import the dialog
+import { WorkoutBadge } from "@/components/workout-badge";
+import { AddExerciseToTPathDialog } from "./add-exercise-to-tpath-dialog";
 
 // Extend the ExerciseDefinition type to include a temporary flag for global exercises
 interface FetchedExerciseDefinition extends Tables<'exercise_definitions'> {
@@ -32,43 +32,49 @@ interface UserExerciseListProps {
   exercises: FetchedExerciseDefinition[];
   loading: boolean;
   onEdit: (exercise: FetchedExerciseDefinition) => void;
-  onDelete: (exercise: FetchedExerciseDefinition) => void; // This will now be passed to ExerciseInfoDialog
-  // Removed isDeleteDialogOpen, exerciseToDelete, setIsDeleteDialogOpen, confirmDeleteExercise
+  onDelete: (exercise: FetchedExerciseDefinition) => void;
   editingExercise: FetchedExerciseDefinition | null;
   onCancelEdit: () => void;
   onSaveSuccess: () => void;
   exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>;
   onRemoveFromWorkout: (workoutId: string, exerciseId: string) => void;
   onToggleFavorite: (exercise: FetchedExerciseDefinition) => void;
-  onAddSuccess: () => void; // Prop to trigger refresh after adding to T-Path
+  onAddSuccess: () => void;
 }
 
 export const UserExerciseList = ({
   exercises,
   loading,
   onEdit,
-  onDelete, // Pass this down to ExerciseInfoDialog
-  // Removed isDeleteDialogOpen, exerciseToDelete, setIsDeleteDialogOpen, confirmDeleteExercise
+  onDelete,
   editingExercise,
   onCancelEdit,
   onSaveSuccess,
   exerciseWorkoutsMap,
   onRemoveFromWorkout,
   onToggleFavorite,
-  onAddSuccess, // Pass this down
+  onAddSuccess,
 }: UserExerciseListProps) => {
   const [isAddTPathDialogOpen, setIsAddTPathDialogOpen] = useState(false);
   const [selectedExerciseForTPath, setSelectedExerciseForTPath] = useState<FetchedExerciseDefinition | null>(null);
+  const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
+  const [selectedExerciseForInfo, setSelectedExerciseForInfo] = useState<FetchedExerciseDefinition | null>(null);
 
   const handleOpenAddTPathDialog = (exercise: FetchedExerciseDefinition, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent opening info dialog
+    e.stopPropagation();
     setSelectedExerciseForTPath(exercise);
     setIsAddTPathDialogOpen(true);
   };
 
   const handleToggleFavoriteClick = (exercise: FetchedExerciseDefinition, e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation(); // Prevent opening info dialog
+    e.stopPropagation();
     onToggleFavorite(exercise);
+  };
+
+  const handleOpenInfoDialog = (exercise: FetchedExerciseDefinition, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedExerciseForInfo(exercise);
+    setIsInfoDialogOpen(true);
   };
 
   return (
@@ -76,7 +82,7 @@ export const UserExerciseList = ({
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="text-2xl font-semibold">My Custom Exercises</CardTitle>
       </CardHeader>
-      <CardContent className="p-3"> {/* Adjusted padding here */}
+      <CardContent className="p-3">
         <div className="mb-6">
           <ExerciseForm
             editingExercise={editingExercise}
@@ -95,59 +101,41 @@ export const UserExerciseList = ({
         ) : exercises.length === 0 ? (
           <p className="text-muted-foreground">You haven't created any custom exercises yet.</p>
         ) : (
-          <ScrollArea> {/* Removed pr-4 here */}
+          <ScrollArea>
             <ul className="space-y-2">
               {exercises.map((ex) => (
-                <li key={ex.id} className="flex items-center justify-between py-1 px-2 border rounded-md"> {/* Adjusted padding here */}
-                  {/* Main clickable area for info dialog */}
-                  <ExerciseInfoDialog
-                    exercise={ex}
-                    exerciseWorkouts={exerciseWorkoutsMap[ex.id] || []}
-                    onRemoveFromWorkout={onRemoveFromWorkout}
-                    onDeleteExercise={onDelete} // Pass the onDelete function here
-                    trigger={
-                      <div className="flex-1 cursor-pointer py-1 px-0"> {/* Adjusted padding here */}
-                        <span className="font-medium">
-                          {ex.name}{' '}
-                          <span className="text-sm text-muted-foreground">
-                            ({ex.main_muscle}){' '}
-                          </span>
-                        </span>
-                        {exerciseWorkoutsMap[ex.id]?.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {exerciseWorkoutsMap[ex.id].map(workout => (
-                              <div key={workout.id} className="flex items-center gap-1 bg-muted p-1 rounded-md">
-                                <WorkoutBadge 
-                                  workoutName={workout.name}
-                                >
-                                  {workout.name}
-                                </WorkoutBadge>
-                                {workout.isBonus && (
-                                  <WorkoutBadge workoutName="Bonus">
-                                    Bonus
-                                  </WorkoutBadge>
-                                )}
-                              </div>
-                            ))}
+                <li key={ex.id} className="flex items-center justify-between py-1 px-2 border rounded-md">
+                  <div className="flex-1 py-1 px-0">
+                    <span className="font-medium">
+                      {ex.name}{' '}
+                      <span className="text-sm text-muted-foreground">
+                        ({ex.main_muscle}){' '}
+                      </span>
+                    </span>
+                    {exerciseWorkoutsMap[ex.id]?.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {exerciseWorkoutsMap[ex.id].map(workout => (
+                          <div key={workout.id} className="flex items-center gap-1 bg-muted p-1 rounded-md">
+                            <WorkoutBadge 
+                              workoutName={workout.name}
+                            >
+                              {workout.name}
+                            </WorkoutBadge>
+                            {workout.isBonus && (
+                              <WorkoutBadge workoutName="Bonus">
+                                Bonus
+                              </WorkoutBadge>
+                            )}
                           </div>
-                        )}
+                        ))}
                       </div>
-                    }
-                  />
+                    )}
+                  </div>
                   {/* Action buttons group */}
-                  <div className="flex gap-1"> {/* Changed space-x-1 to gap-1 here */}
-                    {/* New Info Button (redundant if main area is trigger, but kept for consistency with global list) */}
-                    <ExerciseInfoDialog
-                      exercise={ex}
-                      exerciseWorkouts={exerciseWorkoutsMap[ex.id] || []}
-                      onRemoveFromWorkout={onRemoveFromWorkout}
-                      onDeleteExercise={onDelete} // Pass the onDelete function here
-                      trigger={
-                        <Button variant="ghost" size="icon" title="More Info">
-                          <Info className="h-4 w-4" />
-                        </Button>
-                      }
-                    />
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" title="More Info" onClick={(e) => handleOpenInfoDialog(ex, e)}>
+                      <Info className="h-4 w-4" />
+                    </Button>
                     <Button 
                       variant="ghost" 
                       size="icon" 
@@ -162,7 +150,6 @@ export const UserExerciseList = ({
                     <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEdit(ex); }} title="Edit Exercise">
                       <Edit className="h-4 w-4" />
                     </Button>
-                    {/* Removed the direct delete button from the card */}
                   </div>
                 </li>
               ))}
@@ -171,14 +158,24 @@ export const UserExerciseList = ({
         )}
       </CardContent>
 
-      {/* Removed AlertDialog from here as it's now handled inside ExerciseInfoDialog */}
       {selectedExerciseForTPath && (
         <AddExerciseToTPathDialog
-          key={selectedExerciseForTPath.id} // Added key prop
+          key={selectedExerciseForTPath.id}
           open={isAddTPathDialogOpen}
           onOpenChange={setIsAddTPathDialogOpen}
           exercise={selectedExerciseForTPath}
           onAddSuccess={onAddSuccess}
+        />
+      )}
+
+      {selectedExerciseForInfo && (
+        <ExerciseInfoDialog
+          open={isInfoDialogOpen}
+          onOpenChange={setIsInfoDialogOpen}
+          exercise={selectedExerciseForInfo}
+          exerciseWorkouts={exerciseWorkoutsMap[selectedExerciseForInfo.id] || []}
+          onRemoveFromWorkout={onRemoveFromWorkout}
+          onDeleteExercise={onDelete}
         />
       )}
     </Card>
