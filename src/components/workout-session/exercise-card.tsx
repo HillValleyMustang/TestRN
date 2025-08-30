@@ -204,7 +204,7 @@ export const ExerciseCard = ({
           onClick={() => setIsExpanded(!isExpanded)}
         >
           {/* Left side: Exercise details */}
-          <div className="flex flex-col flex-1 min-w-0 text-left"> {/* flex-1 to take available space */}
+          <div className="flex flex-col flex-1 min-w-0 items-start"> {/* Align flex items to the start */}
             <div className="flex items-center gap-2">
               <CardTitle className={cn("text-lg font-semibold leading-none text-left", workoutColorClass)}>
                 {exerciseNumber}. {exercise.name}
