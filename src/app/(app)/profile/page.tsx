@@ -16,26 +16,36 @@ import { toast } from 'sonner';
 import { Profile as ProfileType, ProfileUpdate, Tables, UserAchievement } from '@/types/supabase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Edit, Save, LogOut, ArrowLeft, BarChart2, User, Settings, Flame, Dumbbell, Trophy, Star, Footprints, Bot, Crown, Sunrise, CalendarCheck, Weight, LayoutTemplate, Text } from 'lucide-react'; // Added LayoutTemplate and Text for icons
+import { Edit, Save, LogOut, ArrowLeft, BarChart2, User, Settings, Flame, Dumbbell, Trophy, Star, Footprints, Bot, Crown, Sunrise, CalendarCheck, Weight, LayoutTemplate, Text, ChevronDown, X } from 'lucide-react'; // Added ChevronDown and X for multi-select
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { TPathSwitcher } from '@/components/t-path-switcher';
 import { cn, getLevelFromPoints } from '@/lib/utils';
 import { AchievementDetailDialog } from '@/components/profile/achievement-detail-dialog';
-import { Textarea } from '@/components/ui/textarea'; // Import Textarea
+import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"; // Added Popover components
+import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command"; // Added Command components
+import { Checkbox } from "@/components/ui/checkbox"; // Added Checkbox
+import { Badge } from "@/components/ui/badge"; // Added Badge
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
 
+const mainMuscleGroups = [
+  "Pectorals", "Deltoids", "Lats", "Traps", "Biceps", 
+  "Triceps", "Quadriceps", "Hamstrings", "Glutes", "Calves", 
+  "Abdominals", "Core", "Full Body"
+];
+
 const profileSchema = z.object({
-  full_name: z.string().min(1, "Your name is required."), // Changed label
+  full_name: z.string().min(1, "Your name is required."),
   height_cm: z.coerce.number().positive("Height must be positive.").optional().nullable(),
   weight_kg: z.coerce.number().positive("Weight must be positive.").optional().nullable(),
   body_fat_pct: z.coerce.number().min(0, "Cannot be negative.").max(100, "Cannot exceed 100.").optional().nullable(),
   primary_goal: z.string().optional().nullable(),
-  health_notes: z.string().optional().nullable(), // Re-added
+  health_notes: z.string().optional().nullable(),
   preferred_session_length: z.string().optional().nullable(),
-  preferred_muscles: z.string().optional().nullable(), // Re-added
+  preferred_muscles: z.array(z.string()).optional().nullable(), // Changed to array of strings
 });
 
 // Achievement IDs (must match those in process-achievements Edge Function)
@@ -77,9 +87,9 @@ export default function ProfilePage() {
       weight_kg: null, 
       body_fat_pct: null, 
       primary_goal: null, 
-      health_notes: null, // Default to null
+      health_notes: null,
       preferred_session_length: null, 
-      preferred_muscles: null, // Default to null
+      preferred_muscles: [], // Default to empty array
     },
   });
 
@@ -99,7 +109,7 @@ export default function ProfilePage() {
           primary_goal: profileData.primary_goal,
           health_notes: profileData.health_notes,
           preferred_session_length: profileData.preferred_session_length,
-          preferred_muscles: profileData.preferred_muscles, // Set initial value
+          preferred_muscles: profileData.preferred_muscles ? profileData.preferred_muscles.split(',').map((m: string) => m.trim()) : [], // Parse string to array
         });
 
         if (profileData.active_t_path_id) {
@@ -196,6 +206,7 @@ export default function ProfilePage() {
       ...values,
       first_name: firstName,
       last_name: lastName,
+      preferred_muscles: values.preferred_muscles?.join(', ') || null, // Convert array to comma-separated string
       updated_at: new Date().toISOString()
     };
     
@@ -361,28 +372,102 @@ export default function ProfilePage() {
                     <FormField control={form.control} name="height_cm" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Height (cm)</FormLabel>
-                        <FormControl><Input type="number" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="w-full sm:max-w-[120px]" /></FormControl>
+                        <FormControl><Input type="number" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px]" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
                     <FormField control={form.control} name="weight_kg" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Weight (kg)</FormLabel>
-                        <FormControl><Input type="number" step="0.1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="w-full sm:max-w-[120px]" /></FormControl>
+                        <FormControl><Input type="number" step="0.1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px]" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
                     <FormField control={form.control} name="body_fat_pct" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Body Fat (%)</FormLabel>
-                        <FormControl><Input type="number" step="0.1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="w-full sm:max-w-[120px]" /></FormControl>
+                        <FormControl><Input type="number" step="0.1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px]" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
                     <FormField control={form.control} name="preferred_muscles" render={({ field }) => (
                       <FormItem className="sm:col-span-2">
                         <FormLabel>Preferred Muscles to Train (Optional)</FormLabel>
-                        <FormControl><Input {...field} value={field.value ?? ''} disabled={!isEditing} placeholder="e.g., Chest, Back, Legs..." /></FormControl>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className={cn(
+                                "w-full justify-between",
+                                !field.value?.length && "text-muted-foreground"
+                              )}
+                              disabled={!isEditing}
+                            >
+                              <div className="flex flex-wrap gap-1">
+                                {field.value && field.value.length > 0 ? (
+                                  field.value.map((muscle) => (
+                                    <Badge key={muscle} variant="secondary" className="flex items-center gap-1">
+                                      {muscle}
+                                      <X className="h-3 w-3 cursor-pointer" onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (isEditing) {
+                                          const newSelection = field.value?.filter((m) => m !== muscle);
+                                          field.onChange(newSelection);
+                                        }
+                                      }} />
+                                    </Badge>
+                                  ))
+                                ) : (
+                                  <span>Select muscles...</span>
+                                )}
+                              </div>
+                              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                            <Command>
+                              <CommandInput placeholder="Search muscles..." />
+                              <CommandEmpty>No muscle found.</CommandEmpty>
+                              <CommandGroup>
+                                {mainMuscleGroups.map((muscle) => (
+                                  <CommandItem
+                                    key={muscle}
+                                    onSelect={() => {
+                                      if (!isEditing) return;
+                                      const currentSelection = new Set(field.value);
+                                      if (currentSelection.has(muscle)) {
+                                        currentSelection.delete(muscle);
+                                      } else {
+                                        currentSelection.add(muscle);
+                                      }
+                                      field.onChange(Array.from(currentSelection));
+                                    }}
+                                  >
+                                    <Checkbox
+                                      checked={field.value?.includes(muscle)}
+                                      onCheckedChange={(checked) => {
+                                        if (!isEditing) return;
+                                        const currentSelection = new Set(field.value);
+                                        if (checked) {
+                                          currentSelection.add(muscle);
+                                        } else {
+                                          currentSelection.delete(muscle);
+                                        }
+                                        field.onChange(Array.from(currentSelection));
+                                      }}
+                                      className="mr-2"
+                                    />
+                                    {muscle}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Select muscle groups you'd like the AI Coach to prioritize in your recommendations.
+                        </p>
                         <FormMessage />
                       </FormItem>
                     )} />
@@ -390,6 +475,9 @@ export default function ProfilePage() {
                       <FormItem className="sm:col-span-2">
                         <FormLabel>Health Notes / Constraints (Optional)</FormLabel>
                         <FormControl><Textarea {...field} value={field.value ?? ''} disabled={!isEditing} placeholder="Any injuries, health conditions, or limitations..." /></FormControl>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Share any relevant health information or limitations for the AI Coach to consider when generating advice.
+                        </p>
                         <FormMessage />
                       </FormItem>
                     )} />
