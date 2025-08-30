@@ -212,10 +212,10 @@ export const ExerciseCard = ({
                   <CardTitle className={cn("text-lg font-semibold leading-none", workoutColorClass)}>
                     {exerciseNumber}. {exercise.name}
                   </CardTitle>
-                  {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus" className="flex-shrink-0">Bonus</WorkoutBadge>}
                 </div>
                 <p className="text-sm text-muted-foreground mt-1 truncate">{exercise.main_muscle}</p>
               </div>
+              {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus" className="flex-shrink-0">Bonus</WorkoutBadge>} {/* Moved here */}
             </div>
 
             {/* Bottom Row: Icon and Controls */}
@@ -324,15 +324,38 @@ export const ExerciseCard = ({
                             className="w-20 text-center h-8 text-sm" // Added text-sm
                           />
                           <span className="text-muted-foreground text-sm">x</span>
-                          <Input
-                            id={`reps-${setIndex}`}
-                            type="number"
-                            placeholder="reps"
-                            value={set.reps ?? ''}
-                            onChange={(e) => handleInputChange(setIndex, 'reps', e.target.value)}
-                            disabled={set.isSaved || isExerciseSaved}
-                            className="w-20 text-center h-8 text-sm" // Added text-sm
-                          />
+                          {exercise.category === 'Unilateral' ? (
+                            <>
+                              <Input
+                                id={`reps-l-${setIndex}`}
+                                type="number"
+                                placeholder="Reps (L)"
+                                value={set.reps_l ?? ''}
+                                onChange={(e) => handleInputChange(setIndex, 'reps_l', e.target.value)}
+                                disabled={set.isSaved || isExerciseSaved}
+                                className="flex-1 h-8 text-sm" // Added text-sm
+                              />
+                              <Input
+                                id={`reps-r-${setIndex}`}
+                                type="number"
+                                placeholder="Reps (R)"
+                                value={set.reps_r ?? ''}
+                                onChange={(e) => handleInputChange(setIndex, 'reps_r', e.target.value)}
+                                disabled={set.isSaved || isExerciseSaved}
+                                className="flex-1 h-8 text-sm" // Added text-sm
+                              />
+                            </>
+                          ) : (
+                            <Input
+                              id={`reps-${setIndex}`}
+                              type="number"
+                              placeholder="reps"
+                              value={set.reps ?? ''}
+                              onChange={(e) => handleInputChange(setIndex, 'reps', e.target.value)}
+                              disabled={set.isSaved || isExerciseSaved}
+                              className="w-20 text-center h-8 text-sm" // Added text-sm
+                            />
+                          )}
                         </>
                       )}
                       {exercise.type === 'timed' && (
@@ -345,28 +368,6 @@ export const ExerciseCard = ({
                           disabled={set.isSaved || isExerciseSaved}
                           className="flex-1 h-8 text-sm" // Added text-sm
                         />
-                      )}
-                      {exercise.category === 'Unilateral' && (
-                        <>
-                          <Input
-                            id={`reps-l-${setIndex}`}
-                            type="number"
-                            placeholder="Reps (L)"
-                            value={set.reps_l ?? ''}
-                            onChange={(e) => handleInputChange(setIndex, 'reps_l', e.target.value)}
-                            disabled={set.isSaved || isExerciseSaved}
-                            className="flex-1 h-8 text-sm" // Added text-sm
-                          />
-                          <Input
-                            id={`reps-r-${setIndex}`}
-                            type="number"
-                            placeholder="Reps (R)"
-                            value={set.reps_r ?? ''}
-                            onChange={(e) => handleInputChange(setIndex, 'reps_r', e.target.value)}
-                            disabled={set.isSaved || isExerciseSaved}
-                            className="flex-1 h-8 text-sm" // Added text-sm
-                          />
-                        </>
                       )}
                     </div>
                   </div>
