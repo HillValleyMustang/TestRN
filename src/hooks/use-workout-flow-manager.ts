@@ -281,7 +281,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
   const addExerciseToSession = useCallback(async (exercise: ExerciseDefinition) => {
     if (!session) return; // Ensure session exists for user_id
     let lastWeight = null, lastReps = null, lastTimeSeconds = null;
-    const { data: lastSet } = await supabase.from('set_logs').select('weight_kg, reps, time_seconds').eq('exercise.id', exercise.id).order('created_at', { ascending: false }).limit(1).single();
+    const { data: lastSet } = await supabase.from('set_logs').select('weight_kg, reps, time_seconds').eq('exercise_id', exercise.id).order('created_at', { ascending: false }).limit(1).single();
     if (lastSet) { lastWeight = lastSet.weight_kg; lastReps = lastSet.reps; lastTimeSeconds = lastSet.time_seconds; }
     setExercisesForSession(prev => [{ ...exercise, is_bonus_exercise: false }, ...prev]);
     setExercisesWithSets(prev => ({ ...prev, [exercise.id]: Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({ id: null, created_at: null, session_id: currentSessionId, exercise_id: exercise.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight, lastReps, lastTimeSeconds })) }));

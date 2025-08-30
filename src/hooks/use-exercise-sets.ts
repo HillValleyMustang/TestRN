@@ -65,13 +65,14 @@ export const useExerciseSets = ({
     setInternalSessionId(propCurrentSessionId);
   }, [propCurrentSessionId]);
 
-  // Initialize sets with 3 empty sets if initialSets is empty
+  // Synchronize local 'sets' state with 'initialSets' prop
   useEffect(() => {
+    // If initialSets is empty, initialize with default sets
     if (initialSets.length === 0) {
       const defaultSets: SetLogState[] = Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({
         id: null,
         created_at: null,
-        session_id: internalSessionId, // Use internalSessionId
+        session_id: internalSessionId,
         exercise_id: exerciseId,
         weight_kg: null,
         reps: null,
@@ -86,11 +87,11 @@ export const useExerciseSets = ({
         lastTimeSeconds: null,
       }));
       setSets(defaultSets);
-      // Removed: onUpdateSets(exerciseId, defaultSets);
     } else {
       setSets(initialSets);
     }
   }, [initialSets, exerciseId, internalSessionId]);
+
 
   // Fetch exercise-level PR on component mount
   useEffect(() => {
@@ -137,7 +138,7 @@ export const useExerciseSets = ({
         lastTimeSeconds: lastSet?.time_seconds,
       };
       const updatedSets = [...prev, newSet];
-      onUpdateSets(exerciseId, updatedSets);
+      onUpdateSets(exerciseId, updatedSets); // Update parent state
       return updatedSets;
     });
   }, [exerciseId, onUpdateSets, internalSessionId, sets.length]);
@@ -161,7 +162,7 @@ export const useExerciseSets = ({
       }
       // Mark set as unsaved if input changes
       newSets[setIndex].isSaved = false;
-      onUpdateSets(exerciseId, newSets);
+      onUpdateSets(exerciseId, newSets); // Update parent state
       return newSets;
     });
   }, [exerciseId, onUpdateSets, preferredWeightUnit]);
@@ -175,9 +176,10 @@ export const useExerciseSets = ({
         const newSessionId = await onFirstSetSaved(new Date().toISOString());
         currentSessionIdToUse = newSessionId;
         setInternalSessionId(newSessionId); // Update internal state
-        // Update all sets in the current exercise to link to this new session
+        
+        // Update all sets in the current exercise to link to this new session ID
         setSets(prevSets => prevSets.map(s => ({ ...s, session_id: newSessionId })));
-        onUpdateSets(exerciseId, sets.map(s => ({ ...s, session_id: newSessionId }))); // Also update global state
+        // The parent's state will be updated by handleSaveSet after this function returns.
       } catch (err) {
         toast.error("Failed to start workout session. Please try again.");
         console.error("Error creating session on first set save:", err);
@@ -271,7 +273,7 @@ export const useExerciseSets = ({
       }
       return { ...set, ...data, isSaved: true, isPR: isSetPR };
     }
-  }, [internalSessionId, exerciseId, exerciseType, exerciseCategory, supabase, onFirstSetSaved, onUpdateSets, sets]);
+  }, [internalSessionId, exerciseId, exerciseType, exerciseCategory, supabase, onFirstSetSaved, sets]);
 
   const handleSaveSet = useCallback(async (setIndex: number) => {
     const updatedSet = await saveSingleSetToDatabase(sets[setIndex], setIndex);
@@ -279,7 +281,7 @@ export const useExerciseSets = ({
       setSets(prev => {
         const newSets = [...prev];
         newSets[setIndex] = updatedSet;
-        onUpdateSets(exerciseId, newSets);
+        onUpdateSets(exerciseId, newSets); // Update parent state
         return newSets;
       });
       toast.success(`Set ${setIndex + 1} saved successfully!`);
@@ -290,7 +292,7 @@ export const useExerciseSets = ({
     setSets(prev => {
       const updatedSets = [...prev];
       updatedSets[setIndex] = { ...updatedSets[setIndex], isSaved: false };
-      onUpdateSets(exerciseId, updatedSets);
+      onUpdateSets(exerciseId, updatedSets); // Update parent state
       return updatedSets;
     });
   }, [exerciseId, onUpdateSets]);
@@ -300,7 +302,7 @@ export const useExerciseSets = ({
     if (!setToDelete.id) {
       setSets(prev => {
         const updatedSets = prev.filter((_, i) => i !== setIndex);
-        onUpdateSets(exerciseId, updatedSets);
+        onUpdateSets(exerciseId, updatedSets); // Update parent state
         return updatedSets;
       });
       toast.success("Unsaved set removed.");
@@ -321,7 +323,7 @@ export const useExerciseSets = ({
     } else {
       setSets(prev => {
         const updatedSets = prev.filter((_, i) => i !== setIndex);
-        onUpdateSets(exerciseId, updatedSets);
+        onUpdateSets(exerciseId, updatedSets); // Update parent state
         return updatedSets;
       });
       toast.success("Set deleted successfully!");
@@ -363,8 +365,8 @@ export const useExerciseSets = ({
 
     if (hasError) {
       toast.error("Some sets failed to save. Please check your inputs.");
-      setSets(updatedSetsState); // Update state with any successful saves
-      onUpdateSets(exerciseId, updatedSetsState);
+      setSets(updatedSetsState); // Update local state with any successful saves
+      onUpdateSets(exerciseId, updatedSetsState); // Update parent state
       return false;
     }
 
@@ -373,8 +375,8 @@ export const useExerciseSets = ({
       return false;
     }
 
-    setSets(updatedSetsState); // Ensure state is fully updated after all saves
-    onUpdateSets(exerciseId, updatedSetsState);
+    setSets(updatedSetsState); // Ensure local state is fully updated after all saves
+    onUpdateSets(exerciseId, updatedSetsState); // Update parent state
 
     let currentExercisePRValue: number | null = null;
     if (exerciseType === 'weight') {
@@ -426,7 +428,7 @@ export const useExerciseSets = ({
       toast.error("Failed to complete exercise: " + err.message);
       return false;
     }
-  }, [internalSessionId, sets, exerciseType, exerciseCategory, exercisePR, exerciseId, supabase, onExerciseComplete, exerciseName, saveSingleSetToDatabase]);
+  }, [internalSessionId, sets, exerciseType, exerciseCategory, exercisePR, exerciseId, supabase, onExerciseComplete, exerciseName, saveSingleSetToDatabase, onUpdateSets]);
 
   return {
     sets,
