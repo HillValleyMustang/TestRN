@@ -355,10 +355,10 @@ export default function ProfilePage() {
           <TabsContent value="settings" className="mt-6 space-y-6">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <Card className="bg-muted/50"> {/* Added background color */}
+                <Card className="bg-card"> {/* Changed background color */}
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <User className="h-5 w-5" /> Personal Info
+                      <User className="h-5 w-5 text-primary" /> Personal Info
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -369,7 +369,7 @@ export default function ProfilePage() {
                         <FormMessage />
                       </FormItem>
                     )} />
-                    <div className="flex flex-col sm:flex-row gap-4 sm:col-span-2"> {/* Grouped height and weight */}
+                    <div className="flex flex-row gap-4 sm:col-span-2"> {/* Changed to flex-row for mobile */}
                       <FormField control={form.control} name="height_cm" render={({ field }) => (
                         <FormItem className="flex-1">
                           <FormLabel>Height (cm)</FormLabel>
@@ -468,7 +468,7 @@ export default function ProfilePage() {
                           </PopoverContent>
                         </Popover>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Select muscle groups you'd like the AI Coach to **prioritise** in your recommendations.
+                          Select muscle groups you'd like the AI Coach to prioritise in your recommendations.
                         </p>
                         <FormMessage />
                       </FormItem>
@@ -485,10 +485,10 @@ export default function ProfilePage() {
                     )} />
                   </CardContent>
                 </Card>
-                <Card className="bg-muted/50"> {/* Added background color */}
+                <Card className="bg-card"> {/* Changed background color */}
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Dumbbell className="h-5 w-5" /> Workout Preferences
+                      <Dumbbell className="h-5 w-5 text-primary" /> Workout Preferences
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -523,17 +523,17 @@ export default function ProfilePage() {
                     )} />
                   </CardContent>
                 </Card>
-                <Card className="bg-muted/50"> {/* Added background color */}
+                <Card className="bg-card"> {/* Changed background color */}
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <LayoutTemplate className="h-5 w-5" /> Active T-Path
+                      <LayoutTemplate className="h-5 w-5 text-primary" /> Active T-Path
                     </CardTitle>
                     <CardDescription>Your Transformation Path is a pre-designed workout program tailored to your goals. Changing it here will regenerate your entire workout plan on the 'Workout' page, replacing your current set of exercises with a new one based on your preferences.</CardDescription>
                   </CardHeader>
                   <CardContent>{activeTPath && <TPathSwitcher currentTPathId={activeTPath.id} onTPathChange={(newId) => { toast.info("T-Path changed! Refreshing data..."); fetchData(); }} disabled={!isEditing} />}</CardContent>
                 </Card>
-                <Card className="bg-muted/50"> {/* Added background color */}
-                  <CardHeader><CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5" /> AI Coach Usage</CardTitle></CardHeader>
+                <Card className="bg-card"> {/* Changed background color */}
+                  <CardHeader><CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5 text-primary" /> AI Coach Usage</CardTitle></CardHeader>
                   <CardContent className="space-y-2">
                     <p className="text-sm">You have used the AI Coach <span className="font-semibold">{aiCoachUsageToday}</span> time(s) today.</p>
                     <p className="text-sm">Limit: <span className="font-semibold">{AI_COACH_LIMIT_PER_SESSION}</span> uses per session.</p>
