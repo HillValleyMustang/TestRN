@@ -355,7 +355,7 @@ export default function ProfilePage() {
           <TabsContent value="settings" className="mt-6 space-y-6">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <Card>
+                <Card className="bg-muted/50"> {/* Added background color */}
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <User className="h-5 w-5" /> Personal Info
@@ -369,27 +369,29 @@ export default function ProfilePage() {
                         <FormMessage />
                       </FormItem>
                     )} />
-                    <FormField control={form.control} name="height_cm" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Height (cm)</FormLabel>
-                        <FormControl><Input type="number" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px]" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="weight_kg" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Weight (kg)</FormLabel>
-                        <FormControl><Input type="number" step="0.1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px]" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="body_fat_pct" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Body Fat (%)</FormLabel>
-                        <FormControl><Input type="number" step="0.1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px]" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
+                    <div className="flex flex-wrap gap-4 sm:col-span-2"> {/* Grouped for inline display */}
+                      <FormField control={form.control} name="height_cm" render={({ field }) => (
+                        <FormItem className="flex-1 min-w-[120px]">
+                          <FormLabel>Height (cm)</FormLabel>
+                          <FormControl><Input type="number" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px]" /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name="weight_kg" render={({ field }) => (
+                        <FormItem className="flex-1 min-w-[120px]">
+                          <FormLabel>Weight (kg)</FormLabel>
+                          <FormControl><Input type="number" step="0.1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px]" /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name="body_fat_pct" render={({ field }) => (
+                        <FormItem className="flex-1 min-w-[120px]">
+                          <FormLabel>Body Fat (%)</FormLabel>
+                          <FormControl><Input type="number" step="0.1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px]" /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
                     <FormField control={form.control} name="preferred_muscles" render={({ field }) => (
                       <FormItem className="sm:col-span-2">
                         <FormLabel>Preferred Muscles to Train (Optional)</FormLabel>
@@ -466,7 +468,7 @@ export default function ProfilePage() {
                           </PopoverContent>
                         </Popover>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Select muscle groups you'd like the AI Coach to prioritize in your recommendations.
+                          Select muscle groups you'd like the AI Coach to prioritise in your recommendations.
                         </p>
                         <FormMessage />
                       </FormItem>
@@ -483,7 +485,7 @@ export default function ProfilePage() {
                     )} />
                   </CardContent>
                 </Card>
-                <Card>
+                <Card className="bg-muted/50"> {/* Added background color */}
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Dumbbell className="h-5 w-5" /> Workout Preferences
@@ -521,7 +523,7 @@ export default function ProfilePage() {
                     )} />
                   </CardContent>
                 </Card>
-                <Card>
+                <Card className="bg-muted/50"> {/* Added background color */}
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <LayoutTemplate className="h-5 w-5" /> Active T-Path
