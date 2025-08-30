@@ -198,7 +198,7 @@ export const ExerciseCard = ({
   );
 
   return (
-    <> {/* Added React Fragment */}
+    <React.Fragment> {/* Changed to React.Fragment */}
       <Card className={cn("mb-6 border-2 relative", workoutBorderClass, { "opacity-70": isExerciseSaved })}>
         <CardHeader 
           className="p-0 cursor-pointer relative"
@@ -277,7 +277,7 @@ export const ExerciseCard = ({
                         {(set.lastWeight != null || set.lastReps != null || set.lastTimeSeconds != null) && (
                           <span className="text-muted-foreground text-xs">
                             (Last: {exercise.type === 'weight' ?
-                              `${set.lastWeight != null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${set.lastReps != null ? set.reps : '-'}` :
+                              `${set.lastWeight != null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${set.lastReps != null ? set.lastReps : '-'}` :
                               `${set.lastTimeSeconds != null ? `${set.lastTimeSeconds}s` : '-'}`})
                           </span>
                         )}
@@ -421,8 +421,6 @@ export const ExerciseCard = ({
             </div>
           </CardContent>
         )}
-
-        {/* Removed the absolute positioned exercise.icon_url */}
       </Card>
 
       <ExerciseHistoryDialog
@@ -473,6 +471,6 @@ export const ExerciseCard = ({
           setShowCantDoDialog(false);
         }}
       />
-    </>
+    </React.Fragment>
   );
 };
