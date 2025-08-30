@@ -26,6 +26,12 @@ export default function WorkoutPage() {
 
   return (
     <div className="p-2 sm:p-4">
+      <header className="mb-4">
+        <h1 className="text-3xl font-bold">Workout Session</h1>
+        <p className="text-muted-foreground">
+          Select a workout or start an ad-hoc session.
+        </p>
+      </header>
       <WorkoutSelector 
         {...workoutFlowManager} 
         selectedWorkoutId={workoutFlowManager.activeWorkout?.id || null}
