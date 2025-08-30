@@ -74,7 +74,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
   const [error, setError] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
-  const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
+  const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set()); // Corrected initialization
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(initialWorkoutId ?? null);
   const [groupedTPaths, setGroupedTPaths] = useState<GroupedTPath[]>([]);
   const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, WorkoutExercise[]>>({});
@@ -290,7 +290,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
   const removeExerciseFromSession = useCallback((exerciseId: string) => {
     setExercisesForSession(prev => prev.filter(ex => ex.id !== exerciseId));
     setExercisesWithSets(prev => { const newSets = { ...prev }; delete newSets[exerciseId]; return newSets; });
-    setCompletedExercises((prev: Set<string>) => { const newCompleted = new Set(prev); newCompleted.delete(exerciseId); return newCompleted; });
+    setCompletedExercises((prev) => { const newCompleted = new Set(prev); newCompleted.delete(exerciseId); return newCompleted; });
   }, []);
 
   const substituteExercise = useCallback((oldExerciseId: string, newExercise: WorkoutExercise) => {
@@ -303,7 +303,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       delete newSets[oldExerciseId];
       return newSets;
     });
-    setCompletedExercises((prev: Set<string>) => { const newCompleted = new Set(prev); newCompleted.delete(oldExerciseId); return newCompleted; });
+    setCompletedExercises((prev) => { const newCompleted = new Set(prev); newCompleted.delete(oldExerciseId); return newCompleted; });
   }, [currentSessionId]);
 
   const updateExerciseSets = useCallback((exerciseId: string, newSets: SetLogState[]) => {
@@ -334,7 +334,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     try {
       const { error: updateError } = await supabase
         .from('workout_sessions')
-        .update({ duration_string: durationString })
+        .update({ duration_string: durationString, completed_at: endTime.toISOString() }) // Set completed_at here
         .eq('id', currentSessionId);
 
       if (updateError) {
