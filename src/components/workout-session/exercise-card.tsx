@@ -200,11 +200,11 @@ export const ExerciseCard = ({
     <> {/* Added React Fragment */}
       <Card className={cn("mb-6 border-2 relative", workoutBorderClass, { "opacity-70": isExerciseSaved })}>
         <CardHeader 
-          className="flex items-center p-4 cursor-pointer"
+          className="flex items-center p-4 cursor-pointer relative" // Added relative
           onClick={() => setIsExpanded(!isExpanded)}
         >
           {/* Left side: Exercise details */}
-          <div className="flex flex-col flex-1 min-w-0 text-left">
+          <div className="flex flex-col flex-1 min-w-0 text-left"> {/* flex-1 to take available space */}
             <div className="flex items-center gap-2">
               <CardTitle className={cn("text-lg font-semibold leading-none text-left", workoutColorClass)}>
                 {exerciseNumber}. {exercise.name}
@@ -214,15 +214,15 @@ export const ExerciseCard = ({
             <p className="text-sm text-muted-foreground mt-1 truncate text-left">{exercise.main_muscle}</p>
           </div>
 
-          {/* Middle: Checkmark (if saved) */}
+          {/* Middle: Checkmark (if saved) - Absolutely positioned */}
           {isExerciseSaved && (
-            <div className="flex-1 flex justify-center">
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"> {/* Centered absolutely */}
               <CheckCircle2 className="h-8 w-8 text-green-500" />
             </div>
           )}
 
           {/* Right side: Menu and Chevron */}
-          <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
+          <div className="flex items-center gap-2 flex-shrink-0 ml-auto"> {/* ml-auto pushes it to the right */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" title="More Options" onClick={(e) => e.stopPropagation()}>
