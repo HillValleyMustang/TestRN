@@ -246,6 +246,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
           console.error(`Error fetching last sets for exercise ${ex.name}:`, rpcError);
           return { exerciseId: ex.id, sets: [] };
         }
+        console.log(`[DEBUG] RPC result for ${ex.name} (ID: ${ex.id}):`, lastExerciseSets); // ADDED DEBUG LOG
         return { exerciseId: ex.id, sets: lastExerciseSets || [] };
       });
 
