@@ -130,16 +130,21 @@ export const useExerciseSets = ({
   useEffect(() => {
     const fetchExercisePR = async () => {
       setLoadingPR(true);
+      // MODIFIED: Removed .single() to debug 406 error
       const { data, error } = await supabase
         .from('user_exercise_prs')
         .select('id, user_id, exercise_id, best_volume_kg, best_time_seconds, last_achieved_date, created_at, updated_at') // Explicitly list columns
-        .eq('exercise_id', exerciseId)
-        .single();
+        .eq('exercise_id', exerciseId);
 
       if (error && error.code !== 'PGRST116') {
         console.error("Error fetching exercise PR:", error);
-      } else if (data) {
-        setExercisePR(data as UserExercisePR);
+        console.log("[DEBUG] PR Fetch Error:", error);
+      } else if (data && data.length > 0) { // Check if data exists and is not empty
+        setExercisePR(data[0] as UserExercisePR); // Take the first one if multiple are returned (should be unique)
+        console.log("[DEBUG] PR Data fetched:", data[0]);
+      } else {
+        setExercisePR(null); // No PR found
+        console.log("[DEBUG] No PR data found for exercise:", exerciseId);
       }
       setLoadingPR(false);
     };
@@ -276,6 +281,8 @@ export const useExerciseSets = ({
       is_pb: isSetPR,
     };
 
+    console.log(`[DEBUG] Set ${setIndex + 1} - Data to insert/update:`, setLogData);
+
     let error;
     let data;
 
@@ -297,12 +304,13 @@ export const useExerciseSets = ({
     if (error) {
       toast.error(`Failed to save set ${setIndex + 1}: ` + error.message);
       console.error("Error saving set:", error);
+      console.log(`[DEBUG] Set ${setIndex + 1} - Error from DB:`, error);
       return null;
     } else {
-      // Removed individual set saved/PR toasts
+      console.log(`[DEBUG] Set ${setIndex + 1} - Data returned from DB:`, data);
       return { ...set, ...data, isSaved: true, isPR: isSetPR };
     }
-  }, [internalSessionId, exerciseId, exerciseType, exerciseCategory, supabase, onFirstSetSaved, sets]);
+  }, [internalSessionId, exerciseId, exerciseType, exerciseCategory, supabase, onFirstSetSaved, preferredWeightUnit]);
 
   const handleSaveSet = useCallback(async (setIndex: number) => {
     const updatedSet = await saveSingleSetToDatabase(sets[setIndex], setIndex);
@@ -312,7 +320,7 @@ export const useExerciseSets = ({
         newSets[setIndex] = updatedSet;
         return newSets;
       });
-      // Removed toast.success(`Set ${setIndex + 1} saved successfully!`);
+      // Removed individual set saved/PR toasts
     }
   }, [sets, exerciseId, saveSingleSetToDatabase]);
 
