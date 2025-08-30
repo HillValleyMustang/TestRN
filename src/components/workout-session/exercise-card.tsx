@@ -277,7 +277,7 @@ export const ExerciseCard = ({
                         {(set.lastWeight != null || set.lastReps != null || set.lastTimeSeconds != null) && (
                           <span className="text-muted-foreground text-xs">
                             (Last: {exercise.type === 'weight' ?
-                              `${set.lastWeight != null ? formatWeight(convertWeight(set.weight_kg, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${set.lastReps != null ? set.reps : '-'}` :
+                              `${set.lastWeight != null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${set.lastReps != null ? set.lastReps : '-'}` :
                               `${set.lastTimeSeconds != null ? `${set.lastTimeSeconds}s` : '-'}`})
                           </span>
                         )}
