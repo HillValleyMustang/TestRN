@@ -341,8 +341,18 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
         throw new Error(updateError.message);
       }
 
-      // Achievements are now processed server-side via database triggers.
-      // The workout-summary page will fetch newly unlocked achievements.
+      // Explicitly invoke the achievement processing function from the client
+      // This replaces the database trigger
+      const { error: achievementError } = await supabase.functions.invoke('process-achievements', {
+        body: { user_id: session.user.id, session_id: currentSessionId },
+      });
+
+      if (achievementError) {
+        // We won't block the user flow for this, just log it and show a toast
+        console.error("Error processing achievements:", achievementError);
+        toast.warning("Could not check for new achievements, but your workout was saved!");
+      }
+
       toast.success("Workout session finished and duration saved!");
       router.push(`/workout-summary/${currentSessionId}`); // No query params needed here
       resetWorkoutSession(); // Reset state after finishing
