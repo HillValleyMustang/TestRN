@@ -15,6 +15,7 @@ import { ExerciseSummaryCard } from '@/components/workout-summary/exercise-summa
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
+type Profile = Tables<'profiles'>; // Import Profile type
 
 // Define a type for the grouped exercise data
 type ExerciseGroup = {
@@ -44,6 +45,7 @@ export default function WorkoutSummaryPage({
   const [prsAchieved, setPrsAchieved] = useState<number>(0);
   const [currentRating, setCurrentRating] = useState<number | null>(null);
   const [isRatingSaved, setIsRatingSaved] = useState(false);
+  const [hasShownSuccessToast, setHasShownSuccessToast] = useState(false); // New state to track toast
 
   useEffect(() => {
     if (!session) {
@@ -106,6 +108,25 @@ export default function WorkoutSummaryPage({
         setTotalVolume(volume);
         setPrsAchieved(prCount);
 
+        // Check if this is a new workout completion and show toast
+        const isNewWorkout = searchParams?.isNewWorkout === 'true';
+        if (isNewWorkout && !hasShownSuccessToast) {
+          const { data: profileData, error: profileFetchError } = await supabase
+            .from('profiles')
+            .select('total_points, current_streak')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profileFetchError) {
+            console.error("Error fetching profile for toast:", profileFetchError);
+          } else if (profileData) {
+            toast.success(`+10 Points! 🔥 Current streak: ${profileData.current_streak || 0} days`);
+            setHasShownSuccessToast(true); // Mark toast as shown
+            // Remove the query parameter from the URL
+            router.replace(`/workout-summary/${sessionId}`, undefined);
+          }
+        }
+
       } catch (err: any) {
         console.error("Failed to fetch workout summary:", err);
         setError(err.message || "Failed to load workout summary. Please try again.");
@@ -116,7 +137,7 @@ export default function WorkoutSummaryPage({
     };
 
     fetchWorkoutSummary();
-  }, [session, router, sessionId, supabase]);
+  }, [session, router, sessionId, supabase, searchParams, hasShownSuccessToast]);
 
   const handleRatingChange = (rating: number) => {
     setCurrentRating(rating);

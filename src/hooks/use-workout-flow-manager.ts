@@ -326,7 +326,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
         throw new Error(updateError.message);
       }
       toast.success("Workout session finished and duration saved!");
-      router.push(`/workout-summary/${currentSessionId}`);
+      router.push(`/workout-summary/${currentSessionId}?isNewWorkout=true`); // Add query parameter here
       resetWorkoutSession(); // Reset state after finishing
     } catch (err: any) {
       toast.error("Failed to save workout duration: " + err.message);
