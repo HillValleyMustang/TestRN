@@ -39,10 +39,16 @@ export function StreakPill() {
     fetchStreakData();
   }, [session, supabase]);
 
-  if (loading || streak === 0) {
-    return null; // Don't show if loading or streak is 0
+  if (loading) {
+    return (
+      <Badge variant="outline" className="flex items-center gap-1 border-orange-500/50 animate-pulse">
+        <Flame className="h-4 w-4 text-orange-500" />
+        <span className="font-semibold text-orange-600">Loading...</span>
+      </Badge>
+    );
   }
 
+  // Always show the badge, even if streak is 0
   return (
     <Badge variant="outline" className="flex items-center gap-1 border-orange-500/50">
       <Flame className="h-4 w-4 text-orange-500" />
