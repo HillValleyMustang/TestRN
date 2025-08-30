@@ -321,9 +321,9 @@ export const ExerciseCard = ({
                             value={convertWeight(set.weight_kg, 'kg', preferredWeightUnit as 'kg' | 'lbs') ?? ''}
                             onChange={(e) => handleInputChange(setIndex, 'weight_kg', e.target.value)}
                             disabled={set.isSaved || isExerciseSaved}
-                            className="w-20 text-center h-8 text-sm" // Added text-sm
+                            className="w-20 text-center h-8 text-xs" // Changed to text-xs
                           />
-                          <span className="text-muted-foreground text-sm">x</span>
+                          <span className="text-muted-foreground text-xs">x</span>
                           {exercise.category === 'Unilateral' ? (
                             <>
                               <Input
@@ -333,7 +333,7 @@ export const ExerciseCard = ({
                                 value={set.reps_l ?? ''}
                                 onChange={(e) => handleInputChange(setIndex, 'reps_l', e.target.value)}
                                 disabled={set.isSaved || isExerciseSaved}
-                                className="flex-1 h-8 text-sm" // Added text-sm
+                                className="flex-1 h-8 text-xs" // Changed to text-xs
                               />
                               <Input
                                 id={`reps-r-${setIndex}`}
@@ -342,7 +342,7 @@ export const ExerciseCard = ({
                                 value={set.reps_r ?? ''}
                                 onChange={(e) => handleInputChange(setIndex, 'reps_r', e.target.value)}
                                 disabled={set.isSaved || isExerciseSaved}
-                                className="flex-1 h-8 text-sm" // Added text-sm
+                                className="flex-1 h-8 text-xs" // Changed to text-xs
                               />
                             </>
                           ) : (
@@ -353,7 +353,7 @@ export const ExerciseCard = ({
                               value={set.reps ?? ''}
                               onChange={(e) => handleInputChange(setIndex, 'reps', e.target.value)}
                               disabled={set.isSaved || isExerciseSaved}
-                              className="w-20 text-center h-8 text-sm" // Added text-sm
+                              className="w-20 text-center h-8 text-xs" // Changed to text-xs
                             />
                           )}
                         </>
@@ -366,7 +366,7 @@ export const ExerciseCard = ({
                           value={set.time_seconds ?? ''}
                           onChange={(e) => handleInputChange(setIndex, 'time_seconds', e.target.value)}
                           disabled={set.isSaved || isExerciseSaved}
-                          className="flex-1 h-8 text-sm" // Added text-sm
+                          className="flex-1 h-8 text-xs" // Changed to text-xs
                         />
                       )}
                     </div>
