@@ -355,7 +355,7 @@ export default function ProfilePage() {
           <TabsContent value="settings" className="mt-6 space-y-6">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <Card className="bg-card"> {/* Changed background color */}
+                <Card className="bg-card">
                   <CardHeader className="border-b border-border/50 pb-4">
                     <CardTitle className="flex items-center gap-2">
                       <User className="h-5 w-5 text-primary" /> Personal Info
@@ -369,7 +369,7 @@ export default function ProfilePage() {
                         <FormMessage />
                       </FormItem>
                     )} />
-                    <div className="flex flex-row gap-4 sm:col-span-2"> {/* Changed to flex-row for mobile */}
+                    <div className="flex flex-row gap-4 sm:col-span-2">
                       <FormField control={form.control} name="height_cm" render={({ field }) => (
                         <FormItem className="flex-1">
                           <FormLabel>Height (cm)</FormLabel>
@@ -485,7 +485,7 @@ export default function ProfilePage() {
                     )} />
                   </CardContent>
                 </Card>
-                <Card className="bg-card"> {/* Changed background color */}
+                <Card className="bg-card">
                   <CardHeader className="border-b border-border/50 pb-4">
                     <CardTitle className="flex items-center gap-2">
                       <Dumbbell className="h-5 w-5 text-primary" /> Workout Preferences
@@ -523,7 +523,7 @@ export default function ProfilePage() {
                     )} />
                   </CardContent>
                 </Card>
-                <Card className="bg-card"> {/* Changed background color */}
+                <Card className="bg-card">
                   <CardHeader className="border-b border-border/50 pb-4">
                     <CardTitle className="flex items-center gap-2">
                       <LayoutTemplate className="h-5 w-5 text-primary" /> Active T-Path
@@ -532,12 +532,15 @@ export default function ProfilePage() {
                   </CardHeader>
                   <CardContent className="pt-6">{activeTPath && <TPathSwitcher currentTPathId={activeTPath.id} onTPathChange={(newId) => { toast.info("T-Path changed! Refreshing data..."); fetchData(); }} disabled={!isEditing} />}</CardContent>
                 </Card>
-                <Card className="bg-card"> {/* Changed background color */}
+                <Card className="bg-card">
                   <CardHeader className="border-b border-border/50 pb-4"><CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5 text-primary" /> AI Coach Usage</CardTitle></CardHeader>
                   <CardContent className="space-y-2 pt-6">
-                    <p className="text-sm">You have used the AI Coach <span className="font-semibold">{aiCoachUsageToday}</span> time(s) today.</p>
-                    <p className="text-sm">Limit: <span className="font-semibold">{AI_COACH_LIMIT_PER_SESSION}</span> uses per session.</p>
-                    <p className="text-xs text-muted-foreground">The AI Coach needs at least 3 workouts in the last 30 days to provide advice.</p>
+                    <div className="flex justify-between items-center text-sm mb-2">
+                      <p>Daily Uses</p>
+                      <p className="font-semibold">{aiCoachUsageToday} / {AI_COACH_LIMIT_PER_SESSION}</p>
+                    </div>
+                    <Progress value={(aiCoachUsageToday / AI_COACH_LIMIT_PER_SESSION) * 100} />
+                    <p className="text-xs text-muted-foreground pt-1">The AI Coach needs at least 3 workouts in the last 30 days to provide advice.</p>
                   </CardContent>
                 </Card>
               </form>
