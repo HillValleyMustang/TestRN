@@ -12,6 +12,7 @@ import { WorkoutStatsCard } from '@/components/workout-summary/workout-stats-car
 import { WorkoutRatingCard } from '@/components/workout-summary/workout-rating-card';
 import { ExerciseSummaryCard } from '@/components/workout-summary/exercise-summary-card';
 import { getLevelFromPoints } from '@/lib/utils';
+import { ACHIEVEMENT_DISPLAY_INFO } from '@/lib/achievements'; // Import from new utility file
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
@@ -24,24 +25,6 @@ type ExerciseGroup = {
   category: ExerciseDefinition['category'] | null | undefined;
   sets: SetLogWithExercise[];
   id: string;
-};
-
-// Map achievement IDs to display names and icons (updated with new achievements)
-const ACHIEVEMENT_DISPLAY_INFO: Record<string, { name: string; icon: string }> = {
-  first_workout: { name: 'First Workout', icon: '🏃' },
-  ten_day_streak: { name: '10 Day Streak', icon: '🔥' },
-  twenty_five_workouts: { name: '25 Workouts', icon: '💪' },
-  fifty_workouts: { name: '50 Workouts', icon: '🏆' },
-  perfect_week: { name: 'Perfect Week', icon: '🗓️' },
-  beast_mode: { name: 'Beast Mode', icon: '💥' },
-  // New Achievements
-  weekend_warrior: { name: 'Weekend Warrior', icon: '🎉' },
-  early_bird: { name: 'Early Bird', icon: '🌅' },
-  thirty_day_streak: { name: 'Consistency King', icon: '👑' },
-  volume_master: { name: 'Volume Master', icon: '🏋️' },
-  // New achievements from user request
-  century_club: { name: 'Century Club', icon: '💯' },
-  ai_apprentice: { name: 'AI Apprentice', icon: '🤖' },
 };
 
 export default function WorkoutSummaryPage({ 
