@@ -200,29 +200,30 @@ export const ExerciseCard = ({
     <> {/* Added React Fragment */}
       <Card className={cn("mb-6 border-2 relative", workoutBorderClass, { "opacity-70": isExerciseSaved })}>
         <CardHeader 
-          className="flex items-center p-4 cursor-pointer" // Removed justify-between here
+          className="flex items-center p-4 cursor-pointer"
           onClick={() => setIsExpanded(!isExpanded)}
         >
           {/* Left side: Exercise details */}
-          <div className="flex flex-col flex-1 min-w-0"> {/* flex-1 to take available space */}
+          <div className="flex flex-col flex-1 min-w-0 text-left"> {/* Added text-left here */}
             <div className="flex items-center gap-2">
               <CardTitle className={cn("text-lg font-semibold leading-none", workoutColorClass)}>
                 {exerciseNumber}. {exercise.name}
               </CardTitle>
               {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus" className="flex-shrink-0">Bonus</WorkoutBadge>}
+              {/* Removed CheckCircle2 from here */}
             </div>
             <p className="text-sm text-muted-foreground mt-1 truncate">{exercise.main_muscle}</p>
           </div>
 
           {/* Middle: Checkmark (if saved) */}
           {isExerciseSaved && (
-            <div className="flex-1 flex justify-center"> {/* This will push it to the middle */}
-              <CheckCircle2 className="h-8 w-8 text-green-500" /> {/* Larger checkmark */}
+            <div className="flex-1 flex justify-center">
+              <CheckCircle2 className="h-8 w-8 text-green-500" />
             </div>
           )}
 
           {/* Right side: Menu and Chevron */}
-          <div className="flex items-center gap-2 flex-shrink-0 ml-auto"> {/* ml-auto to push to far right */}
+          <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" title="More Options" onClick={(e) => e.stopPropagation()}>
@@ -264,7 +265,7 @@ export const ExerciseCard = ({
                         {(set.lastWeight !== null || set.lastReps !== null || set.lastTimeSeconds !== null) && (
                           <span className="text-muted-foreground text-xs">
                             (Last: {exercise.type === 'weight' ?
-                              `${set.lastWeight !== null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${set.lastReps !== null ? set.reps : '-'}` :
+                              `${set.lastWeight !== null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${set.lastReps !== null ? set.lastReps : '-'}` :
                               `${set.lastTimeSeconds !== null ? `${set.lastTimeSeconds}s` : '-'}`})
                           </span>
                         )}
