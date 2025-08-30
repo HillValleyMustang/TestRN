@@ -78,6 +78,12 @@ export default {
           'legs': 'hsl(var(--workout-legs))',
           'bonus': 'hsl(var(--workout-bonus))',
         },
+        level: { // New fitness level colors
+          rookie: 'hsl(var(--level-rookie))',
+          warrior: 'hsl(var(--level-warrior))',
+          champion: 'hsl(var(--level-champion))',
+          legend: 'hsl(var(--level-legend))',
+        },
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
@@ -120,6 +126,9 @@ export default {
   safelist: [
     {
       pattern: /(bg|text|border)-workout-(upper-body-a|lower-body-a|upper-body-b|lower-body-b|push|pull|legs|bonus)/,
+    },
+    { // New safelist pattern for fitness level colors
+      pattern: /(bg|text|border)-level-(rookie|warrior|champion|legend)/,
     },
   ],
 } satisfies Config;
