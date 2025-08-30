@@ -8,7 +8,7 @@
  */
 
 // Import generated Supabase types to be used and re-exported
-import type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums } from "./supabase-generated";
+import type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums, UserAchievementsRow } from "./supabase-generated";
 export type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums };
 
 // --- Custom Types ---
@@ -46,3 +46,6 @@ export type WorkoutExercise = Tables<'exercise_definitions'> & {
 export type UserExercisePR = Tables<'user_exercise_prs'>;
 export type UserExercisePRInsert = TablesInsert<'user_exercise_prs'>;
 export type UserExercisePRUpdate = TablesUpdate<'user_exercise_prs'>;
+
+// Re-export UserAchievementRow for direct use
+export type UserAchievement = UserAchievementsRow;

@@ -13,7 +13,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from 'sonner';
-import { Profile as ProfileType, ProfileUpdate, Tables } from '@/types/supabase';
+import { Profile as ProfileType, ProfileUpdate, Tables, UserAchievement } from '@/types/supabase'; // Import UserAchievement
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Edit, Save, LogOut, ArrowLeft, BarChart2, User, Settings, Flame, Dumbbell, Trophy, Star, Footprints, Bot } from 'lucide-react';
@@ -24,7 +24,6 @@ import { cn, getLevelFromPoints } from '@/lib/utils'; // New import
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
-type WorkoutSession = Tables<'workout_sessions'>;
 
 const profileSchema = z.object({
   full_name: z.string().min(1, "Full name is required."),
@@ -36,6 +35,16 @@ const profileSchema = z.object({
   preferred_session_length: z.string().optional().nullable(),
 });
 
+// Achievement IDs (must match those in use-workout-flow-manager.ts)
+const ACHIEVEMENT_IDS = {
+  FIRST_WORKOUT: 'first_workout',
+  TEN_DAY_STREAK: 'ten_day_streak',
+  TWENTY_FIVE_WORKOUTS: 'twenty_five_workouts',
+  FIFTY_WORKOUTS: 'fifty_workouts',
+  PERFECT_WEEK: 'perfect_week',
+  BEAST_MODE: 'beast_mode',
+};
+
 export default function ProfilePage() {
   const { session, supabase } = useSession();
   const router = useRouter();
@@ -44,8 +53,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [activeTPath, setActiveTPath] = useState<TPath | null>(null);
   const [aiCoachUsageToday, setAiCoachUsageToday] = useState(0);
-  const [perfectWeekCompleted, setPerfectWeekCompleted] = useState(false); // New state
-  const [beastModeCompleted, setBeastModeCompleted] = useState(false);     // New state
+  const [unlockedAchievements, setUnlockedAchievements] = useState<Set<string>>(new Set()); // State for unlocked achievements
   const AI_COACH_LIMIT_PER_SESSION = 2;
 
   const form = useForm<z.infer<typeof profileSchema>>({
@@ -71,15 +79,11 @@ export default function ProfilePage() {
           preferred_session_length: profileData.preferred_session_length,
         });
 
-        let activeTPathType: string | null = null;
         if (profileData.active_t_path_id) {
           const { data: tpathData, error: tpathError } = await supabase.from('t_paths').select('*, settings').eq('id', profileData.active_t_path_id).single();
           if (tpathError) toast.error("Failed to load active T-Path");
           else {
             setActiveTPath(tpathData as TPath);
-            if (tpathData?.settings && typeof tpathData.settings === 'object' && 'tPathType' in tpathData.settings) {
-              activeTPathType = (tpathData.settings as { tPathType: string }).tPathType;
-            }
           }
         }
 
@@ -92,75 +96,14 @@ export default function ProfilePage() {
           setAiCoachUsageToday(0);
         }
 
-        // --- Achievements Logic ---
-        const { data: workoutSessions, error: sessionsError } = await supabase
-          .from('workout_sessions')
-          .select('session_date, template_name')
-          .eq('user_id', session.user.id)
-          .order('session_date', { ascending: true });
+        // Fetch unlocked achievements
+        const { data: userAchievements, error: achievementsError } = await supabase
+          .from('user_achievements')
+          .select('achievement_id')
+          .eq('user_id', session.user.id);
 
-        if (sessionsError) throw sessionsError;
-
-        const sessionsByDate = new Map<string, WorkoutSession[]>();
-        (workoutSessions as WorkoutSession[] || []).forEach(sessionItem => {
-          const dateKey = new Date(sessionItem.session_date).toISOString().split('T')[0];
-          if (!sessionsByDate.has(dateKey)) {
-            sessionsByDate.set(dateKey, []);
-          }
-          sessionsByDate.get(dateKey)?.push(sessionItem);
-        });
-
-        // Beast Mode: 2+ T-path workouts on the same day
-        let beastModeAchieved = false;
-        for (const [, sessionsOnDay] of sessionsByDate) {
-          if (sessionsOnDay.length >= 2) {
-            beastModeAchieved = true;
-            break;
-          }
-        }
-        setBeastModeCompleted(beastModeAchieved);
-
-        // Perfect Week: All required workouts from active T-Path within 7 days
-        let perfectWeekAchieved = false;
-        if (activeTPathType) {
-          let requiredWorkoutNames: string[] = [];
-          if (activeTPathType === 'ulul') {
-            requiredWorkoutNames = ['Upper Body A', 'Upper Body B', 'Lower Body A', 'Lower Body B'];
-          } else if (activeTPathType === 'ppl') {
-            requiredWorkoutNames = ['Push', 'Pull', 'Legs'];
-          }
-
-          if (requiredWorkoutNames.length > 0) {
-            const sortedDates = Array.from(sessionsByDate.keys()).sort();
-
-            for (let i = 0; i < sortedDates.length; i++) {
-              const startDate = new Date(sortedDates[i]);
-              const endDate = new Date(startDate);
-              endDate.setDate(startDate.getDate() + 6); // 7-day window (inclusive)
-
-              const workoutsInWindow = new Set<string>();
-              for (let j = i; j < sortedDates.length; j++) {
-                const currentDate = new Date(sortedDates[j]);
-                if (currentDate <= endDate) {
-                  sessionsByDate.get(sortedDates[j])?.forEach(sessionItem => {
-                    if (sessionItem.template_name) {
-                      workoutsInWindow.add(sessionItem.template_name);
-                    }
-                  });
-                } else {
-                  break;
-                }
-              }
-
-              const allRequiredFound = requiredWorkoutNames.every(requiredName => workoutsInWindow.has(requiredName));
-              if (allRequiredFound) {
-                perfectWeekAchieved = true;
-                break;
-              }
-            }
-          }
-        }
-        setPerfectWeekCompleted(perfectWeekAchieved);
+        if (achievementsError) throw achievementsError;
+        setUnlockedAchievements(new Set((userAchievements || []).map(a => a.achievement_id)));
       }
     } catch (err: any) {
       toast.error("Failed to load profile data: " + err.message);
@@ -244,12 +187,12 @@ export default function ProfilePage() {
   }
 
   const achievements = [
-    { name: 'First Workout', icon: '🏃', completed: (profile?.total_points || 0) >= 10 },
-    { name: '10 Day Streak', icon: '🔥', completed: (profile?.current_streak || 0) >= 10 },
-    { name: '25 Workouts', icon: '💪', completed: (profile?.total_points || 0) >= 250 },
-    { name: '50 Workouts', icon: '🏆', completed: (profile?.total_points || 0) >= 500 },
-    { name: 'Perfect Week', icon: '🗓️', completed: perfectWeekCompleted }, // Updated
-    { name: 'Beast Mode', icon: '💥', completed: beastModeCompleted }, // Updated
+    { id: ACHIEVEMENT_IDS.FIRST_WORKOUT, name: 'First Workout', icon: '🏃' },
+    { id: ACHIEVEMENT_IDS.TEN_DAY_STREAK, name: '10 Day Streak', icon: '🔥' },
+    { id: ACHIEVEMENT_IDS.TWENTY_FIVE_WORKOUTS, name: '25 Workouts', icon: '💪' },
+    { id: ACHIEVEMENT_IDS.FIFTY_WORKOUTS, name: '50 Workouts', icon: '🏆' },
+    { id: ACHIEVEMENT_IDS.PERFECT_WEEK, name: 'Perfect Week', icon: '🗓️' },
+    { id: ACHIEVEMENT_IDS.BEAST_MODE, name: 'Beast Mode', icon: '💥' },
   ];
 
   const handleSignOut = async () => {
@@ -305,7 +248,7 @@ export default function ProfilePage() {
               <div><p className="text-2xl font-bold">{profile.body_fat_pct || 'N/A'}%</p><p className="text-xs text-muted-foreground">Body Fat</p></div>
             </CardContent>
           </Card>
-          <Card><CardHeader><CardTitle>Achievements</CardTitle></CardHeader><CardContent className="grid grid-cols-3 sm:grid-cols-6 gap-3">{achievements.map((a, i) => (<div key={i} className={cn("text-center p-3 rounded-xl border-2", a.completed ? 'bg-yellow-400/20 border-yellow-500/50 text-yellow-600' : 'bg-muted/50 border-border text-muted-foreground')}><div className="text-2xl mb-1">{a.icon}</div><div className="text-xs font-medium">{a.name}</div></div>))}</CardContent></Card>
+          <Card><CardHeader><CardTitle>Achievements</CardTitle></CardHeader><CardContent className="grid grid-cols-3 sm:grid-cols-6 gap-3">{achievements.map((a, i) => (<div key={i} className={cn("text-center p-3 rounded-xl border-2", unlockedAchievements.has(a.id) ? 'bg-yellow-400/20 border-yellow-500/50 text-yellow-600' : 'bg-muted/50 border-border text-muted-foreground')}><div className="text-2xl mb-1">{a.icon}</div><div className="text-xs font-medium">{a.name}</div></div>))}</CardContent></Card>
         </TabsContent>
 
         <TabsContent value="stats" className="mt-6 space-y-6">

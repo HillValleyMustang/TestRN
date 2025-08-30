@@ -14,6 +14,7 @@ export type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums };
 // Re-exporting all from tables.ts and enums.ts to ensure they are available
 export * from "./tables";
 export * from "./enums";
+export * from "./tables/user_achievements"; // Export the new user_achievements types
 
 // No individual table/function exports here to avoid circular dependencies.
 // Application code should use `Tables<'table_name'>` or `Database['public']['Tables']['table_name']['Row']`

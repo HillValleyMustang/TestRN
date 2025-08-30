@@ -16,7 +16,6 @@ import { getLevelFromPoints } from '@/lib/utils'; // New import
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
-type Profile = Tables<'profiles'>; // Import Profile type
 
 // Define a type for the grouped exercise data
 type ExerciseGroup = {
@@ -25,6 +24,16 @@ type ExerciseGroup = {
   category: ExerciseDefinition['category'] | null | undefined;
   sets: SetLogWithExercise[];
   id: string;
+};
+
+// Map achievement IDs to display names and icons
+const ACHIEVEMENT_DISPLAY_INFO: Record<string, { name: string; icon: string }> = {
+  first_workout: { name: 'First Workout', icon: '🏃' },
+  ten_day_streak: { name: '10 Day Streak', icon: '🔥' },
+  twenty_five_workouts: { name: '25 Workouts', icon: '💪' },
+  fifty_workouts: { name: '50 Workouts', icon: '🏆' },
+  perfect_week: { name: 'Perfect Week', icon: '🗓️' },
+  beast_mode: { name: 'Beast Mode', icon: '💥' },
 };
 
 export default function WorkoutSummaryPage({ 
@@ -46,7 +55,7 @@ export default function WorkoutSummaryPage({
   const [prsAchieved, setPrsAchieved] = useState<number>(0);
   const [currentRating, setCurrentRating] = useState<number | null>(null);
   const [isRatingSaved, setIsRatingSaved] = useState(false);
-  const [hasShownSuccessToast, setHasShownSuccessToast] = useState(false); // New state to track toast
+  const [hasShownAchievementToasts, setHasShownAchievementToasts] = useState(false); // New state to track toasts
 
   useEffect(() => {
     if (!session) {
@@ -109,50 +118,21 @@ export default function WorkoutSummaryPage({
         setTotalVolume(volume);
         setPrsAchieved(prCount);
 
-        // Check if this is a new workout completion and show toast
-        const isNewWorkout = searchParams?.isNewWorkout === 'true';
-        if (isNewWorkout && !hasShownSuccessToast) {
-          const { data: currentProfileData, error: profileFetchError } = await supabase
-            .from('profiles')
-            .select('total_points, current_streak, longest_streak')
-            .eq('id', session.user.id)
-            .single();
+        // Display achievement toasts only once
+        if (!hasShownAchievementToasts && searchParams?.unlockedAchievement) {
+          const unlockedAchievements = Array.isArray(searchParams.unlockedAchievement)
+            ? searchParams.unlockedAchievement
+            : [searchParams.unlockedAchievement];
 
-          if (profileFetchError) {
-            console.error("Error fetching profile for toast:", profileFetchError);
-          } else if (currentProfileData) {
-            const previousTotalPoints = parseInt(searchParams?.previousTotalPoints as string || '0');
-            const previousCurrentStreak = parseInt(searchParams?.previousCurrentStreak as string || '0');
-            const previousLongestStreak = parseInt(searchParams?.previousLongestStreak as string || '0');
-
-            const currentTotalPoints = currentProfileData.total_points || 0;
-            const currentCurrentStreak = currentProfileData.current_streak || 0;
-            const currentLongestStreak = currentProfileData.longest_streak || 0;
-
-            // 1. Points and Streak Update
-            toast.success(`+10 Points! 🔥 Current streak: ${currentCurrentStreak} days`);
-
-            // 2. Level Up Check
-            const previousLevel = getLevelFromPoints(previousTotalPoints).level;
-            const currentLevel = getLevelFromPoints(currentTotalPoints).level;
-            if (currentLevel !== previousLevel && currentTotalPoints > previousTotalPoints) {
-              toast.info(`Moving On Up! You're now at ${currentLevel} Level! ⚔️`);
+          unlockedAchievements.forEach(achievementId => {
+            const displayInfo = ACHIEVEMENT_DISPLAY_INFO[achievementId];
+            if (displayInfo) {
+              toast.success(`Congrats! Achievement Unlocked: ${displayInfo.name}! ${displayInfo.icon}`);
             }
-
-            // 3. 7-Day Streak Check
-            if (currentCurrentStreak === 7 && previousCurrentStreak < 7) {
-              toast.success('Week Streak! Bonus points! 🔥');
-            }
-
-            // 4. New Longest Streak Check
-            if (currentLongestStreak > previousLongestStreak) {
-              toast.success('New Personal Best Streak! 🏆');
-            }
-            
-            setHasShownSuccessToast(true); // Mark toast as shown
-            // Remove the query parameter from the URL
-            router.replace(`/workout-summary/${sessionId}`, undefined);
-          }
+          });
+          setHasShownAchievementToasts(true);
+          // Clean up URL params after showing toasts
+          router.replace(`/workout-summary/${sessionId}`, undefined);
         }
 
       } catch (err: any) {
@@ -165,7 +145,7 @@ export default function WorkoutSummaryPage({
     };
 
     fetchWorkoutSummary();
-  }, [session, router, sessionId, supabase, searchParams, hasShownSuccessToast]);
+  }, [session, router, sessionId, supabase, searchParams, hasShownAchievementToasts]);
 
   const handleRatingChange = (rating: number) => {
     setCurrentRating(rating);
