@@ -53,7 +53,7 @@ export const GlobalExerciseList = ({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className="text-2xl font-bold">Global Exercise Library</CardTitle>
+        <CardTitle className="text-2xl font-semibold">Global Exercise Library</CardTitle>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -134,6 +134,7 @@ export const GlobalExerciseList = ({
 
       {selectedExerciseForTPath && (
         <AddExerciseToTPathDialog
+          key={selectedExerciseForTPath.id} // Added key prop
           open={isAddTPathDialogOpen}
           onOpenChange={setIsAddTPathDialogOpen}
           exercise={selectedExerciseForTPath}

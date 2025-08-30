@@ -74,7 +74,7 @@ export const UserExerciseList = ({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className="text-2xl font-bold">My Custom Exercises</CardTitle>
+        <CardTitle className="text-2xl font-semibold">My Custom Exercises</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="mb-6">
