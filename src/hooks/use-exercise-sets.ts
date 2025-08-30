@@ -331,11 +331,6 @@ export const useExerciseSets = ({
   }, [sets, supabase]);
 
   const handleSaveExercise = useCallback(async (): Promise<boolean> => {
-    if (!internalSessionId && sets.filter(s => s.isSaved).length === 0) {
-      toast.error("Workout session not started and no sets logged. Please log at least one set.");
-      return false;
-    }
-
     const updatedSetsState: SetLogState[] = [];
     let anySetSavedInThisCall = false;
     let hasError = false;
@@ -349,7 +344,7 @@ export const useExerciseSets = ({
                       (currentSet.reps_l !== null && currentSet.reps_l > 0) ||
                       (currentSet.reps_r !== null && currentSet.reps_r > 0);
 
-      if (hasData && !currentSet.isSaved) {
+      if (hasData && !currentSet.isSaved) { // Only attempt to save if it has data AND is not already saved
         const savedSet = await saveSingleSetToDatabase(currentSet, i);
         if (savedSet) {
           updatedSetsState.push(savedSet);
@@ -369,8 +364,18 @@ export const useExerciseSets = ({
       return false;
     }
 
-    if (!anySetSavedInThisCall && sets.filter(s => s.isSaved).length === 0) {
+    // After attempting to save all unsaved sets, check if there's *any* valid data in the exercise
+    const hasAnyValidSetData = updatedSetsState.some(s =>
+      (s.weight_kg !== null && s.weight_kg > 0) ||
+      (s.reps !== null && s.reps > 0) ||
+      (s.time_seconds !== null && s.time_seconds > 0) ||
+      (s.reps_l !== null && s.reps_l > 0) ||
+      (s.reps_r !== null && s.reps_r > 0)
+    );
+
+    if (!hasAnyValidSetData) {
       toast.error("No valid sets to save. Please input data for at least one set.");
+      setSets(updatedSetsState); // Ensure local state is fully updated after all saves
       return false;
     }
 
