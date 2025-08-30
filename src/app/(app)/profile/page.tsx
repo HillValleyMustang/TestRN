@@ -13,14 +13,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from 'sonner';
-import { Profile as ProfileType, ProfileUpdate, Tables, UserAchievement } from '@/types/supabase'; // Import UserAchievement
+import { Profile as ProfileType, ProfileUpdate, Tables, UserAchievement } from '@/types/supabase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Edit, Save, LogOut, ArrowLeft, BarChart2, User, Settings, Flame, Dumbbell, Trophy, Star, Footprints, Bot } from 'lucide-react';
+import { Edit, Save, LogOut, ArrowLeft, BarChart2, User, Settings, Flame, Dumbbell, Trophy, Star, Footprints, Bot, Crown, Sunrise, CalendarCheck, Weight } from 'lucide-react'; // Added new icons
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { TPathSwitcher } from '@/components/t-path-switcher';
-import { cn, getLevelFromPoints } from '@/lib/utils'; // New import
+import { cn, getLevelFromPoints } from '@/lib/utils';
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
@@ -35,7 +35,7 @@ const profileSchema = z.object({
   preferred_session_length: z.string().optional().nullable(),
 });
 
-// Achievement IDs (must match those in use-workout-flow-manager.ts)
+// Achievement IDs (must match those in process-achievements Edge Function)
 const ACHIEVEMENT_IDS = {
   FIRST_WORKOUT: 'first_workout',
   TEN_DAY_STREAK: 'ten_day_streak',
@@ -43,6 +43,11 @@ const ACHIEVEMENT_IDS = {
   FIFTY_WORKOUTS: 'fifty_workouts',
   PERFECT_WEEK: 'perfect_week',
   BEAST_MODE: 'beast_mode',
+  // New Achievement IDs
+  WEEKEND_WARRIOR: 'weekend_warrior',
+  EARLY_BIRD: 'early_bird',
+  THIRTY_DAY_STREAK: 'thirty_day_streak',
+  VOLUME_MASTER: 'volume_master',
 };
 
 export default function ProfilePage() {
@@ -53,7 +58,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [activeTPath, setActiveTPath] = useState<TPath | null>(null);
   const [aiCoachUsageToday, setAiCoachUsageToday] = useState(0);
-  const [unlockedAchievements, setUnlockedAchievements] = useState<Set<string>>(new Set()); // State for unlocked achievements
+  const [unlockedAchievements, setUnlockedAchievements] = useState<Set<string>>(new Set());
   const AI_COACH_LIMIT_PER_SESSION = 2;
 
   const form = useForm<z.infer<typeof profileSchema>>({
@@ -130,7 +135,7 @@ export default function ProfilePage() {
 
   const getFitnessLevel = useCallback(() => {
     const totalPoints = profile?.total_points || 0;
-    const { level, color } = getLevelFromPoints(totalPoints); // Use the utility function
+    const { level, color } = getLevelFromPoints(totalPoints);
 
     let progress = 0;
     let nextLevelPoints = 0;
@@ -146,7 +151,7 @@ export default function ProfilePage() {
       progress = ((totalPoints - 300) / 300) * 100;
     } else { // Legend
       progress = 100;
-      nextLevelPoints = 600; // No next level, but keep for display consistency
+      nextLevelPoints = 600;
     }
 
     let icon: React.ReactElement<React.SVGProps<SVGSVGElement>>;
@@ -169,11 +174,11 @@ export default function ProfilePage() {
     const firstName = nameParts.shift() || '';
     const lastName = nameParts.join(' ');
 
-    const updateData: ProfileUpdate = { 
-      ...values, 
+    const updateData: ProfileUpdate = {
+      ...values,
       first_name: firstName,
       last_name: lastName,
-      updated_at: new Date().toISOString() 
+      updated_at: new Date().toISOString()
     };
     
     const { error } = await supabase.from('profiles').update(updateData).eq('id', session.user.id);
@@ -189,10 +194,14 @@ export default function ProfilePage() {
   const achievements = [
     { id: ACHIEVEMENT_IDS.FIRST_WORKOUT, name: 'First Workout', icon: '🏃' },
     { id: ACHIEVEMENT_IDS.TEN_DAY_STREAK, name: '10 Day Streak', icon: '🔥' },
+    { id: ACHIEVEMENT_IDS.THIRTY_DAY_STREAK, name: 'Consistency King', icon: '👑' }, // New
     { id: ACHIEVEMENT_IDS.TWENTY_FIVE_WORKOUTS, name: '25 Workouts', icon: '💪' },
     { id: ACHIEVEMENT_IDS.FIFTY_WORKOUTS, name: '50 Workouts', icon: '🏆' },
     { id: ACHIEVEMENT_IDS.PERFECT_WEEK, name: 'Perfect Week', icon: '🗓️' },
     { id: ACHIEVEMENT_IDS.BEAST_MODE, name: 'Beast Mode', icon: '💥' },
+    { id: ACHIEVEMENT_IDS.WEEKEND_WARRIOR, name: 'Weekend Warrior', icon: '🎉' }, // New
+    { id: ACHIEVEMENT_IDS.EARLY_BIRD, name: 'Early Bird', icon: '🌅' }, // New
+    { id: ACHIEVEMENT_IDS.VOLUME_MASTER, name: 'Volume Master', icon: '🏋️' }, // New
   ];
 
   const handleSignOut = async () => {

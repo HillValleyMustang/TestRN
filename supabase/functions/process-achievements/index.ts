@@ -16,6 +16,11 @@ const ACHIEVEMENT_IDS = {
   FIFTY_WORKOUTS: 'fifty_workouts',
   PERFECT_WEEK: 'perfect_week',
   BEAST_MODE: 'beast_mode',
+  // New Achievement IDs
+  WEEKEND_WARRIOR: 'weekend_warrior',
+  EARLY_BIRD: 'early_bird',
+  THIRTY_DAY_STREAK: 'thirty_day_streak',
+  VOLUME_MASTER: 'volume_master',
 };
 
 // Define types for the data we're fetching
@@ -83,6 +88,16 @@ const check10DayStreak = async (
   existingAchievements: Set<string>
 ) => {
   return await checkAchievement(supabase, userId, ACHIEVEMENT_IDS.TEN_DAY_STREAK, currentStreak >= 10, existingAchievements);
+};
+
+// New: Check for 30-day streak
+const check30DayStreak = async (
+  supabase: any,
+  userId: string,
+  currentStreak: number,
+  existingAchievements: Set<string>
+) => {
+  return await checkAchievement(supabase, userId, ACHIEVEMENT_IDS.THIRTY_DAY_STREAK, currentStreak >= 30, existingAchievements);
 };
 
 const check25Workouts = async (
@@ -183,6 +198,46 @@ const checkPerfectWeek = async (
   return await checkAchievement(supabase, userId, ACHIEVEMENT_IDS.PERFECT_WEEK, perfectWeekAchieved, existingAchievements);
 };
 
+// New: Check for Weekend Warrior
+const checkWeekendWarrior = async (
+  supabase: any,
+  userId: string,
+  allWorkoutSessions: WorkoutSession[],
+  existingAchievements: Set<string>
+) => {
+  const weekendWorkouts = allWorkoutSessions.filter(sessionItem => {
+    const date = new Date(sessionItem.session_date);
+    const dayOfWeek = date.getDay(); // 0 for Sunday, 6 for Saturday
+    return dayOfWeek === 0 || dayOfWeek === 6;
+  }).length;
+  return await checkAchievement(supabase, userId, ACHIEVEMENT_IDS.WEEKEND_WARRIOR, weekendWorkouts >= 10, existingAchievements);
+};
+
+// New: Check for Early Bird
+const checkEarlyBird = async (
+  supabase: any,
+  userId: string,
+  allWorkoutSessions: WorkoutSession[],
+  existingAchievements: Set<string>
+) => {
+  const earlyBirdWorkouts = allWorkoutSessions.filter(sessionItem => {
+    const date = new Date(sessionItem.session_date);
+    const hour = date.getHours();
+    return hour < 8; // Before 8 AM
+  }).length;
+  return await checkAchievement(supabase, userId, ACHIEVEMENT_IDS.EARLY_BIRD, earlyBirdWorkouts >= 10, existingAchievements);
+};
+
+// New: Check for Volume Master
+const checkVolumeMaster = async (
+  supabase: any,
+  userId: string,
+  totalSets: number,
+  existingAchievements: Set<string>
+) => {
+  return await checkAchievement(supabase, userId, ACHIEVEMENT_IDS.VOLUME_MASTER, totalSets >= 100, existingAchievements);
+};
+
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -221,6 +276,14 @@ serve(async (req: Request) => {
       .single();
     if (profileError) throw profileError;
 
+    // Fetch all set logs for the user to count total sets
+    const { data: allSetLogs, error: allSetLogsError } = await supabaseServiceRoleClient
+      .from('set_logs')
+      .select('id, workout_sessions!inner(user_id)') // Join with workout_sessions to filter by user_id
+      .eq('workout_sessions.user_id', user_id);
+    if (allSetLogsError) throw allSetLogsError;
+    const totalSets = allSetLogs?.length || 0;
+
     const totalWorkouts = (profileData?.total_points || 0) / 10; // 10 points per workout
     const currentStreak = profileData?.current_streak || 0;
     const activeTPathId = profileData?.active_t_path_id || null;
@@ -229,10 +292,14 @@ serve(async (req: Request) => {
     const achievementChecks = [
       checkFirstWorkout(supabaseServiceRoleClient, user_id, totalWorkouts, existingAchievementIds),
       check10DayStreak(supabaseServiceRoleClient, user_id, currentStreak, existingAchievementIds),
+      check30DayStreak(supabaseServiceRoleClient, user_id, currentStreak, existingAchievementIds), // New check
       check25Workouts(supabaseServiceRoleClient, user_id, totalWorkouts, existingAchievementIds),
       check50Workouts(supabaseServiceRoleClient, user_id, totalWorkouts, existingAchievementIds),
       checkBeastMode(supabaseServiceRoleClient, user_id, allWorkoutSessions as WorkoutSession[] || [], existingAchievementIds),
       checkPerfectWeek(supabaseServiceRoleClient, user_id, allWorkoutSessions as WorkoutSession[] || [], activeTPathId, existingAchievementIds),
+      checkWeekendWarrior(supabaseServiceRoleClient, user_id, allWorkoutSessions as WorkoutSession[] || [], existingAchievementIds), // New check
+      checkEarlyBird(supabaseServiceRoleClient, user_id, allWorkoutSessions as WorkoutSession[] || [], existingAchievementIds),     // New check
+      checkVolumeMaster(supabaseServiceRoleClient, user_id, totalSets, existingAchievementIds), // New check
     ];
 
     const results = await Promise.all(achievementChecks);

@@ -6,12 +6,12 @@ import { useSession } from '@/components/session-context-provider';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
-import { Tables, SetLogWithExercise } from '@/types/supabase'; // Import SetLogWithExercise
+import { Tables, SetLogWithExercise } from '@/types/supabase';
 import { toast } from 'sonner';
 import { WorkoutStatsCard } from '@/components/workout-summary/workout-stats-card';
 import { WorkoutRatingCard } from '@/components/workout-summary/workout-rating-card';
 import { ExerciseSummaryCard } from '@/components/workout-summary/exercise-summary-card';
-import { getLevelFromPoints } from '@/lib/utils'; // New import
+import { getLevelFromPoints } from '@/lib/utils';
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
@@ -26,7 +26,7 @@ type ExerciseGroup = {
   id: string;
 };
 
-// Map achievement IDs to display names and icons
+// Map achievement IDs to display names and icons (updated with new achievements)
 const ACHIEVEMENT_DISPLAY_INFO: Record<string, { name: string; icon: string }> = {
   first_workout: { name: 'First Workout', icon: '🏃' },
   ten_day_streak: { name: '10 Day Streak', icon: '🔥' },
@@ -34,14 +34,19 @@ const ACHIEVEMENT_DISPLAY_INFO: Record<string, { name: string; icon: string }> =
   fifty_workouts: { name: '50 Workouts', icon: '🏆' },
   perfect_week: { name: 'Perfect Week', icon: '🗓️' },
   beast_mode: { name: 'Beast Mode', icon: '💥' },
+  // New Achievements
+  weekend_warrior: { name: 'Weekend Warrior', icon: '🎉' },
+  early_bird: { name: 'Early Bird', icon: '🌅' },
+  thirty_day_streak: { name: 'Consistency King', icon: '👑' },
+  volume_master: { name: 'Volume Master', icon: '🏋️' },
 };
 
 export default function WorkoutSummaryPage({ 
   params, 
   searchParams 
 }: { 
-  params: Readonly<{ sessionId: string }>; // Explicitly mark params as Readonly
-  searchParams?: Readonly<{ [key: string]: string | string[] | undefined }>; // Also mark searchParams as Readonly
+  params: Readonly<{ sessionId: string }>;
+  searchParams?: Readonly<{ [key: string]: string | string[] | undefined }>;
 }) {
   const { session, supabase } = useSession();
   const router = useRouter();
@@ -55,7 +60,7 @@ export default function WorkoutSummaryPage({
   const [prsAchieved, setPrsAchieved] = useState<number>(0);
   const [currentRating, setCurrentRating] = useState<number | null>(null);
   const [isRatingSaved, setIsRatingSaved] = useState(false);
-  const [hasShownAchievementToasts, setHasShownAchievementToasts] = useState(false); // New state to track toasts
+  const [hasShownAchievementToasts, setHasShownAchievementToasts] = useState(false);
 
   useEffect(() => {
     if (!session) {
@@ -70,7 +75,7 @@ export default function WorkoutSummaryPage({
         // Fetch workout session details
         const { data: sessionData, error: sessionError } = await supabase
           .from('workout_sessions')
-          .select('id, template_name, duration_string, session_date, rating, created_at, user_id') // Specify all columns required by WorkoutSession
+          .select('id, template_name, duration_string, session_date, rating, created_at, user_id')
           .eq('id', sessionId)
           .eq('user_id', session.user.id)
           .single();
@@ -78,7 +83,7 @@ export default function WorkoutSummaryPage({
         if (sessionError || !sessionData) {
           throw new Error(sessionError?.message || "Workout session not found.");
         }
-        setWorkoutSession(sessionData as WorkoutSession); // Explicitly cast
+        setWorkoutSession(sessionData as WorkoutSession);
         setCurrentRating(sessionData.rating);
         setIsRatingSaved(sessionData.rating !== null);
 
@@ -108,7 +113,7 @@ export default function WorkoutSummaryPage({
             volume += log.weight_kg * log.reps;
           }
 
-          if (log.is_pb) { // Use the is_pb column directly from the database
+          if (log.is_pb) {
             prCount++;
           }
           processedSetLogs.push({ ...log, exercise_definitions: exerciseDef });
@@ -160,7 +165,7 @@ export default function WorkoutSummaryPage({
 
   const handleRatingChange = (rating: number) => {
     setCurrentRating(rating);
-    setIsRatingSaved(false); // Indicate that the new rating is not yet saved
+    setIsRatingSaved(false);
   };
 
   if (loading) {
@@ -202,7 +207,7 @@ export default function WorkoutSummaryPage({
     }
     acc[exerciseId].sets.push(log);
     return acc;
-  }, {} as Record<string, ExerciseGroup>); // Cast the accumulator to the correct Record type
+  }, {} as Record<string, ExerciseGroup>);
 
   return (
     <div className="min-h-screen bg-background text-foreground p-2 sm:p-4">
