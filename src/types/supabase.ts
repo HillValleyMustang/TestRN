@@ -8,8 +8,8 @@
  */
 
 // Import generated Supabase types to be used and re-exported
-import type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums, UserAchievementsRow, AiCoachUsageLogsRow } from "./supabase-generated";
-export type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums };
+import type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums, UserAchievementsRow, AiCoachUsageLogsRow, GetLastExerciseSetsForExerciseReturns } from "./supabase-generated";
+export type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums, GetLastExerciseSetsForExerciseReturns }; // Export new RPC types
 
 // --- Custom Types ---
 // These are application-specific types that extend or combine Supabase-generated types.
@@ -22,6 +22,8 @@ export interface SetLogState extends Omit<Tables<'set_logs'>, 'id' | 'created_at
   isPR: boolean; // This is for set-level PR
   lastWeight?: number | null;
   lastReps?: number | null;
+  lastRepsL?: number | null; // ADDED
+  lastRepsR?: number | null; // ADDED
   lastTimeSeconds?: number | null;
 }
 

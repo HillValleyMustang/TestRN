@@ -8,6 +8,7 @@ import type { Json } from "./json";
 import type { Database } from "./database";
 import type { Tables, TablesInsert, TablesUpdate } from "./tables";
 import type { Enums } from "./enums";
+import type { GetLastExerciseSetsForExerciseArgs, GetLastExerciseSetsForExerciseReturns } from "./functions/get_last_exercise_sets_for_exercise"; // Import new RPC types
 
 export type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums };
 
@@ -16,6 +17,9 @@ export * from "./tables";
 export * from "./enums";
 export * from "./tables/user_achievements"; // Export the new user_achievements types
 export * from "./tables/ai_coach_usage_logs"; // Export the new ai_coach_usage_logs types
+
+// Re-export new RPC types
+export type { GetLastExerciseSetsForExerciseArgs, GetLastExerciseSetsForExerciseReturns };
 
 // No individual table/function exports here to avoid circular dependencies.
 // Application code should use `Tables<'table_name'>` or `Database['public']['Tables']['table_name']['Row']`

@@ -274,10 +274,10 @@ export const ExerciseCard = ({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold text-base">Set {setIndex + 1}</h3>
-                        {(set.lastWeight != null || set.lastReps != null || set.lastTimeSeconds != null) && (
+                        {(set.lastWeight != null || set.lastReps != null || set.lastRepsL != null || set.lastRepsR != null || set.lastTimeSeconds != null) && (
                           <span className="text-muted-foreground text-xs">
                             (Last: {exercise.type === 'weight' ?
-                              `${set.lastWeight != null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${set.lastReps != null ? set.lastReps : '-'}` :
+                              `${set.lastWeight != null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${exercise.category === 'Unilateral' ? `${set.lastRepsL != null ? set.lastRepsL : '-'} L / ${set.lastRepsR != null ? set.lastRepsR : '-'} R` : (set.lastReps != null ? set.lastReps : '-')}` :
                               `${set.lastTimeSeconds != null ? `${set.lastTimeSeconds}s` : '-'}`})
                           </span>
                         )}

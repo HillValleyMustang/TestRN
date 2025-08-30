@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { Tables, SetLogState, WorkoutExercise, Profile as ProfileType, UserAchievement } from '@/types/supabase'; // Import UserAchievement
+import { Tables, SetLogState, WorkoutExercise, Profile as ProfileType, UserAchievement, GetLastExerciseSetsForExerciseReturns } from '@/types/supabase'; // Import UserAchievement and new RPC types
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -236,26 +236,46 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       setExercisesForSession(exercises);
 
       // Fetch last sets data for initial display (without creating session)
-      const exerciseIdsInWorkout = exercises.map(ex => ex.id);
-      const lastSetsData: Record<string, { weight_kg: number | null, reps: number | null, time_seconds: number | null }> = {};
-      if (exerciseIdsInWorkout.length > 0 && session) {
-        const { data: previousSets } = await supabase.from('set_logs').select(`exercise_id, weight_kg, reps, time_seconds, workout_sessions!inner(user_id)`).in('exercise_id', exerciseIdsInWorkout).eq('workout_sessions.user_id', session.user.id).order('created_at', { ascending: false });
-        const mostRecentPreviousSets = new Map<string, { weight_kg: number | null, reps: number | null, time_seconds: number | null }>();
-        for (const set of previousSets || []) { if (!mostRecentPreviousSets.has(set.exercise_id)) { mostRecentPreviousSets.set(set.exercise_id, { weight_kg: set.weight_kg, reps: set.reps, time_seconds: set.time_seconds }); } }
-        mostRecentPreviousSets.forEach((value, key) => { lastSetsData[key] = value; });
-      }
+      const lastSetsPromises = exercises.map(async (ex) => {
+        if (!session) return { exerciseId: ex.id, sets: [] };
+        const { data: lastExerciseSets, error: rpcError } = await supabase.rpc('get_last_exercise_sets_for_exercise', {
+          p_user_id: session.user.id,
+          p_exercise_id: ex.id,
+        });
+        if (rpcError) {
+          console.error(`Error fetching last sets for exercise ${ex.name}:`, rpcError);
+          return { exerciseId: ex.id, sets: [] };
+        }
+        return { exerciseId: ex.id, sets: lastExerciseSets || [] };
+      });
+
+      const allLastSetsData = await Promise.all(lastSetsPromises);
+      const lastSetsMap = new Map<string, GetLastExerciseSetsForExerciseReturns>();
+      allLastSetsData.forEach(item => lastSetsMap.set(item.exerciseId, item.sets));
 
       const initialSets: Record<string, SetLogState[]> = {};
       exercises.forEach(ex => {
-        const lastSet = lastSetsData[ex.id];
-        initialSets[ex.id] = Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({ id: null, created_at: null, session_id: null, exercise_id: ex.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: lastSet?.weight_kg, lastReps: lastSet?.reps, lastTimeSeconds: lastSet?.time_seconds }));
+        const lastAttemptSets = lastSetsMap.get(ex.id) || [];
+        initialSets[ex.id] = Array.from({ length: DEFAULT_INITIAL_SETS }).map((_, setIndex) => {
+          const correspondingLastSet = lastAttemptSets[setIndex]; // Match by index
+          return {
+            id: null, created_at: null, session_id: currentSessionId, exercise_id: ex.id,
+            weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null,
+            is_pb: false, isSaved: false, isPR: false,
+            lastWeight: correspondingLastSet?.weight_kg || null,
+            lastReps: correspondingLastSet?.reps || null,
+            lastRepsL: correspondingLastSet?.reps_l || null,
+            lastRepsR: correspondingLastSet?.reps_r || null,
+            lastTimeSeconds: correspondingLastSet?.time_seconds || null,
+          };
+        });
       });
       setExercisesWithSets(initialSets);
 
     } else {
       resetWorkoutSession();
     }
-  }, [session, supabase, resetWorkoutSession, groupedTPaths, workoutExercisesCache]);
+  }, [session, supabase, resetWorkoutSession, groupedTPaths, workoutExercisesCache, currentSessionId]);
 
   useEffect(() => {
     if (initialWorkoutId && !loading) {
@@ -280,11 +300,33 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
 
   const addExerciseToSession = useCallback(async (exercise: ExerciseDefinition) => {
     if (!session) return; // Ensure session exists for user_id
-    let lastWeight = null, lastReps = null, lastTimeSeconds = null;
-    const { data: lastSet } = await supabase.from('set_logs').select('weight_kg, reps, time_seconds').eq('exercise_id', exercise.id).order('created_at', { ascending: false }).limit(1).single();
-    if (lastSet) { lastWeight = lastSet.weight_kg; lastReps = lastSet.reps; lastTimeSeconds = lastSet.time_seconds; }
+    let lastWeight = null, lastReps = null, lastTimeSeconds = null, lastRepsL = null, lastRepsR = null; // Initialize new last reps
+    
+    // Fetch last sets for this exercise to populate initial values for new ad-hoc sets
+    const { data: lastExerciseSets, error: rpcError } = await supabase.rpc('get_last_exercise_sets_for_exercise', {
+      p_user_id: session.user.id,
+      p_exercise_id: exercise.id,
+    });
+
+    if (rpcError) {
+      console.error(`Error fetching last sets for ad-hoc exercise ${exercise.name}:`, rpcError);
+    } else if (lastExerciseSets && lastExerciseSets.length > 0) {
+      // For ad-hoc, we might just take the first set's last data as a general guide
+      const firstLastSet = lastExerciseSets[0];
+      lastWeight = firstLastSet.weight_kg;
+      lastReps = firstLastSet.reps;
+      lastRepsL = firstLastSet.reps_l;
+      lastRepsR = firstLastSet.reps_r;
+      lastTimeSeconds = firstLastSet.time_seconds;
+    }
+
     setExercisesForSession(prev => [{ ...exercise, is_bonus_exercise: false }, ...prev]);
-    setExercisesWithSets(prev => ({ ...prev, [exercise.id]: Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({ id: null, created_at: null, session_id: currentSessionId, exercise_id: exercise.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight, lastReps, lastTimeSeconds })) }));
+    setExercisesWithSets(prev => ({ ...prev, [exercise.id]: Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({ 
+      id: null, created_at: null, session_id: currentSessionId, exercise_id: exercise.id, 
+      weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, 
+      is_pb: false, isSaved: false, isPR: false, 
+      lastWeight, lastReps, lastRepsL, lastRepsR, lastTimeSeconds // Use fetched last data
+    })) }));
   }, [currentSessionId, session, supabase]);
 
   const removeExerciseFromSession = useCallback((exerciseId: string) => {
@@ -298,7 +340,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     setExercisesWithSets(prev => {
       const newSets = { ...prev };
       if (!newSets[newExercise.id]) {
-        newSets[newExercise.id] = Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({ id: null, created_at: null, session_id: currentSessionId, exercise_id: newExercise.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastTimeSeconds: null }));
+        newSets[newExercise.id] = Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({ id: null, created_at: null, session_id: currentSessionId, exercise_id: newExercise.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null }));
       }
       delete newSets[oldExerciseId];
       return newSets;

@@ -50,6 +50,8 @@ const areSetsEqual = (a: SetLogState[], b: SetLogState[]): boolean => {
     if (
       setA.lastWeight !== setB.lastWeight ||
       setA.lastReps !== setB.lastReps ||
+      setA.lastRepsL !== setB.lastRepsL || // Compare new fields
+      setA.lastRepsR !== setB.lastRepsR || // Compare new fields
       setA.lastTimeSeconds !== setB.lastTimeSeconds ||
       setA.session_id !== setB.session_id
     ) {
@@ -78,7 +80,7 @@ export const useExerciseSets = ({
       return Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({
         id: null, created_at: null, session_id: propCurrentSessionId, exercise_id: exerciseId,
         weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null,
-        is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastTimeSeconds: null,
+        is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
       }));
     }
     return initialSets;
@@ -105,6 +107,8 @@ export const useExerciseSets = ({
             ...prevSet,
             lastWeight: initialSet.lastWeight,
             lastReps: initialSet.lastReps,
+            lastRepsL: initialSet.lastRepsL, // Update new fields
+            lastRepsR: initialSet.lastRepsR, // Update new fields
             lastTimeSeconds: initialSet.lastTimeSeconds,
             session_id: prevSet.session_id || internalSessionId,
           };
@@ -164,6 +168,8 @@ export const useExerciseSets = ({
         isPR: false,
         lastWeight: lastSet?.weight_kg,
         lastReps: lastSet?.reps,
+        lastRepsL: lastSet?.reps_l, // Pass new fields
+        lastRepsR: lastSet?.reps_r, // Pass new fields
         lastTimeSeconds: lastSet?.time_seconds,
       };
       return [...prev, newSet];
@@ -210,20 +216,24 @@ export const useExerciseSets = ({
     }
 
     if (exerciseType === 'weight') {
-      if (set.weight_kg === null || set.reps === null || set.weight_kg <= 0 || set.reps <= 0) {
-        toast.error(`Set ${setIndex + 1}: Please enter valid positive weight and reps.`);
+      if (set.weight_kg === null || set.weight_kg <= 0) {
+        toast.error(`Set ${setIndex + 1}: Please enter a valid positive weight.`);
         return null;
+      }
+      if (exerciseCategory === 'Unilateral') {
+        if (set.reps_l === null || set.reps_r === null || set.reps_l < 0 || set.reps_r < 0) {
+          toast.error(`Set ${setIndex + 1}: Please enter valid positive reps for both left and right sides.`);
+          return null;
+        }
+      } else { // Bilateral weight
+        if (set.reps === null || set.reps <= 0) {
+          toast.error(`Set ${setIndex + 1}: Please enter valid positive reps.`);
+          return null;
+        }
       }
     } else if (exerciseType === 'timed') {
       if (set.time_seconds === null || set.time_seconds <= 0) {
         toast.error(`Set ${setIndex + 1}: Please enter a valid positive time in seconds.`);
-        return null;
-      }
-    }
-
-    if (exerciseCategory === 'Unilateral') {
-      if (set.reps_l === null || set.reps_r === null || set.reps_l < 0 || set.reps_r < 0) {
-        toast.error(`Set ${setIndex + 1}: Please enter valid positive reps for both left and right sides.`);
         return null;
       }
     }
@@ -289,9 +299,7 @@ export const useExerciseSets = ({
       console.error("Error saving set:", error);
       return null;
     } else {
-      if (isSetPR) {
-        toast.success(`Set ${setIndex + 1}: New Personal Record!`);
-      }
+      // Removed individual set saved/PR toasts
       return { ...set, ...data, isSaved: true, isPR: isSetPR };
     }
   }, [internalSessionId, exerciseId, exerciseType, exerciseCategory, supabase, onFirstSetSaved, sets]);
@@ -304,7 +312,7 @@ export const useExerciseSets = ({
         newSets[setIndex] = updatedSet;
         return newSets;
       });
-      toast.success(`Set ${setIndex + 1} saved successfully!`);
+      // Removed toast.success(`Set ${setIndex + 1} saved successfully!`);
     }
   }, [sets, exerciseId, saveSingleSetToDatabase]);
 
@@ -435,11 +443,12 @@ export const useExerciseSets = ({
 
         if (upsertError) throw upsertError;
         setExercisePR(updatedPR as UserExercisePR);
-        toast.success(`New Exercise Personal Record for ${exerciseName}!`);
+        toast.success(`New Exercise Personal Record for ${exerciseName}!`); // Consolidated PR toast
+      } else {
+        toast.success(`${exerciseName} completed!`); // Consolidated completion toast
       }
 
       await onExerciseComplete(exerciseId, isNewPR);
-      toast.success(`${exerciseName} completed!`);
       return true;
     } catch (err: any) {
       console.error("Error saving exercise completion or PR:", err);
@@ -552,7 +561,7 @@ export const useExerciseSets = ({
             id: null, created_at: null, session_id: internalSessionId, exercise_id: exerciseId,
             weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null,
             is_pb: false, isSaved: false, isPR: false,
-            lastWeight: lastSet?.weight_kg, lastReps: lastSet?.reps, lastTimeSeconds: lastSet?.time_seconds,
+            lastWeight: lastSet?.weight_kg, lastReps: lastSet?.reps, lastRepsL: lastSet?.reps_l, lastRepsR: lastSet?.reps_r, lastTimeSeconds: lastSet?.time_seconds,
           });
         }
         if (suggestedNumSets < newSets.length) {
