@@ -18,10 +18,9 @@ interface ChartData {
 }
 
 // Define a type for SetLog with joined ExerciseDefinition and WorkoutSession
-// This type now accurately reflects the fields selected in the Supabase query.
 type SetLogWithExerciseAndSession = Pick<SetLog, 'weight_kg' | 'reps'> & {
-  exercise_definitions: Pick<ExerciseDefinition, 'type'>[] | null; // Changed to array
-  workout_sessions: Pick<WorkoutSession, 'session_date' | 'user_id'> | null;
+  exercise_definitions: Pick<ExerciseDefinition, 'type'>[] | null;
+  workout_sessions: Pick<WorkoutSession, 'session_date' | 'user_id'>[] | null; // Changed to array
 };
 
 export const WeeklyVolumeChart = () => {
@@ -57,10 +56,8 @@ export const WeeklyVolumeChart = () => {
         const weeklyVolumeMap = new Map<string, number>(); // 'YYYY-WW' -> total volume
 
         (setLogsData as SetLogWithExerciseAndSession[]).forEach(log => {
-          // Access the first element of the exercise_definitions array
           const exerciseType = log.exercise_definitions?.[0]?.type;
-          const sessionInfo = log.workout_sessions; // Access the workout_sessions object
-          const sessionDate = sessionInfo?.session_date; // Get session_date from the object
+          const sessionDate = log.workout_sessions?.[0]?.session_date; // Access the first element of the array
 
           if (exerciseType === 'weight' && log.weight_kg && log.reps && sessionDate) {
             const date = new Date(sessionDate);

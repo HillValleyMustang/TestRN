@@ -198,7 +198,7 @@ export const ExerciseCard = ({
 
   return (
     <> {/* Added React Fragment */}
-      <Card className={cn("mb-6 border-2", workoutBorderClass, { "opacity-70": isExerciseSaved })}>
+      <Card className={cn("mb-6 border-2 relative", workoutBorderClass, { "opacity-70": isExerciseSaved })}>
         <CardHeader 
           className="flex items-center justify-between p-4 cursor-pointer"
           onClick={() => setIsExpanded(!isExpanded)}
@@ -206,14 +206,8 @@ export const ExerciseCard = ({
           {/* Left side: Exercise details */}
           <div className="flex flex-col flex-1 min-w-0"> {/* min-w-0 to allow shrinking */}
             <div className="flex items-center gap-2"> {/* Line 1: Number, Name, Bonus, Check */}
-              {exercise.icon_url && (
-                <img 
-                  src={exercise.icon_url} 
-                  alt={`${exercise.name} icon`} 
-                  className="h-8 w-8 object-contain flex-shrink-0 rounded-sm"
-                />
-              )}
-              <CardTitle className={cn("text-xl font-bold leading-none", workoutColorClass)}>
+              {/* REMOVED: exercise.icon_url img tag from here */}
+              <CardTitle className={cn("text-lg font-semibold leading-none", workoutColorClass)}> {/* Adjusted font size/weight */}
                 {exerciseNumber}. {exercise.name}
               </CardTitle>
               {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus" className="flex-shrink-0">Bonus</WorkoutBadge>}
@@ -254,7 +248,7 @@ export const ExerciseCard = ({
           </div>
         </CardHeader>
         {isExpanded && (
-          <CardContent>
+          <CardContent className="pb-16"> {/* Added bottom padding to make space for the icon */}
             <div className="space-y-4"> {/* This div now wraps all sets and separators */}
               {sets.map((set, setIndex) => (
                 <React.Fragment key={set.id || `new-${setIndex}`}>
@@ -408,6 +402,17 @@ export const ExerciseCard = ({
               </Button>
             </div>
           </CardContent>
+        )}
+
+        {/* NEW: Icon at bottom left */}
+        {exercise.icon_url && (
+          <div className="absolute bottom-4 left-4 z-10"> {/* z-10 to ensure it's above other content */}
+            <img
+              src={exercise.icon_url}
+              alt={`${exercise.name} icon`}
+              className="h-10 w-10 object-contain flex-shrink-0 rounded-sm" // Increased size
+            />
+          </div>
         )}
       </Card>
 
