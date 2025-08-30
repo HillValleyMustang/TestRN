@@ -35,8 +35,11 @@ export function Header() {
         <Sheet>
           <SheetTrigger asChild>
             <Button size="icon" variant="outline" className="sm:hidden">
-              <PanelLeft className="h-5 w-5" />
-              <span className="sr-only">Toggle Menu</span>
+              {/* Wrap children in a single span */}
+              <span>
+                <PanelLeft className="h-5 w-5" />
+                <span className="sr-only">Toggle Menu</span>
+              </span>
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="sm:max-w-xs">

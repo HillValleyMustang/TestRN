@@ -38,8 +38,11 @@ export function Sidebar() {
                       isActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    <Icon className="h-5 w-5" />
-                    <span className="sr-only">{link.label}</span>
+                    {/* Wrap children in a single span */}
+                    <span>
+                      <Icon className="h-5 w-5" />
+                      <span className="sr-only">{link.label}</span>
+                    </span>
                   </Button>
                 </Link>
               </TooltipTrigger>
