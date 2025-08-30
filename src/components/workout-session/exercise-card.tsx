@@ -230,7 +230,7 @@ export const ExerciseCard = ({
               )}
               <div className="flex items-center gap-2 flex-shrink-0">
                 {isExerciseSaved && (
-                  <CheckCircle2 className="h-6 w-6 text-green-600 fill-green-600" />
+                  <CheckCircle2 className="h-8 w-8 text-green-500 fill-green-500" />
                 )}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -277,7 +277,7 @@ export const ExerciseCard = ({
                         {(set.lastWeight != null || set.lastReps != null || set.lastTimeSeconds != null) && (
                           <span className="text-muted-foreground text-xs">
                             (Last: {exercise.type === 'weight' ?
-                              `${set.lastWeight != null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${set.lastReps != null ? set.lastReps : '-'}` :
+                              `${set.lastWeight != null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${set.lastReps != null ? set.reps : '-'}` :
                               `${set.lastTimeSeconds != null ? `${set.lastTimeSeconds}s` : '-'}`})
                           </span>
                         )}
