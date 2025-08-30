@@ -22,7 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn, getWorkoutColorClass } from '@/lib/utils';
+import { cn, getWorkoutColorClass, getWorkoutIcon } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Separator } from '@/components/ui/separator'; // Import Separator
 
@@ -73,6 +73,7 @@ export const ExerciseCard = ({
   const workoutColorClass = getWorkoutColorClass(workoutTemplateName, 'text');
   const workoutBorderClass = getWorkoutColorClass(workoutTemplateName, 'border');
   const workoutBgClass = getWorkoutColorClass(workoutTemplateName, 'bg');
+  const WorkoutIcon = getWorkoutIcon(workoutTemplateName);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -200,54 +201,60 @@ export const ExerciseCard = ({
     <> {/* Added React Fragment */}
       <Card className={cn("mb-6 border-2 relative", workoutBorderClass, { "opacity-70": isExerciseSaved })}>
         <CardHeader 
-          className="p-0 cursor-pointer relative" // Remove padding from header itself
+          className="p-0 cursor-pointer relative"
           onClick={() => setIsExpanded(!isExpanded)}
         >
-          <div className="flex items-center justify-between p-4"> {/* Add wrapper div for layout */}
-            {/* Left side: Exercise details */}
-            <div className="flex flex-col text-left">
-              <div className="flex items-center gap-2">
-                <CardTitle className={cn("text-lg font-semibold leading-none", workoutColorClass)}>
-                  {exerciseNumber}. {exercise.name}
-                </CardTitle>
-                {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus" className="flex-shrink-0">Bonus</WorkoutBadge>}
+          <div className="p-4 space-y-2">
+            {/* Top Row: Title and Subtitle */}
+            <div className="flex items-start justify-between">
+              <div className="flex flex-col text-left">
+                <div className="flex items-center gap-2">
+                  <CardTitle className={cn("text-lg font-semibold leading-none", workoutColorClass)}>
+                    {exerciseNumber}. {exercise.name}
+                  </CardTitle>
+                  {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus" className="flex-shrink-0">Bonus</WorkoutBadge>}
+                </div>
+                <p className="text-sm text-muted-foreground mt-1 truncate">{exercise.main_muscle}</p>
               </div>
-              <p className="text-sm text-muted-foreground mt-1 truncate">{exercise.main_muscle}</p>
             </div>
 
-            {/* Right side: Menu and Chevron */}
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" title="More Options" onClick={(e) => e.stopPropagation()}>
-                    <Menu className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onSelect={() => setShowExerciseHistoryDialog(true)}>
-                    <History className="h-4 w-4 mr-2" /> History
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setShowExerciseInfoDialog(true)}>
-                    <Info className="h-4 w-4 mr-2" /> Info
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setShowExerciseProgressionDialog(true)}>
-                    <Trophy className="h-4 w-4 mr-2" /> Progression
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setShowSwapDialog(true)}>
-                    <RefreshCcw className="h-4 w-4 mr-2" /> Swap Exercise
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setShowCantDoDialog(true)} className="text-destructive">
-                    <Trash2 className="h-4 w-4 mr-2" /> Can't Do
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }} title={isExpanded ? "Collapse" : "Expand"}>
-                {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-              </Button>
+            {/* Bottom Row: Icon and Controls */}
+            <div className="flex items-center justify-between">
+              <div>
+                {WorkoutIcon && <WorkoutIcon className={cn("h-5 w-5", workoutColorClass)} />}
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" title="More Options" onClick={(e) => e.stopPropagation()}>
+                      <Menu className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => setShowExerciseHistoryDialog(true)}>
+                      <History className="h-4 w-4 mr-2" /> History
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setShowExerciseInfoDialog(true)}>
+                      <Info className="h-4 w-4 mr-2" /> Info
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setShowExerciseProgressionDialog(true)}>
+                      <Trophy className="h-4 w-4 mr-2" /> Progression
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setShowSwapDialog(true)}>
+                      <RefreshCcw className="h-4 w-4 mr-2" /> Swap Exercise
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setShowCantDoDialog(true)} className="text-destructive">
+                      <Trash2 className="h-4 w-4 mr-2" /> Can't Do
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }} title={isExpanded ? "Collapse" : "Expand"}>
+                  {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                </Button>
+              </div>
             </div>
           </div>
 
-          {/* Middle: Checkmark (if saved) - Absolutely positioned */}
           {isExerciseSaved && (
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
               <CheckCircle2 className="h-8 w-8 text-green-500" />
