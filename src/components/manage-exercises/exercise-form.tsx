@@ -26,7 +26,7 @@ import {
   FormMessage 
 } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, Edit, XCircle, ChevronDown, ChevronUp, Info, Sparkles, Dumbbell, Timer } from "lucide-react"; // Removed Check icon
+import { PlusCircle, Edit, XCircle, ChevronDown, ChevronUp, Info, Sparkles, Dumbbell, Timer } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Popover,
@@ -34,10 +34,20 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
-import { AnalyzeGymDialog } from "./analyze-gym-dialog"; 
+import { AnalyzeGymDialog } from "@/components/manage-exercises/analyze-gym-dialog"; 
 import { Label } from "@/components/ui/label";
 import { cn } from '@/lib/utils';
 import { Badge } from "@/components/ui/badge";
+
+// Import new modular components with corrected paths
+import { AnalyzeGymButton } from "@/components/manage-exercises/exercise-form/analyze-gym-button";
+import { ExerciseNameInput } from "@/components/manage-exercises/exercise-form/exercise-name-input";
+import { MainMuscleSelect } from "@/components/manage-exercises/exercise-form/main-muscle-select";
+import { ExerciseTypeSelector } from "@/components/manage-exercises/exercise-form/exercise-type-selector";
+import { ExerciseCategorySelect } from "@/components/manage-exercises/exercise-form/exercise-category-select";
+import { ExerciseDetailsTextareas } from "@/components/manage-exercises/exercise-form/exercise-details-textareas";
+import { ExerciseVideoUrlInput } from "@/components/manage-exercises/exercise-form/exercise-video-url-input";
+import { ExerciseFormActions } from "@/components/manage-exercises/exercise-form/exercise-form-actions";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -120,7 +130,6 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
   }, [editingExercise, form]);
 
   const handleTypeChange = (type: "weight" | "timed") => {
-    // Ensure only one type is selected (radio-like behavior)
     form.setValue("type", [type]);
     setSelectedTypes([type]);
   };
@@ -140,9 +149,8 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
   };
 
   const handleExerciseIdentified = (identifiedData: Partial<ExerciseDefinition>) => {
-    // Reset form to treat this as a new exercise
-    onCancelEdit(); // Clear any existing editing state
-    setIsExpanded(true); // Ensure the form is open
+    onCancelEdit();
+    setIsExpanded(true);
 
     const muscleGroups = identifiedData.main_muscle ? identifiedData.main_muscle.split(',').map((m: string) => m.trim()) : [];
     const exerciseType = identifiedData.type ? [identifiedData.type] as ("weight" | "timed")[] : [];
@@ -166,13 +174,11 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
       return;
     }
 
-    // Ensure we have at least one type
     if (!values.type || values.type.length === 0) {
       toast.error("Please select at least one exercise type.");
       return;
     }
 
-    // Ensure we have at least one muscle group
     if (!values.main_muscles || values.main_muscles.length === 0) {
       toast.error("Please select at least one main muscle group.");
       return;
@@ -180,8 +186,8 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
 
     const exerciseData = {
       name: values.name,
-      main_muscle: values.main_muscles.join(', '), // Store as comma-separated string
-      type: values.type[0], // For now, we'll use the first type if multiple are selected
+      main_muscle: values.main_muscles.join(', '),
+      type: values.type[0],
       category: values.category,
       description: values.description,
       pro_tip: values.pro_tip,
@@ -190,18 +196,16 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
 
     if (editingExercise) {
       if (editingExercise.user_id === null) {
-        // This is a global exercise (hardcoded or AI-generated).
-        // User is "adopting" it by trying to edit it. Create a new user-owned copy.
         const { error } = await supabase.from('exercise_definitions').insert([{ 
           ...exerciseData, 
           user_id: session.user.id,
-          library_id: editingExercise.library_id, // Preserve the original library_id
-          is_favorite: false, // Default to not favourited on adoption
-          created_at: new Date().toISOString(), // Add created_at
-        }]).select('id').single(); // Specify columns for select
+          library_id: editingExercise.library_id,
+          is_favorite: false,
+          created_at: new Date().toISOString(),
+        }]).select('id').single();
 
         if (error) {
-          if (error.code === '23505') { // Unique violation code
+          if (error.code === '23505') {
             toast.error("You already have a copy of this exercise in your library.");
           } else {
             toast.error("Failed to adopt exercise: " + error.message);
@@ -213,7 +217,6 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
           setIsExpanded(false);
         }
       } else {
-        // This is an existing user-owned exercise, so update it.
         const { error } = await supabase
           .from('exercise_definitions')
           .update(exerciseData)
@@ -229,14 +232,13 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
         }
       }
     } else {
-      // This is a brand new exercise created by the user.
       const { error } = await supabase.from('exercise_definitions').insert([{ 
         ...exerciseData, 
         user_id: session.user.id,
-        library_id: null, // No library_id for user-created exercises
-        is_favorite: false, // Default to not favourited
-        created_at: new Date().toISOString(), // Add created_at
-      }]).select('id').single(); // Specify columns for select
+        library_id: null,
+        is_favorite: false,
+        created_at: new Date().toISOString(),
+      }]).select('id').single();
       if (error) {
         toast.error("Failed to add exercise: " + error.message);
       } else {
@@ -287,259 +289,50 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
         </span>
       </CardHeader>
       {isExpanded && (
-        <CardContent className="px-4 py-6"> {/* Adjusted padding here */}
+        <CardContent className="px-4 py-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="flex flex-col sm:flex-row gap-2 mb-4">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setShowAnalyzeGymDialog(true)}
-                  className="flex-1"
-                >
-                  <Sparkles className="h-4 w-4 mr-2" /> Analyse My Gym
-                </Button>
+                <AnalyzeGymButton
+                  showAnalyzeGymDialog={showAnalyzeGymDialog}
+                  setShowAnalyzeGymDialog={setShowAnalyzeGymDialog}
+                  onExerciseIdentified={handleExerciseIdentified}
+                />
               </div>
 
-              <FormField 
-                control={form.control} 
-                name="name" 
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-bold">Exercise Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} 
+              <ExerciseNameInput form={form} />
+              
+              <MainMuscleSelect
+                form={form}
+                mainMuscleGroups={mainMuscleGroups}
+                selectedMuscles={selectedMuscles}
+                handleMuscleToggle={handleMuscleToggle}
               />
               
-              {/* Main Muscle Group(s) as a multi-select grid of buttons */}
-              <FormField control={form.control} name="main_muscles" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-bold">Main Muscle Group(s)</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          className={cn(
-                            "w-full justify-between",
-                            !field.value?.length && "text-muted-foreground"
-                          )}
-                        >
-                          {/* Wrap children in a single span */}
-                          <span className="flex items-center justify-between w-full">
-                            <div className="flex flex-wrap gap-1">
-                              {field.value && field.value.length > 0 ? (
-                                field.value.map((muscle) => (
-                                  <Badge key={muscle} variant="secondary" className="flex items-center gap-1">
-                                    {muscle}
-                                    <XCircle className="h-3 w-3 cursor-pointer" onClick={(e) => {
-                                      e.stopPropagation();
-                                      const newSelection = field.value?.filter((m) => m !== muscle);
-                                      field.onChange(newSelection);
-                                    }} />
-                                  </Badge>
-                                ))
-                              ) : (
-                                <span>Select muscles...</span>
-                              )}
-                            </div>
-                            <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </span>
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                      <div className="grid grid-cols-2 gap-2 p-2"> {/* Grid for muscle buttons */}
-                        {mainMuscleGroups.map((muscle) => (
-                          <Button
-                            key={muscle}
-                            type="button"
-                            variant={selectedMuscles.includes(muscle) ? "default" : "outline"}
-                            onClick={() => handleMuscleToggle(muscle)}
-                            className={cn(
-                              "flex-1",
-                              selectedMuscles.includes(muscle) ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent"
-                            )}
-                          >
-                            {muscle}
-                          </Button>
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              
-              {/* Exercise Type as visual cards (single-select) */}
-              <div className="space-y-3">
-                <FormLabel className="font-bold">Exercise Type</FormLabel>
-                <div className="grid grid-cols-2 gap-3">
-                  <div 
-                    className={cn(
-                      "flex flex-col items-center justify-center p-4 border-2 rounded-lg cursor-pointer transition-all",
-                      selectedTypes.includes("weight") ? "border-primary bg-primary text-primary-foreground shadow-md" : "border-input bg-card hover:border-primary/50"
-                    )}
-                    onClick={() => handleTypeChange("weight")}
-                  >
-                    <Dumbbell className={cn("h-8 w-8 mb-2", selectedTypes.includes("weight") ? "text-primary-foreground" : "text-muted-foreground")} />
-                    <span className={cn("font-medium", selectedTypes.includes("weight") ? "text-primary-foreground" : "text-foreground")}>Weight Training</span>
-                  </div>
-                  <div 
-                    className={cn(
-                      "flex flex-col items-center justify-center p-4 border-2 rounded-lg cursor-pointer transition-all",
-                      selectedTypes.includes("timed") ? "border-primary bg-primary text-primary-foreground shadow-md" : "border-input bg-card hover:border-primary/50"
-                    )}
-                    onClick={() => handleTypeChange("timed")}
-                  >
-                    <Timer className={cn("h-8 w-8 mb-2", selectedTypes.includes("timed") ? "text-primary-foreground" : "text-muted-foreground")} />
-                    <span className={cn("font-medium", selectedTypes.includes("timed") ? "text-primary-foreground" : "text-foreground")}>Timed (e.g. Plank)</span>
-                  </div>
-                </div>
-                <FormMessage>
-                  {form.formState.errors.type?.message}
-                </FormMessage>
-              </div>
-              
-              <FormField 
-                control={form.control} 
-                name="category" 
-                render={({ field }) => (
-                  <FormItem>
-                    <div className="flex items-center justify-between">
-                      <FormLabel className="font-bold">Category</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8">
-                            <Info className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-80 max-w-[90vw]">
-                          <div className="space-y-2">
-                            <p className="font-semibold">Category Information</p>
-                            <ul className="text-sm space-y-1">
-                              <li><span className="font-medium">Unilateral:</span> Movement performed with one arm or leg at a time</li>
-                              <li><span className="font-medium">Bilateral:</span> Both arms or legs move together</li>
-                            </ul>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                    <Select onValueChange={field.onChange} value={field.value || ''}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {categoryOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} 
+              <ExerciseTypeSelector
+                form={form}
+                selectedTypes={selectedTypes}
+                handleTypeChange={handleTypeChange}
               />
               
-              <FormField 
-                control={form.control} 
-                name="description" 
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-bold">Description (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} value={field.value ?? ''} className="text-sm" /> {/* Added text-sm */}
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} 
+              <ExerciseCategorySelect
+                form={form}
+                categoryOptions={categoryOptions}
               />
               
-              <FormField 
-                control={form.control} 
-                name="pro_tip" 
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-bold">Pro Tip (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} value={field.value ?? ''} className="text-sm" /> {/* Added text-sm */}
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} 
-              />
+              <ExerciseDetailsTextareas form={form} />
               
-              <FormField 
-                control={form.control} 
-                name="video_url" 
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-bold">Video URL (Optional)</FormLabel>
-                    <FormControl>
-                      <Input {...field} value={field.value ?? ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} 
-              />
+              <ExerciseVideoUrlInput form={form} />
               
-              <div className="flex gap-2 pt-2">
-                <Button type="submit" className="flex-1">
-                  {editingExercise ? (
-                    editingExercise.user_id === null ? (
-                      <>
-                        <PlusCircle className="h-4 w-4 mr-2" /> Adopt & Edit
-                      </>
-                    ) : (
-                      <>
-                        <Edit className="h-4 w-4 mr-2" /> Update
-                      </>
-                    )
-                  ) : (
-                    <>
-                      <PlusCircle className="h-4 w-4 mr-2" /> Add
-                    </>
-                  )}
-                </Button>
-                {editingExercise && (
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => {
-                      onCancelEdit();
-                      setIsExpanded(false);
-                    }}
-                  >
-                    <XCircle className="h-4 w-4 mr-2" /> Cancel
-                  </Button>
-                )}
-                {!editingExercise && (
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={toggleExpand}
-                  >
-                    Close
-                  </Button>
-                )}
-              </div>
+              <ExerciseFormActions
+                editingExercise={editingExercise}
+                onCancelEdit={onCancelEdit}
+                toggleExpand={toggleExpand}
+              />
             </form>
           </Form>
         </CardContent>
       )}
-      <AnalyzeGymDialog
-        open={showAnalyzeGymDialog}
-        onOpenChange={setShowAnalyzeGymDialog}
-        onExerciseIdentified={handleExerciseIdentified}
-      />
     </Card>
   );
 };
