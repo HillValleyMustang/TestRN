@@ -22,14 +22,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${poppins.variable}`}> {/* Apply font variable to html */}
-      <body>
+    <html lang="en" className={`${poppins.variable}`}><body>
         <SessionContextProvider>
           <TooltipProvider>
             {children}
           </TooltipProvider>
         </SessionContextProvider>
-      </body>
-    </html>
+      </body></html>
   );
 }
