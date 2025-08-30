@@ -85,25 +85,27 @@ export const PersonalInfoForm = ({ form, isEditing, mainMuscleGroups }: Personal
                   )}
                   disabled={!isEditing}
                 >
-                  <div className="flex flex-wrap gap-1">
-                    {field.value && field.value.length > 0 ? (
-                      field.value.map((muscle) => (
-                        <Badge key={muscle} variant="secondary" className="flex items-center gap-1">
-                          {muscle}
-                          <X className="h-3 w-3 cursor-pointer" onClick={(e) => {
-                            e.stopPropagation();
-                            if (isEditing) {
-                              const newSelection = field.value?.filter((m) => m !== muscle);
-                              field.onChange(newSelection);
-                            }
-                          }} />
-                        </Badge>
-                      ))
-                    ) : (
-                      <span>Select muscles...</span>
-                    )}
-                  </div>
-                  <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  <span className="flex items-center justify-between w-full"> {/* Wrapped content in a single span */}
+                    <div className="flex flex-wrap gap-1">
+                      {field.value && field.value.length > 0 ? (
+                        field.value.map((muscle) => (
+                          <Badge key={muscle} variant="secondary" className="flex items-center gap-1">
+                            {muscle}
+                            <X className="h-3 w-3 cursor-pointer" onClick={(e) => {
+                              e.stopPropagation();
+                              if (isEditing) {
+                                const newSelection = field.value?.filter((m) => m !== muscle);
+                                field.onChange(newSelection);
+                              }
+                            }} />
+                          </Badge>
+                        ))
+                      ) : (
+                        <span>Select muscles...</span>
+                      )}
+                    </div>
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </span>
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
