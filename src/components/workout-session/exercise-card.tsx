@@ -4,10 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Check, Trophy, Edit, Trash2, Timer, RefreshCcw, Info, History, Menu, Play, Pause, RotateCcw, Save, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Check, Trophy, Edit, Trash2, Timer, RefreshCcw, Info, History, Menu, Play, Pause, RotateCcw, Save, ChevronDown, ChevronUp, Lightbulb } from 'lucide-react'; // Added Lightbulb icon
 import { ExerciseHistoryDialog } from '@/components/exercise-history-dialog';
 import { ExerciseInfoDialog } from '@/components/exercise-info-dialog';
-import { ExerciseProgressionDialog } from '@/components/exercise-progression-dialog';
 import { Tables, SetLogState, WorkoutExercise, UserExercisePR } from '@/types/supabase';
 import { useExerciseSets } from '@/hooks/use-exercise-sets';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -68,7 +67,7 @@ export const ExerciseCard = ({
   const [showCantDoDialog, setShowCantDoDialog] = useState(false);
   const [showExerciseInfoDialog, setShowExerciseInfoDialog] = useState(false);
   const [showExerciseHistoryDialog, setShowExerciseHistoryDialog] = useState(false);
-  const [showExerciseProgressionDialog, setShowExerciseProgressionDialog] = useState(false);
+  // Removed showExerciseProgressionDialog state
 
   const workoutColorClass = getWorkoutColorClass(workoutTemplateName, 'text');
   const workoutBorderClass = getWorkoutColorClass(workoutTemplateName, 'border');
@@ -105,6 +104,7 @@ export const ExerciseCard = ({
     handleSaveExercise, // New function
     exercisePR, // New state
     loadingPR,
+    handleSuggestProgression, // Added new function from hook
   } = useExerciseSets({
     exerciseId: exercise.id,
     exerciseName: exercise.name, // Pass exercise.name here
@@ -248,9 +248,6 @@ export const ExerciseCard = ({
                     <DropdownMenuItem onSelect={() => setShowExerciseInfoDialog(true)}>
                       <Info className="h-4 w-4 mr-2" /> Info
                     </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => setShowExerciseProgressionDialog(true)}>
-                      <Trophy className="h-4 w-4 mr-2" /> Progression
-                    </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => setShowSwapDialog(true)}>
                       <RefreshCcw className="h-4 w-4 mr-2" /> Swap Exercise
                     </DropdownMenuItem>
@@ -333,7 +330,7 @@ export const ExerciseCard = ({
                                 value={set.reps_l ?? ''}
                                 onChange={(e) => handleInputChange(setIndex, 'reps_l', e.target.value)}
                                 disabled={set.isSaved || isExerciseSaved}
-                                className="flex-1 h-8 text-xs" // Changed to text-xs
+                                className="w-24 h-8 text-xs" // Increased width to w-24
                               />
                               <Input
                                 id={`reps-r-${setIndex}`}
@@ -342,7 +339,7 @@ export const ExerciseCard = ({
                                 value={set.reps_r ?? ''}
                                 onChange={(e) => handleInputChange(setIndex, 'reps_r', e.target.value)}
                                 disabled={set.isSaved || isExerciseSaved}
-                                className="flex-1 h-8 text-xs" // Changed to text-xs
+                                className="w-24 h-8 text-xs" // Increased width to w-24
                               />
                             </>
                           ) : (
@@ -377,12 +374,16 @@ export const ExerciseCard = ({
             </div>
 
             <div className="flex justify-between items-center mt-4 gap-4"> {/* Added gap-4 here */}
-              {sets.length < 5 && (
-                <Button variant="outline" onClick={handleAddSet} disabled={isExerciseSaved}>
-                  <Plus className="h-4 w-4 mr-2" /> Set
+              <div className="flex gap-2"> {/* Group Add Set and Suggest buttons */}
+                {sets.length < 5 && (
+                  <Button variant="outline" onClick={handleAddSet} disabled={isExerciseSaved}>
+                    <Plus className="h-4 w-4 mr-2" /> Set
+                  </Button>
+                )}
+                <Button variant="outline" onClick={handleSuggestProgression} disabled={isExerciseSaved}>
+                  <Lightbulb className="h-4 w-4 mr-2" /> Suggest
                 </Button>
-              )}
-              {sets.length >= 5 && <div />} {/* Spacer to keep layout consistent */}
+              </div>
               <div className="flex items-center space-x-2">
                 <Button
                   variant="outline"
@@ -439,13 +440,6 @@ export const ExerciseCard = ({
         open={showExerciseInfoDialog}
         onOpenChange={setShowExerciseInfoDialog}
         exercise={exercise}
-      />
-      <ExerciseProgressionDialog
-        open={showExerciseProgressionDialog}
-        onOpenChange={setShowExerciseProgressionDialog}
-        exerciseId={exercise.id}
-        exerciseName={exercise.name}
-        exerciseType={exercise.type}
       />
       <ExerciseSwapDialog
         open={showSwapDialog}

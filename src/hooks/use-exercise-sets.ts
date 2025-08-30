@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from 'react'; // Import useRef
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { Tables, TablesInsert, TablesUpdate, SetLogState, UserExercisePRInsert, UserExercisePRUpdate } from '@/types/supabase';
-import { convertWeight } from '@/lib/unit-conversions';
+import { convertWeight, formatWeight } from '@/lib/unit-conversions'; // Added formatWeight
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type SetLog = Tables<'set_logs'>;
@@ -13,17 +13,17 @@ type UserExercisePR = Tables<'user_exercise_prs'>;
 
 interface UseExerciseSetsProps {
   exerciseId: string;
-  exerciseName: string; // Added exerciseName
+  exerciseName: string;
   exerciseType: ExerciseDefinition['type'];
   exerciseCategory?: ExerciseDefinition['category'] | null;
-  currentSessionId: string | null; // This will now be null initially
+  currentSessionId: string | null;
   supabase: SupabaseClient;
   onUpdateSets: (exerciseId: string, newSets: SetLogState[]) => void;
   initialSets: SetLogState[];
   preferredWeightUnit: Profile['preferred_weight_unit'];
-  onFirstSetSaved: (timestamp: string) => Promise<string>; // Now expects to return the new session ID
-  onExerciseComplete: (exerciseId: string, isNewPR: boolean) => Promise<void>; // New prop for exercise completion
-  workoutTemplateName: string; // Added workoutTemplateName
+  onFirstSetSaved: (timestamp: string) => Promise<string>;
+  onExerciseComplete: (exerciseId: string, isNewPR: boolean) => Promise<void>;
+  workoutTemplateName: string;
 }
 
 interface UseExerciseSetsReturn {
@@ -33,21 +33,20 @@ interface UseExerciseSetsReturn {
   handleSaveSet: (setIndex: number) => Promise<void>;
   handleEditSet: (setIndex: number) => void;
   handleDeleteSet: (setIndex: number) => Promise<void>;
-  handleSaveExercise: () => Promise<boolean>; // New function for saving the entire exercise
-  exercisePR: UserExercisePR | null; // State to hold the exercise-level PR
+  handleSaveExercise: () => Promise<boolean>;
+  exercisePR: UserExercisePR | null;
   loadingPR: boolean;
+  handleSuggestProgression: () => Promise<void>;
 }
 
 const MAX_SETS = 5;
 const DEFAULT_INITIAL_SETS = 3;
 
-// Helper for deep comparison of relevant parts of SetLogState
 const areSetsEqual = (a: SetLogState[], b: SetLogState[]): boolean => {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     const setA = a[i];
     const setB = b[i];
-    // Compare only the 'last' values and session_id, as other fields are user-editable
     if (
       setA.lastWeight !== setB.lastWeight ||
       setA.lastReps !== setB.lastReps ||
@@ -62,21 +61,19 @@ const areSetsEqual = (a: SetLogState[], b: SetLogState[]): boolean => {
 
 export const useExerciseSets = ({
   exerciseId,
-  exerciseName, // Destructure exerciseName
+  exerciseName,
   exerciseType,
   exerciseCategory,
-  currentSessionId: propCurrentSessionId, // Renamed to avoid conflict with state
+  currentSessionId: propCurrentSessionId,
   supabase,
   onUpdateSets,
   initialSets,
   preferredWeightUnit,
   onFirstSetSaved,
   onExerciseComplete,
-  workoutTemplateName, // Destructure workoutTemplateName
+  workoutTemplateName,
 }: UseExerciseSetsProps): UseExerciseSetsReturn => {
   const [sets, setSets] = useState<SetLogState[]>(() => {
-    // This initializer runs only once on the initial render.
-    // It sets up the initial state based on initialSets or defaults.
     if (initialSets.length === 0) {
       return Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({
         id: null, created_at: null, session_id: propCurrentSessionId, exercise_id: exerciseId,
@@ -91,21 +88,16 @@ export const useExerciseSets = ({
   const [loadingPR, setLoadingPR] = useState(true);
   const [internalSessionId, setInternalSessionId] = useState<string | null>(propCurrentSessionId);
 
-  // Update internalSessionId when propCurrentSessionId changes
   useEffect(() => {
     setInternalSessionId(propCurrentSessionId);
   }, [propCurrentSessionId]);
 
-  // Effect to update 'last' values and session_id when initialSets (from parent) changes.
-  // This is the crucial change to break the infinite loop.
   useEffect(() => {
     setSets(prevSets => {
-      // If prevSets is empty (e.g., after reset), and initialSets has data, use initialSets
       if (prevSets.length === 0 && initialSets.length > 0) {
         return initialSets.map(set => ({ ...set, session_id: internalSessionId }));
       }
 
-      // Create a new array of sets by merging 'last' properties and session_id from initialSets
       const newSets = prevSets.map((prevSet, index) => {
         const initialSet = initialSets[index];
         if (initialSet) {
@@ -114,29 +106,23 @@ export const useExerciseSets = ({
             lastWeight: initialSet.lastWeight,
             lastReps: initialSet.lastReps,
             lastTimeSeconds: initialSet.lastTimeSeconds,
-            session_id: prevSet.session_id || internalSessionId, // Only update if prevSet.session_id is null
+            session_id: prevSet.session_id || internalSessionId,
           };
         }
         return prevSet;
       });
 
-      // Only update state if the newSets are actually different from prevSets
-      // This prevents unnecessary re-renders and breaks the loop.
       if (!areSetsEqual(prevSets, newSets)) {
         return newSets;
       }
-      return prevSets; // No change, so return previous state to prevent re-render
+      return prevSets;
     });
-  }, [initialSets, exerciseId, internalSessionId]); // Depend on initialSets and exerciseId
+  }, [initialSets, exerciseId, internalSessionId]);
 
-  // Effect to report local 'sets' state changes back to the parent
-  // This runs AFTER the component has rendered with the new local 'sets' state
   useEffect(() => {
     onUpdateSets(exerciseId, sets);
-  }, [sets, exerciseId, onUpdateSets]); // Dependencies for this effect
+  }, [sets, exerciseId, onUpdateSets]);
 
-
-  // Fetch exercise-level PR on component mount
   useEffect(() => {
     const fetchExercisePR = async () => {
       setLoadingPR(true);
@@ -146,7 +132,7 @@ export const useExerciseSets = ({
         .eq('exercise_id', exerciseId)
         .single();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
+      if (error && error.code !== 'PGRST116') {
         console.error("Error fetching exercise PR:", error);
       } else if (data) {
         setExercisePR(data as UserExercisePR);
@@ -166,7 +152,7 @@ export const useExerciseSets = ({
       const newSet: SetLogState = {
         id: null,
         created_at: null,
-        session_id: internalSessionId, // Use internalSessionId
+        session_id: internalSessionId,
         exercise_id: exerciseId,
         weight_kg: null,
         reps: null,
@@ -176,11 +162,11 @@ export const useExerciseSets = ({
         is_pb: false,
         isSaved: false,
         isPR: false,
-        lastWeight: lastSet?.weight_kg, // Stored in KG
+        lastWeight: lastSet?.weight_kg,
         lastReps: lastSet?.reps,
         lastTimeSeconds: lastSet?.time_seconds,
       };
-      return [...prev, newSet]; // Removed onUpdateSets here
+      return [...prev, newSet];
     });
   }, [exerciseId, internalSessionId, sets.length]);
 
@@ -201,25 +187,21 @@ export const useExerciseSets = ({
           [field]: parsedValue
         };
       }
-      // Mark set as unsaved if input changes
       newSets[setIndex].isSaved = false;
-      return newSets; // Removed onUpdateSets here
+      return newSets;
     });
-  }, [preferredWeightUnit]); // exerciseId and onUpdateSets are now in the new useEffect
+  }, [preferredWeightUnit]);
 
   const saveSingleSetToDatabase = useCallback(async (set: SetLogState, setIndex: number): Promise<SetLogState | null> => {
     let currentSessionIdToUse = internalSessionId;
 
-    // If session hasn't been created yet, create it now
     if (!currentSessionIdToUse) {
       try {
         const newSessionId = await onFirstSetSaved(new Date().toISOString());
         currentSessionIdToUse = newSessionId;
-        setInternalSessionId(newSessionId); // Update internal state
+        setInternalSessionId(newSessionId);
         
-        // Update all sets in the current exercise to link to this new session ID
         setSets(prevSets => prevSets.map(s => ({ ...s, session_id: newSessionId })));
-        // The parent's state will be updated by handleSaveSet after this function returns.
       } catch (err) {
         toast.error("Failed to start workout session. Please try again.");
         console.error("Error creating session on first set save:", err);
@@ -246,7 +228,6 @@ export const useExerciseSets = ({
       }
     }
 
-    // Check for Personal Record (PR) for this specific set
     let isSetPR = false;
     const { data: allPreviousSets, error: fetchPreviousError } = await supabase
       .from('set_logs')
@@ -275,7 +256,7 @@ export const useExerciseSets = ({
     }
 
     const setLogData: TablesInsert<'set_logs'> = {
-      session_id: currentSessionIdToUse, // Use the determined session ID
+      session_id: currentSessionIdToUse,
       exercise_id: exerciseId,
       weight_kg: set.weight_kg,
       reps: set.reps,
@@ -321,7 +302,7 @@ export const useExerciseSets = ({
       setSets(prev => {
         const newSets = [...prev];
         newSets[setIndex] = updatedSet;
-        return newSets; // onUpdateSets will be called by the new useEffect
+        return newSets;
       });
       toast.success(`Set ${setIndex + 1} saved successfully!`);
     }
@@ -331,7 +312,7 @@ export const useExerciseSets = ({
     setSets(prev => {
       const updatedSets = [...prev];
       updatedSets[setIndex] = { ...updatedSets[setIndex], isSaved: false };
-      return updatedSets; // onUpdateSets will be called by the new useEffect
+      return updatedSets;
     });
   }, []);
 
@@ -340,7 +321,7 @@ export const useExerciseSets = ({
     if (!setToDelete.id) {
       setSets(prev => {
         const updatedSets = prev.filter((_, i) => i !== setIndex);
-        return updatedSets; // onUpdateSets will be called by the new useEffect
+        return updatedSets;
       });
       toast.success("Unsaved set removed.");
       return;
@@ -360,7 +341,7 @@ export const useExerciseSets = ({
     } else {
       setSets(prev => {
         const updatedSets = prev.filter((_, i) => i !== setIndex);
-        return updatedSets; // onUpdateSets will be called by the new useEffect
+        return updatedSets;
       });
       toast.success("Set deleted successfully!");
     }
@@ -373,34 +354,32 @@ export const useExerciseSets = ({
 
     for (let i = 0; i < sets.length; i++) {
       const currentSet = sets[i];
-      // Check if set has any meaningful data
       const hasData = (currentSet.weight_kg !== null && currentSet.weight_kg > 0) ||
                       (currentSet.reps !== null && currentSet.reps > 0) ||
                       (currentSet.time_seconds !== null && currentSet.time_seconds > 0) ||
                       (currentSet.reps_l !== null && currentSet.reps_l > 0) ||
                       (currentSet.reps_r !== null && currentSet.reps_r > 0);
 
-      if (hasData && !currentSet.isSaved) { // Only attempt to save if it has data AND is not already saved
+      if (hasData && !currentSet.isSaved) {
         const savedSet = await saveSingleSetToDatabase(currentSet, i);
         if (savedSet) {
           updatedSetsState.push(savedSet);
           anySetSavedInThisCall = true;
         } else {
           hasError = true;
-          updatedSetsState.push(currentSet); // Keep original if save failed
+          updatedSetsState.push(currentSet);
         }
       } else {
-        updatedSetsState.push(currentSet); // Keep already saved or empty sets as is
+        updatedSetsState.push(currentSet);
       }
     }
 
     if (hasError) {
       toast.error("Some sets failed to save. Please check your inputs.");
-      setSets(updatedSetsState); // Update local state with any successful saves
+      setSets(updatedSetsState);
       return false;
     }
 
-    // After attempting to save all unsaved sets, check if there's *any* valid data in the exercise
     const hasAnyValidSetData = updatedSetsState.some(s =>
       (s.weight_kg !== null && s.weight_kg > 0) ||
       (s.reps !== null && s.reps > 0) ||
@@ -411,11 +390,11 @@ export const useExerciseSets = ({
 
     if (!hasAnyValidSetData) {
       toast.error("No valid sets to save. Please input data for at least one set.");
-      setSets(updatedSetsState); // Ensure local state is fully updated after all saves
+      setSets(updatedSetsState);
       return false;
     }
 
-    setSets(updatedSetsState); // Ensure local state is fully updated after all saves
+    setSets(updatedSetsState);
 
     let currentExercisePRValue: number | null = null;
     if (exerciseType === 'weight') {
@@ -469,6 +448,137 @@ export const useExerciseSets = ({
     }
   }, [internalSessionId, sets, exerciseType, exerciseCategory, exercisePR, exerciseId, supabase, onExerciseComplete, exerciseName, saveSingleSetToDatabase]);
 
+  const handleSuggestProgression = useCallback(async () => {
+    if (!supabase) {
+      toast.error("Supabase client not available.");
+      return;
+    }
+
+    try {
+      const { data: previousSets, error: fetchError } = await supabase
+        .from('set_logs')
+        .select('weight_kg, reps, reps_l, reps_r, time_seconds')
+        .eq('exercise_id', exerciseId)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (fetchError) throw fetchError;
+
+      let suggestedWeight: number | null = null;
+      let suggestedReps: number | null = null;
+      let suggestedRepsL: number | null = null;
+      let suggestedRepsR: number | null = null;
+      let suggestedTime: number | null = null;
+      let suggestedNumSets = DEFAULT_INITIAL_SETS;
+      let suggestionMessage = "Focus on mastering your form!";
+
+      if (previousSets && previousSets.length > 0) {
+        const lastSet = previousSets[0];
+        // const averageReps = previousSets.reduce((sum, s) => sum + (s.reps || 0), 0) / previousSets.length;
+        // const averageTime = previousSets.reduce((sum, s) => sum + (s.time_seconds || 0), 0) / previousSets.length;
+
+        if (exerciseType === 'weight') {
+          const lastWeight = lastSet.weight_kg || 0;
+          const lastReps = lastSet.reps || 0;
+
+          if (lastReps >= 8 && lastWeight > 0) {
+            suggestedWeight = lastWeight + 2.5;
+            suggestedReps = 8;
+            suggestionMessage = `Great work! Try increasing the weight to ${formatWeight(convertWeight(suggestedWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs')} for 8 reps.`;
+          } else if (lastReps >= 5 && lastReps < 8 && lastWeight > 0) {
+            suggestedWeight = lastWeight;
+            suggestedReps = lastReps + 1;
+            suggestionMessage = `Good effort! Try to hit ${suggestedReps} reps with ${formatWeight(convertWeight(suggestedWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs')} next time.`;
+          } else {
+            suggestedWeight = lastWeight;
+            suggestedReps = lastReps;
+            suggestionMessage = `Consider maintaining ${formatWeight(convertWeight(suggestedWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs')} and focusing on form, or slightly reducing weight to hit more reps.`;
+          }
+
+          if (exerciseCategory === 'Unilateral') {
+            suggestedRepsL = suggestedReps;
+            suggestedRepsR = suggestedReps;
+            suggestedReps = null;
+          }
+
+          if (sets.length < MAX_SETS && previousSets.length >= 3) {
+            const allPreviousSetsHitTarget = previousSets.slice(0, 3).every(s => (s.reps || 0) >= 8);
+            if (allPreviousSetsHitTarget) {
+              suggestedNumSets = Math.min(sets.length + 1, MAX_SETS);
+              suggestionMessage += ` You're consistent! Consider adding a set.`;
+            }
+          }
+
+        } else if (exerciseType === 'timed') {
+          const lastTime = lastSet.time_seconds || 0;
+          if (lastTime > 0) {
+            suggestedTime = lastTime + 5;
+            suggestionMessage = `Nice! Try to hold for ${suggestedTime} seconds next time.`;
+          } else {
+            suggestedTime = 30;
+            suggestionMessage = `Let's aim for 30 seconds on this timed exercise!`;
+          }
+
+          if (sets.length < MAX_SETS && previousSets.length >= 3) {
+            const allPreviousSetsHitTarget = previousSets.slice(0, 3).every(s => (s.time_seconds || 0) >= (suggestedTime || 0) - 5);
+            if (allPreviousSetsHitTarget) {
+              suggestedNumSets = Math.min(sets.length + 1, MAX_SETS);
+              suggestionMessage += ` You're consistent! Consider adding a set.`;
+            }
+          }
+        }
+      } else {
+        if (exerciseType === 'weight') {
+          suggestedWeight = 10;
+          suggestedReps = 8;
+          if (exerciseCategory === 'Unilateral') {
+            suggestedRepsL = suggestedReps;
+            suggestedRepsR = suggestedReps;
+            suggestedReps = null;
+          }
+          suggestionMessage = "No previous sets found. Let's start with 10kg for 8 reps and focus on form!";
+        } else if (exerciseType === 'timed') {
+          suggestedTime = 30;
+          suggestionMessage = "No previous sets found. Let's aim for 30 seconds and focus on form!";
+        }
+      }
+
+      setSets(prevSets => {
+        let newSets = [...prevSets];
+
+        while (newSets.length < suggestedNumSets && newSets.length < MAX_SETS) {
+          const lastSet = newSets[newSets.length - 1];
+          newSets.push({
+            id: null, created_at: null, session_id: internalSessionId, exercise_id: exerciseId,
+            weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null,
+            is_pb: false, isSaved: false, isPR: false,
+            lastWeight: lastSet?.weight_kg, lastReps: lastSet?.reps, lastTimeSeconds: lastSet?.time_seconds,
+          });
+        }
+        if (suggestedNumSets < newSets.length) {
+          newSets = newSets.slice(0, Math.max(1, suggestedNumSets));
+        }
+
+        return newSets.map(set => ({
+          ...set,
+          weight_kg: suggestedWeight,
+          reps: suggestedReps,
+          reps_l: suggestedRepsL,
+          reps_r: suggestedRepsR,
+          time_seconds: suggestedTime,
+          isSaved: false,
+        }));
+      });
+
+      toast.info(suggestionMessage);
+
+    } catch (err: any) {
+      console.error("Failed to generate progression suggestion:", err);
+      toast.error("Failed to generate suggestion: " + err.message);
+    }
+  }, [exerciseId, exerciseType, exerciseCategory, supabase, internalSessionId, preferredWeightUnit, sets.length]);
+
+
   return {
     sets,
     handleAddSet,
@@ -479,5 +589,6 @@ export const useExerciseSets = ({
     handleSaveExercise,
     exercisePR,
     loadingPR,
+    handleSuggestProgression,
   };
 };
