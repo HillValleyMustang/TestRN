@@ -262,7 +262,25 @@ export default function ProfilePage() {
               <div><p className="text-2xl font-bold">{profile.body_fat_pct || 'N/A'}%</p><p className="text-xs text-muted-foreground">Body Fat</p></div>
             </CardContent>
           </Card>
-          <Card><CardHeader><CardTitle>Achievements</CardTitle></CardHeader><CardContent className="grid grid-cols-3 sm:grid-cols-6 gap-3">{achievements.map((a, i) => (<div key={i} className={cn("text-center p-3 rounded-xl border-2", unlockedAchievements.has(a.id) ? 'bg-yellow-400/20 border-yellow-500/50 text-yellow-600' : 'bg-muted/50 border-border text-muted-foreground')}><div className="text-2xl mb-1">{a.icon}</div><div className="text-xs font-medium">{a.name}</div></div>))}</CardContent></Card>
+          <Card>
+            <CardHeader><CardTitle>Achievements</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {achievements.map((a, i) => (
+                <div 
+                  key={i} 
+                  className={cn(
+                    "flex flex-col items-center justify-center h-28 w-full p-3 rounded-xl border-2 transition-all duration-200 ease-in-out",
+                    unlockedAchievements.has(a.id)
+                      ? 'bg-yellow-50 dark:bg-yellow-950/30 border-yellow-400 dark:border-yellow-700 text-yellow-800 dark:text-yellow-300 hover:scale-105'
+                      : 'bg-gray-50 dark:bg-gray-900/30 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:scale-105'
+                  )}
+                >
+                  <div className="text-2xl mb-1">{a.icon}</div>
+                  <div className="text-xs font-medium text-center">{a.name}</div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="stats" className="mt-6 space-y-6">
