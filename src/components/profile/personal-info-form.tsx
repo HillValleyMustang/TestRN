@@ -74,8 +74,8 @@ export const PersonalInfoForm = ({ form, isEditing, mainMuscleGroups }: Personal
         <FormField control={form.control} name="preferred_muscles" render={({ field }) => (
           <FormItem className="sm:col-span-2">
             <FormLabel>Preferred Muscles to Train (Optional)</FormLabel>
-            <FormControl>
-              <Popover>
+            <Popover>
+              <FormControl>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -109,47 +109,47 @@ export const PersonalInfoForm = ({ form, isEditing, mainMuscleGroups }: Personal
                     </span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                  <Command>
-                    <CommandInput placeholder="Search muscles..." />
-                    <CommandEmpty>No muscle found.</CommandEmpty>
-                    <CommandGroup>
-                      {mainMuscleGroups.map((muscle) => (
-                        <CommandItem
-                          key={muscle}
-                          onSelect={() => {
+              </FormControl>
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                <Command>
+                  <CommandInput placeholder="Search muscles..." />
+                  <CommandEmpty>No muscle found.</CommandEmpty>
+                  <CommandGroup>
+                    {mainMuscleGroups.map((muscle) => (
+                      <CommandItem
+                        key={muscle}
+                        onSelect={() => {
+                          if (!isEditing) return;
+                          const currentSelection = new Set(field.value);
+                          if (currentSelection.has(muscle)) {
+                            currentSelection.delete(muscle);
+                          } else {
+                            currentSelection.add(muscle);
+                          }
+                          field.onChange(Array.from(currentSelection));
+                        }}
+                      >
+                        <Checkbox
+                          checked={field.value?.includes(muscle)}
+                          onCheckedChange={(checked) => {
                             if (!isEditing) return;
                             const currentSelection = new Set(field.value);
-                            if (currentSelection.has(muscle)) {
-                              currentSelection.delete(muscle);
-                            } else {
+                            if (checked) {
                               currentSelection.add(muscle);
+                            } else {
+                              currentSelection.delete(muscle);
                             }
                             field.onChange(Array.from(currentSelection));
                           }}
-                        >
-                          <Checkbox
-                            checked={field.value?.includes(muscle)}
-                            onCheckedChange={(checked) => {
-                              if (!isEditing) return;
-                              const currentSelection = new Set(field.value);
-                              if (checked) {
-                                currentSelection.add(muscle);
-                              } else {
-                                currentSelection.delete(muscle);
-                              }
-                              field.onChange(Array.from(currentSelection));
-                            }}
-                            className="mr-2"
-                          />
-                          {muscle}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </FormControl>
+                          className="mr-2"
+                        />
+                        {muscle}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
             <p className="text-sm text-muted-foreground mt-1">
               Select muscle groups you'd like the AI Coach to prioritise in your recommendations.
             </p>

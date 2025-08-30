@@ -319,8 +319,8 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
               <FormField control={form.control} name="main_muscles" render={({ field }) => (
                 <FormItem>
                   <FormLabel className="font-bold">Main Muscle Group(s)</FormLabel>
-                  <FormControl>
-                    <Popover>
+                  <Popover>
+                    <FormControl>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
@@ -352,26 +352,26 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
                           </span>
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                        <div className="grid grid-cols-2 gap-2 p-2"> {/* Grid for muscle buttons */}
-                          {mainMuscleGroups.map((muscle) => (
-                            <Button
-                              key={muscle}
-                              type="button"
-                              variant={selectedMuscles.includes(muscle) ? "default" : "outline"}
-                              onClick={() => handleMuscleToggle(muscle)}
-                              className={cn(
-                                "flex-1",
-                                selectedMuscles.includes(muscle) ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent"
-                              )}
-                            >
-                              {muscle}
-                            </Button>
-                          ))}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </FormControl>
+                    </FormControl>
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                      <div className="grid grid-cols-2 gap-2 p-2"> {/* Grid for muscle buttons */}
+                        {mainMuscleGroups.map((muscle) => (
+                          <Button
+                            key={muscle}
+                            type="button"
+                            variant={selectedMuscles.includes(muscle) ? "default" : "outline"}
+                            onClick={() => handleMuscleToggle(muscle)}
+                            className={cn(
+                              "flex-1",
+                              selectedMuscles.includes(muscle) ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent"
+                            )}
+                          >
+                            {muscle}
+                          </Button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                   <FormMessage />
                 </FormItem>
               )} />
