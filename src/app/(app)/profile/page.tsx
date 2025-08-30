@@ -16,24 +16,26 @@ import { toast } from 'sonner';
 import { Profile as ProfileType, ProfileUpdate, Tables, UserAchievement } from '@/types/supabase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Edit, Save, LogOut, ArrowLeft, BarChart2, User, Settings, Flame, Dumbbell, Trophy, Star, Footprints, Bot, Crown, Sunrise, CalendarCheck, Weight } from 'lucide-react';
+import { Edit, Save, LogOut, ArrowLeft, BarChart2, User, Settings, Flame, Dumbbell, Trophy, Star, Footprints, Bot, Crown, Sunrise, CalendarCheck, Weight, LayoutTemplate, Text } from 'lucide-react'; // Added LayoutTemplate and Text for icons
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { TPathSwitcher } from '@/components/t-path-switcher';
 import { cn, getLevelFromPoints } from '@/lib/utils';
 import { AchievementDetailDialog } from '@/components/profile/achievement-detail-dialog';
+import { Textarea } from '@/components/ui/textarea'; // Import Textarea
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
 
 const profileSchema = z.object({
-  full_name: z.string().min(1, "Full name is required."),
+  full_name: z.string().min(1, "Your name is required."), // Changed label
   height_cm: z.coerce.number().positive("Height must be positive.").optional().nullable(),
   weight_kg: z.coerce.number().positive("Weight must be positive.").optional().nullable(),
   body_fat_pct: z.coerce.number().min(0, "Cannot be negative.").max(100, "Cannot exceed 100.").optional().nullable(),
   primary_goal: z.string().optional().nullable(),
-  health_notes: z.string().optional().nullable(),
+  health_notes: z.string().optional().nullable(), // Re-added
   preferred_session_length: z.string().optional().nullable(),
+  preferred_muscles: z.string().optional().nullable(), // Re-added
 });
 
 // Achievement IDs (must match those in process-achievements Edge Function)
@@ -69,7 +71,16 @@ export default function ProfilePage() {
 
   const form = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
-    defaultValues: { full_name: "", height_cm: null, weight_kg: null, body_fat_pct: null, primary_goal: null, health_notes: "", preferred_session_length: "" },
+    defaultValues: { 
+      full_name: "", 
+      height_cm: null, 
+      weight_kg: null, 
+      body_fat_pct: null, 
+      primary_goal: null, 
+      health_notes: null, // Default to null
+      preferred_session_length: null, 
+      preferred_muscles: null, // Default to null
+    },
   });
 
   const fetchData = useCallback(async () => {
@@ -88,6 +99,7 @@ export default function ProfilePage() {
           primary_goal: profileData.primary_goal,
           health_notes: profileData.health_notes,
           preferred_session_length: profileData.preferred_session_length,
+          preferred_muscles: profileData.preferred_muscles, // Set initial value
         });
 
         if (profileData.active_t_path_id) {
@@ -277,7 +289,7 @@ export default function ProfilePage() {
                         key={a.id}
                         variant="ghost"
                         className={cn(
-                          "flex flex-col items-center justify-center min-h-[7rem] w-full p-3 rounded-xl border-2 transition-all duration-200 ease-in-out group", // Changed h-28 to min-h-[7rem]
+                          "flex flex-col items-center justify-center min-h-[7rem] w-full p-3 rounded-xl border-2 transition-all duration-200 ease-in-out group",
                           isAchUnlocked
                             ? 'bg-yellow-50 dark:bg-yellow-950/30 border-yellow-400 dark:border-yellow-700 text-yellow-800 dark:text-yellow-300 hover:scale-105'
                             : 'bg-gray-50 dark:bg-gray-900/30 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:scale-105'
@@ -289,7 +301,7 @@ export default function ProfilePage() {
                       >
                         <div className="text-2xl mb-1 transition-transform duration-200 ease-in-out group-hover:scale-110">{a.icon}</div>
                         <div className={cn(
-                          "text-xs font-medium text-center leading-tight whitespace-normal", // Added whitespace-normal
+                          "text-xs font-medium text-center leading-tight whitespace-normal",
                           isAchUnlocked ? "text-yellow-800 dark:text-yellow-300" : "text-gray-500 dark:text-gray-400"
                         )}>
                           {isAchUnlocked ? a.name : a.name}
@@ -333,11 +345,15 @@ export default function ProfilePage() {
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <Card>
-                  <CardHeader><CardTitle>Personal Info</CardTitle></CardHeader>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <User className="h-5 w-5" /> Personal Info
+                    </CardTitle>
+                  </CardHeader>
                   <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField control={form.control} name="full_name" render={({ field }) => (
                       <FormItem className="sm:col-span-2">
-                        <FormLabel>Full Name</FormLabel>
+                        <FormLabel>Your Name</FormLabel>
                         <FormControl><Input {...field} disabled={!isEditing} /></FormControl>
                         <FormMessage />
                       </FormItem>
@@ -363,11 +379,67 @@ export default function ProfilePage() {
                         <FormMessage />
                       </FormItem>
                     )} />
+                    <FormField control={form.control} name="preferred_muscles" render={({ field }) => (
+                      <FormItem className="sm:col-span-2">
+                        <FormLabel>Preferred Muscles to Train (Optional)</FormLabel>
+                        <FormControl><Input {...field} value={field.value ?? ''} disabled={!isEditing} placeholder="e.g., Chest, Back, Legs..." /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="health_notes" render={({ field }) => (
+                      <FormItem className="sm:col-span-2">
+                        <FormLabel>Health Notes / Constraints (Optional)</FormLabel>
+                        <FormControl><Textarea {...field} value={field.value ?? ''} disabled={!isEditing} placeholder="Any injuries, health conditions, or limitations..." /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
                   </CardContent>
                 </Card>
-                <Card><CardHeader><CardTitle>Workout Preferences</CardTitle></CardHeader><CardContent className="space-y-4"><FormField control={form.control} name="primary_goal" render={({ field }) => (<FormItem><FormLabel>Primary Goal</FormLabel><Select onValueChange={field.onChange} value={field.value || ''} disabled={!isEditing}><FormControl><SelectTrigger><SelectValue placeholder="Select your goal" /></SelectTrigger></FormControl><SelectContent><SelectItem value="muscle_gain">Muscle Gain</SelectItem><SelectItem value="fat_loss">Fat Loss</SelectItem><SelectItem value="strength_increase">Strength Increase</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} /><FormField control={form.control} name="preferred_session_length" render={({ field }) => (<FormItem><FormLabel>Preferred Session Length</FormLabel><Select onValueChange={field.onChange} value={field.value || ''} disabled={!isEditing}><FormControl><SelectTrigger><SelectValue placeholder="Select length" /></SelectTrigger></FormControl><SelectContent><SelectItem value="15-30">15-30 mins</SelectItem><SelectItem value="30-45">30-45 mins</SelectItem><SelectItem value="45-60">45-60 mins</SelectItem><SelectItem value="60-90">60-90 mins</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} /></CardContent></Card>
                 <Card>
-                  <CardHeader><CardTitle>Active T-Path</CardTitle><CardDescription>Your Transformation Path is a pre-designed workout program tailored to your goals. Changing it here will regenerate your entire workout plan on the 'Workout' page, replacing your current set of exercises with a new one based on your preferences.</CardDescription></CardHeader>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Dumbbell className="h-5 w-5" /> Workout Preferences
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField control={form.control} name="primary_goal" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Primary Goal</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ''} disabled={!isEditing}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Select your goal" /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            <SelectItem value="muscle_gain">Muscle Gain</SelectItem>
+                            <SelectItem value="fat_loss">Fat Loss</SelectItem>
+                            <SelectItem value="strength_increase">Strength Increase</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="preferred_session_length" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Preferred Session Length</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ''} disabled={!isEditing}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Select length" /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            <SelectItem value="15-30">15-30 mins</SelectItem>
+                            <SelectItem value="30-45">30-45 mins</SelectItem>
+                            <SelectItem value="45-60">45-60 mins</SelectItem>
+                            <SelectItem value="60-90">60-90 mins</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <LayoutTemplate className="h-5 w-5" /> Active T-Path
+                    </CardTitle>
+                    <CardDescription>Your Transformation Path is a pre-designed workout program tailored to your goals. Changing it here will regenerate your entire workout plan on the 'Workout' page, replacing your current set of exercises with a new one based on your preferences.</CardDescription>
+                  </CardHeader>
                   <CardContent>{activeTPath && <TPathSwitcher currentTPathId={activeTPath.id} onTPathChange={(newId) => { toast.info("T-Path changed! Refreshing data..."); fetchData(); }} disabled={!isEditing} />}</CardContent>
                 </Card>
                 <Card>
