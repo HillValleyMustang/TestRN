@@ -41,6 +41,25 @@ interface UseExerciseSetsReturn {
 const MAX_SETS = 5;
 const DEFAULT_INITIAL_SETS = 3;
 
+// Helper for deep comparison of relevant parts of SetLogState
+const areSetsEqual = (a: SetLogState[], b: SetLogState[]): boolean => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const setA = a[i];
+    const setB = b[i];
+    // Compare only the 'last' values and session_id, as other fields are user-editable
+    if (
+      setA.lastWeight !== setB.lastWeight ||
+      setA.lastReps !== setB.lastReps ||
+      setA.lastTimeSeconds !== setB.lastTimeSeconds ||
+      setA.session_id !== setB.session_id
+    ) {
+      return false;
+    }
+  }
+  return true;
+};
+
 export const useExerciseSets = ({
   exerciseId,
   exerciseName, // Destructure exerciseName
@@ -55,45 +74,62 @@ export const useExerciseSets = ({
   onExerciseComplete,
   workoutTemplateName, // Destructure workoutTemplateName
 }: UseExerciseSetsProps): UseExerciseSetsReturn => {
-  const [sets, setSets] = useState<SetLogState[]>(initialSets);
+  const [sets, setSets] = useState<SetLogState[]>(() => {
+    // This initializer runs only once on the initial render.
+    // It sets up the initial state based on initialSets or defaults.
+    if (initialSets.length === 0) {
+      return Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({
+        id: null, created_at: null, session_id: propCurrentSessionId, exercise_id: exerciseId,
+        weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null,
+        is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastTimeSeconds: null,
+      }));
+    }
+    return initialSets;
+  });
+
   const [exercisePR, setExercisePR] = useState<UserExercisePR | null>(null);
   const [loadingPR, setLoadingPR] = useState(true);
-  const [internalSessionId, setInternalSessionId] = useState<string | null>(propCurrentSessionId); // Internal state for session ID
+  const [internalSessionId, setInternalSessionId] = useState<string | null>(propCurrentSessionId);
 
   // Update internalSessionId when propCurrentSessionId changes
   useEffect(() => {
     setInternalSessionId(propCurrentSessionId);
   }, [propCurrentSessionId]);
 
-  // Effect to synchronize local 'sets' state with 'initialSets' prop
-  // This handles initial setup and when the parent explicitly changes initialSets
+  // Effect to update 'last' values and session_id when initialSets (from parent) changes.
+  // This is the crucial change to break the infinite loop.
   useEffect(() => {
-    if (initialSets.length === 0) {
-      // Only set default if initialSets is truly empty (e.g., for ad-hoc or new workout)
-      const defaultSets: SetLogState[] = Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({
-        id: null,
-        created_at: null,
-        session_id: internalSessionId,
-        exercise_id: exerciseId,
-        weight_kg: null,
-        reps: null,
-        reps_l: null,
-        reps_r: null,
-        time_seconds: null,
-        is_pb: false,
-        isSaved: false,
-        isPR: false,
-        lastWeight: null,
-        lastReps: null,
-        lastTimeSeconds: null,
-      }));
-      setSets(defaultSets);
-    } else {
-      setSets(initialSets);
-    }
-  }, [initialSets, exerciseId, internalSessionId]); // Dependencies for this effect
+    setSets(prevSets => {
+      // If prevSets is empty (e.g., after reset), and initialSets has data, use initialSets
+      if (prevSets.length === 0 && initialSets.length > 0) {
+        return initialSets.map(set => ({ ...set, session_id: internalSessionId }));
+      }
 
-  // NEW EFFECT: Report local 'sets' state changes back to the parent
+      // Create a new array of sets by merging 'last' properties and session_id from initialSets
+      const newSets = prevSets.map((prevSet, index) => {
+        const initialSet = initialSets[index];
+        if (initialSet) {
+          return {
+            ...prevSet,
+            lastWeight: initialSet.lastWeight,
+            lastReps: initialSet.lastReps,
+            lastTimeSeconds: initialSet.lastTimeSeconds,
+            session_id: prevSet.session_id || internalSessionId, // Only update if prevSet.session_id is null
+          };
+        }
+        return prevSet;
+      });
+
+      // Only update state if the newSets are actually different from prevSets
+      // This prevents unnecessary re-renders and breaks the loop.
+      if (!areSetsEqual(prevSets, newSets)) {
+        return newSets;
+      }
+      return prevSets; // No change, so return previous state to prevent re-render
+    });
+  }, [initialSets, exerciseId, internalSessionId]); // Depend on initialSets and exerciseId
+
+  // Effect to report local 'sets' state changes back to the parent
   // This runs AFTER the component has rendered with the new local 'sets' state
   useEffect(() => {
     onUpdateSets(exerciseId, sets);
