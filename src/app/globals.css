@@ -94,12 +94,6 @@
     --aurora-green: 160 100% 43%; /* Vibrant Mint */
     --aurora-pink: 324 100% 44%; /* Hot Magenta */
     --aurora-yellow: 58 98% 73%; /* Pale Yellow */
-
-    /* New Fitness Level Colors */
-    --level-rookie: 210 4% 45%; /* A muted gray */
-    --level-warrior: 217 91% 60%; /* Primary blue */
-    --level-champion: 270 67% 40%; /* A deep purple, similar to workout-lower-body-b */
-    --level-legend: 43 74% 66%; /* A golden yellow, similar to chart-4 */
   }
   .dark {
 
@@ -189,12 +183,6 @@
     --aurora-green: 160 100% 55%;
     --aurora-pink: 324 100% 55%;
     --aurora-yellow: 58 98% 80%;
-
-    /* New Fitness Level Colors (Dark Mode) */
-    --level-rookie: 210 4% 65%; /* Lighter gray for dark mode */
-    --level-warrior: 217 91% 60%; /* Primary blue (can be same or adjusted) */
-    --level-champion: 270 67% 55%; /* Lighter purple for dark mode */
-    --level-legend: 43 74% 75%; /* Lighter golden yellow for dark mode */
   }
 }
 

@@ -156,8 +156,8 @@ export const getPillStyles = (workoutType: 'upper-lower' | 'push-pull-legs', cat
 
 // New utility function to get fitness level from total points
 export function getLevelFromPoints(totalPoints: number): { level: string; color: string; } {
-  if (totalPoints < 100) return { level: 'Rookie', color: 'bg-level-rookie' };
-  if (totalPoints < 300) return { level: 'Warrior', color: 'bg-level-warrior' };
-  if (totalPoints < 600) return { level: 'Champion', color: 'bg-level-champion' };
-  return { level: 'Legend', color: 'bg-level-legend' };
+  if (totalPoints < 100) return { level: 'Rookie', color: 'bg-gray-500' };
+  if (totalPoints < 300) return { level: 'Warrior', color: 'bg-blue-500' };
+  if (totalPoints < 600) return { level: 'Champion', color: 'bg-purple-500' };
+  return { level: 'Legend', color: 'bg-yellow-500' };
 }
