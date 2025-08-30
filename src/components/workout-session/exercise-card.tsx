@@ -326,20 +326,20 @@ export const ExerciseCard = ({
                               <Input
                                 id={`reps-l-${setIndex}`}
                                 type="number"
-                                placeholder="Reps (L)"
+                                placeholder="L"
                                 value={set.reps_l ?? ''}
                                 onChange={(e) => handleInputChange(setIndex, 'reps_l', e.target.value)}
                                 disabled={set.isSaved || isExerciseSaved}
-                                className="w-28 h-8 text-xs" // Increased width to w-28
+                                className="w-20 h-8 text-xs" // Reduced width to w-20
                               />
                               <Input
                                 id={`reps-r-${setIndex}`}
                                 type="number"
-                                placeholder="Reps (R)"
+                                placeholder="R"
                                 value={set.reps_r ?? ''}
                                 onChange={(e) => handleInputChange(setIndex, 'reps_r', e.target.value)}
                                 disabled={set.isSaved || isExerciseSaved}
-                                className="w-28 h-8 text-xs" // Increased width to w-28
+                                className="w-20 h-8 text-xs" // Reduced width to w-20
                               />
                             </>
                           ) : (
