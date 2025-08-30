@@ -21,7 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { TPathSwitcher } from '@/components/t-path-switcher';
 import { cn, getLevelFromPoints } from '@/lib/utils';
-import { AchievementDetailDialog } from '@/components/profile/achievement-detail-dialog'; // Removed .tsx extension
+import { AchievementDetailDialog } from '@/components/profile/achievement-detail-dialog';
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
@@ -277,7 +277,7 @@ export default function ProfilePage() {
                         key={a.id}
                         variant="ghost"
                         className={cn(
-                          "flex flex-col items-center justify-center h-28 w-full p-3 rounded-xl border-2 transition-all duration-200 ease-in-out group",
+                          "flex flex-col items-center justify-center min-h-[7rem] w-full p-3 rounded-xl border-2 transition-all duration-200 ease-in-out group", // Changed h-28 to min-h-[7rem]
                           isAchUnlocked
                             ? 'bg-yellow-50 dark:bg-yellow-950/30 border-yellow-400 dark:border-yellow-700 text-yellow-800 dark:text-yellow-300 hover:scale-105'
                             : 'bg-gray-50 dark:bg-gray-900/30 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:scale-105'
@@ -289,7 +289,7 @@ export default function ProfilePage() {
                       >
                         <div className="text-2xl mb-1 transition-transform duration-200 ease-in-out group-hover:scale-110">{a.icon}</div>
                         <div className={cn(
-                          "text-xs font-medium text-center leading-tight",
+                          "text-xs font-medium text-center leading-tight whitespace-normal", // Added whitespace-normal
                           isAchUnlocked ? "text-yellow-800 dark:text-yellow-300" : "text-gray-500 dark:text-gray-400"
                         )}>
                           {isAchUnlocked ? a.name : a.name}
