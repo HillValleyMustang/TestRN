@@ -35,7 +35,6 @@ export default function ManageExercisesPage() {
   const [userExercises, setUserExercises] = useState<FetchedExerciseDefinition[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingExercise, setEditingExercise] = useState<FetchedExerciseDefinition | null>(null);
-  // Removed isDeleteDialogOpen, exerciseToDelete, setIsDeleteDialogOpen, confirmDeleteExercise
   const [selectedMuscleFilter, setSelectedMuscleFilter] = useState<string>('all');
   const [availableMuscleGroups, setAvailableMuscleGroups] = useState<string[]>([]);
   const [exerciseWorkoutsMap, setExerciseWorkoutsMap] = useState<Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>>({});
@@ -211,14 +210,11 @@ export default function ManageExercisesPage() {
     fetchExercises();
   };
 
-  // This function is now passed to ExerciseInfoDialog for user-created exercises
   const handleDeleteExercise = async (exercise: FetchedExerciseDefinition) => {
     if (!session) {
       toast.error("You must be logged in to delete exercises.");
       return;
     }
-    // The check for user_id === null is now handled by the component calling this (ExerciseInfoDialog)
-    // and by the UI logic that only shows the delete button for user-created exercises.
     if (!exercise.id) {
       toast.error("Cannot delete an exercise without an ID.");
       return;
@@ -280,7 +276,7 @@ export default function ManageExercisesPage() {
     }
   };
 
-  const handleRemoveFromWorkout = async (workoutId: string, exerciseId: string) => {
+  const handleRemoveFromWorkout = useCallback(async (workoutId: string, exerciseId: string) => {
     if (!session) {
       toast.error("You must be logged in to remove exercises from workouts.");
       return;
@@ -306,7 +302,7 @@ export default function ManageExercisesPage() {
       console.error("Failed to remove exercise from workout:", err);
       toast.error("Failed to remove exercise from workout: " + err.message);
     }
-  };
+  }, [session, supabase, fetchExercises]); // Dependencies for useCallback
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
@@ -341,8 +337,8 @@ export default function ManageExercisesPage() {
   }, [emblaApi]);
 
   return (
-    <div className="flex flex-col gap-4"> {/* Removed p-2 sm:p-4 here */}
-      <header className="mb-4">
+    <div className="flex flex-col gap-4 p-2 sm:p-4">
+      <header className="mb-4 text-center">
         <h1 className="text-3xl font-bold">Manage Exercises</h1>
       </header>
       
@@ -393,15 +389,14 @@ export default function ManageExercisesPage() {
                       exercises={userExercises}
                       loading={loading}
                       onEdit={handleEditClick}
-                      onDelete={handleDeleteExercise} // Pass the new delete handler
-                      // Removed isDeleteDialogOpen, exerciseToDelete, setIsDeleteDialogOpen, confirmDeleteTPath
+                      onDelete={handleDeleteExercise}
                       editingExercise={editingExercise}
                       onCancelEdit={handleCancelEdit}
                       onSaveSuccess={handleSaveSuccess}
                       exerciseWorkoutsMap={exerciseWorkoutsMap}
                       onRemoveFromWorkout={handleRemoveFromWorkout}
                       onToggleFavorite={handleToggleFavorite}
-                      onAddSuccess={fetchExercises} // Pass onAddSuccess
+                      onAddSuccess={fetchExercises}
                     />
                   </TabsContent>
                 </div>

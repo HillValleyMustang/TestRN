@@ -17,7 +17,7 @@ const WorkoutBadge = ({ workoutName, className, ...props }: WorkoutBadgeProps) =
     <Badge
       className={cn(
         "px-2 py-0.5 text-xs flex items-center gap-1",
-        "bg-card", // Force white background
+        "bg-white", // Explicitly set to white background
         textColorClass, // Apply the workout-specific text color
         className
       )}
