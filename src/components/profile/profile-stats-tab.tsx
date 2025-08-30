@@ -4,7 +4,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from "@/components/ui/progress";
 import { cn } from '@/lib/utils';
-import { WeeklyMomentumBars } from './weekly-momentum-bars'; // Import the new component
+import { MonthlyMomentumBars } from './monthly-momentum-bars'; // Import the renamed component
 import { Tables } from '@/types/supabase'; // Import Tables for Profile type
 
 type Profile = Tables<'profiles'>; // Define Profile type
@@ -44,8 +44,8 @@ export const ProfileStatsTab = ({ fitnessLevel, profile }: ProfileStatsTabProps)
         </div>
       </Card>
       
-      {/* Integrate WeeklyMomentumBars here */}
-      <WeeklyMomentumBars profile={profile} />
+      {/* Integrate MonthlyMomentumBars here */}
+      <MonthlyMomentumBars profile={profile} />
 
       {/* Removed old weekly progress bar */}
     </div>
