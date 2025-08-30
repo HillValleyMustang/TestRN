@@ -79,7 +79,7 @@ export const GlobalExerciseList = ({
                 <li key={ex.id} className="flex items-center justify-between py-1 px-2 border rounded-md">
                   <div className="flex-1 py-1 px-0">
                     <span className="font-medium">
-                      {ex.name} <span className="text-sm text-muted-foreground">({ex.main_muscle})</span>
+                      {ex.name} <span className="text-sm text-muted-foreground">{ex.main_muscle}</span> {/* Removed brackets */}
                     </span>
                     {exerciseWorkoutsMap[ex.id]?.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-2">

@@ -341,7 +341,7 @@ export default function ManageExercisesPage() {
   }, [emblaApi]);
 
   return (
-    <div className="flex flex-col gap-4 p-2 sm:p-4">
+    <div className="flex flex-col gap-4"> {/* Removed p-2 sm:p-4 here */}
       <header className="mb-4">
         <h1 className="text-3xl font-bold">Manage Exercises</h1>
       </header>
@@ -387,7 +387,6 @@ export default function ManageExercisesPage() {
           <div className="relative">
             <div className="overflow-hidden" ref={emblaRef}>
               <div className="flex">
-                {/* Removed px-2 from embla__slide */}
                 <div className="embla__slide flex-[0_0_100%] min-w-0 pt-0">
                   <TabsContent value="my-exercises" className="mt-0 border-none p-0">
                     <UserExerciseList
@@ -406,7 +405,6 @@ export default function ManageExercisesPage() {
                     />
                   </TabsContent>
                 </div>
-                {/* Removed px-2 from embla__slide */}
                 <div className="embla__slide flex-[0_0_100%] min-w-0 pt-0">
                   <TabsContent value="global-library" className="mt-0 border-none p-0">
                     <GlobalExerciseList

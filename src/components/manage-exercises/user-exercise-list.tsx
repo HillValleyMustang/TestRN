@@ -109,7 +109,7 @@ export const UserExerciseList = ({
                     <span className="font-medium">
                       {ex.name}{' '}
                       <span className="text-sm text-muted-foreground">
-                        ({ex.main_muscle}){' '}
+                        {ex.main_muscle}{' '} {/* Removed brackets */}
                       </span>
                     </span>
                     {exerciseWorkoutsMap[ex.id]?.length > 0 && (
