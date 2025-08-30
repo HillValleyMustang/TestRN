@@ -246,22 +246,19 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
           console.error(`Error fetching last sets for exercise ${ex.name}:`, rpcError);
           return { exerciseId: ex.id, sets: [] };
         }
-        console.log(`Exercise ${ex.name} (ID: ${ex.id}) - lastAttemptSets from RPC:`, lastExerciseSets); // ADDED LOG
         return { exerciseId: ex.id, sets: lastExerciseSets || [] };
       });
 
       const allLastSetsData = await Promise.all(lastSetsPromises);
-      console.log("Fetched allLastSetsData:", allLastSetsData); // ADDED LOG
       const lastSetsMap = new Map<string, GetLastExerciseSetsForExerciseReturns>();
       allLastSetsData.forEach(item => lastSetsMap.set(item.exerciseId, item.sets));
 
       const initialSets: Record<string, SetLogState[]> = {};
       exercises.forEach(ex => {
         const lastAttemptSets = lastSetsMap.get(ex.id) || [];
-        console.log(`Exercise ${ex.name} (ID: ${ex.id}) - lastAttemptSets:`, lastAttemptSets); // ADDED LOG
         initialSets[ex.id] = Array.from({ length: DEFAULT_INITIAL_SETS }).map((_, setIndex) => {
           const correspondingLastSet = lastAttemptSets[setIndex]; // Match by index
-          const newSetState: SetLogState = { // Create a temporary object to log
+          return {
             id: null, created_at: null, session_id: currentSessionId, exercise_id: ex.id,
             weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null,
             is_pb: false, isSaved: false, isPR: false,
@@ -271,8 +268,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
             lastRepsR: correspondingLastSet?.reps_r || null,
             lastTimeSeconds: correspondingLastSet?.time_seconds || null,
           };
-          console.log(`  Set ${setIndex} initial state for ${ex.name}:`, newSetState); // ADDED LOG
-          return newSetState;
         });
       });
       setExercisesWithSets(initialSets);

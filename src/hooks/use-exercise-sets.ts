@@ -95,17 +95,15 @@ export const useExerciseSets = ({
   }, [propCurrentSessionId]);
 
   useEffect(() => {
-    console.log("useExerciseSets - initialSets received:", initialSets); // ADDED LOG
     setSets(prevSets => {
       if (prevSets.length === 0 && initialSets.length > 0) {
-        console.log("useExerciseSets - Initializing sets from initialSets (prevSets empty):", initialSets); // ADDED LOG
         return initialSets.map(set => ({ ...set, session_id: internalSessionId }));
       }
 
       const newSets = prevSets.map((prevSet, index) => {
         const initialSet = initialSets[index];
         if (initialSet) {
-          const updatedSet = { // Create a temporary object to log
+          return {
             ...prevSet,
             lastWeight: initialSet.lastWeight,
             lastReps: initialSet.lastReps,
@@ -114,17 +112,13 @@ export const useExerciseSets = ({
             lastTimeSeconds: initialSet.lastTimeSeconds,
             session_id: prevSet.session_id || internalSessionId,
           };
-          console.log(`useExerciseSets - Updating set ${index} with initialSet data:`, updatedSet); // ADDED LOG
-          return updatedSet;
         }
         return prevSet;
       });
 
       if (!areSetsEqual(prevSets, newSets)) {
-        console.log("useExerciseSets - Sets changed, updating state:", newSets); // ADDED LOG
         return newSets;
       }
-      console.log("useExerciseSets - Sets unchanged."); // ADDED LOG
       return prevSets;
     });
   }, [initialSets, exerciseId, internalSessionId]);
