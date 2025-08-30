@@ -27,6 +27,7 @@ interface WorkoutSession {
   id: string;
   session_date: string;
   template_name: string | null; // Keep template_name for existing workout_sessions
+  rating: number | null; // ADDED: rating to workout session
 }
 
 // @ts-ignore
@@ -68,7 +69,7 @@ serve(async (req: Request) => {
 
     const { data: sessions, error: sessionsError } = await supabaseClient
       .from('workout_sessions')
-      .select('id, session_date, template_name')
+      .select('id, session_date, template_name, rating') // MODIFIED: Added 'rating'
       .eq('user_id', user.id)
       .gte('session_date', thirtyDaysAgo.toISOString())
       .returns<WorkoutSession[]>();
@@ -92,6 +93,7 @@ serve(async (req: Request) => {
       return {
         date: session.session_date,
         name: session.template_name,
+        rating: session.rating, // ADDED: rating to workout history
         exercises: logsForSession?.map((log: SetLog) => ({
           name: log.exercise_definitions?.name,
           muscle: log.exercise_definitions?.main_muscle,
@@ -104,12 +106,13 @@ serve(async (req: Request) => {
 
     const prompt = `
       You are an expert AI fitness coach. Analyze the following workout history from the last 30 days for a user.
+      Each workout session includes a 'rating' from 1 to 5, where 5 is excellent and 1 is very poor.
       Provide a concise, encouraging, and actionable analysis.
       
       Your analysis should include:
-      1.  **Overall Progress**: A brief summary of their consistency and progress.
-      2.  **Strengths**: Identify muscle groups or exercises where they are performing well or showing consistent improvement.
-      3.  **Weaknesses/Areas for Improvement**: Identify muscle groups that are trained less frequently or exercises where progress is stalling. Be gentle and encouraging in your wording.
+      1.  **Overall Progress**: A brief summary of their consistency and progress, considering both performance and how they rated their sessions.
+      2.  **Strengths**: Identify muscle groups or exercises where they are performing well or showing consistent improvement, especially noting high-rated sessions.
+      3.  **Weaknesses/Areas for Improvement**: Identify muscle groups that are trained less frequently or exercises where progress is stalling. Pay attention to low-rated sessions – these might indicate discomfort, dislike, or excessive challenge. Be gentle and encouraging in your wording.
       4.  **Exercise Suggestions**: Recommend 1-2 specific exercises to help them with their weaknesses. Briefly explain why you are recommending them.
 
       Keep the entire response under 250 words. Format your response using markdown for readability (e.g., use headings like **Strengths** and bullet points).

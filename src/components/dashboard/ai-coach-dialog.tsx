@@ -3,14 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Bot, AlertCircle } from "lucide-react";
+import { Sparkles, Bot, AlertCircle, Info } from "lucide-react"; // ADDED: Info icon
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { ScrollArea } from '../ui/scroll-area';
-import { LoadingOverlay } from '../loading-overlay'; // Import LoadingOverlay
-import { Tables } from '@/types/supabase'; // Ensure Tables is imported
+import { LoadingOverlay } from '../loading-overlay';
+import { Tables } from '@/types/supabase';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; // ADDED: Tooltip components
 
-type AiCoachUsageLog = Tables<'ai_coach_usage_logs'>; // Define type for the new table
+type AiCoachUsageLog = Tables<'ai_coach_usage_logs'>;
 
 interface AiCoachDialogProps {
   open: boolean;
@@ -22,7 +23,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
   const [analysis, setAnalysis] = useState("");
   const [loading, setLoading] = useState(false);
   const [usageCount, setUsageCount] = useState(0);
-  const AI_COACH_LIMIT_PER_SESSION = 2; // Define the limit as a constant
+  const AI_COACH_LIMIT_PER_SESSION = 2;
 
   useEffect(() => {
     const fetchUsageData = async () => {
@@ -30,13 +31,13 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
       
       try {
         const today = new Date();
-        today.setHours(0, 0, 0, 0); // Start of today
+        today.setHours(0, 0, 0, 0);
         const tomorrow = new Date(today);
-        tomorrow.setDate(today.getDate() + 1); // Start of tomorrow
+        tomorrow.setDate(today.getDate() + 1);
 
         const { data: usageLogs, error } = await supabase
           .from('ai_coach_usage_logs')
-          .select('id') // Just need to count them
+          .select('id')
           .eq('user_id', session.user.id)
           .gte('used_at', today.toISOString())
           .lt('used_at', tomorrow.toISOString());
@@ -56,7 +57,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
   }, [open, session, supabase]);
 
   const handleAnalyze = async () => {
-    if (usageCount >= AI_COACH_LIMIT_PER_SESSION) { // Use the constant
+    if (usageCount >= AI_COACH_LIMIT_PER_SESSION) {
       toast.error(`You've reached the limit of ${AI_COACH_LIMIT_PER_SESSION} AI coach uses per session.`);
       return;
     }
@@ -76,11 +77,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
 
       setAnalysis(data.analysis);
       
-      // Increment usage count locally after successful invocation
       setUsageCount(prev => prev + 1);
-      
-      // The profile.last_ai_coach_use_at is now updated by the ai-coach edge function itself
-      // No need to update profile here.
       
     } catch (err: any) {
       console.error("AI Coach error:", err);
@@ -97,7 +94,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
     }
   }, [open]);
 
-  const canUseAiCoach = usageCount < AI_COACH_LIMIT_PER_SESSION; // Use the constant
+  const canUseAiCoach = usageCount < AI_COACH_LIMIT_PER_SESSION;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -105,6 +102,21 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <Bot className="mr-2 h-5 w-5" /> AI Fitness Coach
+            <TooltipProvider> {/* ADDED: TooltipProvider */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="ml-2 h-6 w-6">
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p className="text-sm">
+                    The AI Coach now uses your workout ratings (1-5 stars) to provide more nuanced feedback,
+                    understanding not just what you did, but how you felt about it.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </DialogTitle>
         </DialogHeader>
         <div className="py-4 flex-grow overflow-hidden">
@@ -125,7 +137,6 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
                     You've reached the limit of {AI_COACH_LIMIT_PER_SESSION} AI coach uses per session. 
                     The AI Coach needs at least 3 workouts in the last 30 days to provide advice.
                   </p>
-                  {/* Removed "Try Anyway" button as it would still hit the limit */}
                 </div>
               )}
             </div>
