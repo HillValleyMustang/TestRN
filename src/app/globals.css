@@ -83,7 +83,7 @@
     --workout-lower-body-b: 270 67% 40%; /* #6b21a8 */
     --workout-push: 0 84% 60%; /* #ef4444 */
     --workout-pull: 190 86% 36%; /* #0891b2 */
-    --workout-legs: 145 72% 29%; /* #15803d */
+    --workout-legs: 270 67% 40%; /* #6b21a8 - Now matches lower-body-b */
     --workout-bonus: 43 74% 66%; /* chart-4 */
 
 
@@ -173,7 +173,7 @@
     --workout-lower-body-b: 270 67% 40%; /* #6b21a8 */
     --workout-push: 0 84% 60%; /* #ef4444 */
     --workout-pull: 190 86% 36%; /* #0891b2 */
-    --workout-legs: 145 72% 29%; /* #15803d */
+    --workout-legs: 270 67% 40%; /* #6b21a8 - Now matches lower-body-b */
     --workout-bonus: 43 74% 66%; /* chart-4 */
 
     /* Dark mode Aurora Colors - Adjusted to retro palette */
