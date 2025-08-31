@@ -1,12 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Toaster } from 'sonner';
 import { SyncManagerInitializer } from './sync-manager-initializer';
-import { db } from '@/lib/db'; // Import db
+import { db, LocalSupabaseSession } from '@/lib/db'; // Import db and LocalSupabaseSession
 
 interface SessionContextType {
   session: Session | null;
@@ -20,18 +20,77 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  // Function to save session to IndexedDB
+  const saveSessionToIndexedDB = useCallback(async (currentSession: Session | null) => {
+    if (currentSession) {
+      await db.supabase_session.put({
+        id: 'current_session', // Fixed ID for the single session object
+        session: currentSession,
+        last_updated: Date.now(),
+      });
+    } else {
+      // If session is null, remove it from IndexedDB
+      await db.supabase_session.delete('current_session');
+    }
+  }, []);
+
+  // Function to load session from IndexedDB
+  const loadSessionFromIndexedDB = useCallback(async (): Promise<Session | null> => {
+    const localSession = await db.supabase_session.get('current_session');
+    if (localSession && localSession.session) {
+      // Check if the session is still valid (e.g., not expired)
+      const currentTime = Date.now() / 1000; // in seconds
+      if (localSession.session.expires_at && localSession.session.expires_at > currentTime) {
+        return localSession.session;
+      } else {
+        // Session expired, remove it
+        await db.supabase_session.delete('current_session');
+      }
+    }
+    return null;
+  }, []);
+
   useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
+    const initializeSession = async () => {
+      setLoading(true);
+      // 1. Try to get session from Supabase (server-side or fresh client-side)
+      const { data: { session: supabaseSession } } = await supabase.auth.getSession();
+
+      if (supabaseSession) {
+        setSession(supabaseSession);
+        await saveSessionToIndexedDB(supabaseSession);
+      } else {
+        // 2. If no session from Supabase, try to load from IndexedDB
+        const localSession = await loadSessionFromIndexedDB();
+        if (localSession) {
+          setSession(localSession);
+          // Attempt to refresh the session in the background if it's from IndexedDB
+          // This helps ensure we have the latest token when online
+          supabase.auth.setSession(localSession).then(() => {
+            supabase.auth.refreshSession().then(({ data, error }) => {
+              if (data?.session) {
+                setSession(data.session);
+                saveSessionToIndexedDB(data.session);
+              } else if (error) {
+                console.error("Error refreshing session from IndexedDB:", error);
+                // If refresh fails, consider the local session invalid
+                setSession(null);
+                saveSessionToIndexedDB(null);
+              }
+            });
+          });
+        }
+      }
       setLoading(false);
     };
 
-    getSession();
+    initializeSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setLoading(false);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      setSession(newSession);
+      await saveSessionToIndexedDB(newSession); // Always save the latest session state
+      setLoading(false); // Ensure loading is false after any auth state change
+
       if (_event === 'SIGNED_OUT') {
         router.push('/login');
         // Clear all IndexedDB data on sign out
@@ -44,7 +103,7 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
     });
 
     return () => subscription.unsubscribe();
-  }, [router]);
+  }, [router, saveSessionToIndexedDB, loadSessionFromIndexedDB]);
 
   if (loading) {
     return null; // Or a loading spinner

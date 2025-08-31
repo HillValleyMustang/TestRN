@@ -2,6 +2,7 @@
 
 import Dexie, { Table } from 'dexie';
 import { TablesInsert, TablesUpdate } from '@/types/supabase';
+import { Session } from '@supabase/supabase-js'; // Import Session type
 
 export interface SyncQueueItem {
   id?: number;
@@ -33,11 +34,19 @@ export interface LocalDraftSetLog {
   time_seconds: number | null;
 }
 
+// New interface for storing the Supabase session
+export interface LocalSupabaseSession {
+  id: string; // A fixed ID, e.g., 'current_session'
+  session: Session;
+  last_updated: number; // Timestamp for when it was last updated
+}
+
 export class AppDatabase extends Dexie {
   workout_sessions!: Table<LocalWorkoutSession, string>;
   set_logs!: Table<LocalSetLog, string>;
   sync_queue!: Table<SyncQueueItem, number>;
   draft_set_logs!: Table<LocalDraftSetLog, [string, number]>; // Composite primary key
+  supabase_session!: Table<LocalSupabaseSession, string>; // New table for Supabase session
 
   constructor() {
     super('WorkoutTrackerDB');
@@ -46,6 +55,12 @@ export class AppDatabase extends Dexie {
       set_logs: '&id, session_id, exercise_id',
       sync_queue: '++id, timestamp',
       draft_set_logs: '[exercise_id+set_index], session_id', // Define composite key
+    });
+    this.version(2).stores({
+      supabase_session: '&id', // Primary key is 'id'
+    }).upgrade(tx => {
+      // Add any migration logic here if needed for existing users
+      // For now, we just add the new table.
     });
   }
 }
