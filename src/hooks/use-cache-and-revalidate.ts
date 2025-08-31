@@ -68,7 +68,7 @@ export function useCacheAndRevalidate<T extends { id: string; user_id: string | 
       setLoading(false);
       setIsRevalidating(false);
     }
-  }, [supabase, isRevalidating, supabaseQuery, queryKey, cacheTable]);
+  }, [supabase, supabaseQuery, queryKey, cacheTable]); // Removed isRevalidating from dependencies
 
   useEffect(() => {
     // We still wait for sessionUserId to be defined before fetching from the server.
