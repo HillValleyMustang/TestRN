@@ -33,29 +33,36 @@ export function useCacheAndRevalidate<T extends { id: string; user_id: string | 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRevalidating, setIsRevalidating] = useState(false);
+  const [filteredData, setFilteredData] = useState<T[] | undefined>(undefined);
 
-  // Use Dexie's useLiveQuery to reactively get data from IndexedDB
-  const cachedData = useLiveQuery(
+  // Step 1: Fetch ALL data from the cache table without filtering.
+  // This avoids passing a potentially undefined key to Dexie.
+  const allCachedData = useLiveQuery(
     () => {
-      // Guard against running the query with an undefined sessionUserId during initial load
-      if (sessionUserId === undefined) {
-        return []; // Return an empty array and wait for the session to be determined
-      }
-
       const table = db[cacheTable] as typeof cacheTable extends 'exercise_definitions_cache' 
         ? typeof db.exercise_definitions_cache 
         : typeof db.t_paths_cache;
-
-      if (sessionUserId) {
-        // User is logged in, fetch their items AND global items (user_id is null)
-        return table.where('user_id').equals(sessionUserId).or('user_id').equals(null as any).toArray() as unknown as Promise<T[]>;
-      } else {
-        // User is not logged in (sessionUserId is null), fetch only global items
-        return table.where('user_id').equals(null as any).toArray() as unknown as Promise<T[]>;
-      }
+      return table.toArray() as unknown as Promise<T[]>;
     },
-    [cacheTable, sessionUserId]
+    [cacheTable] // Only depends on the table name
   );
+
+  // Step 2: Filter the data in a useEffect once both the data and session are ready.
+  useEffect(() => {
+    if (sessionUserId === undefined || allCachedData === undefined) {
+      // If session or data is not ready, do nothing and wait.
+      return;
+    }
+
+    if (sessionUserId === null) {
+      // User is logged out, show only global items
+      setFilteredData(allCachedData.filter(item => item.user_id === null));
+    } else {
+      // User is logged in, show their items and global items
+      setFilteredData(allCachedData.filter(item => item.user_id === sessionUserId || item.user_id === null));
+    }
+  }, [allCachedData, sessionUserId]);
+
 
   const fetchDataAndRevalidate = useCallback(async () => {
     if (!supabase || isRevalidating) return;
@@ -69,25 +76,22 @@ export function useCacheAndRevalidate<T extends { id: string; user_id: string | 
       if (remoteError) {
         console.error(`Error fetching ${queryKey} from Supabase:`, remoteError);
         setError(remoteError.message || `Failed to fetch ${queryKey}.`);
-        // If remote fetch fails, we still want to show cached data if available
         setLoading(false);
         return;
       }
 
       if (remoteData) {
-        // Dynamically select the correct table for operations
         const table = db[cacheTable] as typeof cacheTable extends 'exercise_definitions_cache' 
           ? typeof db.exercise_definitions_cache 
           : typeof db.t_paths_cache;
 
-        // Convert remoteData to a Map for easier comparison
         const remoteMap = new Map(remoteData.map(item => [item.id, item]));
-        const cachedMap = new Map((cachedData || []).map(item => [item.id, item]));
+        const cachedMap = new Map((allCachedData || []).map(item => [item.id, item]));
 
         let needsUpdate = false;
         const itemsToPut: T[] = [];
+        const itemsToDelete: string[] = [];
 
-        // Check for new or updated items
         for (const remoteItem of remoteData) {
           const cachedItem = cachedMap.get(remoteItem.id);
           if (!cachedItem || JSON.stringify(remoteItem) !== JSON.stringify(cachedItem)) {
@@ -96,19 +100,23 @@ export function useCacheAndRevalidate<T extends { id: string; user_id: string | 
           }
         }
 
-        // Check for deleted items (items in cache but not in remote)
-        for (const cachedItem of (cachedData || [])) {
+        for (const cachedItem of (allCachedData || [])) {
           if (!remoteMap.has(cachedItem.id)) {
             needsUpdate = true;
-            // Mark for deletion from cache
-            await table.delete(cachedItem.id);
+            itemsToDelete.push(cachedItem.id);
           }
         }
 
         if (needsUpdate) {
-          // Use bulkPut for efficiency, it handles both inserts and updates
-          await table.bulkPut(itemsToPut as any);
-          console.log(`Cached ${itemsToPut.length} items for ${queryKey}.`);
+          await db.transaction('rw', table, async () => {
+            if (itemsToDelete.length > 0) {
+              await table.bulkDelete(itemsToDelete);
+            }
+            if (itemsToPut.length > 0) {
+              await table.bulkPut(itemsToPut as any);
+            }
+          });
+          console.log(`Synced cache for ${queryKey}.`);
         }
       }
     } catch (err: any) {
@@ -118,30 +126,19 @@ export function useCacheAndRevalidate<T extends { id: string; user_id: string | 
       setLoading(false);
       setIsRevalidating(false);
     }
-  }, [supabase, supabaseQuery, queryKey, cachedData, cacheTable, isRevalidating, sessionUserId]);
+  }, [supabase, supabaseQuery, queryKey, allCachedData, cacheTable, isRevalidating]);
 
   useEffect(() => {
-    // On initial load or when dependencies change, try to revalidate
-    if (sessionUserId !== undefined) { // Check for undefined to allow null for global data
+    if (sessionUserId !== undefined) {
       fetchDataAndRevalidate();
     } else {
-      // If sessionUserId is undefined (e.g., not yet loaded), or explicitly null,
-      // we might need to clear cache or handle global data differently.
-      // For now, if no user, clear user-specific cache and stop loading.
-      // Global data (user_id: null) will be fetched if sessionUserId is null.
-      if (sessionUserId === null) {
-        const table = db[cacheTable] as typeof cacheTable extends 'exercise_definitions_cache' 
-          ? typeof db.exercise_definitions_cache 
-          : typeof db.t_paths_cache;
-        table.where('user_id').notEqual(null as any).delete(); // Clear only user-specific data
-      }
       setLoading(false);
     }
-  }, [fetchDataAndRevalidate, sessionUserId, cacheTable]);
+  }, [fetchDataAndRevalidate, sessionUserId]);
 
   const refresh = useCallback(() => {
     fetchDataAndRevalidate();
   }, [fetchDataAndRevalidate]);
 
-  return { data: cachedData as T[] | undefined, loading, error, refresh };
+  return { data: filteredData, loading: loading || filteredData === undefined, error, refresh };
 }
