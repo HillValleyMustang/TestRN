@@ -4,14 +4,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { Tables, SetLogState, WorkoutExercise, Profile as ProfileType, UserAchievement, GetLastExerciseSetsForExerciseReturns } from '@/types/supabase'; // Import UserAchievement and new RPC types
+import { Tables, SetLogState, WorkoutExercise, Profile as ProfileType, UserAchievement, GetLastExerciseSetsForExerciseReturns } from '@/types/supabase';
+import { v4 as uuidv4 } from 'uuid';
+import { db, addToSyncQueue, LocalWorkoutSession } from '@/lib/db';
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type WorkoutSession = Tables<'workout_sessions'>;
-
-// Define a partial type for workout sessions used in achievement checks
-type WorkoutSessionForAchievements = Pick<WorkoutSession, 'session_date' | 'template_name'>;
 
 interface WorkoutWithLastCompleted extends TPath {
   last_completed_at: string | null;
@@ -55,16 +54,6 @@ interface UseWorkoutFlowManagerReturn {
 
 const DEFAULT_INITIAL_SETS = 3;
 
-// Achievement IDs (kept here for reference, but logic moved to server)
-const ACHIEVEMENT_IDS = {
-  FIRST_WORKOUT: 'first_workout',
-  TEN_DAY_STREAK: 'ten_day_streak',
-  TWENTY_FIVE_WORKOUTS: 'twenty_five_workouts',
-  FIFTY_WORKOUTS: 'fifty_workouts',
-  PERFECT_WEEK: 'perfect_week',
-  BEAST_MODE: 'beast_mode',
-};
-
 export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, router }: UseWorkoutFlowManagerProps): UseWorkoutFlowManagerReturn => {
   const [activeWorkout, setActiveWorkout] = useState<TPath | null>(null);
   const [exercisesForSession, setExercisesForSession] = useState<WorkoutExercise[]>([]);
@@ -74,7 +63,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
   const [error, setError] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
-  const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set()); // Corrected initialization
+  const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(initialWorkoutId ?? null);
   const [groupedTPaths, setGroupedTPaths] = useState<GroupedTPath[]>([]);
   const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, WorkoutExercise[]>>({});
@@ -186,37 +175,40 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     prefetchAllData();
   }, [session, supabase]);
 
-  // New function to create the workout session in the database
   const createWorkoutSessionInDb = useCallback(async (templateName: string, firstSetTimestamp: string): Promise<string> => {
     if (!session) throw new Error("User not authenticated.");
     setIsCreatingSession(true);
     try {
-      const { data: sessionData, error: sessionError } = await supabase
-        .from('workout_sessions')
-        .insert({ user_id: session.user.id, template_name: templateName, session_date: firstSetTimestamp })
-        .select('id, session_date')
-        .single();
+      const newSessionId = uuidv4();
+      const sessionDataToSave: LocalWorkoutSession = {
+        id: newSessionId,
+        user_id: session.user.id,
+        template_name: templateName,
+        session_date: firstSetTimestamp,
+        duration_string: null,
+        rating: null,
+        created_at: new Date().toISOString(),
+        completed_at: null,
+      };
 
-      if (sessionError || !sessionData) {
-        throw new Error(sessionError?.message || "Failed to create workout session in DB.");
-      }
-      setCurrentSessionId(sessionData.id);
-      setSessionStartTime(new Date(sessionData.session_date));
-      // Removed: toast.success("Workout session started!");
-      return sessionData.id;
+      await db.workout_sessions.put(sessionDataToSave);
+      await addToSyncQueue('create', 'workout_sessions', sessionDataToSave);
+
+      setCurrentSessionId(newSessionId);
+      setSessionStartTime(new Date(firstSetTimestamp));
+      return newSessionId;
     } catch (err: any) {
-      setError(err.message || "Failed to create workout session.");
-      toast.error(err.message || "Failed to create workout session.");
-      throw err; // Re-throw to propagate the error
+      setError(err.message || "Failed to create workout session locally.");
+      toast.error(err.message || "Failed to create workout session locally.");
+      throw err;
     } finally {
       setIsCreatingSession(false);
     }
-  }, [session, supabase]);
+  }, [session]);
 
   const selectWorkout = useCallback(async (workoutId: string | null) => {
     setSelectedWorkoutId(workoutId);
     if (workoutId) {
-      // Reset session-specific states, but don't create DB entry yet
       resetWorkoutSession();
 
       let currentWorkout: TPath | null = null;
@@ -239,7 +231,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       setActiveWorkout(currentWorkout);
       setExercisesForSession(exercises);
 
-      // Fetch last sets data for initial display (without creating session)
       const lastSetsPromises = exercises.map(async (ex) => {
         if (!session) return { exerciseId: ex.id, sets: [] };
         const { data: lastExerciseSets, error: rpcError } = await supabase.rpc('get_last_exercise_sets_for_exercise', {
@@ -250,7 +241,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
           console.error(`Error fetching last sets for exercise ${ex.name}:`, rpcError);
           return { exerciseId: ex.id, sets: [] };
         }
-        console.log(`[DEBUG] RPC result for ${ex.name} (ID: ${ex.id}):`, lastExerciseSets); // ADDED DEBUG LOG
         return { exerciseId: ex.id, sets: lastExerciseSets || [] };
       });
 
@@ -262,7 +252,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       exercises.forEach(ex => {
         const lastAttemptSets = lastSetsMap.get(ex.id) || [];
         initialSets[ex.id] = Array.from({ length: DEFAULT_INITIAL_SETS }).map((_, setIndex) => {
-          const correspondingLastSet = lastAttemptSets[setIndex]; // Match by index
+          const correspondingLastSet = lastAttemptSets[setIndex];
           return {
             id: null, created_at: null, session_id: currentSessionId, exercise_id: ex.id,
             weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null,
@@ -289,21 +279,15 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
   }, [initialWorkoutId, loading, selectWorkout]);
 
   const updateSessionStartTime = useCallback(async (timestamp: string) => {
-    // This function is now redundant as session creation is handled by createWorkoutSessionInDb
-    // and sessionStartTime is set there.
-    // However, if it's called, we ensure currentSessionId exists before attempting to update.
     if (currentSessionId && !sessionStartTime) {
-      const { error } = await supabase.from('workout_sessions').update({ session_date: timestamp }).eq('id', currentSessionId);
-      if (error) toast.error("Failed to record workout start time.");
-      else setSessionStartTime(new Date(timestamp));
+      setSessionStartTime(new Date(timestamp));
     }
-  }, [currentSessionId, sessionStartTime, supabase]);
+  }, [currentSessionId, sessionStartTime]);
 
   const addExerciseToSession = useCallback(async (exercise: ExerciseDefinition) => {
-    if (!session) return; // Ensure session exists for user_id
-    let lastWeight = null, lastReps = null, lastTimeSeconds = null, lastRepsL = null, lastRepsR = null; // Initialize new last reps
+    if (!session) return;
+    let lastWeight = null, lastReps = null, lastTimeSeconds = null, lastRepsL = null, lastRepsR = null;
     
-    // Fetch last sets for this exercise to populate initial values for new ad-hoc sets
     const { data: lastExerciseSets, error: rpcError } = await supabase.rpc('get_last_exercise_sets_for_exercise', {
       p_user_id: session.user.id,
       p_exercise_id: exercise.id,
@@ -312,7 +296,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     if (rpcError) {
       console.error(`Error fetching last sets for ad-hoc exercise ${exercise.name}:`, rpcError);
     } else if (lastExerciseSets && lastExerciseSets.length > 0) {
-      // For ad-hoc, we might just take the first set's last data as a general guide
       const firstLastSet = lastExerciseSets[0];
       lastWeight = firstLastSet.weight_kg;
       lastReps = firstLastSet.reps;
@@ -326,7 +309,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       id: null, created_at: null, session_id: currentSessionId, exercise_id: exercise.id, 
       weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, 
       is_pb: false, isSaved: false, isPR: false, 
-      lastWeight, lastReps, lastRepsL, lastRepsR, lastTimeSeconds // Use fetched last data
+      lastWeight, lastReps, lastRepsL, lastRepsR, lastTimeSeconds
     })) }));
   }, [currentSessionId, session, supabase]);
 
@@ -353,8 +336,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     setExercisesWithSets(prev => ({ ...prev, [exerciseId]: newSets }));
   }, []);
 
-  // Achievement Checkers (removed from here, now handled by server-side Edge Function)
-
   const finishWorkoutSession = useCallback(async () => {
     if (!currentSessionId || !sessionStartTime || !session) {
       toast.error("Workout session not properly started or no sets logged yet.");
@@ -375,32 +356,29 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     }
 
     try {
-      const { error: updateError } = await supabase
-        .from('workout_sessions')
-        .update({ duration_string: durationString, completed_at: endTime.toISOString() }) // Set completed_at here
-        .eq('id', currentSessionId);
-
-      if (updateError) {
-        throw new Error(updateError.message);
-      }
+      const updatePayload = { duration_string: durationString, completed_at: endTime.toISOString() };
+      
+      // Update local DB first
+      await db.workout_sessions.update(currentSessionId, updatePayload);
+      
+      // Add to sync queue
+      await addToSyncQueue('update', 'workout_sessions', { id: currentSessionId, ...updatePayload });
 
       // Explicitly invoke the achievement processing function from the client
-      // This replaces the database trigger
       const { error: achievementError } = await supabase.functions.invoke('process-achievements', {
         body: { user_id: session.user.id, session_id: currentSessionId },
       });
 
       if (achievementError) {
-        // We won't block the user flow for this, just log it and show a toast
         console.error("Error processing achievements:", achievementError);
         toast.warning("Could not check for new achievements, but your workout was saved!");
       }
 
-      toast.success("Workout session finished and duration saved!");
-      router.push(`/workout-summary/${currentSessionId}`); // No query params needed here
-      resetWorkoutSession(); // Reset state after finishing
+      toast.success("Workout session finished and saved locally!");
+      router.push(`/workout-summary/${currentSessionId}`);
+      resetWorkoutSession();
     } catch (err: any) {
-      toast.error("Failed to save workout duration: " + err.message);
+      toast.error("Failed to save workout duration locally: " + err.message);
       console.error("Error saving duration:", err);
     }
   }, [currentSessionId, sessionStartTime, session, supabase, router, resetWorkoutSession]);
