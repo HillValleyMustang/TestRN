@@ -24,6 +24,7 @@ interface UseExerciseSetsProps {
   onFirstSetSaved: (timestamp: string) => Promise<string>;
   onExerciseComplete: (exerciseId: string, isNewPR: boolean) => Promise<void>;
   workoutTemplateName: string;
+  exerciseNumber: number; // Added exerciseNumber prop
 }
 
 interface UseExerciseSetsReturn {
@@ -74,6 +75,7 @@ export const useExerciseSets = ({
   onFirstSetSaved,
   onExerciseComplete,
   workoutTemplateName,
+  exerciseNumber, // Destructure exerciseNumber
 }: UseExerciseSetsProps): UseExerciseSetsReturn => {
   const [sets, setSets] = useState<SetLogState[]>(() => {
     if (initialSets.length === 0) {
@@ -268,10 +270,34 @@ export const useExerciseSets = ({
   }, [exerciseId, exerciseType, exerciseCategory, supabase, preferredWeightUnit]);
 
   const handleSaveSet = useCallback(async (setIndex: number) => {
-    if (!internalSessionId) {
-      toast.error("Workout session not started. Please save the exercise to start the session.");
+    const currentSet = sets[setIndex];
+    const hasData = (currentSet.weight_kg !== null && currentSet.weight_kg > 0) ||
+                    (currentSet.reps !== null && currentSet.reps > 0) ||
+                    (currentSet.time_seconds !== null && currentSet.time_seconds > 0) ||
+                    (currentSet.reps_l !== null && currentSet.reps_l > 0) ||
+                    (currentSet.reps_r !== null && currentSet.reps_r > 0);
+
+    if (!hasData) {
+      toast.error(`Set ${setIndex + 1}: Please input data before saving.`);
       return;
     }
+
+    if (!internalSessionId) {
+      // Session not started, save to local state only
+      setSets(prev => {
+        const newSets = [...prev];
+        newSets[setIndex] = { ...newSets[setIndex], isSaved: true };
+        return newSets;
+      });
+
+      // Only show the reminder toast for the first set of the first exercise
+      if (exerciseNumber === 1 && setIndex === 0) {
+        toast.info("Don't forget to hit 'Save Exercise' once you're done to start the Workout Session.");
+      }
+      return; // Do not proceed with DB save
+    }
+
+    // If session is started, proceed with DB save
     const { savedSet } = await saveSingleSetToDatabase(sets[setIndex], setIndex, internalSessionId);
     if (savedSet) {
       setSets(prev => {
@@ -280,7 +306,7 @@ export const useExerciseSets = ({
         return newSets;
       });
     }
-  }, [sets, internalSessionId, saveSingleSetToDatabase]);
+  }, [sets, internalSessionId, saveSingleSetToDatabase, exerciseNumber, exerciseType, exerciseCategory, preferredWeightUnit]);
 
   const handleEditSet = useCallback((setIndex: number) => {
     setSets(prev => {
@@ -330,7 +356,6 @@ export const useExerciseSets = ({
         const newSessionId = await onFirstSetSaved(new Date().toISOString());
         currentSessionIdToUse = newSessionId;
         setInternalSessionId(newSessionId); // Update state immediately
-        // Removed: toast.success("Workout session started!");
       } catch (err) {
         toast.error("Failed to start workout session. Please try again.");
         console.error("Error creating session on first set save:", err);
@@ -446,9 +471,6 @@ export const useExerciseSets = ({
 
         if (upsertError) throw upsertError;
         setExercisePR(updatedPR as UserExercisePR);
-        // Removed: toast.success(`New Exercise Personal Record for ${exerciseName}!`);
-      } else {
-        // Removed: toast.success(`${exerciseName} completed!`);
       }
 
       await onExerciseComplete(exerciseId, isNewPROverall);
@@ -458,7 +480,7 @@ export const useExerciseSets = ({
       toast.error("Failed to complete exercise: " + err.message);
       return false;
     }
-  }, [sets, exerciseType, exerciseCategory, exercisePR, exerciseId, supabase, onExerciseComplete, exerciseName, onFirstSetSaved, internalSessionId, saveSingleSetToDatabase]);
+  }, [sets, exerciseType, exerciseCategory, exercisePR, exerciseId, supabase, onExerciseComplete, onFirstSetSaved, internalSessionId, saveSingleSetToDatabase]);
 
   const handleSuggestProgression = useCallback(async () => {
     if (!supabase) {

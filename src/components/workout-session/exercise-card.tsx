@@ -121,6 +121,7 @@ export const ExerciseCard = ({
       onExerciseCompleted(id, isNewPR);
     },
     workoutTemplateName, // Pass workoutTemplateName
+    exerciseNumber, // Pass exerciseNumber here
   });
 
   const handleSaveSetAndStartTimer = async (setIndex: number) => {
