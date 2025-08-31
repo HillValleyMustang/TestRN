@@ -229,6 +229,7 @@ export const useExerciseSets = ({
         reps_r: newSet.reps_r,
         time_seconds: newSet.time_seconds,
       };
+      console.log("[DEBUG] Adding draft set:", draftPayload); // Debug log
       db.draft_set_logs.put(draftPayload); // No await needed, fire and forget
       return [...prev, newSet];
     });
@@ -264,6 +265,7 @@ export const useExerciseSets = ({
         reps_r: newSets[setIndex].reps_r,
         time_seconds: newSets[setIndex].time_seconds,
       };
+      console.log("[DEBUG] Updating draft set:", draftPayload); // Debug log
       db.draft_set_logs.put(draftPayload); // No await needed, fire and forget
 
       return newSets;
@@ -296,6 +298,7 @@ export const useExerciseSets = ({
         toast.info("Don't forget to hit 'Save Exercise' once you're done to start the Workout Session.");
       }
       // Clear draft for this set as it's now "optimistically saved"
+      console.log("[DEBUG] Deleting draft set (optimistic save):", [exerciseId, setIndex]); // Debug log
       db.draft_set_logs.delete([exerciseId, setIndex]);
       return;
     }
@@ -306,6 +309,7 @@ export const useExerciseSets = ({
         const newSets = [...prev];
         newSets[setIndex] = savedSet;
         // Clear draft for this set
+        console.log("[DEBUG] Deleting draft set (successful save):", [exerciseId, setIndex]); // Debug log
         db.draft_set_logs.delete([exerciseId, setIndex]);
         return newSets;
       });
@@ -331,6 +335,7 @@ export const useExerciseSets = ({
         reps_r: updatedSets[setIndex].reps_r,
         time_seconds: updatedSets[setIndex].time_seconds,
       };
+      console.log("[DEBUG] Editing draft set:", draftPayload); // Debug log
       db.draft_set_logs.put(draftPayload);
       return updatedSets;
     });
@@ -343,6 +348,7 @@ export const useExerciseSets = ({
     const previousSets = sets;
     setSets(prev => prev.filter((_, i) => i !== setIndex));
     // Clear draft for this set
+    console.log("[DEBUG] Deleting draft set (from UI):", [exerciseId, setIndex]); // Debug log
     db.draft_set_logs.delete([exerciseId, setIndex]);
     toast.success("Set removed.");
 
@@ -429,6 +435,7 @@ export const useExerciseSets = ({
       const isNewPROverall = await updateExercisePRStatus(currentSessionIdToUse, updatedSetsState);
       await onExerciseComplete(exerciseId, isNewPROverall);
       // Clear all drafts for this exercise after successful completion
+      console.log("[DEBUG] Clearing all drafts for exercise after completion:", exerciseId); // Debug log
       await db.draft_set_logs.where({ exercise_id: exerciseId }).delete();
       return true;
     } catch (err: any) {
@@ -444,6 +451,7 @@ export const useExerciseSets = ({
       setSets(newSets);
       toast.info(message);
       // Save newly suggested sets as drafts
+      console.log("[DEBUG] Deleting existing drafts for progression suggestion:", { exercise_id: exerciseId, session_id: internalSessionId }); // Debug log
       await db.draft_set_logs.where({ exercise_id: exerciseId, session_id: internalSessionId }).delete(); // Clear existing drafts first
       const draftPayloads: LocalDraftSetLog[] = newSets.map((set, index) => ({
         exercise_id: exerciseId,
@@ -455,6 +463,7 @@ export const useExerciseSets = ({
         reps_r: set.reps_r,
         time_seconds: set.time_seconds,
       }));
+      console.log("[DEBUG] Bulk putting suggested drafts:", draftPayloads); // Debug log
       await db.draft_set_logs.bulkPut(draftPayloads);
     }
   }, [sets.length, internalSessionId, getProgressionSuggestion, exerciseId]);
