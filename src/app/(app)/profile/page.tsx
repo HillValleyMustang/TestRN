@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
-import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { FormProvider, useForm } from "react-hook-form"; // Import FormProvider
+import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from 'sonner';
@@ -17,12 +16,11 @@ import { cn, getLevelFromPoints } from '@/lib/utils';
 import { AchievementDetailDialog } from '@/components/profile/achievement-detail-dialog';
 import useEmblaCarousel from 'embla-carousel-react';
 
-// Import new modular components
 import { ProfileHeader } from '@/components/profile/profile-header';
 import { ProfileOverviewTab } from '@/components/profile/profile-overview-tab';
 import { ProfileStatsTab } from '@/components/profile/profile-stats-tab';
 import { ProfileSettingsTab } from '@/components/profile/profile-settings-tab';
-import { achievementsList } from '@/lib/achievements'; // Import achievementsList
+import { achievementsList } from '@/lib/achievements';
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
@@ -44,12 +42,10 @@ const profileSchema = z.object({
   preferred_muscles: z.array(z.string()).optional().nullable(),
 });
 
-// Achievement IDs (must match those in process-achievements Edge Function)
-// Removed local definition, now imported from achievements.ts
-
 export default function ProfilePage() {
   const { session, supabase } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams(); // Get search params
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -59,7 +55,7 @@ export default function ProfilePage() {
 
   const [isAchievementDetailOpen, setIsAchievementDetailOpen] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<{ id: string; name: string; icon: string } | null>(null);
-  const [activeTab, setActiveTab] = useState("overview"); // State to control active tab
+  const [activeTab, setActiveTab] = useState("overview");
 
   const AI_COACH_LIMIT_PER_SESSION = 2;
 
@@ -133,8 +129,23 @@ export default function ProfilePage() {
   }, [session, supabase, form]);
 
   useEffect(() => {
-    if (!session) router.push('/login'); else fetchData();
-  }, [session, router, fetchData]);
+    if (!session) {
+      router.push('/login');
+      return;
+    }
+    fetchData();
+
+    // Handle URL parameters for initial tab and edit mode
+    const tabParam = searchParams.get('tab');
+    const editParam = searchParams.get('edit');
+
+    if (tabParam === 'settings') {
+      setActiveTab('settings');
+      if (editParam === 'true') {
+        setIsEditing(true);
+      }
+    }
+  }, [session, router, fetchData, searchParams]);
 
   const { bmi, dailyCalories } = useMemo(() => {
     const weight = profile?.weight_kg;
@@ -202,7 +213,7 @@ export default function ProfilePage() {
     } else {
       toast.success("Profile updated successfully!");
       await fetchData();
-      setIsEditing(false);
+      setIsEditing(false); // Set editing to false after successful save
     }
   }
 
@@ -261,7 +272,7 @@ export default function ProfilePage() {
       <div className="p-2 sm:p-4 max-w-4xl mx-auto">
         <ProfileHeader
           isEditing={isEditing}
-          onEditToggle={() => setIsEditing(true)}
+          onEditToggle={() => setIsEditing(prev => !prev)} // Toggle edit state
           onSave={form.handleSubmit(onSubmit)}
         />
 
@@ -306,7 +317,7 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
-                  <FormProvider {...form}> {/* Wrap settings tab with FormProvider */}
+                  <FormProvider {...form}>
                     <ProfileSettingsTab
                       form={form}
                       isEditing={isEditing}
@@ -340,7 +351,6 @@ export default function ProfilePage() {
             </button>
           </div>
         </Tabs>
-        <MadeWithDyad />
       </div>
 
       <AchievementDetailDialog
