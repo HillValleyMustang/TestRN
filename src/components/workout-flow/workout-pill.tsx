@@ -12,6 +12,7 @@ export interface WorkoutPillProps {
   completedAt: Date | null;
   isSelected: boolean;
   onClick: (id: string) => void;
+  className?: string; // Added className prop
 }
 
 export const WorkoutPill = ({
@@ -23,6 +24,7 @@ export const WorkoutPill = ({
   completedAt,
   isSelected,
   onClick,
+  className, // Destructure className here
 }: WorkoutPillProps) => {
   const {
     Icon,
@@ -46,7 +48,8 @@ export const WorkoutPill = ({
         isSelected
           ? cn(selectedBgClass, selectedTextClass, selectedBorderClass, selectedShadowClass, 'opacity-100 scale-100')
           : cn(unselectedBgClass, unselectedTextClass, unselectedBorderClass, unselectedShadowClass, 'opacity-100 scale-98'),
-        'hover:scale-102 active:scale-98'
+        'hover:scale-102 active:scale-98',
+        className // Apply the className here
       )}
     >
       <Icon className={cn("w-6 h-6 flex-shrink-0", isSelected ? 'text-white' : unselectedTextClass)} strokeWidth={2.5} />

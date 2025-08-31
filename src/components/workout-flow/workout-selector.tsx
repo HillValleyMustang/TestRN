@@ -147,19 +147,38 @@ export const WorkoutSelector = ({
               {group.childWorkouts.length === 0 ? (
                 <p className="text-muted-foreground text-sm ml-7">No workouts defined for this path. This may happen if your session length is too short for any workouts.</p>
               ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  {group.childWorkouts.map(workout => {
-                    const pillProps = mapWorkoutToPillProps(workout, group.mainTPath.template_name);
-                    return (
-                      <WorkoutPill
-                        key={workout.id}
-                        {...pillProps}
-                        isSelected={selectedWorkoutId === workout.id}
-                        onClick={handleWorkoutClick}
-                      />
-                    );
-                  })}
-                </div>
+                <> {/* Use a fragment here to allow multiple top-level elements */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {group.childWorkouts.slice(0, 2).map(workout => { // Render first two workouts
+                      const pillProps = mapWorkoutToPillProps(workout, group.mainTPath.template_name);
+                      return (
+                        <WorkoutPill
+                          key={workout.id}
+                          {...pillProps}
+                          isSelected={selectedWorkoutId === workout.id}
+                          onClick={handleWorkoutClick}
+                        />
+                      );
+                    })}
+                  </div>
+                  {group.childWorkouts.length === 3 && ( // Conditionally render the third workout
+                    <div className="flex justify-center mt-2"> {/* Flex container to center the single pill */}
+                      {(() => {
+                        const workout = group.childWorkouts[2];
+                        const pillProps = mapWorkoutToPillProps(workout, group.mainTPath.template_name);
+                        return (
+                          <WorkoutPill
+                            key={workout.id}
+                            {...pillProps}
+                            isSelected={selectedWorkoutId === workout.id}
+                            onClick={handleWorkoutClick}
+                            className="max-w-[calc(50%-0.25rem)]" // Constrain width to match a single grid column
+                          />
+                        );
+                      })()}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           ))
