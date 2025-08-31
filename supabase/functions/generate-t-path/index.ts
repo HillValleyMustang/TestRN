@@ -28,6 +28,13 @@ interface WorkoutStructureEntry {
   bonus_for_time_group: number | null;
 }
 
+// NEW: Define a specific type for exercise definitions when fetched for workout generation
+interface ExerciseDefinitionForWorkoutGeneration {
+  id: string;
+  name: string;
+  user_id: string | null;
+}
+
 // Helper to convert CSV string to null if empty or a number
 const toNullOrNumber = (val: string | null | undefined): number | null => {
   if (val === null || val === undefined || val.trim() === '') return null;
@@ -257,7 +264,7 @@ const cleanupExistingChildWorkouts = async (supabaseServiceRoleClient: any, tPat
 
   if (existingChildWorkouts && existingChildWorkouts.length > 0) {
     const childWorkoutIdsToDelete = existingChildWorkouts.map((w: { id: string }) => w.id);
-    console.log(`Found existing child workouts to delete: ${childWorkoutIdsToDelete.join(', ')}`);
+    console.log(`Found existing child workout IDs: ${childWorkoutIdsToDelete.join(', ')}`);
 
     const { error: deleteTPathExercisesError } = await supabaseServiceRoleClient
       .from('t_path_exercises')
@@ -351,12 +358,25 @@ serve(async (req: Request) => {
 
       const exercisesToInclude = [];
       for (const entry of structureEntries || []) {
-        const { data: exerciseDefData, error: exerciseDefError } = await supabaseServiceRoleClient
+        // MODIFIED: Fetch exercise definitions, prioritizing user-owned if available
+        const { data: exerciseDefs, error: exerciseDefError } = await supabaseServiceRoleClient
           .from('exercise_definitions')
-          .select('id, name')
+          .select('id, name, user_id') // Select user_id to differentiate
           .eq('library_id', entry.exercise_library_id)
-          .single();
-        if (exerciseDefError || !exerciseDefData) {
+          .or(`user_id.eq.${user.id},user_id.is.null`); // Fetch both user-owned and global
+
+        if (exerciseDefError) {
+          console.error(`Error fetching exercise definitions for library_id ${entry.exercise_library_id}:`, exerciseDefError);
+          continue;
+        }
+
+        let exerciseDefData: ExerciseDefinitionForWorkoutGeneration | null = null; // Explicitly type exerciseDefData
+        if (exerciseDefs && exerciseDefs.length > 0) {
+          // Prioritize user-owned exercise if both global and user-owned exist
+          exerciseDefData = (exerciseDefs as ExerciseDefinitionForWorkoutGeneration[]).find(def => def.user_id === user.id) || (exerciseDefs as ExerciseDefinitionForWorkoutGeneration[])[0];
+        }
+
+        if (!exerciseDefData) {
           console.warn(`Could not find exercise for library_id: ${entry.exercise_library_id}`);
           continue;
         }
