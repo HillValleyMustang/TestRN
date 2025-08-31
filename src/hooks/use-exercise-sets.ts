@@ -111,6 +111,12 @@ export const useExerciseSets = ({
   // Effect to load drafts or initial sets
   useEffect(() => {
     const loadSets = async () => {
+      if (!exerciseId) { // Ensure exerciseId is valid before proceeding
+        console.error("Cannot load sets: exerciseId is missing.");
+        setSets([]); // Ensure sets are empty if exerciseId is invalid
+        return;
+      }
+
       const loadedSets: SetLogState[] = [];
       const drafts = await db.draft_set_logs
         .where({ exercise_id: exerciseId, session_id: internalSessionId })
@@ -193,6 +199,11 @@ export const useExerciseSets = ({
   }, [sets, exerciseId, onUpdateSets]);
 
   const handleAddSet = useCallback(() => {
+    if (!exerciseId) { // Ensure exerciseId is valid
+        console.error("Cannot add set: exerciseId is missing.");
+        toast.error("Cannot add set: exercise information is incomplete.");
+        return;
+    }
     if (sets.length >= MAX_SETS) {
       toast.info(`Maximum of ${MAX_SETS} sets reached for this exercise.`);
       return;
@@ -236,6 +247,11 @@ export const useExerciseSets = ({
   }, [exerciseId, internalSessionId, sets.length]);
 
   const handleInputChange = useCallback((setIndex: number, field: keyof TablesInsert<'set_logs'>, value: string) => {
+    if (!exerciseId) { // Ensure exerciseId is valid
+        console.error("Cannot update set: exerciseId is missing.");
+        toast.error("Cannot update set: exercise information is incomplete.");
+        return;
+    }
     setSets(prev => {
       const newSets = [...prev];
       let parsedValue: number | null = parseFloat(value);
@@ -273,6 +289,11 @@ export const useExerciseSets = ({
   }, [exerciseId, internalSessionId, preferredWeightUnit]);
 
   const handleSaveSet = useCallback(async (setIndex: number) => {
+    if (!exerciseId) { // Ensure exerciseId is valid
+        console.error("Cannot save set: exerciseId is missing.");
+        toast.error("Cannot save set: exercise information is incomplete.");
+        return;
+    }
     const currentSet = sets[setIndex];
     const hasData = (currentSet.weight_kg !== null && currentSet.weight_kg > 0) ||
                     (currentSet.reps !== null && currentSet.reps > 0) ||
@@ -321,6 +342,11 @@ export const useExerciseSets = ({
   }, [sets, internalSessionId, saveSetToDb, exerciseId, exerciseNumber]); // Added exerciseId to dependencies
 
   const handleEditSet = useCallback((setIndex: number) => {
+    if (!exerciseId) { // Ensure exerciseId is valid
+        console.error("Cannot edit set: exerciseId is missing.");
+        toast.error("Cannot edit set: exercise information is incomplete.");
+        return;
+    }
     setSets(prev => {
       const updatedSets = [...prev];
       updatedSets[setIndex] = { ...updatedSets[setIndex], isSaved: false };
@@ -342,6 +368,11 @@ export const useExerciseSets = ({
   }, [exerciseId, internalSessionId]);
 
   const handleDeleteSet = useCallback(async (setIndex: number) => {
+    if (!exerciseId) { // Ensure exerciseId is valid
+        console.error("Cannot delete set: exerciseId is missing.");
+        toast.error("Cannot delete set: exercise information is incomplete.");
+        return;
+    }
     const setToDelete = sets[setIndex];
     
     // Optimistic update: Remove set from UI immediately
@@ -367,6 +398,11 @@ export const useExerciseSets = ({
   }, [sets, deleteSetFromDb, exerciseId]); // Added exerciseId to dependencies
 
   const handleSaveExercise = useCallback(async (): Promise<boolean> => {
+    if (!exerciseId) { // Ensure exerciseId is valid
+        console.error("Cannot save exercise: exerciseId is missing.");
+        toast.error("Cannot save exercise: exercise information is incomplete.");
+        return false;
+    }
     let currentSessionIdToUse = internalSessionId;
 
     if (!currentSessionIdToUse) {
@@ -446,6 +482,11 @@ export const useExerciseSets = ({
   }, [sets, exerciseId, onExerciseComplete, onFirstSetSaved, internalSessionId, saveSetToDb, updateExercisePRStatus]);
 
   const handleSuggestProgression = useCallback(async () => {
+    if (!exerciseId) { // Ensure exerciseId is valid
+        console.error("Cannot suggest progression: exerciseId is missing.");
+        toast.error("Cannot suggest progression: exercise information is incomplete.");
+        return;
+    }
     const { newSets, message } = await getProgressionSuggestion(sets.length, internalSessionId);
     if (newSets) {
       setSets(newSets);
