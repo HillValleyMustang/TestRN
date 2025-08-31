@@ -45,7 +45,7 @@ const profileSchema = z.object({
 export default function ProfilePage() {
   const { session, supabase } = useSession();
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams(); // Get search params
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -55,7 +55,7 @@ export default function ProfilePage() {
 
   const [isAchievementDetailOpen, setIsAchievementDetailOpen] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<{ id: string; name: string; icon: string } | null>(null);
-  const [activeTab, setActiveTab] = useState("overview"); // State for active tab
+  const [activeTab, setActiveTab] = useState("overview");
 
   const AI_COACH_LIMIT_PER_SESSION = 2;
 
@@ -138,22 +138,14 @@ export default function ProfilePage() {
     // Handle URL parameters for initial tab and edit mode
     const tabParam = searchParams.get('tab');
     const editParam = searchParams.get('edit');
-    const tabNames = ["overview", "stats", "settings"];
 
-    if (tabParam && tabNames.includes(tabParam)) {
-      setActiveTab(tabParam);
-      const tabIndex = tabNames.indexOf(tabParam);
-      if (emblaApi && emblaApi.selectedScrollSnap() !== tabIndex) {
-        emblaApi.scrollTo(tabIndex, false); // false for instant scroll
+    if (tabParam === 'settings') {
+      setActiveTab('settings');
+      if (editParam === 'true') {
+        setIsEditing(true);
       }
     }
-
-    if (editParam === 'true') {
-      setIsEditing(true);
-    } else {
-      setIsEditing(false); // Ensure editing is false if not explicitly set
-    }
-  }, [session, router, fetchData, searchParams, emblaApi]); // Added emblaApi to dependencies
+  }, [session, router, fetchData, searchParams]);
 
   const { bmi, dailyCalories } = useMemo(() => {
     const weight = profile?.weight_kg;
@@ -238,10 +230,9 @@ export default function ProfilePage() {
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
     if (emblaApi) {
-      const tabNames = ["overview", "stats", "settings"];
-      const index = tabNames.indexOf(value);
-      if (index !== -1 && emblaApi.selectedScrollSnap() !== index) {
-        emblaApi.scrollTo(index, true); // true for animated scroll
+      const index = ["overview", "stats", "settings"].indexOf(value);
+      if (index !== -1) {
+        emblaApi.scrollTo(index);
       }
     }
   }, [emblaApi]);
