@@ -70,18 +70,6 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       if (exercisesError) throw new Error(exercisesError);
       if (tPathsError) throw new Error(tPathsError);
 
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('preferred_session_length, active_t_path_id')
-        .eq('id', sessionUserId)
-        .single();
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error("Error fetching user profile for filtering:", profileError);
-      }
-
-      const activeTPathId = profileData?.active_t_path_id;
-
       const { data: userGlobalFavorites, error: favoritesError } = await supabase
         .from('user_global_favorites')
         .select('exercise_id')
@@ -92,17 +80,15 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       }
       const favoritedGlobalExerciseIds = new Set(userGlobalFavorites?.map(fav => fav.exercise_id));
 
-      let activeTPathChildWorkouts: TPath[] = [];
-      if (activeTPathId && cachedTPaths) {
-          activeTPathChildWorkouts = cachedTPaths
-              .filter(tp => tp.parent_t_path_id === activeTPathId && tp.is_bonus === true) as TPath[];
-      }
-      const activeWorkoutIds = activeTPathChildWorkouts.map(tp => tp.id);
+      // Fetch all T-Paths (global templates and user-created ones)
+      const allTPaths = cachedTPaths || [];
+      const allWorkoutIds = allTPaths.map(tp => tp.id);
 
+      // Fetch t_path_exercises for all relevant workouts
       const { data: tPathExercisesData, error: tPathExercisesError } = await supabase
         .from('t_path_exercises')
         .select('exercise_id, template_id, is_bonus_exercise')
-        .in('template_id', activeWorkoutIds);
+        .in('template_id', allWorkoutIds);
 
       if (tPathExercisesError) {
         throw new Error(tPathExercisesError.message);
@@ -110,34 +96,40 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
 
       const newExerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]> = {};
       tPathExercisesData.forEach(tpe => {
-        const workout = activeTPathChildWorkouts.find(tp => tp.id === tpe.template_id);
+        const workout = allTPaths.find(tp => tp.id === tpe.template_id);
         if (workout) {
           if (!newExerciseWorkoutsMap[tpe.exercise_id]) {
             newExerciseWorkoutsMap[tpe.exercise_id] = [];
           }
-          newExerciseWorkoutsMap[tpe.exercise_id].push({
-            id: workout.id,
-            name: workout.template_name,
-            isUserOwned: workout.user_id === sessionUserId,
-            isBonus: !!tpe.is_bonus_exercise,
-          });
+          // Prevent duplicate entries for the same exercise-workout pair
+          if (!newExerciseWorkoutsMap[tpe.exercise_id].some(item => item.id === workout.id)) {
+            newExerciseWorkoutsMap[tpe.exercise_id].push({
+              id: workout.id,
+              name: workout.template_name,
+              isUserOwned: workout.user_id === sessionUserId,
+              isBonus: !!tpe.is_bonus_exercise,
+            });
+          }
         }
       });
       setExerciseWorkoutsMap(newExerciseWorkoutsMap);
 
-      // Separate user-owned and global exercises based on user_id
+      // Separate user-owned and global exercises based on strict criteria
       const userOwnedExercisesList: FetchedExerciseDefinition[] = [];
       const globalExercisesList: FetchedExerciseDefinition[] = [];
 
       (cachedExercises || []).forEach(ex => {
-        if (ex.user_id === sessionUserId) {
+        // User-owned exercises must have user_id matching session and library_id must be null
+        if (ex.user_id === sessionUserId && ex.library_id === null) {
           userOwnedExercisesList.push({ ...ex, is_favorite: !!ex.is_favorite });
-        } else if (ex.user_id === null) {
+        } else if (ex.user_id === null) { // Global exercises must have user_id === null
           globalExercisesList.push({
             ...ex,
             is_favorited_by_current_user: favoritedGlobalExerciseIds.has(ex.id)
           });
         }
+        // Any other combination (e.g., user_id === sessionUserId && library_id !== null)
+        // is considered an "adopted" duplicate and will not be displayed in either list.
       });
 
       const allUniqueMuscles = Array.from(new Set((cachedExercises || []).map(ex => ex.main_muscle))).sort();
