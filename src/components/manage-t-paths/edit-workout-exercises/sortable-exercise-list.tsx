@@ -6,7 +6,7 @@ import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalList
 import { CSS } from '@dnd-kit/utilities';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { GripVertical, Info, XCircle, Sparkles, CheckCircle2 } from "lucide-react";
+import { GripVertical, Info, XCircle, Sparkles, CheckCircle2, Menu } from "lucide-react"; // Import Menu
 import { cn } from "@/lib/utils";
 import { WorkoutExerciseWithDetails } from "@/hooks/use-edit-workout-exercises";
 import {
@@ -85,7 +85,7 @@ function SortableExerciseItem({ exercise, onRemove, onOpenInfo, onToggleBonus }:
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" title="More Options">
-              <GripVertical className="h-4 w-4" />
+              <Menu className="h-4 w-4" /> {/* CHANGED ICON HERE */}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

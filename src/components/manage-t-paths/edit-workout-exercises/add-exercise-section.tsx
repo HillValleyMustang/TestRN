@@ -7,19 +7,20 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { PlusCircle } from "lucide-react";
 import { Tables } from "@/types/supabase";
 import { useSession } from "@/components/session-context-provider";
-import { WorkoutExerciseWithDetails } from "@/hooks/use-edit-workout-exercises"; // Import the extended type
+import { WorkoutExerciseWithDetails } from "@/hooks/use-edit-workout-exercises";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 interface AddExerciseSectionProps {
   allAvailableExercises: ExerciseDefinition[];
-  exercisesInWorkout: WorkoutExerciseWithDetails[]; // To filter out already added exercises
+  exercisesInWorkout: WorkoutExerciseWithDetails[];
   selectedExerciseToAdd: string;
   setSelectedExerciseToAdd: (id: string) => void;
-  addExerciseFilter: 'all' | 'my-exercises' | 'global-library';
-  setAddExerciseFilter: (filter: 'all' | 'my-exercises' | 'global-library') => void;
+  addExerciseFilter: 'my-exercises' | 'global-library';
+  setAddExerciseFilter: (filter: 'my-exercises' | 'global-library') => void;
   handleSelectAndPromptBonus: () => void;
   isSaving: boolean;
+  mainMuscleGroups: string[];
 }
 
 export const AddExerciseSection = ({
@@ -31,8 +32,23 @@ export const AddExerciseSection = ({
   setAddExerciseFilter,
   handleSelectAndPromptBonus,
   isSaving,
+  mainMuscleGroups,
 }: AddExerciseSectionProps) => {
   const { session } = useSession();
+  const [selectedMuscleFilterForAdd, setSelectedMuscleFilterForAdd] = React.useState<string>('all');
+
+  React.useEffect(() => {
+    setSelectedMuscleFilterForAdd('all');
+  }, [addExerciseFilter]);
+
+  const filteredExercises = allAvailableExercises
+    .filter(ex => {
+      if (addExerciseFilter === 'my-exercises') return ex.user_id === session?.user.id;
+      if (addExerciseFilter === 'global-library') return ex.user_id === null;
+      return false; // Should not be reached as 'all' is removed from filter options
+    })
+    .filter(ex => !exercisesInWorkout.some(existingEx => existingEx.id === ex.id))
+    .filter(ex => selectedMuscleFilterForAdd === 'all' || ex.main_muscle === selectedMuscleFilterForAdd);
 
   return (
     <div className="flex gap-2 w-full">
@@ -40,13 +56,7 @@ export const AddExerciseSection = ({
         <SelectTrigger className="w-full"><SelectValue placeholder="Add exercise" /></SelectTrigger>
         <SelectContent className="p-0">
           <div className="flex border-b p-2">
-            <Button
-              variant={addExerciseFilter === 'all' ? 'secondary' : 'ghost'}
-              onClick={() => setAddExerciseFilter('all')}
-              className="flex-1 h-8 text-xs"
-            >
-              All
-            </Button>
+            {/* Removed 'All' button */}
             <Button
               variant={addExerciseFilter === 'my-exercises' ? 'secondary' : 'ghost'}
               onClick={() => setAddExerciseFilter('my-exercises')}
@@ -62,20 +72,33 @@ export const AddExerciseSection = ({
               Global
             </Button>
           </div>
-          <ScrollArea className="h-64">
-            <div className="p-1">
-              {allAvailableExercises
-                .filter(ex => {
-                  if (addExerciseFilter === 'my-exercises') return ex.user_id === session?.user.id;
-                  if (addExerciseFilter === 'global-library') return ex.user_id === null;
-                  return true; // 'all' filter
-                })
-                .filter(ex => !exercisesInWorkout.some(existingEx => existingEx.id === ex.id))
-                .map(e => (
-                  <SelectItem key={e.id} value={e.id}>
-                    {e.name} ({e.main_muscle})
+          {/* New Select for muscle group filtering */}
+          <div className="p-2 border-b">
+            <Select onValueChange={setSelectedMuscleFilterForAdd} value={selectedMuscleFilterForAdd}>
+              <SelectTrigger className="w-full h-8 text-xs">
+                <SelectValue placeholder="Filter by muscle" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Muscle Groups</SelectItem>
+                {mainMuscleGroups.map(muscle => (
+                  <SelectItem key={muscle} value={muscle}>
+                    {muscle}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <ScrollArea className="h-64">
+            <div className="p-1">
+              {filteredExercises.length === 0 ? (
+                <div className="text-center text-muted-foreground py-4 text-sm">No exercises found.</div>
+              ) : (
+                filteredExercises.map(e => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.name}
+                  </SelectItem>
+                ))
+              )}
             </div>
           </ScrollArea>
         </SelectContent>

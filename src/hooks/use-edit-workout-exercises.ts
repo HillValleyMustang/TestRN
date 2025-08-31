@@ -28,7 +28,8 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [addExerciseFilter, setAddExerciseFilter] = useState<'all' | 'my-exercises' | 'global-library'>('all');
+  const [addExerciseFilter, setAddExerciseFilter] = useState<'my-exercises' | 'global-library'>('my-exercises'); // CHANGED: Removed 'all' and set default
+  const [mainMuscleGroups, setMainMuscleGroups] = useState<string[]>([]); // NEW STATE
 
   const [showConfirmRemoveDialog, setShowConfirmRemoveDialog] = useState(false);
   const [exerciseToRemove, setExerciseToRemove] = useState<{ exerciseId: string; tPathExerciseId: string; name: string } | null>(null);
@@ -92,6 +93,11 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
 
       if (allExercisesError) throw allExercisesError;
 
+      // Extract unique muscle groups from all exercises
+      const uniqueMuscleGroups = Array.from(new Set((allExercisesData || []).map(ex => ex.main_muscle))).sort();
+      setMainMuscleGroups(uniqueMuscleGroups); // SET NEW STATE
+
+      // Filter out global exercises if a user-owned copy already exists
       const userOwnedExerciseIds = new Set(
         (allExercisesData || [])
           .filter(ex => ex.user_id === session.user.id && ex.library_id)
@@ -100,7 +106,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
 
       const filteredAvailableExercises = (allExercisesData || []).filter(ex => {
         if (ex.user_id === null && ex.library_id && userOwnedExerciseIds.has(ex.library_id)) {
-          return false;
+          return false; // Exclude global if user has an adopted copy
         }
         return true;
       });
@@ -386,6 +392,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     isSaving,
     addExerciseFilter,
     setAddExerciseFilter,
+    mainMuscleGroups, // EXPOSE NEW STATE
     showConfirmRemoveDialog,
     setShowConfirmRemoveDialog,
     exerciseToRemove,

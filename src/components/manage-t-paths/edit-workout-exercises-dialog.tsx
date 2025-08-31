@@ -40,6 +40,7 @@ export const EditWorkoutExercisesDialog = ({
     isSaving,
     addExerciseFilter,
     setAddExerciseFilter,
+    mainMuscleGroups, // DESTRUCTURE NEW STATE
     showConfirmRemoveDialog,
     setShowConfirmRemoveDialog,
     exerciseToRemove,
@@ -91,6 +92,7 @@ export const EditWorkoutExercisesDialog = ({
                 setAddExerciseFilter={setAddExerciseFilter}
                 handleSelectAndPromptBonus={handleSelectAndPromptBonus}
                 isSaving={isSaving}
+                mainMuscleGroups={mainMuscleGroups}
               />
 
               <SortableExerciseList
