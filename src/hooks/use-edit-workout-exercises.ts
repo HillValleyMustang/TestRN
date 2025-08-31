@@ -28,8 +28,8 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [addExerciseFilter, setAddExerciseFilter] = useState<'my-exercises' | 'global-library'>('my-exercises'); // CHANGED: Removed 'all' and set default
-  const [mainMuscleGroups, setMainMuscleGroups] = useState<string[]>([]); // NEW STATE
+  const [addExerciseFilter, setAddExerciseFilter] = useState<'my-exercises' | 'global-library'>('my-exercises');
+  const [mainMuscleGroups, setMainMuscleGroups] = useState<string[]>([]);
 
   const [showConfirmRemoveDialog, setShowConfirmRemoveDialog] = useState(false);
   const [exerciseToRemove, setExerciseToRemove] = useState<{ exerciseId: string; tPathExerciseId: string; name: string } | null>(null);
@@ -95,7 +95,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
 
       // Extract unique muscle groups from all exercises
       const uniqueMuscleGroups = Array.from(new Set((allExercisesData || []).map(ex => ex.main_muscle))).sort();
-      setMainMuscleGroups(uniqueMuscleGroups); // SET NEW STATE
+      setMainMuscleGroups(uniqueMuscleGroups);
 
       // Filter out global exercises if a user-owned copy already exists
       const userOwnedExerciseIds = new Set(
@@ -106,7 +106,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
 
       const filteredAvailableExercises = (allExercisesData || []).filter(ex => {
         if (ex.user_id === null && ex.library_id && userOwnedExerciseIds.has(ex.library_id)) {
-          return false; // Exclude global if user has an adopted copy
+          return false;
         }
         return true;
       });
@@ -195,7 +195,18 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     try {
       const finalExerciseId = await adoptExercise(exerciseToAddDetails);
 
-      if (exercises.some(e => e.id === finalExerciseId)) {
+      // NEW: Server-side check for existence before inserting
+      const { data: existingLink, error: checkError } = await supabase
+        .from('t_path_exercises')
+        .select('id')
+        .eq('template_id', workoutId)
+        .eq('exercise_id', finalExerciseId)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 means no rows found, which is fine
+        throw checkError;
+      }
+      if (existingLink) {
         toast.info("This exercise is already in the workout.");
         setIsSaving(false);
         return;
@@ -392,7 +403,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     isSaving,
     addExerciseFilter,
     setAddExerciseFilter,
-    mainMuscleGroups, // EXPOSE NEW STATE
+    mainMuscleGroups,
     showConfirmRemoveDialog,
     setShowConfirmRemoveDialog,
     exerciseToRemove,
@@ -411,6 +422,6 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     handleToggleBonusStatus,
     handleResetToDefaults,
     handleSaveOrder,
-    fetchWorkoutData, // Expose for re-fetching if needed by parent
+    fetchWorkoutData,
   };
 };
