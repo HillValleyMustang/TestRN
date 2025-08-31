@@ -237,27 +237,8 @@ const workoutStructureData: WorkoutStructureEntry[] = (() => {
 // --- Core Logic Functions ---
 
 const synchronizeSourceData = async (supabaseServiceRoleClient: any) => {
-    console.log('Checking if source data synchronization is needed...');
+    console.log('Synchronizing source data...');
 
-    const { count, error: countError } = await supabaseServiceRoleClient
-        .from('workout_exercise_structure')
-        .select('*', { count: 'exact', head: true });
-
-    if (countError) {
-        console.error("Error counting workout_exercise_structure:", countError);
-        throw countError;
-    }
-
-    // If the structure table is already populated, assume the data is synced.
-    // This avoids costly writes on every single T-Path generation.
-    // To force a re-sync, this table would need to be manually cleared.
-    if (count !== null && count > 0) {
-        console.log('Source data appears to be synchronized. Skipping write operations.');
-        return;
-    }
-
-    console.log('Source data not found or empty. Proceeding with synchronization...');
-    
     // 1. Safely wipe and repopulate workout_exercise_structure (this is safe as it has no dependencies)
     const { error: deleteStructureError } = await supabaseServiceRoleClient
         .from('workout_exercise_structure')
