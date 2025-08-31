@@ -12,7 +12,7 @@ interface UseCacheAndRevalidateProps<T> {
   supabaseQuery: (supabase: SupabaseClient) => Promise<{ data: T[] | null; error: any }>; // Function to fetch data from Supabase
   queryKey: string; // A unique key for this specific query (e.g., 'all_exercises', 'user_t_paths')
   supabase: SupabaseClient;
-  sessionUserId: string | null; // Pass user ID to filter user-specific data
+  sessionUserId: string | null | undefined; // Allow undefined for initial loading state
 }
 
 /**
@@ -24,7 +24,7 @@ interface UseCacheAndRevalidateProps<T> {
  *                                   of { data: T[] | null, error: any } from a Supabase query.
  * @param {string} queryKey - A unique string key for this specific query, used for logging/debugging.
  * @param {SupabaseClient} supabase - The Supabase client instance.
- * @param {string | null} sessionUserId - The current user's ID, used to filter user-specific data.
+ * @param {string | null | undefined} sessionUserId - The current user's ID, used to filter user-specific data.
  * @returns {{ data: T[] | null, loading: boolean, error: string | null, refresh: () => void }}
  */
 export function useCacheAndRevalidate<T extends { id: string; user_id: string | null }>( // Add user_id to T
@@ -37,17 +37,22 @@ export function useCacheAndRevalidate<T extends { id: string; user_id: string | 
   // Use Dexie's useLiveQuery to reactively get data from IndexedDB
   const cachedData = useLiveQuery(
     () => {
-      // Dynamically select the correct table and cast it to the expected type
+      // Guard against running the query with an undefined sessionUserId during initial load
+      if (sessionUserId === undefined) {
+        return []; // Return an empty array and wait for the session to be determined
+      }
+
       const table = db[cacheTable] as typeof cacheTable extends 'exercise_definitions_cache' 
         ? typeof db.exercise_definitions_cache 
         : typeof db.t_paths_cache;
 
       if (sessionUserId) {
-        // Fetch user's own items or global items
+        // User is logged in, fetch their items AND global items (user_id is null)
         return table.where('user_id').equals(sessionUserId).or('user_id').equals(null as any).toArray() as unknown as Promise<T[]>;
+      } else {
+        // User is not logged in (sessionUserId is null), fetch only global items
+        return table.where('user_id').equals(null as any).toArray() as unknown as Promise<T[]>;
       }
-      // If no user ID, only fetch global items (user_id is null)
-      return table.where('user_id').equals(null as any).toArray() as unknown as Promise<T[]>;
     },
     [cacheTable, sessionUserId]
   );
