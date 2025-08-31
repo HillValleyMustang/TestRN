@@ -283,22 +283,24 @@ export const useExerciseSets = ({
       return;
     }
 
-    if (!internalSessionId) {
-      setSets(prev => {
-        const newSets = [...prev];
-        newSets[setIndex] = { ...newSets[setIndex], isSaved: true };
-        // Clear draft for this set
-        db.draft_set_logs.delete([exerciseId, setIndex]);
-        return newSets;
-      });
+    // Optimistic update: Mark set as saved immediately in UI
+    const previousSets = sets;
+    setSets(prev => {
+      const newSets = [...prev];
+      newSets[setIndex] = { ...newSets[setIndex], isSaved: true };
+      return newSets;
+    });
 
+    if (!internalSessionId) {
       if (exerciseNumber === 1 && setIndex === 0) {
         toast.info("Don't forget to hit 'Save Exercise' once you're done to start the Workout Session.");
       }
+      // Clear draft for this set as it's now "optimistically saved"
+      db.draft_set_logs.delete([exerciseId, setIndex]);
       return;
     }
 
-    const { savedSet } = await saveSetToDb(sets[setIndex], setIndex, internalSessionId);
+    const { savedSet } = await saveSetToDb(currentSet, setIndex, internalSessionId);
     if (savedSet) {
       setSets(prev => {
         const newSets = [...prev];
@@ -307,6 +309,10 @@ export const useExerciseSets = ({
         db.draft_set_logs.delete([exerciseId, setIndex]);
         return newSets;
       });
+    } else {
+      // Rollback: If save failed, revert UI state
+      setSets(previousSets);
+      toast.error(`Failed to save set ${setIndex + 1}. Please try again.`);
     }
   }, [sets, internalSessionId, saveSetToDb, exerciseId, exerciseNumber]); // Added exerciseId to dependencies
 
@@ -332,23 +338,25 @@ export const useExerciseSets = ({
 
   const handleDeleteSet = useCallback(async (setIndex: number) => {
     const setToDelete = sets[setIndex];
+    
+    // Optimistic update: Remove set from UI immediately
+    const previousSets = sets;
+    setSets(prev => prev.filter((_, i) => i !== setIndex));
+    // Clear draft for this set
+    db.draft_set_logs.delete([exerciseId, setIndex]);
+    toast.success("Set removed.");
+
     if (!setToDelete.id) {
-      setSets(prev => prev.filter((_, i) => i !== setIndex));
-      // Clear draft for this set
-      db.draft_set_logs.delete([exerciseId, setIndex]);
-      toast.success("Unsaved set removed.");
+      // If it was an unsaved set (no DB ID), no further action needed
       return;
     }
 
-    if (!confirm("Are you sure you want to delete this set? This action cannot be undone.")) {
-      return;
-    }
-
+    // Attempt to delete from DB
     const success = await deleteSetFromDb(setToDelete.id);
-    if (success) {
-      setSets(prev => prev.filter((_, i) => i !== setIndex));
-      // Clear draft for this set
-      db.draft_set_logs.delete([exerciseId, setIndex]);
+    if (!success) {
+      // Rollback: If delete failed, revert UI state
+      setSets(previousSets);
+      toast.error("Failed to delete set from database. Please try again.");
     }
   }, [sets, deleteSetFromDb, exerciseId]); // Added exerciseId to dependencies
 
