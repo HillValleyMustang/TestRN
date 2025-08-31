@@ -70,6 +70,18 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       if (exercisesError) throw new Error(exercisesError);
       if (tPathsError) throw new Error(tPathsError);
 
+      // 1. Fetch user's profile to get active_t_path_id
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('active_t_path_id')
+        .eq('id', sessionUserId)
+        .single();
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        throw profileError;
+      }
+      const activeTPathId = profileData?.active_t_path_id;
+
       const { data: userGlobalFavorites, error: favoritesError } = await supabase
         .from('user_global_favorites')
         .select('exercise_id')
@@ -80,21 +92,31 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       }
       const favoritedGlobalExerciseIds = new Set(userGlobalFavorites?.map(fav => fav.exercise_id));
 
-      // Fetch all T-Paths (global templates and user-created ones)
       const allTPaths = cachedTPaths || [];
+      
+      // 2. Identify active child workouts and their names
+      let activeChildWorkoutIds: string[] = [];
+      let activeWorkoutNames: string[] = [];
+      if (activeTPathId) {
+        const activeMainTPath = allTPaths.find(tp => tp.id === activeTPathId);
+        if (activeMainTPath) {
+          const childWorkouts = allTPaths.filter(tp => tp.parent_t_path_id === activeMainTPath.id);
+          activeChildWorkoutIds = childWorkouts.map(cw => cw.id);
+          activeWorkoutNames = childWorkouts.map(cw => cw.template_name);
+        }
+      }
+
       const allWorkoutIds = allTPaths.map(tp => tp.id);
 
-      // Fetch t_path_exercises for all relevant workouts
       const { data: tPathExercisesData, error: tPathExercisesError } = await supabase
         .from('t_path_exercises')
         .select('exercise_id, template_id, is_bonus_exercise')
-        .in('template_id', allWorkoutIds);
+        .in('template_id', allWorkoutIds); // Keep fetching all, but filter later
 
       if (tPathExercisesError) {
         throw new Error(tPathExercisesError.message);
       }
 
-      // NEW: Fetch workout structure for global badge info
       const { data: structureData, error: structureError } = await supabase
         .from('workout_exercise_structure')
         .select('exercise_library_id, workout_name');
@@ -103,7 +125,6 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
         throw new Error(structureError.message);
       }
 
-      // Create a map from library_id to the actual exercise UUID
       const libraryIdToUuidMap = new Map<string, string>();
       (cachedExercises || []).forEach(ex => {
         if (ex.library_id) {
@@ -113,39 +134,42 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
 
       const newExerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]> = {};
 
-      // 1. Populate from user's t_path_exercises (as before)
+      // 1. Populate from user's t_path_exercises, BUT ONLY FOR ACTIVE WORKOUTS
       tPathExercisesData.forEach(tpe => {
-        const workout = allTPaths.find(tp => tp.id === tpe.template_id);
-        if (workout) {
-          if (!newExerciseWorkoutsMap[tpe.exercise_id]) {
-            newExerciseWorkoutsMap[tpe.exercise_id] = [];
-          }
-          if (!newExerciseWorkoutsMap[tpe.exercise_id].some(item => item.id === workout.id)) {
-            newExerciseWorkoutsMap[tpe.exercise_id].push({
-              id: workout.id,
-              name: workout.template_name,
-              isUserOwned: workout.user_id === sessionUserId,
-              isBonus: !!tpe.is_bonus_exercise,
-            });
+        if (activeChildWorkoutIds.includes(tpe.template_id)) { // Filter here
+          const workout = allTPaths.find(tp => tp.id === tpe.template_id);
+          if (workout) {
+            if (!newExerciseWorkoutsMap[tpe.exercise_id]) {
+              newExerciseWorkoutsMap[tpe.exercise_id] = [];
+            }
+            if (!newExerciseWorkoutsMap[tpe.exercise_id].some(item => item.id === workout.id)) {
+              newExerciseWorkoutsMap[tpe.exercise_id].push({
+                id: workout.id,
+                name: workout.template_name,
+                isUserOwned: workout.user_id === sessionUserId,
+                isBonus: !!tpe.is_bonus_exercise,
+              });
+            }
           }
         }
       });
 
-      // 2. Populate from global workout_exercise_structure
+      // 2. Populate from global workout_exercise_structure, BUT ONLY FOR ACTIVE WORKOUT NAMES
       (structureData || []).forEach(structure => {
-        const exerciseUuid = libraryIdToUuidMap.get(structure.exercise_library_id);
-        if (exerciseUuid) {
-          if (!newExerciseWorkoutsMap[exerciseUuid]) {
-            newExerciseWorkoutsMap[exerciseUuid] = [];
-          }
-          // Add global workout info if not already present from a user's instantiated workout
-          if (!newExerciseWorkoutsMap[exerciseUuid].some(item => item.name === structure.workout_name)) {
-            newExerciseWorkoutsMap[exerciseUuid].push({
-              id: `global_${structure.workout_name}`, // Create a stable, unique ID for the global badge
-              name: structure.workout_name,
-              isUserOwned: false,
-              isBonus: false, // Global structure doesn't define bonus status, assume false
-            });
+        if (activeWorkoutNames.includes(structure.workout_name)) { // Filter here
+          const exerciseUuid = libraryIdToUuidMap.get(structure.exercise_library_id);
+          if (exerciseUuid) {
+            if (!newExerciseWorkoutsMap[exerciseUuid]) {
+              newExerciseWorkoutsMap[exerciseUuid] = [];
+            }
+            if (!newExerciseWorkoutsMap[exerciseUuid].some(item => item.name === structure.workout_name)) {
+              newExerciseWorkoutsMap[exerciseUuid].push({
+                id: `global_${structure.workout_name}`,
+                name: structure.workout_name,
+                isUserOwned: false,
+                isBonus: false,
+              });
+            }
           }
         }
       });

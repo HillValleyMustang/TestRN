@@ -305,8 +305,8 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to regenerate T-Path workouts: ${errorText}`);
+        const errorBody = await response.json();
+        throw new Error(errorBody.error || `Failed to regenerate T-Path workouts.`);
       }
 
       toast.success("Workout exercises reset to defaults!");
