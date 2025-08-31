@@ -26,24 +26,19 @@ export function useCacheAndRevalidate<T extends { id: string; user_id: string | 
     () => {
       const table = db[cacheTable] as any;
 
-      // Explicitly handle the undefined case first. This is the most critical part.
-      // If the session state is not yet determined, we must not execute a query with an invalid key.
+      // If the session is still loading, return an empty array to prevent any query.
       if (sessionUserId === undefined) {
-        // Returning an empty array is safe and tells the hook there's no data yet for this state.
-        return [] as T[];
+        return [];
       }
 
-      // If the user is logged out, sessionUserId will be null.
-      if (sessionUserId === null) {
-        // Query for global data only (where user_id is null). This is a valid query.
-        return table.where('user_id').equals(null).toArray();
-      }
-
-      // If we reach this point, sessionUserId is guaranteed to be a string.
-      // Query for the user's data plus global data. This is also a valid query.
-      return table.where('user_id').anyOf(sessionUserId, null).toArray();
+      // This is the new, more robust filtering strategy.
+      // It fetches all items and filters them in code, which avoids the
+      // underlying 'IDBKeyRange' error caused by the race condition with `anyOf`.
+      return table.filter((item: T) => {
+        return item.user_id === null || item.user_id === sessionUserId;
+      }).toArray();
     },
-    [cacheTable, sessionUserId], // The query re-runs when sessionUserId changes.
+    [cacheTable, sessionUserId], // The query re-runs safely when sessionUserId changes.
     [] // Default to an empty array while loading.
   );
 
@@ -76,6 +71,7 @@ export function useCacheAndRevalidate<T extends { id: string; user_id: string | 
   }, [supabase, isRevalidating, supabaseQuery, queryKey, cacheTable]);
 
   useEffect(() => {
+    // We still wait for sessionUserId to be defined before fetching from the server.
     if (sessionUserId !== undefined) {
       fetchDataAndRevalidate();
     } else {
