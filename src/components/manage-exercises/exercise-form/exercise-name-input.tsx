@@ -18,9 +18,7 @@ export const ExerciseNameInput = ({ form }: ExerciseNameInputProps) => {
       render={({ field }) => (
         <FormItem>
           <FormLabel className="font-bold">Exercise Name</FormLabel>
-          <FormControl>
-            <Input {...field} />
-          </FormControl>
+          <FormControl><Input {...field} /></FormControl>
           <FormMessage />
         </FormItem>
       )} 

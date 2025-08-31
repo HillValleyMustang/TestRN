@@ -131,7 +131,7 @@ export const TPathForm = ({ editingTPath, onCancelEdit, onSaveSuccess, allExerci
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField control={form.control} name="template_name" render={({ field }) => ( <FormItem> <FormLabel>T-Path Name</FormLabel> <FormControl> <Input {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
+            <FormField control={form.control} name="template_name" render={({ field }) => ( <FormItem> <FormLabel>T-Path Name</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
             <FormItem>
               <FormLabel>Exercises</FormLabel>
               <div className="flex gap-2">
