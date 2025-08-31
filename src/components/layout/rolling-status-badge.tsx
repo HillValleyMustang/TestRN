@@ -29,7 +29,7 @@ export function RollingStatusBadge() {
           throw error;
         }
 
-        setStatus(profileData?.rolling_workout_status || 'Ready to Start');
+        setStatus(profileData?.rolling_workout_status || 'Getting into it'); // Changed default status
       } catch (error) {
         console.error("Failed to fetch rolling status data:", error);
         setStatus('Error'); // Indicate an error state
@@ -44,11 +44,9 @@ export function RollingStatusBadge() {
   if (loading) {
     return (
       <Badge variant="secondary" className="flex items-center gap-1">
-        {/* Wrap children in a single span */}
-        <span>
-          <Clock className="h-4 w-4 text-muted-foreground" />
-          <span className="font-semibold text-muted-foreground">Loading Status...</span>
-        </span>
+        {/* Removed extra span wrapper */}
+        <Clock className="h-4 w-4 text-muted-foreground" />
+        <span className="font-semibold text-muted-foreground">Loading Status...</span>
       </Badge>
     );
   }
@@ -57,7 +55,8 @@ export function RollingStatusBadge() {
   let badgeColorClass: string;
 
   switch (status) {
-    case 'Ready to Start':
+    case 'Ready to Start': // This case will now effectively be 'Getting into it' due to default
+    case 'Getting into it': // Explicitly handle the new status
       badgeIcon = <Dumbbell className="h-4 w-4 text-gray-400" />;
       badgeColorClass = 'bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
       break;
@@ -81,11 +80,9 @@ export function RollingStatusBadge() {
 
   return (
     <Badge variant="outline" className={cn("flex items-center gap-1 px-3 py-1 text-sm font-semibold", badgeColorClass)}>
-      {/* Wrap children in a single span */}
-      <span>
-        {badgeIcon}
-        <span>{status}</span>
-      </span>
+      {/* Removed extra span wrapper */}
+      {badgeIcon}
+      <span>{status}</span>
     </Badge>
   );
 }
