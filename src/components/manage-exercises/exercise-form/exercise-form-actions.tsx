@@ -20,7 +20,8 @@ export const ExerciseFormActions = ({
   toggleExpand,
 }: ExerciseFormActionsProps) => {
   const { session } = useSession();
-  const isUserOwnedEditing = editingExercise && editingExercise.user_id === session?.user.id;
+  // Determine if we are editing an existing user-owned exercise (not a global one being "copied")
+  const isUserOwnedEditing = editingExercise && editingExercise.user_id === session?.user.id && editingExercise.library_id === null;
 
   return (
     <div className="flex gap-2 pt-2">

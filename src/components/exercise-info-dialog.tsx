@@ -17,6 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { WorkoutBadge } from './workout-badge'; // Import WorkoutBadge
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -25,7 +26,7 @@ interface ExerciseInfoDialogProps {
   onOpenChange?: (open: boolean) => void; // Make onOpenChange prop optional
   exercise: ExerciseDefinition;
   trigger?: React.ReactNode;
-  exerciseWorkouts?: { id: string; name: string; isUserOwned: boolean }[];
+  exerciseWorkouts?: { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]; // Added isBonus
   onRemoveFromWorkout?: (workoutId: string, exerciseId: string) => void;
   onDeleteExercise?: (exercise: ExerciseDefinition) => void;
 }
@@ -75,8 +76,8 @@ export const ExerciseInfoDialog = ({ open, onOpenChange, exercise, trigger, exer
   };
 
   const embedVideoUrl = getYouTubeEmbedUrl(exercise.video_url);
-  // Only allow deletion if the exercise is user-created
-  const canDeleteExercise = session && exercise.user_id === session.user.id && onDeleteExercise;
+  // Only allow deletion if the exercise is user-created and not a global exercise
+  const canDeleteExercise = session && exercise.user_id === session.user.id && exercise.library_id === null && onDeleteExercise;
 
   return (
     <Dialog open={currentOpen} onOpenChange={setCurrentOpen}>
@@ -131,7 +132,10 @@ export const ExerciseInfoDialog = ({ open, onOpenChange, exercise, trigger, exer
               <ul className="space-y-1">
                 {exerciseWorkouts.map(workout => (
                   <li key={workout.id} className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>{workout.name}</span>
+                    <div className="flex items-center gap-1">
+                      <WorkoutBadge workoutName={workout.name}>{workout.name}</WorkoutBadge>
+                      {workout.isBonus && <WorkoutBadge workoutName="Bonus">Bonus</WorkoutBadge>}
+                    </div>
                     {workout.isUserOwned && onRemoveFromWorkout && (
                       <Button
                         variant="ghost"

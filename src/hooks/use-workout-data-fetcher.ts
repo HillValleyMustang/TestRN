@@ -3,14 +3,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { Tables } from '@/types/supabase';
+import { Tables, WorkoutExercise } from '@/types/supabase'; // Import WorkoutExercise
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
 import { LocalExerciseDefinition, LocalTPath } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
-type WorkoutExercise = Tables<'exercise_definitions'> & { is_bonus_exercise: boolean }; // Re-define WorkoutExercise here for clarity
 
 interface WorkoutWithLastCompleted extends TPath {
   last_completed_at: string | null;
@@ -149,13 +148,13 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
         
         const exercisesForWorkout = cachedExercises
           .filter(ex => exerciseIds.includes(ex.id))
-          .map(ex => ({ ...ex, is_bonus_exercise: exerciseInfoMap.get(ex.id)?.is_bonus_exercise || false })) as WorkoutExercise[] // Explicitly cast here
-          .sort((a, b) => (exerciseInfoMap.get(a.id)?.order_index || 0) - (exerciseInfoMap.get(b.id)?.order_index || 0));
+          .map((ex: LocalExerciseDefinition) => ({ ...ex, is_bonus_exercise: exerciseInfoMap.get(ex.id)?.is_bonus_exercise || false })) as WorkoutExercise[]
+          .sort((a: WorkoutExercise, b: WorkoutExercise) => (exerciseInfoMap.get(a.id)?.order_index || 0) - (exerciseInfoMap.get(b.id)?.order_index || 0));
         
         newWorkoutExercisesCache[workout.id] = exercisesForWorkout;
       }
       setWorkoutExercisesCache(newWorkoutExercisesCache);
-    }
+    } // This was the missing brace
     setLoadingData(false);
   }, [session, supabase, cachedExercises, cachedTPaths, loadingExercises, loadingTPaths, exercisesError, tPathsError]);
 

@@ -5,7 +5,7 @@ import { Tables } from "@/types/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Edit, Trash2, Heart, Info, PlusCircle } from "lucide-react";
+import { Edit, Trash2, Heart, Info, PlusCircle, Menu } from "lucide-react"; // Import Menu
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +22,12 @@ import { ExerciseInfoDialog } from "@/components/exercise-info-dialog";
 import { cn, getWorkoutColorClass } from "@/lib/utils";
 import { WorkoutBadge } from "@/components/workout-badge";
 import { AddExerciseToTPathDialog } from "./add-exercise-to-tpath-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"; // Import DropdownMenu components
 
 // Extend the ExerciseDefinition type to include a temporary flag for global exercises
 interface FetchedExerciseDefinition extends Tables<'exercise_definitions'> {
@@ -147,9 +153,21 @@ export const UserExerciseList = ({
                     <Button variant="ghost" size="icon" onClick={(e) => handleOpenAddTPathDialog(ex, e)} title="Add to T-Path">
                       <PlusCircle className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEdit(ex); }} title="Edit Exercise">
-                      <Edit className="h-4 w-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" title="More Options">
+                          <Menu className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={() => onEdit(ex)}>
+                          <Edit className="h-4 w-4 mr-2" /> Edit Exercise
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onDelete(ex)} className="text-destructive">
+                          <Trash2 className="h-4 w-4 mr-2" /> Delete Exercise
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </li>
               ))}

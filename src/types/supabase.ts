@@ -42,6 +42,7 @@ export type SetLogWithExercise = Pick<Tables<'set_logs'>, 'id' | 'weight_kg' | '
 // New type for exercises when fetched as part of a workout, including bonus status
 export type WorkoutExercise = Tables<'exercise_definitions'> & {
   is_bonus_exercise: boolean;
+  icon_url: string | null; // Added icon_url
 };
 
 // New type for user_exercise_prs table

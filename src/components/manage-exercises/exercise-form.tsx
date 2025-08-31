@@ -197,7 +197,10 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
       video_url: values.video_url,
     };
 
-    if (editingExercise && editingExercise.user_id === session.user.id) {
+    // Determine if we are editing an existing user-owned exercise or creating a new one
+    const isEditingUserOwned = editingExercise && editingExercise.user_id === session.user.id && editingExercise.library_id === null;
+
+    if (isEditingUserOwned) {
       // This is an actual edit of a user-owned exercise
       const { error } = await supabase
         .from('exercise_definitions')
@@ -213,8 +216,8 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
         setIsExpanded(false);
       }
     } else {
-      // This is either adding a new exercise from scratch,
-      // or creating a custom version of a global exercise.
+      // This is always creating a new user-owned exercise,
+      // whether from scratch or based on a global template.
       const { error } = await supabase.from('exercise_definitions').insert([{ 
         ...exerciseData, 
         user_id: session.user.id,
@@ -261,7 +264,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
         }}
       >
         <CardTitle className="flex-1 text-base">
-          {editingExercise && editingExercise.user_id === session?.user.id ? "Edit Exercise" : "Add New Exercise"}
+          {editingExercise && editingExercise.user_id === session?.user.id && editingExercise.library_id === null ? "Edit Exercise" : "Add New Exercise"}
         </CardTitle>
         <span className="ml-2">
           {isExpanded ? (

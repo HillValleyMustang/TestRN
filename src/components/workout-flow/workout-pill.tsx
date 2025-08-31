@@ -48,8 +48,8 @@ export const WorkoutPill = ({
         isSelected
           ? cn(selectedBgClass, selectedTextClass, selectedBorderClass, selectedShadowClass, 'opacity-100 scale-100')
           : cn(unselectedBgClass, unselectedTextClass, unselectedBorderClass, unselectedShadowClass, 'opacity-100 scale-98'),
-        'hover:scale-102 active:scale-98',
-        className // Apply the className here
+        'hover:scale-[1.02] active:scale-98', // Adjusted hover scale for consistency
+        className 
       )}
     >
       <Icon className={cn("w-6 h-6 flex-shrink-0", isSelected ? 'text-white' : unselectedTextClass)} strokeWidth={2.5} />
