@@ -25,17 +25,26 @@ export function useCacheAndRevalidate<T extends { id: string; user_id: string | 
   const data = useLiveQuery(
     () => {
       const table = db[cacheTable] as any;
-      // This is the new, more robust logic.
-      // If sessionUserId is not a valid string (i.e., it's null or undefined),
-      // we safely query for only global data.
-      if (typeof sessionUserId !== 'string') {
+
+      // Explicitly handle the undefined case first. This is the most critical part.
+      // If the session state is not yet determined, we must not execute a query with an invalid key.
+      if (sessionUserId === undefined) {
+        // Returning an empty array is safe and tells the hook there's no data yet for this state.
+        return [] as T[];
+      }
+
+      // If the user is logged out, sessionUserId will be null.
+      if (sessionUserId === null) {
+        // Query for global data only (where user_id is null). This is a valid query.
         return table.where('user_id').equals(null).toArray();
       }
-      // Only when we have a valid string for the user ID do we perform the more complex query.
+
+      // If we reach this point, sessionUserId is guaranteed to be a string.
+      // Query for the user's data plus global data. This is also a valid query.
       return table.where('user_id').anyOf(sessionUserId, null).toArray();
     },
-    [cacheTable, sessionUserId], // Dependencies are safe
-    [] // Default to an empty array while loading
+    [cacheTable, sessionUserId], // The query re-runs when sessionUserId changes.
+    [] // Default to an empty array while loading.
   );
 
   const fetchDataAndRevalidate = useCallback(async () => {
