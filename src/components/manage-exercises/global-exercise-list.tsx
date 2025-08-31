@@ -87,7 +87,7 @@ export const GlobalExerciseList = ({
                     {exerciseWorkoutsMap[ex.id]?.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-2">
                         {exerciseWorkoutsMap[ex.id].map(workout => (
-                          <div key={workout.id} className="flex items-center gap-1 bg-muted p-1 rounded-md">
+                          <div key={workout.id} className="flex items-center gap-1 p-1 rounded-md"> {/* Removed bg-muted */}
                             <WorkoutBadge 
                               workoutName={workout.name}
                             >
