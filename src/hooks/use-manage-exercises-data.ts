@@ -78,11 +78,14 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
         .single();
 
       if (profileError && profileError.code !== 'PGRST116') {
+        console.error("ManageExercises: Error fetching profile for active T-Path/session length:", profileError);
         throw profileError;
       }
       const activeTPathId = profileData?.active_t_path_id;
       const preferredSessionLength = profileData?.preferred_session_length;
       const maxAllowedMinutes = getMaxMinutes(preferredSessionLength);
+      console.log("ManageExercises: Active T-Path ID:", activeTPathId, "Preferred Session Length:", preferredSessionLength, "Max Allowed Minutes:", maxAllowedMinutes);
+
 
       const { data: userGlobalFavorites, error: favoritesError } = await supabase
         .from('user_global_favorites')
@@ -107,6 +110,9 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
           activeWorkoutNames = childWorkouts.map(cw => cw.template_name);
         }
       }
+      console.log("ManageExercises: Active Child Workout IDs:", activeChildWorkoutIds);
+      console.log("ManageExercises: Active Workout Names (from T-Paths):", activeWorkoutNames);
+
 
       const allWorkoutIds = allTPaths.map(tp => tp.id);
 
@@ -122,11 +128,13 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       // NEW: Fetch workout structure for global badge info
       const { data: structureData, error: structureError } = await supabase
         .from('workout_exercise_structure')
-        .select('exercise_library_id, workout_name, min_session_minutes, bonus_for_time_group'); // Corrected: Added session length fields
+        .select('exercise_library_id, workout_name, min_session_minutes, bonus_for_time_group'); // Added session length fields
 
       if (structureError) {
         throw new Error(structureError.message);
       }
+      console.log("ManageExercises: Raw Workout Structure Data:", structureData);
+
 
       // Create a map from library_id to the actual exercise UUID
       const libraryIdToUuidMap = new Map<string, string>();
@@ -135,6 +143,8 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
           libraryIdToUuidMap.set(ex.library_id, ex.id);
         }
       });
+      console.log("ManageExercises: Library ID to UUID Map:", libraryIdToUuidMap);
+
 
       const newExerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]> = {};
 
@@ -160,30 +170,51 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
 
       // 2. Populate from global workout_exercise_structure, BUT ONLY FOR ACTIVE WORKOUT NAMES AND SESSION LENGTH
       (structureData || []).forEach(structure => {
+        // Check if the workout_name from structureData is one of the active workout names
         if (activeWorkoutNames.includes(structure.workout_name)) {
           const isIncludedAsMain = structure.min_session_minutes !== null && maxAllowedMinutes >= structure.min_session_minutes;
           const isIncludedAsBonus = structure.bonus_for_time_group !== null && maxAllowedMinutes >= structure.bonus_for_time_group;
 
+          console.log(`ManageExercises: Processing structure for ${structure.workout_name} - ${structure.exercise_library_id}`);
+          console.log(`  isIncludedAsMain: ${isIncludedAsMain} (min_session_minutes: ${structure.min_session_minutes})`);
+          console.log(`  isIncludedAsBonus: ${isIncludedAsBonus} (bonus_for_time_group: ${structure.bonus_for_time_group})`);
+          console.log(`  maxAllowedMinutes: ${maxAllowedMinutes}`);
+
+
           if (isIncludedAsMain || isIncludedAsBonus) { // Only add badge if it would be included in the workout
             const exerciseUuid = libraryIdToUuidMap.get(structure.exercise_library_id);
+            console.log(`  Resolved exerciseUuid for ${structure.exercise_library_id}: ${exerciseUuid}`);
+
             if (exerciseUuid) {
               if (!newExerciseWorkoutsMap[exerciseUuid]) {
                 newExerciseWorkoutsMap[exerciseUuid] = [];
               }
+              // Ensure we don't add duplicate badges for the same workout name
               if (!newExerciseWorkoutsMap[exerciseUuid].some(item => item.name === structure.workout_name)) {
                 newExerciseWorkoutsMap[exerciseUuid].push({
-                  id: `global_${structure.workout_name}`,
+                  id: `global_${structure.workout_name}`, // Unique ID for this badge instance
                   name: structure.workout_name,
                   isUserOwned: false,
                   isBonus: false, // Global structure doesn't define bonus status, assume false
                 });
+                console.log(`  Added badge for ${structure.workout_name} to exercise ${exerciseUuid}`);
+              } else {
+                console.log(`  Badge for ${structure.workout_name} already exists for exercise ${exerciseUuid}, skipping.`);
               }
+            } else {
+              console.warn(`  Could not find UUID for library_id: ${structure.exercise_library_id} in libraryIdToUuidMap.`);
             }
+          } else {
+            console.log(`  Exercise ${structure.exercise_library_id} for workout ${structure.workout_name} not included due to session length.`);
           }
+        } else {
+          console.log(`ManageExercises: Skipping structure for ${structure.workout_name} as it's not in activeWorkoutNames.`);
         }
       });
 
       setExerciseWorkoutsMap(newExerciseWorkoutsMap);
+      console.log("ManageExercises: Final Exercise Workouts Map:", newExerciseWorkoutsMap);
+
 
       // Separate user-owned and global exercises based on strict criteria
       const userOwnedExercisesList: FetchedExerciseDefinition[] = [];
@@ -225,6 +256,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
 
     } catch (err: any) {
       toast.error("Failed to load exercises: " + err.message);
+      console.error("ManageExercises: Error in fetchPageData:", err);
     } finally {
       setLoading(false);
     }
