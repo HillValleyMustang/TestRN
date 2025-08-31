@@ -30,7 +30,6 @@ export function Sidebar() {
           return (
             <Tooltip key={link.href}>
               <TooltipTrigger asChild>
-                {/* Changed: Button is now direct child of TooltipTrigger, navigation handled by onClick */}
                 <Button
                   variant="ghost"
                   className={cn(
@@ -39,10 +38,9 @@ export function Sidebar() {
                   )}
                   onClick={() => router.push(link.href)} // Use router.push for navigation
                 >
-                  <span>
-                    <Icon className="h-5 w-5" />
-                    <span className="sr-only">{link.label}</span>
-                  </span>
+                  {/* Removed the extra span here */}
+                  <Icon className="h-5 w-5" />
+                  <span className="sr-only">{link.label}</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="right">{link.label}</TooltipContent>

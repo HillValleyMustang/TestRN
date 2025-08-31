@@ -3,7 +3,7 @@
 import Link from "next/link";
 import React, { useState } from "react";
 import { Home, Dumbbell, LayoutTemplate, History, User, BarChart3, PanelLeft, Plus } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { UserNav } from "./user-nav";
 import { NotificationBell } from "./notification-bell";
@@ -35,11 +35,9 @@ export function Header() {
         <Sheet>
           <SheetTrigger asChild>
             <Button size="icon" variant="outline" className="sm:hidden">
-              {/* Wrap children in a single span */}
-              <span>
-                <PanelLeft className="h-5 w-5" />
-                <span className="sr-only">Toggle Menu</span>
-              </span>
+              {/* Removed the extra span here */}
+              <PanelLeft className="h-5 w-5" />
+              <span className="sr-only">Toggle Menu</span>
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="sm:max-w-xs">
