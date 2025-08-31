@@ -300,23 +300,23 @@ export const EditWorkoutExercisesDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[900px] max-h-[90vh] flex flex-col"> {/* Increased max-w to 900px */}
-        <DialogHeader className="p-6 pb-4">
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] flex flex-col">
+        <DialogHeader className="p-4 pb-2"> {/* Reduced horizontal padding */}
           <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-            Manage Exercises for <WorkoutBadge workoutName={workoutName} className="text-xl px-3 py-1" /> {/* Workout Badge in title */}
+            Manage Exercises for <WorkoutBadge workoutName={workoutName} className="text-xl px-3 py-1" />
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-grow overflow-y-auto px-6 pb-6 space-y-4">
+        <div className="flex-grow overflow-y-auto px-4 pb-4 space-y-4"> {/* Reduced horizontal padding */}
           {loading ? (
             <p className="text-muted-foreground">Loading exercises...</p>
           ) : (
             <div className="space-y-6">
-              <div className="flex gap-2">
+              <div className="flex gap-2 w-full"> {/* Added w-full here */}
                 <Select onValueChange={setSelectedExerciseToAdd} value={selectedExerciseToAdd}>
-                  <SelectTrigger><SelectValue placeholder="Add exercise" /></SelectTrigger> {/* Renamed placeholder */}
-                  <SelectContent className="p-0"> {/* Removed padding from SelectContent */}
-                    <div className="flex border-b p-2"> {/* Filter buttons */}
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Add exercise" /></SelectTrigger> {/* Added w-full here */}
+                  <SelectContent className="p-0">
+                    <div className="flex border-b p-2">
                       <Button
                         variant={addExerciseFilter === 'all' ? 'secondary' : 'ghost'}
                         onClick={() => setAddExerciseFilter('all')}
@@ -340,7 +340,7 @@ export const EditWorkoutExercisesDialog = ({
                       </Button>
                     </div>
                     <ScrollArea className="h-64">
-                      <div className="p-1"> {/* Add padding back for the items */}
+                      <div className="p-1">
                         {allAvailableExercises
                           .filter(ex => {
                             if (addExerciseFilter === 'my-exercises') return ex.user_id === session?.user.id;
@@ -362,7 +362,7 @@ export const EditWorkoutExercisesDialog = ({
                 </Button>
               </div>
 
-              <ScrollArea className="h-96 border rounded-md p-2">
+              <ScrollArea className="h-96 border rounded-md p-2 w-full"> {/* Added w-full here */}
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={exercises.map(e => e.id)} strategy={verticalListSortingStrategy}>
                     <ul className="space-y-2">
