@@ -20,6 +20,9 @@ import { Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import useEmblaCarousel from 'embla-carousel-react';
 import { getMaxMinutes } from '@/lib/utils'; // Import getMaxMinutes
+import { useCacheAndRevalidate } from '@/hooks/use-cache-and-revalidate'; // Import new caching hook
+import { LocalExerciseDefinition, LocalTPath } from '@/lib/db'; // Import local types
+import { SupabaseClient } from '@supabase/supabase-js'; // Import SupabaseClient
 
 // Extend the ExerciseDefinition type to include a temporary flag for global exercises
 interface FetchedExerciseDefinition extends Tables<'exercise_definitions'> {
@@ -43,11 +46,49 @@ export default function ManageExercisesPage() {
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
 
-  const fetchExercises = useCallback(async () => {
-    if (!session) return;
+  // Define Supabase query functions for caching hook
+  const fetchExercisesSupabase = useCallback(async (client: SupabaseClient) => {
+    return client
+      .from('exercise_definitions')
+      .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url')
+      .or(`user_id.eq.${session?.user.id},user_id.is.null`)
+      .order('name', { ascending: true });
+  }, [session?.user.id]);
+
+  const fetchTPathsSupabase = useCallback(async (client: SupabaseClient) => {
+    return client
+      .from('t_paths')
+      .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id');
+  }, []);
+
+  // Use the caching hook for exercises
+  const { data: cachedExercises, loading: loadingExercises, error: exercisesError, refresh: refreshExercises } = useCacheAndRevalidate<LocalExerciseDefinition>({
+    cacheTable: 'exercise_definitions_cache',
+    supabaseQuery: fetchExercisesSupabase,
+    queryKey: 'manage_exercises_all_exercises',
+    supabase,
+    sessionUserId: session?.user.id || null,
+  });
+
+  // Use the caching hook for T-Paths
+  const { data: cachedTPaths, loading: loadingTPaths, error: tPathsError, refresh: refreshTPaths } = useCacheAndRevalidate<LocalTPath>({
+    cacheTable: 't_paths_cache',
+    supabaseQuery: fetchTPathsSupabase,
+    queryKey: 'manage_exercises_all_t_paths',
+    supabase,
+    sessionUserId: session?.user.id || null,
+  });
+
+  const fetchPageData = useCallback(async () => {
+    if (!session || loadingExercises || loadingTPaths) return; // Wait for cached data to load
+
     setLoading(true);
     try {
-      // Fetch user profile to get preferred_session_length and active_t_path_id
+      // Handle errors from caching hooks
+      if (exercisesError) throw new Error(exercisesError);
+      if (tPathsError) throw new Error(tPathsError);
+
+      // 1. Fetch user profile to get preferred_session_length and active_t_path_id
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('preferred_session_length, active_t_path_id')
@@ -60,31 +101,14 @@ export default function ManageExercisesPage() {
 
       const preferredSessionLength = profileData?.preferred_session_length;
       const activeTPathId = profileData?.active_t_path_id;
-      const maxAllowedMinutes = getMaxMinutes(preferredSessionLength);
+      const maxAllowedMinutes = getMaxMinutes(preferredSessionLength); // Not directly used for filtering here, but good to have
 
       let workoutSplit: string | null = null;
       if (activeTPathId) {
-        const { data: activeTPath, error: activeTPathError } = await supabase
-          .from('t_paths')
-          .select('settings')
-          .eq('id', activeTPathId)
-          .single();
-        if (activeTPathError) {
-          console.error("Error fetching active T-Path settings:", activeTPathError);
-        } else if (activeTPath?.settings && typeof activeTPath.settings === 'object' && 'tPathType' in activeTPath.settings) {
+        const activeTPath = cachedTPaths?.find(tp => tp.id === activeTPathId);
+        if (activeTPath?.settings && typeof activeTPath.settings === 'object' && 'tPathType' in activeTPath.settings) {
           workoutSplit = (activeTPath.settings as { tPathType: string }).tPathType;
         }
-      }
-
-      // Fetch all exercises (user's own and global ones)
-      const { data: allExercisesData, error: allExercisesError } = await supabase
-        .from('exercise_definitions')
-        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url')
-        .or(`user_id.eq.${session.user.id},user_id.is.null`)
-        .order('name', { ascending: true });
-
-      if (allExercisesError) {
-        throw new Error(allExercisesError.message);
       }
 
       // Fetch user's global favourites
@@ -98,27 +122,19 @@ export default function ManageExercisesPage() {
       }
       const favoritedGlobalExerciseIds = new Set(userGlobalFavorites?.map(fav => fav.exercise_id));
 
-      // Fetch only the child workouts of the *active* T-Path
+      // Filter cached T-Paths for active child workouts
       let activeTPathChildWorkouts: TPath[] = [];
-      if (activeTPathId) {
-          const { data: childWorkoutsData, error: childWorkoutsError } = await supabase
-              .from('t_paths')
-              .select('id, template_name, user_id')
-              .eq('parent_t_path_id', activeTPathId) // Filter by active parent T-Path
-              .eq('is_bonus', true); // Ensure they are child workouts
-          if (childWorkoutsError) {
-              console.error("Error fetching child workouts for active T-Path:", childWorkoutsError);
-          } else {
-              activeTPathChildWorkouts = childWorkoutsData as TPath[];
-          }
+      if (activeTPathId && cachedTPaths) {
+          activeTPathChildWorkouts = cachedTPaths
+              .filter(tp => tp.parent_t_path_id === activeTPathId && tp.is_bonus === true) as TPath[];
       }
-
       const activeWorkoutIds = activeTPathChildWorkouts.map(tp => tp.id);
 
+      // Fetch t_path_exercises for the active child workouts
       const { data: tPathExercisesData, error: tPathExercisesError } = await supabase
         .from('t_path_exercises')
         .select('exercise_id, template_id, is_bonus_exercise')
-        .in('template_id', activeWorkoutIds); // Filter by active child workout IDs
+        .in('template_id', activeWorkoutIds);
 
       if (tPathExercisesError) {
         throw new Error(tPathExercisesError.message);
@@ -145,15 +161,14 @@ export default function ManageExercisesPage() {
       const userOwnedMap = new Map<string, FetchedExerciseDefinition>(); // Key: library_id or exercise.id
       const globalMap = new Map<string, FetchedExerciseDefinition>(); // Key: library_id
 
-      // Populate user-owned exercises first
-      allExercisesData.filter(ex => ex.user_id === session.user.id).forEach(ex => {
+      // Populate user-owned exercises first from cached data
+      (cachedExercises || []).filter(ex => ex.user_id === session.user.id).forEach(ex => {
         const key = ex.library_id || ex.id; // Use library_id if available, otherwise its own ID
         userOwnedMap.set(key, { ...ex, is_favorite: !!ex.is_favorite }); // Ensure is_favorite is boolean
       });
 
-      // Populate global exercises, ensuring no duplicates with user-owned versions
-      // Removed the isRelevantToSessionLength filter for global exercises
-      allExercisesData.filter(ex => ex.user_id === null).forEach(ex => {
+      // Populate global exercises from cached data, ensuring no duplicates with user-owned versions
+      (cachedExercises || []).filter(ex => ex.user_id === null).forEach(ex => {
         const isUserOwnedCopy = ex.library_id && userOwnedMap.has(ex.library_id);
         
         if (!isUserOwnedCopy) { // Only filter out if user has an adopted copy
@@ -167,8 +182,8 @@ export default function ManageExercisesPage() {
       let finalUserExercises = Array.from(userOwnedMap.values());
       let finalGlobalExercises = Array.from(globalMap.values());
 
-      // Extract unique muscle groups for the filter dropdown from *all* exercises
-      const allUniqueMuscles = Array.from(new Set(allExercisesData.map(ex => ex.main_muscle))).sort();
+      // Extract unique muscle groups for the filter dropdown from *all* cached exercises
+      const allUniqueMuscles = Array.from(new Set((cachedExercises || []).map(ex => ex.main_muscle))).sort();
       setAvailableMuscleGroups(allUniqueMuscles);
 
       // Apply the selected filter to both lists
@@ -191,11 +206,14 @@ export default function ManageExercisesPage() {
     } finally {
       setLoading(false);
     }
-  }, [session, supabase, selectedMuscleFilter]);
+  }, [session, supabase, selectedMuscleFilter, cachedExercises, cachedTPaths, exercisesError, tPathsError, loadingExercises, loadingTPaths]);
 
   useEffect(() => {
-    fetchExercises();
-  }, [fetchExercises]);
+    // Only fetch if cached data is available and not currently loading
+    if (!loadingExercises && !loadingTPaths) {
+      fetchPageData();
+    }
+  }, [fetchPageData, loadingExercises, loadingTPaths]); // Re-run when cached data changes or its loading state changes
 
   const handleEditClick = (exercise: FetchedExerciseDefinition) => {
     setEditingExercise(exercise);
@@ -207,7 +225,7 @@ export default function ManageExercisesPage() {
 
   const handleSaveSuccess = () => {
     setEditingExercise(null);
-    fetchExercises();
+    refreshExercises(); // Trigger revalidation of exercises after save
   };
 
   const handleDeleteExercise = async (exercise: FetchedExerciseDefinition) => {
@@ -226,7 +244,7 @@ export default function ManageExercisesPage() {
         throw new Error(error.message);
       }
       toast.success("Exercise deleted successfully!");
-      fetchExercises(); // Re-fetch to update the list
+      refreshExercises(); // Trigger revalidation of exercises after delete
     } catch (err: any) {
       console.error("Failed to delete exercise:", err);
       toast.error("Failed to delete exercise: " + err.message);
@@ -282,8 +300,7 @@ export default function ManageExercisesPage() {
           toast.success("Removed from favourites.");
         }
       }
-      // No need to re-fetch all exercises if optimistic update was successful
-      // fetchExercises(); // Removed this line
+      refreshExercises(); // Trigger revalidation after favorite change
     } catch (err: any) {
       console.error("Failed to toggle favourite status:", err);
       toast.error("Failed to update favourite status: " + err.message);
@@ -298,7 +315,7 @@ export default function ManageExercisesPage() {
         ));
       }
     }
-  }, [session, supabase]);
+  }, [session, supabase, refreshExercises]);
 
   const handleOptimisticAdd = useCallback((exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => {
     setExerciseWorkoutsMap(prev => {
@@ -362,15 +379,14 @@ export default function ManageExercisesPage() {
         throw new Error(error.message);
       }
       toast.success("Exercise removed from workout successfully!");
-      // No need to re-fetch all exercises if optimistic update was successful
-      // fetchExercises(); // Removed this line
+      refreshTPaths(); // Trigger revalidation of T-Paths after removal
     } catch (err: any) {
       console.error("Failed to remove exercise from workout:", err);
       toast.error("Failed to remove exercise from workout: " + err.message);
       // Rollback UI on error
       setExerciseWorkoutsMap(previousExerciseWorkoutsMap); // Revert to previous state
     }
-  }, [session, supabase, exerciseWorkoutsMap]); // Added exerciseWorkoutsMap to dependencies
+  }, [session, supabase, exerciseWorkoutsMap, refreshTPaths]);
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
@@ -464,7 +480,7 @@ export default function ManageExercisesPage() {
                       exerciseWorkoutsMap={exerciseWorkoutsMap}
                       onRemoveFromWorkout={handleRemoveFromWorkout}
                       onToggleFavorite={handleToggleFavorite}
-                      onAddSuccess={fetchExercises}
+                      onAddSuccess={refreshExercises} // Trigger refresh after add
                       onOptimisticAdd={handleOptimisticAdd}
                       onAddFailure={handleAddFailure}
                     />
@@ -479,7 +495,7 @@ export default function ManageExercisesPage() {
                       exerciseWorkoutsMap={exerciseWorkoutsMap}
                       onRemoveFromWorkout={handleRemoveFromWorkout}
                       onToggleFavorite={handleToggleFavorite}
-                      onAddSuccess={fetchExercises}
+                      onAddSuccess={refreshExercises} // Trigger refresh after add
                       onOptimisticAdd={handleOptimisticAdd}
                       onAddFailure={handleAddFailure}
                     />
