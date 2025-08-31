@@ -205,43 +205,42 @@ export const useExerciseSets = ({
     });
   }, [preferredWeightUnit]);
 
-  const saveSingleSetToDatabase = useCallback(async (set: SetLogState, setIndex: number): Promise<SetLogState | null> => {
+  const saveSingleSetToDatabase = useCallback(async (set: SetLogState, setIndex: number): Promise<{ savedSet: SetLogState | null, newSessionId: string | null }> => {
     let currentSessionIdToUse = internalSessionId;
+    let createdNewSession = false;
 
     if (!currentSessionIdToUse) {
       try {
         const newSessionId = await onFirstSetSaved(new Date().toISOString());
         currentSessionIdToUse = newSessionId;
-        setInternalSessionId(newSessionId);
-        
-        setSets(prevSets => prevSets.map(s => ({ ...s, session_id: newSessionId })));
+        createdNewSession = true; // Mark that a new session was created
       } catch (err) {
         toast.error("Failed to start workout session. Please try again.");
         console.error("Error creating session on first set save:", err);
-        return null;
+        return { savedSet: null, newSessionId: null };
       }
     }
 
     if (exerciseType === 'weight') {
       if (set.weight_kg === null || set.weight_kg <= 0) {
         toast.error(`Set ${setIndex + 1}: Please enter a valid positive weight.`);
-        return null;
+        return { savedSet: null, newSessionId: null };
       }
       if (exerciseCategory === 'Unilateral') {
         if (set.reps_l === null || set.reps_r === null || set.reps_l < 0 || set.reps_r < 0) {
           toast.error(`Set ${setIndex + 1}: Please enter valid positive reps for both left and right sides.`);
-          return null;
+          return { savedSet: null, newSessionId: null };
         }
       } else { // Bilateral weight
         if (set.reps === null || set.reps <= 0) {
           toast.error(`Set ${setIndex + 1}: Please enter valid positive reps.`);
-          return null;
+          return { savedSet: null, newSessionId: null };
         }
       }
     } else if (exerciseType === 'timed') {
       if (set.time_seconds === null || set.time_seconds <= 0) {
         toast.error(`Set ${setIndex + 1}: Please enter a valid positive time in seconds.`);
-        return null;
+        return { savedSet: null, newSessionId: null };
       }
     }
 
@@ -307,19 +306,19 @@ export const useExerciseSets = ({
       toast.error(`Failed to save set ${setIndex + 1}: ` + error.message);
       console.error("Error saving set:", error);
       console.log(`[DEBUG] Set ${setIndex + 1} - Error from DB:`, error);
-      return null;
+      return { savedSet: null, newSessionId: null };
     } else {
       console.log(`[DEBUG] Set ${setIndex + 1} - Data returned from DB:`, data);
-      return { ...set, ...data, isSaved: true, isPR: isSetPR };
+      return { savedSet: { ...set, ...data, isSaved: true, isPR: isSetPR }, newSessionId: createdNewSession ? currentSessionIdToUse : null };
     }
   }, [internalSessionId, exerciseId, exerciseType, exerciseCategory, supabase, onFirstSetSaved, preferredWeightUnit]);
 
   const handleSaveSet = useCallback(async (setIndex: number) => {
-    const updatedSet = await saveSingleSetToDatabase(sets[setIndex], setIndex);
-    if (updatedSet) {
+    const { savedSet } = await saveSingleSetToDatabase(sets[setIndex], setIndex);
+    if (savedSet) {
       setSets(prev => {
         const newSets = [...prev];
-        newSets[setIndex] = updatedSet;
+        newSets[setIndex] = savedSet;
         return newSets;
       });
       // Removed individual set saved/PR toasts
@@ -369,6 +368,7 @@ export const useExerciseSets = ({
     const updatedSetsState: SetLogState[] = [];
     let anySetSavedInThisCall = false;
     let hasError = false;
+    let newSessionIdFromFirstSet: string | null = null; // To capture new session ID if created
 
     for (let i = 0; i < sets.length; i++) {
       const currentSet = sets[i];
@@ -379,25 +379,37 @@ export const useExerciseSets = ({
                       (currentSet.reps_r !== null && currentSet.reps_r > 0);
 
       if (hasData && !currentSet.isSaved) {
-        const savedSet = await saveSingleSetToDatabase(currentSet, i);
+        console.log(`[DEBUG] handleSaveExercise: Attempting to save set ${i + 1} (ID: ${currentSet.id})`);
+        const { savedSet, newSessionId } = await saveSingleSetToDatabase(currentSet, i); // Destructure newSessionId
         if (savedSet) {
+          console.log(`[DEBUG] handleSaveExercise: Successfully saved set ${i + 1}, new ID: ${savedSet.id}`);
           updatedSetsState.push(savedSet);
           anySetSavedInThisCall = true;
+          if (newSessionId) { // If a new session was created by this set
+            newSessionIdFromFirstSet = newSessionId;
+          }
         } else {
+          console.error(`[DEBUG] handleSaveExercise: Failed to save set ${i + 1}`);
           hasError = true;
           updatedSetsState.push(currentSet);
         }
+      } else if (hasData && currentSet.isSaved) {
+        console.log(`[DEBUG] handleSaveExercise: Set ${i + 1} already saved, skipping.`);
+        updatedSetsState.push(currentSet);
       } else {
+        console.log(`[DEBUG] handleSaveExercise: Set ${i + 1} has no data, skipping.`);
         updatedSetsState.push(currentSet);
       }
     }
 
-    if (hasError) {
-      toast.error("Some sets failed to save. Please check your inputs.");
-      setSets(updatedSetsState);
-      return false;
+    // After the loop, if a new session was created, update internalSessionId and all sets' session_id
+    if (newSessionIdFromFirstSet) {
+      setInternalSessionId(newSessionIdFromFirstSet);
+      setSets(prevSets => prevSets.map(s => ({ ...s, session_id: newSessionIdFromFirstSet })));
+    } else {
+      setSets(updatedSetsState); // Only update sets if no new session was created
     }
-
+    
     const hasAnyValidSetData = updatedSetsState.some(s =>
       (s.weight_kg !== null && s.weight_kg > 0) ||
       (s.reps !== null && s.reps > 0) ||
@@ -411,8 +423,6 @@ export const useExerciseSets = ({
       setSets(updatedSetsState);
       return false;
     }
-
-    setSets(updatedSetsState);
 
     let currentExercisePRValue: number | null = null;
     if (exerciseType === 'weight') {
@@ -465,7 +475,7 @@ export const useExerciseSets = ({
       toast.error("Failed to complete exercise: " + err.message);
       return false;
     }
-  }, [internalSessionId, sets, exerciseType, exerciseCategory, exercisePR, exerciseId, supabase, onExerciseComplete, exerciseName, saveSingleSetToDatabase]);
+  }, [sets, exerciseType, exerciseCategory, exercisePR, exerciseId, supabase, onExerciseComplete, exerciseName, saveSingleSetToDatabase]);
 
   const handleSuggestProgression = useCallback(async () => {
     if (!supabase) {

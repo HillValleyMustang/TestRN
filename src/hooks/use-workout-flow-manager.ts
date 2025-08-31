@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { Tables, SetLogState, WorkoutExercise, Profile as ProfileType, UserAchievement, GetLastExerciseSetsForExerciseReturns } from '@/types/supabase'; // Import UserAchievement and new RPC types
@@ -87,6 +87,10 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     setCurrentSessionId(null);
     setSessionStartTime(null);
     setCompletedExercises(new Set());
+  }, []);
+
+  const markExerciseAsCompleted = useCallback((exerciseId: string, isNewPR: boolean) => {
+    setCompletedExercises((prev: Set<string>) => new Set(prev).add(exerciseId));
   }, []);
 
   useEffect(() => {
@@ -294,10 +298,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       else setSessionStartTime(new Date(timestamp));
     }
   }, [currentSessionId, sessionStartTime, supabase]);
-
-  const markExerciseAsCompleted = useCallback((exerciseId: string, isNewPR: boolean) => {
-    setCompletedExercises((prev: Set<string>) => new Set(prev).add(exerciseId));
-  }, []);
 
   const addExerciseToSession = useCallback(async (exercise: ExerciseDefinition) => {
     if (!session) return; // Ensure session exists for user_id
