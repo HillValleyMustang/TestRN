@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from '@/components/session-context-provider';
 import { Badge } from "@/components/ui/badge";
-import { Flame, Dumbbell, CheckCircle, Clock, AlertCircle } from "lucide-react"; // Added AlertCircle
+import { Flame, Dumbbell, CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { cn } from '@/lib/utils';
 
 export function RollingStatusBadge() {
@@ -29,7 +29,9 @@ export function RollingStatusBadge() {
           throw error;
         }
 
-        setStatus(profileData?.rolling_workout_status || 'Getting into it'); // Changed default status
+        const fetchedStatus = profileData?.rolling_workout_status || 'Getting into it';
+        console.log("Fetched rolling_workout_status:", fetchedStatus); // Debugging log
+        setStatus(fetchedStatus);
       } catch (error) {
         console.error("Failed to fetch rolling status data:", error);
         setStatus('Error'); // Indicate an error state
@@ -44,7 +46,6 @@ export function RollingStatusBadge() {
   if (loading) {
     return (
       <Badge variant="secondary" className="flex items-center gap-1">
-        {/* Removed extra span wrapper */}
         <Clock className="h-4 w-4 text-muted-foreground" />
         <span className="font-semibold text-muted-foreground">Loading Status...</span>
       </Badge>
@@ -53,10 +54,15 @@ export function RollingStatusBadge() {
 
   let badgeIcon: React.ReactNode;
   let badgeColorClass: string;
+  let displayText = status; // Default to fetched status
 
   switch (status) {
-    case 'Ready to Start': // This case will now effectively be 'Getting into it' due to default
-    case 'Getting into it': // Explicitly handle the new status
+    case 'Ready to Start':
+      displayText = 'Getting into it'; // Force display to new text
+      badgeIcon = <Dumbbell className="h-4 w-4 text-gray-400" />;
+      badgeColorClass = 'bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
+      break;
+    case 'Getting into it':
       badgeIcon = <Dumbbell className="h-4 w-4 text-gray-400" />;
       badgeColorClass = 'bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
       break;
@@ -75,14 +81,14 @@ export function RollingStatusBadge() {
     default:
       badgeIcon = <AlertCircle className="h-4 w-4 text-destructive" />;
       badgeColorClass = 'bg-destructive/10 text-destructive border-destructive/30';
+      displayText = status; // Use the error status directly
       break;
   }
 
   return (
     <Badge variant="outline" className={cn("flex items-center gap-1 px-3 py-1 text-sm font-semibold", badgeColorClass)}>
-      {/* Removed extra span wrapper */}
       {badgeIcon}
-      <span>{status}</span>
+      <span>{displayText}</span>
     </Badge>
   );
 }
