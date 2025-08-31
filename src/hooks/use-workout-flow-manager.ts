@@ -75,12 +75,12 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   const { data: cachedExercises, loading: loadingExercises, error: exercisesError, refresh: refreshExercises } = useCacheAndRevalidate<LocalExerciseDefinition>({
     cacheTable: 'exercise_definitions_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
+      // Fetch all exercises (user-owned and global)
       return client
         .from('exercise_definitions')
         .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, is_favorite, created_at, user_id, icon_url')
-        .or(`user_id.eq.${session?.user.id},user_id.is.null`)
         .order('name', { ascending: true });
-    }, [session?.user.id]),
+    }, []),
     queryKey: 'all_exercises',
     supabase,
     sessionUserId: session?.user.id ?? null,
@@ -449,6 +449,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       lastTimeSeconds = firstLastSet.time_seconds;
     }
 
+    // Directly add the exercise to the session, no adoption needed.
     setExercisesForSession(prev => [{ ...exercise, is_bonus_exercise: false }, ...prev]);
     
     const newSetsForExercise: SetLogState[] = Array.from({ length: DEFAULT_INITIAL_SETS }).map((_, setIndex) => {

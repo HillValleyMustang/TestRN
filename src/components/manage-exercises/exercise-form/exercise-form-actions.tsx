@@ -4,6 +4,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Edit, XCircle } from "lucide-react";
 import { Tables } from "@/types/supabase";
+import { useSession } from "@/components/session-context-provider"; // Import useSession
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -18,19 +19,16 @@ export const ExerciseFormActions = ({
   onCancelEdit,
   toggleExpand,
 }: ExerciseFormActionsProps) => {
+  const { session } = useSession();
+  const isUserOwnedEditing = editingExercise && editingExercise.user_id === session?.user.id;
+
   return (
     <div className="flex gap-2 pt-2">
       <Button type="submit" className="flex-1">
-        {editingExercise ? (
-          editingExercise.user_id === null ? (
-            <>
-              <PlusCircle className="h-4 w-4 mr-2" /> Adopt & Edit
-            </>
-          ) : (
-            <>
-              <Edit className="h-4 w-4 mr-2" /> Update
-            </>
-          )
+        {isUserOwnedEditing ? (
+          <>
+            <Edit className="h-4 w-4 mr-2" /> Update
+          </>
         ) : (
           <>
             <PlusCircle className="h-4 w-4 mr-2" /> Add

@@ -55,11 +55,11 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
 
       const exerciseIdsInWorkout = (tPathExercisesLinks || []).map(link => link.exercise_id);
 
-      // 2. Fetch all exercise definitions that are either user-owned, global, or specifically linked to this workout
+      // 2. Fetch all exercise definitions that are either user-owned or global
       const { data: allExercisesData, error: allExercisesError } = await supabase
         .from('exercise_definitions')
         .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, is_favorite, created_at, user_id, icon_url')
-        .or(`user_id.eq.${session.user.id},user_id.is.null,id.in.(${exerciseIdsInWorkout.join(',')})`) // Include all exercises in workout
+        .or(`user_id.eq.${session.user.id},user_id.is.null`) // Fetch all user's and global exercises
         .order('name', { ascending: true });
 
       if (allExercisesError) throw allExercisesError;
@@ -90,21 +90,10 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       const uniqueMuscleGroups = Array.from(new Set((allExercisesData || []).map(ex => ex.main_muscle))).sort();
       setMainMuscleGroups(uniqueMuscleGroups);
 
-      // Filter out global exercises if a user-owned copy already exists
-      const userOwnedExerciseIds = new Set(
-        (allExercisesData || [])
-          .filter(ex => ex.user_id === session.user.id && ex.library_id)
-          .map(ex => ex.library_id)
-      );
-
-      const filteredAvailableExercises = (allExercisesData || []).filter(ex => {
-        if (ex.user_id === null && ex.library_id && userOwnedExerciseIds.has(ex.library_id)) {
-          return false;
-        }
-        return true;
-      });
-
-      setAllAvailableExercises(filteredAvailableExercises as ExerciseDefinition[]);
+      // Filter available exercises for the "Add Exercise" dropdown
+      // This list should include all global exercises and all user-created exercises.
+      // No "adoption" filtering here, as the dropdown should show everything available to link.
+      setAllAvailableExercises(allExercisesData as ExerciseDefinition[]);
 
     } catch (err: any) {
       toast.error("Failed to load workout exercises: " + err.message);
@@ -134,50 +123,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     }
   }, []);
 
-  const adoptExercise = useCallback(async (exerciseToAdopt: ExerciseDefinition): Promise<string> => {
-    if (exerciseToAdopt.user_id === session?.user.id) {
-      return exerciseToAdopt.id;
-    }
-
-    if (exerciseToAdopt.library_id) {
-      const { data: existingAdopted, error: fetchError } = await supabase
-        .from('exercise_definitions')
-        .select('id')
-        .eq('user_id', session!.user.id)
-        .eq('library_id', exerciseToAdopt.library_id)
-        .single();
-
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        throw fetchError;
-      }
-      if (existingAdopted) {
-        return existingAdopted.id;
-      }
-    }
-
-    const { data: newAdoptedExercise, error: insertError } = await supabase
-      .from('exercise_definitions')
-      .insert({
-        name: exerciseToAdopt.name,
-        main_muscle: exerciseToAdopt.main_muscle,
-        type: exerciseToAdopt.type,
-        category: exerciseToAdopt.category,
-        description: exerciseToAdopt.description,
-        pro_tip: exerciseToAdopt.pro_tip,
-        video_url: exerciseToAdopt.video_url,
-        user_id: session!.user.id,
-        library_id: exerciseToAdopt.library_id || null,
-        is_favorite: false,
-        icon_url: exerciseToAdopt.icon_url,
-      })
-      .select('id')
-      .single();
-
-    if (insertError) {
-      throw insertError;
-    }
-    return newAdoptedExercise.id;
-  }, [session, supabase]);
+  // Removed adoptExercise function as per new requirements
 
   const handleAddExerciseWithBonusStatus = useCallback(async (isBonus: boolean) => {
     if (!exerciseToAddDetails || !session) return;
@@ -186,14 +132,15 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     setShowAddAsBonusDialog(false);
 
     try {
-      const finalExerciseId = await adoptExercise(exerciseToAddDetails);
+      // Directly use the exerciseToAddDetails.id, no adoption needed.
+      const finalExerciseId = exerciseToAddDetails.id;
 
       // Optimistic UI update: Add the exercise to the local state immediately
       const newOrderIndex = exercises.length > 0 ? Math.max(...exercises.map(e => e.order_index)) + 1 : 0;
       const tempTPathExerciseId = `temp-${Date.now()}`; // Temporary ID for optimistic UI
       const newExerciseWithDetails: WorkoutExerciseWithDetails = {
         ...exerciseToAddDetails,
-        id: finalExerciseId,
+        id: finalExerciseId, // Use the original ID
         order_index: newOrderIndex,
         is_bonus_exercise: isBonus,
         t_path_exercise_id: tempTPathExerciseId,
@@ -254,7 +201,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     } finally {
       setIsSaving(false);
     }
-  }, [session, supabase, workoutId, exercises, exerciseToAddDetails, adoptExercise]);
+  }, [session, supabase, workoutId, exercises, exerciseToAddDetails]);
 
   const handleSelectAndPromptBonus = useCallback(() => {
     if (!selectedExerciseToAdd) {

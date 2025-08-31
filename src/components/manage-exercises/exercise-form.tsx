@@ -108,6 +108,9 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
 
   useEffect(() => {
     if (editingExercise) {
+      // If editing a user-owned exercise, pre-fill the form for editing.
+      // If editingExercise is a global exercise (user_id === null),
+      // we treat it as a "create new from template" action.
       const muscleGroups = editingExercise.main_muscle ? editingExercise.main_muscle.split(',').map((m: string) => m.trim()) : [];
       
       form.reset({
@@ -149,8 +152,8 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
   };
 
   const handleExerciseIdentified = (identifiedData: Partial<ExerciseDefinition>) => {
-    onCancelEdit();
-    setIsExpanded(true);
+    onCancelEdit(); // Clear any existing editing state
+    setIsExpanded(true); // Ensure form is open
 
     const muscleGroups = identifiedData.main_muscle ? identifiedData.main_muscle.split(',').map((m: string) => m.trim()) : [];
     const exerciseType = identifiedData.type ? [identifiedData.type] as ("weight" | "timed")[] : [];
@@ -194,48 +197,28 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
       video_url: values.video_url,
     };
 
-    if (editingExercise) {
-      if (editingExercise.user_id === null) {
-        const { error } = await supabase.from('exercise_definitions').insert([{ 
-          ...exerciseData, 
-          user_id: session.user.id,
-          library_id: editingExercise.library_id,
-          is_favorite: false,
-          created_at: new Date().toISOString(),
-        }]).select('id').single();
+    if (editingExercise && editingExercise.user_id === session.user.id) {
+      // This is an actual edit of a user-owned exercise
+      const { error } = await supabase
+        .from('exercise_definitions')
+        .update(exerciseData)
+        .eq('id', editingExercise.id);
 
-        if (error) {
-          if (error.code === '23505') {
-            toast.error("You already have a copy of this exercise in your library.");
-          } else {
-            toast.error("Failed to adopt exercise: " + error.message);
-          }
-        } else {
-          toast.success("Exercise adopted and added to your library!");
-          onCancelEdit();
-          onSaveSuccess();
-          setIsExpanded(false);
-        }
+      if (error) {
+        toast.error("Failed to update exercise: " + error.message);
       } else {
-        const { error } = await supabase
-          .from('exercise_definitions')
-          .update(exerciseData)
-          .eq('id', editingExercise.id);
-
-        if (error) {
-          toast.error("Failed to update exercise: " + error.message);
-        } else {
-          toast.success("Exercise updated successfully!");
-          onCancelEdit();
-          onSaveSuccess();
-          setIsExpanded(false);
-        }
+        toast.success("Exercise updated successfully!");
+        onCancelEdit();
+        onSaveSuccess();
+        setIsExpanded(false);
       }
     } else {
+      // This is either adding a new exercise from scratch,
+      // or creating a custom version of a global exercise.
       const { error } = await supabase.from('exercise_definitions').insert([{ 
         ...exerciseData, 
         user_id: session.user.id,
-        library_id: null,
+        library_id: null, // Always null for user-created/customized exercises
         is_favorite: false,
         created_at: new Date().toISOString(),
       }]).select('id').single();
@@ -278,7 +261,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
         }}
       >
         <CardTitle className="flex-1 text-base">
-          {editingExercise ? "Edit Exercise" : "Add New Exercise"}
+          {editingExercise && editingExercise.user_id === session?.user.id ? "Edit Exercise" : "Add New Exercise"}
         </CardTitle>
         <span className="ml-2">
           {isExpanded ? (

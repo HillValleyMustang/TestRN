@@ -37,7 +37,7 @@ export const ExerciseSubstitutionDialog = ({
     try {
       const { data: allMatchingExercises, error: fetchError } = await supabase
         .from('exercise_definitions')
-        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite')
+        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url')
         .or(`user_id.eq.${session.user.id},user_id.is.null`)
         .eq('main_muscle', currentExercise.main_muscle)
         .eq('type', currentExercise.type)
@@ -45,14 +45,15 @@ export const ExerciseSubstitutionDialog = ({
 
       if (fetchError) throw fetchError;
 
-      const userOwnedExerciseIds = new Set(
+      // Filter out global exercises if a user-owned copy already exists
+      const userOwnedExerciseLibraryIds = new Set(
         allMatchingExercises
           .filter(ex => ex.user_id === session.user.id && ex.library_id)
           .map(ex => ex.library_id)
       );
 
       const filteredSubstitutions = (allMatchingExercises as ExerciseDefinition[]).filter(ex => {
-        if (ex.user_id === null && ex.library_id && userOwnedExerciseIds.has(ex.library_id)) {
+        if (ex.user_id === null && ex.library_id && userOwnedExerciseLibraryIds.has(ex.library_id)) {
           return false;
         }
         return true;
@@ -73,58 +74,16 @@ export const ExerciseSubstitutionDialog = ({
     }
   }, [open, session, supabase, currentExercise]);
 
-  const adoptExercise = async (exerciseToAdopt: ExerciseDefinition): Promise<ExerciseDefinition> => {
-    if (exerciseToAdopt.user_id === session?.user.id) {
-      return exerciseToAdopt;
-    }
-
-    if (exerciseToAdopt.library_id) {
-      const { data: existingAdopted, error: fetchError } = await supabase
-        .from('exercise_definitions')
-        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite')
-        .eq('user_id', session!.user.id)
-        .eq('library_id', exerciseToAdopt.library_id)
-        .single();
-
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        throw fetchError;
-      }
-      if (existingAdopted) {
-        return existingAdopted as ExerciseDefinition;
-      }
-    }
-
-    const { data: newAdoptedExercise, error: insertError } = await supabase
-      .from('exercise_definitions')
-      .insert({
-        name: exerciseToAdopt.name,
-        main_muscle: exerciseToAdopt.main_muscle,
-        type: exerciseToAdopt.type,
-        category: exerciseToAdopt.category,
-        description: exerciseToAdopt.description,
-        pro_tip: exerciseToAdopt.pro_tip,
-        video_url: exerciseToAdopt.video_url,
-        user_id: session!.user.id,
-        library_id: exerciseToAdopt.library_id || null,
-        is_favorite: false,
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      throw insertError;
-    }
-    return newAdoptedExercise;
-  };
+  // Removed adoptExercise function as per new requirements
 
   const handleSelectSubstitution = async (exercise: ExerciseDefinition) => {
     try {
-      const adoptedExercise = await adoptExercise(exercise);
-      onSubstitute(adoptedExercise);
+      // Directly use the selected exercise, no adoption needed.
+      onSubstitute(exercise);
       onOpenChange(false);
-      toast.success(`Substituted with ${adoptedExercise.name}`);
+      toast.success(`Substituted with ${exercise.name}`);
     } catch (err: any) {
-      console.error("Failed to adopt/substitute exercise:", err);
+      console.error("Failed to substitute exercise:", err);
       toast.error("Failed to substitute exercise: " + err.message);
     }
   };

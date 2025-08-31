@@ -75,7 +75,8 @@ export const ExerciseInfoDialog = ({ open, onOpenChange, exercise, trigger, exer
   };
 
   const embedVideoUrl = getYouTubeEmbedUrl(exercise.video_url);
-  const isUserCreatedExercise = session && exercise.user_id === session.user.id;
+  // Only allow deletion if the exercise is user-created
+  const canDeleteExercise = session && exercise.user_id === session.user.id && onDeleteExercise;
 
   return (
     <Dialog open={currentOpen} onOpenChange={setCurrentOpen}>
@@ -152,7 +153,7 @@ export const ExerciseInfoDialog = ({ open, onOpenChange, exercise, trigger, exer
             <Search className="h-4 w-4 mr-2" /> Google Search
           </Button>
 
-          {isUserCreatedExercise && onDeleteExercise && (
+          {canDeleteExercise && (
             <Button variant="destructive" onClick={handleDeleteExerciseClick} className="w-full mt-4">
               <Trash2 className="h-4 w-4 mr-2" /> Delete Exercise
             </Button>

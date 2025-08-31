@@ -31,12 +31,12 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
 
   // Define Supabase query functions for caching hook
   const fetchExercisesSupabase = useCallback(async (client: SupabaseClient) => {
+    // Fetch all exercises (user-owned and global)
     return client
       .from('exercise_definitions')
       .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url')
-      .or(`user_id.eq.${sessionUserId},user_id.is.null`)
       .order('name', { ascending: true });
-  }, [sessionUserId]);
+  }, []); // Removed sessionUserId from dependencies as we fetch all and filter client-side
 
   const fetchTPathsSupabase = useCallback(async (client: SupabaseClient) => {
     return client
@@ -50,7 +50,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
     supabaseQuery: fetchExercisesSupabase,
     queryKey: 'manage_exercises_all_exercises',
     supabase,
-    sessionUserId: sessionUserId,
+    sessionUserId: sessionUserId, // Still pass sessionUserId for cache key, but query fetches all
   });
 
   // Use the caching hook for T-Paths
@@ -125,14 +125,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       });
       setExerciseWorkoutsMap(newExerciseWorkoutsMap);
 
-      // Identify library_ids for which a user-owned copy exists
-      const userOwnedLibraryIds = new Set(
-        (cachedExercises || [])
-          .filter(ex => ex.user_id === sessionUserId && ex.library_id)
-          .map(ex => ex.library_id)
-      );
-
-      // Separate user-owned and global exercises
+      // Separate user-owned and global exercises based on user_id
       const userOwnedExercisesList: FetchedExerciseDefinition[] = [];
       const globalExercisesList: FetchedExerciseDefinition[] = [];
 
@@ -140,13 +133,10 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
         if (ex.user_id === sessionUserId) {
           userOwnedExercisesList.push({ ...ex, is_favorite: !!ex.is_favorite });
         } else if (ex.user_id === null) {
-          // Only add to global list if no user-owned copy (with the same library_id) exists
-          if (!ex.library_id || !userOwnedLibraryIds.has(ex.library_id)) {
-            globalExercisesList.push({
-              ...ex,
-              is_favorited_by_current_user: favoritedGlobalExerciseIds.has(ex.id)
-            });
-          }
+          globalExercisesList.push({
+            ...ex,
+            is_favorited_by_current_user: favoritedGlobalExerciseIds.has(ex.id)
+          });
         }
       });
 
@@ -184,8 +174,10 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
   }, [fetchPageData, loadingExercises, loadingTPaths]);
 
   const handleEditClick = useCallback((exercise: FetchedExerciseDefinition) => {
-    setEditingExercise(exercise);
-  }, []);
+    // When editing a global exercise, pre-fill the "Add New Exercise" form
+    // The user will then create a new custom exercise based on the global one.
+    setEditingExercise(exercise.user_id === sessionUserId ? exercise : { ...exercise, id: '', user_id: sessionUserId, is_favorite: false, library_id: null });
+  }, [sessionUserId]);
 
   const handleCancelEdit = useCallback(() => {
     setEditingExercise(null);
@@ -203,6 +195,10 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
     }
     if (!exercise.id) {
       toast.error("Cannot delete an exercise without an ID.");
+      return;
+    }
+    if (exercise.user_id !== sessionUserId) {
+      toast.error("You can only delete your own custom exercises.");
       return;
     }
 

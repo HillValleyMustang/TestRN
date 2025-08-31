@@ -80,51 +80,7 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
     }
   }, [open, session, supabase]);
 
-  const adoptExercise = async (exerciseToAdopt: ExerciseDefinition): Promise<ExerciseDefinition> => {
-    if (exerciseToAdopt.user_id === session?.user.id) {
-      return exerciseToAdopt; // Already user-owned
-    }
-
-    // Check if user already has an adopted copy of this global exercise
-    if (exerciseToAdopt.library_id) {
-      const { data: existingAdopted, error: fetchError } = await supabase
-        .from('exercise_definitions')
-        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite') // Specify all columns required by ExerciseDefinition
-        .eq('user_id', session!.user.id)
-        .eq('library_id', exerciseToAdopt.library_id)
-        .single();
-
-      if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 means no rows found
-        throw fetchError;
-      }
-      if (existingAdopted) {
-        return existingAdopted as ExerciseDefinition; // Explicitly cast
-      }
-    }
-
-    // If not user-owned and no adopted copy exists, create one
-    const { data: newAdoptedExercise, error: insertError } = await supabase
-      .from('exercise_definitions')
-      .insert({
-        name: exerciseToAdopt.name,
-        main_muscle: exerciseToAdopt.main_muscle,
-        type: exerciseToAdopt.type,
-        category: exerciseToAdopt.category,
-        description: exerciseToAdopt.description,
-        pro_tip: exerciseToAdopt.pro_tip,
-        video_url: exerciseToAdopt.video_url,
-        user_id: session!.user.id,
-        library_id: exerciseToAdopt.library_id || null, // Preserve library_id if it exists
-        is_favorite: false, // Default to not favourited on adoption
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      throw insertError;
-    }
-    return newAdoptedExercise;
-  };
+  // Removed adoptExercise function as per new requirements
 
   const handleAddToWorkout = async () => {
     if (!session || !selectedWorkoutId) {
@@ -136,11 +92,9 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
     let workoutName = userWorkouts.find(w => w.id === selectedWorkoutId)?.template_name || 'Unknown Workout';
 
     try {
-      // 1. Ensure the exercise is user-owned (adopt if global)
-      const userOwnedExercise = await adoptExercise(exercise);
-
       // Optimistic update: Update UI immediately
-      onOptimisticAdd(userOwnedExercise.id, selectedWorkoutId, workoutName, false); // Assuming not bonus for now
+      // We use the original exercise.id directly, as no adoption is happening.
+      onOptimisticAdd(exercise.id, selectedWorkoutId, workoutName, false); // Assuming not bonus for now
 
       // 2. Determine the next order_index for the selected workout
       const { data: existingExercises, error: fetchExistingError } = await supabase
@@ -156,12 +110,12 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
         ? (existingExercises[0].order_index || 0) + 1
         : 0;
 
-      // 3. Insert into t_path_exercises
+      // 3. Insert into t_path_exercises, directly linking to the exercise.id
       const { error: insertError } = await supabase
         .from('t_path_exercises')
         .insert({
           template_id: selectedWorkoutId,
-          exercise_id: userOwnedExercise.id,
+          exercise_id: exercise.id, // Use the original exercise ID
           order_index: nextOrderIndex,
         });
 
@@ -171,9 +125,9 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
         } else {
           throw insertError;
         }
-        onAddFailure(userOwnedExercise.id, selectedWorkoutId); // Rollback on error
+        onAddFailure(exercise.id, selectedWorkoutId); // Rollback on error
       } else {
-        toast.success(`'${userOwnedExercise.name}' added to workout!`);
+        toast.success(`'${exercise.name}' added to workout!`);
         onAddSuccess(); // Notify parent to refresh data
         onOpenChange(false);
       }
