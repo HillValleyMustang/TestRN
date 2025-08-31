@@ -2,16 +2,15 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Save } from 'lucide-react';
+import { ArrowLeft, Edit } from 'lucide-react'; // Removed Save icon
 import { useRouter } from 'next/navigation';
 
 interface ProfileHeaderProps {
-  isEditing: boolean;
-  onEditToggle: () => void;
-  onSave: () => void;
+  isEditing: boolean; // Still receive isEditing to show current state
+  onEditToggle: () => void; // Only a toggle function
 }
 
-export const ProfileHeader = ({ isEditing, onEditToggle, onSave }: ProfileHeaderProps) => {
+export const ProfileHeader = ({ isEditing, onEditToggle }: ProfileHeaderProps) => {
   const router = useRouter();
 
   return (
@@ -19,8 +18,8 @@ export const ProfileHeader = ({ isEditing, onEditToggle, onSave }: ProfileHeader
       <Button variant="ghost" onClick={() => router.back()}>
         <ArrowLeft className="h-4 w-4 mr-2" /> Back
       </Button>
-      <Button onClick={() => isEditing ? onSave() : onEditToggle()}>
-        {isEditing ? <><Save className="h-4 w-4 mr-2" /> Save</> : <><Edit className="h-4 w-4 mr-2" /> Edit</>}
+      <Button onClick={onEditToggle} disabled={isEditing}> {/* Disable if already editing */}
+        <Edit className="h-4 w-4 mr-2" /> Edit
       </Button>
     </header>
   );

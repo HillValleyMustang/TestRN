@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
-import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Trash2 } from 'lucide-react';
@@ -145,8 +144,6 @@ export default function WorkoutHistoryPage() { // Renamed component
           </div>
         )}
       </section>
-
-      <MadeWithDyad />
     </div>
   );
 }
