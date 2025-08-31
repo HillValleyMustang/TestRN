@@ -300,14 +300,14 @@ export const EditWorkoutExercisesDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col"> {/* Increased max-w to 4xl */}
-        <DialogHeader className="p-4 pb-2"> {/* Reduced horizontal padding */}
+      <DialogContent className="w-full sm:max-w-6xl max-h-[90vh] flex flex-col"> {/* Added w-full and increased max-w to 6xl */}
+        <DialogHeader className="p-4 pb-2">
           <DialogTitle className="text-2xl font-bold flex items-center gap-2">
             Manage Exercises for <WorkoutBadge workoutName={workoutName} className="text-xl px-3 py-1" />
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-grow overflow-y-auto px-4 pb-4 space-y-4"> {/* Reduced horizontal padding */}
+        <div className="flex-grow overflow-y-auto px-4 pb-4 space-y-4">
           {loading ? (
             <p className="text-muted-foreground">Loading exercises...</p>
           ) : (
