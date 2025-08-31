@@ -10,18 +10,19 @@ interface WorkoutBadgeProps extends BadgeProps {
 
 const WorkoutBadge = ({ workoutName, className, ...props }: WorkoutBadgeProps) => {
   const bgColorClass = getWorkoutColorClass(workoutName, 'bg');
-  const textColorClass = getWorkoutColorClass(workoutName, 'text'); // Get text color class
+  const textColorClass = getWorkoutColorClass(workoutName, 'text'); // This is now unused as we force text-white
   const Icon = getWorkoutIcon(workoutName);
 
   return (
     <Badge
       className={cn(
         "px-2 py-0.5 text-xs flex items-center gap-1",
-        // Removed "bg-white" to allow parent background to show or default to badge background
-        textColorClass, // Apply the workout-specific text color
+        bgColorClass, // Apply background color
+        "text-white", // Force text to white for contrast on colored backgrounds
         "transition-transform duration-200 ease-out group-hover:scale-105", // Add scale animation
         className
       )}
+      // Removed default variant to allow direct class application to control colors
       {...props}
     >
       {Icon && <Icon className="h-3 w-3" />}
