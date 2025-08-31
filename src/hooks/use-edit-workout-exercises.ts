@@ -200,15 +200,18 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       };
       setExercises(prev => [...prev, newExerciseWithDetails]);
 
+      const tpePayload = {
+        template_id: workoutId,
+        exercise_id: finalExerciseId,
+        order_index: newOrderIndex,
+        is_bonus_exercise: isBonus,
+      };
+      console.log("Attempting to insert t_path_exercises with payload:", tpePayload); // DEBUG: Log payload
+
       // Attempt to insert into the database. Rely on DB unique constraint.
       const { data: insertedTpe, error: insertError } = await supabase
         .from('t_path_exercises')
-        .insert({
-          template_id: workoutId,
-          exercise_id: finalExerciseId,
-          order_index: newOrderIndex,
-          is_bonus_exercise: isBonus,
-        })
+        .insert(tpePayload)
         .select('id')
         .single();
 
@@ -228,7 +231,14 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       setExerciseToAddDetails(null);
     } catch (err: any) {
       // Enhanced error handling to specifically catch unique constraint violations
-      console.error("Error adding exercise:", JSON.stringify(err, null, 2)); // Log the full error object for debugging
+      console.error(
+        "Error adding exercise:",
+        err.message,
+        "Code:", err.code,
+        "Details:", err.details,
+        "Hint:", err.hint,
+        "Full Error:", JSON.stringify(err, null, 2) // Log the full error object for debugging
+      );
 
       let errorMessage = "An unexpected error occurred.";
       if (err && typeof err === 'object') {
