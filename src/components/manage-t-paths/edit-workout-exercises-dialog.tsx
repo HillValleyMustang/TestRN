@@ -60,38 +60,53 @@ export const EditWorkoutExercisesDialog = ({
     if (!session || !workoutId) return;
     setLoading(true);
     try {
-      // Fetch exercises for this workout
-      const { data: tPathExercises, error: tpeError } = await supabase
+      // 1. Fetch t_path_exercises to get exercise_ids and order_index
+      const { data: tPathExercisesLinks, error: tpeError } = await supabase
         .from('t_path_exercises')
-        .select('id, exercise_id, order_index, is_bonus_exercise, exercise_definitions(*)')
+        .select('id, exercise_id, order_index, is_bonus_exercise')
         .eq('template_id', workoutId)
         .order('order_index', { ascending: true });
 
       if (tpeError) throw tpeError;
 
-      const fetchedExercises: WorkoutExerciseWithDetails[] = (tPathExercises || []).map(tpe => {
-        const exerciseDef = Array.isArray(tpe.exercise_definitions) && tpe.exercise_definitions.length > 0
-          ? tpe.exercise_definitions[0] as ExerciseDefinition
-          : null;
+      const exerciseIdsInWorkout = (tPathExercisesLinks || []).map(link => link.exercise_id);
 
-        if (!exerciseDef) {
-          console.warn(`Exercise definition not found for t_path_exercise_id: ${tpe.id}`);
-          return null; // Skip this entry if exercise definition is missing
-        }
+      let fetchedExercises: WorkoutExerciseWithDetails[] = [];
 
-        return {
-          ...exerciseDef,
-          order_index: tpe.order_index,
-          is_bonus_exercise: tpe.is_bonus_exercise || false,
-          t_path_exercise_id: tpe.id,
-        };
-      }).filter(Boolean) as WorkoutExerciseWithDetails[]; // Filter out nulls and assert type
+      if (exerciseIdsInWorkout.length > 0) {
+        // 2. Fetch exercise definitions using the extracted IDs
+        const { data: exerciseDefs, error: edError } = await supabase
+          .from('exercise_definitions')
+          .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, is_favorite, created_at, user_id, icon_url') // Added icon_url
+          .in('id', exerciseIdsInWorkout);
+
+        if (edError) throw edError;
+
+        // Create a map for quick lookup of exercise definitions
+        const exerciseDefMap = new Map<string, ExerciseDefinition>();
+        (exerciseDefs || []).forEach(def => exerciseDefMap.set(def.id, def as ExerciseDefinition)); // Cast 'def' to ExerciseDefinition
+        
+        // 3. Combine data and set exercises
+        fetchedExercises = (tPathExercisesLinks || []).map(link => {
+          const exerciseDef = exerciseDefMap.get(link.exercise_id);
+          if (!exerciseDef) {
+            console.warn(`Exercise definition not found for exercise_id: ${link.exercise_id} in workout ${workoutId}`);
+            return null;
+          }
+          return {
+            ...exerciseDef,
+            order_index: link.order_index,
+            is_bonus_exercise: link.is_bonus_exercise || false,
+            t_path_exercise_id: link.id, // This is the ID from t_path_exercises
+          };
+        }).filter(Boolean) as WorkoutExerciseWithDetails[];
+      }
       setExercises(fetchedExercises);
 
       // Fetch all available exercises (user's own and global) for the add dropdown
       const { data: allExercisesData, error: allExercisesError } = await supabase
         .from('exercise_definitions')
-        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, is_favorite, created_at, user_id')
+        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, is_favorite, created_at, user_id, icon_url') // Added icon_url
         .or(`user_id.eq.${session.user.id},user_id.is.null`)
         .order('name', { ascending: true });
 
@@ -172,6 +187,7 @@ export const EditWorkoutExercisesDialog = ({
             user_id: session!.user.id,
             library_id: exerciseToAdd.library_id || null,
             is_favorite: false,
+            icon_url: exerciseToAdd.icon_url, // Include icon_url here
           })
           .select('id')
           .single();
