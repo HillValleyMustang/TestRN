@@ -4,13 +4,14 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useSession } from "@/components/session-context-provider";
 import { Tables } from "@/types/supabase";
 import { toast } from "sonner";
-import { ActiveTPathWorkoutsList } from "@/components/manage-t-paths/active-t-path-workouts-list"; // Renamed import
+import { ActiveTPathWorkoutsList } from "@/components/manage-t-paths/active-t-path-workouts-list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
 import { LayoutTemplate } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { TPathSwitcher } from "@/components/t-path-switcher"; // Import TPathSwitcher
-import { LoadingOverlay } from "@/components/loading-overlay"; // Import LoadingOverlay
+// Removed: import { TPathSwitcher } from "@/components/t-path-switcher";
+import { LoadingOverlay } from "@/components/loading-overlay";
+import { EditWorkoutExercisesDialog } from "@/components/manage-t-paths/edit-workout-exercises-dialog"; // Import the new dialog
 
 type TPath = Tables<'t_paths'>;
 type Profile = Tables<'profiles'>;
@@ -25,7 +26,10 @@ export default function ManageTPathsPage() {
   const [activeMainTPath, setActiveMainTPath] = useState<TPath | null>(null);
   const [childWorkouts, setChildWorkouts] = useState<WorkoutWithLastCompleted[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isSwitchingTPath, setIsSwitchingTPath] = useState(false); // State for TPathSwitcher loading
+  const [isSwitchingTPath, setIsSwitchingTPath] = useState(false); // This state is now unused but kept for potential future use if switcher is re-added
+  
+  const [isEditWorkoutDialogOpen, setIsEditWorkoutDialogOpen] = useState(false);
+  const [selectedWorkoutToEdit, setSelectedWorkoutToEdit] = useState<{ id: string; name: string } | null>(null);
 
   const fetchActiveTPathAndWorkouts = useCallback(async () => {
     if (!session) return;
@@ -104,8 +108,9 @@ export default function ManageTPathsPage() {
     fetchActiveTPathAndWorkouts();
   }, [fetchActiveTPathAndWorkouts]);
 
-  const handleEditWorkout = (workoutId: string) => {
-    router.push(`/manage-t-paths/${workoutId}`);
+  const handleEditWorkout = (workoutId: string, workoutName: string) => {
+    setSelectedWorkoutToEdit({ id: workoutId, name: workoutName });
+    setIsEditWorkoutDialogOpen(true);
   };
 
   const handleTPathSwitch = async (newTPathId: string) => {
@@ -118,31 +123,9 @@ export default function ManageTPathsPage() {
 
   return (
     <div className="flex flex-col gap-4 p-2 sm:p-4">
-      <header className="mb-4"><h1 className="text-3xl font-bold">Manage Transformation Paths</h1></header>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <LayoutTemplate className="h-5 w-5 text-primary" /> Active T-Path
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <p className="text-muted-foreground">Loading active T-Path...</p>
-              ) : activeMainTPath ? (
-                <TPathSwitcher
-                  currentTPathId={activeMainTPath.id}
-                  onTPathChange={handleTPathSwitch}
-                  disabled={isSwitchingTPath}
-                />
-              ) : (
-                <p className="text-muted-foreground">No active Transformation Path found.</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-        <div className="lg:col-span-2">
+      <header className="mb-4"><h1 className="text-3xl font-bold">Manage Active Transformation Path</h1></header>
+      <div className="grid grid-cols-1 gap-8"> {/* Adjusted grid layout */}
+        <div className="lg:col-span-2"> {/* This div now takes full width */}
           {activeMainTPath ? (
             <ActiveTPathWorkoutsList
               activeTPathName={activeMainTPath.template_name}
@@ -154,7 +137,8 @@ export default function ManageTPathsPage() {
             <Card>
               <CardHeader><CardTitle>Workouts</CardTitle></CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">Select an active Transformation Path to view its workouts.</p>
+                <p className="text-muted-foreground">No active Transformation Path found. Please set one in your profile.</p>
+                <Button onClick={() => router.push('/profile')} className="mt-4">Go to Profile</Button>
               </CardContent>
             </Card>
           )}
@@ -165,6 +149,16 @@ export default function ManageTPathsPage() {
         title="Switching Transformation Path" 
         description="Please wait while your new workout plan is activated." 
       />
+
+      {selectedWorkoutToEdit && (
+        <EditWorkoutExercisesDialog
+          open={isEditWorkoutDialogOpen}
+          onOpenChange={setIsEditWorkoutDialogOpen}
+          workoutId={selectedWorkoutToEdit.id}
+          workoutName={selectedWorkoutToEdit.name}
+          onSaveSuccess={fetchActiveTPathAndWorkouts} // Refresh the list after saving changes in the dialog
+        />
+      )}
     </div>
   );
 }

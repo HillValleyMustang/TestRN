@@ -19,7 +19,7 @@ interface ActiveTPathWorkoutsListProps {
   activeTPathName: string;
   childWorkouts: WorkoutWithLastCompleted[];
   loading: boolean;
-  onEditWorkout: (workoutId: string) => void;
+  onEditWorkout: (workoutId: string, workoutName: string) => void; // Updated signature
 }
 
 export const ActiveTPathWorkoutsList = ({
@@ -36,23 +36,23 @@ export const ActiveTPathWorkoutsList = ({
       <CardContent>
         {loading ? <p>Loading workouts...</p> : (
           <ScrollArea className="pr-4">
-            <ul className="space-y-2">
+            <ul className="space-y-3"> {/* Increased space-y for bigger badges */}
               {childWorkouts.length === 0 ? (
                 <p className="text-muted-foreground">No workouts found for this Transformation Path. This may happen if your session length is too short for any workouts.</p>
               ) : (
                 childWorkouts.map(workout => (
-                  <li key={workout.id} className="flex items-center justify-between p-2 border rounded-md">
+                  <li key={workout.id} className="flex items-center justify-between p-3 border rounded-md"> {/* Increased padding */}
                     <div className="flex flex-col">
-                      <WorkoutBadge workoutName={workout.template_name}>
+                      <WorkoutBadge workoutName={workout.template_name} className="text-base px-3 py-1"> {/* Made badge bigger */}
                         {workout.template_name}
                       </WorkoutBadge>
-                      <span className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                        <Clock className="h-3 w-3" /> Last completed: {formatTimeAgo(workout.last_completed_at ? new Date(workout.last_completed_at) : null)}
+                      <span className="text-sm text-muted-foreground flex items-center gap-1 mt-1"> {/* Increased text size */}
+                        <Clock className="h-4 w-4" /> Last completed: {formatTimeAgo(workout.last_completed_at ? new Date(workout.last_completed_at) : null)}
                       </span>
                     </div>
                     <div className="flex space-x-1">
-                      <Button variant="ghost" size="icon" onClick={() => onEditWorkout(workout.id)} title="Edit Workout Exercises">
-                        <Edit className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" onClick={() => onEditWorkout(workout.id, workout.template_name)} title="Edit Workout Exercises"> {/* Passed workout.template_name */}
+                        <Edit className="h-5 w-5" /> {/* Made icon bigger */}
                       </Button>
                     </div>
                   </li>

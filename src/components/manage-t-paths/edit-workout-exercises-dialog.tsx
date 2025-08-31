@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlusCircle, XCircle, GripVertical, ArrowLeft, Info, Heart } from "lucide-react";
+import { PlusCircle, XCircle, GripVertical, ArrowLeft, Info } from "lucide-react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -17,6 +17,7 @@ import { LoadingOverlay } from "@/components/loading-overlay";
 import { ExerciseInfoDialog } from "@/components/exercise-info-dialog";
 import { WorkoutBadge } from "@/components/workout-badge";
 import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"; // Import Dialog components
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -26,15 +27,25 @@ interface WorkoutExerciseWithDetails extends ExerciseDefinition {
   order_index: number;
   is_bonus_exercise: boolean;
   t_path_exercise_id: string; // ID from t_path_exercises table
-  is_favorited_by_current_user?: boolean; // For global exercises
 }
 
-export default function EditWorkoutExercisesPage({ params }: { params: { workoutId: string } }) {
-  const { workoutId } = params;
-  const router = useRouter();
+interface EditWorkoutExercisesDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  workoutId: string;
+  workoutName: string;
+  onSaveSuccess: () => void; // Callback to refresh parent list
+}
+
+export const EditWorkoutExercisesDialog = ({
+  open,
+  onOpenChange,
+  workoutId,
+  workoutName,
+  onSaveSuccess,
+}: EditWorkoutExercisesDialogProps) => {
   const { session, supabase } = useSession();
 
-  const [workoutName, setWorkoutName] = useState<string>("");
   const [exercises, setExercises] = useState<WorkoutExerciseWithDetails[]>([]);
   const [allAvailableExercises, setAllAvailableExercises] = useState<ExerciseDefinition[]>([]);
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
@@ -49,19 +60,6 @@ export default function EditWorkoutExercisesPage({ params }: { params: { workout
     if (!session || !workoutId) return;
     setLoading(true);
     try {
-      // Fetch workout details
-      const { data: workoutData, error: workoutError } = await supabase
-        .from('t_paths')
-        .select('template_name')
-        .eq('id', workoutId)
-        .eq('user_id', session.user.id)
-        .single();
-
-      if (workoutError || !workoutData) {
-        throw new Error(workoutError?.message || "Workout not found or does not belong to user.");
-      }
-      setWorkoutName(workoutData.template_name);
-
       // Fetch exercises for this workout
       const { data: tPathExercises, error: tpeError } = await supabase
         .from('t_path_exercises')
@@ -124,8 +122,10 @@ export default function EditWorkoutExercisesPage({ params }: { params: { workout
   }, [session, supabase, workoutId]);
 
   useEffect(() => {
-    fetchWorkoutData();
-  }, [fetchWorkoutData]);
+    if (open) { // Only fetch data when the dialog is open
+      fetchWorkoutData();
+    }
+  }, [open, fetchWorkoutData]);
 
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
@@ -267,6 +267,7 @@ export default function EditWorkoutExercisesPage({ params }: { params: { workout
 
       if (error) throw error;
       toast.success("Workout order saved successfully!");
+      onSaveSuccess(); // Notify parent to refresh
     } catch (err: any) {
       toast.error("Failed to save workout order: " + err.message);
       console.error("Error saving order:", err);
@@ -281,18 +282,13 @@ export default function EditWorkoutExercisesPage({ params }: { params: { workout
   };
 
   return (
-    <div className="flex flex-col gap-4 p-2 sm:p-4">
-      <header className="mb-4 flex justify-between items-center">
-        <Button variant="ghost" onClick={() => router.push('/manage-t-paths')}>
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to T-Paths
-        </Button>
-        <h1 className="text-3xl font-bold">{workoutName}</h1>
-        <div className="w-24"></div> {/* Spacer */}
-      </header>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
+        <DialogHeader className="p-6 pb-4">
+          <DialogTitle className="text-2xl font-bold">Manage Exercises for "{workoutName}"</DialogTitle>
+        </DialogHeader>
 
-      <Card>
-        <CardHeader><CardTitle>Manage Exercises</CardTitle></CardHeader>
-        <CardContent>
+        <div className="flex-grow overflow-y-auto px-6 pb-6 space-y-4">
           {loading ? (
             <p className="text-muted-foreground">Loading exercises...</p>
           ) : (
@@ -333,8 +329,8 @@ export default function EditWorkoutExercisesPage({ params }: { params: { workout
               </Button>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </DialogContent>
 
       <LoadingOverlay
         isOpen={isSaving}
@@ -349,9 +345,9 @@ export default function EditWorkoutExercisesPage({ params }: { params: { workout
           exercise={selectedExerciseForInfo}
         />
       )}
-    </div>
+    </Dialog>
   );
-}
+};
 
 // Helper component for sortable items
 function SortableExerciseItem({ exercise, onRemove, onOpenInfo }: { exercise: WorkoutExerciseWithDetails; onRemove: (exerciseId: string, tPathExerciseId: string) => void; onOpenInfo: (exercise: WorkoutExerciseWithDetails) => void; }) {
