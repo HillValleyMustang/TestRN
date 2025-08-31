@@ -25,7 +25,6 @@ interface GroupedTPath {
 
 interface UseWorkoutFlowManagerProps {
   initialWorkoutId?: string | null;
-  // Removed session and supabase from props, will use useSession internally
   router: ReturnType<typeof useRouter>;
 }
 
@@ -61,7 +60,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   const [activeWorkout, setActiveWorkout] = useState<TPath | null>(null);
   const [exercisesForSession, setExercisesForSession] = useState<WorkoutExercise[]>([]);
   const [exercisesWithSets, setExercisesWithSets] = useState<Record<string, SetLogState[]>>({});
-  const [allAvailableExercises, setAllAvailableExercises] = useState<ExerciseDefinition[]>([]); // Declared here
+  const [allAvailableExercises, setAllAvailableExercises] = useState<ExerciseDefinition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -72,34 +71,29 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, WorkoutExercise[]>>({});
   const [isCreatingSession, setIsCreatingSession] = useState(false);
 
-  // Define Supabase query functions for caching hook
-  const fetchExercisesSupabase = useCallback(async (client: SupabaseClient) => {
-    return client
-      .from('exercise_definitions')
-      .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, is_favorite, created_at, user_id, icon_url')
-      .or(`user_id.eq.${session?.user.id},user_id.is.null`)
-      .order('name', { ascending: true });
-  }, [session?.user.id]);
-
-  const fetchTPathsSupabase = useCallback(async (client: SupabaseClient) => {
-    return client
-      .from('t_paths')
-      .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id');
-  }, []);
-
   // Use the caching hook for exercises
-  const { data: cachedExercises, loading: loadingExercises, error: exercisesError } = useCacheAndRevalidate<LocalExerciseDefinition>({
+  const { data: cachedExercises, loading: loadingExercises, error: exercisesError, refresh: refreshExercises } = useCacheAndRevalidate<LocalExerciseDefinition>({
     cacheTable: 'exercise_definitions_cache',
-    supabaseQuery: fetchExercisesSupabase,
+    supabaseQuery: useCallback(async (client: SupabaseClient) => {
+      return client
+        .from('exercise_definitions')
+        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, is_favorite, created_at, user_id, icon_url')
+        .or(`user_id.eq.${session?.user.id},user_id.is.null`)
+        .order('name', { ascending: true });
+    }, [session?.user.id]),
     queryKey: 'all_exercises',
     supabase,
     sessionUserId: session?.user.id ?? null,
   });
 
   // Use the caching hook for T-Paths
-  const { data: cachedTPaths, loading: loadingTPaths, error: tPathsError } = useCacheAndRevalidate<LocalTPath>({
+  const { data: cachedTPaths, loading: loadingTPaths, error: tPathsError, refresh: refreshTPaths } = useCacheAndRevalidate<LocalTPath>({
     cacheTable: 't_paths_cache',
-    supabaseQuery: fetchTPathsSupabase,
+    supabaseQuery: useCallback(async (client: SupabaseClient) => {
+      return client
+        .from('t_paths')
+        .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id');
+    }, []),
     queryKey: 'all_t_paths',
     supabase,
     sessionUserId: session?.user.id ?? null,
@@ -263,6 +257,10 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     setSelectedWorkoutId(workoutId);
     if (workoutId) {
       await resetWorkoutSession();
+      
+      // Force refresh caches to ensure latest data from remote is in IndexedDB
+      await refreshExercises();
+      await refreshTPaths();
 
       let currentWorkout: TPath | null = null;
       let exercises: WorkoutExercise[] = [];
@@ -278,14 +276,87 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
             .map(ex => ({ ...ex, is_bonus_exercise: false }));
         }
       } else {
-        const group = groupedTPaths.find(g => g.childWorkouts.some(cw => cw.id === workoutId));
+        // Fetch active_t_path_id once outside the find callback
+        const { data: profileData, error: profileError } = await supabase.from('profiles').select('active_t_path_id').eq('id', session?.user.id || '').single();
+        if (profileError) {
+          toast.error("Failed to fetch active T-Path from profile.");
+          await resetWorkoutSession();
+          return;
+        }
+        const activeTPathIdFromProfile = profileData?.active_t_path_id;
+
+        const { data: updatedCachedTPaths } = await supabase
+          .from('t_paths')
+          .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
+          .eq('user_id', session?.user.id || '')
+          .is('parent_t_path_id', null); // Fetch only main T-Paths
+
+        const activeMainTPath = updatedCachedTPaths?.find(tp => tp.id === activeTPathIdFromProfile);
+        
+        if (!activeMainTPath) {
+          toast.error("Active T-Path not found after refresh.");
+          await resetWorkoutSession();
+          return;
+        }
+
+        const updatedAllChildWorkouts = (await supabase
+          .from('t_paths')
+          .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
+          .eq('parent_t_path_id', activeMainTPath.id)
+          .eq('is_bonus', true)
+          .order('template_name', { ascending: true })).data;
+
+        const workoutsWithLastDatePromises = (updatedAllChildWorkouts || []).map(async (workout) => {
+          const { data: lastSessionDate } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
+          return { ...workout, last_completed_at: lastSessionDate?.[0]?.session_date || null };
+        });
+        const updatedAllChildWorkoutsWithLastDate = await Promise.all(workoutsWithLastDatePromises);
+
+        const updatedGroupedTPaths: GroupedTPath[] = [{
+          mainTPath: activeMainTPath,
+          childWorkouts: updatedAllChildWorkoutsWithLastDate,
+        }];
+        setGroupedTPaths(updatedGroupedTPaths);
+
+        const updatedWorkoutExercisesCache: Record<string, WorkoutExercise[]> = {};
+        for (const workout of updatedAllChildWorkouts || []) {
+          const { data: tPathExercises, error: fetchLinksError } = await supabase
+            .from('t_path_exercises')
+            .select('exercise_id, is_bonus_exercise, order_index')
+            .eq('template_id', workout.id)
+            .order('order_index', { ascending: true });
+          
+          if (fetchLinksError) {
+            console.error(`Error fetching t_path_exercises for workout ${workout.id}:`, fetchLinksError);
+            updatedWorkoutExercisesCache[workout.id] = [];
+            continue;
+          }
+
+          if (!tPathExercises || tPathExercises.length === 0) {
+            updatedWorkoutExercisesCache[workout.id] = [];
+            continue;
+          }
+
+          const exerciseIds = tPathExercises.map(e => e.exercise_id);
+          const exerciseInfoMap = new Map(tPathExercises.map(e => [e.exercise_id, { is_bonus_exercise: !!e.is_bonus_exercise, order_index: e.order_index }]));
+          
+          const exercisesForWorkout = (cachedExercises || [])
+            .filter(ex => exerciseIds.includes(ex.id))
+            .map(ex => ({ ...ex, is_bonus_exercise: exerciseInfoMap.get(ex.id)?.is_bonus_exercise || false }))
+            .sort((a, b) => (exerciseInfoMap.get(a.id)?.order_index || 0) - (exerciseInfoMap.get(b.id)?.order_index || 0));
+          
+          updatedWorkoutExercisesCache[workout.id] = exercisesForWorkout;
+        }
+        setWorkoutExercisesCache(updatedWorkoutExercisesCache);
+
+        const group = updatedGroupedTPaths.find(g => g.childWorkouts.some(cw => cw.id === workoutId));
         currentWorkout = group?.childWorkouts.find((w: WorkoutWithLastCompleted) => w.id === workoutId) || null;
         if (!currentWorkout) {
           toast.error("Selected workout not found.");
           await resetWorkoutSession();
           return;
         }
-        exercises = workoutExercisesCache[workoutId] || [];
+        exercises = updatedWorkoutExercisesCache[workoutId] || [];
       }
 
       setActiveWorkout(currentWorkout);
@@ -348,7 +419,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     } else {
       await resetWorkoutSession();
     }
-  }, [session, supabase, resetWorkoutSession, groupedTPaths, workoutExercisesCache, currentSessionId, cachedExercises]);
+  }, [session, supabase, resetWorkoutSession, currentSessionId, cachedExercises, refreshExercises, refreshTPaths]);
 
   useEffect(() => {
     if (initialWorkoutId && !loading) {
