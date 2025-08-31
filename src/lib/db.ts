@@ -16,6 +16,7 @@ export interface SyncQueueItem {
 // Local versions of tables will have a string UUID as primary key
 export interface LocalWorkoutSession extends TablesInsert<'workout_sessions'> {
   id: string;
+  completed_at?: string | null;
 }
 export interface LocalSetLog extends TablesInsert<'set_logs'> {
   id: string;

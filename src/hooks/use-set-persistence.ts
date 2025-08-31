@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from 'react';
+import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { TablesInsert, TablesUpdate, SetLogState, Tables } from '@/types/supabase';
@@ -11,6 +12,7 @@ interface UseSetPersistenceProps {
   exerciseId: string;
   exerciseType: Tables<'exercise_definitions'>['type'];
   exerciseCategory?: Tables<'exercise_definitions'>['category'] | null;
+  supabase: SupabaseClient;
   preferredWeightUnit: Tables<'profiles'>['preferred_weight_unit'];
 }
 
@@ -18,6 +20,7 @@ export const useSetPersistence = ({
   exerciseId,
   exerciseType,
   exerciseCategory,
+  supabase,
   preferredWeightUnit,
 }: UseSetPersistenceProps) => {
 
@@ -72,7 +75,7 @@ export const useSetPersistence = ({
       console.error("Error saving set locally:", error);
       return { savedSet: null };
     }
-  }, [exerciseId, exerciseType, exerciseCategory, preferredWeightUnit]);
+  }, [exerciseId, exerciseType, exerciseCategory, supabase, preferredWeightUnit]);
 
   const deleteSetFromDb = useCallback(async (setId: string): Promise<boolean> => {
     try {
@@ -84,7 +87,7 @@ export const useSetPersistence = ({
       toast.error("Failed to remove set locally: " + error.message);
       return false;
     }
-  }, []);
+  }, [supabase]);
 
   return { saveSetToDb, deleteSetFromDb };
 };

@@ -5,7 +5,7 @@ import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Toaster } from 'sonner';
-import { useSyncManager } from '@/hooks/use-sync-manager';
+import { SyncManagerInitializer } from './sync-manager-initializer';
 
 interface SessionContextType {
   session: Session | null;
@@ -18,9 +18,6 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-
-  // Initialize the sync manager
-  useSyncManager();
 
   useEffect(() => {
     const getSession = async () => {
@@ -48,6 +45,7 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
 
   return (
     <SessionContext.Provider value={{ session, supabase }}>
+      <SyncManagerInitializer />
       {children}
       <Toaster />
     </SessionContext.Provider>
