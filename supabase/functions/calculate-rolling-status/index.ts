@@ -61,15 +61,15 @@ serve(async (req: Request) => {
     }
 
     if (!hasWorkoutInCurrentPeriod) {
-      // If no workout in the last 7 days, status is "Ready to Start"
+      // If no workout in the last 7 days, status is "Getting into it"
       const { error: updateError } = await supabaseServiceRoleClient
         .from('profiles')
-        .update({ rolling_workout_status: 'Ready to Start' })
+        .update({ rolling_workout_status: 'Getting into it' })
         .eq('id', user_id);
       if (updateError) throw updateError;
 
       return new Response(
-        JSON.stringify({ status: 'Ready to Start', consecutivePeriods: 0 }),
+        JSON.stringify({ status: 'Getting into it', consecutivePeriods: 0 }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -103,7 +103,7 @@ serve(async (req: Request) => {
 
     let status: string;
     if (consecutivePeriods === 0) {
-      status = "Ready to Start";
+      status = "Getting into it"; // Changed from "Ready to Start"
     } else if (consecutivePeriods >= 1 && consecutivePeriods <= 3) {
       status = "Building Momentum";
     } else if (consecutivePeriods >= 4 && consecutivePeriods <= 7) {
