@@ -22,22 +22,19 @@ export function useCacheAndRevalidate<T extends { id: string; user_id: string | 
   const [error, setError] = useState<string | null>(null);
   const [isRevalidating, setIsRevalidating] = useState(false);
 
-  // This is the new, safer query. It explicitly handles the `undefined` state for sessionUserId.
   const data = useLiveQuery(
     () => {
       const table = db[cacheTable] as any;
-      if (sessionUserId === undefined) {
-        // Session state is not yet known, return empty array to prevent Dexie error.
-        // The query will re-run automatically when sessionUserId changes.
-        return [] as T[];
-      }
-      if (sessionUserId === null) { // User is logged out, fetch only global data
+      // This is the new, more robust logic.
+      // If sessionUserId is not a valid string (i.e., it's null or undefined),
+      // we safely query for only global data.
+      if (typeof sessionUserId !== 'string') {
         return table.where('user_id').equals(null).toArray();
       }
-      // User is logged in, fetch user's data and global data
+      // Only when we have a valid string for the user ID do we perform the more complex query.
       return table.where('user_id').anyOf(sessionUserId, null).toArray();
     },
-    [cacheTable, sessionUserId], // Dependencies are now safe
+    [cacheTable, sessionUserId], // Dependencies are safe
     [] // Default to an empty array while loading
   );
 
@@ -54,8 +51,6 @@ export function useCacheAndRevalidate<T extends { id: string; user_id: string | 
       if (remoteData) {
         const table = db[cacheTable] as any;
         
-        // A simple but robust sync strategy for a cache: clear and bulk-put.
-        // This ensures the local cache is always a perfect mirror of the server data.
         await db.transaction('rw', table, async () => {
           await table.clear();
           await table.bulkPut(remoteData);
