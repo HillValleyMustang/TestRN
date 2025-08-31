@@ -51,40 +51,10 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         .order('order_index', { ascending: true });
 
       if (tpeError) throw tpeError;
+      console.log("Fetched tPathExercisesLinks:", tPathExercisesLinks); // DEBUG
 
-      const exerciseIdsInWorkout = (tPathExercisesLinks || []).map(link => link.exercise_id);
-
-      let fetchedExercises: WorkoutExerciseWithDetails[] = [];
-
-      if (exerciseIdsInWorkout.length > 0) {
-        // 2. Fetch exercise definitions using the extracted IDs
-        const { data: exerciseDefs, error: edError } = await supabase
-          .from('exercise_definitions')
-          .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, is_favorite, created_at, user_id, icon_url')
-          .in('id', exerciseIdsInWorkout);
-
-        if (edError) throw edError;
-
-        const exerciseDefMap = new Map<string, ExerciseDefinition>();
-        (exerciseDefs || []).forEach(def => exerciseDefMap.set(def.id, def as ExerciseDefinition));
-        
-        fetchedExercises = (tPathExercisesLinks || []).map(link => {
-          const exerciseDef = exerciseDefMap.get(link.exercise_id);
-          if (!exerciseDef) {
-            console.warn(`Exercise definition not found for exercise_id: ${link.exercise_id} in workout ${workoutId}`);
-            return null;
-          }
-          return {
-            ...exerciseDef,
-            order_index: link.order_index,
-            is_bonus_exercise: link.is_bonus_exercise || false,
-            t_path_exercise_id: link.id,
-          };
-        }).filter(Boolean) as WorkoutExerciseWithDetails[];
-      }
-      setExercises(fetchedExercises);
-
-      // Fetch all available exercises (user's own and global) for the add dropdown
+      // 2. Fetch all available exercises (user's own and global)
+      //    This comprehensive list will be used to build the exerciseDefMap
       const { data: allExercisesData, error: allExercisesError } = await supabase
         .from('exercise_definitions')
         .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, is_favorite, created_at, user_id, icon_url')
@@ -92,6 +62,28 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         .order('name', { ascending: true });
 
       if (allExercisesError) throw allExercisesError;
+      console.log("Fetched allExercisesData (for map):", allExercisesData); // DEBUG
+
+      const exerciseDefMap = new Map<string, ExerciseDefinition>();
+      (allExercisesData || []).forEach(def => exerciseDefMap.set(def.id, def as ExerciseDefinition));
+      
+      let fetchedExercises: WorkoutExerciseWithDetails[] = [];
+      fetchedExercises = (tPathExercisesLinks || []).map(link => {
+        const exerciseDef = exerciseDefMap.get(link.exercise_id);
+        if (!exerciseDef) {
+          console.warn(`Exercise definition not found for exercise_id: ${link.exercise_id} in workout ${workoutId}. This link will be skipped.`);
+          return null; // Skip this link if definition is missing
+        }
+        return {
+          ...exerciseDef,
+          order_index: link.order_index,
+          is_bonus_exercise: link.is_bonus_exercise || false,
+          t_path_exercise_id: link.id,
+        };
+      }).filter(Boolean) as WorkoutExerciseWithDetails[];
+      console.log("Final fetchedExercises (after filtering):", fetchedExercises); // DEBUG
+
+      setExercises(fetchedExercises);
 
       // Extract unique muscle groups from all exercises
       const uniqueMuscleGroups = Array.from(new Set((allExercisesData || []).map(ex => ex.main_muscle))).sort();
