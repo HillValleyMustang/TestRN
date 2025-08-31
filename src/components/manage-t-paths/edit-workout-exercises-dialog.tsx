@@ -300,7 +300,7 @@ export const EditWorkoutExercisesDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col"> {/* Increased max-w */}
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] flex flex-col"> {/* Increased max-w to 900px */}
         <DialogHeader className="p-6 pb-4">
           <DialogTitle className="text-2xl font-bold flex items-center gap-2">
             Manage Exercises for <WorkoutBadge workoutName={workoutName} className="text-xl px-3 py-1" /> {/* Workout Badge in title */}
