@@ -60,7 +60,7 @@ export class AppDatabase extends Dexie {
       workout_sessions: '&id, user_id, session_date',
       set_logs: '&id, session_id, exercise_id',
       sync_queue: '++id, timestamp',
-      draft_set_logs: '[exercise_id+set_index], session_id', // Define composite key
+      draft_set_logs: '[exercise_id+set_index], session_id',
     });
     this.version(2).stores({
       supabase_session: '&id', // Primary key is 'id'
@@ -72,6 +72,15 @@ export class AppDatabase extends Dexie {
     this.version(3).stores({
       exercise_definitions_cache: '&id, user_id, library_id', // Cache exercises
       t_paths_cache: '&id, user_id, parent_t_path_id', // Cache T-Paths
+    });
+    // **FIX**: Add a new version to introduce a compound index for draft_set_logs
+    // This optimizes the query in use-exercise-sets.ts and improves stability.
+    this.version(4).stores({
+        draft_set_logs: '[exercise_id+set_index], session_id, [exercise_id+session_id]',
+    }).upgrade(tx => {
+        // Dexie handles the re-indexing automatically when the schema definition changes.
+        // No data migration is needed here as we are only adding a new index.
+        return tx.table('draft_set_logs').toCollection().modify(draft => {});
     });
   }
 }

@@ -104,6 +104,13 @@ export const useExerciseSets = ({
         return;
       }
 
+      // **FIX**: Add a strict check to ensure internalSessionId is not undefined before querying.
+      // This prevents the "Invalid key" error from Dexie.
+      if (typeof internalSessionId === 'undefined') {
+        console.warn(`Cannot load sets for ${exerciseName}: session ID is undefined. This can happen briefly during workout selection. Aborting this load attempt.`);
+        return; // Abort this render's load attempt; the next render will have the correct prop.
+      }
+
       const loadedSets: SetLogState[] = [];
       const drafts = await db.draft_set_logs
         .where({ exercise_id: exerciseId, session_id: internalSessionId })
