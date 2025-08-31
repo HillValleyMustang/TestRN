@@ -284,13 +284,13 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     try {
       const { data: childWorkoutData, error: childWorkoutError } = await supabase
         .from('t_paths')
-        .select('parent_t_path_id, template_name, settings')
+        .select('parent_t_path_id')
         .eq('id', workoutId)
         .eq('user_id', session.user.id)
         .single();
 
       if (childWorkoutError || !childWorkoutData || !childWorkoutData.parent_t_path_id) {
-        throw new Error("Could not find parent T-Path or settings for this workout.");
+        throw new Error("Could not find parent T-Path for this workout.");
       }
 
       const parentTPathId = childWorkoutData.parent_t_path_id;
@@ -314,7 +314,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       fetchWorkoutData();
     } catch (err: any) {
       toast.error("Failed to reset exercises: " + err.message);
-      console.error("Error resetting exercises:", JSON.stringify(err, null, 2)); // Log full error
+      console.error("Error resetting exercises:", err);
     } finally {
       setIsSaving(false);
     }

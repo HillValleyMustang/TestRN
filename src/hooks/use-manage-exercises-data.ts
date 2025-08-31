@@ -94,14 +94,32 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
         throw new Error(tPathExercisesError.message);
       }
 
+      // NEW: Fetch workout structure for global badge info
+      const { data: structureData, error: structureError } = await supabase
+        .from('workout_exercise_structure')
+        .select('exercise_library_id, workout_name');
+
+      if (structureError) {
+        throw new Error(structureError.message);
+      }
+
+      // Create a map from library_id to the actual exercise UUID
+      const libraryIdToUuidMap = new Map<string, string>();
+      (cachedExercises || []).forEach(ex => {
+        if (ex.library_id) {
+          libraryIdToUuidMap.set(ex.library_id, ex.id);
+        }
+      });
+
       const newExerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]> = {};
+
+      // 1. Populate from user's t_path_exercises (as before)
       tPathExercisesData.forEach(tpe => {
         const workout = allTPaths.find(tp => tp.id === tpe.template_id);
         if (workout) {
           if (!newExerciseWorkoutsMap[tpe.exercise_id]) {
             newExerciseWorkoutsMap[tpe.exercise_id] = [];
           }
-          // Prevent duplicate entries for the same exercise-workout pair
           if (!newExerciseWorkoutsMap[tpe.exercise_id].some(item => item.id === workout.id)) {
             newExerciseWorkoutsMap[tpe.exercise_id].push({
               id: workout.id,
@@ -112,6 +130,26 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
           }
         }
       });
+
+      // 2. Populate from global workout_exercise_structure
+      (structureData || []).forEach(structure => {
+        const exerciseUuid = libraryIdToUuidMap.get(structure.exercise_library_id);
+        if (exerciseUuid) {
+          if (!newExerciseWorkoutsMap[exerciseUuid]) {
+            newExerciseWorkoutsMap[exerciseUuid] = [];
+          }
+          // Add global workout info if not already present from a user's instantiated workout
+          if (!newExerciseWorkoutsMap[exerciseUuid].some(item => item.name === structure.workout_name)) {
+            newExerciseWorkoutsMap[exerciseUuid].push({
+              id: `global_${structure.workout_name}`, // Create a stable, unique ID for the global badge
+              name: structure.workout_name,
+              isUserOwned: false,
+              isBonus: false, // Global structure doesn't define bonus status, assume false
+            });
+          }
+        }
+      });
+
       setExerciseWorkoutsMap(newExerciseWorkoutsMap);
 
       // Separate user-owned and global exercises based on strict criteria
