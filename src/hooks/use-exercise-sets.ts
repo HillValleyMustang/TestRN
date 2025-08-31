@@ -141,7 +141,7 @@ export const useExerciseSets = ({
           p_user_id: session.user.id,
           p_exercise_id: exerciseId,
         });
-        if (rpcError) {
+        if (rpcError && rpcError.message) { // Only log if there's an actual error message
           console.error(`Error fetching last sets for exercise ${exerciseName}:`, rpcError);
         } else if (lastExerciseSets) {
           lastSetsMap.set(exerciseId, lastExerciseSets);
