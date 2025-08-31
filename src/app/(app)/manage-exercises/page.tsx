@@ -233,15 +233,30 @@ export default function ManageExercisesPage() {
     }
   };
 
-  const handleToggleFavorite = async (exercise: FetchedExerciseDefinition) => {
+  const handleToggleFavorite = useCallback(async (exercise: FetchedExerciseDefinition) => {
     if (!session) {
       toast.error("You must be logged in to favourite exercises.");
       return;
     }
+
+    const isUserOwned = exercise.user_id === session.user.id;
+    const isCurrentlyFavorited = isUserOwned ? exercise.is_favorite : exercise.is_favorited_by_current_user;
+    const newFavoriteStatus = !isCurrentlyFavorited;
+
+    // Optimistic UI update
+    if (isUserOwned) {
+      setUserExercises(prev => prev.map(ex => 
+        ex.id === exercise.id ? { ...ex, is_favorite: newFavoriteStatus } as FetchedExerciseDefinition : ex
+      ));
+    } else { // Global exercise
+      setGlobalExercises(prev => prev.map(ex => 
+        ex.id === exercise.id ? { ...ex, is_favorited_by_current_user: newFavoriteStatus } as FetchedExerciseDefinition : ex
+      ));
+    }
+    toast.info(newFavoriteStatus ? "Adding to favourites..." : "Removing from favourites...");
+
     try {
-      if (exercise.user_id === session.user.id) {
-        // This is a user-owned exercise, toggle its is_favorite flag
-        const newFavoriteStatus = !exercise.is_favorite;
+      if (isUserOwned) {
         const { error } = await supabase
           .from('exercise_definitions')
           .update({ is_favorite: newFavoriteStatus })
@@ -250,10 +265,14 @@ export default function ManageExercisesPage() {
 
         if (error) throw error;
         toast.success(newFavoriteStatus ? "Added to favourites!" : "Removed from favourites.");
-      } else if (exercise.user_id === null) {
-        // This is a global exercise, toggle its status in user_global_favorites
-        const isCurrentlyFavorited = exercise.is_favorited_by_current_user;
-        if (isCurrentlyFavorited) {
+      } else { // Global exercise
+        if (newFavoriteStatus) {
+          const { error } = await supabase
+            .from('user_global_favorites')
+            .insert({ user_id: session.user.id, exercise_id: exercise.id });
+          if (error) throw error;
+          toast.success("Added to favourites!");
+        } else {
           const { error } = await supabase
             .from('user_global_favorites')
             .delete()
@@ -261,20 +280,25 @@ export default function ManageExercisesPage() {
             .eq('exercise_id', exercise.id);
           if (error) throw error;
           toast.success("Removed from favourites.");
-        } else {
-          const { error } = await supabase
-            .from('user_global_favorites')
-            .insert({ user_id: session.user.id, exercise_id: exercise.id });
-          if (error) throw error;
-          toast.success("Added to favourites!");
         }
       }
-      fetchExercises(); // Re-fetch to update UI
+      // No need to re-fetch all exercises if optimistic update was successful
+      // fetchExercises(); // Removed this line
     } catch (err: any) {
       console.error("Failed to toggle favourite status:", err);
       toast.error("Failed to update favourite status: " + err.message);
+      // Rollback UI on error
+      if (isUserOwned) {
+        setUserExercises(prev => prev.map(ex => 
+          ex.id === exercise.id ? { ...ex, is_favorite: isCurrentlyFavorited } as FetchedExerciseDefinition : ex
+        ));
+      } else {
+        setGlobalExercises(prev => prev.map(ex => 
+          ex.id === exercise.id ? { ...ex, is_favorited_by_current_user: isCurrentlyFavorited } as FetchedExerciseDefinition : ex
+        ));
+      }
     }
-  };
+  }, [session, supabase]);
 
   const handleRemoveFromWorkout = useCallback(async (workoutId: string, exerciseId: string) => {
     if (!session) {
@@ -294,7 +318,7 @@ export default function ManageExercisesPage() {
         .eq('exercise_id', exerciseId);
 
       if (error) {
-        throw error;
+        throw new Error(error.message);
       }
       toast.success("Exercise removed from workout successfully!");
       fetchExercises(); // Re-fetch to update UI
