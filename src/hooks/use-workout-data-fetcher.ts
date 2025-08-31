@@ -146,15 +146,16 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
         const exerciseIds = tPathExercises.map(e => e.exercise_id);
         const exerciseInfoMap = new Map(tPathExercises.map(e => [e.exercise_id, { is_bonus_exercise: !!e.is_bonus_exercise, order_index: e.order_index }]));
         
-        const exercisesForWorkout = cachedExercises
+        const mappedExercises: WorkoutExercise[] = cachedExercises
           .filter(ex => exerciseIds.includes(ex.id))
-          .map((ex: LocalExerciseDefinition) => ({ ...ex, is_bonus_exercise: exerciseInfoMap.get(ex.id)?.is_bonus_exercise || false })) as WorkoutExercise[]
-          .sort((a: WorkoutExercise, b: WorkoutExercise) => (exerciseInfoMap.get(a.id)?.order_index || 0) - (exerciseInfoMap.get(b.id)?.order_index || 0));
+          .map((ex: LocalExerciseDefinition) => ({ ...ex, is_bonus_exercise: exerciseInfoMap.get(ex.id)?.is_bonus_exercise || false })) as WorkoutExercise[];
+        
+        const exercisesForWorkout = mappedExercises.sort((a: WorkoutExercise, b: WorkoutExercise) => (exerciseInfoMap.get(a.id)?.order_index || 0) - (exerciseInfoMap.get(b.id)?.order_index || 0));
         
         newWorkoutExercisesCache[workout.id] = exercisesForWorkout;
       }
       setWorkoutExercisesCache(newWorkoutExercisesCache);
-    } // This was the missing brace
+    } 
     setLoadingData(false);
   }, [session, supabase, cachedExercises, cachedTPaths, loadingExercises, loadingTPaths, exercisesError, tPathsError]);
 
