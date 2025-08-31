@@ -125,6 +125,13 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       });
       setExerciseWorkoutsMap(newExerciseWorkoutsMap);
 
+      // Identify library_ids for which a user-owned copy exists
+      const userOwnedLibraryIds = new Set(
+        (cachedExercises || [])
+          .filter(ex => ex.user_id === sessionUserId && ex.library_id)
+          .map(ex => ex.library_id)
+      );
+
       // Separate user-owned and global exercises
       const userOwnedExercisesList: FetchedExerciseDefinition[] = [];
       const globalExercisesList: FetchedExerciseDefinition[] = [];
@@ -133,11 +140,13 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
         if (ex.user_id === sessionUserId) {
           userOwnedExercisesList.push({ ...ex, is_favorite: !!ex.is_favorite });
         } else if (ex.user_id === null) {
-          // Global exercises should always be displayed in the global list
-          globalExercisesList.push({
-            ...ex,
-            is_favorited_by_current_user: favoritedGlobalExerciseIds.has(ex.id)
-          });
+          // Only add to global list if no user-owned copy (with the same library_id) exists
+          if (!ex.library_id || !userOwnedLibraryIds.has(ex.library_id)) {
+            globalExercisesList.push({
+              ...ex,
+              is_favorited_by_current_user: favoritedGlobalExerciseIds.has(ex.id)
+            });
+          }
         }
       });
 
