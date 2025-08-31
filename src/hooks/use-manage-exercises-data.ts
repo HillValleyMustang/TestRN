@@ -122,7 +122,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       // NEW: Fetch workout structure for global badge info
       const { data: structureData, error: structureError } = await supabase
         .from('workout_exercise_structure')
-        .select('exercise_library_id, workout_name, min_session_minutes, bonus_for_time_group'); // Added session length fields
+        .select('exercise_library_id, workout_name, min_session_minutes, bonus_for_time_group'); // Corrected: Added session length fields
 
       if (structureError) {
         throw new Error(structureError.message);
