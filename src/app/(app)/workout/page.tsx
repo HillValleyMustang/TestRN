@@ -3,7 +3,6 @@
 import React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
-import { MadeWithDyad } from "@/components/made-with-dyad";
 import { useWorkoutFlowManager } from '@/hooks/use-workout-flow-manager';
 import { WorkoutSelector } from '@/components/workout-flow/workout-selector';
 
@@ -38,7 +37,6 @@ export default function WorkoutPage() {
         createWorkoutSessionInDb={workoutFlowManager.createWorkoutSessionInDb}
         finishWorkoutSession={workoutFlowManager.finishWorkoutSession} // Pass the new function
       />
-      <MadeWithDyad />
     </div>
   );
 }

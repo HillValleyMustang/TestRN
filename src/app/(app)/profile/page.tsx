@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
-import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { FormProvider, useForm } from "react-hook-form"; // Import FormProvider
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -44,12 +43,10 @@ const profileSchema = z.object({
   preferred_muscles: z.array(z.string()).optional().nullable(),
 });
 
-// Achievement IDs (must match those in process-achievements Edge Function)
-// Removed local definition, now imported from achievements.ts
-
 export default function ProfilePage() {
   const { session, supabase } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams(); // Get search params
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -132,9 +129,30 @@ export default function ProfilePage() {
     }
   }, [session, supabase, form]);
 
+  const handleToggleEditSave = useCallback(async () => {
+    if (isEditing) {
+      // If currently editing, attempt to save
+      await form.handleSubmit(onSubmit)();
+    } else {
+      // If not editing, switch to edit mode
+      setIsEditing(true);
+    }
+  }, [isEditing, form, onSubmit]);
+
   useEffect(() => {
     if (!session) router.push('/login'); else fetchData();
-  }, [session, router, fetchData]);
+
+    // Check for query parameters on initial load
+    const tabParam = searchParams.get('tab');
+    const editParam = searchParams.get('edit');
+
+    if (tabParam === 'settings') {
+      setActiveTab('settings');
+      if (editParam === 'true') {
+        setIsEditing(true);
+      }
+    }
+  }, [session, router, fetchData, searchParams]); // Add searchParams to dependencies
 
   const { bmi, dailyCalories } = useMemo(() => {
     const weight = profile?.weight_kg;
@@ -202,7 +220,7 @@ export default function ProfilePage() {
     } else {
       toast.success("Profile updated successfully!");
       await fetchData();
-      setIsEditing(false);
+      setIsEditing(false); // Set editing to false on successful save
     }
   }
 
@@ -261,8 +279,7 @@ export default function ProfilePage() {
       <div className="p-2 sm:p-4 max-w-4xl mx-auto">
         <ProfileHeader
           isEditing={isEditing}
-          onEditToggle={() => setIsEditing(true)}
-          onSave={form.handleSubmit(onSubmit)}
+          onToggleEditSave={handleToggleEditSave} // Pass the new toggle function
         />
 
         <div className="text-center mb-8">
@@ -340,7 +357,6 @@ export default function ProfilePage() {
             </button>
           </div>
         </Tabs>
-        <MadeWithDyad />
       </div>
 
       <AchievementDetailDialog

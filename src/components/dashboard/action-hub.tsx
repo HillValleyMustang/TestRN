@@ -10,7 +10,8 @@ import {
   ChevronDown,
   ChevronUp,
   Dumbbell,
-  LayoutTemplate
+  LayoutTemplate,
+  UserCog // Import UserCog icon
 } from 'lucide-react';
 import { AiCoachDialog } from './ai-coach-dialog';
 import { ActivityLoggingDialog } from '../activity-logging-dialog';
@@ -83,6 +84,10 @@ export const ActionHub = () => {
             <DropdownMenuItem onSelect={() => router.push('/manage-t-paths')}>
               <LayoutTemplate className="mr-2 h-4 w-4" strokeWidth={2.5} />
               <span>Manage T-Paths</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => router.push('/profile?tab=settings&edit=true')}>
+              <UserCog className="mr-2 h-4 w-4" strokeWidth={2.5} />
+              <span>Profile Settings (Edit)</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

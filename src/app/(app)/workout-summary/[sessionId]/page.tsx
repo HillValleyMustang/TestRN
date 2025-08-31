@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
-import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { Tables, SetLogWithExercise } from '@/types/supabase';
@@ -236,8 +235,6 @@ export default function WorkoutSummaryPage({
           ))
         )}
       </section>
-
-      <MadeWithDyad />
     </div>
   );
 }

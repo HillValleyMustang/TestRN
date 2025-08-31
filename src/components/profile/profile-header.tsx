@@ -7,11 +7,10 @@ import { useRouter } from 'next/navigation';
 
 interface ProfileHeaderProps {
   isEditing: boolean;
-  onEditToggle: () => void;
-  onSave: () => void;
+  onToggleEditSave: () => void; // Single prop for toggling edit/save
 }
 
-export const ProfileHeader = ({ isEditing, onEditToggle, onSave }: ProfileHeaderProps) => {
+export const ProfileHeader = ({ isEditing, onToggleEditSave }: ProfileHeaderProps) => {
   const router = useRouter();
 
   return (
@@ -19,7 +18,7 @@ export const ProfileHeader = ({ isEditing, onEditToggle, onSave }: ProfileHeader
       <Button variant="ghost" onClick={() => router.back()}>
         <ArrowLeft className="h-4 w-4 mr-2" /> Back
       </Button>
-      <Button onClick={() => isEditing ? onSave() : onEditToggle()}>
+      <Button onClick={onToggleEditSave}>
         {isEditing ? <><Save className="h-4 w-4 mr-2" /> Save</> : <><Edit className="h-4 w-4 mr-2" /> Edit</>}
       </Button>
     </header>
