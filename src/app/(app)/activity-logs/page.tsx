@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
+import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -164,6 +165,8 @@ export default function ActivityLogsPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      <MadeWithDyad />
     </div>
   );
 }

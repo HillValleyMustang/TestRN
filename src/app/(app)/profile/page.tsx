@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
+import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { FormProvider, useForm } from "react-hook-form"; // Import FormProvider
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -43,11 +44,12 @@ const profileSchema = z.object({
   preferred_muscles: z.array(z.string()).optional().nullable(),
 });
 
+// Achievement IDs (must match those in process-achievements Edge Function)
+// Removed local definition, now imported from achievements.ts
+
 export default function ProfilePage() {
   const { session, supabase } = useSession();
   const router = useRouter();
-  const searchParams = useSearchParams();
-
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -131,34 +133,8 @@ export default function ProfilePage() {
   }, [session, supabase, form]);
 
   useEffect(() => {
-    if (!session) {
-      router.push('/login');
-      return;
-    }
-    
-    const editParam = searchParams.get('edit');
-    const tabParam = searchParams.get('tab');
-
-    if (editParam === 'true') {
-      setIsEditing(true);
-    } else {
-      setIsEditing(false); // Ensure editing is off if not explicitly requested
-    }
-
-    if (tabParam === 'settings') {
-      setActiveTab('settings');
-      if (emblaApi) {
-        emblaApi.scrollTo(2); // Scroll to settings tab (index 2)
-      }
-    } else {
-      setActiveTab('overview'); // Default to overview
-      if (emblaApi) {
-        emblaApi.scrollTo(0); // Scroll to overview tab (index 0)
-      }
-    }
-
-    fetchData();
-  }, [session, router, fetchData, searchParams, emblaApi]);
+    if (!session) router.push('/login'); else fetchData();
+  }, [session, router, fetchData]);
 
   const { bmi, dailyCalories } = useMemo(() => {
     const weight = profile?.weight_kg;
@@ -285,7 +261,8 @@ export default function ProfilePage() {
       <div className="p-2 sm:p-4 max-w-4xl mx-auto">
         <ProfileHeader
           isEditing={isEditing}
-          onEditToggle={() => setIsEditing(prev => !prev)}
+          onEditToggle={() => setIsEditing(true)}
+          onSave={form.handleSubmit(onSubmit)}
         />
 
         <div className="text-center mb-8">
@@ -363,6 +340,7 @@ export default function ProfilePage() {
             </button>
           </div>
         </Tabs>
+        <MadeWithDyad />
       </div>
 
       <AchievementDetailDialog

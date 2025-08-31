@@ -3,7 +3,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Form } from "@/components/ui/form";
-import { LogOut, Save, XCircle } from 'lucide-react'; // Import Save and XCircle
+import { LogOut } from 'lucide-react';
 import { PersonalInfoForm } from './personal-info-form';
 import { WorkoutPreferencesForm } from './workout-preferences-form';
 import { ActiveTPathSection } from './active-t-path-section';
@@ -35,7 +35,7 @@ interface ProfileSettingsTabProps {
   AI_COACH_LIMIT_PER_SESSION: number;
   onTPathChange: () => void;
   onSignOut: () => void;
-  onSubmit: (values: z.infer<typeof profileSchema>) => Promise<void>; // onSubmit is now handled here
+  onSubmit: (values: z.infer<typeof profileSchema>) => Promise<void>;
 }
 
 export const ProfileSettingsTab = ({
@@ -58,17 +58,6 @@ export const ProfileSettingsTab = ({
           <ActiveTPathSection activeTPath={activeTPath} isEditing={isEditing} onTPathChange={onTPathChange} />
           <AICoachUsageSection aiCoachUsageToday={aiCoachUsageToday} AI_COACH_LIMIT_PER_SESSION={AI_COACH_LIMIT_PER_SESSION} />
           <DataExportSection /> {/* Add the new DataExportSection here */}
-
-          {isEditing && (
-            <div className="flex justify-end gap-2 mt-6">
-              <Button type="button" variant="outline" onClick={() => form.reset()} disabled={form.formState.isSubmitting}>
-                <XCircle className="h-4 w-4 mr-2" /> Cancel
-              </Button>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                <Save className="h-4 w-4 mr-2" /> Save Changes
-              </Button>
-            </div>
-          )}
         </form>
       </Form>
       

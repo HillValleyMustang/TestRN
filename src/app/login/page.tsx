@@ -5,6 +5,7 @@ import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '@/integrations/supabase/client';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { MadeWithDyad } from "@/components/made-with-dyad";
 import { useSession } from '@/components/session-context-provider';
 import { Tables } from '@/types/supabase'; // Import Tables type
 
@@ -77,6 +78,7 @@ export default function LoginPage() {
           redirectTo={`${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback`} // Ensure this matches your Supabase redirect URL
         />
       </div>
+      <MadeWithDyad />
     </div>
   );
 }
