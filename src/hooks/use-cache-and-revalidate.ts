@@ -36,30 +36,30 @@ export function useCacheAndRevalidate<T extends { id: string; user_id: string | 
   const [filteredData, setFilteredData] = useState<T[] | undefined>(undefined);
 
   // Step 1: Fetch ALL data from the cache table without filtering.
-  // This avoids passing a potentially undefined key to Dexie.
+  // This avoids passing a potentially undefined key to Dexie, which causes the "Invalid key" error.
   const allCachedData = useLiveQuery(
     () => {
-      const table = db[cacheTable] as typeof cacheTable extends 'exercise_definitions_cache' 
-        ? typeof db.exercise_definitions_cache 
-        : typeof db.t_paths_cache;
-      return table.toArray() as unknown as Promise<T[]>;
+      const table = db[cacheTable] as any; // Use 'any' to simplify dynamic table access
+      return table.toArray();
     },
-    [cacheTable] // Only depends on the table name
+    [cacheTable] // Dependency array only contains the constant table name
   );
 
   // Step 2: Filter the data in a useEffect once both the data and session are ready.
+  // This separates the database query from the session-dependent logic, preventing race conditions.
   useEffect(() => {
+    // Wait until both the session state is determined (not undefined) and the data has been loaded from Dexie.
     if (sessionUserId === undefined || allCachedData === undefined) {
-      // If session or data is not ready, do nothing and wait.
+      // Still loading either session or cached data, so we wait.
       return;
     }
 
     if (sessionUserId === null) {
-      // User is logged out, show only global items
-      setFilteredData(allCachedData.filter(item => item.user_id === null));
+      // User is logged out, so we only show global items (where user_id is null).
+      setFilteredData(allCachedData.filter((item: T) => item.user_id === null));
     } else {
-      // User is logged in, show their items and global items
-      setFilteredData(allCachedData.filter(item => item.user_id === sessionUserId || item.user_id === null));
+      // User is logged in, so we show their items AND global items.
+      setFilteredData(allCachedData.filter((item: T) => item.user_id === sessionUserId || item.user_id === null));
     }
   }, [allCachedData, sessionUserId]);
 
@@ -86,7 +86,7 @@ export function useCacheAndRevalidate<T extends { id: string; user_id: string | 
           : typeof db.t_paths_cache;
 
         const remoteMap = new Map(remoteData.map(item => [item.id, item]));
-        const cachedMap = new Map((allCachedData || []).map(item => [item.id, item]));
+        const cachedMap = new Map((allCachedData || []).map((item: T) => [item.id, item]));
 
         let needsUpdate = false;
         const itemsToPut: T[] = [];
@@ -100,7 +100,7 @@ export function useCacheAndRevalidate<T extends { id: string; user_id: string | 
           }
         }
 
-        for (const cachedItem of (allCachedData || [])) {
+        for (const cachedItem of (allCachedData || []) as T[]) {
           if (!remoteMap.has(cachedItem.id)) {
             needsUpdate = true;
             itemsToDelete.push(cachedItem.id);
@@ -140,5 +140,6 @@ export function useCacheAndRevalidate<T extends { id: string; user_id: string | 
     fetchDataAndRevalidate();
   }, [fetchDataAndRevalidate]);
 
+  // The component is considered "loading" until the filteredData is set.
   return { data: filteredData, loading: loading || filteredData === undefined, error, refresh };
 }

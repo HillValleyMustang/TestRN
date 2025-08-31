@@ -53,7 +53,7 @@ export default function ManageExercisesPage() {
     handleRemoveFromWorkout,
     refreshExercises,
     refreshTPaths,
-  } = useManageExercisesData({ sessionUserId: session?.user.id || null, supabase });
+  } = useManageExercisesData({ sessionUserId: session?.user.id ?? null, supabase });
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);

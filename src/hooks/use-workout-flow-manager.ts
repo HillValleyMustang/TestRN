@@ -93,7 +93,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     supabaseQuery: fetchExercisesSupabase,
     queryKey: 'all_exercises',
     supabase,
-    sessionUserId: session?.user.id || null,
+    sessionUserId: session?.user.id ?? null,
   });
 
   // Use the caching hook for T-Paths
@@ -102,7 +102,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     supabaseQuery: fetchTPathsSupabase,
     queryKey: 'all_t_paths',
     supabase,
-    sessionUserId: session?.user.id || null,
+    sessionUserId: session?.user.id ?? null,
   });
 
   const resetWorkoutSession = useCallback(async () => {
