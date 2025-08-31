@@ -134,8 +134,8 @@ export const GlobalExerciseList = ({
           onOpenChange={setIsAddTPathDialogOpen}
           exercise={selectedExerciseForTPath}
           onAddSuccess={onAddSuccess}
-          onOptimisticAdd={onOptimisticAdd} {/* Passed down */}
-          onAddFailure={onAddFailure} {/* Passed down */}
+          onOptimisticAdd={onOptimisticAdd}
+          onAddFailure={onAddFailure}
         />
       )}
 

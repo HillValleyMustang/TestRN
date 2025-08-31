@@ -130,7 +130,7 @@ export default function ManageExercisesPage() {
         const workout = activeTPathChildWorkouts.find(tp => tp.id === tpe.template_id);
         if (workout) {
           if (!newExerciseWorkoutsMap[tpe.exercise_id]) {
-            newMap[tpe.exercise_id] = [];
+            newExerciseWorkoutsMap[tpe.exercise_id] = [];
           }
           newExerciseWorkoutsMap[tpe.exercise_id].push({
             id: workout.id,
@@ -337,20 +337,21 @@ export default function ManageExercisesPage() {
       return;
     }
 
-    try {
-      // Optimistic UI update
-      setExerciseWorkoutsMap(prev => {
-        const newMap = { ...prev };
-        if (newMap[exerciseId]) {
-          newMap[exerciseId] = newMap[exerciseId].filter(item => item.id !== workoutId);
-          if (newMap[exerciseId].length === 0) {
-            delete newMap[exerciseId];
-          }
+    // Optimistic UI update
+    const previousExerciseWorkoutsMap = exerciseWorkoutsMap; // Store current state for rollback
+    setExerciseWorkoutsMap(prev => {
+      const newMap = { ...prev };
+      if (newMap[exerciseId]) {
+        newMap[exerciseId] = newMap[exerciseId].filter(item => item.id !== workoutId);
+        if (newMap[exerciseId].length === 0) {
+          delete newMap[exerciseId];
         }
-        return newMap;
-      });
-      toast.info("Removing exercise from workout...");
+      }
+      return newMap;
+    });
+    toast.info("Removing exercise from workout...");
 
+    try {
       const { error } = await supabase
         .from('t_path_exercises')
         .delete()
@@ -367,9 +368,9 @@ export default function ManageExercisesPage() {
       console.error("Failed to remove exercise from workout:", err);
       toast.error("Failed to remove exercise from workout: " + err.message);
       // Rollback UI on error
-      fetchExercises(); // Re-fetch to revert state
+      setExerciseWorkoutsMap(previousExerciseWorkoutsMap); // Revert to previous state
     }
-  }, [session, supabase, fetchExercises]); // Dependencies for useCallback
+  }, [session, supabase, exerciseWorkoutsMap]); // Added exerciseWorkoutsMap to dependencies
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
@@ -464,8 +465,8 @@ export default function ManageExercisesPage() {
                       onRemoveFromWorkout={handleRemoveFromWorkout}
                       onToggleFavorite={handleToggleFavorite}
                       onAddSuccess={fetchExercises}
-                      onOptimisticAdd={handleOptimisticAdd} {/* Passed down */}
-                      onAddFailure={handleAddFailure} {/* Passed down */}
+                      onOptimisticAdd={handleOptimisticAdd}
+                      onAddFailure={handleAddFailure}
                     />
                   </TabsContent>
                 </div>
@@ -479,8 +480,8 @@ export default function ManageExercisesPage() {
                       onRemoveFromWorkout={handleRemoveFromWorkout}
                       onToggleFavorite={handleToggleFavorite}
                       onAddSuccess={fetchExercises}
-                      onOptimisticAdd={handleOptimisticAdd} {/* Passed down */}
-                      onAddFailure={handleAddFailure} {/* Passed down */}
+                      onOptimisticAdd={handleOptimisticAdd}
+                      onAddFailure={handleAddFailure}
                     />
                   </TabsContent>
                 </div>
