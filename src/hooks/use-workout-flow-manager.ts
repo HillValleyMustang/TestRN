@@ -134,8 +134,41 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       if (cachedExercises && cachedTPaths) {
         setAllAvailableExercises(cachedExercises as ExerciseDefinition[]);
 
-        const mainTPathsData = cachedTPaths.filter(tp => tp.user_id === session.user.id && tp.parent_t_path_id === null);
-        const allChildWorkouts = cachedTPaths.filter(tp => tp.user_id === session.user.id && tp.is_bonus === true);
+        // Fetch user's profile to get active_t_path_id
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('active_t_path_id')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.error("Error fetching active T-Path ID from profile:", profileError);
+          setError("Could not load your active workout plan.");
+          setLoading(false);
+          return;
+        }
+
+        const activeTPathId = profileData?.active_t_path_id;
+
+        if (!activeTPathId) {
+          console.warn("User has no active T-Path set in their profile.");
+          setGroupedTPaths([]);
+          setLoading(false);
+          return;
+        }
+
+        // Find the single active main T-Path from the cache
+        const activeMainTPath = cachedTPaths.find(tp => tp.id === activeTPathId && tp.user_id === session.user.id && tp.parent_t_path_id === null);
+
+        if (!activeMainTPath) {
+          console.warn(`Active T-Path with ID ${activeTPathId} not found in cache or is not a main T-Path.`);
+          setGroupedTPaths([]);
+          setLoading(false);
+          return;
+        }
+
+        // Find child workouts for ONLY the active main T-Path
+        const allChildWorkouts = cachedTPaths.filter(tp => tp.parent_t_path_id === activeMainTPath.id && tp.is_bonus === true);
 
         const workoutsWithLastDatePromises = allChildWorkouts.map(async (workout) => {
           const { data: lastSessionDate } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
@@ -143,10 +176,12 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
         });
         const allChildWorkoutsWithLastDate = await Promise.all(workoutsWithLastDatePromises);
 
-        const newGroupedTPaths: GroupedTPath[] = mainTPathsData.map(mainTPath => ({
-          mainTPath,
-          childWorkouts: allChildWorkoutsWithLastDate.filter(cw => cw.parent_t_path_id === mainTPath.id),
-        }));
+        // Create the grouped structure for just the one active path
+        const newGroupedTPaths: GroupedTPath[] = [{
+          mainTPath: activeMainTPath,
+          childWorkouts: allChildWorkoutsWithLastDate,
+        }];
+        
         setGroupedTPaths(newGroupedTPaths);
 
         const newWorkoutExercisesCache: Record<string, WorkoutExercise[]> = {};
