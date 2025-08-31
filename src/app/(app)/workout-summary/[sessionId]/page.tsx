@@ -27,13 +27,11 @@ type ExerciseGroup = {
   id: string;
 };
 
-export default function WorkoutSummaryPage({ 
-  params, 
-  searchParams 
-}: { 
-  params: Readonly<{ sessionId: string }>;
-  searchParams?: Readonly<{ [key: string]: string | string[] | undefined }>;
-}) {
+type WorkoutSummaryPageProps = {
+  params: { sessionId: string };
+};
+
+export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) {
   const { session, supabase } = useSession();
   const router = useRouter();
   const { sessionId } = params;
