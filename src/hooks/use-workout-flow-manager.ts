@@ -259,8 +259,13 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       await resetWorkoutSession();
       
       // Force refresh caches to ensure latest data from remote is in IndexedDB
-      await refreshExercises();
-      await refreshTPaths();
+      // Await these calls to ensure IndexedDB is updated before we read from it.
+      await refreshExercises(); 
+      await refreshTPaths();    
+
+      // Now, explicitly fetch the latest data from IndexedDB
+      const latestCachedTPaths = await db.t_paths_cache.toArray();
+      const latestCachedExercises = await db.exercise_definitions_cache.toArray();
 
       let currentWorkout: TPath | null = null;
       let exercises: WorkoutExercise[] = [];
@@ -270,13 +275,13 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
         const adHocDrafts = await db.draft_set_logs.where({ session_id: null }).toArray();
         const adHocExerciseIds = Array.from(new Set(adHocDrafts.map(d => d.exercise_id)));
         
-        if (adHocExerciseIds.length > 0 && cachedExercises) {
-          exercises = cachedExercises
+        if (adHocExerciseIds.length > 0 && latestCachedExercises) {
+          exercises = latestCachedExercises
             .filter(ex => adHocExerciseIds.includes(ex.id))
             .map(ex => ({ ...ex, is_bonus_exercise: false }));
         }
       } else {
-        // Fetch active_t_path_id once outside the find callback
+        // Fetch active_t_path_id from profile
         const { data: profileData, error: profileError } = await supabase.from('profiles').select('active_t_path_id').eq('id', session?.user.id || '').single();
         if (profileError) {
           toast.error("Failed to fetch active T-Path from profile.");
@@ -285,13 +290,8 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
         }
         const activeTPathIdFromProfile = profileData?.active_t_path_id;
 
-        const { data: updatedCachedTPaths } = await supabase
-          .from('t_paths')
-          .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
-          .eq('user_id', session?.user.id || '')
-          .is('parent_t_path_id', null); // Fetch only main T-Paths
-
-        const activeMainTPath = updatedCachedTPaths?.find(tp => tp.id === activeTPathIdFromProfile);
+        // Use latestCachedTPaths directly
+        const activeMainTPath = latestCachedTPaths.find(tp => tp.id === activeTPathIdFromProfile && tp.user_id === session?.user.id && tp.parent_t_path_id === null);
         
         if (!activeMainTPath) {
           toast.error("Active T-Path not found after refresh.");
@@ -299,12 +299,8 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
           return;
         }
 
-        const updatedAllChildWorkouts = (await supabase
-          .from('t_paths')
-          .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
-          .eq('parent_t_path_id', activeMainTPath.id)
-          .eq('is_bonus', true)
-          .order('template_name', { ascending: true })).data;
+        // Use latestCachedTPaths for child workouts
+        const updatedAllChildWorkouts = latestCachedTPaths.filter(tp => tp.parent_t_path_id === activeMainTPath.id && tp.is_bonus === true);
 
         const workoutsWithLastDatePromises = (updatedAllChildWorkouts || []).map(async (workout) => {
           const { data: lastSessionDate } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
@@ -320,6 +316,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
 
         const updatedWorkoutExercisesCache: Record<string, WorkoutExercise[]> = {};
         for (const workout of updatedAllChildWorkouts || []) {
+          // Fetch t_path_exercises directly from Supabase, as this is specific to the workout and not globally cached in `exercise_definitions_cache`
           const { data: tPathExercises, error: fetchLinksError } = await supabase
             .from('t_path_exercises')
             .select('exercise_id, is_bonus_exercise, order_index')
@@ -340,7 +337,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
           const exerciseIds = tPathExercises.map(e => e.exercise_id);
           const exerciseInfoMap = new Map(tPathExercises.map(e => [e.exercise_id, { is_bonus_exercise: !!e.is_bonus_exercise, order_index: e.order_index }]));
           
-          const exercisesForWorkout = (cachedExercises || [])
+          const exercisesForWorkout = (latestCachedExercises || [])
             .filter(ex => exerciseIds.includes(ex.id))
             .map(ex => ({ ...ex, is_bonus_exercise: exerciseInfoMap.get(ex.id)?.is_bonus_exercise || false }))
             .sort((a, b) => (exerciseInfoMap.get(a.id)?.order_index || 0) - (exerciseInfoMap.get(b.id)?.order_index || 0));
@@ -419,7 +416,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     } else {
       await resetWorkoutSession();
     }
-  }, [session, supabase, resetWorkoutSession, currentSessionId, cachedExercises, refreshExercises, refreshTPaths]);
+  }, [session, supabase, resetWorkoutSession, currentSessionId, refreshExercises, refreshTPaths]);
 
   useEffect(() => {
     if (initialWorkoutId && !loading) {
