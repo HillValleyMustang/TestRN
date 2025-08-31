@@ -330,7 +330,7 @@ export const useExerciseSets = ({
         const newSessionId = await onFirstSetSaved(new Date().toISOString());
         currentSessionIdToUse = newSessionId;
         setInternalSessionId(newSessionId); // Update state immediately
-        toast.success("Workout session started!");
+        // Removed: toast.success("Workout session started!");
       } catch (err) {
         toast.error("Failed to start workout session. Please try again.");
         console.error("Error creating session on first set save:", err);
@@ -446,9 +446,9 @@ export const useExerciseSets = ({
 
         if (upsertError) throw upsertError;
         setExercisePR(updatedPR as UserExercisePR);
-        toast.success(`New Exercise Personal Record for ${exerciseName}!`);
+        // Removed: toast.success(`New Exercise Personal Record for ${exerciseName}!`);
       } else {
-        toast.success(`${exerciseName} completed!`);
+        // Removed: toast.success(`${exerciseName} completed!`);
       }
 
       await onExerciseComplete(exerciseId, isNewPROverall);

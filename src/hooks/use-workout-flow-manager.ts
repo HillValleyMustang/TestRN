@@ -202,7 +202,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       }
       setCurrentSessionId(sessionData.id);
       setSessionStartTime(new Date(sessionData.session_date));
-      toast.success("Workout session started!");
+      // Removed: toast.success("Workout session started!");
       return sessionData.id;
     } catch (err: any) {
       setError(err.message || "Failed to create workout session.");
