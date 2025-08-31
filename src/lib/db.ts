@@ -73,10 +73,9 @@ export class AppDatabase extends Dexie {
       exercise_definitions_cache: '&id, user_id, library_id', // Cache exercises
       t_paths_cache: '&id, user_id, parent_t_path_id', // Cache T-Paths
     });
-    // **FIX**: Add a new version to introduce a compound index for draft_set_logs
-    // This optimizes the query in use-exercise-sets.ts and improves stability.
+    // **FIX**: Remove the fragile compound index and add a simple index on exercise_id for performance.
     this.version(4).stores({
-        draft_set_logs: '[exercise_id+set_index], session_id, [exercise_id+session_id]',
+        draft_set_logs: '[exercise_id+set_index], session_id, exercise_id',
     }).upgrade(tx => {
         // Dexie handles the re-indexing automatically when the schema definition changes.
         // No data migration is needed here as we are only adding a new index.

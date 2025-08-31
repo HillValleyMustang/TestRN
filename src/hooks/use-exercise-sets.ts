@@ -105,9 +105,15 @@ export const useExerciseSets = ({
       }
 
       const loadedSets: SetLogState[] = [];
-      const drafts = await db.draft_set_logs
-        .where({ exercise_id: exerciseId, session_id: sessionIdForQuery })
-        .sortBy('set_index');
+      
+      // **FIX**: Use a more robust query method to avoid race conditions with compound keys.
+      const allDraftsForExercise = await db.draft_set_logs
+        .where('exercise_id').equals(exerciseId)
+        .toArray();
+      
+      const drafts = allDraftsForExercise
+        .filter(draft => draft.session_id === sessionIdForQuery)
+        .sort((a, b) => a.set_index - b.set_index);
 
       if (drafts.length > 0) {
         drafts.forEach(draft => {
