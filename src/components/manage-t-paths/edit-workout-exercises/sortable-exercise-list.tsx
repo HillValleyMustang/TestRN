@@ -68,7 +68,7 @@ function SortableExerciseItem({ exercise, onRemove, onOpenInfo, onToggleBonus }:
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center justify-between py-1 px-2 border-2 rounded-md bg-card",
+        "flex items-center justify-between py-1 px-2 border-2 rounded-md bg-card group hover:bg-accent transition-colors", // Added group and hover:bg-accent
         exercise.is_bonus_exercise ? "border-workout-bonus" : "border-border"
       )}
     >

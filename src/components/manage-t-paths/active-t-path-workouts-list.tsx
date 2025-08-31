@@ -41,7 +41,7 @@ export const ActiveTPathWorkoutsList = ({
                 <p className="text-muted-foreground">No workouts found for this Transformation Path. This may happen if your session length is too short for any workouts.</p>
               ) : (
                 childWorkouts.map(workout => (
-                  <li key={workout.id} className="flex items-center justify-between p-3 border rounded-md"> {/* Increased padding */}
+                  <li key={workout.id} className="flex items-center justify-between p-3 border rounded-md group hover:bg-accent transition-colors"> {/* Added group and hover:bg-accent */}
                     <div className="flex flex-col">
                       <WorkoutBadge workoutName={workout.template_name} className="text-base px-3 py-1"> {/* Made badge bigger */}
                         {workout.template_name}

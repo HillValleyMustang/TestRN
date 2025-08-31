@@ -125,30 +125,27 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       });
       setExerciseWorkoutsMap(newExerciseWorkoutsMap);
 
-      const userOwnedMap = new Map<string, FetchedExerciseDefinition>();
-      const globalMap = new Map<string, FetchedExerciseDefinition>();
+      // Separate user-owned and global exercises
+      const userOwnedExercisesList: FetchedExerciseDefinition[] = [];
+      const globalExercisesList: FetchedExerciseDefinition[] = [];
 
-      (cachedExercises || []).filter(ex => ex.user_id === sessionUserId).forEach(ex => {
-        const key = ex.library_id || ex.id;
-        userOwnedMap.set(key, { ...ex, is_favorite: !!ex.is_favorite });
-      });
-
-      (cachedExercises || []).filter(ex => ex.user_id === null).forEach(ex => {
-        const isUserOwnedCopy = ex.library_id && userOwnedMap.has(ex.library_id);
-        
-        if (!isUserOwnedCopy) {
-          globalMap.set(ex.id, {
+      (cachedExercises || []).forEach(ex => {
+        if (ex.user_id === sessionUserId) {
+          userOwnedExercisesList.push({ ...ex, is_favorite: !!ex.is_favorite });
+        } else if (ex.user_id === null) {
+          // Global exercises should always be displayed in the global list
+          globalExercisesList.push({
             ...ex,
             is_favorited_by_current_user: favoritedGlobalExerciseIds.has(ex.id)
           });
         }
       });
 
-      let finalUserExercises = Array.from(userOwnedMap.values());
-      let finalGlobalExercises = Array.from(globalMap.values());
-
       const allUniqueMuscles = Array.from(new Set((cachedExercises || []).map(ex => ex.main_muscle))).sort();
       setAvailableMuscleGroups(allUniqueMuscles);
+
+      let finalUserExercises = userOwnedExercisesList;
+      let finalGlobalExercises = globalExercisesList;
 
       if (selectedMuscleFilter === 'favorites') {
         finalUserExercises = finalUserExercises.filter(ex => ex.is_favorite);

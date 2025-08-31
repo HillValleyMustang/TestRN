@@ -58,9 +58,9 @@ export function getWorkoutIcon(workoutName: string): LucideIcon | null {
     case 'Lower Body B':
       return ArrowDown;
     case 'Push':
-      return ArrowRight;
+      return ArrowLeft; // Swapped
     case 'Pull':
-      return ArrowLeft;
+      return ArrowRight; // Swapped
     case 'Legs':
       return Footprints;
     case 'Bonus':
@@ -114,10 +114,10 @@ export const getPillStyles = (workoutType: 'upper-lower' | 'push-pull-legs', cat
     }
   } else if (workoutType === 'push-pull-legs') {
     if (category === 'push') {
-      Icon = ArrowUpRight;
+      Icon = ArrowDownLeft; // Swapped
       colorKey = 'push';
     } else if (category === 'pull') {
-      Icon = ArrowDownLeft;
+      Icon = ArrowUpRight; // Swapped
       colorKey = 'pull';
     } else if (category === 'legs') {
       Icon = Footprints;

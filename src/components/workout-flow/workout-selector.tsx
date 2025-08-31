@@ -150,12 +150,14 @@ export const WorkoutSelector = ({
                 <div className="grid grid-cols-2 gap-2">
                   {group.childWorkouts.map(workout => {
                     const pillProps = mapWorkoutToPillProps(workout, group.mainTPath.template_name);
+                    const isPPLAndLegs = pillProps.workoutType === 'push-pull-legs' && pillProps.category === 'legs';
                     return (
                       <WorkoutPill
                         key={workout.id}
                         {...pillProps}
                         isSelected={selectedWorkoutId === workout.id}
                         onClick={handleWorkoutClick}
+                        className={cn(isPPLAndLegs && "col-span-2 justify-self-center max-w-[calc(50%-0.5rem)]")}
                       />
                     );
                   })}

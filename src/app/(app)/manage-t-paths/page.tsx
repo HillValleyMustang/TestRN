@@ -81,7 +81,7 @@ export default function ManageTPathsPage() {
         .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
         .eq('parent_t_path_id', mainTPathData.id)
         .eq('is_bonus', true) // These are the actual individual workouts
-        .order('template_name', { ascending: true });
+        .order('template_name', { ascending: true }); // Keep DB order for initial fetch
 
       if (childWorkoutsError) {
         throw childWorkoutsError;
@@ -92,7 +92,21 @@ export default function ManageTPathsPage() {
         const { data: lastSessionDate } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
         return { ...workout, last_completed_at: lastSessionDate?.[0]?.session_date || null };
       });
-      const childWorkoutsWithLastDate = await Promise.all(workoutsWithLastDatePromises);
+      let childWorkoutsWithLastDate = await Promise.all(workoutsWithLastDatePromises);
+
+      // 5. Apply custom sorting for PPL workouts if active T-Path is PPL
+      const tPathSettings = mainTPathData.settings as { tPathType?: string };
+      if (tPathSettings?.tPathType === 'ppl') {
+        const customOrder = ['Pull', 'Push', 'Legs'];
+        childWorkoutsWithLastDate.sort((a, b) => {
+          const indexA = customOrder.indexOf(a.template_name);
+          const indexB = customOrder.indexOf(b.template_name);
+          if (indexA === -1 && indexB === -1) return 0; // Both not in custom order
+          if (indexA === -1) return 1; // A not in custom order, B is
+          if (indexB === -1) return -1; // B not in custom order, A is
+          return indexA - indexB;
+        });
+      }
 
       setChildWorkouts(childWorkoutsWithLastDate);
 

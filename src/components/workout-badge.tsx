@@ -19,6 +19,7 @@ const WorkoutBadge = ({ workoutName, className, ...props }: WorkoutBadgeProps) =
         "px-2 py-0.5 text-xs flex items-center gap-1",
         "bg-white", // Explicitly set to white background
         textColorClass, // Apply the workout-specific text color
+        "transition-transform duration-200 ease-out group-hover:scale-105", // Add scale animation
         className
       )}
       {...props}
