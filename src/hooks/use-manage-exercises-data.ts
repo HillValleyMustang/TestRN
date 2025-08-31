@@ -70,10 +70,10 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       if (exercisesError) throw new Error(exercisesError);
       if (tPathsError) throw new Error(tPathsError);
 
-      // 1. Fetch user's profile to get active_t_path_id
+      // 1. Fetch user's profile to get active_t_path_id AND preferred_session_length
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('active_t_path_id')
+        .select('active_t_path_id, preferred_session_length') // Added preferred_session_length
         .eq('id', sessionUserId)
         .single();
 
@@ -81,6 +81,8 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
         throw profileError;
       }
       const activeTPathId = profileData?.active_t_path_id;
+      const preferredSessionLength = profileData?.preferred_session_length;
+      const maxAllowedMinutes = getMaxMinutes(preferredSessionLength);
 
       const { data: userGlobalFavorites, error: favoritesError } = await supabase
         .from('user_global_favorites')
@@ -117,14 +119,16 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
         throw new Error(tPathExercisesError.message);
       }
 
+      // NEW: Fetch workout structure for global badge info
       const { data: structureData, error: structureError } = await supabase
         .from('workout_exercise_structure')
-        .select('exercise_library_id, workout_name');
+        .select('exercise_library_id, workout_name, min_session_minutes, bonus_for_time_group'); // Added session length fields
 
       if (structureError) {
         throw new Error(structureError.message);
       }
 
+      // Create a map from library_id to the actual exercise UUID
       const libraryIdToUuidMap = new Map<string, string>();
       (cachedExercises || []).forEach(ex => {
         if (ex.library_id) {
@@ -154,21 +158,26 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
         }
       });
 
-      // 2. Populate from global workout_exercise_structure, BUT ONLY FOR ACTIVE WORKOUT NAMES
+      // 2. Populate from global workout_exercise_structure, BUT ONLY FOR ACTIVE WORKOUT NAMES AND SESSION LENGTH
       (structureData || []).forEach(structure => {
-        if (activeWorkoutNames.includes(structure.workout_name)) { // Filter here
-          const exerciseUuid = libraryIdToUuidMap.get(structure.exercise_library_id);
-          if (exerciseUuid) {
-            if (!newExerciseWorkoutsMap[exerciseUuid]) {
-              newExerciseWorkoutsMap[exerciseUuid] = [];
-            }
-            if (!newExerciseWorkoutsMap[exerciseUuid].some(item => item.name === structure.workout_name)) {
-              newExerciseWorkoutsMap[exerciseUuid].push({
-                id: `global_${structure.workout_name}`,
-                name: structure.workout_name,
-                isUserOwned: false,
-                isBonus: false,
-              });
+        if (activeWorkoutNames.includes(structure.workout_name)) {
+          const isIncludedAsMain = structure.min_session_minutes !== null && maxAllowedMinutes >= structure.min_session_minutes;
+          const isIncludedAsBonus = structure.bonus_for_time_group !== null && maxAllowedMinutes >= structure.bonus_for_time_group;
+
+          if (isIncludedAsMain || isIncludedAsBonus) { // Only add badge if it would be included in the workout
+            const exerciseUuid = libraryIdToUuidMap.get(structure.exercise_library_id);
+            if (exerciseUuid) {
+              if (!newExerciseWorkoutsMap[exerciseUuid]) {
+                newExerciseWorkoutsMap[exerciseUuid] = [];
+              }
+              if (!newExerciseWorkoutsMap[exerciseUuid].some(item => item.name === structure.workout_name)) {
+                newExerciseWorkoutsMap[exerciseUuid].push({
+                  id: `global_${structure.workout_name}`,
+                  name: structure.workout_name,
+                  isUserOwned: false,
+                  isBonus: false, // Global structure doesn't define bonus status, assume false
+                });
+              }
             }
           }
         }
