@@ -42,7 +42,7 @@ export const WorkoutPill = ({
       className={cn(
         'flex items-center gap-2 h-14 pl-3 pr-3 rounded-2xl border-2', // Reduced gap, pl, and pr
         'font-sans cursor-pointer',
-        'transition-all duration-200 ease-out w-fit',
+        'transition-all duration-200 ease-out w-full', // Changed w-fit to w-full
         isSelected
           ? cn(selectedBgClass, selectedTextClass, selectedBorderClass, selectedShadowClass, 'opacity-100 scale-100')
           : cn(unselectedBgClass, unselectedTextClass, unselectedBorderClass, unselectedShadowClass, 'opacity-100 scale-98'),
