@@ -234,7 +234,26 @@ const workoutStructureData: WorkoutStructureEntry[] = (() => {
 // --- Core Logic Functions ---
 
 const synchronizeSourceData = async (supabaseServiceRoleClient: any) => {
-    console.log('Starting synchronization of source data...');
+    console.log('Checking if source data synchronization is needed...');
+
+    const { count, error: countError } = await supabaseServiceRoleClient
+        .from('workout_exercise_structure')
+        .select('*', { count: 'exact', head: true });
+
+    if (countError) {
+        console.error("Error counting workout_exercise_structure:", countError);
+        throw countError;
+    }
+
+    // If the structure table is already populated, assume the data is synced.
+    // This avoids costly writes on every single T-Path generation.
+    // To force a re-sync, this table would need to be manually cleared.
+    if (count !== null && count > 0) {
+        console.log('Source data appears to be synchronized. Skipping write operations.');
+        return;
+    }
+
+    console.log('Source data not found or empty. Proceeding with synchronization...');
     
     // 1. Safely wipe and repopulate workout_exercise_structure (this is safe as it has no dependencies)
     const { error: deleteStructureError } = await supabaseServiceRoleClient
@@ -320,7 +339,15 @@ const processSingleChildWorkout = async (
     console.log(`Created new child workout ${workoutName} with ID: ${childWorkoutId}`);
   }
 
-  // 2. Determine `desiredDefaultExercises` from workout_exercise_structure
+  // 2. Delete all existing exercise links for this child workout to ensure a clean slate.
+  const { error: deleteError } = await supabaseServiceRoleClient
+      .from('t_path_exercises')
+      .delete()
+      .eq('template_id', childWorkoutId);
+  if (deleteError) throw deleteError;
+  console.log(`Cleared existing exercises for workout ${workoutName} (ID: ${childWorkoutId}).`);
+
+  // 3. Determine `desiredDefaultExercises` from workout_exercise_structure
   const { data: structureEntries, error: structureError } = await supabaseServiceRoleClient
     .from('workout_exercise_structure')
     .select('exercise_library_id, min_session_minutes, bonus_for_time_group')
@@ -330,9 +357,9 @@ const processSingleChildWorkout = async (
     .order('bonus_for_time_group', { ascending: true, nullsFirst: true });
   if (structureError) throw structureError;
 
-  const desiredDefaultExercisesMap = new Map<string, { is_bonus_exercise: boolean, order_criteria: number }>(); // Key: exercise_definitions.id
+  const exercisesToInsertPayload: { template_id: string; exercise_id: string; order_index: number; is_bonus_exercise: boolean }[] = [];
   for (const entry of structureEntries || []) {
-    const exerciseDef = exerciseLookupMap.get(entry.exercise_library_id); // Lookup by library_id
+    const exerciseDef = exerciseLookupMap.get(entry.exercise_library_id);
     if (!exerciseDef) {
       console.warn(`Could not find exercise definition for library_id: ${entry.exercise_library_id}. Skipping.`);
       continue;
@@ -343,94 +370,30 @@ const processSingleChildWorkout = async (
 
     if (isIncludedAsMain || isIncludedAsBonus) {
       const isBonus = isIncludedAsBonus && !isIncludedAsMain;
-      desiredDefaultExercisesMap.set(exerciseDef.id, {
+      exercisesToInsertPayload.push({
+        template_id: childWorkoutId,
+        exercise_id: exerciseDef.id,
+        order_index: isBonus ? (entry.bonus_for_time_group || 0) : (entry.min_session_minutes || 0),
         is_bonus_exercise: isBonus,
-        order_criteria: isBonus ? (entry.bonus_for_time_group || 0) : (entry.min_session_minutes || 0),
       });
     }
   }
-  console.log(`Desired default exercises for ${workoutName}: ${Array.from(desiredDefaultExercisesMap.keys()).join(', ')}`);
 
-  // 3. Fetch `currentTPathExercises` for this child workout
-  const { data: currentTPathExercisesLinks, error: currentTpeError } = await supabaseServiceRoleClient
-    .from('t_path_exercises')
-    .select('id, exercise_id, order_index, is_bonus_exercise')
-    .eq('template_id', childWorkoutId);
-  if (currentTpeError) throw currentTpeError;
-  const currentTPathExercisesMap = new Map<string, TPathExerciseLink>(); // Key: exercise_id
-  (currentTPathExercisesLinks as TPathExerciseLink[] || []).forEach(link => currentTPathExercisesMap.set(link.exercise_id, link));
-  console.log(`Current exercises in ${workoutName}: ${Array.from(currentTPathExercisesMap.keys()).join(', ')}`);
-
-  // 4. Merge Logic: Determine final set of exercises for this workout
-  const exercisesToUpsert: { template_id: string; exercise_id: string; order_index: number; is_bonus_exercise: boolean }[] = [];
-  const processedExerciseIds = new Set<string>();
-
-  // Add existing user-added exercises first (those not in desired defaults)
-  for (const [exerciseId, link] of currentTPathExercisesMap.entries()) {
-    if (!desiredDefaultExercisesMap.has(exerciseId)) {
-      // This is a user-added exercise, keep it
-      exercisesToUpsert.push({
-        template_id: childWorkoutId,
-        exercise_id: exerciseId,
-        order_index: link.order_index, // Preserve original order for user-added
-        is_bonus_exercise: link.is_bonus_exercise,
-      });
-      processedExerciseIds.add(exerciseId);
-      console.log(`Keeping user-added exercise: ${exerciseId}`);
-    }
-  }
-
-  // Add desired default exercises (if not already present)
-  for (const [exerciseId, defaultInfo] of desiredDefaultExercisesMap.entries()) {
-    if (!processedExerciseIds.has(exerciseId)) {
-      // This is a default exercise not yet added
-      exercisesToUpsert.push({
-        template_id: childWorkoutId,
-        exercise_id: exerciseId,
-        order_index: defaultInfo.order_criteria, // Use default order criteria for new defaults
-        is_bonus_exercise: defaultInfo.is_bonus_exercise,
-      });
-      processedExerciseIds.add(exerciseId);
-      console.log(`Adding default exercise: ${exerciseId}`);
-    } else {
-      // If a user-added exercise matches a default, update its bonus status if it was a default
-      const existingEntry = exercisesToUpsert.find(e => e.exercise_id === exerciseId);
-      if (existingEntry) {
-        existingEntry.is_bonus_exercise = defaultInfo.is_bonus_exercise;
-        console.log(`Updating bonus status for existing exercise ${exerciseId} to ${defaultInfo.is_bonus_exercise}`);
-      }
-    }
-  }
-
-  // Sort the final list of exercises for consistent ordering
-  exercisesToUpsert.sort((a, b) => a.order_index - b.order_index);
-
-  // Re-assign sequential order_index
-  exercisesToUpsert.forEach((ex, i) => {
+  // 4. Sort and re-index before inserting
+  exercisesToInsertPayload.sort((a, b) => a.order_index - b.order_index);
+  exercisesToInsertPayload.forEach((ex, i) => {
     ex.order_index = i;
   });
 
-  // Perform upsert for t_path_exercises
-  if (exercisesToUpsert.length > 0) {
-    const { error: upsertTPathExercisesError } = await supabaseServiceRoleClient
-      .from('t_path_exercises')
-      .upsert(exercisesToUpsert, { onConflict: 'template_id,exercise_id' }); // Conflict on composite key
-    if (upsertTPathExercisesError) throw upsertTPathExercisesError;
-    console.log(`Upserted ${exercisesToUpsert.length} exercises for workout ${workoutName}.`);
-  }
+  console.log(`Prepared ${exercisesToInsertPayload.length} exercises for insertion into ${workoutName}.`);
 
-  // Identify and delete exercises that are no longer in the final list
-  const exerciseIdsToKeep = new Set(exercisesToUpsert.map(ex => ex.exercise_id));
-  const exercisesToDelete = Array.from(currentTPathExercisesMap.values()).filter(link => !exerciseIdsToKeep.has(link.exercise_id));
-
-  if (exercisesToDelete.length > 0) {
-    const idsToDelete = exercisesToDelete.map(link => link.id);
-    const { error: deleteTpeError } = await supabaseServiceRoleClient
+  // 5. Perform a single bulk insert.
+  if (exercisesToInsertPayload.length > 0) {
+    const { error: insertError } = await supabaseServiceRoleClient
       .from('t_path_exercises')
-      .delete()
-      .in('id', idsToDelete);
-    if (deleteTpeError) throw deleteTpeError;
-    console.log(`Deleted ${exercisesToDelete.length} exercises from workout ${workoutName}.`);
+      .insert(exercisesToInsertPayload);
+    if (insertError) throw insertError;
+    console.log(`Successfully inserted exercises for workout ${workoutName}.`);
   }
 
   return { id: childWorkoutId, template_name: workoutName };
