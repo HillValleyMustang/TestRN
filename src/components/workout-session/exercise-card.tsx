@@ -236,10 +236,8 @@ export const ExerciseCard = ({
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" title="More Options" onClick={(e) => e.stopPropagation()}>
-                      {/* Wrap children in a single span */}
-                      <span>
-                        <Menu className="h-5 w-5" />
-                      </span>
+                      {/* Removed the extra span here */}
+                      <Menu className="h-5 w-5" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">

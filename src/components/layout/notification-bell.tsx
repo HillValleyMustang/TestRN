@@ -80,15 +80,13 @@ export function NotificationBell() {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" size="icon" className="relative">
-          {/* Wrapped Bell and Badge in a single span */}
-          <span>
-            <Bell className="h-4 w-4" />
-            {unreadCount > 0 && (
-              <Badge variant="destructive" className="absolute -top-2 -right-2 h-5 w-5 justify-center rounded-full p-0 text-xs">
-                {unreadCount}
-              </Badge>
-            )}
-          </span>
+          {/* Removed the extra span here */}
+          <Bell className="h-4 w-4" />
+          {unreadCount > 0 && (
+            <Badge variant="destructive" className="absolute -top-2 -right-2 h-5 w-5 justify-center rounded-full p-0 text-xs">
+              {unreadCount}
+            </Badge>
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80" align="end">
