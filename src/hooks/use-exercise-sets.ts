@@ -351,7 +351,10 @@ export const useExerciseSets = ({
     try {
       const isNewPROverall = await updateExercisePRStatus(currentSessionIdToUse, updatedSetsState);
       await onExerciseComplete(exerciseId, isNewPROverall);
-      await db.draft_set_logs.where({ exercise_id: exerciseId }).delete();
+      
+      // More specific delete: only delete drafts for this exercise and this session.
+      await db.draft_set_logs.where({ exercise_id: exerciseId, session_id: currentSessionIdToUse }).delete();
+      
       return true;
     } catch (err: any) {
       console.error("Error saving exercise completion or PR:", err);
