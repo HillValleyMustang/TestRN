@@ -195,25 +195,9 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     try {
       const finalExerciseId = await adoptExercise(exerciseToAddDetails);
 
-      // NEW: Server-side check for existence before inserting
-      const { data: existingLink, error: checkError } = await supabase
-        .from('t_path_exercises')
-        .select('id')
-        .eq('template_id', workoutId)
-        .eq('exercise_id', finalExerciseId)
-        .single();
-
-      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 means no rows found, which is fine
-        throw checkError;
-      }
-      if (existingLink) {
-        toast.info("This exercise is already in the workout.");
-        setIsSaving(false);
-        return;
-      }
-
+      // Optimistic UI update: Add the exercise to the local state immediately
       const newOrderIndex = exercises.length > 0 ? Math.max(...exercises.map(e => e.order_index)) + 1 : 0;
-      const tempTPathExerciseId = `temp-${Date.now()}`;
+      const tempTPathExerciseId = `temp-${Date.now()}`; // Temporary ID for optimistic UI
       const newExerciseWithDetails: WorkoutExerciseWithDetails = {
         ...exerciseToAddDetails,
         id: finalExerciseId,
@@ -223,6 +207,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       };
       setExercises(prev => [...prev, newExerciseWithDetails]);
 
+      // Attempt to insert into the database. Rely on DB unique constraint.
       const { data: insertedTpe, error: insertError } = await supabase
         .from('t_path_exercises')
         .insert({
@@ -235,10 +220,12 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         .single();
 
       if (insertError) {
+        // If insert fails, rollback the optimistic UI update
         setExercises(prev => prev.filter(ex => ex.t_path_exercise_id !== tempTPathExerciseId));
-        throw insertError;
+        throw insertError; // Re-throw to be caught by the outer catch block
       }
 
+      // If successful, update the temporary ID with the real one from the database
       setExercises(prev => prev.map(ex => 
         ex.t_path_exercise_id === tempTPathExerciseId ? { ...ex, t_path_exercise_id: insertedTpe.id } : ex
       ));
@@ -247,8 +234,20 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       setSelectedExerciseToAdd("");
       setExerciseToAddDetails(null);
     } catch (err: any) {
-      toast.error("Failed to add exercise: " + err.message);
-      console.error("Error adding exercise:", err);
+      // Enhanced error handling to specifically catch unique constraint violations
+      console.error("Error adding exercise:", err); // Log the full error object for debugging
+
+      let errorMessage = "An unexpected error occurred.";
+      if (err && typeof err === 'object') {
+        if (err.code === '23505') { // PostgreSQL unique_violation error code
+          errorMessage = "This exercise is already in the workout.";
+        } else if (err.message) {
+          errorMessage = err.message;
+        } else if (err.details) { // Supabase specific error detail
+          errorMessage = err.details;
+        }
+      }
+      toast.error("Failed to add exercise: " + errorMessage);
     } finally {
       setIsSaving(false);
     }
