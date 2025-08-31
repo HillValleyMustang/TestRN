@@ -131,7 +131,9 @@ export const ExerciseHistoryDialog = ({ open, onOpenChange, exerciseId, exercise
                   {historyLogs.map((log) => (
                     <TableRow key={log.id}>
                       <TableCell>
-                        {log.workout_sessions && new Date(log.workout_sessions.session_date).toLocaleDateString()}
+                        {log.workout_sessions?.session_date
+                          ? new Date(log.workout_sessions.session_date).toLocaleDateString()
+                          : (log.created_at ? new Date(log.created_at).toLocaleDateString() : '-')}
                       </TableCell>
                       {exerciseType === 'weight' && (
                         <TableCell>
