@@ -53,6 +53,7 @@ export const EditWorkoutExercisesDialog = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
   const [selectedExerciseForInfo, setSelectedExerciseForInfo] = useState<WorkoutExerciseWithDetails | null>(null);
+  const [addExerciseFilter, setAddExerciseFilter] = useState<'all' | 'my-exercises' | 'global-library'>('all'); // New state for filter
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
@@ -299,9 +300,11 @@ export const EditWorkoutExercisesDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col"> {/* Increased max-w */}
         <DialogHeader className="p-6 pb-4">
-          <DialogTitle className="text-2xl font-bold">Manage Exercises for "{workoutName}"</DialogTitle>
+          <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+            Manage Exercises for <WorkoutBadge workoutName={workoutName} className="text-xl px-3 py-1" /> {/* Workout Badge in title */}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="flex-grow overflow-y-auto px-6 pb-6 space-y-4">
@@ -311,11 +314,47 @@ export const EditWorkoutExercisesDialog = ({
             <div className="space-y-6">
               <div className="flex gap-2">
                 <Select onValueChange={setSelectedExerciseToAdd} value={selectedExerciseToAdd}>
-                  <SelectTrigger><SelectValue placeholder="Add exercise from library" /></SelectTrigger>
-                  <SelectContent>
-                    {allAvailableExercises
-                      .filter(ex => !exercises.some(existingEx => existingEx.id === ex.id))
-                      .map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                  <SelectTrigger><SelectValue placeholder="Add exercise" /></SelectTrigger> {/* Renamed placeholder */}
+                  <SelectContent className="p-0"> {/* Removed padding from SelectContent */}
+                    <div className="flex border-b p-2"> {/* Filter buttons */}
+                      <Button
+                        variant={addExerciseFilter === 'all' ? 'secondary' : 'ghost'}
+                        onClick={() => setAddExerciseFilter('all')}
+                        className="flex-1 h-8 text-xs"
+                      >
+                        All
+                      </Button>
+                      <Button
+                        variant={addExerciseFilter === 'my-exercises' ? 'secondary' : 'ghost'}
+                        onClick={() => setAddExerciseFilter('my-exercises')}
+                        className="flex-1 h-8 text-xs"
+                      >
+                        My Exercises
+                      </Button>
+                      <Button
+                        variant={addExerciseFilter === 'global-library' ? 'secondary' : 'ghost'}
+                        onClick={() => setAddExerciseFilter('global-library')}
+                        className="flex-1 h-8 text-xs"
+                      >
+                        Global
+                      </Button>
+                    </div>
+                    <ScrollArea className="h-64">
+                      <div className="p-1"> {/* Add padding back for the items */}
+                        {allAvailableExercises
+                          .filter(ex => {
+                            if (addExerciseFilter === 'my-exercises') return ex.user_id === session?.user.id;
+                            if (addExerciseFilter === 'global-library') return ex.user_id === null;
+                            return true; // 'all' filter
+                          })
+                          .filter(ex => !exercises.some(existingEx => existingEx.id === ex.id))
+                          .map(e => (
+                            <SelectItem key={e.id} value={e.id}>
+                              {e.name} ({e.main_muscle})
+                            </SelectItem>
+                          ))}
+                      </div>
+                    </ScrollArea>
                   </SelectContent>
                 </Select>
                 <Button type="button" onClick={handleAddExercise} disabled={!selectedExerciseToAdd || isSaving}>
@@ -371,18 +410,16 @@ function SortableExerciseItem({ exercise, onRemove, onOpenInfo }: { exercise: Wo
   const style = { transform: CSS.Transform.toString(transform), transition };
   return (
     <li ref={setNodeRef} style={style} className="flex items-center justify-between p-2 border rounded-md bg-card">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-grow"> {/* Added flex-grow */}
         <button {...listeners} {...attributes} className="cursor-grab p-1"><GripVertical className="h-4 w-4 text-muted-foreground" /></button>
-        <WorkoutBadge workoutName={exercise.name}>
-          {exercise.name}
-        </WorkoutBadge>
+        <span className="font-medium text-foreground flex-grow truncate">{exercise.name}</span> {/* Plain text for exercise name */}
         {exercise.is_bonus_exercise && (
-          <WorkoutBadge workoutName="Bonus">
+          <WorkoutBadge workoutName="Bonus" className="flex-shrink-0"> {/* Added flex-shrink-0 */}
             Bonus
           </WorkoutBadge>
         )}
       </div>
-      <div className="flex gap-1">
+      <div className="flex gap-1 flex-shrink-0"> {/* Added flex-shrink-0 */}
         <Button variant="ghost" size="icon" onClick={() => onOpenInfo(exercise)} title="Exercise Info">
           <Info className="h-4 w-4" />
         </Button>
