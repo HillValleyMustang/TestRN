@@ -409,10 +409,10 @@ function SortableExerciseItem({ exercise, onRemove, onOpenInfo }: { exercise: Wo
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: exercise.id });
   const style = { transform: CSS.Transform.toString(transform), transition };
   return (
-    <li ref={setNodeRef} style={style} className="flex items-center justify-between p-2 border rounded-md bg-card">
+    <li ref={setNodeRef} style={style} className="flex items-center justify-between py-1 px-2 border rounded-md bg-card"> {/* Reduced vertical padding */}
       <div className="flex items-center gap-2 flex-grow">
         <button {...listeners} {...attributes} className="cursor-grab p-1"><GripVertical className="h-4 w-4 text-muted-foreground" /></button>
-        <span className="font-medium text-foreground flex-grow truncate">{exercise.name}</span>
+        <span className="font-medium text-sm text-foreground flex-grow truncate">{exercise.name}</span> {/* Reduced font size */}
         {exercise.is_bonus_exercise && (
           <WorkoutBadge workoutName="Bonus" className="flex-shrink-0">
             Bonus
