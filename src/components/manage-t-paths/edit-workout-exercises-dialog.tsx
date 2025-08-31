@@ -300,18 +300,18 @@ export const EditWorkoutExercisesDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[900px] max-h-[90vh] flex flex-col">
-        <DialogHeader className="p-4 pb-2">
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="p-4 pb-2 border-b">
           <DialogTitle className="text-2xl font-bold flex items-center gap-2">
             Manage Exercises for <WorkoutBadge workoutName={workoutName} className="text-xl px-3 py-1" />
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-grow overflow-y-auto px-4 pb-4 space-y-4">
+        <div className="flex-grow overflow-y-auto p-4 space-y-4">
           {loading ? (
             <p className="text-muted-foreground">Loading exercises...</p>
           ) : (
-            <div className="space-y-6 w-full"> {/* Added w-full here */}
+            <div className="space-y-6 w-full">
               <div className="flex gap-2 w-full">
                 <Select onValueChange={setSelectedExerciseToAdd} value={selectedExerciseToAdd}>
                   <SelectTrigger className="w-full"><SelectValue placeholder="Add exercise" /></SelectTrigger>
