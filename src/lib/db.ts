@@ -1,7 +1,7 @@
 "use client";
 
 import Dexie, { Table } from 'dexie';
-import { TablesInsert, TablesUpdate } from '@/types/supabase';
+import { TablesInsert, TablesUpdate, Tables } from '@/types/supabase'; // Import Tables
 import { Session } from '@supabase/supabase-js'; // Import Session type
 
 export interface SyncQueueItem {
@@ -41,12 +41,18 @@ export interface LocalSupabaseSession {
   last_updated: number; // Timestamp for when it was last updated
 }
 
+// New interfaces for cached data
+export interface LocalExerciseDefinition extends Tables<'exercise_definitions'> {}
+export interface LocalTPath extends Tables<'t_paths'> {}
+
 export class AppDatabase extends Dexie {
   workout_sessions!: Table<LocalWorkoutSession, string>;
   set_logs!: Table<LocalSetLog, string>;
   sync_queue!: Table<SyncQueueItem, number>;
   draft_set_logs!: Table<LocalDraftSetLog, [string, number]>; // Composite primary key
   supabase_session!: Table<LocalSupabaseSession, string>; // New table for Supabase session
+  exercise_definitions_cache!: Table<LocalExerciseDefinition, string>; // New table for caching exercises
+  t_paths_cache!: Table<LocalTPath, string>; // New table for caching T-Paths
 
   constructor() {
     super('WorkoutTrackerDB');
@@ -61,6 +67,11 @@ export class AppDatabase extends Dexie {
     }).upgrade(tx => {
       // Add any migration logic here if needed for existing users
       // For now, we just add the new table.
+    });
+    // Increment version for new tables
+    this.version(3).stores({
+      exercise_definitions_cache: '&id, user_id, library_id', // Cache exercises
+      t_paths_cache: '&id, user_id, parent_t_path_id', // Cache T-Paths
     });
   }
 }
