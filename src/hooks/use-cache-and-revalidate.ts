@@ -44,10 +44,10 @@ export function useCacheAndRevalidate<T extends { id: string; user_id: string | 
 
       if (sessionUserId) {
         // Fetch user's own items or global items
-        return table.where('user_id').equals(sessionUserId).or('user_id').equals(null as any).toArray() as Promise<T[]>;
+        return table.where('user_id').equals(sessionUserId).or('user_id').equals(null as any).toArray() as unknown as Promise<T[]>;
       }
       // If no user ID, only fetch global items (user_id is null)
-      return table.where('user_id').equals(null as any).toArray() as Promise<T[]>;
+      return table.where('user_id').equals(null as any).toArray() as unknown as Promise<T[]>;
     },
     [cacheTable, sessionUserId]
   );

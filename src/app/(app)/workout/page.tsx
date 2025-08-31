@@ -15,8 +15,6 @@ export default function WorkoutPage() {
 
   const workoutFlowManager = useWorkoutFlowManager({
     initialWorkoutId: initialWorkoutId,
-    session,
-    supabase,
     router,
   });
 

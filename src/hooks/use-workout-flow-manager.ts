@@ -6,7 +6,9 @@ import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { Tables, SetLogState, WorkoutExercise, Profile as ProfileType, UserAchievement, GetLastExerciseSetsForExerciseReturns } from '@/types/supabase';
 import { v4 as uuidv4 } from 'uuid';
-import { db, addToSyncQueue, LocalWorkoutSession, LocalDraftSetLog } from '@/lib/db';
+import { db, addToSyncQueue, LocalWorkoutSession, LocalDraftSetLog, LocalExerciseDefinition, LocalTPath } from '@/lib/db';
+import { useCacheAndRevalidate } from './use-cache-and-revalidate'; // Import new caching hook
+import { useSession } from '@/components/session-context-provider'; // Import useSession
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -23,8 +25,7 @@ interface GroupedTPath {
 
 interface UseWorkoutFlowManagerProps {
   initialWorkoutId?: string | null;
-  session: Session | null;
-  supabase: SupabaseClient;
+  // Removed session and supabase from props, will use useSession internally
   router: ReturnType<typeof useRouter>;
 }
 
@@ -54,11 +55,13 @@ interface UseWorkoutFlowManagerReturn {
 
 const DEFAULT_INITIAL_SETS = 3;
 
-export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, router }: UseWorkoutFlowManagerProps): UseWorkoutFlowManagerReturn => {
+export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFlowManagerProps): UseWorkoutFlowManagerReturn => {
+  const { session, supabase } = useSession(); // Get session and supabase from context
+
   const [activeWorkout, setActiveWorkout] = useState<TPath | null>(null);
   const [exercisesForSession, setExercisesForSession] = useState<WorkoutExercise[]>([]);
   const [exercisesWithSets, setExercisesWithSets] = useState<Record<string, SetLogState[]>>({});
-  const [allAvailableExercises, setAllAvailableExercises] = useState<ExerciseDefinition[]>([]);
+  const [allAvailableExercises, setAllAvailableExercises] = useState<ExerciseDefinition[]>([]); // Declared here
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -69,18 +72,50 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
   const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, WorkoutExercise[]>>({});
   const [isCreatingSession, setIsCreatingSession] = useState(false);
 
-  const resetWorkoutSession = useCallback(async () => { // Made async
+  // Define Supabase query functions for caching hook
+  const fetchExercisesSupabase = useCallback(async (client: SupabaseClient) => {
+    return client
+      .from('exercise_definitions')
+      .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, is_favorite, created_at, user_id, icon_url')
+      .or(`user_id.eq.${session?.user.id},user_id.is.null`)
+      .order('name', { ascending: true });
+  }, [session?.user.id]);
+
+  const fetchTPathsSupabase = useCallback(async (client: SupabaseClient) => {
+    return client
+      .from('t_paths')
+      .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id');
+  }, []);
+
+  // Use the caching hook for exercises
+  const { data: cachedExercises, loading: loadingExercises, error: exercisesError } = useCacheAndRevalidate<LocalExerciseDefinition>({
+    cacheTable: 'exercise_definitions_cache',
+    supabaseQuery: fetchExercisesSupabase,
+    queryKey: 'all_exercises',
+    supabase,
+    sessionUserId: session?.user.id || null,
+  });
+
+  // Use the caching hook for T-Paths
+  const { data: cachedTPaths, loading: loadingTPaths, error: tPathsError } = useCacheAndRevalidate<LocalTPath>({
+    cacheTable: 't_paths_cache',
+    supabaseQuery: fetchTPathsSupabase,
+    queryKey: 'all_t_paths',
+    supabase,
+    sessionUserId: session?.user.id || null,
+  });
+
+  const resetWorkoutSession = useCallback(async () => {
     setActiveWorkout(null);
     setExercisesForSession([]);
     setExercisesWithSets({});
     setCurrentSessionId(null);
     setSessionStartTime(null);
     setCompletedExercises(new Set());
-    // Clear all drafts for the current user
     if (session?.user.id) {
-      await db.draft_set_logs.clear(); // Clear all drafts
+      await db.draft_set_logs.clear();
     }
-  }, [session]); // Added session to dependencies
+  }, [session]);
 
   const markExerciseAsCompleted = useCallback((exerciseId: string, isNewPR: boolean) => {
     setCompletedExercises((prev: Set<string>) => new Set(prev).add(exerciseId));
@@ -92,45 +127,15 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       return;
     }
 
-    const prefetchAllData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const { data: exercisesData, error: fetchExercisesError } = await supabase
-          .from('exercise_definitions')
-          .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, is_favorite, created_at, user_id, icon_url')
-          .or(`user_id.eq.${session.user.id},user_id.is.null`)
-          .order('name', { ascending: true });
-        if (fetchExercisesError) throw fetchExercisesError;
-        setAllAvailableExercises(exercisesData as ExerciseDefinition[] || []);
+    const processCachedData = async () => {
+      setLoading(loadingExercises || loadingTPaths);
+      setError(exercisesError || tPathsError);
 
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('active_t_path_id')
-          .eq('id', session.user.id)
-          .single();
-        if (profileError && profileError.code !== 'PGRST116') throw profileError;
-        
-        const activeMainTPathId = profileData?.active_t_path_id || null;
+      if (cachedExercises && cachedTPaths) {
+        setAllAvailableExercises(cachedExercises as ExerciseDefinition[]);
 
-        let mainTPathsData: TPath[] = [];
-        if (activeMainTPathId) {
-          const { data, error: mainTPathsError } = await supabase
-            .from('t_paths')
-            .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
-            .eq('id', activeMainTPathId)
-            .is('parent_t_path_id', null);
-          if (mainTPathsError) throw mainTPathsError;
-          mainTPathsData = data as TPath[] || [];
-        }
-
-        const { data: childWorkoutsData, error: childWorkoutsError } = await supabase
-          .from('t_paths')
-          .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
-          .eq('user_id', session.user.id)
-          .eq('is_bonus', true);
-        if (childWorkoutsError) throw childWorkoutsError;
-        const allChildWorkouts = (childWorkoutsData as TPath[]) || [];
+        const mainTPathsData = cachedTPaths.filter(tp => tp.user_id === session.user.id && tp.parent_t_path_id === null);
+        const allChildWorkouts = cachedTPaths.filter(tp => tp.user_id === session.user.id && tp.is_bonus === true);
 
         const workoutsWithLastDatePromises = allChildWorkouts.map(async (workout) => {
           const { data: lastSessionDate } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
@@ -144,40 +149,43 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
         }));
         setGroupedTPaths(newGroupedTPaths);
 
-        const exercisePromises = allChildWorkouts.map(async (workout) => {
+        const newWorkoutExercisesCache: Record<string, WorkoutExercise[]> = {};
+        for (const workout of allChildWorkouts) {
           const { data: tPathExercises, error: fetchLinksError } = await supabase
             .from('t_path_exercises')
             .select('exercise_id, is_bonus_exercise, order_index')
             .eq('template_id', workout.id)
             .order('order_index', { ascending: true });
-          if (fetchLinksError) return { workoutId: workout.id, exercises: [] };
-          if (!tPathExercises || tPathExercises.length === 0) return { workoutId: workout.id, exercises: [] };
+          
+          if (fetchLinksError) {
+            console.error(`Error fetching t_path_exercises for workout ${workout.id}:`, fetchLinksError);
+            newWorkoutExercisesCache[workout.id] = [];
+            continue;
+          }
+
+          if (!tPathExercises || tPathExercises.length === 0) {
+            newWorkoutExercisesCache[workout.id] = [];
+            continue;
+          }
 
           const exerciseIds = tPathExercises.map(e => e.exercise_id);
           const exerciseInfoMap = new Map(tPathExercises.map(e => [e.exercise_id, { is_bonus_exercise: !!e.is_bonus_exercise, order_index: e.order_index }]));
-          const { data: exerciseDetails, error: fetchDetailsError } = await supabase.from('exercise_definitions').select('*').in('id', exerciseIds);
-          if (fetchDetailsError) return { workoutId: workout.id, exercises: [] };
-
-          const exercises: WorkoutExercise[] = (exerciseDetails as Tables<'exercise_definitions'>[] || [])
+          
+          const exercisesForWorkout = cachedExercises
+            .filter(ex => exerciseIds.includes(ex.id))
             .map(ex => ({ ...ex, is_bonus_exercise: exerciseInfoMap.get(ex.id)?.is_bonus_exercise || false }))
             .sort((a, b) => (exerciseInfoMap.get(a.id)?.order_index || 0) - (exerciseInfoMap.get(b.id)?.order_index || 0));
-          return { workoutId: workout.id, exercises };
-        });
-        const results = await Promise.all(exercisePromises);
-        const newCache: Record<string, WorkoutExercise[]> = {};
-        results.forEach(result => { newCache[result.workoutId] = result.exercises; });
-        setWorkoutExercisesCache(newCache);
-
-      } catch (err: any) {
-        setError(err.message || "Failed to prefetch workout data.");
-        toast.error(err.message || "Failed to prefetch workout data.");
-      } finally {
-        setLoading(false);
+          
+          newWorkoutExercisesCache[workout.id] = exercisesForWorkout;
+        }
+        setWorkoutExercisesCache(newWorkoutExercisesCache);
       }
     };
 
-    prefetchAllData();
-  }, [session, supabase]);
+    if (!loadingExercises && !loadingTPaths) {
+      processCachedData();
+    }
+  }, [session, supabase, cachedExercises, cachedTPaths, loadingExercises, loadingTPaths, exercisesError, tPathsError]);
 
   const createWorkoutSessionInDb = useCallback(async (templateName: string, firstSetTimestamp: string): Promise<string> => {
     if (!session) throw new Error("User not authenticated.");
@@ -198,7 +206,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       await db.workout_sessions.put(sessionDataToSave);
       await addToSyncQueue('create', 'workout_sessions', sessionDataToSave);
 
-      // Update existing drafts to link to this new session ID
       const draftsToUpdate = await db.draft_set_logs.where({ session_id: null }).toArray();
       const updatePromises = draftsToUpdate.map(draft =>
         db.draft_set_logs.update([draft.exercise_id, draft.set_index], { session_id: newSessionId })
@@ -220,27 +227,20 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
   const selectWorkout = useCallback(async (workoutId: string | null) => {
     setSelectedWorkoutId(workoutId);
     if (workoutId) {
-      await resetWorkoutSession(); // Reset and clear drafts first
+      await resetWorkoutSession();
 
       let currentWorkout: TPath | null = null;
       let exercises: WorkoutExercise[] = [];
 
       if (workoutId === 'ad-hoc') {
         currentWorkout = { id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: session?.user.id || null, created_at: new Date().toISOString(), version: 1, settings: null, progression_settings: null, parent_t_path_id: null };
-        // For ad-hoc, we load exercises from drafts if they exist, otherwise start empty
         const adHocDrafts = await db.draft_set_logs.where({ session_id: null }).toArray();
         const adHocExerciseIds = Array.from(new Set(adHocDrafts.map(d => d.exercise_id)));
         
-        if (adHocExerciseIds.length > 0) {
-          const { data: adHocExerciseDetails, error: fetchAdHocError } = await supabase
-            .from('exercise_definitions')
-            .select('*')
-            .in('id', adHocExerciseIds);
-          if (fetchAdHocError) {
-            console.error("Error fetching ad-hoc exercise details from drafts:", fetchAdHocError);
-          } else {
-            exercises = (adHocExerciseDetails as Tables<'exercise_definitions'>[] || []).map(ex => ({ ...ex, is_bonus_exercise: false }));
-          }
+        if (adHocExerciseIds.length > 0 && cachedExercises) {
+          exercises = cachedExercises
+            .filter(ex => adHocExerciseIds.includes(ex.id))
+            .map(ex => ({ ...ex, is_bonus_exercise: false }));
         }
       } else {
         const group = groupedTPaths.find(g => g.childWorkouts.some(cw => cw.id === workoutId));
@@ -313,7 +313,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     } else {
       await resetWorkoutSession();
     }
-  }, [session, supabase, resetWorkoutSession, groupedTPaths, workoutExercisesCache, currentSessionId]); // Added currentSessionId to dependencies
+  }, [session, supabase, resetWorkoutSession, groupedTPaths, workoutExercisesCache, currentSessionId, cachedExercises]);
 
   useEffect(() => {
     if (initialWorkoutId && !loading) {
@@ -356,7 +356,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
         is_pb: false, isSaved: false, isPR: false, 
         lastWeight, lastReps, lastRepsL, lastRepsR, lastTimeSeconds
       };
-      // Save new set as a draft immediately
       const draftPayload: LocalDraftSetLog = {
         exercise_id: exercise.id,
         set_index: setIndex,
@@ -367,29 +366,27 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
         reps_r: newSet.reps_r,
         time_seconds: newSet.time_seconds,
       };
-      db.draft_set_logs.put(draftPayload); // No await needed, fire and forget
+      db.draft_set_logs.put(draftPayload);
       return newSet;
     });
 
     setExercisesWithSets(prev => ({ ...prev, [exercise.id]: newSetsForExercise }));
   }, [currentSessionId, session, supabase]);
 
-  const removeExerciseFromSession = useCallback(async (exerciseId: string) => { // Made async
+  const removeExerciseFromSession = useCallback(async (exerciseId: string) => {
     setExercisesForSession(prev => prev.filter(ex => ex.id !== exerciseId));
     setExercisesWithSets(prev => { const newSets = { ...prev }; delete newSets[exerciseId]; return newSets; });
     setCompletedExercises((prev: Set<string>) => { const newCompleted = new Set(prev); newCompleted.delete(exerciseId); return newCompleted; });
-    // Clear drafts for the removed exercise
     await db.draft_set_logs.where({ exercise_id: exerciseId, session_id: currentSessionId }).delete();
   }, [currentSessionId]);
 
-  const substituteExercise = useCallback(async (oldExerciseId: string, newExercise: WorkoutExercise) => { // Made async
+  const substituteExercise = useCallback(async (oldExerciseId: string, newExercise: WorkoutExercise) => {
     setExercisesForSession(prev => prev.map(ex => ex.id === oldExerciseId ? newExercise : ex));
     setExercisesWithSets(prev => {
       const newSets = { ...prev };
       if (!newSets[newExercise.id]) {
         const newSetsForExercise: SetLogState[] = Array.from({ length: DEFAULT_INITIAL_SETS }).map((_, setIndex) => {
           const newSet: SetLogState = { id: null, created_at: null, session_id: currentSessionId, exercise_id: newExercise.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null };
-          // Save new set as a draft immediately
           const draftPayload: LocalDraftSetLog = {
             exercise_id: newExercise.id,
             set_index: setIndex,
@@ -400,7 +397,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
             reps_r: newSet.reps_r,
             time_seconds: newSet.time_seconds,
           };
-          db.draft_set_logs.put(draftPayload); // No await needed, fire and forget
+          db.draft_set_logs.put(draftPayload);
           return newSet;
         });
         newSets[newExercise.id] = newSetsForExercise;
@@ -409,7 +406,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
       return newSets;
     });
     setCompletedExercises((prev: Set<string>) => { const newCompleted = new Set(prev); newCompleted.delete(oldExerciseId); return newCompleted; });
-    // Clear drafts for the old exercise
     await db.draft_set_logs.where({ exercise_id: oldExerciseId, session_id: currentSessionId }).delete();
   }, [currentSessionId]);
 
@@ -439,16 +435,11 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
     try {
       const updatePayload = { duration_string: durationString, completed_at: endTime.toISOString() };
       
-      // Update local DB first
       await db.workout_sessions.update(currentSessionId, updatePayload);
-      
-      // Add to sync queue
       await addToSyncQueue('update', 'workout_sessions', { id: currentSessionId, ...updatePayload });
 
-      // Clear all drafts associated with this session
       await db.draft_set_logs.where({ session_id: currentSessionId }).delete();
 
-      // Explicitly invoke the achievement processing function from the client
       const { error: achievementError } = await supabase.functions.invoke('process-achievements', {
         body: { user_id: session.user.id, session_id: currentSessionId },
       });
@@ -460,7 +451,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, session, supabase, rou
 
       toast.success("Workout session finished and saved locally!");
       router.push(`/workout-summary/${currentSessionId}`);
-      await resetWorkoutSession(); // Ensure reset is awaited
+      await resetWorkoutSession();
     } catch (err: any) {
       toast.error("Failed to save workout duration locally: " + err.message);
       console.error("Error saving duration:", err);
