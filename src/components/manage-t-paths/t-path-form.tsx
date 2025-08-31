@@ -98,40 +98,34 @@ export const TPathForm = ({ editingTPath, onCancelEdit, onSaveSuccess, allExerci
   }
 
   async function onSubmit(values: z.infer<typeof tPathSchema>) {
-    if (!session || selectedExercises.length === 0) {
+    if (!session || !editingTPath || selectedExercises.length === 0) {
       toast.error("Please add at least one exercise to the T-Path.");
       return;
     }
-    let tPathId: string;
-    if (editingTPath) {
-      const { error } = await supabase.from('t_paths').update({ template_name: values.template_name }).eq('id', editingTPath.id);
-      if (error) { toast.error("Update failed"); return; }
-      tPathId = editingTPath.id;
-    } else {
-      const { data, error } = await supabase.from('t_paths').insert([{ 
-        ...values, 
-        user_id: session.user.id,
-        is_bonus: false, // New main T-Paths are not bonus
-        parent_t_path_id: null // New main T-Paths have no parent
-      }]).select('id').single();
-      if (error || !data) { toast.error("Create failed"); return; }
-      tPathId = data.id;
-    }
+    
+    const tPathId = editingTPath.id;
+    const { error: updateError } = await supabase.from('t_paths').update({ template_name: values.template_name }).eq('id', tPathId);
+    if (updateError) { toast.error("Update failed: " + updateError.message); return; }
+    
     await supabase.from('t_path_exercises').delete().eq('template_id', tPathId);
     const newExercises = selectedExercises.map((ex, i) => ({ template_id: tPathId, exercise_id: ex.id, order_index: i }));
     const { error: insertError } = await supabase.from('t_path_exercises').insert(newExercises);
-    if (insertError) toast.error("Failed to save exercises");
-    else toast.success(`T-Path ${editingTPath ? 'updated' : 'created'}!`);
+    if (insertError) toast.error("Failed to save exercises: " + insertError.message);
+    else toast.success(`T-Path updated!`);
     onSaveSuccess();
+  }
+
+  if (!editingTPath) {
+    return null; // Only render if an T-Path is being edited
   }
 
   return (
     <Card>
-      <CardHeader><CardTitle>{editingTPath ? "Edit Transformation Path" : "Create New Transformation Path"}</CardTitle></CardHeader>
+      <CardHeader><CardTitle>Edit Transformation Path</CardTitle></CardHeader>
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField control={form.control} name="template_name" render={({ field }) => ( <FormItem> <FormLabel>T-Path Name</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+            <FormField control={form.control} name="template_name" render={({ field }) => ( <FormItem> <FormLabel>T-Path Name</FormLabel> <FormControl><Input {...field} disabled={!editingTPath} /></FormControl> <FormMessage /> </FormItem> )} />
             <FormItem>
               <FormLabel>Exercises</FormLabel>
               <div className="flex gap-2">
@@ -150,8 +144,8 @@ export const TPathForm = ({ editingTPath, onCancelEdit, onSaveSuccess, allExerci
               </DndContext>
             </ScrollArea>
             <div className="flex gap-2 pt-2">
-              <Button type="submit" className="flex-1">{editingTPath ? "Update" : "Create"}</Button>
-              {editingTPath && <Button type="button" variant="outline" onClick={onCancelEdit}>Cancel</Button>}
+              <Button type="submit" className="flex-1">Update</Button>
+              <Button type="button" variant="outline" onClick={onCancelEdit}>Cancel</Button>
             </div>
           </form>
         </Form>
