@@ -53,12 +53,13 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       if (tpeError) throw tpeError;
       console.log("Fetched tPathExercisesLinks:", tPathExercisesLinks); // DEBUG
 
-      // 2. Fetch all available exercises (user's own and global)
-      //    This comprehensive list will be used to build the exerciseDefMap
+      const exerciseIdsInWorkout = (tPathExercisesLinks || []).map(link => link.exercise_id);
+
+      // 2. Fetch all exercise definitions that are either user-owned, global, or specifically linked to this workout
       const { data: allExercisesData, error: allExercisesError } = await supabase
         .from('exercise_definitions')
         .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, is_favorite, created_at, user_id, icon_url')
-        .or(`user_id.eq.${session.user.id},user_id.is.null`)
+        .or(`user_id.eq.${session.user.id},user_id.is.null,id.in.(${exerciseIdsInWorkout.join(',')})`) // Include all exercises in workout
         .order('name', { ascending: true });
 
       if (allExercisesError) throw allExercisesError;
@@ -107,7 +108,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
 
     } catch (err: any) {
       toast.error("Failed to load workout exercises: " + err.message);
-      console.error("Error fetching workout exercises:", err);
+      console.error("Error fetching workout exercises:", JSON.stringify(err, null, 2)); // Log full error
     } finally {
       setLoading(false);
     }
@@ -227,7 +228,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       setExerciseToAddDetails(null);
     } catch (err: any) {
       // Enhanced error handling to specifically catch unique constraint violations
-      console.error("Error adding exercise:", err); // Log the full error object for debugging
+      console.error("Error adding exercise:", JSON.stringify(err, null, 2)); // Log the full error object for debugging
 
       let errorMessage = "An unexpected error occurred.";
       if (err && typeof err === 'object') {
@@ -283,7 +284,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       toast.success("Exercise removed from workout!");
     } catch (err: any) {
       toast.error("Failed to remove exercise: " + err.message);
-      console.error("Error removing exercise:", err);
+      console.error("Error removing exercise:", JSON.stringify(err, null, 2)); // Log full error
     } finally {
       setIsSaving(false);
       setExerciseToRemove(null);
@@ -309,7 +310,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       toast.success(`'${exercise.name}' is now a ${newBonusStatus ? 'Bonus' : 'Core'} exercise!`);
     } catch (err: any) {
       toast.error("Failed to toggle bonus status: " + err.message);
-      console.error("Error toggling bonus status:", err);
+      console.error("Error toggling bonus status:", JSON.stringify(err, null, 2)); // Log full error
       setExercises(prev => prev.map(ex =>
         ex.id === exercise.id ? { ...ex, is_bonus_exercise: !newBonusStatus } : ex
       ));
@@ -356,7 +357,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       fetchWorkoutData();
     } catch (err: any) {
       toast.error("Failed to reset exercises: " + err.message);
-      console.error("Error resetting exercises:", err);
+      console.error("Error resetting exercises:", JSON.stringify(err, null, 2)); // Log full error
     } finally {
       setIsSaving(false);
     }
@@ -379,7 +380,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       onSaveSuccess();
     } catch (err: any) {
       toast.error("Failed to save workout order: " + err.message);
-      console.error("Error saving order:", err);
+      console.error("Error saving order:", JSON.stringify(err, null, 2)); // Log full error
     } finally {
       setIsSaving(false);
     }
