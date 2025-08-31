@@ -8,61 +8,38 @@ import { toast } from 'sonner';
 import { LocalExerciseDefinition, LocalTPath } from '@/lib/db'; // Import specific local types
 
 interface UseCacheAndRevalidateProps<T> {
-  cacheTable: 'exercise_definitions_cache' | 't_paths_cache'; // Narrow down cacheTable type
-  supabaseQuery: (supabase: SupabaseClient) => Promise<{ data: T[] | null; error: any }>; // Function to fetch data from Supabase
-  queryKey: string; // A unique key for this specific query (e.g., 'all_exercises', 'user_t_paths')
+  cacheTable: 'exercise_definitions_cache' | 't_paths_cache';
+  supabaseQuery: (supabase: SupabaseClient) => Promise<{ data: T[] | null; error: any }>;
+  queryKey: string;
   supabase: SupabaseClient;
-  sessionUserId: string | null | undefined; // Allow undefined for initial loading state
+  sessionUserId: string | null | undefined;
 }
 
-/**
- * A custom hook for client-side data caching with a stale-while-revalidate strategy.
- * It fetches data from IndexedDB first, then revalidates with Supabase in the background.
- *
- * @param {string} cacheTable - The name of the Dexie table to use for caching (e.g., 'exercise_definitions_cache').
- * @param {Function} supabaseQuery - An async function that takes the Supabase client and returns a Promise
- *                                   of { data: T[] | null, error: any } from a Supabase query.
- * @param {string} queryKey - A unique string key for this specific query, used for logging/debugging.
- * @param {SupabaseClient} supabase - The Supabase client instance.
- * @param {string | null | undefined} sessionUserId - The current user's ID, used to filter user-specific data.
- * @returns {{ data: T[] | null, loading: boolean, error: string | null, refresh: () => void }}
- */
-export function useCacheAndRevalidate<T extends { id: string; user_id: string | null }>( // Add user_id to T
+export function useCacheAndRevalidate<T extends { id: string; user_id: string | null }>(
   { cacheTable, supabaseQuery, queryKey, supabase, sessionUserId }: UseCacheAndRevalidateProps<T>
 ) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRevalidating, setIsRevalidating] = useState(false);
-  const [filteredData, setFilteredData] = useState<T[] | undefined>(undefined);
 
-  // Step 1: Fetch ALL data from the cache table without filtering.
-  // This avoids passing a potentially undefined key to Dexie, which causes the "Invalid key" error.
-  const allCachedData = useLiveQuery(
+  // This is the new, safer query. It explicitly handles the `undefined` state for sessionUserId.
+  const data = useLiveQuery(
     () => {
-      const table = db[cacheTable] as any; // Use 'any' to simplify dynamic table access
-      return table.toArray();
+      const table = db[cacheTable] as any;
+      if (sessionUserId === undefined) {
+        // Session state is not yet known, return empty array to prevent Dexie error.
+        // The query will re-run automatically when sessionUserId changes.
+        return [] as T[];
+      }
+      if (sessionUserId === null) { // User is logged out, fetch only global data
+        return table.where('user_id').equals(null).toArray();
+      }
+      // User is logged in, fetch user's data and global data
+      return table.where('user_id').anyOf(sessionUserId, null).toArray();
     },
-    [cacheTable] // Dependency array only contains the constant table name
+    [cacheTable, sessionUserId], // Dependencies are now safe
+    [] // Default to an empty array while loading
   );
-
-  // Step 2: Filter the data in a useEffect once both the data and session are ready.
-  // This separates the database query from the session-dependent logic, preventing race conditions.
-  useEffect(() => {
-    // Wait until both the session state is determined (not undefined) and the data has been loaded from Dexie.
-    if (sessionUserId === undefined || allCachedData === undefined) {
-      // Still loading either session or cached data, so we wait.
-      return;
-    }
-
-    if (sessionUserId === null) {
-      // User is logged out, so we only show global items (where user_id is null).
-      setFilteredData(allCachedData.filter((item: T) => item.user_id === null));
-    } else {
-      // User is logged in, so we show their items AND global items.
-      setFilteredData(allCachedData.filter((item: T) => item.user_id === sessionUserId || item.user_id === null));
-    }
-  }, [allCachedData, sessionUserId]);
-
 
   const fetchDataAndRevalidate = useCallback(async () => {
     if (!supabase || isRevalidating) return;
@@ -72,61 +49,27 @@ export function useCacheAndRevalidate<T extends { id: string; user_id: string | 
 
     try {
       const { data: remoteData, error: remoteError } = await supabaseQuery(supabase);
-
-      if (remoteError) {
-        console.error(`Error fetching ${queryKey} from Supabase:`, remoteError);
-        setError(remoteError.message || `Failed to fetch ${queryKey}.`);
-        setLoading(false);
-        return;
-      }
+      if (remoteError) throw remoteError;
 
       if (remoteData) {
-        const table = db[cacheTable] as typeof cacheTable extends 'exercise_definitions_cache' 
-          ? typeof db.exercise_definitions_cache 
-          : typeof db.t_paths_cache;
-
-        const remoteMap = new Map(remoteData.map(item => [item.id, item]));
-        const cachedMap = new Map((allCachedData || []).map((item: T) => [item.id, item]));
-
-        let needsUpdate = false;
-        const itemsToPut: T[] = [];
-        const itemsToDelete: string[] = [];
-
-        for (const remoteItem of remoteData) {
-          const cachedItem = cachedMap.get(remoteItem.id);
-          if (!cachedItem || JSON.stringify(remoteItem) !== JSON.stringify(cachedItem)) {
-            needsUpdate = true;
-            itemsToPut.push(remoteItem);
-          }
-        }
-
-        for (const cachedItem of (allCachedData || []) as T[]) {
-          if (!remoteMap.has(cachedItem.id)) {
-            needsUpdate = true;
-            itemsToDelete.push(cachedItem.id);
-          }
-        }
-
-        if (needsUpdate) {
-          await db.transaction('rw', table, async () => {
-            if (itemsToDelete.length > 0) {
-              await table.bulkDelete(itemsToDelete);
-            }
-            if (itemsToPut.length > 0) {
-              await table.bulkPut(itemsToPut as any);
-            }
-          });
-          console.log(`Synced cache for ${queryKey}.`);
-        }
+        const table = db[cacheTable] as any;
+        
+        // A simple but robust sync strategy for a cache: clear and bulk-put.
+        // This ensures the local cache is always a perfect mirror of the server data.
+        await db.transaction('rw', table, async () => {
+          await table.clear();
+          await table.bulkPut(remoteData);
+        });
+        console.log(`Synced cache for ${queryKey}.`);
       }
     } catch (err: any) {
-      console.error(`Unhandled error during ${queryKey} revalidation:`, err);
+      console.error(`Error during ${queryKey} revalidation:`, err);
       setError(err.message || `An unexpected error occurred during ${queryKey} revalidation.`);
     } finally {
       setLoading(false);
       setIsRevalidating(false);
     }
-  }, [supabase, supabaseQuery, queryKey, allCachedData, cacheTable, isRevalidating]);
+  }, [supabase, isRevalidating, supabaseQuery, queryKey, cacheTable]);
 
   useEffect(() => {
     if (sessionUserId !== undefined) {
@@ -140,6 +83,5 @@ export function useCacheAndRevalidate<T extends { id: string; user_id: string | 
     fetchDataAndRevalidate();
   }, [fetchDataAndRevalidate]);
 
-  // The component is considered "loading" until the filteredData is set.
-  return { data: filteredData, loading: loading || filteredData === undefined, error, refresh };
+  return { data: data as T[] | null, loading: loading || data === undefined, error, refresh };
 }
