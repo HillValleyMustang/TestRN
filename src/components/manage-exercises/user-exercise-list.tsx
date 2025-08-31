@@ -40,6 +40,8 @@ interface UserExerciseListProps {
   onRemoveFromWorkout: (workoutId: string, exerciseId: string) => void;
   onToggleFavorite: (exercise: FetchedExerciseDefinition) => void;
   onAddSuccess: () => void;
+  onOptimisticAdd: (exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => void; // Added
+  onAddFailure: (exerciseId: string, workoutId: string) => void; // Added
 }
 
 export const UserExerciseList = ({
@@ -54,6 +56,8 @@ export const UserExerciseList = ({
   onRemoveFromWorkout,
   onToggleFavorite,
   onAddSuccess,
+  onOptimisticAdd, // Destructured
+  onAddFailure, // Destructured
 }: UserExerciseListProps) => {
   const [isAddTPathDialogOpen, setIsAddTPathDialogOpen] = useState(false);
   const [selectedExerciseForTPath, setSelectedExerciseForTPath] = useState<FetchedExerciseDefinition | null>(null);
@@ -161,6 +165,8 @@ export const UserExerciseList = ({
           onOpenChange={setIsAddTPathDialogOpen}
           exercise={selectedExerciseForTPath}
           onAddSuccess={onAddSuccess}
+          onOptimisticAdd={onOptimisticAdd} {/* Passed down */}
+          onAddFailure={onAddFailure} {/* Passed down */}
         />
       )}
 

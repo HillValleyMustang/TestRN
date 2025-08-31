@@ -18,9 +18,11 @@ interface AddExerciseToTPathDialogProps {
   onOpenChange: (open: boolean) => void;
   exercise: ExerciseDefinition;
   onAddSuccess: () => void;
+  onOptimisticAdd: (exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => void;
+  onAddFailure: (exerciseId: string, workoutId: string) => void;
 }
 
-export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSuccess }: AddExerciseToTPathDialogProps) => {
+export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSuccess, onOptimisticAdd, onAddFailure }: AddExerciseToTPathDialogProps) => {
   const { session, supabase } = useSession();
   const [userWorkouts, setUserWorkouts] = useState<TPath[]>([]);
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string>("");
@@ -131,9 +133,14 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
     }
 
     setIsAdding(true);
+    let workoutName = userWorkouts.find(w => w.id === selectedWorkoutId)?.template_name || 'Unknown Workout';
+
     try {
       // 1. Ensure the exercise is user-owned (adopt if global)
       const userOwnedExercise = await adoptExercise(exercise);
+
+      // Optimistic update: Update UI immediately
+      onOptimisticAdd(userOwnedExercise.id, selectedWorkoutId, workoutName, false); // Assuming not bonus for now
 
       // 2. Determine the next order_index for the selected workout
       const { data: existingExercises, error: fetchExistingError } = await supabase
@@ -164,6 +171,7 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
         } else {
           throw insertError;
         }
+        onAddFailure(userOwnedExercise.id, selectedWorkoutId); // Rollback on error
       } else {
         toast.success(`'${userOwnedExercise.name}' added to workout!`);
         onAddSuccess(); // Notify parent to refresh data
@@ -172,6 +180,7 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
     } catch (err: any) {
       console.error("Failed to add exercise to workout:", err);
       toast.error("Failed to add exercise: " + err.message);
+      onAddFailure(exercise.id, selectedWorkoutId); // Rollback on error
     } finally {
       setIsAdding(false);
     }

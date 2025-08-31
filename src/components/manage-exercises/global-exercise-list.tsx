@@ -25,6 +25,8 @@ interface GlobalExerciseListProps {
   onRemoveFromWorkout: (workoutId: string, exerciseId: string) => void;
   onToggleFavorite: (exercise: FetchedExerciseDefinition) => void;
   onAddSuccess: () => void;
+  onOptimisticAdd: (exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => void; // Added
+  onAddFailure: (exerciseId: string, workoutId: string) => void; // Added
 }
 
 export const GlobalExerciseList = ({
@@ -35,6 +37,8 @@ export const GlobalExerciseList = ({
   onRemoveFromWorkout,
   onToggleFavorite,
   onAddSuccess,
+  onOptimisticAdd, // Destructured
+  onAddFailure, // Destructured
 }: GlobalExerciseListProps) => {
   const [isAddTPathDialogOpen, setIsAddTPathDialogOpen] = useState(false);
   const [selectedExerciseForTPath, setSelectedExerciseForTPath] = useState<FetchedExerciseDefinition | null>(null);
@@ -130,6 +134,8 @@ export const GlobalExerciseList = ({
           onOpenChange={setIsAddTPathDialogOpen}
           exercise={selectedExerciseForTPath}
           onAddSuccess={onAddSuccess}
+          onOptimisticAdd={onOptimisticAdd} {/* Passed down */}
+          onAddFailure={onAddFailure} {/* Passed down */}
         />
       )}
 

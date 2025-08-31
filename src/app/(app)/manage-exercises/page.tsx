@@ -130,7 +130,7 @@ export default function ManageExercisesPage() {
         const workout = activeTPathChildWorkouts.find(tp => tp.id === tpe.template_id);
         if (workout) {
           if (!newExerciseWorkoutsMap[tpe.exercise_id]) {
-            newExerciseWorkoutsMap[tpe.exercise_id] = [];
+            newMap[tpe.exercise_id] = [];
           }
           newExerciseWorkoutsMap[tpe.exercise_id].push({
             id: workout.id,
@@ -300,6 +300,33 @@ export default function ManageExercisesPage() {
     }
   }, [session, supabase]);
 
+  const handleOptimisticAdd = useCallback((exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => {
+    setExerciseWorkoutsMap(prev => {
+        const newMap = { ...prev };
+        if (!newMap[exerciseId]) {
+            newMap[exerciseId] = [];
+        }
+        // Check if already exists to prevent duplicate optimistic adds
+        if (!newMap[exerciseId].some(item => item.id === workoutId)) {
+            newMap[exerciseId].push({ id: workoutId, name: workoutName, isUserOwned: true, isBonus });
+        }
+        return newMap;
+    });
+  }, []);
+
+  const handleAddFailure = useCallback((exerciseId: string, workoutId: string) => {
+      setExerciseWorkoutsMap(prev => {
+          const newMap = { ...prev };
+          if (newMap[exerciseId]) {
+              newMap[exerciseId] = newMap[exerciseId].filter(item => item.id !== workoutId);
+              if (newMap[exerciseId].length === 0) {
+                  delete newMap[exerciseId];
+              }
+          }
+          return newMap;
+      });
+  }, []);
+
   const handleRemoveFromWorkout = useCallback(async (workoutId: string, exerciseId: string) => {
     if (!session) {
       toast.error("You must be logged in to remove exercises from workouts.");
@@ -311,6 +338,19 @@ export default function ManageExercisesPage() {
     }
 
     try {
+      // Optimistic UI update
+      setExerciseWorkoutsMap(prev => {
+        const newMap = { ...prev };
+        if (newMap[exerciseId]) {
+          newMap[exerciseId] = newMap[exerciseId].filter(item => item.id !== workoutId);
+          if (newMap[exerciseId].length === 0) {
+            delete newMap[exerciseId];
+          }
+        }
+        return newMap;
+      });
+      toast.info("Removing exercise from workout...");
+
       const { error } = await supabase
         .from('t_path_exercises')
         .delete()
@@ -321,10 +361,13 @@ export default function ManageExercisesPage() {
         throw new Error(error.message);
       }
       toast.success("Exercise removed from workout successfully!");
-      fetchExercises(); // Re-fetch to update UI
+      // No need to re-fetch all exercises if optimistic update was successful
+      // fetchExercises(); // Removed this line
     } catch (err: any) {
       console.error("Failed to remove exercise from workout:", err);
       toast.error("Failed to remove exercise from workout: " + err.message);
+      // Rollback UI on error
+      fetchExercises(); // Re-fetch to revert state
     }
   }, [session, supabase, fetchExercises]); // Dependencies for useCallback
 
@@ -421,6 +464,8 @@ export default function ManageExercisesPage() {
                       onRemoveFromWorkout={handleRemoveFromWorkout}
                       onToggleFavorite={handleToggleFavorite}
                       onAddSuccess={fetchExercises}
+                      onOptimisticAdd={handleOptimisticAdd} {/* Passed down */}
+                      onAddFailure={handleAddFailure} {/* Passed down */}
                     />
                   </TabsContent>
                 </div>
@@ -434,6 +479,8 @@ export default function ManageExercisesPage() {
                       onRemoveFromWorkout={handleRemoveFromWorkout}
                       onToggleFavorite={handleToggleFavorite}
                       onAddSuccess={fetchExercises}
+                      onOptimisticAdd={handleOptimisticAdd} {/* Passed down */}
+                      onAddFailure={handleAddFailure} {/* Passed down */}
                     />
                   </TabsContent>
                 </div>
