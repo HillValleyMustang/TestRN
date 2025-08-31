@@ -253,8 +253,15 @@ const synchronizeSourceData = async (supabaseServiceRoleClient: any) => {
     if (insertStructureError) throw insertStructureError;
     console.log(`Successfully re-inserted ${workoutStructureData.length} workout structure rules.`);
 
-    // 2. Safely upsert global exercises. This will update existing ones and insert new ones without deleting.
-    const exercisesToUpsert = exerciseLibraryData.map(ex => ({
+    // 2. Safely delete and re-insert global exercises to ensure data integrity.
+    const { error: deleteGlobalExercisesError } = await supabaseServiceRoleClient
+        .from('exercise_definitions')
+        .delete()
+        .is('user_id', null);
+    if (deleteGlobalExercisesError) throw deleteGlobalExercisesError;
+    console.log('Successfully deleted existing global exercises.');
+
+    const exercisesToInsert = exerciseLibraryData.map(ex => ({
         library_id: ex.exercise_id,
         name: ex.name,
         main_muscle: ex.main_muscle,
@@ -263,19 +270,19 @@ const synchronizeSourceData = async (supabaseServiceRoleClient: any) => {
         description: ex.description,
         pro_tip: ex.pro_tip,
         video_url: ex.video_url,
-        icon_url: ex.icon_url, // Include icon_url
+        icon_url: ex.icon_url,
         user_id: null
     }));
 
-    const { error: upsertExercisesError } = await supabaseServiceRoleClient
+    const { error: insertExercisesError } = await supabaseServiceRoleClient
         .from('exercise_definitions')
-        .upsert(exercisesToUpsert, { onConflict: 'library_id', ignoreDuplicates: false });
+        .insert(exercisesToInsert);
         
-    if (upsertExercisesError) {
-        console.error("Upsert error details:", upsertExercisesError);
-        throw upsertExercisesError;
+    if (insertExercisesError) {
+        console.error("Insert error details:", insertExercisesError);
+        throw insertExercisesError;
     }
-    console.log(`Successfully synchronized ${exercisesToUpsert.length} global exercises.`);
+    console.log(`Successfully re-inserted ${exercisesToInsert.length} global exercises.`);
 };
 
 const processSingleChildWorkout = async (
