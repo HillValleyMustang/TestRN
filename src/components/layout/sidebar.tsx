@@ -1,15 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation"; // Import useRouter
 import { Home, History, User, BarChart3, Dumbbell, LayoutTemplate } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button"; // Import Button component
+import { Button } from "@/components/ui/button";
 
 const mainNavLinks = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
-  { href: "/workout", label: "Workout", icon: Dumbbell }, // Updated path
+  { href: "/workout", label: "Workout", icon: Dumbbell },
   { href: "/workout-history", label: "Workout History", icon: History },
   { href: "/activity-logs", label: "Activity Logs", icon: BarChart3 },
   { href: "/manage-exercises", label: "Manage Exercises", icon: Dumbbell },
@@ -19,6 +19,7 @@ const mainNavLinks = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter(); // Initialize useRouter
 
   return (
     <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">
@@ -29,22 +30,20 @@ export function Sidebar() {
           return (
             <Tooltip key={link.href}>
               <TooltipTrigger asChild>
-                {/* Updated Link usage: Link directly wraps Button, no legacyBehavior or explicit <a> */}
-                <Link href={link.href} passHref>
-                  <Button
-                    variant="ghost"
-                    className={cn(
-                      "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
-                      isActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    {/* Wrap children in a single span */}
-                    <span>
-                      <Icon className="h-5 w-5" />
-                      <span className="sr-only">{link.label}</span>
-                    </span>
-                  </Button>
-                </Link>
+                {/* Changed: Button is now direct child of TooltipTrigger, navigation handled by onClick */}
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
+                    isActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"
+                  )}
+                  onClick={() => router.push(link.href)} // Use router.push for navigation
+                >
+                  <span>
+                    <Icon className="h-5 w-5" />
+                    <span className="sr-only">{link.label}</span>
+                  </span>
+                </Button>
               </TooltipTrigger>
               <TooltipContent side="right">{link.label}</TooltipContent>
             </Tooltip>

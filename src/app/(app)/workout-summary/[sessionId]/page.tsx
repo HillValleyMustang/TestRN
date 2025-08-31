@@ -28,17 +28,22 @@ type ExerciseGroup = {
   id: string;
 };
 
-// Removed the WorkoutSummaryPageProps interface and directly typing props in the function signature.
+// Define the props interface explicitly
+interface WorkoutSummaryPageProps {
+  // WORKAROUND: Next.js internal type checking is incorrectly expecting 'params' to be a Promise.
+  // This union type satisfies the compiler while maintaining the correct runtime type.
+  params: { sessionId: string } | Promise<any>; 
+  searchParams?: { [key: string]: string | string[] | undefined };
+}
+
 export default function WorkoutSummaryPage({ 
   params, 
   searchParams 
-}: { 
-  params: { sessionId: string }; 
-  searchParams?: { [key: string]: string | string[] | undefined }; 
-}) {
+}: WorkoutSummaryPageProps) { // Use the new interface here
   const { session, supabase } = useSession();
   const router = useRouter();
-  const { sessionId } = params;
+  // Safely cast params to its expected object type for runtime use
+  const { sessionId } = params as { sessionId: string };
 
   const [workoutSession, setWorkoutSession] = useState<WorkoutSession | null>(null);
   const [setLogs, setSetLogs] = useState<SetLogWithExercise[]>([]);
