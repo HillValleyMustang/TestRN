@@ -95,25 +95,25 @@ export const useExerciseSets = ({
     preferredWeightUnit,
   });
 
-  // Effect to load drafts or initial sets
+  // This effect keeps the internal state in sync with the prop from the parent.
+  useEffect(() => {
+    setInternalSessionId(propCurrentSessionId);
+  }, [propCurrentSessionId]);
+
+  // This effect is for LOADING sets. It uses the prop directly to avoid race conditions.
   useEffect(() => {
     const loadSets = async () => {
-      if (!isValidKey(exerciseId)) {
-        console.error("Cannot load sets: exerciseId is invalid.", exerciseId);
-        setSets([]);
-        return;
-      }
+      // Use the prop directly for the query to ensure stability.
+      const sessionIdForQuery = propCurrentSessionId;
 
-      // **FIX**: Add a strict check to ensure internalSessionId is not undefined before querying.
-      // This prevents the "Invalid key" error from Dexie.
-      if (typeof internalSessionId === 'undefined') {
-        console.warn(`Cannot load sets for ${exerciseName}: session ID is undefined. This can happen briefly during workout selection. Aborting this load attempt.`);
-        return; // Abort this render's load attempt; the next render will have the correct prop.
+      if (!isValidKey(exerciseId) || typeof sessionIdForQuery === 'undefined') {
+        // This guard prevents the query from running with invalid keys.
+        return;
       }
 
       const loadedSets: SetLogState[] = [];
       const drafts = await db.draft_set_logs
-        .where({ exercise_id: exerciseId, session_id: internalSessionId })
+        .where({ exercise_id: exerciseId, session_id: sessionIdForQuery })
         .sortBy('set_index');
 
       if (drafts.length > 0) {
@@ -125,11 +125,11 @@ export const useExerciseSets = ({
           });
         });
       } else if (initialSets.length > 0) {
-        initialSets.forEach(set => loadedSets.push({ ...set, session_id: internalSessionId }));
+        initialSets.forEach(set => loadedSets.push({ ...set, session_id: sessionIdForQuery }));
       } else {
         for (let i = 0; i < DEFAULT_INITIAL_SETS; i++) {
           loadedSets.push({
-            id: null, created_at: null, session_id: internalSessionId, exercise_id: exerciseId,
+            id: null, created_at: null, session_id: sessionIdForQuery, exercise_id: exerciseId,
             weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null,
             is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
           });
@@ -164,11 +164,7 @@ export const useExerciseSets = ({
     };
 
     loadSets();
-  }, [exerciseId, internalSessionId, initialSets, supabase, session, exerciseName]);
-
-  useEffect(() => {
-    setInternalSessionId(propCurrentSessionId);
-  }, [propCurrentSessionId]);
+  }, [exerciseId, propCurrentSessionId, initialSets, supabase, session, exerciseName]); // Note dependency on prop, not state.
 
   useEffect(() => {
     onUpdateSets(exerciseId, sets);
