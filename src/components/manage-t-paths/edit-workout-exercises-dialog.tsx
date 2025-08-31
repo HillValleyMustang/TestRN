@@ -300,7 +300,7 @@ export const EditWorkoutExercisesDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[900px] max-h-[90vh] flex flex-col">
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col"> {/* Increased max-w to 4xl */}
         <DialogHeader className="p-4 pb-2"> {/* Reduced horizontal padding */}
           <DialogTitle className="text-2xl font-bold flex items-center gap-2">
             Manage Exercises for <WorkoutBadge workoutName={workoutName} className="text-xl px-3 py-1" />
@@ -312,9 +312,9 @@ export const EditWorkoutExercisesDialog = ({
             <p className="text-muted-foreground">Loading exercises...</p>
           ) : (
             <div className="space-y-6">
-              <div className="flex gap-2 w-full"> {/* Added w-full here */}
+              <div className="flex gap-2 w-full">
                 <Select onValueChange={setSelectedExerciseToAdd} value={selectedExerciseToAdd}>
-                  <SelectTrigger className="w-full"><SelectValue placeholder="Add exercise" /></SelectTrigger> {/* Added w-full here */}
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Add exercise" /></SelectTrigger>
                   <SelectContent className="p-0">
                     <div className="flex border-b p-2">
                       <Button
@@ -362,7 +362,7 @@ export const EditWorkoutExercisesDialog = ({
                 </Button>
               </div>
 
-              <ScrollArea className="h-96 border rounded-md p-2 w-full"> {/* Added w-full here */}
+              <ScrollArea className="h-96 border rounded-md p-2 w-full">
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={exercises.map(e => e.id)} strategy={verticalListSortingStrategy}>
                     <ul className="space-y-2">
@@ -410,16 +410,16 @@ function SortableExerciseItem({ exercise, onRemove, onOpenInfo }: { exercise: Wo
   const style = { transform: CSS.Transform.toString(transform), transition };
   return (
     <li ref={setNodeRef} style={style} className="flex items-center justify-between p-2 border rounded-md bg-card">
-      <div className="flex items-center gap-2 flex-grow"> {/* Added flex-grow */}
+      <div className="flex items-center gap-2 flex-grow">
         <button {...listeners} {...attributes} className="cursor-grab p-1"><GripVertical className="h-4 w-4 text-muted-foreground" /></button>
-        <span className="font-medium text-foreground flex-grow truncate">{exercise.name}</span> {/* Plain text for exercise name */}
+        <span className="font-medium text-foreground flex-grow truncate">{exercise.name}</span>
         {exercise.is_bonus_exercise && (
-          <WorkoutBadge workoutName="Bonus" className="flex-shrink-0"> {/* Added flex-shrink-0 */}
+          <WorkoutBadge workoutName="Bonus" className="flex-shrink-0">
             Bonus
           </WorkoutBadge>
         )}
       </div>
-      <div className="flex gap-1 flex-shrink-0"> {/* Added flex-shrink-0 */}
+      <div className="flex gap-1 flex-shrink-0">
         <Button variant="ghost" size="icon" onClick={() => onOpenInfo(exercise)} title="Exercise Info">
           <Info className="h-4 w-4" />
         </Button>
