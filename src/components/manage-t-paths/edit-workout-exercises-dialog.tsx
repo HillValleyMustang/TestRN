@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlusCircle, XCircle, GripVertical, ArrowLeft, Info } from "lucide-react";
+import { PlusCircle, XCircle, GripVertical, Info, Sparkles, RefreshCcw, CheckCircle2 } from "lucide-react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -17,11 +17,28 @@ import { LoadingOverlay } from "@/components/loading-overlay";
 import { ExerciseInfoDialog } from "@/components/exercise-info-dialog";
 import { WorkoutBadge } from "@/components/workout-badge";
 import { cn } from "@/lib/utils";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"; // Import Dialog components
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"; // Import Dialog components
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type TPathExercise = Tables<'t_path_exercises'>;
+type Profile = Tables<'profiles'>;
 
 interface WorkoutExerciseWithDetails extends ExerciseDefinition {
   order_index: number;
@@ -54,6 +71,14 @@ export const EditWorkoutExercisesDialog = ({
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
   const [selectedExerciseForInfo, setSelectedExerciseForInfo] = useState<WorkoutExerciseWithDetails | null>(null);
   const [addExerciseFilter, setAddExerciseFilter] = useState<'all' | 'my-exercises' | 'global-library'>('all'); // New state for filter
+
+  const [showConfirmRemoveDialog, setShowConfirmRemoveDialog] = useState(false);
+  const [exerciseToRemove, setExerciseToRemove] = useState<{ exerciseId: string; tPathExerciseId: string; name: string } | null>(null);
+
+  const [showAddAsBonusDialog, setShowAddAsBonusDialog] = useState(false);
+  const [exerciseToAddDetails, setExerciseToAddDetails] = useState<ExerciseDefinition | null>(null);
+
+  const [showConfirmResetDialog, setShowConfirmResetDialog] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
@@ -157,53 +182,76 @@ export const EditWorkoutExercisesDialog = ({
     }
   };
 
-  const handleAddExercise = async () => {
-    if (!selectedExerciseToAdd) {
-      toast.error("Please select an exercise to add.");
-      return;
+  const adoptExercise = async (exerciseToAdopt: ExerciseDefinition): Promise<string> => {
+    if (exerciseToAdopt.user_id === session?.user.id) {
+      return exerciseToAdopt.id; // Already user-owned
     }
-    const exerciseToAdd = allAvailableExercises.find(e => e.id === selectedExerciseToAdd);
-    if (!exerciseToAdd) return;
 
-    if (exercises.some(e => e.id === exerciseToAdd.id)) {
-      toast.info("This exercise is already in the workout.");
-      return;
+    // Check if user already has an adopted copy of this global exercise
+    if (exerciseToAdopt.library_id) {
+      const { data: existingAdopted, error: fetchError } = await supabase
+        .from('exercise_definitions')
+        .select('id')
+        .eq('user_id', session!.user.id)
+        .eq('library_id', exerciseToAdopt.library_id)
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 means no rows found
+        throw fetchError;
+      }
+      if (existingAdopted) {
+        return existingAdopted.id;
+      }
     }
+
+    // If not user-owned and no adopted copy exists, create one
+    const { data: newAdoptedExercise, error: insertError } = await supabase
+      .from('exercise_definitions')
+      .insert({
+        name: exerciseToAdopt.name,
+        main_muscle: exerciseToAdopt.main_muscle,
+        type: exerciseToAdopt.type,
+        category: exerciseToAdopt.category,
+        description: exerciseToAdopt.description,
+        pro_tip: exerciseToAdopt.pro_tip,
+        video_url: exerciseToAdopt.video_url,
+        user_id: session!.user.id,
+        library_id: exerciseToAdopt.library_id || null, // Preserve library_id if it exists
+        is_favorite: false,
+        icon_url: exerciseToAdopt.icon_url,
+      })
+      .select('id')
+      .single();
+
+    if (insertError) {
+      throw insertError;
+    }
+    return newAdoptedExercise.id;
+  };
+
+  const handleAddExerciseWithBonusStatus = async (isBonus: boolean) => {
+    if (!exerciseToAddDetails || !session) return;
 
     setIsSaving(true);
+    setShowAddAsBonusDialog(false); // Close the bonus choice dialog
+
     try {
-      // If it's a global exercise, adopt it first
-      let finalExerciseId = exerciseToAdd.id;
-      if (exerciseToAdd.user_id === null) {
-        const { data: adoptedExercise, error: adoptError } = await supabase
-          .from('exercise_definitions')
-          .insert({
-            name: exerciseToAdd.name,
-            main_muscle: exerciseToAdd.main_muscle,
-            type: exerciseToAdd.type,
-            category: exerciseToAdd.category,
-            description: exerciseToAdd.description,
-            pro_tip: exerciseToAdd.pro_tip,
-            video_url: exerciseToAdd.video_url,
-            user_id: session!.user.id,
-            library_id: exerciseToAdd.library_id || null,
-            is_favorite: false,
-            icon_url: exerciseToAdd.icon_url, // Include icon_url here
-          })
-          .select('id')
-          .single();
-        if (adoptError) throw adoptError;
-        finalExerciseId = adoptedExercise.id;
+      const finalExerciseId = await adoptExercise(exerciseToAddDetails);
+
+      if (exercises.some(e => e.id === finalExerciseId)) {
+        toast.info("This exercise is already in the workout.");
+        setIsSaving(false);
+        return;
       }
 
       // Optimistic update
       const newOrderIndex = exercises.length > 0 ? Math.max(...exercises.map(e => e.order_index)) + 1 : 0;
       const tempTPathExerciseId = `temp-${Date.now()}`; // Temporary ID for optimistic update
       const newExerciseWithDetails: WorkoutExerciseWithDetails = {
-        ...exerciseToAdd,
+        ...exerciseToAddDetails,
         id: finalExerciseId, // Use the adopted ID if applicable
         order_index: newOrderIndex,
-        is_bonus_exercise: false, // Default to false when manually added
+        is_bonus_exercise: isBonus,
         t_path_exercise_id: tempTPathExerciseId,
       };
       setExercises(prev => [...prev, newExerciseWithDetails]);
@@ -215,7 +263,7 @@ export const EditWorkoutExercisesDialog = ({
           template_id: workoutId,
           exercise_id: finalExerciseId,
           order_index: newOrderIndex,
-          is_bonus_exercise: false,
+          is_bonus_exercise: isBonus,
         })
         .select('id')
         .single();
@@ -231,8 +279,9 @@ export const EditWorkoutExercisesDialog = ({
         ex.t_path_exercise_id === tempTPathExerciseId ? { ...ex, t_path_exercise_id: insertedTpe.id } : ex
       ));
 
-      toast.success(`'${exerciseToAdd.name}' added to workout!`);
+      toast.success(`'${exerciseToAddDetails.name}' added to workout as ${isBonus ? 'Bonus' : 'Core'}!`);
       setSelectedExerciseToAdd("");
+      setExerciseToAddDetails(null);
     } catch (err: any) {
       toast.error("Failed to add exercise: " + err.message);
       console.error("Error adding exercise:", err);
@@ -241,20 +290,37 @@ export const EditWorkoutExercisesDialog = ({
     }
   };
 
-  const handleRemoveExercise = async (exerciseId: string, tPathExerciseId: string) => {
-    if (!confirm("Are you sure you want to remove this exercise from the workout? This action cannot be undone.")) {
+  const handleSelectAndPromptBonus = () => {
+    if (!selectedExerciseToAdd) {
+      toast.error("Please select an exercise to add.");
       return;
     }
+    const exercise = allAvailableExercises.find(e => e.id === selectedExerciseToAdd);
+    if (exercise) {
+      setExerciseToAddDetails(exercise);
+      setShowAddAsBonusDialog(true);
+    }
+  };
+
+  const handleRemoveExerciseClick = (exerciseId: string, tPathExerciseId: string, name: string) => {
+    setExerciseToRemove({ exerciseId, tPathExerciseId, name });
+    setShowConfirmRemoveDialog(true);
+  };
+
+  const confirmRemoveExercise = async () => {
+    if (!exerciseToRemove) return;
     setIsSaving(true);
+    setShowConfirmRemoveDialog(false); // Close confirmation dialog
+
     try {
       // Optimistic update
       const previousExercises = exercises;
-      setExercises(prev => prev.filter(ex => ex.id !== exerciseId));
+      setExercises(prev => prev.filter(ex => ex.id !== exerciseToRemove.exerciseId));
 
       const { error } = await supabase
         .from('t_path_exercises')
         .delete()
-        .eq('id', tPathExerciseId);
+        .eq('id', exerciseToRemove.tPathExerciseId);
 
       if (error) {
         // Rollback optimistic update on error
@@ -267,10 +333,110 @@ export const EditWorkoutExercisesDialog = ({
       console.error("Error removing exercise:", err);
     } finally {
       setIsSaving(false);
+      setExerciseToRemove(null);
     }
   };
 
-  const handleSaveOrder = async () => {
+  const handleToggleBonusStatus = useCallback(async (exercise: WorkoutExerciseWithDetails) => {
+    if (!session) return;
+    setIsSaving(true);
+    const newBonusStatus = !exercise.is_bonus_exercise;
+
+    // Optimistic update
+    setExercises(prev => prev.map(ex =>
+      ex.id === exercise.id ? { ...ex, is_bonus_exercise: newBonusStatus } : ex
+    ));
+
+    try {
+      const { error } = await supabase
+        .from('t_path_exercises')
+        .update({ is_bonus_exercise: newBonusStatus })
+        .eq('id', exercise.t_path_exercise_id);
+
+      if (error) throw error;
+      toast.success(`'${exercise.name}' is now a ${newBonusStatus ? 'Bonus' : 'Core'} exercise!`);
+    } catch (err: any) {
+      toast.error("Failed to toggle bonus status: " + err.message);
+      console.error("Error toggling bonus status:", err);
+      // Rollback optimistic update on error
+      setExercises(prev => prev.map(ex =>
+        ex.id === exercise.id ? { ...ex, is_bonus_exercise: !newBonusStatus } : ex
+      ));
+    } finally {
+      setIsSaving(false);
+    }
+  }, [session, supabase]);
+
+  const handleResetToDefaults = async () => {
+    if (!session) return;
+    setIsSaving(true);
+    setShowConfirmResetDialog(false); // Close confirmation dialog
+
+    try {
+      // 1. Fetch the parent T-Path ID and settings for the current workoutId
+      const { data: childWorkoutData, error: childWorkoutError } = await supabase
+        .from('t_paths')
+        .select('parent_t_path_id, template_name, settings')
+        .eq('id', workoutId)
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (childWorkoutError || !childWorkoutData || !childWorkoutData.parent_t_path_id) {
+        throw new Error("Could not find parent T-Path or settings for this workout.");
+      }
+
+      const parentTPathId = childWorkoutData.parent_t_path_id;
+      const currentWorkoutName = childWorkoutData.template_name;
+      const tPathSettings = childWorkoutData.settings as { tPathType?: string };
+      const workoutSplit = tPathSettings?.tPathType;
+
+      if (!workoutSplit) {
+        throw new Error("Workout split type not found in T-Path settings.");
+      }
+
+      // 2. Fetch user's preferred session length
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('preferred_session_length')
+        .eq('id', session.user.id)
+        .single();
+
+      if (profileError || !profileData?.preferred_session_length) {
+        throw new Error("Could not fetch user's preferred session length.");
+      }
+      const preferredSessionLength = profileData.preferred_session_length;
+
+      // Call the edge function to regenerate exercises for this specific workout
+      // The edge function `generate-t-path` is designed to regenerate ALL child workouts for a main T-Path.
+      // To reset a single child workout, we need to call it with the main T-Path ID.
+      // The edge function will then delete and recreate all child workouts for that main T-Path,
+      // including the one we want to reset.
+      const response = await fetch(`/api/generate-t-path`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ tPathId: parentTPathId })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to regenerate T-Path workouts: ${errorText}`);
+      }
+
+      toast.success("Workout exercises reset to defaults!");
+      onSaveSuccess(); // Refresh parent list
+      fetchWorkoutData(); // Re-fetch data for this dialog
+    } catch (err: any) {
+      toast.error("Failed to reset exercises: " + err.message);
+      console.error("Error resetting exercises:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveOrder = useCallback(async () => {
     setIsSaving(true);
     try {
       const updates = exercises.map((ex, index) => ({
@@ -291,7 +457,7 @@ export const EditWorkoutExercisesDialog = ({
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [exercises, supabase, onSaveSuccess]);
 
   const handleOpenInfoDialog = (exercise: WorkoutExerciseWithDetails) => {
     setSelectedExerciseForInfo(exercise);
@@ -357,7 +523,7 @@ export const EditWorkoutExercisesDialog = ({
                     </ScrollArea>
                   </SelectContent>
                 </Select>
-                <Button type="button" onClick={handleAddExercise} disabled={!selectedExerciseToAdd || isSaving}>
+                <Button type="button" onClick={handleSelectAndPromptBonus} disabled={!selectedExerciseToAdd || isSaving}>
                   <PlusCircle className="h-4 w-4" />
                 </Button>
               </div>
@@ -370,8 +536,9 @@ export const EditWorkoutExercisesDialog = ({
                         <SortableExerciseItem
                           key={exercise.id}
                           exercise={exercise}
-                          onRemove={handleRemoveExercise}
+                          onRemove={handleRemoveExerciseClick}
                           onOpenInfo={handleOpenInfoDialog}
+                          onToggleBonus={handleToggleBonusStatus}
                         />
                       ))}
                     </ul>
@@ -379,9 +546,14 @@ export const EditWorkoutExercisesDialog = ({
                 </DndContext>
               </ScrollArea>
 
-              <Button onClick={handleSaveOrder} className="w-full" disabled={isSaving}>
-                {isSaving ? "Saving Order..." : "Save Exercise Order"}
-              </Button>
+              <div className="flex flex-col gap-2">
+                <Button onClick={handleSaveOrder} className="w-full" disabled={isSaving}>
+                  {isSaving ? "Saving Order..." : "Save Exercise Order"}
+                </Button>
+                <Button variant="outline" onClick={() => setShowConfirmResetDialog(true)} className="w-full" disabled={isSaving}>
+                  <RefreshCcw className="h-4 w-4 mr-2" /> Reset to Defaults
+                </Button>
+              </div>
             </div>
           )}
         </div>
@@ -400,34 +572,110 @@ export const EditWorkoutExercisesDialog = ({
           exercise={selectedExerciseForInfo}
         />
       )}
+
+      <AlertDialog open={showConfirmRemoveDialog} onOpenChange={setShowConfirmRemoveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Removal</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove "<span className="font-semibold">{exerciseToRemove?.name}</span>" from this workout? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowConfirmRemoveDialog(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRemoveExercise}>Remove</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={showAddAsBonusDialog} onOpenChange={setShowAddAsBonusDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add "{exerciseToAddDetails?.name}" as?</DialogTitle>
+            <DialogDescription>
+              Choose whether to add this exercise as a core part of your workout or as an optional bonus.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Button onClick={() => handleAddExerciseWithBonusStatus(false)} disabled={isSaving}>
+              <CheckCircle2 className="h-4 w-4 mr-2" /> Add as Core Exercise
+            </Button>
+            <Button variant="outline" onClick={() => handleAddExerciseWithBonusStatus(true)} disabled={isSaving}>
+              <Sparkles className="h-4 w-4 mr-2" /> Add as Bonus Exercise
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={showConfirmResetDialog} onOpenChange={setShowConfirmResetDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Reset to Defaults</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to reset the exercises for "<span className="font-semibold">{workoutName}</span>" to its default configuration? This will remove all custom exercises and reintroduce the original set based on your preferred session length. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowConfirmResetDialog(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResetToDefaults}>Reset to Defaults</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 };
 
 // Helper component for sortable items
-function SortableExerciseItem({ exercise, onRemove, onOpenInfo }: { exercise: WorkoutExerciseWithDetails; onRemove: (exerciseId: string, tPathExerciseId: string) => void; onOpenInfo: (exercise: WorkoutExerciseWithDetails) => void; }) {
+function SortableExerciseItem({ exercise, onRemove, onOpenInfo, onToggleBonus }: {
+  exercise: WorkoutExerciseWithDetails;
+  onRemove: (exerciseId: string, tPathExerciseId: string, name: string) => void;
+  onOpenInfo: (exercise: WorkoutExerciseWithDetails) => void;
+  onToggleBonus: (exercise: WorkoutExerciseWithDetails) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: exercise.id });
   const style = { transform: CSS.Transform.toString(transform), transition };
   return (
-    <li ref={setNodeRef} style={style} className="flex items-center justify-between py-1 px-2 border rounded-md bg-card">
-      <div className="flex items-center gap-2 flex-grow min-w-0"> {/* Added min-w-0 */}
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center justify-between py-1 px-2 border-2 rounded-md bg-card",
+        exercise.is_bonus_exercise ? "border-workout-bonus" : "border-border"
+      )}
+    >
+      <div className="flex items-center gap-2 flex-grow min-w-0">
         <button {...listeners} {...attributes} className="cursor-grab p-1"><GripVertical className="h-4 w-4 text-muted-foreground" /></button>
-        <div className="flex flex-col flex-grow min-w-0"> {/* New flex-col container for name and badge */}
-          <span className="font-medium text-sm text-foreground leading-tight">{exercise.name}</span> {/* Removed truncate */}
-          {exercise.is_bonus_exercise && (
-            <WorkoutBadge workoutName="Bonus" className="flex-shrink-0 mt-1 self-start">
-              Bonus
-            </WorkoutBadge>
-          )}
+        <div className="flex flex-col flex-grow min-w-0">
+          <span className="font-medium text-sm text-foreground leading-tight">{exercise.name}</span>
         </div>
       </div>
       <div className="flex gap-1 flex-shrink-0">
         <Button variant="ghost" size="icon" onClick={() => onOpenInfo(exercise)} title="Exercise Info">
           <Info className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="icon" onClick={() => onRemove(exercise.id, exercise.t_path_exercise_id)} title="Remove from Workout">
-          <XCircle className="h-4 w-4 text-destructive" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" title="More Options">
+              <GripVertical className="h-4 w-4" /> {/* Using GripVertical for dropdown trigger */}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => onToggleBonus(exercise)}>
+              {exercise.is_bonus_exercise ? (
+                <>
+                  <CheckCircle2 className="h-4 w-4 mr-2" /> Make Core
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" /> Make Bonus
+                </>
+              )}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onRemove(exercise.id, exercise.t_path_exercise_id, exercise.name)} className="text-destructive">
+              <XCircle className="h-4 w-4 mr-2" /> Remove
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </li>
   );
