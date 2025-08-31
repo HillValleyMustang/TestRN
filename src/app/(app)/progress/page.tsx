@@ -1,5 +1,6 @@
 "use client";
 
+import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ActivityChart } from "@/components/progress/activity-chart";
 import { WeeklyVolumeChart } from "@/components/dashboard/weekly-volume-chart";
@@ -47,6 +48,8 @@ export default function ProgressPage() {
           </p>
         </CardContent>
       </Card>
+      
+      <MadeWithDyad />
     </div>
   );
 }

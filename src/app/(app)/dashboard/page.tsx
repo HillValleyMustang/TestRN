@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
+import { MadeWithDyad } from "@/components/made-with-dyad";
 import { ActionHub } from '@/components/dashboard/action-hub';
 import { WeeklyVolumeChart } from '@/components/dashboard/weekly-volume-chart';
 import { NextWorkoutCard } from '@/components/dashboard/next-workout-card';
@@ -114,6 +115,8 @@ export default function DashboardPage() {
       <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.3s' }}>
         <WeeklyVolumeChart />
       </div>
+
+      <MadeWithDyad />
     </div>
   );
 }
