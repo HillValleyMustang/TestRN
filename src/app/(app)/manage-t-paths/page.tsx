@@ -4,12 +4,12 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useSession } from "@/components/session-context-provider";
 import { Tables } from "@/types/supabase";
 import { toast } from "sonner";
-import { TPathForm } from "@/components/manage-t-paths/t-path-form";
-import { TPathList } from "@/components/manage-t-paths/t-path-list";
+// Removed: import { TPathForm } from "@/components/manage-t-paths/t-path-form";
+import { TPathList } from "@/components/manage-t-paths/t-path-list"; // This will be renamed
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
 import { LayoutTemplate } from "lucide-react";
-import { Button } from "@/components/ui/button"; // Added Button import
+import { Button } from "@/components/ui/button";
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -20,7 +20,7 @@ export default function ManageTPathsPage() {
   const [tPaths, setTPaths] = useState<TPath[]>([]);
   const [allExercises, setAllExercises] = useState<ExerciseDefinition[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingTPath, setEditingTPath] = useState<TPath | null>(null);
+  const [editingTPath, setEditingTPath] = useState<TPath | null>(null); // This state will be removed or repurposed
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [tPathToDelete, setTPathToDelete] = useState<TPath | null>(null);
 
@@ -55,7 +55,7 @@ export default function ManageTPathsPage() {
   }, [fetchTPathsAndExercises]);
 
   const handleEditClick = (tPath: TPath) => {
-    setEditingTPath(tPath);
+    setEditingTPath(tPath); // This will be repurposed to navigate to a new page
   };
 
   const handleCancelEdit = () => {
@@ -144,35 +144,27 @@ export default function ManageTPathsPage() {
       <header className="mb-4"><h1 className="text-3xl font-bold">Manage Transformation Paths</h1></header>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1">
-          {editingTPath ? (
-            <TPathForm
-              editingTPath={editingTPath}
-              onCancelEdit={handleCancelEdit}
-              onSaveSuccess={handleSaveSuccess}
-              allExercises={allExercises}
-            />
-          ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <LayoutTemplate className="h-5 w-5 text-primary" /> Your T-Paths
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Select a Transformation Path from the list to edit its exercises.
-                </p>
-                {tPaths.length === 0 && !loading && (
-                  <div className="mt-4 text-center">
-                    <p className="text-sm text-muted-foreground">
-                      No Transformation Paths found. Please complete onboarding to set up your initial T-Paths.
-                    </p>
-                    <Button onClick={() => router.push('/onboarding')} className="mt-4">Go to Onboarding</Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+          {/* This section will be replaced by the TPathSwitcher and a message */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <LayoutTemplate className="h-5 w-5 text-primary" /> Your T-Paths
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Select a Transformation Path from the list to edit its exercises.
+              </p>
+              {tPaths.length === 0 && !loading && (
+                <div className="mt-4 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    No Transformation Paths found. Please complete onboarding to set up your initial T-Paths.
+                  </p>
+                  <Button onClick={() => router.push('/onboarding')} className="mt-4">Go to Onboarding</Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
         <div className="lg:col-span-2">
           <TPathList
