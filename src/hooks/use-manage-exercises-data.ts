@@ -200,18 +200,25 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       return;
     }
 
+    // Optimistic UI update
+    const previousUserExercises = userExercises; // Store current state for rollback
+    setUserExercises(prev => prev.filter(ex => ex.id !== exercise.id));
+    toast.info(`Deleting '${exercise.name}'...`);
+
     try {
       const { error } = await supabase.from('exercise_definitions').delete().eq('id', exercise.id);
       if (error) {
         throw new Error(error.message);
       }
       toast.success("Exercise deleted successfully!");
-      refreshExercises();
+      refreshExercises(); // Trigger revalidation after delete
     } catch (err: any) {
       console.error("Failed to delete exercise:", err);
       toast.error("Failed to delete exercise: " + err.message);
+      // Rollback UI on error
+      setUserExercises(previousUserExercises); // Revert to previous state
     }
-  }, [sessionUserId, supabase, refreshExercises]);
+  }, [sessionUserId, supabase, userExercises, refreshExercises]);
 
   const handleToggleFavorite = useCallback(async (exercise: FetchedExerciseDefinition) => {
     if (!sessionUserId) {
@@ -223,11 +230,12 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
     const isCurrentlyFavorited = isUserOwned ? exercise.is_favorite : exercise.is_favorited_by_current_user;
     const newFavoriteStatus = !isCurrentlyFavorited;
 
+    // Optimistic UI update
     if (isUserOwned) {
       setUserExercises(prev => prev.map(ex => 
         ex.id === exercise.id ? { ...ex, is_favorite: newFavoriteStatus } as FetchedExerciseDefinition : ex
       ));
-    } else {
+    } else { // Global exercise
       setGlobalExercises(prev => prev.map(ex => 
         ex.id === exercise.id ? { ...ex, is_favorited_by_current_user: newFavoriteStatus } as FetchedExerciseDefinition : ex
       ));
@@ -244,7 +252,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
 
         if (error) throw error;
         toast.success(newFavoriteStatus ? "Added to favourites!" : "Removed from favourites.");
-      } else {
+      } else { // Global exercise
         if (newFavoriteStatus) {
           const { error } = await supabase
             .from('user_global_favorites')
@@ -261,10 +269,11 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
           toast.success("Removed from favourites.");
         }
       }
-      refreshExercises();
+      refreshExercises(); // Trigger revalidation after favorite change
     } catch (err: any) {
       console.error("Failed to toggle favourite status:", err);
       toast.error("Failed to update favourite status: " + err.message);
+      // Rollback UI on error
       if (isUserOwned) {
         setUserExercises(prev => prev.map(ex => 
           ex.id === exercise.id ? { ...ex, is_favorite: isCurrentlyFavorited } as FetchedExerciseDefinition : ex
@@ -283,6 +292,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
         if (!newMap[exerciseId]) {
             newMap[exerciseId] = [];
         }
+        // Check if already exists to prevent duplicate optimistic adds
         if (!newMap[exerciseId].some(item => item.id === workoutId)) {
             newMap[exerciseId].push({ id: workoutId, name: workoutName, isUserOwned: true, isBonus });
         }
@@ -313,7 +323,8 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       return;
     }
 
-    const previousExerciseWorkoutsMap = exerciseWorkoutsMap;
+    // Optimistic UI update
+    const previousExerciseWorkoutsMap = exerciseWorkoutsMap; // Store current state for rollback
     setExerciseWorkoutsMap(prev => {
       const newMap = { ...prev };
       if (newMap[exerciseId]) {
@@ -337,11 +348,12 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
         throw new Error(error.message);
       }
       toast.success("Exercise removed from workout successfully!");
-      refreshTPaths();
+      refreshTPaths(); // Trigger revalidation of T-Paths after removal
     } catch (err: any) {
       console.error("Failed to remove exercise from workout:", err);
       toast.error("Failed to remove exercise from workout: " + err.message);
-      setExerciseWorkoutsMap(previousExerciseWorkoutsMap);
+      // Rollback UI on error
+      setExerciseWorkoutsMap(previousExerciseWorkoutsMap); // Revert to previous state
     }
   }, [sessionUserId, supabase, exerciseWorkoutsMap, refreshTPaths]);
 
