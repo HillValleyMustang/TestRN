@@ -259,9 +259,8 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       await resetWorkoutSession();
       
       // Force refresh caches to ensure latest data from remote is in IndexedDB
-      // Await these calls to ensure IndexedDB is updated before we read from it.
-      await refreshExercises(); 
-      await refreshTPaths();    
+      await refreshExercises();
+      await refreshTPaths();
 
       // Now, explicitly fetch the latest data from IndexedDB
       const latestCachedTPaths = await db.t_paths_cache.toArray();
@@ -281,7 +280,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
             .map(ex => ({ ...ex, is_bonus_exercise: false }));
         }
       } else {
-        // Fetch active_t_path_id from profile
+        // Fetch active_t_path_id once outside the find callback
         const { data: profileData, error: profileError } = await supabase.from('profiles').select('active_t_path_id').eq('id', session?.user.id || '').single();
         if (profileError) {
           toast.error("Failed to fetch active T-Path from profile.");

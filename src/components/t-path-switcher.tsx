@@ -76,8 +76,8 @@ export const TPathSwitcher = ({ currentTPathId, onTPathChange, disabled }: TPath
 
     setIsSwitching(true); // Start loading
     try {
-      // Call the Next.js API route to handle the switch and disassociation
-      const response = await fetch('/api/switch-t-path', {
+      // Step 1: Call the API to switch the active T-Path and disassociate old exercises
+      const switchResponse = await fetch('/api/switch-t-path', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -86,15 +86,30 @@ export const TPathSwitcher = ({ currentTPathId, onTPathChange, disabled }: TPath
         body: JSON.stringify({ oldTPathId: currentTPathId, newTPathId: selectedTPathId }),
       });
 
-      const data = await response.json();
+      const switchData = await switchResponse.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to switch T-Path via API.');
+      if (!switchResponse.ok) {
+        throw new Error(switchData.error || 'Failed to switch T-Path via API.');
+      }
+
+      // Step 2: Call the API to generate the workouts for the NEW T-Path
+      const generateResponse = await fetch('/api/generate-t-path', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({ tPathId: selectedTPathId })
+      });
+
+      if (!generateResponse.ok) {
+          const errorText = await generateResponse.text();
+          throw new Error(`Switched T-Path, but failed to generate new workouts: ${errorText}`);
       }
 
       onTPathChange(selectedTPathId); // Notify parent component of the change
       setShowSwitchDialog(false);
-      toast.success("Switched to new T-Path!");
+      toast.success("Switched to new T-Path and generated workouts!");
     } catch (err: any) {
       toast.error("Failed to switch T-Path: " + err.message);
       console.error("Error switching T-Path:", err);
