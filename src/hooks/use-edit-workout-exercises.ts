@@ -1,0 +1,409 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { useSession } from "@/components/session-context-provider";
+import { Tables } from "@/types/supabase";
+import { toast } from "sonner";
+
+type ExerciseDefinition = Tables<'exercise_definitions'>;
+type Profile = Tables<'profiles'>;
+
+export interface WorkoutExerciseWithDetails extends ExerciseDefinition {
+  order_index: number;
+  is_bonus_exercise: boolean;
+  t_path_exercise_id: string; // ID from t_path_exercises table
+}
+
+interface UseEditWorkoutExercisesProps {
+  workoutId: string;
+  onSaveSuccess: () => void; // Callback to refresh parent list
+  open: boolean; // To trigger data fetching when dialog opens
+}
+
+export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseEditWorkoutExercisesProps) => {
+  const { session, supabase } = useSession();
+
+  const [exercises, setExercises] = useState<WorkoutExerciseWithDetails[]>([]);
+  const [allAvailableExercises, setAllAvailableExercises] = useState<ExerciseDefinition[]>([]);
+  const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [addExerciseFilter, setAddExerciseFilter] = useState<'all' | 'my-exercises' | 'global-library'>('all');
+
+  const [showConfirmRemoveDialog, setShowConfirmRemoveDialog] = useState(false);
+  const [exerciseToRemove, setExerciseToRemove] = useState<{ exerciseId: string; tPathExerciseId: string; name: string } | null>(null);
+
+  const [showAddAsBonusDialog, setShowAddAsBonusDialog] = useState(false);
+  const [exerciseToAddDetails, setExerciseToAddDetails] = useState<ExerciseDefinition | null>(null);
+
+  const [showConfirmResetDialog, setShowConfirmResetDialog] = useState(false);
+
+  const fetchWorkoutData = useCallback(async () => {
+    if (!session || !workoutId) return;
+    setLoading(true);
+    try {
+      // 1. Fetch t_path_exercises to get exercise_ids and order_index
+      const { data: tPathExercisesLinks, error: tpeError } = await supabase
+        .from('t_path_exercises')
+        .select('id, exercise_id, order_index, is_bonus_exercise')
+        .eq('template_id', workoutId)
+        .order('order_index', { ascending: true });
+
+      if (tpeError) throw tpeError;
+
+      const exerciseIdsInWorkout = (tPathExercisesLinks || []).map(link => link.exercise_id);
+
+      let fetchedExercises: WorkoutExerciseWithDetails[] = [];
+
+      if (exerciseIdsInWorkout.length > 0) {
+        // 2. Fetch exercise definitions using the extracted IDs
+        const { data: exerciseDefs, error: edError } = await supabase
+          .from('exercise_definitions')
+          .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, is_favorite, created_at, user_id, icon_url')
+          .in('id', exerciseIdsInWorkout);
+
+        if (edError) throw edError;
+
+        const exerciseDefMap = new Map<string, ExerciseDefinition>();
+        (exerciseDefs || []).forEach(def => exerciseDefMap.set(def.id, def as ExerciseDefinition));
+        
+        fetchedExercises = (tPathExercisesLinks || []).map(link => {
+          const exerciseDef = exerciseDefMap.get(link.exercise_id);
+          if (!exerciseDef) {
+            console.warn(`Exercise definition not found for exercise_id: ${link.exercise_id} in workout ${workoutId}`);
+            return null;
+          }
+          return {
+            ...exerciseDef,
+            order_index: link.order_index,
+            is_bonus_exercise: link.is_bonus_exercise || false,
+            t_path_exercise_id: link.id,
+          };
+        }).filter(Boolean) as WorkoutExerciseWithDetails[];
+      }
+      setExercises(fetchedExercises);
+
+      // Fetch all available exercises (user's own and global) for the add dropdown
+      const { data: allExercisesData, error: allExercisesError } = await supabase
+        .from('exercise_definitions')
+        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, is_favorite, created_at, user_id, icon_url')
+        .or(`user_id.eq.${session.user.id},user_id.is.null`)
+        .order('name', { ascending: true });
+
+      if (allExercisesError) throw allExercisesError;
+
+      const userOwnedExerciseIds = new Set(
+        (allExercisesData || [])
+          .filter(ex => ex.user_id === session.user.id && ex.library_id)
+          .map(ex => ex.library_id)
+      );
+
+      const filteredAvailableExercises = (allExercisesData || []).filter(ex => {
+        if (ex.user_id === null && ex.library_id && userOwnedExerciseIds.has(ex.library_id)) {
+          return false;
+        }
+        return true;
+      });
+
+      setAllAvailableExercises(filteredAvailableExercises as ExerciseDefinition[]);
+
+    } catch (err: any) {
+      toast.error("Failed to load workout exercises: " + err.message);
+      console.error("Error fetching workout exercises:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [session, supabase, workoutId]);
+
+  useEffect(() => {
+    if (open) {
+      fetchWorkoutData();
+    }
+  }, [open, fetchWorkoutData]);
+
+  const handleDragEnd = useCallback((event: any) => {
+    const { active, over } = event;
+    if (active.id !== over.id) {
+      setExercises((items) => {
+        const oldIndex = items.findIndex(item => item.id === active.id);
+        const newIndex = items.findIndex(item => item.id === over.id);
+        const newItems = [...items];
+        const [movedItem] = newItems.splice(oldIndex, 1);
+        newItems.splice(newIndex, 0, movedItem);
+        return newItems;
+      });
+    }
+  }, []);
+
+  const adoptExercise = useCallback(async (exerciseToAdopt: ExerciseDefinition): Promise<string> => {
+    if (exerciseToAdopt.user_id === session?.user.id) {
+      return exerciseToAdopt.id;
+    }
+
+    if (exerciseToAdopt.library_id) {
+      const { data: existingAdopted, error: fetchError } = await supabase
+        .from('exercise_definitions')
+        .select('id')
+        .eq('user_id', session!.user.id)
+        .eq('library_id', exerciseToAdopt.library_id)
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        throw fetchError;
+      }
+      if (existingAdopted) {
+        return existingAdopted.id;
+      }
+    }
+
+    const { data: newAdoptedExercise, error: insertError } = await supabase
+      .from('exercise_definitions')
+      .insert({
+        name: exerciseToAdopt.name,
+        main_muscle: exerciseToAdopt.main_muscle,
+        type: exerciseToAdopt.type,
+        category: exerciseToAdopt.category,
+        description: exerciseToAdopt.description,
+        pro_tip: exerciseToAdopt.pro_tip,
+        video_url: exerciseToAdopt.video_url,
+        user_id: session!.user.id,
+        library_id: exerciseToAdopt.library_id || null,
+        is_favorite: false,
+        icon_url: exerciseToAdopt.icon_url,
+      })
+      .select('id')
+      .single();
+
+    if (insertError) {
+      throw insertError;
+    }
+    return newAdoptedExercise.id;
+  }, [session, supabase]);
+
+  const handleAddExerciseWithBonusStatus = useCallback(async (isBonus: boolean) => {
+    if (!exerciseToAddDetails || !session) return;
+
+    setIsSaving(true);
+    setShowAddAsBonusDialog(false);
+
+    try {
+      const finalExerciseId = await adoptExercise(exerciseToAddDetails);
+
+      if (exercises.some(e => e.id === finalExerciseId)) {
+        toast.info("This exercise is already in the workout.");
+        setIsSaving(false);
+        return;
+      }
+
+      const newOrderIndex = exercises.length > 0 ? Math.max(...exercises.map(e => e.order_index)) + 1 : 0;
+      const tempTPathExerciseId = `temp-${Date.now()}`;
+      const newExerciseWithDetails: WorkoutExerciseWithDetails = {
+        ...exerciseToAddDetails,
+        id: finalExerciseId,
+        order_index: newOrderIndex,
+        is_bonus_exercise: isBonus,
+        t_path_exercise_id: tempTPathExerciseId,
+      };
+      setExercises(prev => [...prev, newExerciseWithDetails]);
+
+      const { data: insertedTpe, error: insertError } = await supabase
+        .from('t_path_exercises')
+        .insert({
+          template_id: workoutId,
+          exercise_id: finalExerciseId,
+          order_index: newOrderIndex,
+          is_bonus_exercise: isBonus,
+        })
+        .select('id')
+        .single();
+
+      if (insertError) {
+        setExercises(prev => prev.filter(ex => ex.t_path_exercise_id !== tempTPathExerciseId));
+        throw insertError;
+      }
+
+      setExercises(prev => prev.map(ex => 
+        ex.t_path_exercise_id === tempTPathExerciseId ? { ...ex, t_path_exercise_id: insertedTpe.id } : ex
+      ));
+
+      toast.success(`'${exerciseToAddDetails.name}' added to workout as ${isBonus ? 'Bonus' : 'Core'}!`);
+      setSelectedExerciseToAdd("");
+      setExerciseToAddDetails(null);
+    } catch (err: any) {
+      toast.error("Failed to add exercise: " + err.message);
+      console.error("Error adding exercise:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [session, supabase, workoutId, exercises, exerciseToAddDetails, adoptExercise]);
+
+  const handleSelectAndPromptBonus = useCallback(() => {
+    if (!selectedExerciseToAdd) {
+      toast.error("Please select an exercise to add.");
+      return;
+    }
+    const exercise = allAvailableExercises.find(e => e.id === selectedExerciseToAdd);
+    if (exercise) {
+      setExerciseToAddDetails(exercise);
+      setShowAddAsBonusDialog(true);
+    }
+  }, [selectedExerciseToAdd, allAvailableExercises]);
+
+  const handleRemoveExerciseClick = useCallback((exerciseId: string, tPathExerciseId: string, name: string) => {
+    setExerciseToRemove({ exerciseId, tPathExerciseId, name });
+    setShowConfirmRemoveDialog(true);
+  }, []);
+
+  const confirmRemoveExercise = useCallback(async () => {
+    if (!exerciseToRemove) return;
+    setIsSaving(true);
+    setShowConfirmRemoveDialog(false);
+
+    try {
+      const previousExercises = exercises;
+      setExercises(prev => prev.filter(ex => ex.id !== exerciseToRemove.exerciseId));
+
+      const { error } = await supabase
+        .from('t_path_exercises')
+        .delete()
+        .eq('id', exerciseToRemove.tPathExerciseId);
+
+      if (error) {
+        setExercises(previousExercises);
+        throw error;
+      }
+      toast.success("Exercise removed from workout!");
+    } catch (err: any) {
+      toast.error("Failed to remove exercise: " + err.message);
+      console.error("Error removing exercise:", err);
+    } finally {
+      setIsSaving(false);
+      setExerciseToRemove(null);
+    }
+  }, [exercises, exerciseToRemove, supabase]);
+
+  const handleToggleBonusStatus = useCallback(async (exercise: WorkoutExerciseWithDetails) => {
+    if (!session) return;
+    setIsSaving(true);
+    const newBonusStatus = !exercise.is_bonus_exercise;
+
+    setExercises(prev => prev.map(ex =>
+      ex.id === exercise.id ? { ...ex, is_bonus_exercise: newBonusStatus } : ex
+    ));
+
+    try {
+      const { error } = await supabase
+        .from('t_path_exercises')
+        .update({ is_bonus_exercise: newBonusStatus })
+        .eq('id', exercise.t_path_exercise_id);
+
+      if (error) throw error;
+      toast.success(`'${exercise.name}' is now a ${newBonusStatus ? 'Bonus' : 'Core'} exercise!`);
+    } catch (err: any) {
+      toast.error("Failed to toggle bonus status: " + err.message);
+      console.error("Error toggling bonus status:", err);
+      setExercises(prev => prev.map(ex =>
+        ex.id === exercise.id ? { ...ex, is_bonus_exercise: !newBonusStatus } : ex
+      ));
+    } finally {
+      setIsSaving(false);
+    }
+  }, [session, supabase]);
+
+  const handleResetToDefaults = useCallback(async () => {
+    if (!session) return;
+    setIsSaving(true);
+    setShowConfirmResetDialog(false);
+
+    try {
+      const { data: childWorkoutData, error: childWorkoutError } = await supabase
+        .from('t_paths')
+        .select('parent_t_path_id, template_name, settings')
+        .eq('id', workoutId)
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (childWorkoutError || !childWorkoutData || !childWorkoutData.parent_t_path_id) {
+        throw new Error("Could not find parent T-Path or settings for this workout.");
+      }
+
+      const parentTPathId = childWorkoutData.parent_t_path_id;
+      
+      const response = await fetch(`/api/generate-t-path`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ tPathId: parentTPathId })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to regenerate T-Path workouts: ${errorText}`);
+      }
+
+      toast.success("Workout exercises reset to defaults!");
+      onSaveSuccess();
+      fetchWorkoutData();
+    } catch (err: any) {
+      toast.error("Failed to reset exercises: " + err.message);
+      console.error("Error resetting exercises:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [session, supabase, workoutId, onSaveSuccess, fetchWorkoutData]);
+
+  const handleSaveOrder = useCallback(async () => {
+    setIsSaving(true);
+    try {
+      const updates = exercises.map((ex, index) => ({
+        id: ex.t_path_exercise_id,
+        order_index: index,
+      }));
+
+      const { error } = await supabase
+        .from('t_path_exercises')
+        .upsert(updates, { onConflict: 'id' });
+
+      if (error) throw error;
+      toast.success("Workout order saved successfully!");
+      onSaveSuccess();
+    } catch (err: any) {
+      toast.error("Failed to save workout order: " + err.message);
+      console.error("Error saving order:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [exercises, supabase, onSaveSuccess]);
+
+  return {
+    exercises,
+    allAvailableExercises,
+    selectedExerciseToAdd,
+    setSelectedExerciseToAdd,
+    loading,
+    isSaving,
+    addExerciseFilter,
+    setAddExerciseFilter,
+    showConfirmRemoveDialog,
+    setShowConfirmRemoveDialog,
+    exerciseToRemove,
+    setExerciseToRemove,
+    showAddAsBonusDialog,
+    setShowAddAsBonusDialog,
+    exerciseToAddDetails,
+    setExerciseToAddDetails,
+    showConfirmResetDialog,
+    setShowConfirmResetDialog,
+    handleDragEnd,
+    handleAddExerciseWithBonusStatus,
+    handleSelectAndPromptBonus,
+    handleRemoveExerciseClick,
+    confirmRemoveExercise,
+    handleToggleBonusStatus,
+    handleResetToDefaults,
+    handleSaveOrder,
+    fetchWorkoutData, // Expose for re-fetching if needed by parent
+  };
+};
