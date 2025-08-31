@@ -46,11 +46,7 @@ export const ActiveTPathWorkoutsList = ({
                       <WorkoutBadge workoutName={workout.template_name} className="text-base px-3 py-1"> {/* Made badge bigger */}
                         {workout.template_name}
                       </WorkoutBadge>
-                      {workout.is_bonus && (
-                        <WorkoutBadge workoutName="Bonus" className="text-xs px-2 py-0.5 mt-1">
-                          Bonus
-                        </WorkoutBadge>
-                      )}
+                      {/* Removed the bonus badge from here */}
                       <span className="text-sm text-muted-foreground flex items-center gap-1 mt-1"> {/* Increased text size */}
                         <Clock className="h-4 w-4" /> Last completed: {formatTimeAgo(workout.last_completed_at ? new Date(workout.last_completed_at) : null)}
                       </span>
