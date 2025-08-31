@@ -409,15 +409,17 @@ function SortableExerciseItem({ exercise, onRemove, onOpenInfo }: { exercise: Wo
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: exercise.id });
   const style = { transform: CSS.Transform.toString(transform), transition };
   return (
-    <li ref={setNodeRef} style={style} className="flex items-center justify-between py-1 px-2 border rounded-md bg-card"> {/* Reduced vertical padding */}
-      <div className="flex items-center gap-2 flex-grow">
+    <li ref={setNodeRef} style={style} className="flex items-center justify-between py-1 px-2 border rounded-md bg-card">
+      <div className="flex items-center gap-2 flex-grow min-w-0"> {/* Added min-w-0 */}
         <button {...listeners} {...attributes} className="cursor-grab p-1"><GripVertical className="h-4 w-4 text-muted-foreground" /></button>
-        <span className="font-medium text-sm text-foreground flex-grow truncate">{exercise.name}</span> {/* Reduced font size */}
-        {exercise.is_bonus_exercise && (
-          <WorkoutBadge workoutName="Bonus" className="flex-shrink-0">
-            Bonus
-          </WorkoutBadge>
-        )}
+        <div className="flex flex-col flex-grow min-w-0"> {/* New flex-col container for name and badge */}
+          <span className="font-medium text-sm text-foreground leading-tight">{exercise.name}</span> {/* Removed truncate */}
+          {exercise.is_bonus_exercise && (
+            <WorkoutBadge workoutName="Bonus" className="flex-shrink-0 mt-1 self-start">
+              Bonus
+            </WorkoutBadge>
+          )}
+        </div>
       </div>
       <div className="flex gap-1 flex-shrink-0">
         <Button variant="ghost" size="icon" onClick={() => onOpenInfo(exercise)} title="Exercise Info">
