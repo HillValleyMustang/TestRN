@@ -8,6 +8,7 @@ import { PersonalInfoForm } from './personal-info-form';
 import { WorkoutPreferencesForm } from './workout-preferences-form';
 import { ActiveTPathSection } from './active-t-path-section';
 import { AICoachUsageSection } from './ai-coach-usage-section';
+import { DataExportSection } from './data-export-section'; // Import the new component
 import { UseFormReturn } from 'react-hook-form';
 import * as z from 'zod';
 import { Tables } from '@/types/supabase';
@@ -56,6 +57,7 @@ export const ProfileSettingsTab = ({
           <WorkoutPreferencesForm form={form} isEditing={isEditing} />
           <ActiveTPathSection activeTPath={activeTPath} isEditing={isEditing} onTPathChange={onTPathChange} />
           <AICoachUsageSection aiCoachUsageToday={aiCoachUsageToday} AI_COACH_LIMIT_PER_SESSION={AI_COACH_LIMIT_PER_SESSION} />
+          <DataExportSection /> {/* Add the new DataExportSection here */}
         </form>
       </Form>
       
