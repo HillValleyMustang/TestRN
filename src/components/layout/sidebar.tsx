@@ -38,9 +38,11 @@ export function Sidebar() {
                   )}
                   onClick={() => router.push(link.href)} // Use router.push for navigation
                 >
-                  {/* Removed the extra span here */}
-                  <Icon className="h-5 w-5" />
-                  <span className="sr-only">{link.label}</span>
+                  {/* Re-added span wrapper for content */}
+                  <span>
+                    <Icon className="h-5 w-5" />
+                    <span className="sr-only">{link.label}</span>
+                  </span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="right">{link.label}</TooltipContent>
