@@ -28,13 +28,14 @@ type ExerciseGroup = {
   id: string;
 };
 
-// Correctly define the props for a dynamic route page in Next.js App Router
-interface WorkoutSummaryPageProps {
-  params: { sessionId: string };
-  searchParams?: { [key: string]: string | string[] | undefined };
-}
-
-export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) {
+// Removed the WorkoutSummaryPageProps interface and directly typing props in the function signature.
+export default function WorkoutSummaryPage({ 
+  params, 
+  searchParams 
+}: { 
+  params: { sessionId: string }; 
+  searchParams?: { [key: string]: string | string[] | undefined }; 
+}) {
   const { session, supabase } = useSession();
   const router = useRouter();
   const { sessionId } = params;
