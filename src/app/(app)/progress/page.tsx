@@ -1,6 +1,5 @@
 "use client";
 
-import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ActivityChart } from "@/components/progress/activity-chart";
 import { WeeklyVolumeChart } from "@/components/dashboard/weekly-volume-chart";
@@ -10,8 +9,8 @@ export default function ProgressPage() {
   return (
     <div className="flex flex-col gap-4 p-2 sm:p-4">
       <header className="mb-4">
-        <h1 className="text-3xl font-bold">Your Progress</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-3xl font-bold text-center">Your Progress</h1>
+        <p className="text-muted-foreground text-center">
           Charts, records, and summaries to track your fitness journey.
         </p>
       </header>
@@ -49,7 +48,6 @@ export default function ProgressPage() {
         </CardContent>
       </Card>
       
-      <MadeWithDyad />
     </div>
   );
 }

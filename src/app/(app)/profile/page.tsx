@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation'; // Import useSearchParams
 import { useSession } from '@/components/session-context-provider';
-import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { FormProvider, useForm } from "react-hook-form"; // Import FormProvider
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -50,8 +49,10 @@ const profileSchema = z.object({
 export default function ProfilePage() {
   const { session, supabase } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams(); // Initialize useSearchParams
+
   const [loading, setLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(searchParams.get('edit') === 'true'); // Set initial state from URL
   const [profile, setProfile] = useState<Profile | null>(null);
   const [activeTPath, setActiveTPath] = useState<TPath | null>(null);
   const [aiCoachUsageToday, setAiCoachUsageToday] = useState(0);
@@ -59,7 +60,7 @@ export default function ProfilePage() {
 
   const [isAchievementDetailOpen, setIsAchievementDetailOpen] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<{ id: string; name: string; icon: string } | null>(null);
-  const [activeTab, setActiveTab] = useState("overview"); // State to control active tab
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || "overview"); // Set initial tab from URL
 
   const AI_COACH_LIMIT_PER_SESSION = 2;
 
@@ -340,7 +341,7 @@ export default function ProfilePage() {
             </button>
           </div>
         </Tabs>
-        <MadeWithDyad />
+        
       </div>
 
       <AchievementDetailDialog

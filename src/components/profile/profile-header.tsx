@@ -19,7 +19,7 @@ export const ProfileHeader = ({ isEditing, onEditToggle, onSave }: ProfileHeader
       <Button variant="ghost" onClick={() => router.back()}>
         <ArrowLeft className="h-4 w-4 mr-2" /> Back
       </Button>
-      <Button onClick={() => isEditing ? onSave() : onEditToggle()}>
+      <Button onClick={() => isEditing ? onSave() : onEditToggle()} variant={isEditing ? "default" : "outline"}>
         {isEditing ? <><Save className="h-4 w-4 mr-2" /> Save</> : <><Edit className="h-4 w-4 mr-2" /> Edit</>}
       </Button>
     </header>

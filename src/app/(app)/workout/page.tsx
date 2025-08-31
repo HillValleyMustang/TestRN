@@ -3,7 +3,6 @@
 import React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
-import { MadeWithDyad } from "@/components/made-with-dyad";
 import { useWorkoutFlowManager } from '@/hooks/use-workout-flow-manager';
 import { WorkoutSelector } from '@/components/workout-flow/workout-selector';
 
@@ -25,8 +24,8 @@ export default function WorkoutPage() {
   return (
     <div className="p-2 sm:p-4">
       <header className="mb-4">
-        <h1 className="text-3xl font-bold">Workout Session</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-3xl font-bold text-center">Workout Session</h1>
+        <p className="text-muted-foreground text-center">
           Select a workout or start an ad-hoc session.
         </p>
       </header>
@@ -38,7 +37,7 @@ export default function WorkoutPage() {
         createWorkoutSessionInDb={workoutFlowManager.createWorkoutSessionInDb}
         finishWorkoutSession={workoutFlowManager.finishWorkoutSession} // Pass the new function
       />
-      <MadeWithDyad />
+      
     </div>
   );
 }
