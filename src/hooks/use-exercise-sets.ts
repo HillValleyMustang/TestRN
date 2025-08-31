@@ -72,8 +72,6 @@ export const useExerciseSets = ({
   const { session } = useSession(); // Get session for RPC calls
   const [sets, setSets] = useState<SetLogState[]>([]); // Initialize as empty, will load from drafts or initialSets
 
-  const [internalSessionId, setInternalSessionId] = useState<string | null>(propCurrentSessionId);
-
   // Integrate new modular hooks
   const { saveSetToDb, deleteSetFromDb } = useSetPersistence({
     exerciseId,
@@ -94,11 +92,6 @@ export const useExerciseSets = ({
     supabase,
     preferredWeightUnit,
   });
-
-  // This effect keeps the internal state in sync with the prop from the parent.
-  useEffect(() => {
-    setInternalSessionId(propCurrentSessionId);
-  }, [propCurrentSessionId]);
 
   // This effect is for LOADING sets. It uses the prop directly to avoid race conditions.
   useEffect(() => {
@@ -182,19 +175,19 @@ export const useExerciseSets = ({
     setSets(prev => {
       const lastSet = prev[prev.length - 1];
       const newSet: SetLogState = {
-        id: null, created_at: null, session_id: internalSessionId, exercise_id: exerciseId,
+        id: null, created_at: null, session_id: propCurrentSessionId, exercise_id: exerciseId,
         weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null,
         is_pb: false, isSaved: false, isPR: false,
         lastWeight: lastSet?.weight_kg, lastReps: lastSet?.reps, lastRepsL: lastSet?.reps_l, lastRepsR: lastSet?.reps_r, lastTimeSeconds: lastSet?.time_seconds,
       };
       const draftPayload: LocalDraftSetLog = {
-        exercise_id: exerciseId, set_index: prev.length, session_id: internalSessionId,
+        exercise_id: exerciseId, set_index: prev.length, session_id: propCurrentSessionId,
         weight_kg: newSet.weight_kg, reps: newSet.reps, reps_l: newSet.reps_l, reps_r: newSet.reps_r, time_seconds: newSet.time_seconds,
       };
       db.draft_set_logs.put(draftPayload);
       return [...prev, newSet];
     });
-  }, [exerciseId, internalSessionId, sets.length]);
+  }, [exerciseId, propCurrentSessionId, sets.length]);
 
   const handleInputChange = useCallback((setIndex: number, field: keyof TablesInsert<'set_logs'>, value: string) => {
     if (!isValidKey(exerciseId)) {
@@ -214,13 +207,13 @@ export const useExerciseSets = ({
       newSets[setIndex].isSaved = false;
 
       const draftPayload: LocalDraftSetLog = {
-        exercise_id: exerciseId, set_index: setIndex, session_id: internalSessionId,
+        exercise_id: exerciseId, set_index: setIndex, session_id: propCurrentSessionId,
         weight_kg: newSets[setIndex].weight_kg, reps: newSets[setIndex].reps, reps_l: newSets[setIndex].reps_l, reps_r: newSets[setIndex].reps_r, time_seconds: newSets[setIndex].time_seconds,
       };
       db.draft_set_logs.put(draftPayload);
       return newSets;
     });
-  }, [exerciseId, internalSessionId, preferredWeightUnit]);
+  }, [exerciseId, propCurrentSessionId, preferredWeightUnit]);
 
   const handleSaveSet = useCallback(async (setIndex: number) => {
     if (!isValidKey(exerciseId)) {
@@ -228,41 +221,40 @@ export const useExerciseSets = ({
       return;
     }
     const currentSet = sets[setIndex];
-    const hasData = (currentSet.weight_kg !== null && currentSet.weight_kg > 0) || (currentSet.reps !== null && currentSet.reps > 0) || (currentSet.time_seconds !== null && currentSet.time_seconds > 0) || (currentSet.reps_l !== null && currentSet.reps_l > 0) || (currentSet.reps_r !== null && currentSet.reps_r > 0);
-
-    if (!hasData) {
-      toast.error(`Set ${setIndex + 1}: Please input data before saving.`);
-      return;
-    }
-
     const previousSets = sets;
+
+    // Optimistic UI update
     setSets(prev => {
       const newSets = [...prev];
       newSets[setIndex] = { ...newSets[setIndex], isSaved: true };
       return newSets;
     });
 
-    if (!internalSessionId) {
-      if (exerciseNumber === 1 && setIndex === 0) {
-        toast.info("Don't forget to hit 'Save Exercise' once you're done to start the Workout Session.");
+    let sessionIdToUse = propCurrentSessionId;
+    if (!sessionIdToUse) {
+      try {
+        const newSessionId = await onFirstSetSaved(new Date().toISOString());
+        sessionIdToUse = newSessionId;
+      } catch (err) {
+        toast.error("Failed to start workout session.");
+        setSets(previousSets); // Rollback optimistic update
+        return;
       }
-      db.draft_set_logs.delete([exerciseId, setIndex]);
-      return;
     }
 
-    const { savedSet } = await saveSetToDb(currentSet, setIndex, internalSessionId);
+    const { savedSet } = await saveSetToDb(currentSet, setIndex, sessionIdToUse);
     if (savedSet) {
       setSets(prev => {
         const newSets = [...prev];
-        newSets[setIndex] = savedSet;
+        newSets[setIndex] = { ...savedSet, session_id: sessionIdToUse };
         db.draft_set_logs.delete([exerciseId, setIndex]);
         return newSets;
       });
     } else {
-      setSets(previousSets);
+      setSets(previousSets); // Rollback on failure
       toast.error(`Failed to save set ${setIndex + 1}. Please try again.`);
     }
-  }, [sets, internalSessionId, saveSetToDb, exerciseId, exerciseNumber]);
+  }, [sets, propCurrentSessionId, saveSetToDb, exerciseId, onFirstSetSaved]);
 
   const handleEditSet = useCallback((setIndex: number) => {
     if (!isValidKey(exerciseId)) {
@@ -273,13 +265,13 @@ export const useExerciseSets = ({
       const updatedSets = [...prev];
       updatedSets[setIndex] = { ...updatedSets[setIndex], isSaved: false };
       const draftPayload: LocalDraftSetLog = {
-        exercise_id: exerciseId, set_index: setIndex, session_id: internalSessionId,
+        exercise_id: exerciseId, set_index: setIndex, session_id: propCurrentSessionId,
         weight_kg: updatedSets[setIndex].weight_kg, reps: updatedSets[setIndex].reps, reps_l: updatedSets[setIndex].reps_l, reps_r: updatedSets[setIndex].reps_r, time_seconds: updatedSets[setIndex].time_seconds,
       };
       db.draft_set_logs.put(draftPayload);
       return updatedSets;
     });
-  }, [exerciseId, internalSessionId]);
+  }, [exerciseId, propCurrentSessionId]);
 
   const handleDeleteSet = useCallback(async (setIndex: number) => {
     if (!isValidKey(exerciseId)) {
@@ -306,16 +298,20 @@ export const useExerciseSets = ({
       toast.error("Cannot save exercise: exercise information is incomplete.");
       return false;
     }
-    let currentSessionIdToUse = internalSessionId;
+    let currentSessionIdToUse = propCurrentSessionId;
+
+    const hasAnyData = sets.some(s => (s.weight_kg ?? 0) > 0 || (s.reps ?? 0) > 0 || (s.time_seconds ?? 0) > 0 || (s.reps_l ?? 0) > 0 || (s.reps_r ?? 0) > 0);
+    if (!hasAnyData) {
+      toast.error("No data to save for this exercise.");
+      return false;
+    }
 
     if (!currentSessionIdToUse) {
       try {
         const newSessionId = await onFirstSetSaved(new Date().toISOString());
         currentSessionIdToUse = newSessionId;
-        setInternalSessionId(newSessionId);
       } catch (err) {
         toast.error("Failed to start workout session. Please try again.");
-        console.error("Error creating session on first set save:", err);
         return false;
       }
     }
@@ -325,9 +321,9 @@ export const useExerciseSets = ({
 
     for (let i = 0; i < sets.length; i++) {
       const currentSet = sets[i];
-      const hasData = (currentSet.weight_kg !== null && currentSet.weight_kg > 0) || (currentSet.reps !== null && currentSet.reps > 0) || (currentSet.time_seconds !== null && currentSet.time_seconds > 0) || (currentSet.reps_l !== null && currentSet.reps_l > 0) || (currentSet.reps_r !== null && currentSet.reps_r > 0);
+      const hasDataForSet = (currentSet.weight_kg ?? 0) > 0 || (currentSet.reps ?? 0) > 0 || (currentSet.time_seconds ?? 0) > 0 || (currentSet.reps_l ?? 0) > 0 || (currentSet.reps_r ?? 0) > 0;
 
-      if (hasData && !currentSet.isSaved) {
+      if (hasDataForSet && !currentSet.isSaved) {
         const { savedSet } = await saveSetToDb(currentSet, i, currentSessionIdToUse);
         if (savedSet) {
           updatedSetsState.push(savedSet);
@@ -335,7 +331,7 @@ export const useExerciseSets = ({
           hasError = true;
           updatedSetsState.push(currentSet);
         }
-      } else if (hasData && currentSet.isSaved) {
+      } else if (hasDataForSet && currentSet.isSaved) {
         updatedSetsState.push(currentSet);
       } else {
         updatedSetsState.push(currentSet);
@@ -345,44 +341,35 @@ export const useExerciseSets = ({
     setSets(updatedSetsState);
     if (hasError) return false;
 
-    const hasAnyValidSetData = updatedSetsState.some(s => (s.weight_kg !== null && s.weight_kg > 0) || (s.reps !== null && s.reps > 0) || (s.time_seconds !== null && s.time_seconds > 0) || (s.reps_l !== null && s.reps_l > 0) || (s.reps_r !== null && s.reps_r > 0));
-    if (!hasAnyValidSetData) {
-      toast.error("No valid sets to save. Please input data for at least one set.");
-      return false;
-    }
-
     try {
       const isNewPROverall = await updateExercisePRStatus(currentSessionIdToUse, updatedSetsState);
       await onExerciseComplete(exerciseId, isNewPROverall);
-      
-      // More specific delete: only delete drafts for this exercise and this session.
       await db.draft_set_logs.where({ exercise_id: exerciseId, session_id: currentSessionIdToUse }).delete();
-      
       return true;
     } catch (err: any) {
       console.error("Error saving exercise completion or PR:", err);
       toast.error("Failed to complete exercise: " + err.message);
       return false;
     }
-  }, [sets, exerciseId, onExerciseComplete, onFirstSetSaved, internalSessionId, saveSetToDb, updateExercisePRStatus]);
+  }, [sets, exerciseId, onExerciseComplete, onFirstSetSaved, propCurrentSessionId, saveSetToDb, updateExercisePRStatus]);
 
   const handleSuggestProgression = useCallback(async () => {
     if (!isValidKey(exerciseId)) {
       toast.error("Cannot suggest progression: exercise information is incomplete.");
       return;
     }
-    const { newSets, message } = await getProgressionSuggestion(sets.length, internalSessionId);
+    const { newSets, message } = await getProgressionSuggestion(sets.length, propCurrentSessionId);
     if (newSets) {
       setSets(newSets);
       toast.info(message);
-      await db.draft_set_logs.where({ exercise_id: exerciseId, session_id: internalSessionId }).delete();
+      await db.draft_set_logs.where({ exercise_id: exerciseId, session_id: propCurrentSessionId }).delete();
       const draftPayloads: LocalDraftSetLog[] = newSets.map((set, index) => ({
-        exercise_id: exerciseId, set_index: index, session_id: internalSessionId,
+        exercise_id: exerciseId, set_index: index, session_id: propCurrentSessionId,
         weight_kg: set.weight_kg, reps: set.reps, reps_l: set.reps_l, reps_r: set.reps_r, time_seconds: set.time_seconds,
       }));
       await db.draft_set_logs.bulkPut(draftPayloads);
     }
-  }, [sets.length, internalSessionId, getProgressionSuggestion, exerciseId]);
+  }, [sets.length, propCurrentSessionId, getProgressionSuggestion, exerciseId]);
 
   return {
     sets,
