@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Toaster } from 'sonner';
 import { SyncManagerInitializer } from './sync-manager-initializer';
+import { db } from '@/lib/db'; // Import db
 
 interface SessionContextType {
   session: Session | null;
@@ -33,6 +34,12 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
       setLoading(false);
       if (_event === 'SIGNED_OUT') {
         router.push('/login');
+        // Clear all IndexedDB data on sign out
+        db.delete().then(() => {
+          console.log("IndexedDB cleared on sign out.");
+        }).catch(err => {
+          console.error("Error clearing IndexedDB on sign out:", err);
+        });
       }
     });
 

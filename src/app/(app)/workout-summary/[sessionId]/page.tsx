@@ -13,6 +13,7 @@ import { WorkoutRatingCard } from '@/components/workout-summary/workout-rating-c
 import { ExerciseSummaryCard } from '@/components/workout-summary/exercise-summary-card';
 import { getLevelFromPoints } from '@/lib/utils';
 import { ACHIEVEMENT_DISPLAY_INFO } from '@/lib/achievements'; // Import from new utility file
+// Removed: import { type PageProps } from 'next'; // Import PageProps from next
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
@@ -27,9 +28,11 @@ type ExerciseGroup = {
   id: string;
 };
 
-type WorkoutSummaryPageProps = {
+// Correctly define the props for a dynamic route page in Next.js App Router
+interface WorkoutSummaryPageProps {
   params: { sessionId: string };
-};
+  searchParams?: { [key: string]: string | string[] | undefined };
+}
 
 export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) {
   const { session, supabase } = useSession();

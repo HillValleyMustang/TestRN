@@ -22,10 +22,22 @@ export interface LocalSetLog extends TablesInsert<'set_logs'> {
   id: string;
 }
 
+export interface LocalDraftSetLog {
+  exercise_id: string;
+  set_index: number; // To uniquely identify a draft set within an exercise
+  session_id: string | null; // Can be null if workout session hasn't started yet
+  weight_kg: number | null;
+  reps: number | null;
+  reps_l: number | null;
+  reps_r: number | null;
+  time_seconds: number | null;
+}
+
 export class AppDatabase extends Dexie {
   workout_sessions!: Table<LocalWorkoutSession, string>;
   set_logs!: Table<LocalSetLog, string>;
   sync_queue!: Table<SyncQueueItem, number>;
+  draft_set_logs!: Table<LocalDraftSetLog, [string, number]>; // Composite primary key
 
   constructor() {
     super('WorkoutTrackerDB');
@@ -33,6 +45,7 @@ export class AppDatabase extends Dexie {
       workout_sessions: '&id, user_id, session_date',
       set_logs: '&id, session_id, exercise_id',
       sync_queue: '++id, timestamp',
+      draft_set_logs: '[exercise_id+set_index], session_id', // Define composite key
     });
   }
 }

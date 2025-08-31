@@ -3,11 +3,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { Tables, TablesInsert, TablesUpdate, SetLogState, UserExercisePRInsert, UserExercisePRUpdate } from '@/types/supabase';
+import { Tables, TablesInsert, TablesUpdate, SetLogState, UserExercisePRInsert, UserExercisePRUpdate, GetLastExerciseSetsForExerciseReturns } from '@/types/supabase';
 import { convertWeight, formatWeight } from '@/lib/unit-conversions';
 import { useSetPersistence } from './use-set-persistence'; // Import new hook
 import { useExercisePRLogic } from './use-exercise-pr-logic'; // Import new hook
 import { useProgressionSuggestion } from './use-progression-suggestion'; // Import new hook
+import { db, addToSyncQueue, LocalDraftSetLog } from '@/lib/db'; // Import db and LocalDraftSetLog
+import { useSession } from '@/components/session-context-provider'; // Import useSession to get user ID for RPC
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type SetLog = Tables<'set_logs'>;
@@ -80,16 +82,8 @@ export const useExerciseSets = ({
   workoutTemplateName,
   exerciseNumber,
 }: UseExerciseSetsProps): UseExerciseSetsReturn => {
-  const [sets, setSets] = useState<SetLogState[]>(() => {
-    if (initialSets.length === 0) {
-      return Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({
-        id: null, created_at: null, session_id: propCurrentSessionId, exercise_id: exerciseId,
-        weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null,
-        is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
-      }));
-    }
-    return initialSets;
-  });
+  const { session } = useSession(); // Get session for RPC calls
+  const [sets, setSets] = useState<SetLogState[]>([]); // Initialize as empty, will load from drafts or initialSets
 
   const [internalSessionId, setInternalSessionId] = useState<string | null>(propCurrentSessionId);
 
@@ -114,38 +108,85 @@ export const useExerciseSets = ({
     preferredWeightUnit,
   });
 
+  // Effect to load drafts or initial sets
+  useEffect(() => {
+    const loadSets = async () => {
+      const loadedSets: SetLogState[] = [];
+      const drafts = await db.draft_set_logs
+        .where({ exercise_id: exerciseId, session_id: internalSessionId })
+        .sortBy('set_index');
+
+      if (drafts.length > 0) {
+        // Load from drafts
+        drafts.forEach(draft => {
+          loadedSets.push({
+            id: null, // Drafts don't have a DB ID yet
+            created_at: null,
+            session_id: draft.session_id,
+            exercise_id: draft.exercise_id,
+            weight_kg: draft.weight_kg,
+            reps: draft.reps,
+            reps_l: draft.reps_l,
+            reps_r: draft.reps_r,
+            time_seconds: draft.time_seconds,
+            is_pb: false,
+            isSaved: false, // Drafts are not "saved" in the DB sense
+            isPR: false,
+            lastWeight: null, // Will be fetched separately
+            lastReps: null,
+            lastRepsL: null,
+            lastRepsR: null,
+            lastTimeSeconds: null,
+          });
+        });
+      } else if (initialSets.length > 0) {
+        // Load from initialSets if no drafts
+        initialSets.forEach(set => loadedSets.push({ ...set, session_id: internalSessionId }));
+      } else {
+        // Default initial sets if neither drafts nor initialSets exist
+        for (let i = 0; i < DEFAULT_INITIAL_SETS; i++) {
+          loadedSets.push({
+            id: null, created_at: null, session_id: internalSessionId, exercise_id: exerciseId,
+            weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null,
+            is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
+          });
+        }
+      }
+
+      // Fetch last attempt data for all loaded sets
+      const lastSetsMap = new Map<string, GetLastExerciseSetsForExerciseReturns>();
+      if (session) { // Ensure session exists before RPC call
+        const { data: lastExerciseSets, error: rpcError } = await supabase.rpc('get_last_exercise_sets_for_exercise', {
+          p_user_id: session.user.id,
+          p_exercise_id: exerciseId,
+        });
+        if (rpcError) {
+          console.error(`Error fetching last sets for exercise ${exerciseName}:`, rpcError);
+        } else if (lastExerciseSets) {
+          lastSetsMap.set(exerciseId, lastExerciseSets);
+        }
+      }
+
+      const finalSets = loadedSets.map((set, setIndex) => {
+        const correspondingLastSet = lastSetsMap.get(exerciseId)?.[setIndex];
+        return {
+          ...set,
+          lastWeight: correspondingLastSet?.weight_kg || null,
+          lastReps: correspondingLastSet?.reps || null,
+          lastRepsL: correspondingLastSet?.reps_l || null,
+          lastRepsR: correspondingLastSet?.reps_r || null,
+          lastTimeSeconds: correspondingLastSet?.time_seconds || null,
+        };
+      });
+      setSets(finalSets);
+    };
+
+    loadSets();
+  }, [exerciseId, internalSessionId, initialSets, supabase, session, exerciseName]); // Added session and exerciseName to dependencies
+
   useEffect(() => {
     setInternalSessionId(propCurrentSessionId);
   }, [propCurrentSessionId]);
-
-  useEffect(() => {
-    setSets(prevSets => {
-      if (prevSets.length === 0 && initialSets.length > 0) {
-        return initialSets.map(set => ({ ...set, session_id: internalSessionId }));
-      }
-
-      const newSets = prevSets.map((prevSet, index) => {
-        const initialSet = initialSets[index];
-        if (initialSet) {
-          return {
-            ...prevSet,
-            lastWeight: initialSet.lastWeight,
-            lastReps: initialSet.lastReps,
-            lastRepsL: initialSet.lastRepsL,
-            lastRepsR: initialSet.lastRepsR,
-            lastTimeSeconds: initialSet.lastTimeSeconds,
-            session_id: prevSet.session_id || internalSessionId,
-          };
-        }
-        return prevSet;
-      });
-
-      if (!areSetsEqual(prevSets, newSets)) {
-        return newSets;
-      }
-      return prevSets;
-    });
-  }, [initialSets, exerciseId, internalSessionId]);
 
   useEffect(() => {
     onUpdateSets(exerciseId, sets);
@@ -177,6 +218,18 @@ export const useExerciseSets = ({
         lastRepsR: lastSet?.reps_r,
         lastTimeSeconds: lastSet?.time_seconds,
       };
+      // Save new set as a draft immediately
+      const draftPayload: LocalDraftSetLog = {
+        exercise_id: exerciseId,
+        set_index: prev.length, // Use current length as index for new set
+        session_id: internalSessionId,
+        weight_kg: newSet.weight_kg,
+        reps: newSet.reps,
+        reps_l: newSet.reps_l,
+        reps_r: newSet.reps_r,
+        time_seconds: newSet.time_seconds,
+      };
+      db.draft_set_logs.put(draftPayload); // No await needed, fire and forget
       return [...prev, newSet];
     });
   }, [exerciseId, internalSessionId, sets.length]);
@@ -199,9 +252,23 @@ export const useExerciseSets = ({
         };
       }
       newSets[setIndex].isSaved = false;
+
+      // Save draft to IndexedDB
+      const draftPayload: LocalDraftSetLog = {
+        exercise_id: exerciseId,
+        set_index: setIndex,
+        session_id: internalSessionId,
+        weight_kg: newSets[setIndex].weight_kg,
+        reps: newSets[setIndex].reps,
+        reps_l: newSets[setIndex].reps_l,
+        reps_r: newSets[setIndex].reps_r,
+        time_seconds: newSets[setIndex].time_seconds,
+      };
+      db.draft_set_logs.put(draftPayload); // No await needed, fire and forget
+
       return newSets;
     });
-  }, [preferredWeightUnit]);
+  }, [exerciseId, internalSessionId, preferredWeightUnit]);
 
   const handleSaveSet = useCallback(async (setIndex: number) => {
     const currentSet = sets[setIndex];
@@ -220,6 +287,8 @@ export const useExerciseSets = ({
       setSets(prev => {
         const newSets = [...prev];
         newSets[setIndex] = { ...newSets[setIndex], isSaved: true };
+        // Clear draft for this set
+        db.draft_set_logs.delete([exerciseId, setIndex]);
         return newSets;
       });
 
@@ -234,23 +303,39 @@ export const useExerciseSets = ({
       setSets(prev => {
         const newSets = [...prev];
         newSets[setIndex] = savedSet;
+        // Clear draft for this set
+        db.draft_set_logs.delete([exerciseId, setIndex]);
         return newSets;
       });
     }
-  }, [sets, internalSessionId, saveSetToDb, exerciseNumber]);
+  }, [sets, internalSessionId, saveSetToDb, exerciseId, exerciseNumber]); // Added exerciseId to dependencies
 
   const handleEditSet = useCallback((setIndex: number) => {
     setSets(prev => {
       const updatedSets = [...prev];
       updatedSets[setIndex] = { ...updatedSets[setIndex], isSaved: false };
+      // Re-save as draft to allow editing
+      const draftPayload: LocalDraftSetLog = {
+        exercise_id: exerciseId,
+        set_index: setIndex,
+        session_id: internalSessionId,
+        weight_kg: updatedSets[setIndex].weight_kg,
+        reps: updatedSets[setIndex].reps,
+        reps_l: updatedSets[setIndex].reps_l,
+        reps_r: updatedSets[setIndex].reps_r,
+        time_seconds: updatedSets[setIndex].time_seconds,
+      };
+      db.draft_set_logs.put(draftPayload);
       return updatedSets;
     });
-  }, []);
+  }, [exerciseId, internalSessionId]);
 
   const handleDeleteSet = useCallback(async (setIndex: number) => {
     const setToDelete = sets[setIndex];
     if (!setToDelete.id) {
       setSets(prev => prev.filter((_, i) => i !== setIndex));
+      // Clear draft for this set
+      db.draft_set_logs.delete([exerciseId, setIndex]);
       toast.success("Unsaved set removed.");
       return;
     }
@@ -262,8 +347,10 @@ export const useExerciseSets = ({
     const success = await deleteSetFromDb(setToDelete.id);
     if (success) {
       setSets(prev => prev.filter((_, i) => i !== setIndex));
+      // Clear draft for this set
+      db.draft_set_logs.delete([exerciseId, setIndex]);
     }
-  }, [sets, deleteSetFromDb]);
+  }, [sets, deleteSetFromDb, exerciseId]); // Added exerciseId to dependencies
 
   const handleSaveExercise = useCallback(async (): Promise<boolean> => {
     let currentSessionIdToUse = internalSessionId;
@@ -333,6 +420,8 @@ export const useExerciseSets = ({
     try {
       const isNewPROverall = await updateExercisePRStatus(currentSessionIdToUse, updatedSetsState);
       await onExerciseComplete(exerciseId, isNewPROverall);
+      // Clear all drafts for this exercise after successful completion
+      await db.draft_set_logs.where({ exercise_id: exerciseId }).delete();
       return true;
     } catch (err: any) {
       console.error("Error saving exercise completion or PR:", err);
@@ -346,8 +435,21 @@ export const useExerciseSets = ({
     if (newSets) {
       setSets(newSets);
       toast.info(message);
+      // Save newly suggested sets as drafts
+      await db.draft_set_logs.where({ exercise_id: exerciseId, session_id: internalSessionId }).delete(); // Clear existing drafts first
+      const draftPayloads: LocalDraftSetLog[] = newSets.map((set, index) => ({
+        exercise_id: exerciseId,
+        set_index: index,
+        session_id: internalSessionId,
+        weight_kg: set.weight_kg,
+        reps: set.reps,
+        reps_l: set.reps_l,
+        reps_r: set.reps_r,
+        time_seconds: set.time_seconds,
+      }));
+      await db.draft_set_logs.bulkPut(draftPayloads);
     }
-  }, [sets.length, internalSessionId, getProgressionSuggestion]);
+  }, [sets.length, internalSessionId, getProgressionSuggestion, exerciseId]);
 
   return {
     sets,
