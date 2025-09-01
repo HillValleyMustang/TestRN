@@ -156,8 +156,6 @@ export const ExerciseCard = ({
             clearInterval(timerRef.current!);
             timerRef.current = null;
             setIsTimerRunning(false);
-            const audio = new Audio('/path/to/chime.mp3');
-            audio.play().catch(e => console.error("Error playing audio:", e));
             toast.info("Rest time is over!");
             return 0;
           }
