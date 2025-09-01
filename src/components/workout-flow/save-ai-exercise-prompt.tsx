@@ -41,7 +41,7 @@ export const SaveAiExercisePrompt = ({
               The AI has identified an exercise. You can add it to your current ad-hoc workout, and optionally save it to "My Exercises" for future use.
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className="flex-grow py-4 pr-4">
+          <ScrollArea className="flex-grow h-full py-4 pr-4"> {/* Added h-full here */}
             <div className="space-y-4">
               <div>
                 <h4 className="font-semibold text-sm mb-1">Name:</h4>
@@ -85,10 +85,10 @@ export const SaveAiExercisePrompt = ({
           </ScrollArea>
           <div className="flex flex-col gap-2 pt-4 border-t">
             <Button onClick={() => onSaveToMyExercises(exercise)} disabled={isSaving}>
-              <Save className="h-4 w-4 mr-2" /> {isSaving ? "Saving..." : "Save to My Exercises"}
+              <Save className="h-4 w-4 mr-2" /> {isSaving ? "Saving..." : "Add and Save to My Exercises"}
             </Button>
             <Button variant="outline" onClick={onSkip} disabled={isSaving}>
-              <XCircle className="h-4 w-4 mr-2" /> No, just for this workout
+              <XCircle className="h-4 w-4 mr-2" /> No, add just to this workout
             </Button>
           </div>
         </DialogContent>
