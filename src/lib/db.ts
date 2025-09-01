@@ -44,6 +44,8 @@ export interface LocalSupabaseSession {
 // New interfaces for cached data
 export interface LocalExerciseDefinition extends Tables<'exercise_definitions'> {}
 export interface LocalTPath extends Tables<'t_paths'> {}
+export interface LocalProfile extends Tables<'profiles'> {} // New: Cache Profile
+export interface LocalTPathExercise extends Tables<'t_path_exercises'> {} // New: Cache TPathExercises
 
 export class AppDatabase extends Dexie {
   workout_sessions!: Table<LocalWorkoutSession, string>;
@@ -53,6 +55,8 @@ export class AppDatabase extends Dexie {
   supabase_session!: Table<LocalSupabaseSession, string>; // New table for Supabase session
   exercise_definitions_cache!: Table<LocalExerciseDefinition, string>; // New table for caching exercises
   t_paths_cache!: Table<LocalTPath, string>; // New table for caching T-Paths
+  profiles_cache!: Table<LocalProfile, string>; // New: Cache Profile
+  t_path_exercises_cache!: Table<LocalTPathExercise, string>; // New: Cache TPathExercises
 
   constructor() {
     super('WorkoutTrackerDB');
@@ -80,6 +84,11 @@ export class AppDatabase extends Dexie {
         // Dexie handles the re-indexing automatically when the schema definition changes.
         // No data migration is needed here as we are only adding a new index.
         return tx.table('draft_set_logs').toCollection().modify(draft => {});
+    });
+    // New version for profiles_cache and t_path_exercises_cache
+    this.version(5).stores({
+      profiles_cache: '&id', // Cache user profile
+      t_path_exercises_cache: '&id, template_id, exercise_id', // Cache t_path_exercises
     });
   }
 }

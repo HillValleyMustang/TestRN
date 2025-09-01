@@ -5,17 +5,19 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { LocalExerciseDefinition, LocalTPath } from '@/lib/db'; // Import specific local types
+import { LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise } from '@/lib/db'; // Import specific local types
+
+type CacheTableName = 'exercise_definitions_cache' | 't_paths_cache' | 'profiles_cache' | 't_path_exercises_cache';
 
 interface UseCacheAndRevalidateProps<T> {
-  cacheTable: 'exercise_definitions_cache' | 't_paths_cache';
+  cacheTable: CacheTableName;
   supabaseQuery: (supabase: SupabaseClient) => Promise<{ data: T[] | null; error: any }>;
   queryKey: string;
   supabase: SupabaseClient;
   sessionUserId: string | null | undefined;
 }
 
-export function useCacheAndRevalidate<T extends { id: string; user_id: string | null }>(
+export function useCacheAndRevalidate<T extends { id: string; user_id?: string | null; template_id?: string; exercise_id?: string }>(
   { cacheTable, supabaseQuery, queryKey, supabase, sessionUserId }: UseCacheAndRevalidateProps<T>
 ) {
   const [loading, setLoading] = useState(true);
@@ -35,6 +37,11 @@ export function useCacheAndRevalidate<T extends { id: string; user_id: string | 
       // It fetches all items and filters them in code, which avoids the
       // underlying 'IDBKeyRange' error caused by the race condition with `anyOf`.
       return table.filter((item: T) => {
+        // Special handling for profiles_cache (only one profile per user)
+        if (cacheTable === 'profiles_cache') {
+          return item.id === sessionUserId;
+        }
+        // For other tables, filter by user_id or global (user_id is null)
         return item.user_id === null || item.user_id === sessionUserId;
       }).toArray();
     },
@@ -56,8 +63,17 @@ export function useCacheAndRevalidate<T extends { id: string; user_id: string | 
         const table = db[cacheTable] as any;
         
         await db.transaction('rw', table, async () => {
-          await table.clear();
-          await table.bulkPut(remoteData);
+          // For profiles_cache, we only expect one entry per user, so clear and put
+          if (cacheTable === 'profiles_cache') {
+            await table.clear(); // Clear all profiles (assuming only one user's profile is ever cached)
+            if (remoteData.length > 0) {
+              await table.put(remoteData[0]); // Only put the first one if multiple are returned
+            }
+          } else {
+            // For other tables, clear and bulkPut
+            await table.clear();
+            await table.bulkPut(remoteData);
+          }
         });
         console.log(`Synced cache for ${queryKey}.`);
       }
