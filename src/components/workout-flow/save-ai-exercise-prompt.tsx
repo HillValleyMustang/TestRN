@@ -40,10 +40,14 @@ export const SaveAiExercisePrompt = ({
               <Sparkles className="h-5 w-5 mr-2" /> AI Identified Exercise
             </DialogTitle>
             <DialogDescription>
-              The AI has identified an exercise. You can add it to your current ad-hoc workout, and optionally save it to "My Exercises" for future use.
+              {isDuplicate ? (
+                <>This exercise already exists in your library or the global library. You can add it to your current ad-hoc workout.</>
+              ) : (
+                <>The AI has identified an exercise. You can add it to your current ad-hoc workout, and optionally save it to "My Exercises" for future use.</>
+              )}
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className="flex-grow py-4"> {/* Removed h-full and pr-4, added py-4 */}
+          <ScrollArea className="flex-grow pr-4"> {/* Removed py-4, added pr-4 */}
             <div className="px-4"> {/* Added px-4 for content padding */}
               <div className="space-y-4">
                 <div>

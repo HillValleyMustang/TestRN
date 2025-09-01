@@ -15,7 +15,7 @@ import { WorkoutPill, WorkoutPillProps } from './workout-pill';
 import { EditWorkoutExercisesDialog } from '../manage-t-paths/edit-workout-exercises-dialog';
 import { ExerciseSelectionDropdown } from '@/components/shared/exercise-selection-dropdown';
 import { AnalyzeGymDialog } from '../manage-exercises/analyze-gym-dialog';
-import { DuplicateExerciseConfirmDialog } from '../manage-exercises/duplicate-exercise-confirm-dialog';
+// Removed: import { DuplicateExerciseConfirmDialog } from '../manage-exercises/duplicate-exercise-confirm-dialog'; // No longer needed here
 import { SaveAiExercisePrompt } from './save-ai-exercise-prompt';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
@@ -124,8 +124,8 @@ export const WorkoutSelector = ({
   // State for AI gym analysis flow
   const [showAnalyzeGymDialog, setShowAnalyzeGymDialog] = useState(false);
   const [identifiedExerciseFromAI, setIdentifiedExerciseFromAI] = useState<Partial<ExerciseDefinition> | null>(null);
-  const [showDuplicateConfirmDialog, setShowDuplicateConfirmDialog] = useState(false); // This is for AnalyzeGymDialog's internal use
-  const [duplicateLocation, setDuplicateLocation] = useState<'My Exercises' | 'Global Library'>('My Exercises'); // This is for AnalyzeGymDialog's internal use
+  // Removed: const [showDuplicateConfirmDialog, setShowDuplicateConfirmDialog] = useState(false); 
+  // Removed: const [duplicateLocation, setDuplicateLocation] = useState<'My Exercises' | 'Global Library'>('My Exercises'); 
   const [showSaveNewExercisePrompt, setShowSaveNewExercisePrompt] = useState(false);
   const [isSavingNewExerciseToLibrary, setIsSavingNewExerciseToLibrary] = useState(false);
   const [isDuplicateIdentified, setIsDuplicateIdentified] = useState(false); // New state to pass to SaveAiExercisePrompt

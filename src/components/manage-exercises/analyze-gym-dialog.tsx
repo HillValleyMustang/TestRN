@@ -10,7 +10,7 @@ import { useSession } from "@/components/session-context-provider";
 import { toast } from "sonner";
 import { Tables } from "@/types/supabase";
 import { LoadingOverlay } from '../loading-overlay';
-import { DuplicateExerciseConfirmDialog } from "./duplicate-exercise-confirm-dialog";
+// Removed: import { DuplicateExerciseConfirmDialog } from "./duplicate-exercise-confirm-dialog"; // No longer needed here
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -28,9 +28,10 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [showDuplicateConfirmDialog, setShowDuplicateConfirmDialog] = useState(false);
-  const [identifiedExerciseData, setIdentifiedExerciseData] = useState<Partial<ExerciseDefinition> | null>(null);
-  const [duplicateLocation, setDuplicateLocation] = useState<'My Exercises' | 'Global Library'>('My Exercises');
+  // Removed states related to DuplicateConfirmDialog
+  // const [showDuplicateConfirmDialog, setShowDuplicateConfirmDialog] = useState(false);
+  // const [identifiedExerciseData, setIdentifiedExerciseData] = useState<Partial<ExerciseDefinition> | null>(null);
+  // const [duplicateLocation, setDuplicateLocation] = useState<'My Exercises' | 'Global Library'>('My Exercises');
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -97,11 +98,10 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
           }
 
           if (existingExercises && existingExercises.length > 0) {
-            // Duplicate found, store data and show confirmation dialog
-            const isUserOwnedDuplicate = existingExercises.some(ex => ex.user_id === session.user.id);
-            setDuplicateLocation(isUserOwnedDuplicate ? 'My Exercises' : 'Global Library');
-            setIdentifiedExerciseData(aiExercise); // Store identified data
-            setShowDuplicateConfirmDialog(true);
+            // Duplicate found, directly pass to parent with isDuplicateConfirmed = true
+            onExerciseIdentified(aiExercise, true); 
+            toast.info("Exercise already exists in your library or global library.");
+            onOpenChange(false); // Close dialog on success
           } else {
             // No duplicate, proceed to add
             onExerciseIdentified(aiExercise, false); // Pass false for isDuplicateConfirmed
@@ -125,21 +125,7 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
     }
   };
 
-  const handleConfirmAddAnyway = () => {
-    if (identifiedExerciseData) {
-      onExerciseIdentified(identifiedExerciseData, true); // Pass true for isDuplicateConfirmed
-      toast.success("Equipment identified!");
-    }
-    setShowDuplicateConfirmDialog(false);
-    onOpenChange(false); // Close main dialog
-  };
-
-  const handleCancelDuplicateAdd = () => {
-    setShowDuplicateConfirmDialog(false);
-    setIdentifiedExerciseData(null); // Clear identified data
-    onOpenChange(false); // Close main dialog
-    toast.info("Exercise not added.");
-  };
+  // Removed handleConfirmAddAnyway and handleCancelDuplicateAdd
 
   const handleClear = () => {
     setSelectedFile(null);
@@ -214,15 +200,7 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
         />
       </Dialog>
 
-      {identifiedExerciseData && (
-        <DuplicateExerciseConfirmDialog
-          open={showDuplicateConfirmDialog}
-          onOpenChange={handleCancelDuplicateAdd}
-          exerciseName={identifiedExerciseData.name || "Unknown Exercise"}
-          duplicateLocation={duplicateLocation}
-          onConfirmAddAnyway={handleConfirmAddAnyway}
-        />
-      )}
+      {/* Removed DuplicateExerciseConfirmDialog as it's no longer used here */}
     </>
   );
 };
