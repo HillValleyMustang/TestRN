@@ -52,7 +52,8 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
   );
 
   const fetchDataAndRevalidate = useCallback(async () => {
-    if (!supabase || isRevalidating) return;
+    // isRevalidating is used here to prevent re-entry, but should not be a dependency of useCallback
+    if (!supabase || isRevalidating) return; 
 
     setIsRevalidating(true);
     setError(null);
@@ -83,7 +84,7 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
       setLoading(false);
       setIsRevalidating(false);
     }
-  }, [supabase, supabaseQuery, queryKey, cacheTable, isRevalidating]);
+  }, [supabase, supabaseQuery, queryKey, cacheTable]); // Removed isRevalidating from dependencies
 
   useEffect(() => {
     if (sessionUserId !== undefined) {
