@@ -159,6 +159,7 @@ export type Database = {
           current_streak: number | null;
           longest_streak: number | null;
           last_workout_date: string | null;
+          rolling_workout_status: string | null;
         };
         Insert: {
           body_fat_pct?: number | null;
@@ -184,6 +185,7 @@ export type Database = {
           current_streak?: number | null;
           longest_streak?: number | null;
           last_workout_date?: string | null;
+          rolling_workout_status?: string | null;
         };
         Update: {
           body_fat_pct?: number | null;
@@ -209,6 +211,7 @@ export type Database = {
           current_streak?: number | null;
           longest_streak?: number | null;
           last_workout_date?: string | null;
+          rolling_workout_status?: string | null;
         };
         Relationships: [
           {
