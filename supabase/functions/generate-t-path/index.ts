@@ -239,7 +239,7 @@ const workoutStructureData: WorkoutStructureEntry[] = (() => {
 const synchronizeSourceData = async (supabaseServiceRoleClient: any) => {
     console.log('Synchronizing source data...');
 
-    // 1. Safely wipe and repopulate workout_exercise_structure (this is safe as it has no dependencies)
+    // 1. Safely wipe and repopulate workout_exercise_structure
     const { error: deleteStructureError } = await supabaseServiceRoleClient
         .from('workout_exercise_structure')
         .delete()
@@ -253,21 +253,40 @@ const synchronizeSourceData = async (supabaseServiceRoleClient: any) => {
     if (insertStructureError) throw insertStructureError;
     console.log(`Successfully re-inserted ${workoutStructureData.length} workout structure rules.`);
 
-    // 2. Smartly UPSERT global exercises to preserve manual changes like icon_url
-    const exercisesToUpsert = exerciseLibraryData.map(ex => ({
-        library_id: ex.exercise_id,
-        name: ex.name,
-        main_muscle: ex.main_muscle,
-        type: ex.type,
-        category: ex.category,
-        description: ex.description,
-        pro_tip: ex.pro_tip,
-        video_url: ex.video_url,
-        // IMPORTANT: We DO NOT include icon_url here.
-        // This means the upsert will not overwrite existing icon_urls.
-        // For new exercises, icon_url will be null by default, which is correct.
-        user_id: null
-    }));
+    // 2. Fetch existing global exercises to preserve custom icon_urls
+    const { data: existingGlobalExercises, error: fetchExistingError } = await supabaseServiceRoleClient
+        .from('exercise_definitions')
+        .select('library_id, icon_url')
+        .is('user_id', null); // Only global exercises
+    if (fetchExistingError) throw fetchExistingError;
+
+    const existingIconUrlMap = new Map<string, string | null>();
+    (existingGlobalExercises || []).forEach((ex: { library_id: string; icon_url: string | null }) => {
+        if (ex.library_id) {
+            existingIconUrlMap.set(ex.library_id, ex.icon_url);
+        }
+    });
+    console.log(`Fetched ${existingIconUrlMap.size} existing global exercise icon_urls.`);
+
+    // 3. Prepare exercises for UPSERT, conditionally setting icon_url
+    const exercisesToUpsert = exerciseLibraryData.map(ex => {
+        const existingIconUrl = existingIconUrlMap.get(ex.exercise_id);
+        // If existingIconUrl is NOT NULL, use it. Otherwise, use the default from ex.icon_url.
+        const finalIconUrl = existingIconUrl !== null ? existingIconUrl : ex.icon_url; 
+
+        return {
+            library_id: ex.exercise_id,
+            name: ex.name,
+            main_muscle: ex.main_muscle,
+            type: ex.type,
+            category: ex.category,
+            description: ex.description,
+            pro_tip: ex.pro_tip,
+            video_url: ex.video_url,
+            icon_url: finalIconUrl, // Now explicitly included and conditionally set
+            user_id: null
+        };
+    });
 
     const { error: upsertError } = await supabaseServiceRoleClient
         .from('exercise_definitions')
@@ -277,7 +296,7 @@ const synchronizeSourceData = async (supabaseServiceRoleClient: any) => {
         console.error("Upsert error details:", upsertError);
         throw upsertError;
     }
-    console.log(`Successfully upserted ${exercisesToUpsert.length} global exercises, preserving manual icon_urls.`);
+    console.log(`Successfully upserted ${exercisesToUpsert.length} global exercises with icon_url preservation logic.`);
 };
 
 const processSingleChildWorkout = async (
