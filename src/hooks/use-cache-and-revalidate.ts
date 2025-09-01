@@ -36,7 +36,7 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
       // This is the new, more robust filtering strategy.
       // It fetches all items and filters them in code, which avoids the
       // underlying 'IDBKeyRange' error caused by the race condition with `anyOf`.
-      return table.filter((item: T) => {
+      const filteredData = table.filter((item: T) => {
         // Special handling for profiles_cache (only one profile per user)
         if (cacheTable === 'profiles_cache') {
           return item.id === sessionUserId;
@@ -44,6 +44,8 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
         // For other tables, filter by user_id or global (user_id is null)
         return item.user_id === null || item.user_id === sessionUserId;
       }).toArray();
+      console.log(`[useCacheAndRevalidate] ${queryKey}: data from useLiveQuery (filtered):`, filteredData); // ADDED LOG
+      return filteredData;
     },
     [cacheTable, sessionUserId], // The query re-runs safely when sessionUserId changes.
     [] // Default to an empty array while loading.
@@ -65,6 +67,7 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
         await db.transaction('rw', table, async () => {
           // For profiles_cache, we only expect one entry per user, so clear and put
           if (cacheTable === 'profiles_cache') {
+            console.log(`[useCacheAndRevalidate] ${queryKey}: remoteData for profile:`, remoteData); // ADDED LOG
             await table.clear(); // Clear all profiles (assuming only one user's profile is ever cached)
             if (remoteData.length > 0) {
               await table.put(remoteData[0]); // Only put the first one if multiple are returned
@@ -75,7 +78,7 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
             await table.bulkPut(remoteData);
           }
         });
-        console.log(`Synced cache for ${queryKey}.`);
+        console.log(`[useCacheAndRevalidate] Synced cache for ${queryKey}.`);
       }
     } catch (err: any) {
       console.error(`Error during ${queryKey} revalidation:`, err);

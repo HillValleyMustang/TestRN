@@ -109,6 +109,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       cachedExercises === undefined || cachedTPaths === undefined || cachedProfile === undefined || cachedTPathExercises === undefined ||
       !cachedExercises || !cachedTPaths || !cachedProfile || !cachedTPathExercises
     ) {
+      console.log("[WorkoutDataFetcher] processInitialCachedData: Missing cached data (undefined or null), returning early.");
       return;
     }
 
@@ -121,35 +122,49 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     setAllAvailableExercises(cachedExercises as ExerciseDefinition[]);
     
     const userProfile = cachedProfile[0]; // Assuming only one profile is cached for the user
-    const activeTPathId = userProfile?.active_t_path_id;
-    const preferredSessionLength = userProfile?.preferred_session_length;
+    if (!userProfile) { // ADDED EXPLICIT CHECK
+      console.log("[WorkoutDataFetcher] processInitialCachedData: userProfile is empty or null, cannot determine active T-Path.");
+      setGroupedTPaths([]); // Ensure groupedTPaths is empty if no profile
+      setWorkoutExercisesCache({});
+      setLoadingData(false);
+      setDataError("User profile not found in cache.");
+      return;
+    }
+    console.log("[WorkoutDataFetcher] processInitialCachedData: userProfile:", userProfile);
+    const activeTPathId = userProfile.active_t_path_id; // Access directly after null check
+    const preferredSessionLength = userProfile.preferred_session_length; // Access directly
     const maxAllowedMinutes = getMaxMinutes(preferredSessionLength);
+    console.log("[WorkoutDataFetcher] processInitialCachedData: activeTPathId:", activeTPathId, "maxAllowedMinutes:", maxAllowedMinutes);
 
     const newGroupedTPaths: GroupedTPath[] = [];
     const newWorkoutExercisesCache: Record<string, WorkoutExercise[]> = {};
 
     if (activeTPathId && session?.user.id) {
       const activeMainTPath = cachedTPaths.find(tp => tp.id === activeTPathId && tp.user_id === session.user.id && tp.parent_t_path_id === null);
+      console.log("[WorkoutDataFetcher] processInitialCachedData: activeMainTPath:", activeMainTPath);
 
       if (activeMainTPath) {
         const allChildWorkouts = cachedTPaths.filter(tp => tp.parent_t_path_id === activeMainTPath.id && tp.is_bonus === true);
+        console.log("[WorkoutDataFetcher] processInitialCachedData: allChildWorkouts:", allChildWorkouts);
 
         const filteredChildWorkouts: WorkoutWithLastCompleted[] = [];
 
         for (const workout of allChildWorkouts) {
           const tPathExercisesForWorkout = cachedTPathExercises.filter(tpe => tpe.template_id === workout.id);
+          console.log(`[WorkoutDataFetcher] processInitialCachedData: tPathExercisesForWorkout for ${workout.template_name}:`, tPathExercisesForWorkout);
           
-          // Filter exercises based on preferred session length (if applicable)
-          // This logic assumes that the `generate-t-path` edge function has already
-          // filtered the `t_path_exercises` based on `min_session_minutes` and `bonus_for_time_group`.
-          // So, we just need to ensure the workout itself is considered "active" if it has exercises.
           const exercisesForWorkout: WorkoutExercise[] = tPathExercisesForWorkout
             .map(tpe => {
               const exerciseDef = cachedExercises.find(ex => ex.id === tpe.exercise_id);
-              if (!exerciseDef) return null;
+              if (!exerciseDef) {
+                console.warn(`[WorkoutDataFetcher] processInitialCachedData: Exercise definition not found for ID ${tpe.exercise_id} in workout ${workout.template_name}.`);
+                return null;
+              }
               return { ...exerciseDef, is_bonus_exercise: tpe.is_bonus_exercise || false };
             })
             .filter(Boolean) as WorkoutExercise[];
+
+          console.log(`[WorkoutDataFetcher] processInitialCachedData: exercisesForWorkout.length for ${workout.template_name}:`, exercisesForWorkout.length);
 
           // Only include workouts that actually have exercises after filtering by session length
           if (exercisesForWorkout.length > 0) {
@@ -165,7 +180,11 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
           mainTPath: activeMainTPath,
           childWorkouts: filteredChildWorkouts,
         });
+      } else {
+        console.log("[WorkoutDataFetcher] processInitialCachedData: No activeMainTPath found for activeTPathId:", activeTPathId);
       }
+    } else {
+      console.log("[WorkoutDataFetcher] processInitialCachedData: No activeTPathId or session.user.id available.");
     }
     setGroupedTPaths(newGroupedTPaths);
     setWorkoutExercisesCache(newWorkoutExercisesCache);
@@ -178,13 +197,18 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const enrichDataWithNetworkCalls = useCallback(async () => {
     if (!session || !cachedExercises || !cachedTPaths || !cachedProfile || !cachedTPathExercises) return;
 
+    const userProfile = cachedProfile[0];
+    if (!userProfile) { // ADDED EXPLICIT CHECK
+      console.log("[WorkoutDataFetcher] enrichDataWithNetworkCalls: userProfile is empty or null, skipping enrichment.");
+      return;
+    }
+
     try {
       // Re-fetch profile and t_path_exercises to ensure caches are up-to-date
       await refreshProfile();
       await refreshTPathExercises();
 
-      const userProfile = cachedProfile[0];
-      const activeTPathId = userProfile?.active_t_path_id;
+      const activeTPathId = userProfile.active_t_path_id; // Access directly after null check
 
       if (!activeTPathId) return;
 
@@ -233,7 +257,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     refreshProfile();
     refreshTPathExercises();
     // The useEffect will then pick up the refreshed cached data and re-run initial processing + background enrichment
-  }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises]);
+  }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, enrichDataWithNetworkCalls]);
 
   return {
     allAvailableExercises,
