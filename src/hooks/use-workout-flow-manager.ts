@@ -38,7 +38,7 @@ interface UseWorkoutFlowManagerReturn {
   groupedTPaths: { mainTPath: TPath; childWorkouts: (TPath & { last_completed_at: string | null; })[]; }[];
   isCreatingSession: boolean;
   createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>;
-  finishWorkoutSession: () => Promise<void>;
+  finishWorkoutSession: () => Promise<string | null>;
   refreshAllData: () => void; // Added to return type
 }
 

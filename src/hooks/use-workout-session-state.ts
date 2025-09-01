@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { Tables, SetLogState, WorkoutExercise, GetLastExerciseSetsForExerciseReturns } from '@/types/supabase';
@@ -48,12 +47,11 @@ interface UseWorkoutSessionStateReturn {
   substituteExercise: (oldExerciseId: string, newExercise: WorkoutExercise) => Promise<void>;
   updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
   createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>;
-  finishWorkoutSession: () => Promise<void>;
+  finishWorkoutSession: () => Promise<string | null>;
 }
 
 export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSessionStateProps): UseWorkoutSessionStateReturn => {
   const { session, supabase } = useSession();
-  const router = useRouter();
 
   const [activeWorkout, setActiveWorkout] = useState<TPath | null>(null);
   const [exercisesForSession, setExercisesForSession] = useState<WorkoutExercise[]>([]);
@@ -256,10 +254,10 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
     setExercisesWithSets(prev => ({ ...prev, [exerciseId]: newSets }));
   }, []);
 
-  const finishWorkoutSession = useCallback(async () => {
+  const finishWorkoutSession = useCallback(async (): Promise<string | null> => {
     if (!currentSessionId || !sessionStartTime || !session) {
       toast.error("Workout session not properly started or no sets logged yet.");
-      return;
+      return null;
     }
 
     const endTime = new Date();
@@ -301,14 +299,16 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
         toast.warning("Could not check for new achievements, but your workout was saved!");
       }
 
-      toast.success("Workout session finished and saved locally!");
-      router.push(`/workout-summary/${currentSessionId}`);
+      toast.success("Workout session finished! Generating Summary.");
+      const finishedSessionId = currentSessionId;
       await resetWorkoutSession();
+      return finishedSessionId;
     } catch (err: any) {
       toast.error("Failed to save workout duration locally: " + err.message);
       console.error("Error saving duration:", err);
+      return null;
     }
-  }, [currentSessionId, sessionStartTime, session, supabase, router, resetWorkoutSession]);
+  }, [currentSessionId, sessionStartTime, session, supabase, resetWorkoutSession]);
 
   return {
     activeWorkout,
