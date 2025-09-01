@@ -14,9 +14,9 @@ import { useSession } from '@/components/session-context-provider';
 import { WorkoutPill, WorkoutPillProps } from './workout-pill';
 import { EditWorkoutExercisesDialog } from '../manage-t-paths/edit-workout-exercises-dialog';
 import { ExerciseSelectionDropdown } from '@/components/shared/exercise-selection-dropdown';
-import { AnalyzeGymDialog } from '../manage-exercises/analyze-gym-dialog';
-// Removed: import { DuplicateExerciseConfirmDialog } from '../manage-exercises/duplicate-exercise-confirm-dialog'; // No longer needed here
-import { SaveAiExercisePrompt } from './save-ai-exercise-prompt';
+// Removed: import { AnalyzeGymDialog } from '../manage-exercises/analyze-gym-dialog';
+// Removed: import { DuplicateExerciseConfirmDialog } from '../manage-exercises/duplicate-exercise-confirm-dialog';
+// Removed: import { SaveAiExercisePrompt } from './save-ai-exercise-prompt';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -121,14 +121,12 @@ export const WorkoutSelector = ({
   const [selectedWorkoutToEdit, setSelectedWorkoutToEdit] = useState<{ id: string; name: string } | null>(null);
   const [adHocExerciseSourceFilter, setAdHocExerciseSourceFilter] = useState<'my-exercises' | 'global-library'>('my-exercises');
 
-  // State for AI gym analysis flow
-  const [showAnalyzeGymDialog, setShowAnalyzeGymDialog] = useState(false);
-  const [identifiedExerciseFromAI, setIdentifiedExerciseFromAI] = useState<Partial<ExerciseDefinition> | null>(null);
-  // Removed: const [showDuplicateConfirmDialog, setShowDuplicateConfirmDialog] = useState(false); 
-  // Removed: const [duplicateLocation, setDuplicateLocation] = useState<'My Exercises' | 'Global Library'>('My Exercises'); 
-  const [showSaveNewExercisePrompt, setShowSaveNewExercisePrompt] = useState(false);
-  const [isSavingNewExerciseToLibrary, setIsSavingNewExerciseToLibrary] = useState(false);
-  const [isDuplicateIdentified, setIsDuplicateIdentified] = useState(false); // New state to pass to SaveAiExercisePrompt
+  // Removed: State for AI gym analysis flow
+  // Removed: const [showAnalyzeGymDialog, setShowAnalyzeGymDialog] = useState(false);
+  // Removed: const [identifiedExerciseFromAI, setIdentifiedExerciseFromAI] = useState<Partial<ExerciseDefinition> | null>(null);
+  // Removed: const [showSaveNewExercisePrompt, setShowSaveNewExercisePrompt] = useState(false);
+  // Removed: const [isSavingNewExerciseToLibrary, setIsSavingNewExerciseToLibrary] = useState(false);
+  // Removed: const [isDuplicateIdentified, setIsDuplicateIdentified] = useState(false);
 
   const mainMuscleGroups = useMemo(() => {
     return Array.from(new Set(allAvailableExercises.map(ex => ex.main_muscle))).sort();
@@ -166,93 +164,11 @@ export const WorkoutSelector = ({
     }
   }, [selectedWorkoutId, selectWorkout]);
 
-  // --- AI Gym Analysis Handlers ---
-  const handleAIIdentifiedExercise = useCallback(async (identifiedData: Partial<ExerciseDefinition>, isDuplicate: boolean) => {
-    // Assign a temporary UUID if the exercise doesn't have one (i.e., it's a new AI-generated exercise)
-    const exerciseWithId: ExerciseDefinition = {
-      ...identifiedData,
-      id: identifiedData.id || uuidv4(), // Assign UUID if missing
-      name: identifiedData.name || 'Unknown Exercise', // Ensure name is present
-      main_muscle: identifiedData.main_muscle || 'Unknown', // Ensure main_muscle is present
-      type: identifiedData.type || 'weight', // Ensure type is present
-      category: identifiedData.category ?? null, // Explicitly handle undefined
-      description: identifiedData.description ?? null, // Explicitly handle undefined
-      pro_tip: identifiedData.pro_tip ?? null, // Explicitly handle undefined
-      video_url: identifiedData.video_url ?? null, // Explicitly handle undefined
-      created_at: identifiedData.created_at || new Date().toISOString(),
-      user_id: identifiedData.user_id || null,
-      library_id: identifiedData.library_id || null,
-      is_favorite: identifiedData.is_favorite || false,
-      icon_url: identifiedData.icon_url ?? null, // Explicitly handle undefined
-    };
-
-    setIdentifiedExerciseFromAI(exerciseWithId); // Store the version with the ID
-    setIsDuplicateIdentified(isDuplicate); // Set the duplicate flag
-    setShowSaveNewExercisePrompt(true); // Prompt to save to My Exercises
-    
-    setShowAnalyzeGymDialog(false); // Close the analyze dialog
-  }, []);
-
-  // This function is called when the user explicitly clicks "Add and Save to My Exercises"
-  const handleSaveToMyExercises = useCallback(async (exerciseToSave: Partial<ExerciseDefinition>) => {
-    if (!session || !exerciseToSave.name || !exerciseToSave.main_muscle || !exerciseToSave.type) {
-      toast.error("Cannot save exercise: missing required details.");
-      return;
-    }
-    setIsSavingNewExerciseToLibrary(true);
-    try {
-      // First, add to ad-hoc workout
-      addExerciseToSession(exerciseToSave as ExerciseDefinition);
-      
-      // Then, save to My Exercises
-      const { error } = await supabase.from('exercise_definitions').insert([{
-        name: exerciseToSave.name,
-        main_muscle: exerciseToSave.main_muscle,
-        type: exerciseToSave.type,
-        category: exerciseToSave.category,
-        description: exerciseToSave.description,
-        pro_tip: exerciseToSave.pro_tip,
-        video_url: exerciseToSave.video_url,
-        user_id: session.user.id,
-        library_id: null, // User-created, not from global library_id
-        is_favorite: false,
-        created_at: new Date().toISOString(),
-      }]);
-
-      if (error) throw error;
-      toast.success(`'${exerciseToSave.name}' added and saved to My Exercises!`);
-      // Refresh all data to ensure the new exercise appears in dropdowns/lists
-      refreshAllData();
-    } catch (err: any) {
-      console.error("Failed to save AI-identified exercise to My Exercises:", err);
-      toast.error("Failed to save exercise: " + err.message);
-    } finally {
-      setIsSavingNewExerciseToLibrary(false);
-      setShowSaveNewExercisePrompt(false);
-      setIdentifiedExerciseFromAI(null);
-      setIsDuplicateIdentified(false);
-    }
-  }, [session, supabase, refreshAllData, addExerciseToSession]);
-
-  // This function is called when the user explicitly clicks "Add just to this workout"
-  const handleAddJustToThisWorkout = useCallback(() => {
-    if (identifiedExerciseFromAI) {
-      addExerciseToSession(identifiedExerciseFromAI as ExerciseDefinition);
-      toast.success(`'${identifiedExerciseFromAI.name}' added to ad-hoc workout!`);
-    }
-    setShowSaveNewExercisePrompt(false);
-    setIdentifiedExerciseFromAI(null);
-    setIsDuplicateIdentified(false);
-  }, [identifiedExerciseFromAI, addExerciseToSession]);
-
-  // This function is called when the SaveAiExercisePrompt is closed without explicit action
-  const handleCloseSavePrompt = useCallback(() => {
-    setShowSaveNewExercisePrompt(false);
-    setIdentifiedExerciseFromAI(null);
-    setIsDuplicateIdentified(false);
-    toast.info("Exercise not added."); // Inform user it wasn't added
-  }, []);
-  // --- End AI Gym Analysis Handlers ---
+  // Removed: AI Gym Analysis Handlers
+  // Removed: handleAIIdentifiedExercise
+  // Removed: handleSaveToMyExercises
+  // Removed: handleAddJustToThisWorkout
+  // Removed: handleCloseSavePrompt
 
   const totalExercises = exercisesForSession.length;
 
@@ -318,16 +234,14 @@ export const WorkoutSelector = ({
                     selectedExerciseId={selectedExerciseToAdd}
                     setSelectedExerciseId={setSelectedExerciseToAdd}
                     exerciseSourceFilter={adHocExerciseSourceFilter}
-                    setExerciseSourceFilter={setAdHocExerciseSourceFilter}
+                    setExerciseSourceFilter={setAdHocExerciseSourceFilter} // Corrected prop name
                     mainMuscleGroups={mainMuscleGroups}
                     placeholder="Select exercise to add"
                   />
                   <Button onClick={handleAddExercise} disabled={!selectedExerciseToAdd} className="flex-shrink-0">
                     <PlusCircle className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" onClick={() => setShowAnalyzeGymDialog(true)} className="flex-shrink-0">
-                    <Sparkles className="h-4 w-4 mr-2" /> AI Analyse
-                  </Button>
+                  {/* Removed AI Analyse button */}
                 </div>
               </section>
             )}
@@ -411,24 +325,9 @@ export const WorkoutSelector = ({
         />
       )}
 
-      {/* AI Gym Analysis Dialogs */}
-      <AnalyzeGymDialog
-        open={showAnalyzeGymDialog}
-        onOpenChange={setShowAnalyzeGymDialog}
-        onExerciseIdentified={handleAIIdentifiedExercise} // Updated to new handler
-      />
-
-      {identifiedExerciseFromAI && (
-        <SaveAiExercisePrompt
-          open={showSaveNewExercisePrompt}
-          onOpenChange={handleCloseSavePrompt} // Updated to new handler
-          exercise={identifiedExerciseFromAI}
-          onSaveToMyExercises={handleSaveToMyExercises}
-          onSkip={handleAddJustToThisWorkout} // Updated to new handler
-          isSaving={isSavingNewExerciseToLibrary}
-          isDuplicate={isDuplicateIdentified} // Pass the new prop
-        />
-      )}
+      {/* Removed: AI Gym Analysis Dialogs */}
+      {/* Removed: AnalyzeGymDialog */}
+      {/* Removed: SaveAiExercisePrompt */}
     </>
   );
 };

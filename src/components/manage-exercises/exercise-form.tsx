@@ -34,13 +34,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
-import { AnalyzeGymDialog } from "@/components/manage-exercises/analyze-gym-dialog"; 
 import { Label } from "@/components/ui/label";
 import { cn } from '@/lib/utils';
 import { Badge } from "@/components/ui/badge";
 
 // Import new modular components with corrected paths
-import { AnalyzeGymButton } from "@/components/manage-exercises/exercise-form/analyze-gym-button";
+// Removed: import { AnalyzeGymButton } from "@/components/manage-exercises/exercise-form/analyze-gym-button";
 import { ExerciseNameInput } from "@/components/manage-exercises/exercise-form/exercise-name-input";
 import { MainMuscleSelect } from "@/components/manage-exercises/exercise-form/main-muscle-select";
 import { ExerciseTypeSelector } from "@/components/manage-exercises/exercise-form/exercise-type-selector";
@@ -74,7 +73,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
   const [isExpanded, setIsExpanded] = useState(isExpandedInDialog || false); 
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]);
-  const [showAnalyzeGymDialog, setShowAnalyzeGymDialog] = useState(false);
+  // Removed: const [showAnalyzeGymDialog, setShowAnalyzeGymDialog] = useState(false);
 
   const mainMuscleGroups = [
     "Pectorals", "Deltoids", "Lats", "Traps", "Biceps", 
@@ -151,25 +150,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
     setSelectedMuscles(newMuscles);
   };
 
-  const handleExerciseIdentified = (identifiedData: Partial<ExerciseDefinition>) => {
-    onCancelEdit(); // Clear any existing editing state
-    if (!isExpandedInDialog) setIsExpanded(true); // Ensure form is open if not in dialog
-
-    const muscleGroups = identifiedData.main_muscle ? identifiedData.main_muscle.split(',').map((m: string) => m.trim()) : [];
-    const exerciseType = identifiedData.type ? [identifiedData.type] as ("weight" | "timed")[] : [];
-
-    form.reset({
-      name: identifiedData.name || "",
-      main_muscles: muscleGroups,
-      type: exerciseType,
-      category: identifiedData.category || null,
-      description: identifiedData.description || null,
-      pro_tip: identifiedData.pro_tip || null,
-      video_url: identifiedData.video_url || null,
-    });
-    setSelectedMuscles(muscleGroups);
-    setSelectedTypes(exerciseType);
-  };
+  // Removed: handleExerciseIdentified function
 
   async function onSubmit(values: z.infer<typeof exerciseSchema>) {
     if (!session) {
@@ -280,13 +261,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
         <CardContent className="px-4 py-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="flex flex-col sm:flex-row gap-2 mb-4">
-                <AnalyzeGymButton
-                  showAnalyzeGymDialog={showAnalyzeGymDialog}
-                  setShowAnalyzeGymDialog={setShowAnalyzeGymDialog}
-                  onExerciseIdentified={handleExerciseIdentified}
-                />
-              </div>
+              {/* Removed: AnalyzeGymButton */}
 
               <ExerciseNameInput form={form} />
               

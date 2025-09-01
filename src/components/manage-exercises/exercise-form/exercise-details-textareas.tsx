@@ -19,7 +19,7 @@ export const ExerciseDetailsTextareas = ({ form }: ExerciseDetailsTextareasProps
           <FormItem>
             <FormLabel className="font-bold">Description (Optional)</FormLabel>
             <FormControl>
-              <Textarea {...field} value={field.value ?? ''} className="text-sm" />
+              <Textarea {...field} value={field.value ?? ''} className="text-sm" rows={4} /> {/* Increased rows */}
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -33,7 +33,7 @@ export const ExerciseDetailsTextareas = ({ form }: ExerciseDetailsTextareasProps
           <FormItem>
             <FormLabel className="font-bold">Pro Tip (Optional)</FormLabel>
             <FormControl>
-              <Textarea {...field} value={field.value ?? ''} className="text-sm" />
+              <Textarea {...field} value={field.value ?? ''} className="text-sm" rows={4} /> {/* Increased rows */}
             </FormControl>
             <FormMessage />
           </FormItem>
