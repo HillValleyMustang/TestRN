@@ -66,20 +66,21 @@ export const useExercisePRLogic = ({ exerciseId, exerciseType, supabase }: UseEx
       }
     }
 
-    // Update is_pb flag for all sets in the current session if it's a new PR
-    if (isNewPROverall) {
-      const { error: updatePbError } = await supabase
-        .from('set_logs')
-        .update({ is_pb: true })
-        .eq('session_id', currentSessionId)
-        .eq('exercise_id', exerciseId);
-      if (updatePbError) {
-        console.error("Error updating is_pb for sets:", updatePbError);
-      }
-    }
-
-    // Update user_exercise_prs table if a new PR was achieved
     try {
+      // Update is_pb flag for all sets in the current session if it's a new PR
+      if (isNewPROverall) {
+        const { error: updatePbError } = await supabase
+          .from('set_logs')
+          .update({ is_pb: true })
+          .eq('session_id', currentSessionId)
+          .eq('exercise_id', exerciseId);
+        if (updatePbError) {
+          console.error("Error updating is_pb for sets:", updatePbError);
+          throw updatePbError; // Throw the error to be caught below
+        }
+      }
+
+      // Update user_exercise_prs table if a new PR was achieved
       if (isNewPROverall) {
         const prData: UserExercisePRInsert | UserExercisePRUpdate = {
           user_id: (await supabase.auth.getUser()).data.user?.id || '',

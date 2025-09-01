@@ -172,7 +172,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
             if (rpcError) {
               console.error(`Error fetching last completed date for workout ${workout.id}:`, rpcError);
             }
-            return { ...workout, last_completed_at: lastSessionDate?.[0]?.session_date || null };
+            return { ...workout, last_completed_at: lastSessionDate?.[0]?.last_completed_at || null };
           })
         );
 
