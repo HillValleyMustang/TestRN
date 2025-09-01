@@ -124,9 +124,19 @@ export const useExerciseSets = ({
 
       if (drafts.length > 0) {
         loadedSets = drafts.map(draft => ({
-          id: null, created_at: null, session_id: draft.session_id, exercise_id: draft.exercise_id,
-          weight_kg: draft.weight_kg, reps: draft.reps, reps_l: draft.reps_l, reps_r: draft.reps_r, time_seconds: draft.time_seconds,
-          is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
+          id: draft.set_log_id || null, // Use set_log_id if available
+          created_at: null, // Will be set on actual save
+          session_id: draft.session_id,
+          exercise_id: draft.exercise_id,
+          weight_kg: draft.weight_kg,
+          reps: draft.reps,
+          reps_l: draft.reps_l,
+          reps_r: draft.reps_r,
+          time_seconds: draft.time_seconds,
+          is_pb: false, // This is determined on save
+          isSaved: draft.isSaved || false, // Use draft's isSaved status
+          isPR: false, // This is determined on save
+          lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
         }));
       } else {
         // If no drafts, use the initialSets provided by the parent.
@@ -202,6 +212,7 @@ export const useExerciseSets = ({
       const draftPayload: LocalDraftSetLog = {
         exercise_id: exerciseId, set_index: newSetIndex, session_id: propCurrentSessionId,
         weight_kg: newSet.weight_kg, reps: newSet.reps, reps_l: newSet.reps_l, reps_r: newSet.reps_r, time_seconds: newSet.time_seconds,
+        isSaved: false, set_log_id: null, // NEW
       };
       // Assert key validity before put
       console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in handleAddSet: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
@@ -226,11 +237,12 @@ export const useExerciseSets = ({
       } else {
         newSets[setIndex] = { ...newSets[setIndex], [field]: parsedValue };
       }
-      newSets[setIndex].isSaved = false;
+      newSets[setIndex].isSaved = false; // Mark as unsaved when input changes
 
       const draftPayload: LocalDraftSetLog = {
         exercise_id: exerciseId, set_index: setIndex, session_id: propCurrentSessionId,
         weight_kg: newSets[setIndex].weight_kg, reps: newSets[setIndex].reps, reps_l: newSets[setIndex].reps_l, reps_r: newSets[setIndex].reps_r, time_seconds: newSets[setIndex].time_seconds,
+        isSaved: false, set_log_id: newSets[setIndex].id, // NEW: Keep set_log_id if it exists
       };
       // Assert key validity before put
       console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in handleInputChange: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
@@ -259,7 +271,7 @@ export const useExerciseSets = ({
     if (!sessionIdToUse) {
       try {
         const newSessionId = await onFirstSetSaved(new Date().toISOString());
-        sessionIdToUse = newSessionId;
+        sessionIdToUse = newSessionId; // <--- propCurrentSessionId is updated here in parent
       } catch (err) {
         toast.error("Failed to start workout session.");
         setSets(previousSets); // Rollback optimistic update
@@ -275,9 +287,14 @@ export const useExerciseSets = ({
         newSets[setIndex] = { ...savedSet, session_id: sessionIdToUse };
         return newSets;
       });
-      // Delete the draft for this specific set AFTER the local state is updated
-      console.assert(isValidDraftKey(exerciseId, setIndex), `Invalid draft key in handleSaveSet delete: [${exerciseId}, ${setIndex}]`);
-      db.draft_set_logs.delete([exerciseId, setIndex]);
+      // Update the draft to mark it as saved and link to the actual set_log_id
+      const draftPayload: LocalDraftSetLog = {
+        exercise_id: exerciseId, set_index: setIndex, session_id: sessionIdToUse,
+        weight_kg: savedSet.weight_kg, reps: savedSet.reps, reps_l: savedSet.reps_l, reps_r: savedSet.reps_r, time_seconds: savedSet.time_seconds,
+        isSaved: true, set_log_id: savedSet.id, // NEW: Mark as saved and link ID
+      };
+      console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in handleSaveSet update: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
+      db.draft_set_logs.put(draftPayload); // Update the draft, don't delete
     } else {
       setSets(previousSets); // Rollback on failure
       toast.error(`Failed to save set ${setIndex + 1}. Please try again.`);
@@ -296,6 +313,7 @@ export const useExerciseSets = ({
       const draftPayload: LocalDraftSetLog = {
         exercise_id: exerciseId, set_index: setIndex, session_id: propCurrentSessionId,
         weight_kg: updatedSets[setIndex].weight_kg, reps: updatedSets[setIndex].reps, reps_l: updatedSets[setIndex].reps_l, reps_r: updatedSets[setIndex].reps_r, time_seconds: updatedSets[setIndex].time_seconds,
+        isSaved: false, set_log_id: updatedSets[setIndex].id, // NEW: Keep set_log_id if it exists
       };
       // Assert key validity before put
       console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in handleEditSet: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
@@ -313,12 +331,13 @@ export const useExerciseSets = ({
     const setToDelete = sets[setIndex];
     const previousSets = sets;
     setSets(prev => prev.filter((_, i) => i !== setIndex));
-    // Assert key validity before delete
+    
+    // Delete the draft from IndexedDB
     console.assert(isValidDraftKey(exerciseId, setIndex), `Invalid draft key in handleDeleteSet delete: [${exerciseId}, ${setIndex}]`);
     db.draft_set_logs.delete([exerciseId, setIndex]);
     toast.success("Set removed.");
 
-    if (!setToDelete.id) return;
+    if (!setToDelete.id) return; // If it was never saved to the main set_logs table, no need to delete from there
 
     const success = await deleteSetFromDb(setToDelete.id);
     if (!success) {
@@ -362,6 +381,14 @@ export const useExerciseSets = ({
         const { savedSet } = await saveSetToDb(currentSet, i, currentSessionIdToUse);
         if (savedSet) {
           updatedSetsState.push(savedSet);
+          // Update the draft to mark it as saved and link to the actual set_log_id
+          const draftPayload: LocalDraftSetLog = {
+            exercise_id: exerciseId, set_index: i, session_id: currentSessionIdToUse,
+            weight_kg: savedSet.weight_kg, reps: savedSet.reps, reps_l: savedSet.reps_l, reps_r: savedSet.reps_r, time_seconds: savedSet.time_seconds,
+            isSaved: true, set_log_id: savedSet.id,
+          };
+          console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in handleSaveExercise update: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
+          await db.draft_set_logs.put(draftPayload);
         } else {
           hasError = true;
           updatedSetsState.push(currentSet);
@@ -381,6 +408,7 @@ export const useExerciseSets = ({
       await onExerciseComplete(exerciseId, isNewPROverall);
       
       // FIX: More robust deletion from draft_set_logs to handle null currentSessionIdToUse
+      // All drafts for this exercise and session should be cleared once the exercise is "completed"
       const draftsToDelete = await db.draft_set_logs
         .where('exercise_id').equals(exerciseId)
         .filter(draft => draft.session_id === currentSessionIdToUse) // Filter by session_id, including null
@@ -422,6 +450,7 @@ export const useExerciseSets = ({
       const draftPayloads: LocalDraftSetLog[] = newSets.map((set, index) => ({
         exercise_id: exerciseId, set_index: index, session_id: propCurrentSessionId,
         weight_kg: set.weight_kg, reps: set.reps, reps_l: set.reps_l, reps_r: set.reps_r, time_seconds: set.time_seconds,
+        isSaved: false, set_log_id: null, // NEW: Mark as unsaved
       }));
       // Assert key validity before bulkPut
       console.assert(draftPayloads.every(d => isValidDraftKey(d.exercise_id, d.set_index)), `Invalid draft keys in handleSuggestProgression bulkPut: ${JSON.stringify(draftPayloads.map(d => [d.exercise_id, d.set_index]))}`);

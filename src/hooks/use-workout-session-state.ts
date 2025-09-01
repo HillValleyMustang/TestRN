@@ -107,7 +107,8 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
       await db.workout_sessions.put(sessionDataToSave);
       await addToSyncQueue('create', 'workout_sessions', sessionDataToSave);
 
-      const draftsToUpdate = await db.draft_set_logs.filter(draft => draft.session_id === null).toArray(); // FIX APPLIED HERE
+      // Update all existing drafts (which currently have session_id: null) to the new session ID
+      const draftsToUpdate = await db.draft_set_logs.filter(draft => draft.session_id === null).toArray();
       const updatePromises = draftsToUpdate.map(draft => {
         console.assert(isValidDraftKey(draft.exercise_id, draft.set_index), `Invalid draft key in createWorkoutSessionInDb update: [${draft.exercise_id}, ${draft.set_index}]`);
         return db.draft_set_logs.update([draft.exercise_id, draft.set_index], { session_id: newSessionId });
@@ -170,6 +171,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
         reps_l: newSet.reps_l,
         reps_r: newSet.reps_r,
         time_seconds: newSet.time_seconds,
+        isSaved: false, set_log_id: null, // NEW
       };
       console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in addExerciseToSession put: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
       db.draft_set_logs.put(draftPayload);
@@ -224,6 +226,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
             reps_l: newSet.reps_l,
             reps_r: newSet.reps_r,
             time_seconds: newSet.time_seconds,
+            isSaved: false, set_log_id: null, // NEW
           };
           console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in substituteExercise put: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
           db.draft_set_logs.put(draftPayload);
