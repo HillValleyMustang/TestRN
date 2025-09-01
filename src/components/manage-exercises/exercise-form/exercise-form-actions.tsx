@@ -11,7 +11,7 @@ type ExerciseDefinition = Tables<'exercise_definitions'>;
 interface ExerciseFormActionsProps {
   editingExercise: ExerciseDefinition | null;
   onCancelEdit: () => void;
-  toggleExpand: () => void;
+  toggleExpand: () => void; // This prop is now used to close the dialog if not in dialog mode
 }
 
 export const ExerciseFormActions = ({
@@ -36,27 +36,14 @@ export const ExerciseFormActions = ({
           </>
         )}
       </Button>
-      {editingExercise && (
-        <Button 
-          type="button" 
-          variant="outline" 
-          onClick={() => {
-            onCancelEdit();
-            toggleExpand();
-          }}
-        >
-          <XCircle className="h-4 w-4 mr-2" /> Cancel
-        </Button>
-      )}
-      {!editingExercise && (
-        <Button 
-          type="button" 
-          variant="outline" 
-          onClick={toggleExpand}
-        >
-          Close
-        </Button>
-      )}
+      {/* The cancel button now always calls onCancelEdit, which will close the dialog */}
+      <Button 
+        type="button" 
+        variant="outline" 
+        onClick={onCancelEdit}
+      >
+        <XCircle className="h-4 w-4 mr-2" /> Cancel
+      </Button>
     </div>
   );
 };

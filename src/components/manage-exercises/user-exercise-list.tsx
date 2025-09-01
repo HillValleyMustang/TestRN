@@ -28,6 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { EditExerciseDialog } from "./edit-exercise-dialog"; // Import the new dialog
 
 // Extend the ExerciseDefinition type to include a temporary flag for global exercises
 interface FetchedExerciseDefinition extends Tables<'exercise_definitions'> {
@@ -70,14 +71,13 @@ export const UserExerciseList = ({
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
   const [selectedExerciseForInfo, setSelectedExerciseForInfo] = useState<FetchedExerciseDefinition | null>(null);
 
-  const exerciseFormRef = useRef<HTMLDivElement>(null); // Create a ref for the ExerciseForm
+  // State for the new EditExerciseDialog
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [exerciseToEdit, setExerciseToEdit] = useState<FetchedExerciseDefinition | null>(null);
 
-  // Effect to scroll the form into view when editingExercise changes
-  useEffect(() => {
-    if (editingExercise && exerciseFormRef.current) {
-      exerciseFormRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }, [editingExercise]);
+  // Removed exerciseFormRef and its useEffect as the form is now in a modal
+  // const exerciseFormRef = useRef<HTMLDivElement>(null); 
+  // useEffect(() => { ... }, [editingExercise]);
 
   const handleOpenAddTPathDialog = (exercise: FetchedExerciseDefinition, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -96,6 +96,22 @@ export const UserExerciseList = ({
     setIsInfoDialogOpen(true);
   };
 
+  const handleOpenEditDialog = (exercise: FetchedExerciseDefinition) => {
+    setExerciseToEdit(exercise);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditDialogClose = () => {
+    setExerciseToEdit(null);
+    setIsEditDialogOpen(false);
+    onCancelEdit(); // Ensure parent state is reset
+  };
+
+  const handleEditDialogSaveSuccess = () => {
+    onSaveSuccess(); // Trigger parent refresh
+    handleEditDialogClose(); // Close dialog and reset state
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
@@ -103,12 +119,11 @@ export const UserExerciseList = ({
       </CardHeader>
       <CardContent className="p-3">
         <div className="mb-6">
-          {/* Attach the ref here */}
+          {/* The ExerciseForm is now used for adding new exercises directly in this component */}
           <ExerciseForm
-            ref={exerciseFormRef}
-            editingExercise={editingExercise}
-            onCancelEdit={onCancelEdit}
-            onSaveSuccess={onSaveSuccess}
+            editingExercise={null} // Always null for adding new
+            onCancelEdit={() => {}} // No specific cancel logic needed here for add form
+            onSaveSuccess={onAddSuccess} // Use onAddSuccess for new exercises
           />
         </div>
 
@@ -171,7 +186,7 @@ export const UserExerciseList = ({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => onEdit(ex)}>
+                        <DropdownMenuItem onSelect={() => handleOpenEditDialog(ex)}> {/* Open dialog here */}
                           <Edit className="h-4 w-4 mr-2" /> Edit Exercise
                         </DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => onDelete(ex)} className="text-destructive">
@@ -209,6 +224,14 @@ export const UserExerciseList = ({
           onDeleteExercise={onDelete}
         />
       )}
+
+      {/* New Edit Exercise Dialog */}
+      <EditExerciseDialog
+        open={isEditDialogOpen}
+        onOpenChange={handleEditDialogClose}
+        exercise={exerciseToEdit}
+        onSaveSuccess={handleEditDialogSaveSuccess}
+      />
     </Card>
   );
 };

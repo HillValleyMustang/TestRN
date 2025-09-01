@@ -65,11 +65,13 @@ interface ExerciseFormProps {
   editingExercise: ExerciseDefinition | null;
   onCancelEdit: () => void;
   onSaveSuccess: () => void;
+  isExpandedInDialog?: boolean; // New prop to indicate if it's in a dialog
 }
 
-export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(({ editingExercise, onCancelEdit, onSaveSuccess }, ref) => {
+export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(({ editingExercise, onCancelEdit, onSaveSuccess, isExpandedInDialog = false }, ref) => {
   const { session, supabase } = useSession();
-  const [isExpanded, setIsExpanded] = useState(false);
+  // isExpanded state is now controlled by isExpandedInDialog or defaults to false for standalone use
+  const [isExpanded, setIsExpanded] = useState(isExpandedInDialog || false); 
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]);
   const [showAnalyzeGymDialog, setShowAnalyzeGymDialog] = useState(false);
@@ -108,9 +110,6 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
 
   useEffect(() => {
     if (editingExercise) {
-      // If editing a user-owned exercise, pre-fill the form for editing.
-      // If editingExercise is a global exercise (user_id === null),
-      // we treat it as a "create new from template" action.
       const muscleGroups = editingExercise.main_muscle ? editingExercise.main_muscle.split(',').map((m: string) => m.trim()) : [];
       
       form.reset({
@@ -124,13 +123,14 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
       });
       setSelectedMuscles(muscleGroups);
       setSelectedTypes(editingExercise.type ? [editingExercise.type] as ("weight" | "timed")[] : []);
-      setIsExpanded(true);
+      if (!isExpandedInDialog) setIsExpanded(true); // Only expand if not in dialog
     } else {
       form.reset();
       setSelectedMuscles([]);
       setSelectedTypes([]);
+      if (!isExpandedInDialog) setIsExpanded(false); // Only collapse if not in dialog
     }
-  }, [editingExercise, form]);
+  }, [editingExercise, form, isExpandedInDialog]);
 
   const handleTypeChange = (type: "weight" | "timed") => {
     form.setValue("type", [type]);
@@ -153,7 +153,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
 
   const handleExerciseIdentified = (identifiedData: Partial<ExerciseDefinition>) => {
     onCancelEdit(); // Clear any existing editing state
-    setIsExpanded(true); // Ensure form is open
+    if (!isExpandedInDialog) setIsExpanded(true); // Ensure form is open if not in dialog
 
     const muscleGroups = identifiedData.main_muscle ? identifiedData.main_muscle.split(',').map((m: string) => m.trim()) : [];
     const exerciseType = identifiedData.type ? [identifiedData.type] as ("weight" | "timed")[] : [];
@@ -211,9 +211,9 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
         toast.error("Failed to update exercise: " + error.message);
       } else {
         toast.success("Exercise updated successfully!");
-        onCancelEdit();
+        onCancelEdit(); // This will now close the dialog
         onSaveSuccess();
-        setIsExpanded(false);
+        if (!isExpandedInDialog) setIsExpanded(false); // Only collapse if not in dialog
       }
     } else {
       // This is always creating a new user-owned exercise,
@@ -233,7 +233,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
         setSelectedMuscles([]);
         setSelectedTypes([]);
         onSaveSuccess();
-        setIsExpanded(false);
+        if (!isExpandedInDialog) setIsExpanded(false); // Only collapse if not in dialog
       }
     }
   }
@@ -252,29 +252,31 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
 
   return (
     <Card ref={ref} className="w-full">
-      <CardHeader 
-        className="flex items-center justify-between cursor-pointer"
-        onClick={toggleExpand}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            toggleExpand();
-          }
-        }}
-      >
-        <CardTitle className="flex-1 text-base">
-          {editingExercise && editingExercise.user_id === session?.user.id && editingExercise.library_id === null ? "Edit Exercise" : "Add New Exercise"}
-        </CardTitle>
-        <span className="ml-2">
-          {isExpanded ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          )}
-        </span>
-      </CardHeader>
-      {isExpanded && (
+      {!isExpandedInDialog && ( // Only show header if not in dialog
+        <CardHeader 
+          className="flex items-center justify-between cursor-pointer"
+          onClick={toggleExpand}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              toggleExpand();
+            }
+          }}
+        >
+          <CardTitle className="flex-1 text-base">
+            {editingExercise && editingExercise.user_id === session?.user.id && editingExercise.library_id === null ? "Edit Exercise" : "Add New Exercise"}
+          </CardTitle>
+          <span className="ml-2">
+            {isExpanded ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </span>
+        </CardHeader>
+      )}
+      {(isExpanded || isExpandedInDialog) && ( // Render content if expanded or in dialog
         <CardContent className="px-4 py-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -313,7 +315,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
               <ExerciseFormActions
                 editingExercise={editingExercise}
                 onCancelEdit={onCancelEdit}
-                toggleExpand={toggleExpand}
+                toggleExpand={toggleExpand} // This will now close the dialog if not in dialog mode
               />
             </form>
           </Form>
