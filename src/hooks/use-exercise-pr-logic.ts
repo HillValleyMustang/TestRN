@@ -41,13 +41,15 @@ export const useExercisePRLogic = ({ exerciseId, exerciseType, supabase }: UseEx
 
   const updateExercisePRStatus = useCallback(async (currentSessionId: string, sets: SetLogState[]): Promise<boolean> => {
     let currentExercisePRValue: number | null = null;
-    const currentSessionSets = sets.filter(s => s.session_id === currentSessionId);
+    // The sets passed are already for the current exercise. No need to filter by session_id which might be stale.
+    const currentSessionSets = sets;
 
     if (exerciseType === 'weight') {
       currentExercisePRValue = currentSessionSets.reduce((totalVolume, set) => totalVolume + ((set.weight_kg || 0) * (set.reps || 0)), 0);
     } else if (exerciseType === 'timed') {
       const validTimes = currentSessionSets.map(set => set.time_seconds).filter((time): time is number => time !== null);
-      currentExercisePRValue = validTimes.length > 0 ? Math.min(...validTimes) : null;
+      // For timed exercises like planks, a higher value (longer duration) is better.
+      currentExercisePRValue = validTimes.length > 0 ? Math.max(...validTimes) : null;
     }
 
     let isNewPROverall = false;
@@ -57,8 +59,9 @@ export const useExercisePRLogic = ({ exerciseId, exerciseType, supabase }: UseEx
       } else if (exerciseType === 'weight' && exercisePR.best_volume_kg !== null) {
         isNewPROverall = currentExercisePRValue > exercisePR.best_volume_kg;
       } else if (exerciseType === 'timed' && exercisePR.best_time_seconds !== null) {
-        isNewPROverall = currentExercisePRValue < exercisePR.best_time_seconds;
+        isNewPROverall = currentExercisePRValue > exercisePR.best_time_seconds;
       } else {
+        // This case handles when there's a PR record but the relevant field is null (e.g., first time doing a timed exercise)
         isNewPROverall = true;
       }
     }
@@ -82,8 +85,8 @@ export const useExercisePRLogic = ({ exerciseId, exerciseType, supabase }: UseEx
           user_id: (await supabase.auth.getUser()).data.user?.id || '',
           exercise_id: exerciseId,
           last_achieved_date: new Date().toISOString(),
-          best_volume_kg: exerciseType === 'weight' ? currentExercisePRValue : null,
-          best_time_seconds: exerciseType === 'timed' ? currentExercisePRValue : null,
+          best_volume_kg: exerciseType === 'weight' ? currentExercisePRValue : (exercisePR?.best_volume_kg || null),
+          best_time_seconds: exerciseType === 'timed' ? currentExercisePRValue : (exercisePR?.best_time_seconds || null),
         };
 
         const { error: upsertError, data: updatedPR } = await supabase

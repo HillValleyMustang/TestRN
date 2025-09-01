@@ -142,7 +142,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     // Trigger a background refresh to ensure cache is up-to-date for next time
     refreshAllData();
 
-  }, [session, supabase, resetWorkoutSession, groupedTPaths, workoutExercisesCache, allAvailableExercises, refreshAllData]);
+  }, [session, supabase, resetWorkoutSession, groupedTPaths, workoutExercisesCache, allAvailableExercises, refreshAllData, setActiveWorkout, setExercisesForSession, setExercisesWithSets]);
 
   useEffect(() => {
     if (initialWorkoutId && !loadingData && !loadingFlow) {
