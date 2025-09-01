@@ -21,6 +21,7 @@ import { ProfileOverviewTab } from '@/components/profile/profile-overview-tab';
 import { ProfileStatsTab } from '@/components/profile/profile-stats-tab';
 import { ProfileSettingsTab } from '@/components/profile/profile-settings-tab';
 import { achievementsList } from '@/lib/achievements';
+import { LoadingOverlay } from '@/components/loading-overlay'; // Import LoadingOverlay
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
@@ -45,9 +46,10 @@ const profileSchema = z.object({
 export default function ProfilePage() {
   const { session, supabase } = useSession();
   const router = useRouter();
-  const searchParams = useSearchParams(); // Get search params
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // New state for saving/regeneration
   const [profile, setProfile] = useState<Profile | null>(null);
   const [activeTPath, setActiveTPath] = useState<TPath | null>(null);
   const [aiCoachUsageToday, setAiCoachUsageToday] = useState(0);
@@ -135,7 +137,6 @@ export default function ProfilePage() {
     }
     fetchData();
 
-    // Handle URL parameters for initial tab and edit mode
     const tabParam = searchParams.get('tab');
     const editParam = searchParams.get('edit');
 
@@ -171,11 +172,11 @@ export default function ProfilePage() {
     } else if (level === 'Warrior') {
       nextLevelPoints = 300;
       progress = ((totalPoints - 100) / 200) * 100;
-    } else { // Champion or Legend
-      nextLevelPoints = 600; // Max points for Champion before Legend
+    } else {
+      nextLevelPoints = 600;
       progress = ((totalPoints - 300) / 300) * 100;
       if (level === 'Legend') {
-        progress = 100; // Legend is maxed out
+        progress = 100;
       }
     }
 
@@ -194,7 +195,13 @@ export default function ProfilePage() {
   const fitnessLevel = getFitnessLevel();
 
   async function onSubmit(values: z.infer<typeof profileSchema>) {
-    if (!session) return;
+    if (!session || !profile) return;
+    setIsSaving(true);
+
+    const oldSessionLength = profile.preferred_session_length;
+    const newSessionLength = values.preferred_session_length;
+    const sessionLengthChanged = oldSessionLength !== newSessionLength;
+
     const nameParts = values.full_name.split(' ');
     const firstName = nameParts.shift() || '';
     const lastName = nameParts.join(' ');
@@ -210,11 +217,38 @@ export default function ProfilePage() {
     const { error } = await supabase.from('profiles').update(updateData).eq('id', session.user.id);
     if (error) {
       toast.error("Failed to update profile: " + error.message);
-    } else {
-      toast.success("Profile updated successfully!");
-      await fetchData();
-      setIsEditing(false); // Set editing to false after successful save
+      setIsSaving(false);
+      return;
     }
+
+    toast.success("Profile updated successfully!");
+
+    if (sessionLengthChanged && activeTPath) {
+      toast.info("Session length changed. Regenerating your workout plan...");
+      try {
+        const response = await fetch(`/api/generate-t-path`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({ tPathId: activeTPath.id })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Failed to regenerate T-Path workouts: ${errorText}`);
+        }
+        toast.success("Your workout plan has been updated!");
+      } catch (err: any) {
+        toast.error("Error updating workout plan: " + err.message);
+        console.error("T-Path regeneration error:", err);
+      }
+    }
+
+    await fetchData();
+    setIsEditing(false);
+    setIsSaving(false);
   }
 
   const handleAchievementClick = (achievement: { id: string; name: string; icon: string }) => {
@@ -247,7 +281,7 @@ export default function ProfilePage() {
     };
 
     emblaApi.on("select", onSelect);
-    onSelect(); // Set initial tab based on carousel position
+    onSelect();
 
     return () => {
       emblaApi.off("select", onSelect);
@@ -272,8 +306,9 @@ export default function ProfilePage() {
       <div className="p-2 sm:p-4 max-w-4xl mx-auto">
         <ProfileHeader
           isEditing={isEditing}
-          onEditToggle={() => setIsEditing(prev => !prev)} // Toggle edit state
+          onEditToggle={() => setIsEditing(prev => !prev)}
           onSave={form.handleSubmit(onSubmit)}
+          isSaving={isSaving} // Pass saving state
         />
 
         <div className="text-center mb-8">
@@ -334,7 +369,6 @@ export default function ProfilePage() {
               </div>
             </div>
             
-            {/* Navigation Buttons for Carousel */}
             <button
               onClick={scrollPrev}
               className="absolute left-2 top-1/2 -translate-y-1/2 z-10 hidden sm:flex p-2 rounded-full bg-background/50 hover:bg-background/70 transition-colors"
@@ -362,6 +396,11 @@ export default function ProfilePage() {
         session={session}
         supabase={supabase}
         achievementInfo={selectedAchievement}
+      />
+      <LoadingOverlay 
+        isOpen={isSaving} 
+        title="Saving Profile" 
+        description="Please wait while we update your profile and workout plan." 
       />
     </>
   );
