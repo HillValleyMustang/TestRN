@@ -67,7 +67,7 @@ export const useExerciseSets = ({
   currentSessionId: propCurrentSessionId,
   supabase,
   onUpdateSets,
-  initialSets,
+  initialSets, // This prop will now be used for initial load only
   preferredWeightUnit,
   onFirstSetSaved,
   onExerciseComplete,
@@ -130,7 +130,7 @@ export const useExerciseSets = ({
             is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
           });
         });
-      } else if (initialSets.length > 0) {
+      } else if (initialSets.length > 0) { // Use initialSets from the closure of the first render
         initialSets.forEach(set => loadedSets.push({ ...set, session_id: sessionIdForQuery }));
       } else {
         for (let i = 0; i < DEFAULT_INITIAL_SETS; i++) {
@@ -170,8 +170,9 @@ export const useExerciseSets = ({
       setSets(finalSets);
     };
 
+    // Only run when the exercise or session context changes, not when set content changes
     loadSets();
-  }, [exerciseId, propCurrentSessionId, initialSets, supabase, session, exerciseName]); // Note dependency on prop, not state.
+  }, [exerciseId, propCurrentSessionId, supabase, session, exerciseName]); // Removed initialSets from dependencies
 
   useEffect(() => {
     onUpdateSets(exerciseId, sets);
