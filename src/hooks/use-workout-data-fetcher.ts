@@ -106,10 +106,9 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const processInitialCachedData = useCallback(() => {
     // Ensure all necessary cached data is available and not undefined
     if (
-      cachedExercises === undefined || cachedTPaths === undefined || cachedProfile === undefined || cachedTPathExercises === undefined ||
-      !cachedExercises || !cachedTPaths || !cachedProfile || !cachedTPathExercises
+      cachedExercises === undefined || cachedTPaths === undefined || cachedProfile === undefined || cachedTPathExercises === undefined
     ) {
-      console.log("[WorkoutDataFetcher] processInitialCachedData: Missing cached data (undefined or null), returning early.");
+      console.log("[WorkoutDataFetcher] processInitialCachedData: Missing cached data (undefined), returning early.");
       return;
     }
 
@@ -117,23 +116,24 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     if (hasProcessedInitialDataRef.current) {
       return;
     }
+    
+    // Explicitly check for null/empty arrays for all critical data
+    if (!session?.user.id || !cachedProfile || cachedProfile.length === 0 || !cachedExercises || !cachedTPaths || !cachedTPathExercises) {
+      console.log("[WorkoutDataFetcher] processInitialCachedData: No user session or profile/cached data in cache, cannot determine active T-Path. Keeping loadingData=true.");
+      // Do NOT set hasProcessedInitialDataRef.current = true here.
+      // Do NOT set setLoadingData(false) here.
+      return;
+    }
+
     hasProcessedInitialDataRef.current = true; // Mark as processed
 
     setAllAvailableExercises(cachedExercises as ExerciseDefinition[]);
     
-    const userProfile = cachedProfile[0]; // Assuming only one profile is cached for the user
-    if (!userProfile) { // ADDED EXPLICIT CHECK
-      console.log("[WorkoutDataFetcher] processInitialCachedData: userProfile is empty or null, cannot determine active T-Path.");
-      setGroupedTPaths([]); // Ensure groupedTPaths is empty if no profile
-      setWorkoutExercisesCache({});
-      setLoadingData(false);
-      setDataError("User profile not found in cache.");
-      return;
-    }
-    console.log("[WorkoutDataFetcher] processInitialCachedData: userProfile:", userProfile);
-    const activeTPathId = userProfile.active_t_path_id; // Access directly after null check
-    const preferredSessionLength = userProfile.preferred_session_length; // Access directly
+    const userProfile = cachedProfile[0]; // Now guaranteed to be safe to access
+    const activeTPathId = userProfile.active_t_path_id;
+    const preferredSessionLength = userProfile.preferred_session_length;
     const maxAllowedMinutes = getMaxMinutes(preferredSessionLength);
+    console.log("[WorkoutDataFetcher] processInitialCachedData: userProfile:", userProfile);
     console.log("[WorkoutDataFetcher] processInitialCachedData: activeTPathId:", activeTPathId, "maxAllowedMinutes:", maxAllowedMinutes);
 
     const newGroupedTPaths: GroupedTPath[] = [];
@@ -195,10 +195,16 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
 
   // Phase 2: Enrich data with network calls (runs in background)
   const enrichDataWithNetworkCalls = useCallback(async () => {
-    if (!session || !cachedExercises || !cachedTPaths || !cachedProfile || !cachedTPathExercises) return;
+    if (!session) return; // Ensure session exists before making network calls
 
-    const userProfile = cachedProfile[0];
-    if (!userProfile) { // ADDED EXPLICIT CHECK
+    // Explicitly check for null/empty arrays for all critical data
+    if (!cachedProfile || cachedProfile.length === 0 || !cachedExercises || !cachedTPaths || !cachedTPathExercises) {
+      console.log("[WorkoutDataFetcher] enrichDataWithNetworkCalls: Missing cached data (null or empty), skipping enrichment.");
+      return;
+    }
+
+    const userProfile = cachedProfile[0]; // Now guaranteed to be safe to access
+    if (!userProfile) { // Double check, though previous check should cover
       console.log("[WorkoutDataFetcher] enrichDataWithNetworkCalls: userProfile is empty or null, skipping enrichment.");
       return;
     }
@@ -240,8 +246,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     // Trigger initial fast load as soon as cached data is available
     // and only if it hasn't been processed yet.
     if (
-      cachedExercises !== undefined && cachedTPaths !== undefined && cachedProfile !== undefined && cachedTPathExercises !== undefined &&
-      !hasProcessedInitialDataRef.current
+      cachedExercises !== undefined && cachedTPaths !== undefined && cachedProfile !== undefined && cachedTPathExercises !== undefined
     ) {
       processInitialCachedData();
       // Then, trigger background enrichment
