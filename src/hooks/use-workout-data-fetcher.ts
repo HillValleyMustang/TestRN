@@ -97,93 +97,90 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     sessionUserId: session?.user.id ?? null,
   });
 
-  // Effect 1: Process only cached data for a fast initial render
+  // Effect to process cached data and then trigger enrichment
   useEffect(() => {
-    if (
-      cachedExercises === undefined || cachedTPaths === undefined || cachedProfile === undefined || cachedTPathExercises === undefined ||
-      cachedExercises === null || cachedTPaths === null || cachedProfile === null || cachedTPathExercises === null
-    ) {
-      return;
-    }
-
-    if (!session?.user.id || cachedProfile.length === 0) {
-      setLoadingData(true);
-      return;
-    }
-    
-    setAllAvailableExercises(cachedExercises as ExerciseDefinition[]);
-    
-    const userProfile = cachedProfile[0];
-    const activeTPathId = userProfile.active_t_path_id;
-
-    const newGroupedTPaths: GroupedTPath[] = [];
-    const newWorkoutExercisesCache: Record<string, WorkoutExercise[]> = {};
-
-    if (activeTPathId) {
-      const activeMainTPath = cachedTPaths.find(tp => tp.id === activeTPathId && tp.user_id === session.user.id && tp.parent_t_path_id === null);
-
-      if (activeMainTPath) {
-        const allChildWorkouts = cachedTPaths.filter(tp => tp.parent_t_path_id === activeMainTPath.id && tp.is_bonus === true);
-        const filteredChildWorkouts: WorkoutWithLastCompleted[] = [];
-
-        for (const workout of allChildWorkouts) {
-          const tPathExercisesForWorkout = cachedTPathExercises.filter(tpe => tpe.template_id === workout.id);
-          const exercisesForWorkout: WorkoutExercise[] = tPathExercisesForWorkout
-            .map(tpe => {
-              const exerciseDef = cachedExercises.find(ex => ex.id === tpe.exercise_id);
-              if (!exerciseDef) return null;
-              return { ...exerciseDef, is_bonus_exercise: tpe.is_bonus_exercise || false };
-            })
-            .filter(Boolean) as WorkoutExercise[];
-
-          if (exercisesForWorkout.length > 0) {
-            filteredChildWorkouts.push({ ...workout, last_completed_at: null });
-            newWorkoutExercisesCache[workout.id] = exercisesForWorkout.sort((a, b) => {
-              const orderA = tPathExercisesForWorkout.find(tpe => tpe.exercise_id === a.id)?.order_index || 0;
-              const orderB = tPathExercisesForWorkout.find(tpe => tpe.exercise_id === b.id)?.order_index || 0;
-              return orderA - orderB;
-            });
-          }
-        }
-        newGroupedTPaths.push({
-          mainTPath: activeMainTPath,
-          childWorkouts: filteredChildWorkouts,
-        });
+    const processAndEnrichData = async () => {
+      if (
+        cachedExercises === undefined || cachedTPaths === undefined || cachedProfile === undefined || cachedTPathExercises === undefined ||
+        cachedExercises === null || cachedTPaths === null || cachedProfile === null || cachedTPathExercises === null
+      ) {
+        return;
       }
-    }
-    setGroupedTPaths(newGroupedTPaths);
-    setWorkoutExercisesCache(newWorkoutExercisesCache);
-    setLoadingData(false);
-    setDataError(exercisesError || tPathsError || profileError || tPathExercisesError);
 
-  }, [session, cachedExercises, cachedTPaths, cachedProfile, cachedTPathExercises, exercisesError, tPathsError, profileError, tPathExercisesError]);
+      if (!session?.user.id || cachedProfile.length === 0) {
+        setLoadingData(true);
+        return;
+      }
+      
+      setAllAvailableExercises(cachedExercises as ExerciseDefinition[]);
+      
+      const userProfile = cachedProfile[0];
+      const activeTPathId = userProfile.active_t_path_id;
 
-  // Effect 2: Enrich the cached data with network calls (runs in background)
-  useEffect(() => {
-    const enrichData = async () => {
-      if (!session || groupedTPaths.length === 0) return;
+      const newGroupedTPaths: GroupedTPath[] = [];
+      const newWorkoutExercisesCache: Record<string, WorkoutExercise[]> = {};
 
-      try {
-        const enrichedGroups = await Promise.all(
-          groupedTPaths.map(async (group) => {
-            const enrichedChildWorkouts = await Promise.all(
-              group.childWorkouts.map(async (workout) => {
-                const { data: lastSessionDate } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
-                return { ...workout, last_completed_at: lastSessionDate?.[0]?.session_date || null };
+      if (activeTPathId) {
+        const activeMainTPath = cachedTPaths.find(tp => tp.id === activeTPathId && tp.user_id === session.user.id && tp.parent_t_path_id === null);
+
+        if (activeMainTPath) {
+          const allChildWorkouts = cachedTPaths.filter(tp => tp.parent_t_path_id === activeMainTPath.id && tp.is_bonus === true);
+          const filteredChildWorkouts: WorkoutWithLastCompleted[] = [];
+
+          for (const workout of allChildWorkouts) {
+            const tPathExercisesForWorkout = cachedTPathExercises.filter(tpe => tpe.template_id === workout.id);
+            const exercisesForWorkout: WorkoutExercise[] = tPathExercisesForWorkout
+              .map(tpe => {
+                const exerciseDef = cachedExercises.find(ex => ex.id === tpe.exercise_id);
+                if (!exerciseDef) return null;
+                return { ...exerciseDef, is_bonus_exercise: tpe.is_bonus_exercise || false };
               })
-            );
-            return { ...group, childWorkouts: enrichedChildWorkouts };
-          })
-        );
-        setGroupedTPaths(enrichedGroups);
-      } catch (err: any) {
-        console.error("Error during background data enrichment:", err);
-        if (!dataError) setDataError(err.message || "Failed to fully load workout data.");
+              .filter(Boolean) as WorkoutExercise[];
+
+            if (exercisesForWorkout.length > 0) {
+              filteredChildWorkouts.push({ ...workout, last_completed_at: null });
+              newWorkoutExercisesCache[workout.id] = exercisesForWorkout.sort((a, b) => {
+                const orderA = tPathExercisesForWorkout.find(tpe => tpe.exercise_id === a.id)?.order_index || 0;
+                const orderB = tPathExercisesForWorkout.find(tpe => tpe.exercise_id === b.id)?.order_index || 0;
+                return orderA - orderB;
+              });
+            }
+          }
+          newGroupedTPaths.push({
+            mainTPath: activeMainTPath,
+            childWorkouts: filteredChildWorkouts,
+          });
+        }
+      }
+      setGroupedTPaths(newGroupedTPaths);
+      setWorkoutExercisesCache(newWorkoutExercisesCache);
+      setLoadingData(false);
+      setDataError(exercisesError || tPathsError || profileError || tPathExercisesError);
+
+      // --- Enrichment Step ---
+      if (newGroupedTPaths.length > 0) {
+        try {
+          const enrichedGroups = await Promise.all(
+            newGroupedTPaths.map(async (group) => {
+              const enrichedChildWorkouts = await Promise.all(
+                group.childWorkouts.map(async (workout) => {
+                  const { data: lastSessionDate } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
+                  return { ...workout, last_completed_at: lastSessionDate?.[0]?.session_date || null };
+                })
+              );
+              return { ...group, childWorkouts: enrichedChildWorkouts };
+            })
+          );
+          setGroupedTPaths(enrichedGroups);
+        } catch (err: any) {
+          console.error("Error during background data enrichment:", err);
+          if (!dataError) setDataError(err.message || "Failed to fully load workout data.");
+        }
       }
     };
 
-    enrichData();
-  }, [session, supabase, dataError, groupedTPaths.map(g => g.mainTPath.id).join(',')]); // Dependency on a stable representation of the groups
+    processAndEnrichData();
+  }, [session, supabase, cachedExercises, cachedTPaths, cachedProfile, cachedTPathExercises, exercisesError, tPathsError, profileError, tPathExercisesError, dataError]);
 
   const refreshAllData = useCallback(() => {
     refreshExercises();

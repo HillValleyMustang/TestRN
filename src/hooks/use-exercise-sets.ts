@@ -424,27 +424,26 @@ export const useExerciseSets = ({
 
     try {
       const isNewPROverall = await updateExercisePRStatus(currentSessionIdToUse, sets);
-      
-      if (isNewPROverall) {
-        const updatedSetsWithPR = sets.map(s => ({ ...s, isPR: true, is_pb: true }));
-        setSets(updatedSetsWithPR);
-        const draftPayloads = updatedSetsWithPR.map((set, index) => ({
-          exercise_id: exerciseId,
-          set_index: index,
-          session_id: currentSessionIdToUse,
-          weight_kg: set.weight_kg,
-          reps: set.reps,
-          reps_l: set.reps_l,
-          reps_r: set.reps_r,
-          time_seconds: set.time_seconds,
-          isSaved: set.isSaved,
-          set_log_id: set.id,
-        }));
-        await db.draft_set_logs.bulkPut(draftPayloads);
-      }
-
       await onExerciseComplete(exerciseId, isNewPROverall);
-      
+
+      const lastSetsMap = await fetchLastSets();
+
+      setSets(prevSets => {
+        return prevSets.map((set, setIndex) => {
+          const correspondingLastSet = lastSetsMap.get(exerciseId)?.[setIndex];
+          return {
+            ...set,
+            isPR: isNewPROverall,
+            is_pb: isNewPROverall,
+            lastWeight: correspondingLastSet?.weight_kg || null,
+            lastReps: correspondingLastSet?.reps || null,
+            lastRepsL: correspondingLastSet?.reps_l || null,
+            lastRepsR: correspondingLastSet?.reps_r || null,
+            lastTimeSeconds: correspondingLastSet?.time_seconds || null,
+          };
+        });
+      });
+
       const draftsToDelete = await db.draft_set_logs
         .where('exercise_id').equals(exerciseId)
         .filter(draft => draft.session_id === currentSessionIdToUse)
@@ -455,19 +454,6 @@ export const useExerciseSets = ({
         console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1])), `Invalid draft keys in handleSaveExercise bulkDelete: ${JSON.stringify(keysToDelete)}`);
         await db.draft_set_logs.bulkDelete(keysToDelete);
       }
-
-      const lastSetsMap = await fetchLastSets();
-      setSets(prevSets => prevSets.map((set, setIndex) => {
-        const correspondingLastSet = lastSetsMap.get(exerciseId)?.[setIndex];
-        return {
-          ...set,
-          lastWeight: correspondingLastSet?.weight_kg || null,
-          lastReps: correspondingLastSet?.reps || null,
-          lastRepsL: correspondingLastSet?.reps_l || null,
-          lastRepsR: correspondingLastSet?.reps_r || null,
-          lastTimeSeconds: correspondingLastSet?.time_seconds || null,
-        };
-      }));
 
       return true;
     } catch (err: any) {
