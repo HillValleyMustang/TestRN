@@ -12,6 +12,7 @@ import { ExerciseSummaryCard } from '@/components/workout-summary/exercise-summa
 import { WorkoutVolumeHistoryCard } from '@/components/workout-summary/workout-volume-history-card';
 import { AiSessionAnalysisCard } from '@/components/workout-summary/ai-session-analysis-card';
 import { ACHIEVEMENT_DISPLAY_INFO } from '@/lib/achievements';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
@@ -202,10 +203,10 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col p-0">
-        <DialogHeader className="p-6 pb-4 border-b">
+        <DialogHeader className="p-6 pb-4 border-b flex-shrink-0">
           <DialogTitle>Workout Summary</DialogTitle>
         </DialogHeader>
-        <div className="flex-grow overflow-y-auto">
+        <ScrollArea className="flex-grow">
           <div className="p-6 space-y-6">
             {loading && <p>Loading workout summary...</p>}
             {error && <p className="text-destructive">{error}</p>}
@@ -247,8 +248,8 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
               </>
             )}
           </div>
-        </div>
-        <DialogFooter className="p-6 pt-4 border-t">
+        </ScrollArea>
+        <DialogFooter className="p-6 pt-4 border-t flex-shrink-0">
           <Button onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>
