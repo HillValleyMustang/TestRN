@@ -27,6 +27,7 @@ interface UseWorkoutFlowManagerReturn {
   currentSessionId: string | null;
   sessionStartTime: Date | null;
   completedExercises: Set<string>;
+  selectedWorkoutId: string | null; // Added to return type
   selectWorkout: (workoutId: string | null) => Promise<void>;
   addExerciseToSession: (exercise: ExerciseDefinition) => Promise<void>;
   removeExerciseFromSession: (exerciseId: string) => Promise<void>;
@@ -162,6 +163,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     currentSessionId,
     sessionStartTime,
     completedExercises,
+    selectedWorkoutId, // Expose this state
     selectWorkout,
     addExerciseToSession,
     removeExerciseFromSession,

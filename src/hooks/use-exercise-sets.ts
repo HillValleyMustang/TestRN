@@ -425,23 +425,10 @@ export const useExerciseSets = ({
       const isNewPROverall = await updateExercisePRStatus(currentSessionIdToUse, sets);
       await onExerciseComplete(exerciseId, isNewPROverall);
 
-      const lastSetsMap = await fetchLastSets();
-
-      setSets(prevSets => {
-        return prevSets.map((set, setIndex) => {
-          const correspondingLastSet = lastSetsMap.get(exerciseId)?.[setIndex];
-          return {
-            ...set,
-            isPR: isNewPROverall,
-            is_pb: isNewPROverall,
-            lastWeight: correspondingLastSet?.weight_kg || null,
-            lastReps: correspondingLastSet?.reps || null,
-            lastRepsL: correspondingLastSet?.reps_l || null,
-            lastRepsR: correspondingLastSet?.reps_r || null,
-            lastTimeSeconds: correspondingLastSet?.time_seconds || null,
-          };
-        });
-      });
+      // FIX: Update the local sets state with the new PR status immediately.
+      if (isNewPROverall) {
+        setSets(prevSets => prevSets.map(s => ({ ...s, is_pb: true, isPR: true })));
+      }
 
       const draftsToDelete = await db.draft_set_logs
         .where('exercise_id').equals(exerciseId)
@@ -460,7 +447,7 @@ export const useExerciseSets = ({
       toast.error("Failed to complete exercise: " + err.message);
       return { success: false, isNewPR: false };
     }
-  }, [sets, exerciseId, onExerciseComplete, onFirstSetSaved, propCurrentSessionId, saveSetToDb, updateExercisePRStatus, fetchLastSets]);
+  }, [sets, exerciseId, onExerciseComplete, onFirstSetSaved, propCurrentSessionId, saveSetToDb, updateExercisePRStatus]);
 
   const handleSuggestProgression = useCallback(async () => {
     console.assert(isValidId(exerciseId), `Invalid exerciseId in handleSuggestProgression: ${exerciseId}`);

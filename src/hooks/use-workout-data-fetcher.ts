@@ -172,13 +172,19 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
                   
                   const lastLocalSession = localSessions.pop(); // Get the most recent one
 
-                  if (lastLocalSession?.completed_at) {
-                    return { ...workout, last_completed_at: lastLocalSession.completed_at };
-                  }
-
                   // Fallback to RPC for initial load or if local data is missing
                   const { data: lastSessionDate } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
-                  return { ...workout, last_completed_at: lastSessionDate?.[0]?.session_date || null };
+                  const rpcDate = lastSessionDate?.[0]?.session_date ? new Date(lastSessionDate[0].session_date) : null;
+                  const localDate = lastLocalSession?.completed_at ? new Date(lastLocalSession.completed_at) : null;
+
+                  let mostRecentDate = null;
+                  if (rpcDate && localDate) {
+                    mostRecentDate = rpcDate > localDate ? rpcDate : localDate;
+                  } else {
+                    mostRecentDate = rpcDate || localDate;
+                  }
+
+                  return { ...workout, last_completed_at: mostRecentDate ? mostRecentDate.toISOString() : null };
                 })
               );
               return { ...group, childWorkouts: enrichedChildWorkouts };
