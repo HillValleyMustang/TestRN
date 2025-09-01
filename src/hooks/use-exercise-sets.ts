@@ -137,6 +137,26 @@ export const useExerciseSets = ({
     await db.draft_set_logs.bulkPut(draftPayloads);
   }, [exerciseId, propCurrentSessionId]);
 
+  const fetchLastSets = useCallback(async () => {
+    if (!session || !isValidId(exerciseId)) return new Map<string, GetLastExerciseSetsForExerciseReturns>();
+    
+    const { data: lastExerciseSets, error: rpcError } = await supabase.rpc('get_last_exercise_sets_for_exercise', {
+      p_user_id: session.user.id,
+      p_exercise_id: exerciseId,
+    });
+
+    if (rpcError && rpcError.code !== 'PGRST116') { 
+      console.error(`Error fetching last sets for exercise ${exerciseName}:`, rpcError);
+      return new Map<string, GetLastExerciseSetsForExerciseReturns>();
+    }
+    
+    const lastSetsMap = new Map<string, GetLastExerciseSetsForExerciseReturns>();
+    if (lastExerciseSets) {
+      lastSetsMap.set(exerciseId, lastExerciseSets);
+    }
+    return lastSetsMap;
+  }, [session, supabase, exerciseId, exerciseName]);
+
   // Effect to process drafts from useLiveQuery and fetch last sets
   useEffect(() => {
     const processAndSetSets = async () => {
@@ -168,18 +188,7 @@ export const useExerciseSets = ({
       }
 
       // Fetch last sets for comparison (this part remains the same)
-      const lastSetsMap = new Map<string, GetLastExerciseSetsForExerciseReturns>();
-      if (session) {
-        const { data: lastExerciseSets, error: rpcError } = await supabase.rpc('get_last_exercise_sets_for_exercise', {
-          p_user_id: session.user.id,
-          p_exercise_id: exerciseId,
-        });
-        if (rpcError && rpcError.code !== 'PGRST116') { 
-          console.error(`Error fetching last sets for exercise ${exerciseName}:`, rpcError);
-        } else if (lastExerciseSets) {
-          lastSetsMap.set(exerciseId, lastExerciseSets);
-        }
-      }
+      const lastSetsMap = await fetchLastSets();
 
       const finalSets = loadedSets.map((set, setIndex) => {
         const correspondingLastSet = lastSetsMap.get(exerciseId)?.[setIndex];
@@ -196,7 +205,7 @@ export const useExerciseSets = ({
     };
 
     processAndSetSets();
-  }, [drafts, loadingDrafts, exerciseId, propCurrentSessionId, supabase, session, exerciseName, createInitialDrafts]);
+  }, [drafts, loadingDrafts, exerciseId, propCurrentSessionId, exerciseName, createInitialDrafts, fetchLastSets]);
 
   // Notify parent component when sets change (derived from IndexedDB)
   useEffect(() => {
@@ -414,10 +423,28 @@ export const useExerciseSets = ({
     if (hasError) return false;
 
     try {
-      const isNewPROverall = await updateExercisePRStatus(currentSessionIdToUse, sets); // Pass current 'sets' state
+      const isNewPROverall = await updateExercisePRStatus(currentSessionIdToUse, sets);
+      
+      if (isNewPROverall) {
+        const updatedSetsWithPR = sets.map(s => ({ ...s, isPR: true, is_pb: true }));
+        setSets(updatedSetsWithPR);
+        const draftPayloads = updatedSetsWithPR.map((set, index) => ({
+          exercise_id: exerciseId,
+          set_index: index,
+          session_id: currentSessionIdToUse,
+          weight_kg: set.weight_kg,
+          reps: set.reps,
+          reps_l: set.reps_l,
+          reps_r: set.reps_r,
+          time_seconds: set.time_seconds,
+          isSaved: set.isSaved,
+          set_log_id: set.id,
+        }));
+        await db.draft_set_logs.bulkPut(draftPayloads);
+      }
+
       await onExerciseComplete(exerciseId, isNewPROverall);
       
-      // All drafts for this exercise and session should be cleared once the exercise is "completed"
       const draftsToDelete = await db.draft_set_logs
         .where('exercise_id').equals(exerciseId)
         .filter(draft => draft.session_id === currentSessionIdToUse)
@@ -428,13 +455,27 @@ export const useExerciseSets = ({
         console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1])), `Invalid draft keys in handleSaveExercise bulkDelete: ${JSON.stringify(keysToDelete)}`);
         await db.draft_set_logs.bulkDelete(keysToDelete);
       }
+
+      const lastSetsMap = await fetchLastSets();
+      setSets(prevSets => prevSets.map((set, setIndex) => {
+        const correspondingLastSet = lastSetsMap.get(exerciseId)?.[setIndex];
+        return {
+          ...set,
+          lastWeight: correspondingLastSet?.weight_kg || null,
+          lastReps: correspondingLastSet?.reps || null,
+          lastRepsL: correspondingLastSet?.reps_l || null,
+          lastRepsR: correspondingLastSet?.reps_r || null,
+          lastTimeSeconds: correspondingLastSet?.time_seconds || null,
+        };
+      }));
+
       return true;
     } catch (err: any) {
       console.error("Error saving exercise completion or PR:", err);
       toast.error("Failed to complete exercise: " + err.message);
       return false;
     }
-  }, [sets, exerciseId, onExerciseComplete, onFirstSetSaved, propCurrentSessionId, saveSetToDb, updateExercisePRStatus]);
+  }, [sets, exerciseId, onExerciseComplete, onFirstSetSaved, propCurrentSessionId, saveSetToDb, updateExercisePRStatus, fetchLastSets]);
 
   const handleSuggestProgression = useCallback(async () => {
     console.assert(isValidId(exerciseId), `Invalid exerciseId in handleSuggestProgression: ${exerciseId}`);
