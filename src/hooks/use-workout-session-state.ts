@@ -140,7 +140,8 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
       p_exercise_id: exercise.id,
     });
 
-    if (rpcError) {
+    // Only log if there's an actual error message and it's not the "no rows found" error
+    if (rpcError && rpcError.code !== 'PGRST116') { 
       console.error(`Error fetching last sets for ad-hoc exercise ${exercise.name}:`, rpcError);
     } else if (lastExerciseSets && lastExerciseSets.length > 0) {
       const firstLastSet = lastExerciseSets[0];
