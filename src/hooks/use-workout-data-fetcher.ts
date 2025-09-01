@@ -7,7 +7,6 @@ import { Tables, WorkoutExercise } from '@/types/supabase';
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
 import { db, LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
-import { getMaxMinutes } from '@/lib/utils';
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -100,106 +99,109 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   // Effect to process cached data and then trigger enrichment
   useEffect(() => {
     const processAndEnrichData = async () => {
-      if (
-        cachedExercises === undefined || cachedTPaths === undefined || cachedProfile === undefined || cachedTPathExercises === undefined ||
-        cachedExercises === null || cachedTPaths === null || cachedProfile === null || cachedTPathExercises === null
-      ) {
-        return;
-      }
+      const isLoading = loadingExercises || loadingTPaths || loadingProfile || loadingTPathExercises;
+      const anyError = exercisesError || tPathsError || profileError || tPathExercisesError;
 
-      if (!session?.user.id || cachedProfile.length === 0) {
+      if (isLoading) {
         setLoadingData(true);
         return;
       }
-      
+
+      if (anyError) {
+        setDataError(anyError);
+        setLoadingData(false);
+        console.error("Data fetching error:", anyError);
+        toast.error("Failed to load workout data from cache.");
+        return;
+      }
+
+      if (!session?.user.id || !cachedProfile || cachedProfile.length === 0) {
+        setLoadingData(false); // Not loading, just no user/profile yet
+        return;
+      }
+
+      // --- Start Data Processing ---
       setAllAvailableExercises(cachedExercises as ExerciseDefinition[]);
       
       const userProfile = cachedProfile[0];
       const activeTPathId = userProfile.active_t_path_id;
 
-      const newGroupedTPaths: GroupedTPath[] = [];
+      if (!activeTPathId) {
+        setGroupedTPaths([]);
+        setWorkoutExercisesCache({});
+        setLoadingData(false);
+        return;
+      }
+
+      const activeMainTPath = (cachedTPaths || []).find(tp => tp.id === activeTPathId);
+
+      if (!activeMainTPath) {
+        console.warn("Active T-Path ID found in profile, but T-Path itself not found in cache.");
+        setGroupedTPaths([]);
+        setWorkoutExercisesCache({});
+        setLoadingData(false);
+        return;
+      }
+
+      const childWorkouts = (cachedTPaths || []).filter(tp => tp.parent_t_path_id === activeMainTPath.id && tp.is_bonus);
+
+      const exerciseDefMap = new Map<string, ExerciseDefinition>();
+      (cachedExercises || []).forEach(def => exerciseDefMap.set(def.id, def as ExerciseDefinition));
+
       const newWorkoutExercisesCache: Record<string, WorkoutExercise[]> = {};
-
-      if (activeTPathId) {
-        const activeMainTPath = cachedTPaths.find(tp => tp.id === activeTPathId && tp.user_id === session.user.id && tp.parent_t_path_id === null);
-
-        if (activeMainTPath) {
-          const allChildWorkouts = cachedTPaths.filter(tp => tp.parent_t_path_id === activeMainTPath.id && tp.is_bonus === true);
-          const filteredChildWorkouts: WorkoutWithLastCompleted[] = [];
-
-          for (const workout of allChildWorkouts) {
-            const tPathExercisesForWorkout = cachedTPathExercises.filter(tpe => tpe.template_id === workout.id);
-            const exercisesForWorkout: WorkoutExercise[] = tPathExercisesForWorkout
-              .map(tpe => {
-                const exerciseDef = cachedExercises.find(ex => ex.id === tpe.exercise_id);
-                if (!exerciseDef) return null;
-                return { ...exerciseDef, is_bonus_exercise: tpe.is_bonus_exercise || false };
-              })
-              .filter(Boolean) as WorkoutExercise[];
-
-            if (exercisesForWorkout.length > 0) {
-              filteredChildWorkouts.push({ ...workout, last_completed_at: null });
-              newWorkoutExercisesCache[workout.id] = exercisesForWorkout.sort((a, b) => {
-                const orderA = tPathExercisesForWorkout.find(tpe => tpe.exercise_id === a.id)?.order_index || 0;
-                const orderB = tPathExercisesForWorkout.find(tpe => tpe.exercise_id === b.id)?.order_index || 0;
-                return orderA - orderB;
-              });
-            }
-          }
-          newGroupedTPaths.push({
-            mainTPath: activeMainTPath,
-            childWorkouts: filteredChildWorkouts,
-          });
-        }
+      for (const workout of childWorkouts) {
+        const exercisesForWorkout = (cachedTPathExercises || [])
+          .filter(tpe => tpe.template_id === workout.id)
+          .sort((a, b) => a.order_index - b.order_index)
+          .map(tpe => {
+            const exerciseDef = exerciseDefMap.get(tpe.exercise_id);
+            if (!exerciseDef) return null;
+            return { ...exerciseDef, is_bonus_exercise: tpe.is_bonus_exercise || false };
+          })
+          .filter(Boolean) as WorkoutExercise[];
+        newWorkoutExercisesCache[workout.id] = exercisesForWorkout;
       }
-      setGroupedTPaths(newGroupedTPaths);
+
       setWorkoutExercisesCache(newWorkoutExercisesCache);
-      setLoadingData(false);
-      setDataError(exercisesError || tPathsError || profileError || tPathExercisesError);
 
-      // --- Enrichment Step ---
-      if (newGroupedTPaths.length > 0) {
-        try {
-          const enrichedGroups = await Promise.all(
-            newGroupedTPaths.map(async (group) => {
-              const enrichedChildWorkouts = await Promise.all(
-                group.childWorkouts.map(async (workout) => {
-                  // Prioritize local DB for immediate feedback
-                  const localSessions = await db.workout_sessions
-                    .where('template_name').equals(workout.template_name)
-                    .and(s => s.user_id === session.user.id && s.completed_at !== null)
-                    .sortBy('completed_at');
-                  
-                  const lastLocalSession = localSessions.pop(); // Get the most recent one
+      // Enrich child workouts with last completed date
+      try {
+        const enrichedChildWorkouts = await Promise.all(
+          childWorkouts.map(async (workout) => {
+            const { data: lastSessionDate, error: rpcError } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
+            if (rpcError) {
+              console.error(`Error fetching last completed date for workout ${workout.id}:`, rpcError);
+            }
+            return { ...workout, last_completed_at: lastSessionDate?.[0]?.session_date || null };
+          })
+        );
 
-                  // Fallback to RPC for initial load or if local data is missing
-                  const { data: lastSessionDate } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
-                  const rpcDate = lastSessionDate?.[0]?.session_date ? new Date(lastSessionDate[0].session_date) : null;
-                  const localDate = lastLocalSession?.completed_at ? new Date(lastLocalSession.completed_at) : null;
-
-                  let mostRecentDate = null;
-                  if (rpcDate && localDate) {
-                    mostRecentDate = rpcDate > localDate ? rpcDate : localDate;
-                  } else {
-                    mostRecentDate = rpcDate || localDate;
-                  }
-
-                  return { ...workout, last_completed_at: mostRecentDate ? mostRecentDate.toISOString() : null };
-                })
-              );
-              return { ...group, childWorkouts: enrichedChildWorkouts };
-            })
-          );
-          setGroupedTPaths(enrichedGroups);
-        } catch (err: any) {
-          console.error("Error during background data enrichment:", err);
-          if (!dataError) setDataError(err.message || "Failed to fully load workout data.");
-        }
+        setGroupedTPaths([{
+          mainTPath: activeMainTPath,
+          childWorkouts: enrichedChildWorkouts,
+        }]);
+      } catch (enrichError: any) {
+        console.error("Failed to enrich workout data:", enrichError);
+        toast.error("Could not load workout completion dates.");
+        // Set data anyway, just without completion dates
+        setGroupedTPaths([{
+          mainTPath: activeMainTPath,
+          childWorkouts: childWorkouts.map(cw => ({ ...cw, last_completed_at: null })),
+        }]);
       }
+
+      setLoadingData(false);
+      setDataError(null);
     };
 
     processAndEnrichData();
-  }, [session, supabase, cachedExercises, cachedTPaths, cachedProfile, cachedTPathExercises, exercisesError, tPathsError, profileError, tPathExercisesError, dataError]);
+  }, [
+    session, supabase,
+    cachedExercises, loadingExercises, exercisesError,
+    cachedTPaths, loadingTPaths, tPathsError,
+    cachedProfile, loadingProfile, profileError,
+    cachedTPathExercises, loadingTPathExercises, tPathExercisesError
+  ]);
 
   const refreshAllData = useCallback(() => {
     refreshExercises();
