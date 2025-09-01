@@ -58,11 +58,12 @@ export const useSyncManager = () => {
       console.log(`Synced and removed item ${item.id} from queue.`);
 
     } catch (error: any) {
+      const errorMessage = error?.message || JSON.stringify(error) || "An unknown error occurred during sync.";
       console.error(`Failed to sync item ${item.id}:`, error);
       // Increment attempt count and update error message
       await db.sync_queue.update(item.id!, {
         attempts: item.attempts + 1,
-        error: error.message,
+        error: errorMessage, // Use the more robust error message
       });
       // Show an error toast if sync fails
       toast.error("Background sync failed for some items. Check console for details.");
