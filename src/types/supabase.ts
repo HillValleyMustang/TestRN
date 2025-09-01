@@ -37,6 +37,12 @@ export type ProfileUpdate = TablesUpdate<'profiles'>;
 // Define a type for set logs joined with exercise definitions, including is_pb
 export type SetLogWithExercise = Pick<Tables<'set_logs'>, 'id' | 'weight_kg' | 'reps' | 'reps_l' | 'reps_r' | 'time_seconds' | 'is_pb' | 'created_at' | 'exercise_id' | 'session_id'> & {
   exercise_definitions: Pick<Tables<'exercise_definitions'>, 'id' | 'name' | 'main_muscle' | 'type' | 'category'> | null;
+  // Added fields for progressive overload comparison
+  last_session_weight_kg?: number | null;
+  last_session_reps?: number | null;
+  last_session_reps_l?: number | null;
+  last_session_reps_r?: number | null;
+  last_session_time_seconds?: number | null;
 };
 
 // New type for exercises when fetched as part of a workout, including bonus status
