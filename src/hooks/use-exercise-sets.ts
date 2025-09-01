@@ -102,81 +102,101 @@ export const useExerciseSets = ({
   });
 
   // Use useLiveQuery to reactively get sets from IndexedDB drafts
-  const sets = useLiveQuery(async () => {
+  const drafts = useLiveQuery(async () => {
     if (!isValidId(exerciseId)) {
       return [];
     }
-
-    const drafts = await db.draft_set_logs
+    return db.draft_set_logs
       .where('exercise_id').equals(exerciseId)
       .filter(draft => draft.session_id === propCurrentSessionId)
       .sortBy('set_index');
+  }, [exerciseId, propCurrentSessionId]);
 
-    let loadedSets: SetLogState[] = [];
+  // State for the actual sets displayed in the UI
+  const [sets, setSets] = useState<SetLogState[]>([]);
+  const loadingDrafts = drafts === undefined; // Infer loading state
 
-    if (drafts.length > 0) {
-      loadedSets = drafts.map(draft => ({
-        id: draft.set_log_id || null,
-        created_at: null, // Will be set on actual save
-        session_id: draft.session_id,
-        exercise_id: draft.exercise_id,
-        weight_kg: draft.weight_kg,
-        reps: draft.reps,
-        reps_l: draft.reps_l,
-        reps_r: draft.reps_r,
-        time_seconds: draft.time_seconds,
-        is_pb: false, // This is determined on save
-        isSaved: draft.isSaved || false, // Use draft's isSaved status
-        isPR: false, // This is determined on save
-        lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
-      }));
-    } else {
-      // If no drafts, create default empty sets and save them as drafts
-      for (let i = 0; i < DEFAULT_INITIAL_SETS; i++) {
-        const newSet: SetLogState = {
-          id: null, created_at: null, session_id: propCurrentSessionId, exercise_id: exerciseId,
-          weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null,
-          is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
-        };
-        loadedSets.push(newSet);
-        const draftPayload: LocalDraftSetLog = {
-          exercise_id: exerciseId, set_index: i, session_id: propCurrentSessionId,
-          weight_kg: newSet.weight_kg, reps: newSet.reps, reps_l: newSet.reps_l, reps_r: newSet.reps_r, time_seconds: newSet.time_seconds,
-          isSaved: false, set_log_id: null,
-        };
-        // Assert key validity before put
-        console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in useLiveQuery init: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
-        await db.draft_set_logs.put(draftPayload);
-      }
-    }
+  // Function to create initial drafts if none exist
+  const createInitialDrafts = useCallback(async () => {
+    if (!isValidId(exerciseId)) return;
 
-    // Fetch last sets for comparison (this part remains the same)
-    const lastSetsMap = new Map<string, GetLastExerciseSetsForExerciseReturns>();
-    if (session) {
-      const { data: lastExerciseSets, error: rpcError } = await supabase.rpc('get_last_exercise_sets_for_exercise', {
-        p_user_id: session.user.id,
-        p_exercise_id: exerciseId,
-      });
-      if (rpcError && rpcError.code !== 'PGRST116') { 
-        console.error(`Error fetching last sets for exercise ${exerciseName}:`, rpcError);
-      } else if (lastExerciseSets) {
-        lastSetsMap.set(exerciseId, lastExerciseSets);
-      }
-    }
-
-    const finalSets = loadedSets.map((set, setIndex) => {
-      const correspondingLastSet = lastSetsMap.get(exerciseId)?.[setIndex];
-      return {
-        ...set,
-        lastWeight: correspondingLastSet?.weight_kg || null,
-        lastReps: correspondingLastSet?.reps || null,
-        lastRepsL: correspondingLastSet?.reps_l || null,
-        lastRepsR: correspondingLastSet?.reps_r || null,
-        lastTimeSeconds: correspondingLastSet?.time_seconds || null,
+    const draftPayloads: LocalDraftSetLog[] = [];
+    for (let i = 0; i < DEFAULT_INITIAL_SETS; i++) {
+      const newSet: SetLogState = {
+        id: null, created_at: null, session_id: propCurrentSessionId, exercise_id: exerciseId,
+        weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null,
+        is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
       };
-    });
-    return finalSets;
-  }, [exerciseId, propCurrentSessionId, supabase, session, exerciseName]);
+      draftPayloads.push({
+        exercise_id: exerciseId, set_index: i, session_id: propCurrentSessionId,
+        weight_kg: newSet.weight_kg, reps: newSet.reps, reps_l: newSet.reps_l, reps_r: newSet.reps_r, time_seconds: newSet.time_seconds,
+        isSaved: false, set_log_id: null,
+      });
+    }
+    console.assert(draftPayloads.every(d => isValidDraftKey(d.exercise_id, d.set_index)), `Invalid draft keys in createInitialDrafts bulkPut: ${JSON.stringify(draftPayloads.map(d => [d.exercise_id, d.set_index]))}`);
+    await db.draft_set_logs.bulkPut(draftPayloads);
+  }, [exerciseId, propCurrentSessionId]);
+
+  // Effect to process drafts from useLiveQuery and fetch last sets
+  useEffect(() => {
+    const processAndSetSets = async () => {
+      if (loadingDrafts || !isValidId(exerciseId)) return;
+
+      let loadedSets: SetLogState[] = [];
+
+      if (drafts && drafts.length > 0) {
+        loadedSets = drafts.map((draft: LocalDraftSetLog) => ({ // Explicitly type 'draft'
+          id: draft.set_log_id || null,
+          created_at: null, // Will be set on actual save
+          session_id: draft.session_id,
+          exercise_id: draft.exercise_id,
+          weight_kg: draft.weight_kg,
+          reps: draft.reps,
+          reps_l: draft.reps_l,
+          reps_r: draft.reps_r,
+          time_seconds: draft.time_seconds,
+          is_pb: false, // This is determined on save
+          isSaved: draft.isSaved || false, // Use draft's isSaved status
+          isPR: false, // This is determined on save
+          lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
+        }));
+      } else {
+        // If no drafts, trigger creation of initial drafts
+        // This will cause useLiveQuery to re-run and pick up the new drafts
+        createInitialDrafts();
+        return; // Exit to avoid setting empty sets immediately
+      }
+
+      // Fetch last sets for comparison (this part remains the same)
+      const lastSetsMap = new Map<string, GetLastExerciseSetsForExerciseReturns>();
+      if (session) {
+        const { data: lastExerciseSets, error: rpcError } = await supabase.rpc('get_last_exercise_sets_for_exercise', {
+          p_user_id: session.user.id,
+          p_exercise_id: exerciseId,
+        });
+        if (rpcError && rpcError.code !== 'PGRST116') { 
+          console.error(`Error fetching last sets for exercise ${exerciseName}:`, rpcError);
+        } else if (lastExerciseSets) {
+          lastSetsMap.set(exerciseId, lastExerciseSets);
+        }
+      }
+
+      const finalSets = loadedSets.map((set, setIndex) => {
+        const correspondingLastSet = lastSetsMap.get(exerciseId)?.[setIndex];
+        return {
+          ...set,
+          lastWeight: correspondingLastSet?.weight_kg || null,
+          lastReps: correspondingLastSet?.reps || null,
+          lastRepsL: correspondingLastSet?.reps_l || null,
+          lastRepsR: correspondingLastSet?.reps_r || null,
+          lastTimeSeconds: correspondingLastSet?.time_seconds || null,
+        };
+      });
+      setSets(finalSets);
+    };
+
+    processAndSetSets();
+  }, [drafts, loadingDrafts, exerciseId, propCurrentSessionId, supabase, session, exerciseName, createInitialDrafts]);
 
   // Notify parent component when sets change (derived from IndexedDB)
   useEffect(() => {
