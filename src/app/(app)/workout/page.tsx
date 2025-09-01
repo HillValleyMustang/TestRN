@@ -42,7 +42,6 @@ export default function WorkoutPage() {
         </header>
         <WorkoutSelector 
           {...workoutFlowManager} 
-          selectedWorkoutId={workoutFlowManager.activeWorkout?.id || null}
           onWorkoutSelect={handleWorkoutSelect}
           loadingWorkoutFlow={workoutFlowManager.loading}
           createWorkoutSessionInDb={workoutFlowManager.createWorkoutSessionInDb}

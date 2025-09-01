@@ -34,7 +34,6 @@ interface GroupedTPath {
 
 interface WorkoutSelectorProps {
   onWorkoutSelect: (workoutId: string | null) => void;
-  selectedWorkoutId: string | null;
   activeWorkout: TPath | null;
   exercisesForSession: WorkoutExercise[];
   exercisesWithSets: Record<string, SetLogState[]>;
@@ -92,7 +91,6 @@ const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName:
 
 export const WorkoutSelector = ({ 
   onWorkoutSelect, 
-  selectedWorkoutId,
   activeWorkout,
   exercisesForSession,
   exercisesWithSets,
@@ -159,10 +157,10 @@ export const WorkoutSelector = ({
 
   const handleEditWorkoutSaveSuccess = useCallback(async () => {
     setIsEditWorkoutDialogOpen(false);
-    if (selectedWorkoutId) {
-      await selectWorkout(selectedWorkoutId); // Re-fetch exercises for the current workout
+    if (activeWorkout?.id) {
+      await selectWorkout(activeWorkout.id); // Re-fetch exercises for the current workout
     }
-  }, [selectedWorkoutId, selectWorkout]);
+  }, [activeWorkout, selectWorkout]);
 
   // Removed: AI Gym Analysis Handlers
   // Removed: handleAIIdentifiedExercise
@@ -200,7 +198,7 @@ export const WorkoutSelector = ({
                         <WorkoutPill
                           key={workout.id}
                           {...pillProps}
-                          isSelected={selectedWorkoutId === workout.id}
+                          isSelected={activeWorkout?.id === workout.id}
                           onClick={handleWorkoutClick}
                           className={cn(isPPLAndLegs && "col-span-2 justify-self-center max-w-[calc(50%-0.5rem)]")}
                         />
@@ -213,18 +211,18 @@ export const WorkoutSelector = ({
           )}
         </div>
 
-        {selectedWorkoutId && activeWorkout && (
+        {activeWorkout && (
           <div className="mt-4 border-t pt-4">
             <div className="flex justify-center mb-4">
               <WorkoutBadge 
-                workoutName={selectedWorkoutId === 'ad-hoc' ? "Ad Hoc Workout" : (activeWorkout?.template_name || "Workout")} 
+                workoutName={activeWorkout.id === 'ad-hoc' ? "Ad Hoc Workout" : (activeWorkout?.template_name || "Workout")} 
                 className="text-lg px-4 py-2"
               >
-                {selectedWorkoutId === 'ad-hoc' ? "Ad Hoc Workout" : (activeWorkout?.template_name || "Workout")}
+                {activeWorkout.id === 'ad-hoc' ? "Ad Hoc Workout" : (activeWorkout?.template_name || "Workout")}
               </WorkoutBadge>
             </div>
 
-            {selectedWorkoutId === 'ad-hoc' && (
+            {activeWorkout.id === 'ad-hoc' && (
               <section className="mb-6 p-4 border rounded-lg bg-card">
                 <h3 className="text-lg font-semibold mb-3">Add Exercises</h3>
                 <div className="flex flex-col sm:flex-row gap-3">
@@ -247,7 +245,7 @@ export const WorkoutSelector = ({
             )}
 
             <section className="mb-6">
-              {exercisesForSession.length === 0 && selectedWorkoutId !== 'ad-hoc' ? (
+              {exercisesForSession.length === 0 && activeWorkout.id !== 'ad-hoc' ? (
                 <div className="flex flex-col items-center justify-center text-center py-8">
                   <Dumbbell className="h-12 w-12 text-muted-foreground mb-3" />
                   <h3 className="text-lg font-bold mb-2">No exercises for this workout</h3>
@@ -277,7 +275,7 @@ export const WorkoutSelector = ({
               )}
             </section>
 
-            {selectedWorkoutId !== 'ad-hoc' && activeWorkout && (
+            {activeWorkout.id !== 'ad-hoc' && activeWorkout && (
               <Button 
                 variant="outline" 
                 onClick={handleOpenEditWorkoutDialog} 
@@ -298,7 +296,7 @@ export const WorkoutSelector = ({
         <Card
           className={cn(
             "cursor-pointer hover:bg-accent transition-colors",
-            selectedWorkoutId === 'ad-hoc' && "border-primary ring-2 ring-primary"
+            activeWorkout?.id === 'ad-hoc' && "border-primary ring-2 ring-primary"
           )}
           onClick={handleAdHocClick}
         >
