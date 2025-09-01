@@ -385,7 +385,7 @@ export const useExerciseSets = ({
       if (draftsToDelete.length > 0) {
         // Assert key validity before bulkDelete
         console.assert(draftsToDelete.every(d => isValidDraftKey(d.exercise_id, d.set_index)), `Invalid draft keys in handleSaveExercise bulkDelete: ${JSON.stringify(draftsToDelete.map(d => [d.exercise_id, d.set_index]))}`);
-        await db.draft_set_logs.bulkDelete(draftsToDelete.map(d => [d.exercise_id, d.set_index]));
+        await db.draft_set_logs.bulkDelete(draftsToDelete.map(d => [d.exercise_id, d.set_index] as [string, number])); // Explicitly cast to tuple
       }
       return true;
     } catch (err: any) {
@@ -412,7 +412,7 @@ export const useExerciseSets = ({
       if (draftsToDelete.length > 0) {
         // Assert key validity before bulkDelete
         console.assert(draftsToDelete.every(d => isValidDraftKey(d.exercise_id, d.set_index)), `Invalid draft keys in handleSuggestProgression bulkDelete: ${JSON.stringify(draftsToDelete.map(d => [d.exercise_id, d.set_index]))}`);
-        await db.draft_set_logs.bulkDelete(draftsToDelete.map(d => [d.exercise_id, d.set_index]));
+        await db.draft_set_logs.bulkDelete(draftsToDelete.map(d => [d.exercise_id, d.set_index] as [string, number])); // Explicitly cast to tuple
       }
 
       const draftPayloads: LocalDraftSetLog[] = newSets.map((set, index) => ({

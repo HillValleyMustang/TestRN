@@ -13,6 +13,16 @@ type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 const DEFAULT_INITIAL_SETS = 3;
 
+// Helper function to validate if an ID is a non-empty string
+const isValidId = (id: string | null | undefined): id is string => {
+  return typeof id === 'string' && id.length > 0;
+};
+
+// Helper function to validate a composite key for draft_set_logs
+const isValidDraftKey = (exerciseId: string | null | undefined, setIndex: number | null | undefined): boolean => {
+  return isValidId(exerciseId) && typeof setIndex === 'number' && setIndex >= 0;
+};
+
 interface UseWorkoutSessionStateProps {
   allAvailableExercises: ExerciseDefinition[];
 }
@@ -61,7 +71,16 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
     setSessionStartTime(null);
     setCompletedExercises(new Set());
     if (session?.user.id) {
-      await db.draft_set_logs.clear();
+      // Clear all drafts for the current user
+      const allDrafts = await db.draft_set_logs.toArray();
+      const userDraftKeys = allDrafts
+        .filter(draft => isValidId(draft.exercise_id)) // Ensure exercise_id is valid
+        .map(draft => [draft.exercise_id, draft.set_index] as [string, number]); // Explicitly cast to tuple
+      
+      if (userDraftKeys.length > 0) {
+        console.assert(userDraftKeys.every(key => isValidDraftKey(key[0], key[1])), `Invalid draft keys in resetWorkoutSession bulkDelete: ${JSON.stringify(userDraftKeys)}`);
+        await db.draft_set_logs.bulkDelete(userDraftKeys);
+      }
     }
   }, [session]);
 
@@ -89,9 +108,10 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
       await addToSyncQueue('create', 'workout_sessions', sessionDataToSave);
 
       const draftsToUpdate = await db.draft_set_logs.where({ session_id: null }).toArray();
-      const updatePromises = draftsToUpdate.map(draft =>
-        db.draft_set_logs.update([draft.exercise_id, draft.set_index], { session_id: newSessionId })
-      );
+      const updatePromises = draftsToUpdate.map(draft => {
+        console.assert(isValidDraftKey(draft.exercise_id, draft.set_index), `Invalid draft key in createWorkoutSessionInDb update: [${draft.exercise_id}, ${draft.set_index}]`);
+        return db.draft_set_logs.update([draft.exercise_id, draft.set_index], { session_id: newSessionId });
+      });
       await Promise.all(updatePromises);
 
       setCurrentSessionId(newSessionId);
@@ -107,6 +127,12 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
 
   const addExerciseToSession = useCallback(async (exercise: ExerciseDefinition) => {
     if (!session) return;
+    if (!isValidId(exercise.id)) {
+      console.error("Attempted to add exercise with invalid ID:", exercise);
+      toast.error("Cannot add exercise: invalid exercise ID.");
+      return;
+    }
+
     let lastWeight = null, lastReps = null, lastTimeSeconds = null, lastRepsL = null, lastRepsR = null;
     
     const { data: lastExerciseSets, error: rpcError } = await supabase.rpc('get_last_exercise_sets_for_exercise', {
@@ -144,6 +170,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
         reps_r: newSet.reps_r,
         time_seconds: newSet.time_seconds,
       };
+      console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in addExerciseToSession put: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
       db.draft_set_logs.put(draftPayload);
       return newSet;
     });
@@ -152,13 +179,35 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
   }, [currentSessionId, session, supabase]);
 
   const removeExerciseFromSession = useCallback(async (exerciseId: string) => {
+    if (!isValidId(exerciseId)) {
+      console.error("Attempted to remove exercise with invalid ID:", exerciseId);
+      toast.error("Cannot remove exercise: invalid exercise ID.");
+      return;
+    }
     setExercisesForSession(prev => prev.filter(ex => ex.id !== exerciseId));
     setExercisesWithSets(prev => { const newSets = { ...prev }; delete newSets[exerciseId]; return newSets; });
     setCompletedExercises((prev: Set<string>) => { const newCompleted = new Set(prev); newCompleted.delete(exerciseId); return newCompleted; });
-    await db.draft_set_logs.where({ exercise_id: exerciseId, session_id: currentSessionId }).delete();
+    
+    // Delete all drafts for this exercise and session
+    const draftsToDelete = await db.draft_set_logs
+      .where('exercise_id').equals(exerciseId)
+      .filter(draft => draft.session_id === currentSessionId)
+      .toArray();
+    
+    if (draftsToDelete.length > 0) {
+      const keysToDelete = draftsToDelete.map(d => [d.exercise_id, d.set_index] as [string, number]); // Explicitly cast to tuple
+      console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1])), `Invalid draft keys in removeExerciseFromSession bulkDelete: ${JSON.stringify(keysToDelete)}`);
+      await db.draft_set_logs.bulkDelete(keysToDelete);
+    }
   }, [currentSessionId]);
 
   const substituteExercise = useCallback(async (oldExerciseId: string, newExercise: WorkoutExercise) => {
+    if (!isValidId(oldExerciseId) || !isValidId(newExercise.id)) {
+      console.error("Attempted to substitute exercise with invalid IDs:", oldExerciseId, newExercise);
+      toast.error("Cannot substitute exercise: invalid exercise ID(s).");
+      return;
+    }
+
     setExercisesForSession(prev => prev.map(ex => ex.id === oldExerciseId ? newExercise : ex));
     setExercisesWithSets(prev => {
       const newSets = { ...prev };
@@ -175,6 +224,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
             reps_r: newSet.reps_r,
             time_seconds: newSet.time_seconds,
           };
+          console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in substituteExercise put: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
           db.draft_set_logs.put(draftPayload);
           return newSet;
         });
@@ -184,7 +234,18 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
       return newSets;
     });
     setCompletedExercises((prev: Set<string>) => { const newCompleted = new Set(prev); newCompleted.delete(oldExerciseId); return newCompleted; });
-    await db.draft_set_logs.where({ exercise_id: oldExerciseId, session_id: currentSessionId }).delete();
+    
+    // Delete drafts for the old exercise
+    const draftsToDelete = await db.draft_set_logs
+      .where('exercise_id').equals(oldExerciseId)
+      .filter(draft => draft.session_id === currentSessionId)
+      .toArray();
+    
+    if (draftsToDelete.length > 0) {
+      const keysToDelete = draftsToDelete.map(d => [d.exercise_id, d.set_index] as [string, number]); // Explicitly cast to tuple
+      console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1])), `Invalid draft keys in substituteExercise bulkDelete: ${JSON.stringify(keysToDelete)}`);
+      await db.draft_set_logs.bulkDelete(keysToDelete);
+    }
   }, [currentSessionId]);
 
   const updateExerciseSets = useCallback((exerciseId: string, newSets: SetLogState[]) => {
@@ -216,7 +277,16 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
       await db.workout_sessions.update(currentSessionId, updatePayload);
       await addToSyncQueue('update', 'workout_sessions', { id: currentSessionId, ...updatePayload });
 
-      await db.draft_set_logs.where({ session_id: currentSessionId }).delete();
+      // Delete all drafts for the current session
+      const draftsToDelete = await db.draft_set_logs
+        .where('session_id').equals(currentSessionId)
+        .toArray();
+      
+      if (draftsToDelete.length > 0) {
+        const keysToDelete = draftsToDelete.map(d => [d.exercise_id, d.set_index] as [string, number]); // Explicitly cast to tuple
+        console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1])), `Invalid draft keys in finishWorkoutSession bulkDelete: ${JSON.stringify(keysToDelete)}`);
+        await db.draft_set_logs.bulkDelete(keysToDelete);
+      }
 
       const { error: achievementError } = await supabase.functions.invoke('process-achievements', {
         body: { user_id: session.user.id, session_id: currentSessionId },
