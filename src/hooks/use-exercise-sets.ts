@@ -79,7 +79,6 @@ export const useExerciseSets = ({
   exerciseNumber,
 }: UseExerciseSetsProps): UseExerciseSetsReturn => {
   const { session } = useSession(); // Get session for RPC calls
-  const justSavedAndClearedDrafts = useRef(false); // Ref to prevent race condition
 
   // Integrate new modular hooks
   const { saveSetToDb, deleteSetFromDb } = useSetPersistence({
@@ -161,10 +160,6 @@ export const useExerciseSets = ({
   // Effect to process drafts from useLiveQuery and fetch last sets
   useEffect(() => {
     const processAndSetSets = async () => {
-      if (justSavedAndClearedDrafts.current) {
-        justSavedAndClearedDrafts.current = false;
-        return;
-      }
       if (loadingDrafts || !isValidId(exerciseId)) return;
 
       let loadedSets: SetLogState[] = [];
@@ -433,22 +428,12 @@ export const useExerciseSets = ({
       if (isNewPROverall) {
         setSets(prevSets => prevSets.map(s => ({ ...s, is_pb: true, isPR: true })));
       }
-
-      justSavedAndClearedDrafts.current = true;
-      const draftsToDelete = await db.draft_set_logs
-        .where('exercise_id').equals(exerciseId)
-        .filter(draft => draft.session_id === currentSessionIdToUse)
-        .toArray();
-
-      if (draftsToDelete.length > 0) {
-        const keysToDelete = draftsToDelete.map(d => [d.exercise_id, d.set_index] as [string, number]);
-        console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1])), `Invalid draft keys in handleSaveExercise bulkDelete: ${JSON.stringify(keysToDelete)}`);
-        await db.draft_set_logs.bulkDelete(keysToDelete);
-      }
+      
+      // **FIX**: Do not delete drafts here. They will be cleared when the session is finished.
+      // This preserves the UI state after saving.
 
       return { success: true, isNewPR: isNewPROverall };
     } catch (err: any) {
-      justSavedAndClearedDrafts.current = false;
       console.error("Error saving exercise completion or PR:", err);
       toast.error("Failed to complete exercise: " + err.message);
       return { success: false, isNewPR: false };
