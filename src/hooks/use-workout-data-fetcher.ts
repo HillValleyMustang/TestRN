@@ -66,9 +66,9 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   });
 
   const processCachedData = useCallback(async () => {
-    if (!session || loadingExercises || loadingTPaths) return;
+    if (!session || cachedExercises === undefined || cachedTPaths === undefined) return; // Ensure cache data is available
 
-    setLoadingData(true);
+    setLoadingData(true); // Set loading true at the start of processing
     setDataError(exercisesError || tPathsError);
 
     if (cachedExercises && cachedTPaths) {
@@ -156,14 +156,15 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       }
       setWorkoutExercisesCache(newWorkoutExercisesCache);
     } 
-    setLoadingData(false);
-  }, [session, supabase, cachedExercises, cachedTPaths, loadingExercises, loadingTPaths, exercisesError, tPathsError]);
+    setLoadingData(false); // Set loading false at the end of processing
+  }, [session, supabase, cachedExercises, cachedTPaths, exercisesError, tPathsError]);
 
   useEffect(() => {
-    if (!loadingExercises && !loadingTPaths) {
+    // Process cached data as soon as it's available from IndexedDB
+    if (cachedExercises !== undefined && cachedTPaths !== undefined) {
       processCachedData();
     }
-  }, [processCachedData, loadingExercises, loadingTPaths]);
+  }, [processCachedData, cachedExercises, cachedTPaths]); // Removed loadingExercises, loadingTPaths
 
   const refreshAllData = useCallback(() => {
     refreshExercises();

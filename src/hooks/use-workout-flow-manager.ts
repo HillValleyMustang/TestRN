@@ -56,7 +56,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     allAvailableExercises,
     groupedTPaths,
     workoutExercisesCache,
-    loadingData,
+    loadingData, // This now reflects the processing of cached data
     dataError,
     refreshAllData, // Destructure refreshAllData
   } = useWorkoutDataFetcher();
@@ -86,7 +86,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   } = useWorkoutSessionState({ allAvailableExercises });
 
   useEffect(() => {
-    setLoadingFlow(loadingData);
+    setLoadingFlow(loadingData); // loadingFlow now reflects if initial cache processing is done
     setFlowError(dataError);
   }, [loadingData, dataError]);
 
@@ -106,13 +106,8 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       return;
     }
 
-    // Ensure latest data is in IndexedDB before proceeding
-    await refreshAllData();
-
-    // Now, explicitly fetch the latest data from IndexedDB
-    const latestCachedExercises = await db.exercise_definitions_cache.toArray();
-    const latestCachedTPaths = await db.t_paths_cache.toArray();
-
+    // Use the already available groupedTPaths and workoutExercisesCache from the data fetcher
+    // These states are populated from IndexedDB as soon as possible.
     let currentWorkout: TPath | null = null;
     let exercises: WorkoutExercise[] = [];
 
@@ -121,8 +116,8 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       const adHocDrafts = await db.draft_set_logs.filter(draft => draft.session_id === null).toArray(); // FIX APPLIED HERE
       const adHocExerciseIds = Array.from(new Set(adHocDrafts.map(d => d.exercise_id)));
       
-      if (adHocExerciseIds.length > 0 && latestCachedExercises) {
-        exercises = latestCachedExercises
+      if (adHocExerciseIds.length > 0 && allAvailableExercises) { // Use allAvailableExercises from hook
+        exercises = allAvailableExercises
           .filter(ex => adHocExerciseIds.includes(ex.id))
           .map(ex => ({ ...ex, is_bonus_exercise: false }));
       }
@@ -188,7 +183,10 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     }
     setExercisesWithSets(initialSets);
 
-  }, [session, supabase, resetWorkoutSession, groupedTPaths, workoutExercisesCache, currentSessionId, refreshAllData]);
+    // Trigger a background refresh to ensure cache is up-to-date for next time
+    refreshAllData();
+
+  }, [session, supabase, resetWorkoutSession, groupedTPaths, workoutExercisesCache, currentSessionId, allAvailableExercises, refreshAllData]);
 
   useEffect(() => {
     if (initialWorkoutId && !loadingData && !loadingFlow) {
