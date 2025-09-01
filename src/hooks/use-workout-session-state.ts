@@ -107,7 +107,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
       await db.workout_sessions.put(sessionDataToSave);
       await addToSyncQueue('create', 'workout_sessions', sessionDataToSave);
 
-      const draftsToUpdate = await db.draft_set_logs.where({ session_id: null }).toArray();
+      const draftsToUpdate = await db.draft_set_logs.where('session_id').equals(null as any).toArray(); // FIX APPLIED HERE
       const updatePromises = draftsToUpdate.map(draft => {
         console.assert(isValidDraftKey(draft.exercise_id, draft.set_index), `Invalid draft key in createWorkoutSessionInDb update: [${draft.exercise_id}, ${draft.set_index}]`);
         return db.draft_set_logs.update([draft.exercise_id, draft.set_index], { session_id: newSessionId });
