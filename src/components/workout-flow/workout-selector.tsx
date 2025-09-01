@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Dumbbell, Settings } from 'lucide-react';
 import { Tables } from '@/types/supabase';
-import { cn } from '@/lib/utils';
+import { cn, formatTimeAgo, getPillStyles } from '@/lib/utils';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { SetLogState, WorkoutExercise } from '@/types/supabase';
 import { WorkoutBadge } from '../workout-badge';
@@ -13,6 +13,7 @@ import { LoadingOverlay } from '../loading-overlay';
 import { useSession } from '@/components/session-context-provider';
 import { WorkoutPill, WorkoutPillProps } from './workout-pill';
 import { EditWorkoutExercisesDialog } from '../manage-t-paths/edit-workout-exercises-dialog'; // Import the dialog
+import { ExerciseSelectionDropdown } from '@/components/shared/exercise-selection-dropdown'; // Updated import path
 
 type TPath = Tables<'t_paths'>;
 
@@ -110,6 +111,11 @@ export const WorkoutSelector = ({
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
   const [isEditWorkoutDialogOpen, setIsEditWorkoutDialogOpen] = useState(false);
   const [selectedWorkoutToEdit, setSelectedWorkoutToEdit] = useState<{ id: string; name: string } | null>(null);
+  const [adHocExerciseSourceFilter, setAdHocExerciseSourceFilter] = useState<'my-exercises' | 'global-library'>('my-exercises');
+
+  const mainMuscleGroups = useMemo(() => {
+    return Array.from(new Set(allAvailableExercises.map(ex => ex.main_muscle))).sort();
+  }, [allAvailableExercises]);
 
   const handleWorkoutClick = (workoutId: string) => {
     onWorkoutSelect(workoutId);
@@ -201,20 +207,16 @@ export const WorkoutSelector = ({
               <section className="mb-6 p-4 border rounded-lg bg-card">
                 <h3 className="text-lg font-semibold mb-3">Add Exercises</h3>
                 <div className="flex flex-col gap-3">
-                  <select 
-                    value={selectedExerciseToAdd}
-                    onChange={(e) => setSelectedExerciseToAdd(e.target.value)}
-                    className="w-full p-2 border rounded"
-                  >
-                    <option value="">Select exercise</option>
-                    {allAvailableExercises
-                      .filter((ex) => !exercisesForSession.some((sessionEx) => sessionEx.id === ex.id))
-                      .map((exercise) => (
-                        <option key={exercise.id} value={exercise.id}>
-                          {exercise.name} ({exercise.main_muscle})
-                        </option>
-                      ))}
-                  </select>
+                  <ExerciseSelectionDropdown
+                    allAvailableExercises={allAvailableExercises}
+                    exercisesInCurrentContext={exercisesForSession}
+                    selectedExerciseId={selectedExerciseToAdd}
+                    setSelectedExerciseId={setSelectedExerciseToAdd}
+                    exerciseSourceFilter={adHocExerciseSourceFilter}
+                    setExerciseSourceFilter={setAdHocExerciseSourceFilter}
+                    mainMuscleGroups={mainMuscleGroups}
+                    placeholder="Select exercise to add"
+                  />
                   <Button onClick={handleAddExercise} disabled={!selectedExerciseToAdd} className="w-full">
                     <PlusCircle className="h-4 w-4 mr-2" /> Add Exercise
                   </Button>
