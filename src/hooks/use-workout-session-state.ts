@@ -255,7 +255,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
   }, []);
 
   const finishWorkoutSession = useCallback(async (): Promise<string | null> => {
-    if (!currentSessionId || !sessionStartTime || !session) {
+    if (!currentSessionId || !sessionStartTime || !session || !activeWorkout) {
       toast.error("Workout session not properly started or no sets logged yet.");
       return null;
     }
@@ -277,8 +277,16 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
       const updatePayload = { duration_string: durationString, completed_at: endTime.toISOString() };
       
       await db.workout_sessions.update(currentSessionId, updatePayload);
-      // Also include user_id in the sync payload to make the upsert more robust
-      await addToSyncQueue('update', 'workout_sessions', { id: currentSessionId, user_id: session.user.id, ...updatePayload });
+      
+      // Create a complete payload for the sync queue to prevent race condition errors
+      const fullSyncPayload = {
+        id: currentSessionId,
+        user_id: session.user.id,
+        session_date: sessionStartTime.toISOString(),
+        template_name: activeWorkout.template_name,
+        ...updatePayload
+      };
+      await addToSyncQueue('update', 'workout_sessions', fullSyncPayload);
 
       // Delete all drafts for the current session
       const draftsToDelete = await db.draft_set_logs
@@ -309,7 +317,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
       console.error("Error saving duration:", err);
       return null;
     }
-  }, [currentSessionId, sessionStartTime, session, supabase, resetWorkoutSession]);
+  }, [currentSessionId, sessionStartTime, session, supabase, resetWorkoutSession, activeWorkout]);
 
   return {
     activeWorkout,
