@@ -70,11 +70,10 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const { data: cachedProfile, loading: loadingProfile, error: profileError, refresh: refreshProfile } = useCacheAndRevalidate<LocalProfile>({
     cacheTable: 'profiles_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      // Fetch only the current user's profile
       if (!session?.user.id) return { data: [], error: null };
       const { data, error } = await client
         .from('profiles')
-        .select('*') // Select all columns required by LocalProfile
+        .select('*')
         .eq('id', session.user.id);
       return { data: data || [], error };
     }, [session?.user.id]),
@@ -87,21 +86,19 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const { data: cachedTPathExercises, loading: loadingTPathExercises, error: tPathExercisesError, refresh: refreshTPathExercises } = useCacheAndRevalidate<LocalTPathExercise>({
     cacheTable: 't_path_exercises_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      // Fetch all t_path_exercises for all user's T-Paths
       if (!session?.user.id) return { data: [], error: null };
       const { data, error } = await client
         .from('t_path_exercises')
-        .select('id, exercise_id, template_id, order_index, is_bonus_exercise, created_at'); // Select all columns required by LocalTPathExercise
+        .select('id, exercise_id, template_id, order_index, is_bonus_exercise, created_at');
       return { data: data || [], error };
     }, [session?.user.id]),
     queryKey: 'all_t_path_exercises',
     supabase,
-    sessionUserId: session?.user.id ?? null, // This is a global cache, but tied to user session for revalidation
+    sessionUserId: session?.user.id ?? null,
   });
 
-  // Phase 1: Process initial cached data (fast, no network calls)
-  const processInitialCachedData = useCallback(() => {
-    // Ensure all necessary cached data is available and not undefined or null
+  // Effect 1: Process only cached data for a fast initial render
+  useEffect(() => {
     if (
       cachedExercises === undefined || cachedTPaths === undefined || cachedProfile === undefined || cachedTPathExercises === undefined ||
       cachedExercises === null || cachedTPaths === null || cachedProfile === null || cachedTPathExercises === null
@@ -109,9 +106,8 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       return;
     }
 
-    // If session is not available or profile is not yet loaded/empty, we cannot proceed with T-Path logic.
     if (!session?.user.id || cachedProfile.length === 0) {
-      setLoadingData(true); // Keep loading until profile is available
+      setLoadingData(true);
       return;
     }
     
@@ -119,8 +115,6 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     
     const userProfile = cachedProfile[0];
     const activeTPathId = userProfile.active_t_path_id;
-    const preferredSessionLength = userProfile.preferred_session_length;
-    const maxAllowedMinutes = getMaxMinutes(preferredSessionLength);
 
     const newGroupedTPaths: GroupedTPath[] = [];
     const newWorkoutExercisesCache: Record<string, WorkoutExercise[]> = {};
@@ -164,47 +158,32 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
 
   }, [session, cachedExercises, cachedTPaths, cachedProfile, cachedTPathExercises, exercisesError, tPathsError, profileError, tPathExercisesError]);
 
-  // Phase 2: Enrich data with network calls (runs in background)
-  const enrichDataWithNetworkCalls = useCallback(async () => {
-    if (!session || !cachedProfile || cachedProfile.length === 0 || !cachedTPaths) return;
-
-    const userProfile = cachedProfile[0];
-    try {
-      await refreshProfile();
-      await refreshTPathExercises();
-
-      const activeTPathId = userProfile.active_t_path_id;
-      if (!activeTPathId) return;
-
-      const activeMainTPath = cachedTPaths.find(tp => tp.id === activeTPathId && tp.user_id === session.user.id && tp.parent_t_path_id === null);
-      if (!activeMainTPath) return;
-
-      const allChildWorkouts = cachedTPaths.filter(tp => tp.parent_t_path_id === activeMainTPath.id && tp.is_bonus === true);
-      const updatedChildWorkouts: WorkoutWithLastCompleted[] = [];
-      for (const workout of allChildWorkouts) {
-        const { data: lastSessionDate } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
-        updatedChildWorkouts.push({ ...workout, last_completed_at: lastSessionDate?.[0]?.session_date || null });
-      }
-
-      setGroupedTPaths(prev => prev.map(group => 
-        group.mainTPath.id === activeMainTPath.id 
-          ? { ...group, childWorkouts: updatedChildWorkouts } 
-          : group
-      ));
-    } catch (err: any) {
-      console.error("Error during background data enrichment:", err);
-      if (!dataError) setDataError(err.message || "Failed to fully load workout data.");
-    }
-  }, [session, supabase, cachedTPaths, cachedProfile, dataError, refreshProfile, refreshTPathExercises]);
-
+  // Effect 2: Enrich the cached data with network calls (runs in background)
   useEffect(() => {
-    if (
-      cachedExercises !== undefined && cachedTPaths !== undefined && cachedProfile !== undefined && cachedTPathExercises !== undefined
-    ) {
-      processInitialCachedData();
-      enrichDataWithNetworkCalls();
-    }
-  }, [processInitialCachedData, enrichDataWithNetworkCalls, cachedExercises, cachedTPaths, cachedProfile, cachedTPathExercises]);
+    const enrichData = async () => {
+      if (!session || groupedTPaths.length === 0) return;
+
+      try {
+        const enrichedGroups = await Promise.all(
+          groupedTPaths.map(async (group) => {
+            const enrichedChildWorkouts = await Promise.all(
+              group.childWorkouts.map(async (workout) => {
+                const { data: lastSessionDate } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
+                return { ...workout, last_completed_at: lastSessionDate?.[0]?.session_date || null };
+              })
+            );
+            return { ...group, childWorkouts: enrichedChildWorkouts };
+          })
+        );
+        setGroupedTPaths(enrichedGroups);
+      } catch (err: any) {
+        console.error("Error during background data enrichment:", err);
+        if (!dataError) setDataError(err.message || "Failed to fully load workout data.");
+      }
+    };
+
+    enrichData();
+  }, [session, supabase, dataError, groupedTPaths.map(g => g.mainTPath.id).join(',')]); // Dependency on a stable representation of the groups
 
   const refreshAllData = useCallback(() => {
     refreshExercises();
