@@ -117,7 +117,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
 
     if (workoutId === 'ad-hoc') {
       currentWorkout = { id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: session.user.id, created_at: new Date().toISOString(), version: 1, settings: null, progression_settings: null, parent_t_path_id: null };
-      const adHocDrafts = await db.draft_set_logs.where('session_id').equals(null as any).toArray(); // FIX APPLIED HERE
+      const adHocDrafts = await db.draft_set_logs.filter(draft => draft.session_id === null).toArray(); // FIX APPLIED HERE
       const adHocExerciseIds = Array.from(new Set(adHocDrafts.map(d => d.exercise_id)));
       
       if (adHocExerciseIds.length > 0 && latestCachedExercises) {
