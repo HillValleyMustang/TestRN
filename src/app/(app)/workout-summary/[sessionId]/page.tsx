@@ -232,22 +232,24 @@ export default function WorkoutSummaryPage({
     );
   }
 
-  // Group set logs by exercise
-  const exercisesWithGroupedSets = setLogs.reduce((acc, log) => {
-    const exerciseName = log.exercise_definitions?.name || 'Unknown Exercise';
-    const exerciseId = log.exercise_definitions?.id || 'unknown';
-    if (!acc[exerciseId]) {
-      acc[exerciseId] = {
-        name: exerciseName,
-        type: log.exercise_definitions?.type,
-        category: log.exercise_definitions?.category,
-        sets: [],
-        id: exerciseId
-      };
-    }
-    acc[exerciseId].sets.push(log);
-    return acc;
-  }, {} as Record<string, ExerciseGroup>);
+  // Group set logs by exercise, filtering out logs with no associated exercise definition
+  const exercisesWithGroupedSets = setLogs
+    .filter(log => log.exercise_definitions && log.exercise_definitions.id)
+    .reduce((acc, log) => {
+      const exerciseId = log.exercise_definitions!.id;
+      const exerciseName = log.exercise_definitions!.name || 'Unknown Exercise';
+      if (!acc[exerciseId]) {
+        acc[exerciseId] = {
+          name: exerciseName,
+          type: log.exercise_definitions!.type,
+          category: log.exercise_definitions!.category,
+          sets: [],
+          id: exerciseId
+        };
+      }
+      acc[exerciseId].sets.push(log);
+      return acc;
+    }, {} as Record<string, ExerciseGroup>);
 
   return (
     <div className="min-h-screen bg-background text-foreground p-2 sm:p-4">
