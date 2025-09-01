@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react"; // Import useRef and useEffect
 import { Tables } from "@/types/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Edit, Trash2, Heart, Info, PlusCircle, Menu } from "lucide-react"; // Import Menu
+import { Edit, Trash2, Heart, Info, PlusCircle, Menu } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,7 +27,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"; // Import DropdownMenu components
+} from "@/components/ui/dropdown-menu";
 
 // Extend the ExerciseDefinition type to include a temporary flag for global exercises
 interface FetchedExerciseDefinition extends Tables<'exercise_definitions'> {
@@ -70,6 +70,15 @@ export const UserExerciseList = ({
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
   const [selectedExerciseForInfo, setSelectedExerciseForInfo] = useState<FetchedExerciseDefinition | null>(null);
 
+  const exerciseFormRef = useRef<HTMLDivElement>(null); // Create a ref for the ExerciseForm
+
+  // Effect to scroll the form into view when editingExercise changes
+  useEffect(() => {
+    if (editingExercise && exerciseFormRef.current) {
+      exerciseFormRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [editingExercise]);
+
   const handleOpenAddTPathDialog = (exercise: FetchedExerciseDefinition, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedExerciseForTPath(exercise);
@@ -94,7 +103,9 @@ export const UserExerciseList = ({
       </CardHeader>
       <CardContent className="p-3">
         <div className="mb-6">
+          {/* Attach the ref here */}
           <ExerciseForm
+            ref={exerciseFormRef}
             editingExercise={editingExercise}
             onCancelEdit={onCancelEdit}
             onSaveSuccess={onSaveSuccess}

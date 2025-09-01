@@ -67,7 +67,7 @@ interface ExerciseFormProps {
   onSaveSuccess: () => void;
 }
 
-export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: ExerciseFormProps) => {
+export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(({ editingExercise, onCancelEdit, onSaveSuccess }, ref) => {
   const { session, supabase } = useSession();
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
@@ -251,7 +251,7 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
   };
 
   return (
-    <Card className="w-full">
+    <Card ref={ref} className="w-full">
       <CardHeader 
         className="flex items-center justify-between cursor-pointer"
         onClick={toggleExpand}
@@ -321,4 +321,4 @@ export const ExerciseForm = ({ editingExercise, onCancelEdit, onSaveSuccess }: E
       )}
     </Card>
   );
-};
+});
