@@ -113,10 +113,11 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
 
     if (workoutId === 'ad-hoc') {
       currentWorkout = { id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: session.user.id, created_at: new Date().toISOString(), version: 1, settings: null, progression_settings: null, parent_t_path_id: null };
-      const adHocDrafts = await db.draft_set_logs.filter(draft => draft.session_id === null).toArray(); // FIX APPLIED HERE
+      // For ad-hoc, we need to load any existing drafts that are not yet associated with a session
+      const adHocDrafts = await db.draft_set_logs.filter(draft => draft.session_id === null).toArray();
       const adHocExerciseIds = Array.from(new Set(adHocDrafts.map(d => d.exercise_id)));
       
-      if (adHocExerciseIds.length > 0 && allAvailableExercises) { // Use allAvailableExercises from hook
+      if (adHocExerciseIds.length > 0 && allAvailableExercises) {
         exercises = allAvailableExercises
           .filter(ex => adHocExerciseIds.includes(ex.id))
           .map(ex => ({ ...ex, is_bonus_exercise: false }));
@@ -136,57 +137,14 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     setActiveWorkout(currentWorkout);
     setExercisesForSession(exercises);
 
-    const initialSets: Record<string, SetLogState[]> = {};
-    for (const ex of exercises) {
-      const { data: lastExerciseSets, error: rpcError } = await supabase.rpc('get_last_exercise_sets_for_exercise', {
-        p_user_id: session.user.id,
-        p_exercise_id: ex.id,
-      });
-      
-      if (rpcError) {
-        console.error(`Error fetching last sets for exercise ${ex.name}:`, rpcError);
-      }
-
-      const lastAttemptSets = rpcError ? [] : (lastExerciseSets || []);
-
-      const drafts = await db.draft_set_logs.where({ exercise_id: ex.id, session_id: currentSessionId }).sortBy('set_index');
-
-      if (drafts.length > 0) {
-        initialSets[ex.id] = drafts.map((draft, setIndex) => {
-          const correspondingLastSet = lastAttemptSets[setIndex];
-          return {
-            id: null, created_at: null, session_id: draft.session_id, exercise_id: draft.exercise_id,
-            weight_kg: draft.weight_kg, reps: draft.reps, reps_l: draft.reps_l, reps_r: draft.reps_r, time_seconds: draft.time_seconds,
-            is_pb: false, isSaved: false, isPR: false,
-            lastWeight: correspondingLastSet?.weight_kg || null,
-            lastReps: correspondingLastSet?.reps || null,
-            lastRepsL: correspondingLastSet?.reps_l || null,
-            lastRepsR: correspondingLastSet?.reps_r || null,
-            lastTimeSeconds: correspondingLastSet?.time_seconds || null,
-          };
-        });
-      } else {
-        initialSets[ex.id] = Array.from({ length: DEFAULT_INITIAL_SETS }).map((_, setIndex) => {
-          const correspondingLastSet = lastAttemptSets[setIndex];
-          return {
-            id: null, created_at: null, session_id: currentSessionId, exercise_id: ex.id,
-            weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null,
-            is_pb: false, isSaved: false, isPR: false,
-            lastWeight: correspondingLastSet?.weight_kg || null,
-            lastReps: correspondingLastSet?.reps || null,
-            lastRepsL: correspondingLastSet?.reps_l || null,
-            lastRepsR: correspondingLastSet?.reps_r || null,
-            lastTimeSeconds: correspondingLastSet?.time_seconds || null,
-          };
-        });
-      }
-    }
-    setExercisesWithSets(initialSets);
+    // No longer need to pre-populate exercisesWithSets here,
+    // as useExerciseSets will handle loading its own drafts via useLiveQuery.
+    // We just need to ensure the ExerciseCard components are rendered with the correct exerciseId and currentSessionId.
 
     // Trigger a background refresh to ensure cache is up-to-date for next time
     refreshAllData();
 
-  }, [session, supabase, resetWorkoutSession, groupedTPaths, workoutExercisesCache, currentSessionId, allAvailableExercises, refreshAllData]);
+  }, [session, supabase, resetWorkoutSession, groupedTPaths, workoutExercisesCache, allAvailableExercises, refreshAllData]);
 
   useEffect(() => {
     if (initialWorkoutId && !loadingData && !loadingFlow) {
@@ -197,7 +155,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   return {
     activeWorkout,
     exercisesForSession,
-    exercisesWithSets,
+    exercisesWithSets, // Still return this, but it will be managed by useExerciseSets
     allAvailableExercises,
     loading: loadingFlow,
     error: flowError,

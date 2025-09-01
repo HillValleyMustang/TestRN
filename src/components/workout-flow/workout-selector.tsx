@@ -263,7 +263,7 @@ export const WorkoutSelector = ({
                       currentSessionId={currentSessionId}
                       supabase={supabase}
                       onUpdateGlobalSets={updateExerciseSets}
-                      initialSets={exercisesWithSets[exercise.id] || []}
+                      // Removed initialSets prop
                       onSubstituteExercise={substituteExercise}
                       onRemoveExercise={removeExerciseFromSession}
                       workoutTemplateName={activeWorkout.template_name}

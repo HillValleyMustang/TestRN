@@ -33,7 +33,7 @@ interface ExerciseCardProps {
   currentSessionId: string | null;
   supabase: SupabaseClient;
   onUpdateGlobalSets: (exerciseId: string, newSets: SetLogState[]) => void;
-  initialSets: SetLogState[];
+  // Removed initialSets prop
   onSubstituteExercise?: (oldExerciseId: string, newExercise: WorkoutExercise) => void;
   onRemoveExercise?: (exerciseId: string) => void;
   workoutTemplateName: string;
@@ -47,7 +47,7 @@ export const ExerciseCard = ({
   currentSessionId,
   supabase,
   onUpdateGlobalSets,
-  initialSets,
+  // Removed initialSets prop
   onSubstituteExercise,
   onRemoveExercise,
   workoutTemplateName,
@@ -113,7 +113,7 @@ export const ExerciseCard = ({
     currentSessionId,
     supabase,
     onUpdateSets: onUpdateGlobalSets,
-    initialSets,
+    // Removed initialSets prop
     preferredWeightUnit,
     onFirstSetSaved: onFirstSetSaved, // Pass the new prop
     onExerciseComplete: async (id, isNewPR) => { // Implement the callback
