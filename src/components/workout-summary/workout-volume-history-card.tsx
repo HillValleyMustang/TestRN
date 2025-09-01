@@ -44,13 +44,13 @@ export const WorkoutVolumeHistoryCard = ({ workoutTemplateName, currentSessionId
           .select('id, session_date, template_name')
           .eq('user_id', session.user.id)
           .eq('template_name', workoutTemplateName)
-          .is('completed_at', null) // Only consider completed sessions
+          .not('completed_at', 'is', null) // Only consider completed sessions
           .order('session_date', { ascending: false })
           .limit(4); // Current session + last 3
 
         if (sessionsError) throw sessionsError;
 
-        const relevantSessionIds = (sessionsData || []).map(s => s.id);
+        const relevantSessionIds = (sessionsData || []).map((s: { id: string }) => s.id);
 
         if (relevantSessionIds.length === 0) {
           setChartData([]);
@@ -71,7 +71,7 @@ export const WorkoutVolumeHistoryCard = ({ workoutTemplateName, currentSessionId
 
         // 3. Calculate total volume for each session
         const sessionVolumes: Record<string, { date: string; volume: number }> = {};
-        (sessionsData || []).forEach(s => {
+        (sessionsData || []).forEach((s: { id: string; session_date: string }) => {
           sessionVolumes[s.id] = { date: new Date(s.session_date).toLocaleDateString(), volume: 0 };
         });
 
