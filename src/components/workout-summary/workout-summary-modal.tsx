@@ -206,7 +206,7 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
         <DialogHeader>
           <DialogTitle>Workout Summary</DialogTitle>
         </DialogHeader>
-        <ScrollArea className="flex-grow pr-6 -mr-6">
+        <ScrollArea className="flex-grow pr-6 -mr-6 min-h-0">
           <div className="py-4 space-y-6">
             {loading && <p>Loading workout summary...</p>}
             {error && <p className="text-destructive">{error}</p>}
