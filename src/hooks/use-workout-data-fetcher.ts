@@ -5,7 +5,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { Tables, WorkoutExercise } from '@/types/supabase';
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
-import { LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise } from '@/lib/db';
+import { db, LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
 import { getMaxMinutes } from '@/lib/utils';
 
@@ -164,6 +164,19 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
             newGroupedTPaths.map(async (group) => {
               const enrichedChildWorkouts = await Promise.all(
                 group.childWorkouts.map(async (workout) => {
+                  // Prioritize local DB for immediate feedback
+                  const localSessions = await db.workout_sessions
+                    .where('template_name').equals(workout.template_name)
+                    .and(s => s.user_id === session.user.id && s.completed_at !== null)
+                    .sortBy('completed_at');
+                  
+                  const lastLocalSession = localSessions.pop(); // Get the most recent one
+
+                  if (lastLocalSession?.completed_at) {
+                    return { ...workout, last_completed_at: lastLocalSession.completed_at };
+                  }
+
+                  // Fallback to RPC for initial load or if local data is missing
                   const { data: lastSessionDate } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
                   return { ...workout, last_completed_at: lastSessionDate?.[0]?.session_date || null };
                 })

@@ -62,6 +62,7 @@ export const ExerciseCard = ({
   const timerRef = React.useRef<NodeJS.Timeout | null>(null);
   const [isExerciseSaved, setIsExerciseSaved] = useState(false); // New state for exercise completion
   const [isExpanded, setIsExpanded] = useState(false); // New state for expand/collapse
+  const [justAchievedPR, setJustAchievedPR] = useState(false); // New state for PR trophy
 
   const [showSwapDialog, setShowSwapDialog] = useState(false);
   const [showCantDoDialog, setShowCantDoDialog] = useState(false);
@@ -140,9 +141,12 @@ export const ExerciseCard = ({
   };
 
   const handleCompleteExercise = async () => {
-    const success = await handleSaveExercise();
+    const { success, isNewPR } = await handleSaveExercise();
     if (success) {
       setIsExerciseSaved(true);
+      if (isNewPR) {
+        setJustAchievedPR(true);
+      }
       setIsExpanded(false); // Collapse the card on successful save
     }
   };
@@ -181,11 +185,6 @@ export const ExerciseCard = ({
     const remainingSeconds = seconds % 60;
     return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
-
-  const isNewExercisePR = !loadingPR && exercisePR && (
-    (exercise.type === 'weight' && sets.reduce((totalVolume, set) => totalVolume + ((set.weight_kg || 0) * (set.reps || 0)), 0) > (exercisePR.best_volume_kg || 0)) ||
-    (exercise.type === 'timed' && sets.map(set => set.time_seconds).filter((time): time is number => time !== null).length > 0 && Math.min(...sets.map(set => set.time_seconds).filter((time): time is number => time !== null)) < (exercisePR.best_time_seconds || Infinity))
-  );
 
   // Determine if any set has valid input data
   const hasAnyInput = sets.some(s => 
@@ -412,7 +411,7 @@ export const ExerciseCard = ({
                 {isExerciseSaved ? (
                   <span className="flex items-center">
                     Saved
-                    {isNewExercisePR && <Trophy className="h-4 w-4 ml-2 fill-white text-white" />}
+                    {justAchievedPR && <Trophy className="h-4 w-4 ml-2 fill-white text-white" />}
                   </span>
                 ) : (
                   <span className="flex items-center">

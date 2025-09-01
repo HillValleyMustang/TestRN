@@ -44,7 +44,7 @@ interface UseExerciseSetsReturn {
   handleSaveSet: (setIndex: number) => Promise<void>;
   handleEditSet: (setIndex: number) => void;
   handleDeleteSet: (setIndex: number) => Promise<void>;
-  handleSaveExercise: () => Promise<boolean>;
+  handleSaveExercise: () => Promise<{ success: boolean; isNewPR: boolean }>;
   exercisePR: UserExercisePR | null;
   loadingPR: boolean;
   handleSuggestProgression: () => Promise<void>;
@@ -371,20 +371,20 @@ export const useExerciseSets = ({
     }
   }, [sets, deleteSetFromDb, exerciseId, propCurrentSessionId]); // Add sets to dependency array
 
-  const handleSaveExercise = useCallback(async (): Promise<boolean> => {
+  const handleSaveExercise = useCallback(async (): Promise<{ success: boolean; isNewPR: boolean }> => {
     console.assert(isValidId(exerciseId), `Invalid exerciseId in handleSaveExercise: ${exerciseId}`);
     if (!isValidId(exerciseId)) {
       toast.error("Cannot save exercise: exercise information is incomplete.");
-      return false;
+      return { success: false, isNewPR: false };
     }
-    if (!sets) return false; // Ensure sets is not undefined/null
+    if (!sets) return { success: false, isNewPR: false };
 
     let currentSessionIdToUse = propCurrentSessionId;
 
     const hasAnyData = sets.some(s => (s.weight_kg ?? 0) > 0 || (s.reps ?? 0) > 0 || (s.time_seconds ?? 0) > 0 || (s.reps_l ?? 0) > 0 || (s.reps_r ?? 0) > 0);
     if (!hasAnyData) {
       toast.error("No data to save for this exercise.");
-      return false;
+      return { success: false, isNewPR: false };
     }
 
     if (!currentSessionIdToUse) {
@@ -393,7 +393,7 @@ export const useExerciseSets = ({
         currentSessionIdToUse = newSessionId;
       } catch (err) {
         toast.error("Failed to start workout session. Please try again.");
-        return false;
+        return { success: false, isNewPR: false };
       }
     }
 
@@ -406,7 +406,6 @@ export const useExerciseSets = ({
       if (hasDataForSet && !currentSet.isSaved) {
         const { savedSet } = await saveSetToDb(currentSet, i, currentSessionIdToUse);
         if (savedSet) {
-          // Update the draft to mark it as saved and link to the actual set_log_id
           const draftPayload: LocalDraftSetLog = {
             exercise_id: exerciseId, set_index: i, session_id: currentSessionIdToUse,
             weight_kg: savedSet.weight_kg, reps: savedSet.reps, reps_l: savedSet.reps_l, reps_r: savedSet.reps_r, time_seconds: savedSet.time_seconds,
@@ -420,7 +419,7 @@ export const useExerciseSets = ({
       }
     }
 
-    if (hasError) return false;
+    if (hasError) return { success: false, isNewPR: false };
 
     try {
       const isNewPROverall = await updateExercisePRStatus(currentSessionIdToUse, sets);
@@ -455,11 +454,11 @@ export const useExerciseSets = ({
         await db.draft_set_logs.bulkDelete(keysToDelete);
       }
 
-      return true;
+      return { success: true, isNewPR: isNewPROverall };
     } catch (err: any) {
       console.error("Error saving exercise completion or PR:", err);
       toast.error("Failed to complete exercise: " + err.message);
-      return false;
+      return { success: false, isNewPR: false };
     }
   }, [sets, exerciseId, onExerciseComplete, onFirstSetSaved, propCurrentSessionId, saveSetToDb, updateExercisePRStatus, fetchLastSets]);
 
