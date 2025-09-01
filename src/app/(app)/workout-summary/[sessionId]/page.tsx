@@ -14,7 +14,7 @@ import { WorkoutVolumeHistoryCard } from '@/components/workout-summary/workout-v
 import { AiSessionAnalysisCard } from '@/components/workout-summary/ai-session-analysis-card'; // Import new component
 import { getLevelFromPoints } from '@/lib/utils';
 import { ACHIEVEMENT_DISPLAY_INFO } from '@/lib/achievements'; // Import from new utility file
-// Removed: import { type PageProps } from 'next'; // Import PageProps from next
+import React from 'react'; // Import React for React.use
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
@@ -41,8 +41,8 @@ export default function WorkoutSummaryPage({
 }: any) { // Changed to 'any' to bypass Next.js internal type validation
   const { session, supabase } = useSession();
   const router = useRouter();
-  // Safely cast params to its expected object type for runtime use
-  const { sessionId } = params as { sessionId: string };
+  // Safely unwrap params with React.use() for Next.js 15 compatibility
+  const { sessionId } = React.use(params) as { sessionId: string };
 
   const [workoutSession, setWorkoutSession] = useState<WorkoutSession | null>(null);
   const [setLogs, setSetLogs] = useState<SetLogWithExercise[]>([]);

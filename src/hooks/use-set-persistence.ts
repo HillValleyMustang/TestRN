@@ -68,7 +68,7 @@ export const useSetPersistence = ({
     try {
       await db.set_logs.put(setLogData);
       await addToSyncQueue(isNewSet ? 'create' : 'update', 'set_logs', setLogData);
-      toast.success(`Set ${setIndex + 1} saved locally.`);
+      // Removed: toast.success(`Set ${setIndex + 1} saved locally.`);
       return { savedSet: { ...set, ...setLogData, isSaved: true } };
     } catch (error: any) {
       toast.error(`Failed to save set ${setIndex + 1} locally: ` + error.message);
