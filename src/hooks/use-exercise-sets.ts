@@ -75,7 +75,9 @@ export const useExerciseSets = ({
   exerciseNumber,
 }: UseExerciseSetsProps): UseExerciseSetsReturn => {
   const { session } = useSession(); // Get session for RPC calls
-  const [sets, setSets] = useState<SetLogState[]>([]); // Initialize as empty, will load from drafts or initialSets
+
+  // Initialize sets state as empty, it will be populated by the useEffect
+  const [sets, setSets] = useState<SetLogState[]>([]);
 
   // Integrate new modular hooks
   const { saveSetToDb, deleteSetFromDb } = useSetPersistence({
@@ -101,19 +103,16 @@ export const useExerciseSets = ({
   // This effect is for LOADING sets. It uses the prop directly to avoid race conditions.
   useEffect(() => {
     const loadSets = async () => {
-      // Use the prop directly for the query to ensure stability.
       const sessionIdForQuery = propCurrentSessionId;
 
-      // Assert that exerciseId is valid before proceeding with Dexie operations
       console.assert(isValidId(exerciseId), `Invalid exerciseId in loadSets: ${exerciseId}`);
       if (!isValidId(exerciseId)) {
         console.warn(`Skipping loadSets for invalid exerciseId: ${exerciseId}`);
         return;
       }
 
-      const loadedSets: SetLogState[] = [];
+      let loadedSets: SetLogState[] = [];
       
-      // **FIX**: Use a more robust query method to avoid race conditions with compound keys.
       const allDraftsForExercise = await db.draft_set_logs
         .where('exercise_id').equals(exerciseId)
         .toArray();
@@ -123,16 +122,15 @@ export const useExerciseSets = ({
         .sort((a, b) => a.set_index - b.set_index);
 
       if (drafts.length > 0) {
-        drafts.forEach(draft => {
-          loadedSets.push({
-            id: null, created_at: null, session_id: draft.session_id, exercise_id: draft.exercise_id,
-            weight_kg: draft.weight_kg, reps: draft.reps, reps_l: draft.reps_l, reps_r: draft.reps_r, time_seconds: draft.time_seconds,
-            is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
-          });
-        });
-      } else if (initialSets.length > 0) { // Use initialSets from the closure of the first render
-        initialSets.forEach(set => loadedSets.push({ ...set, session_id: sessionIdForQuery }));
+        loadedSets = drafts.map(draft => ({
+          id: null, created_at: null, session_id: draft.session_id, exercise_id: draft.exercise_id,
+          weight_kg: draft.weight_kg, reps: draft.reps, reps_l: draft.reps_l, reps_r: draft.reps_r, time_seconds: draft.time_seconds,
+          is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
+        }));
+      } else if (initialSets && initialSets.length > 0) { // Use initialSets if no drafts
+        loadedSets = initialSets.map(set => ({ ...set, session_id: sessionIdForQuery }));
       } else {
+        // If no drafts and no initialSets, create default empty sets
         for (let i = 0; i < DEFAULT_INITIAL_SETS; i++) {
           loadedSets.push({
             id: null, created_at: null, session_id: sessionIdForQuery, exercise_id: exerciseId,
@@ -148,7 +146,6 @@ export const useExerciseSets = ({
           p_user_id: session.user.id,
           p_exercise_id: exerciseId,
         });
-        // Only log if there's an actual error message and it's not the "no rows found" error
         if (rpcError && rpcError.code !== 'PGRST116') { 
           console.error(`Error fetching last sets for exercise ${exerciseName}:`, rpcError);
         } else if (lastExerciseSets) {
@@ -170,9 +167,8 @@ export const useExerciseSets = ({
       setSets(finalSets);
     };
 
-    // Only run when the exercise or session context changes, not when set content changes
     loadSets();
-  }, [exerciseId, propCurrentSessionId, supabase, session, exerciseName]); // Removed initialSets from dependencies
+  }, [exerciseId, propCurrentSessionId, supabase, session, exerciseName, initialSets]); // Added initialSets to dependencies
 
   useEffect(() => {
     onUpdateSets(exerciseId, sets);
@@ -267,14 +263,15 @@ export const useExerciseSets = ({
 
     const { savedSet } = await saveSetToDb(currentSet, setIndex, sessionIdToUse);
     if (savedSet) {
+      // Update local state with the saved set's actual ID and session_id
       setSets(prev => {
         const newSets = [...prev];
         newSets[setIndex] = { ...savedSet, session_id: sessionIdToUse };
-        // Assert key validity before delete
-        console.assert(isValidDraftKey(exerciseId, setIndex), `Invalid draft key in handleSaveSet delete: [${exerciseId}, ${setIndex}]`);
-        db.draft_set_logs.delete([exerciseId, setIndex]);
         return newSets;
       });
+      // Delete the draft for this specific set AFTER the local state is updated
+      console.assert(isValidDraftKey(exerciseId, setIndex), `Invalid draft key in handleSaveSet delete: [${exerciseId}, ${setIndex}]`);
+      db.draft_set_logs.delete([exerciseId, setIndex]);
     } else {
       setSets(previousSets); // Rollback on failure
       toast.error(`Failed to save set ${setIndex + 1}. Please try again.`);
