@@ -83,7 +83,7 @@ export const SaveAiExercisePrompt = ({
                 {exercise.video_url && (
                   <div>
                     <h4 className="font-semibold text-sm mb-1">Video URL:</h4>
-                    <a href={exercise.video_url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-500 hover:underline truncate block">
+                    <a href={exercise.video_url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-500 hover:underline block break-all">
                       {exercise.video_url}
                     </a>
                   </div>
