@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Camera, Upload, Sparkles, Loader2, AlertCircle, XCircle } from "lucide-react"; // Added XCircle
+import { Camera, Upload, Sparkles, Loader2, AlertCircle, XCircle } from "lucide-react";
 import { useSession } from "@/components/session-context-provider";
 import { toast } from "sonner";
 import { Tables } from "@/types/supabase";
@@ -17,7 +17,7 @@ type ExerciseDefinition = Tables<'exercise_definitions'>;
 interface AnalyzeGymDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onExerciseIdentified: (exerciseData: Partial<ExerciseDefinition>) => void;
+  onExerciseIdentified: (exerciseData: Partial<ExerciseDefinition>, isDuplicateConfirmed: boolean) => void; // Updated signature
 }
 
 export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: AnalyzeGymDialogProps) => {
@@ -104,7 +104,7 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
             setShowDuplicateConfirmDialog(true);
           } else {
             // No duplicate, proceed to add
-            onExerciseIdentified(aiExercise); // Call the prop directly
+            onExerciseIdentified(aiExercise, false); // Pass false for isDuplicateConfirmed
             toast.success("Equipment identified!");
             onOpenChange(false); // Close dialog on success
           }
@@ -127,7 +127,7 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
 
   const handleConfirmAddAnyway = () => {
     if (identifiedExerciseData) {
-      onExerciseIdentified(identifiedExerciseData); // Pass the identified data to the parent
+      onExerciseIdentified(identifiedExerciseData, true); // Pass true for isDuplicateConfirmed
       toast.success("Equipment identified!");
     }
     setShowDuplicateConfirmDialog(false);

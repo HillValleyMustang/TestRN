@@ -124,10 +124,11 @@ export const WorkoutSelector = ({
   // State for AI gym analysis flow
   const [showAnalyzeGymDialog, setShowAnalyzeGymDialog] = useState(false);
   const [identifiedExerciseFromAI, setIdentifiedExerciseFromAI] = useState<Partial<ExerciseDefinition> | null>(null);
-  const [showDuplicateConfirmDialog, setShowDuplicateConfirmDialog] = useState(false);
-  const [duplicateLocation, setDuplicateLocation] = useState<'My Exercises' | 'Global Library'>('My Exercises');
+  const [showDuplicateConfirmDialog, setShowDuplicateConfirmDialog] = useState(false); // This is for AnalyzeGymDialog's internal use
+  const [duplicateLocation, setDuplicateLocation] = useState<'My Exercises' | 'Global Library'>('My Exercises'); // This is for AnalyzeGymDialog's internal use
   const [showSaveNewExercisePrompt, setShowSaveNewExercisePrompt] = useState(false);
   const [isSavingNewExerciseToLibrary, setIsSavingNewExerciseToLibrary] = useState(false);
+  const [isDuplicateIdentified, setIsDuplicateIdentified] = useState(false); // New state to pass to SaveAiExercisePrompt
 
   const mainMuscleGroups = useMemo(() => {
     return Array.from(new Set(allAvailableExercises.map(ex => ex.main_muscle))).sort();
@@ -166,7 +167,7 @@ export const WorkoutSelector = ({
   }, [selectedWorkoutId, selectWorkout]);
 
   // --- AI Gym Analysis Handlers ---
-  const handleAIIdentifiedExercise = useCallback(async (identifiedData: Partial<ExerciseDefinition>) => {
+  const handleAIIdentifiedExercise = useCallback(async (identifiedData: Partial<ExerciseDefinition>, isDuplicate: boolean) => {
     // Assign a temporary UUID if the exercise doesn't have one (i.e., it's a new AI-generated exercise)
     const exerciseWithId: ExerciseDefinition = {
       ...identifiedData,
@@ -185,45 +186,14 @@ export const WorkoutSelector = ({
       icon_url: identifiedData.icon_url ?? null, // Explicitly handle undefined
     };
 
-    // Add to current ad-hoc session immediately
-    addExerciseToSession(exerciseWithId);
     setIdentifiedExerciseFromAI(exerciseWithId); // Store the version with the ID
+    setIsDuplicateIdentified(isDuplicate); // Set the duplicate flag
     setShowSaveNewExercisePrompt(true); // Prompt to save to My Exercises
     
     setShowAnalyzeGymDialog(false); // Close the analyze dialog
-  }, [addExerciseToSession]);
-
-  const handleConfirmAddAnyway = useCallback((identifiedData: Partial<ExerciseDefinition>) => {
-    // Assign a temporary UUID if the exercise doesn't have one
-    const exerciseWithId: ExerciseDefinition = {
-      ...identifiedData,
-      id: identifiedData.id || uuidv4(), // Assign UUID if missing
-      name: identifiedData.name || 'Unknown Exercise',
-      main_muscle: identifiedData.main_muscle || 'Unknown',
-      type: identifiedData.type || 'weight',
-      category: identifiedData.category ?? null, // Explicitly handle undefined
-      description: identifiedData.description ?? null, // Explicitly handle undefined
-      pro_tip: identifiedData.pro_tip ?? null, // Explicitly handle undefined
-      video_url: identifiedData.video_url ?? null, // Explicitly handle undefined
-      created_at: identifiedData.created_at || new Date().toISOString(),
-      user_id: identifiedData.user_id || null,
-      library_id: identifiedData.library_id || null,
-      is_favorite: identifiedData.is_favorite || false,
-      icon_url: identifiedData.icon_url ?? null, // Explicitly handle undefined
-    };
-
-    addExerciseToSession(exerciseWithId);
-    setIdentifiedExerciseFromAI(exerciseWithId); // Store the version with the ID
-    setShowDuplicateConfirmDialog(false);
-    setShowSaveNewExercisePrompt(true); // Prompt to save to My Exercises
-  }, [addExerciseToSession]);
-
-  const handleCancelDuplicateAdd = useCallback(() => {
-    setShowDuplicateConfirmDialog(false);
-    setIdentifiedExerciseFromAI(null);
-    toast.info("Exercise not added.");
   }, []);
 
+  // This function is called when the user explicitly clicks "Add and Save to My Exercises"
   const handleSaveToMyExercises = useCallback(async (exerciseToSave: Partial<ExerciseDefinition>) => {
     if (!session || !exerciseToSave.name || !exerciseToSave.main_muscle || !exerciseToSave.type) {
       toast.error("Cannot save exercise: missing required details.");
@@ -231,6 +201,10 @@ export const WorkoutSelector = ({
     }
     setIsSavingNewExerciseToLibrary(true);
     try {
+      // First, add to ad-hoc workout
+      addExerciseToSession(exerciseToSave as ExerciseDefinition);
+      
+      // Then, save to My Exercises
       const { error } = await supabase.from('exercise_definitions').insert([{
         name: exerciseToSave.name,
         main_muscle: exerciseToSave.main_muscle,
@@ -246,7 +220,7 @@ export const WorkoutSelector = ({
       }]);
 
       if (error) throw error;
-      toast.success(`'${exerciseToSave.name}' saved to My Exercises!`);
+      toast.success(`'${exerciseToSave.name}' added and saved to My Exercises!`);
       // Refresh all data to ensure the new exercise appears in dropdowns/lists
       refreshAllData();
     } catch (err: any) {
@@ -256,13 +230,27 @@ export const WorkoutSelector = ({
       setIsSavingNewExerciseToLibrary(false);
       setShowSaveNewExercisePrompt(false);
       setIdentifiedExerciseFromAI(null);
+      setIsDuplicateIdentified(false);
     }
-  }, [session, supabase, refreshAllData]);
+  }, [session, supabase, refreshAllData, addExerciseToSession]);
 
-  const handleSkipSaveToMyExercises = useCallback(() => {
+  // This function is called when the user explicitly clicks "Add just to this workout"
+  const handleAddJustToThisWorkout = useCallback(() => {
+    if (identifiedExerciseFromAI) {
+      addExerciseToSession(identifiedExerciseFromAI as ExerciseDefinition);
+      toast.success(`'${identifiedExerciseFromAI.name}' added to ad-hoc workout!`);
+    }
     setShowSaveNewExercisePrompt(false);
     setIdentifiedExerciseFromAI(null);
-    toast.info("Exercise added to ad-hoc workout only.");
+    setIsDuplicateIdentified(false);
+  }, [identifiedExerciseFromAI, addExerciseToSession]);
+
+  // This function is called when the SaveAiExercisePrompt is closed without explicit action
+  const handleCloseSavePrompt = useCallback(() => {
+    setShowSaveNewExercisePrompt(false);
+    setIdentifiedExerciseFromAI(null);
+    setIsDuplicateIdentified(false);
+    toast.info("Exercise not added."); // Inform user it wasn't added
   }, []);
   // --- End AI Gym Analysis Handlers ---
 
@@ -427,32 +415,18 @@ export const WorkoutSelector = ({
       <AnalyzeGymDialog
         open={showAnalyzeGymDialog}
         onOpenChange={setShowAnalyzeGymDialog}
-        onExerciseIdentified={(identifiedData) => {
-          setIdentifiedExerciseFromAI(identifiedData);
-          // AnalyzeGymDialog now handles the duplicate check internally and opens DuplicateConfirmDialog if needed.
-          // If no duplicate, it calls this callback, so we can directly prompt to save.
-          handleAIIdentifiedExercise(identifiedData);
-        }}
+        onExerciseIdentified={handleAIIdentifiedExercise} // Updated to new handler
       />
-
-      {identifiedExerciseFromAI && (
-        <DuplicateExerciseConfirmDialog
-          open={showDuplicateConfirmDialog}
-          onOpenChange={handleCancelDuplicateAdd}
-          exerciseName={identifiedExerciseFromAI.name || "Unknown Exercise"}
-          duplicateLocation={duplicateLocation}
-          onConfirmAddAnyway={() => handleConfirmAddAnyway(identifiedExerciseFromAI)}
-        />
-      )}
 
       {identifiedExerciseFromAI && (
         <SaveAiExercisePrompt
           open={showSaveNewExercisePrompt}
-          onOpenChange={handleSkipSaveToMyExercises} // If user closes, it's a skip
+          onOpenChange={handleCloseSavePrompt} // Updated to new handler
           exercise={identifiedExerciseFromAI}
           onSaveToMyExercises={handleSaveToMyExercises}
-          onSkip={handleSkipSaveToMyExercises}
+          onSkip={handleAddJustToThisWorkout} // Updated to new handler
           isSaving={isSavingNewExerciseToLibrary}
+          isDuplicate={isDuplicateIdentified} // Pass the new prop
         />
       )}
     </>

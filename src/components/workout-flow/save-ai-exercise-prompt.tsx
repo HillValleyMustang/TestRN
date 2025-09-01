@@ -3,7 +3,7 @@
 import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Save, XCircle, Info } from "lucide-react";
+import { Sparkles, Save, PlusCircle } from "lucide-react"; // Changed XCircle to PlusCircle
 import { Tables } from "@/types/supabase";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { LoadingOverlay } from "../loading-overlay";
@@ -15,8 +15,9 @@ interface SaveAiExercisePromptProps {
   onOpenChange: (open: boolean) => void;
   exercise: Partial<ExerciseDefinition> | null;
   onSaveToMyExercises: (exercise: Partial<ExerciseDefinition>) => Promise<void>;
-  onSkip: () => void;
+  onSkip: () => void; // Renamed from onSkip to better reflect its new action
   isSaving: boolean;
+  isDuplicate: boolean; // New prop to indicate if the exercise is a duplicate
 }
 
 export const SaveAiExercisePrompt = ({
@@ -24,8 +25,9 @@ export const SaveAiExercisePrompt = ({
   onOpenChange,
   exercise,
   onSaveToMyExercises,
-  onSkip,
+  onSkip, // Now means "Add just to this workout"
   isSaving,
+  isDuplicate, // Destructure new prop
 }: SaveAiExercisePromptProps) => {
   if (!exercise) return null;
 
@@ -41,7 +43,7 @@ export const SaveAiExercisePrompt = ({
               The AI has identified an exercise. You can add it to your current ad-hoc workout, and optionally save it to "My Exercises" for future use.
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className="flex-grow h-full py-4 pr-4"> {/* Added h-full here */}
+          <ScrollArea className="flex-grow h-full py-4 pr-4">
             <div className="space-y-4">
               <div>
                 <h4 className="font-semibold text-sm mb-1">Name:</h4>
@@ -84,11 +86,14 @@ export const SaveAiExercisePrompt = ({
             </div>
           </ScrollArea>
           <div className="flex flex-col gap-2 pt-4 border-t">
-            <Button onClick={() => onSaveToMyExercises(exercise)} disabled={isSaving}>
+            <Button 
+              onClick={() => onSaveToMyExercises(exercise)} 
+              disabled={isSaving || isDuplicate} // Disable if saving or if it's a duplicate
+            >
               <Save className="h-4 w-4 mr-2" /> {isSaving ? "Saving..." : "Add and Save to My Exercises"}
             </Button>
             <Button variant="outline" onClick={onSkip} disabled={isSaving}>
-              <XCircle className="h-4 w-4 mr-2" /> No, add just to this workout
+              <PlusCircle className="h-4 w-4 mr-2" /> Add just to this workout
             </Button>
           </div>
         </DialogContent>
