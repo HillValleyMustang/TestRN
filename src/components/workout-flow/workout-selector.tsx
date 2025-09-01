@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Dumbbell, Settings } from 'lucide-react';
+import { PlusCircle, Dumbbell, Settings, Sparkles } from 'lucide-react';
 import { Tables } from '@/types/supabase';
 import { cn, formatTimeAgo, getPillStyles } from '@/lib/utils';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
@@ -12,10 +12,15 @@ import { WorkoutBadge } from '../workout-badge';
 import { LoadingOverlay } from '../loading-overlay';
 import { useSession } from '@/components/session-context-provider';
 import { WorkoutPill, WorkoutPillProps } from './workout-pill';
-import { EditWorkoutExercisesDialog } from '../manage-t-paths/edit-workout-exercises-dialog'; // Import the dialog
-import { ExerciseSelectionDropdown } from '@/components/shared/exercise-selection-dropdown'; // Updated import path
+import { EditWorkoutExercisesDialog } from '../manage-t-paths/edit-workout-exercises-dialog';
+import { ExerciseSelectionDropdown } from '@/components/shared/exercise-selection-dropdown';
+import { AnalyzeGymDialog } from '../manage-exercises/analyze-gym-dialog';
+import { DuplicateExerciseConfirmDialog } from '../manage-exercises/duplicate-exercise-confirm-dialog';
+import { SaveAiExercisePrompt } from './save-ai-exercise-prompt';
+import { toast } from 'sonner'; // Added toast import
 
 type TPath = Tables<'t_paths'>;
+type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 interface WorkoutWithLastCompleted extends TPath {
   last_completed_at: string | null;
@@ -49,6 +54,7 @@ interface WorkoutSelectorProps {
   isCreatingSession: boolean;
   createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>;
   finishWorkoutSession: () => Promise<void>;
+  refreshAllData: () => void; // Added refreshAllData to props
 }
 
 const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName: string): Omit<WorkoutPillProps, 'isSelected' | 'onClick'> => {
@@ -105,13 +111,22 @@ export const WorkoutSelector = ({
   groupedTPaths,
   isCreatingSession,
   createWorkoutSessionInDb,
-  finishWorkoutSession
+  finishWorkoutSession,
+  refreshAllData // Destructured refreshAllData
 }: WorkoutSelectorProps) => {
-  const { supabase } = useSession();
+  const { supabase, session } = useSession();
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
   const [isEditWorkoutDialogOpen, setIsEditWorkoutDialogOpen] = useState(false);
   const [selectedWorkoutToEdit, setSelectedWorkoutToEdit] = useState<{ id: string; name: string } | null>(null);
   const [adHocExerciseSourceFilter, setAdHocExerciseSourceFilter] = useState<'my-exercises' | 'global-library'>('my-exercises');
+
+  // State for AI gym analysis flow
+  const [showAnalyzeGymDialog, setShowAnalyzeGymDialog] = useState(false);
+  const [identifiedExerciseFromAI, setIdentifiedExerciseFromAI] = useState<Partial<ExerciseDefinition> | null>(null);
+  const [showDuplicateConfirmDialog, setShowDuplicateConfirmDialog] = useState(false);
+  const [duplicateLocation, setDuplicateLocation] = useState<'My Exercises' | 'Global Library'>('My Exercises');
+  const [showSaveNewExercisePrompt, setShowSaveNewExercisePrompt] = useState(false);
+  const [isSavingNewExerciseToLibrary, setIsSavingNewExerciseToLibrary] = useState(false);
 
   const mainMuscleGroups = useMemo(() => {
     return Array.from(new Set(allAvailableExercises.map(ex => ex.main_muscle))).sort();
@@ -148,6 +163,76 @@ export const WorkoutSelector = ({
       await selectWorkout(selectedWorkoutId); // Re-fetch exercises for the current workout
     }
   }, [selectedWorkoutId, selectWorkout]);
+
+  // --- AI Gym Analysis Handlers ---
+  const handleAIIdentifiedExercise = useCallback(async (identifiedData: Partial<ExerciseDefinition>) => {
+    if (!identifiedData.id) { // If it's a new AI-generated exercise without a DB ID yet
+      // Add to current ad-hoc session immediately
+      addExerciseToSession(identifiedData as ExerciseDefinition); // Cast to ExerciseDefinition for addExerciseToSession
+      setIdentifiedExerciseFromAI(identifiedData);
+      setShowSaveNewExercisePrompt(true); // Prompt to save to My Exercises
+    } else {
+      // If it's an existing exercise (e.g., from global library) identified by AI
+      addExerciseToSession(identifiedData as ExerciseDefinition);
+      toast.success(`'${identifiedData.name}' added to ad-hoc workout!`);
+    }
+    setShowAnalyzeGymDialog(false); // Close the analyze dialog
+  }, [addExerciseToSession]);
+
+  const handleConfirmAddAnyway = useCallback((identifiedData: Partial<ExerciseDefinition>) => {
+    addExerciseToSession(identifiedData as ExerciseDefinition);
+    setIdentifiedExerciseFromAI(identifiedData);
+    setShowDuplicateConfirmDialog(false);
+    setShowSaveNewExercisePrompt(true); // Prompt to save to My Exercises
+  }, [addExerciseToSession]);
+
+  const handleCancelDuplicateAdd = useCallback(() => {
+    setShowDuplicateConfirmDialog(false);
+    setIdentifiedExerciseFromAI(null);
+    toast.info("Exercise not added.");
+  }, []);
+
+  const handleSaveToMyExercises = useCallback(async (exerciseToSave: Partial<ExerciseDefinition>) => {
+    if (!session || !exerciseToSave.name || !exerciseToSave.main_muscle || !exerciseToSave.type) {
+      toast.error("Cannot save exercise: missing required details.");
+      return;
+    }
+    setIsSavingNewExerciseToLibrary(true);
+    try {
+      const { error } = await supabase.from('exercise_definitions').insert([{
+        name: exerciseToSave.name,
+        main_muscle: exerciseToSave.main_muscle,
+        type: exerciseToSave.type,
+        category: exerciseToSave.category,
+        description: exerciseToSave.description,
+        pro_tip: exerciseToSave.pro_tip,
+        video_url: exerciseToSave.video_url,
+        user_id: session.user.id,
+        library_id: null, // User-created, not from global library_id
+        is_favorite: false,
+        created_at: new Date().toISOString(),
+      }]);
+
+      if (error) throw error;
+      toast.success(`'${exerciseToSave.name}' saved to My Exercises!`);
+      // Refresh all data to ensure the new exercise appears in dropdowns/lists
+      await refreshAllData();
+    } catch (err: any) {
+      console.error("Failed to save AI-identified exercise to My Exercises:", err);
+      toast.error("Failed to save exercise: " + err.message);
+    } finally {
+      setIsSavingNewExerciseToLibrary(false);
+      setShowSaveNewExercisePrompt(false);
+      setIdentifiedExerciseFromAI(null);
+    }
+  }, [session, supabase, refreshAllData]);
+
+  const handleSkipSaveToMyExercises = useCallback(() => {
+    setShowSaveNewExercisePrompt(false);
+    setIdentifiedExerciseFromAI(null);
+    toast.info("Exercise added to ad-hoc workout only.");
+  }, []);
+  // --- End AI Gym Analysis Handlers ---
 
   const totalExercises = exercisesForSession.length;
 
@@ -197,7 +282,7 @@ export const WorkoutSelector = ({
             <div className="flex justify-center mb-4">
               <WorkoutBadge 
                 workoutName={selectedWorkoutId === 'ad-hoc' ? "Ad Hoc Workout" : (activeWorkout?.template_name || "Workout")} 
-                className="text-lg px-4 py-2" // Adjusted styling here
+                className="text-lg px-4 py-2"
               >
                 {selectedWorkoutId === 'ad-hoc' ? "Ad Hoc Workout" : (activeWorkout?.template_name || "Workout")}
               </WorkoutBadge>
@@ -206,7 +291,7 @@ export const WorkoutSelector = ({
             {selectedWorkoutId === 'ad-hoc' && (
               <section className="mb-6 p-4 border rounded-lg bg-card">
                 <h3 className="text-lg font-semibold mb-3">Add Exercises</h3>
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <ExerciseSelectionDropdown
                     allAvailableExercises={allAvailableExercises}
                     exercisesInCurrentContext={exercisesForSession}
@@ -217,8 +302,11 @@ export const WorkoutSelector = ({
                     mainMuscleGroups={mainMuscleGroups}
                     placeholder="Select exercise to add"
                   />
-                  <Button onClick={handleAddExercise} disabled={!selectedExerciseToAdd} className="w-full">
-                    <PlusCircle className="h-4 w-4 mr-2" /> Add Exercise
+                  <Button onClick={handleAddExercise} disabled={!selectedExerciseToAdd} className="flex-shrink-0">
+                    <PlusCircle className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowAnalyzeGymDialog(true)} className="flex-shrink-0">
+                    <Sparkles className="h-4 w-4 mr-2" /> AI Analyse
                   </Button>
                 </div>
               </section>
@@ -300,6 +388,39 @@ export const WorkoutSelector = ({
           workoutId={selectedWorkoutToEdit.id}
           workoutName={selectedWorkoutToEdit.name}
           onSaveSuccess={handleEditWorkoutSaveSuccess}
+        />
+      )}
+
+      {/* AI Gym Analysis Dialogs */}
+      <AnalyzeGymDialog
+        open={showAnalyzeGymDialog}
+        onOpenChange={setShowAnalyzeGymDialog}
+        onExerciseIdentified={(identifiedData) => {
+          setIdentifiedExerciseFromAI(identifiedData);
+          // AnalyzeGymDialog now handles the duplicate check internally and opens DuplicateConfirmDialog if needed.
+          // If no duplicate, it calls this callback, so we can directly prompt to save.
+          handleAIIdentifiedExercise(identifiedData);
+        }}
+      />
+
+      {identifiedExerciseFromAI && (
+        <DuplicateExerciseConfirmDialog
+          open={showDuplicateConfirmDialog}
+          onOpenChange={handleCancelDuplicateAdd}
+          exerciseName={identifiedExerciseFromAI.name || "Unknown Exercise"}
+          duplicateLocation={duplicateLocation}
+          onConfirmAddAnyway={() => handleConfirmAddAnyway(identifiedExerciseFromAI)}
+        />
+      )}
+
+      {identifiedExerciseFromAI && (
+        <SaveAiExercisePrompt
+          open={showSaveNewExercisePrompt}
+          onOpenChange={handleSkipSaveToMyExercises} // If user closes, it's a skip
+          exercise={identifiedExerciseFromAI}
+          onSaveToMyExercises={handleSaveToMyExercises}
+          onSkip={handleSkipSaveToMyExercises}
+          isSaving={isSavingNewExerciseToLibrary}
         />
       )}
     </>

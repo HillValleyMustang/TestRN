@@ -39,6 +39,7 @@ interface UseWorkoutFlowManagerReturn {
   isCreatingSession: boolean;
   createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>;
   finishWorkoutSession: () => Promise<void>;
+  refreshAllData: () => void; // Added to return type
 }
 
 const DEFAULT_INITIAL_SETS = 3;
@@ -57,7 +58,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     workoutExercisesCache,
     loadingData,
     dataError,
-    refreshAllData,
+    refreshAllData, // Destructure refreshAllData
   } = useWorkoutDataFetcher();
 
   const {
@@ -221,5 +222,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     isCreatingSession,
     createWorkoutSessionInDb,
     finishWorkoutSession,
+    refreshAllData, // Return refreshAllData
   };
 };

@@ -5,12 +5,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Camera, Upload, Sparkles, Loader2, AlertCircle } from "lucide-react";
+import { Camera, Upload, Sparkles, Loader2, AlertCircle, XCircle } from "lucide-react"; // Added XCircle
 import { useSession } from "@/components/session-context-provider";
 import { toast } from "sonner";
 import { Tables } from "@/types/supabase";
 import { LoadingOverlay } from '../loading-overlay';
-import { DuplicateExerciseConfirmDialog } from "./duplicate-exercise-confirm-dialog"; // Import the new dialog
+import { DuplicateExerciseConfirmDialog } from "./duplicate-exercise-confirm-dialog";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -21,7 +21,7 @@ interface AnalyzeGymDialogProps {
 }
 
 export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: AnalyzeGymDialogProps) => {
-  const { session, supabase } = useSession(); // Destructure supabase from useSession
+  const { session, supabase } = useSession();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -30,7 +30,7 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
 
   const [showDuplicateConfirmDialog, setShowDuplicateConfirmDialog] = useState(false);
   const [identifiedExerciseData, setIdentifiedExerciseData] = useState<Partial<ExerciseDefinition> | null>(null);
-  const [duplicateLocation, setDuplicateLocation] = useState<'My Exercises' | 'Global Library'>('My Exercises'); // State for duplicate location
+  const [duplicateLocation, setDuplicateLocation] = useState<'My Exercises' | 'Global Library'>('My Exercises');
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -84,8 +84,7 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
 
         if (data.identifiedExercise) {
           const aiExercise = data.identifiedExercise as Partial<ExerciseDefinition>;
-          setIdentifiedExerciseData(aiExercise); // Store identified data
-
+          
           // Check for duplicates by name only
           const { data: existingExercises, error: duplicateCheckError } = await supabase
             .from('exercise_definitions')
@@ -98,15 +97,15 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
           }
 
           if (existingExercises && existingExercises.length > 0) {
-            // Determine where the duplicate exists
+            // Duplicate found, store data and show confirmation dialog
             const isUserOwnedDuplicate = existingExercises.some(ex => ex.user_id === session.user.id);
             setDuplicateLocation(isUserOwnedDuplicate ? 'My Exercises' : 'Global Library');
-            // Duplicate found, show confirmation dialog
+            setIdentifiedExerciseData(aiExercise); // Store identified data
             setShowDuplicateConfirmDialog(true);
           } else {
             // No duplicate, proceed to add
-            onExerciseIdentified(aiExercise);
-            toast.success("Equipment identified! Review and save the exercise.");
+            onExerciseIdentified(aiExercise); // Call the prop directly
+            toast.success("Equipment identified!");
             onOpenChange(false); // Close dialog on success
           }
         } else {
@@ -128,8 +127,8 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
 
   const handleConfirmAddAnyway = () => {
     if (identifiedExerciseData) {
-      onExerciseIdentified(identifiedExerciseData);
-      toast.success("Equipment identified! Review and save the exercise.");
+      onExerciseIdentified(identifiedExerciseData); // Pass the identified data to the parent
+      toast.success("Equipment identified!");
     }
     setShowDuplicateConfirmDialog(false);
     onOpenChange(false); // Close main dialog
@@ -137,6 +136,7 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
 
   const handleCancelDuplicateAdd = () => {
     setShowDuplicateConfirmDialog(false);
+    setIdentifiedExerciseData(null); // Clear identified data
     onOpenChange(false); // Close main dialog
     toast.info("Exercise not added.");
   };
@@ -168,7 +168,7 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
                 <div className="relative w-full max-w-xs h-48 border rounded-md overflow-hidden flex items-center justify-center bg-muted">
                   <img src={imagePreviewUrl} alt="Equipment Preview" className="max-w-full max-h-full object-contain" />
                   <Button variant="ghost" size="icon" className="absolute top-2 right-2 text-white bg-black/50 hover:bg-black/70" onClick={handleClear}>
-                    <AlertCircle className="h-4 w-4" />
+                    <XCircle className="h-4 w-4" />
                   </Button>
                 </div>
               ) : (
@@ -217,9 +217,9 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
       {identifiedExerciseData && (
         <DuplicateExerciseConfirmDialog
           open={showDuplicateConfirmDialog}
-          onOpenChange={handleCancelDuplicateAdd} // If user closes dialog, it's a cancel
+          onOpenChange={handleCancelDuplicateAdd}
           exerciseName={identifiedExerciseData.name || "Unknown Exercise"}
-          duplicateLocation={duplicateLocation} // Pass the determined location
+          duplicateLocation={duplicateLocation}
           onConfirmAddAnyway={handleConfirmAddAnyway}
         />
       )}
