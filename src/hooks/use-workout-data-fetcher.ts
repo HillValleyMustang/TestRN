@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react'; // Import useRef
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { Tables, WorkoutExercise } from '@/types/supabase';
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
-import { LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise } from '@/lib/db'; // Import new local types
+import { LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
-import { getMaxMinutes } from '@/lib/utils'; // Import getMaxMinutes
+import { getMaxMinutes } from '@/lib/utils';
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -99,15 +99,24 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     sessionUserId: session?.user.id ?? null, // This is a global cache, but tied to user session for revalidation
   });
 
+  // Ref to track if initial cached data has been processed
+  const hasProcessedInitialDataRef = useRef(false);
+
   // Phase 1: Process initial cached data (fast, no network calls)
   const processInitialCachedData = useCallback(() => {
-    // Ensure all necessary cached data is available
+    // Ensure all necessary cached data is available and not undefined
     if (
       cachedExercises === undefined || cachedTPaths === undefined || cachedProfile === undefined || cachedTPathExercises === undefined ||
       !cachedExercises || !cachedTPaths || !cachedProfile || !cachedTPathExercises
     ) {
       return;
     }
+
+    // Prevent re-processing if already done
+    if (hasProcessedInitialDataRef.current) {
+      return;
+    }
+    hasProcessedInitialDataRef.current = true; // Mark as processed
 
     setAllAvailableExercises(cachedExercises as ExerciseDefinition[]);
     
@@ -205,7 +214,11 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
 
   useEffect(() => {
     // Trigger initial fast load as soon as cached data is available
-    if (cachedExercises !== undefined && cachedTPaths !== undefined && cachedProfile !== undefined && cachedTPathExercises !== undefined) {
+    // and only if it hasn't been processed yet.
+    if (
+      cachedExercises !== undefined && cachedTPaths !== undefined && cachedProfile !== undefined && cachedTPathExercises !== undefined &&
+      !hasProcessedInitialDataRef.current
+    ) {
       processInitialCachedData();
       // Then, trigger background enrichment
       enrichDataWithNetworkCalls();
@@ -213,13 +226,14 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   }, [processInitialCachedData, enrichDataWithNetworkCalls, cachedExercises, cachedTPaths, cachedProfile, cachedTPathExercises]);
 
   const refreshAllData = useCallback(() => {
+    // Reset the ref so initial processing runs again on explicit refresh
+    hasProcessedInitialDataRef.current = false; 
     refreshExercises();
     refreshTPaths();
     refreshProfile();
     refreshTPathExercises();
-    // After refreshing cache, re-trigger enrichment to get latest network data
-    enrichDataWithNetworkCalls();
-  }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, enrichDataWithNetworkCalls]);
+    // The useEffect will then pick up the refreshed cached data and re-run initial processing + background enrichment
+  }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises]);
 
   return {
     allAvailableExercises,
