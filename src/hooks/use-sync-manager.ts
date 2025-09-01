@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from 'react';
+import * as React from 'react'; // Use React for useState, useEffect, useCallback, useRef
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
@@ -8,8 +8,9 @@ import { toast } from 'sonner';
 
 export const useSyncManager = () => {
   const { supabase } = useSession();
-  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [isOnline, setIsOnline] = React.useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [isSyncing, setIsSyncing] = React.useState(false);
+  const syncToastId = React.useRef<string | number | null>(null); // Ref to store the toast ID
 
   // Subscribe to sync queue changes
   const syncQueue = useLiveQuery(() => db.sync_queue.orderBy('timestamp').toArray(), []);
@@ -17,7 +18,7 @@ export const useSyncManager = () => {
   const handleOnline = () => setIsOnline(true);
   const handleOffline = () => setIsOnline(false);
 
-  useEffect(() => {
+  React.useEffect(() => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     return () => {
@@ -26,47 +27,70 @@ export const useSyncManager = () => {
     };
   }, []);
 
-  const processQueue = useCallback(async () => {
-    if (!isOnline || isSyncing || !syncQueue || syncQueue.length === 0 || !supabase) {
+  const processQueue = React.useCallback(async () => {
+    if (!isOnline || isSyncing || !syncQueue || !supabase) {
+      // If queue is empty and a sync toast is active, dismiss it as successful
+      if (syncToastId.current && syncQueue && syncQueue.length === 0) {
+        toast.success("All data synced successfully!", { id: syncToastId.current });
+        setTimeout(() => toast.dismiss(syncToastId.current!), 3000);
+        syncToastId.current = null;
+      }
       return;
     }
 
-    setIsSyncing(true);
-    toast.info("Syncing workout data...");
+    // If there are items in the queue, but we are not currently syncing, start syncing
+    // and ensure the loading toast is visible.
+    if (syncQueue.length > 0 && !isSyncing) {
+      setIsSyncing(true);
 
-    const item = syncQueue[0]; // Process one item at a time
-
-    try {
-      const { table, payload, operation } = item;
-      
-      if (operation === 'create' || operation === 'update') {
-        const { error } = await supabase.from(table).upsert(payload, { onConflict: 'id' });
-        if (error) throw error;
-      } else if (operation === 'delete') {
-        const { error } = await supabase.from(table).delete().eq('id', payload.id);
-        // Ignore "not found" errors for deletes, as it might have been deleted already or never created
-        if (error && error.code !== 'PGRST204') {
-            throw error;
-        }
+      // Create or update the loading toast
+      if (!syncToastId.current) {
+        syncToastId.current = toast.loading("Syncing workout data in background...");
+      } else {
+        // Update existing toast to ensure it's still a loading state
+        toast.loading("Syncing workout data in background...", { id: syncToastId.current });
       }
 
-      // If successful, remove from queue
-      await db.sync_queue.delete(item.id!);
-      console.log(`Synced and removed item ${item.id} from queue.`);
+      const item = syncQueue[0]; // Process one item at a time
 
-    } catch (error: any) {
-      console.error(`Failed to sync item ${item.id}:`, error);
-      // Increment attempt count and update error message
-      await db.sync_queue.update(item.id!, {
-        attempts: item.attempts + 1,
-        error: error.message,
-      });
-    } finally {
-      setIsSyncing(false);
+      try {
+        const { table, payload, operation } = item;
+        
+        if (operation === 'create' || operation === 'update') {
+          const { error } = await supabase.from(table).upsert(payload, { onConflict: 'id' });
+          if (error) throw error;
+        } else if (operation === 'delete') {
+          const { error } = await supabase.from(table).delete().eq('id', payload.id);
+          // Ignore "not found" errors for deletes, as it might have been deleted already or never created
+          if (error && error.code !== 'PGRST204') {
+              throw error;
+          }
+        }
+
+        // If successful, remove from queue
+        await db.sync_queue.delete(item.id!);
+        console.log(`Synced and removed item ${item.id} from queue.`);
+
+      } catch (error: any) {
+        console.error(`Failed to sync item ${item.id}:`, error);
+        // Increment attempt count and update error message
+        await db.sync_queue.update(item.id!, {
+          attempts: item.attempts + 1,
+          error: error.message,
+        });
+        // If an error occurs, update the toast to error and dismiss
+        if (syncToastId.current) {
+          toast.error("Sync failed for some items. Check console for details.", { id: syncToastId.current });
+          setTimeout(() => toast.dismiss(syncToastId.current!), 5000);
+          syncToastId.current = null;
+        }
+      } finally {
+        setIsSyncing(false);
+      }
     }
   }, [isOnline, isSyncing, syncQueue, supabase]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     // Trigger processing whenever the queue changes or network status comes back online
     const syncInterval = setInterval(() => {
       processQueue();

@@ -75,6 +75,8 @@ export const TPathSwitcher = ({ currentTPathId, onTPathChange, disabled }: TPath
     if (!session) return;
 
     setIsSwitching(true); // Start loading
+    const toastId = toast.loading("Switching Transformation Path..."); // Initial loading toast
+
     try {
       // Step 1: Call the API to switch the active T-Path and disassociate old exercises
       const switchResponse = await fetch('/api/switch-t-path', {
@@ -109,9 +111,9 @@ export const TPathSwitcher = ({ currentTPathId, onTPathChange, disabled }: TPath
 
       onTPathChange(selectedTPathId); // Notify parent component of the change
       setShowSwitchDialog(false);
-      toast.success("Switched to new T-Path and generated workouts!");
+      toast.success("Switched to new T-Path and generated workouts!", { id: toastId }); // Update to success
     } catch (err: any) {
-      toast.error("Failed to switch T-Path: " + err.message);
+      toast.error("Failed to switch T-Path: " + err.message, { id: toastId }); // Update to error
       console.error("Error switching T-Path:", err);
     } finally {
       setIsSwitching(false); // End loading

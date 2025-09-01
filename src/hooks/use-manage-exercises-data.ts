@@ -297,25 +297,20 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       return;
     }
 
-    // Optimistic UI update
-    const previousUserExercises = userExercises; // Store current state for rollback
-    setUserExercises(prev => prev.filter(ex => ex.id !== exercise.id));
-    toast.info(`Deleting '${exercise.name}'...`);
+    const toastId = toast.loading(`Deleting '${exercise.name}'...`);
 
     try {
       const { error } = await supabase.from('exercise_definitions').delete().eq('id', exercise.id);
       if (error) {
         throw new Error(error.message);
       }
-      toast.success("Exercise deleted successfully!");
+      toast.success("Exercise deleted successfully!", { id: toastId });
       refreshExercises(); // Trigger revalidation after delete
     } catch (err: any) {
       console.error("Failed to delete exercise:", err);
-      toast.error("Failed to delete exercise: " + err.message);
-      // Rollback UI on error
-      setUserExercises(previousUserExercises); // Revert to previous state
+      toast.error("Failed to delete exercise: " + err.message, { id: toastId });
     }
-  }, [sessionUserId, supabase, userExercises, refreshExercises]);
+  }, [sessionUserId, supabase, refreshExercises]);
 
   const handleToggleFavorite = useCallback(async (exercise: FetchedExerciseDefinition) => {
     if (!sessionUserId) {
@@ -327,17 +322,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
     const isCurrentlyFavorited = isUserOwned ? exercise.is_favorite : exercise.is_favorited_by_current_user;
     const newFavoriteStatus = !isCurrentlyFavorited;
 
-    // Optimistic UI update
-    if (isUserOwned) {
-      setUserExercises(prev => prev.map(ex => 
-        ex.id === exercise.id ? { ...ex, is_favorite: newFavoriteStatus } as FetchedExerciseDefinition : ex
-      ));
-    } else { // Global exercise
-      setGlobalExercises(prev => prev.map(ex => 
-        ex.id === exercise.id ? { ...ex, is_favorited_by_current_user: newFavoriteStatus } as FetchedExerciseDefinition : ex
-      ));
-    }
-    toast.info(newFavoriteStatus ? "Adding to favourites..." : "Removing from favourites...");
+    const toastId = toast.loading(newFavoriteStatus ? "Adding to favourites..." : "Removing from favourites...");
 
     try {
       if (isUserOwned) {
@@ -348,14 +333,14 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
           .eq('user_id', sessionUserId);
 
         if (error) throw error;
-        toast.success(newFavoriteStatus ? "Added to favourites!" : "Removed from favourites.");
+        toast.success(newFavoriteStatus ? "Added to favourites!" : "Removed from favourites.", { id: toastId });
       } else { // Global exercise
         if (newFavoriteStatus) {
           const { error } = await supabase
             .from('user_global_favorites')
             .insert({ user_id: sessionUserId, exercise_id: exercise.id });
           if (error) throw error;
-          toast.success("Added to favourites!");
+          toast.success("Added to favourites!", { id: toastId });
         } else {
           const { error } = await supabase
             .from('user_global_favorites')
@@ -363,23 +348,13 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
             .eq('user_id', sessionUserId)
             .eq('exercise_id', exercise.id);
           if (error) throw error;
-          toast.success("Removed from favourites.");
+          toast.success("Removed from favourites.", { id: toastId });
         }
       }
       refreshExercises(); // Trigger revalidation after favorite change
     } catch (err: any) {
       console.error("Failed to toggle favourite status:", err);
-      toast.error("Failed to update favourite status: " + err.message);
-      // Rollback UI on error
-      if (isUserOwned) {
-        setUserExercises(prev => prev.map(ex => 
-          ex.id === exercise.id ? { ...ex, is_favorite: isCurrentlyFavorited } as FetchedExerciseDefinition : ex
-        ));
-      } else {
-        setGlobalExercises(prev => prev.map(ex => 
-          ex.id === exercise.id ? { ...ex, is_favorited_by_current_user: isCurrentlyFavorited } as FetchedExerciseDefinition : ex
-        ));
-      }
+      toast.error("Failed to update favourite status: " + err.message, { id: toastId });
     }
   }, [sessionUserId, supabase, refreshExercises]);
 
@@ -420,19 +395,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       return;
     }
 
-    // Optimistic UI update
-    const previousExerciseWorkoutsMap = exerciseWorkoutsMap; // Store current state for rollback
-    setExerciseWorkoutsMap(prev => {
-      const newMap = { ...prev };
-      if (newMap[exerciseId]) {
-        newMap[exerciseId] = newMap[exerciseId].filter(item => item.id !== workoutId);
-        if (newMap[exerciseId].length === 0) {
-          delete newMap[exerciseId];
-        }
-      }
-      return newMap;
-    });
-    toast.info("Removing exercise from workout...");
+    const toastId = toast.loading("Removing exercise from workout...");
 
     try {
       const { error } = await supabase
@@ -444,15 +407,13 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       if (error) {
         throw new Error(error.message);
       }
-      toast.success("Exercise removed from workout successfully!");
+      toast.success("Exercise removed from workout successfully!", { id: toastId });
       refreshTPaths(); // Trigger revalidation of T-Paths after removal
     } catch (err: any) {
       console.error("Failed to remove exercise from workout:", err);
-      toast.error("Failed to remove exercise from workout: " + err.message);
-      // Rollback UI on error
-      setExerciseWorkoutsMap(previousExerciseWorkoutsMap); // Revert to previous state
+      toast.error("Failed to remove exercise from workout: " + err.message, { id: toastId });
     }
-  }, [sessionUserId, supabase, exerciseWorkoutsMap, refreshTPaths]);
+  }, [sessionUserId, supabase, refreshTPaths]);
 
   return {
     globalExercises,

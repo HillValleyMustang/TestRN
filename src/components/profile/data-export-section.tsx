@@ -24,7 +24,7 @@ export const DataExportSection = () => {
     }
 
     setLoading(true);
-    toast.info("Preparing your data for export...");
+    const toastId = toast.loading("Preparing your data for export..."); // Initial loading toast
 
     try {
       // Fetch Workout Sessions
@@ -134,11 +134,11 @@ export const DataExportSection = () => {
       link.click();
       URL.revokeObjectURL(url);
 
-      toast.success("Your data has been exported successfully!");
+      toast.success("Your data has been exported successfully!", { id: toastId }); // Update to success
 
     } catch (error: any) {
       console.error("Error exporting data:", error);
-      toast.error("Failed to export data: " + error.message);
+      toast.error("Failed to export data: " + error.message, { id: toastId }); // Update to error
     } finally {
       setLoading(false);
     }
