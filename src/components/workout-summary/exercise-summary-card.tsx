@@ -9,6 +9,7 @@ import { ExerciseVolumeChart } from "./exercise-volume-chart";
 import { Separator } from "@/components/ui/separator"; // Import Separator
 import { cn } from "@/lib/utils"; // Import cn for conditional class names
 import { formatWeight, formatTime } from '@/lib/unit-conversions'; // Import formatTime
+import { ExerciseMiniChart } from "./exercise-mini-chart"; // Import ExerciseMiniChart
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type SetLog = Tables<'set_logs'>;
@@ -133,10 +134,10 @@ export const ExerciseSummaryCard = ({ exerciseGroup, currentSessionId }: Exercis
         </Table>
         
         <div className="mt-6">
-          <ExerciseVolumeChart 
-            currentSessionId={currentSessionId}
-            exerciseName={exerciseGroup.name}
+          <ExerciseMiniChart
             exerciseId={exerciseGroup.id}
+            exerciseType={exerciseGroup.type || 'weight'} // Default to 'weight' if undefined
+            currentSessionId={currentSessionId}
           />
         </div>
       </CardContent>
