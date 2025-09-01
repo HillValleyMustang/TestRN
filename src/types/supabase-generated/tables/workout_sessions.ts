@@ -9,6 +9,7 @@ export type WorkoutSessionsRow = {
   template_name: string | null;
   user_id: string | null;
   completed_at: string | null; // Added new column
+  t_path_id: string | null; // Added new column
 };
 export type WorkoutSessionsInsert = {
   created_at?: string | null;
@@ -19,6 +20,7 @@ export type WorkoutSessionsInsert = {
   template_name?: string | null;
   user_id?: string | null;
   completed_at?: string | null; // Added new column
+  t_path_id?: string | null; // Added new column
 };
 export type WorkoutSessionsUpdate = {
   created_at?: string | null;
@@ -29,4 +31,5 @@ export type WorkoutSessionsUpdate = {
   template_name?: string | null;
   user_id?: string | null;
   completed_at?: string | null; // Added new column
+  t_path_id?: string | null; // Added new column
 };

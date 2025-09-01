@@ -95,6 +95,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
         id: newSessionId,
         user_id: session.user.id,
         template_name: templateName,
+        t_path_id: activeWorkout?.id === 'ad-hoc' ? null : activeWorkout?.id, // Add the direct link
         session_date: firstSetTimestamp,
         duration_string: null,
         rating: null,
@@ -122,7 +123,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
     } finally {
       setIsCreatingSession(false);
     }
-  }, [session]);
+  }, [session, activeWorkout]);
 
   const addExerciseToSession = useCallback(async (exercise: ExerciseDefinition) => {
     if (!session) return;
@@ -284,6 +285,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
         user_id: session.user.id,
         session_date: sessionStartTime.toISOString(),
         template_name: activeWorkout.template_name,
+        t_path_id: activeWorkout.id === 'ad-hoc' ? null : activeWorkout.id,
         ...updatePayload
       };
       await addToSyncQueue('update', 'workout_sessions', fullSyncPayload);

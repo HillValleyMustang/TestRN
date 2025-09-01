@@ -18,6 +18,7 @@ export interface SyncQueueItem {
 export interface LocalWorkoutSession extends TablesInsert<'workout_sessions'> {
   id: string;
   completed_at?: string | null;
+  t_path_id?: string | null;
 }
 export interface LocalSetLog extends TablesInsert<'set_logs'> {
   id: string;
@@ -91,6 +92,10 @@ export class AppDatabase extends Dexie {
     this.version(5).stores({
       profiles_cache: '&id', // Cache user profile
       t_path_exercises_cache: '&id, template_id, exercise_id', // Cache t_path_exercises
+    });
+    // New version to add t_path_id to workout_sessions
+    this.version(6).stores({
+      workout_sessions: '&id, user_id, session_date, t_path_id',
     });
   }
 }

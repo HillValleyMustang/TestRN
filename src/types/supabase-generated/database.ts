@@ -369,33 +369,46 @@ export type Database = {
       };
       workout_sessions: {
         Row: {
+          completed_at: string | null;
           created_at: string | null;
           duration_string: string | null;
           id: string;
           rating: number | null;
           session_date: string;
+          t_path_id: string | null;
           template_name: string | null;
           user_id: string | null;
         };
         Insert: {
+          completed_at?: string | null;
           created_at?: string | null;
           duration_string?: string | null;
           id?: string;
           rating?: number | null;
           session_date: string;
+          t_path_id?: string | null;
           template_name?: string | null;
           user_id?: string | null;
         };
         Update: {
+          completed_at?: string | null;
           created_at?: string | null;
           duration_string?: string | null;
           id?: string;
           rating?: number | null;
           session_date?: string;
+          t_path_id?: string | null;
           template_name?: string | null;
           user_id?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "workout_sessions_t_path_id_fkey";
+            columns: ["t_path_id"];
+            isOneToOne: false;
+            referencedRelation: "t_paths";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "workout_sessions_user_id_fkey";
             columns: ["user_id"];
