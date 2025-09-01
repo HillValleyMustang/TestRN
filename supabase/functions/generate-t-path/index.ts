@@ -253,15 +253,8 @@ const synchronizeSourceData = async (supabaseServiceRoleClient: any) => {
     if (insertStructureError) throw insertStructureError;
     console.log(`Successfully re-inserted ${workoutStructureData.length} workout structure rules.`);
 
-    // 2. Safely delete and re-insert global exercises to ensure data integrity.
-    const { error: deleteGlobalExercisesError } = await supabaseServiceRoleClient
-        .from('exercise_definitions')
-        .delete()
-        .is('user_id', null);
-    if (deleteGlobalExercisesError) throw deleteGlobalExercisesError;
-    console.log('Successfully deleted existing global exercises.');
-
-    const exercisesToInsert = exerciseLibraryData.map(ex => ({
+    // 2. Smartly UPSERT global exercises to preserve manual changes like icon_url
+    const exercisesToUpsert = exerciseLibraryData.map(ex => ({
         library_id: ex.exercise_id,
         name: ex.name,
         main_muscle: ex.main_muscle,
@@ -270,19 +263,21 @@ const synchronizeSourceData = async (supabaseServiceRoleClient: any) => {
         description: ex.description,
         pro_tip: ex.pro_tip,
         video_url: ex.video_url,
-        icon_url: ex.icon_url,
+        // IMPORTANT: We DO NOT include icon_url here.
+        // This means the upsert will not overwrite existing icon_urls.
+        // For new exercises, icon_url will be null by default, which is correct.
         user_id: null
     }));
 
-    const { error: insertExercisesError } = await supabaseServiceRoleClient
+    const { error: upsertError } = await supabaseServiceRoleClient
         .from('exercise_definitions')
-        .insert(exercisesToInsert);
+        .upsert(exercisesToUpsert, { onConflict: 'library_id' });
         
-    if (insertExercisesError) {
-        console.error("Insert error details:", insertExercisesError);
-        throw insertExercisesError;
+    if (upsertError) {
+        console.error("Upsert error details:", upsertError);
+        throw upsertError;
     }
-    console.log(`Successfully re-inserted ${exercisesToInsert.length} global exercises.`);
+    console.log(`Successfully upserted ${exercisesToUpsert.length} global exercises, preserving manual icon_urls.`);
 };
 
 const processSingleChildWorkout = async (
