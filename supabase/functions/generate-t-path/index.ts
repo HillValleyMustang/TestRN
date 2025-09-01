@@ -55,6 +55,12 @@ interface ProfileData {
   preferred_session_length: string | null;
 }
 
+// New interface for exercises fetched with only id and library_id
+interface NullIconExercise {
+  id: string;
+  library_id: string | null;
+}
+
 // --- Helper Functions (Moved outside serve) ---
 
 const toNullOrNumber = (val: string | null | undefined): number | null => {
@@ -253,50 +259,59 @@ const synchronizeSourceData = async (supabaseServiceRoleClient: any) => {
     if (insertStructureError) throw insertStructureError;
     console.log(`Successfully re-inserted ${workoutStructureData.length} workout structure rules.`);
 
-    // 2. Fetch existing global exercises to preserve custom icon_urls
-    const { data: existingGlobalExercises, error: fetchExistingError } = await supabaseServiceRoleClient
-        .from('exercise_definitions')
-        .select('library_id, icon_url')
-        .is('user_id', null); // Only global exercises
-    if (fetchExistingError) throw fetchExistingError;
-
-    const existingIconUrlMap = new Map<string, string | null>();
-    (existingGlobalExercises || []).forEach((ex: { library_id: string; icon_url: string | null }) => {
-        if (ex.library_id) {
-            existingIconUrlMap.set(ex.library_id, ex.icon_url);
-        }
-    });
-    console.log(`Fetched ${existingIconUrlMap.size} existing global exercise icon_urls.`);
-
-    // 3. Prepare exercises for UPSERT, conditionally setting icon_url
-    const exercisesToUpsert = exerciseLibraryData.map(ex => {
-        const existingIconUrl = existingIconUrlMap.get(ex.exercise_id);
-        // If existingIconUrl is NOT NULL, use it. Otherwise, use the default from ex.icon_url.
-        const finalIconUrl = existingIconUrl !== null ? existingIconUrl : ex.icon_url; 
-
-        return {
-            library_id: ex.exercise_id,
-            name: ex.name,
-            main_muscle: ex.main_muscle,
-            type: ex.type,
-            category: ex.category,
-            description: ex.description,
-            pro_tip: ex.pro_tip,
-            video_url: ex.video_url,
-            icon_url: finalIconUrl, // Now explicitly included and conditionally set
-            user_id: null
-        };
-    });
+    // 2. Prepare exercises for UPSERT (excluding icon_url initially)
+    const exercisesToUpsertWithoutIcon = exerciseLibraryData.map(ex => ({
+        library_id: ex.exercise_id,
+        name: ex.name,
+        main_muscle: ex.main_muscle,
+        type: ex.type,
+        category: ex.category,
+        description: ex.description,
+        pro_tip: ex.pro_tip,
+        video_url: ex.video_url,
+        user_id: null // Global exercises
+    }));
 
     const { error: upsertError } = await supabaseServiceRoleClient
         .from('exercise_definitions')
-        .upsert(exercisesToUpsert, { onConflict: 'library_id' });
+        .upsert(exercisesToUpsertWithoutIcon, { onConflict: 'library_id' });
         
     if (upsertError) {
-        console.error("Upsert error details:", upsertError);
+        console.error("Upsert error details (without icon_url):", upsertError);
         throw upsertError;
     }
-    console.log(`Successfully upserted ${exercisesToUpsert.length} global exercises with icon_url preservation logic.`);
+    console.log(`Successfully upserted ${exercisesToUpsertWithoutIcon.length} global exercises (without touching icon_url).`);
+
+    // 3. Identify global exercises that still have a NULL icon_url and update them with the default
+    const { data: nullIconExercises, error: fetchNullIconError } = await supabaseServiceRoleClient
+        .from('exercise_definitions')
+        .select('id, library_id')
+        .is('user_id', null)
+        .is('icon_url', null);
+    
+    if (fetchNullIconError) throw fetchNullIconError;
+
+    if (nullIconExercises && nullIconExercises.length > 0) {
+        const updatesForNullIcons = nullIconExercises.map((ex: NullIconExercise) => { // Explicitly type 'ex'
+            const defaultIcon = exerciseLibraryData.find(csvEx => csvEx.exercise_id === ex.library_id)?.icon_url;
+            return {
+                id: ex.id,
+                icon_url: defaultIcon || 'https://i.imgur.com/2Y4Y4Y4.png' // Fallback to generic if not found in CSV
+            };
+        });
+
+        const { error: updateIconsError } = await supabaseServiceRoleClient
+            .from('exercise_definitions')
+            .upsert(updatesForNullIcons, { onConflict: 'id' }); // Upsert by 'id' to update existing rows
+        
+        if (updateIconsError) {
+            console.error("Error updating NULL icon_urls:", updateIconsError);
+            throw updateIconsError;
+        }
+        console.log(`Successfully updated ${updatesForNullIcons.length} global exercises with default icon_urls.`);
+    } else {
+        console.log('No global exercises found with NULL icon_url to update.');
+    }
 };
 
 const processSingleChildWorkout = async (
