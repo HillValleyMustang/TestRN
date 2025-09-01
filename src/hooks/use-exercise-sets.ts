@@ -76,8 +76,8 @@ export const useExerciseSets = ({
 }: UseExerciseSetsProps): UseExerciseSetsReturn => {
   const { session } = useSession(); // Get session for RPC calls
 
-  // Initialize sets state as empty, it will be populated by the useEffect
-  const [sets, setSets] = useState<SetLogState[]>([]);
+  // Initialize sets state with initialSets directly. This runs only once on first render.
+  const [sets, setSets] = useState<SetLogState[]>(initialSets); 
 
   // Integrate new modular hooks
   const { saveSetToDb, deleteSetFromDb } = useSetPersistence({
@@ -100,7 +100,8 @@ export const useExerciseSets = ({
     preferredWeightUnit,
   });
 
-  // This effect is for LOADING sets. It uses the prop directly to avoid race conditions.
+  // This effect is for LOADING sets. It uses the prop directly for the query to ensure stability.
+  // It should only run when the exercise context changes, not when set content changes.
   useEffect(() => {
     const loadSets = async () => {
       const sessionIdForQuery = propCurrentSessionId;
@@ -127,16 +128,20 @@ export const useExerciseSets = ({
           weight_kg: draft.weight_kg, reps: draft.reps, reps_l: draft.reps_l, reps_r: draft.reps_r, time_seconds: draft.time_seconds,
           is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
         }));
-      } else if (initialSets && initialSets.length > 0) { // Use initialSets if no drafts
-        loadedSets = initialSets.map(set => ({ ...set, session_id: sessionIdForQuery }));
       } else {
-        // If no drafts and no initialSets, create default empty sets
-        for (let i = 0; i < DEFAULT_INITIAL_SETS; i++) {
-          loadedSets.push({
-            id: null, created_at: null, session_id: sessionIdForQuery, exercise_id: exerciseId,
-            weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null,
-            is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
-          });
+        // If no drafts, use the initialSets provided by the parent.
+        // This ensures that if the parent provides 3 sets, we start with 3 sets.
+        // If initialSets is empty, then create default empty sets.
+        if (initialSets && initialSets.length > 0) {
+            loadedSets = initialSets.map(set => ({ ...set, session_id: sessionIdForQuery }));
+        } else {
+            for (let i = 0; i < DEFAULT_INITIAL_SETS; i++) {
+                loadedSets.push({
+                    id: null, created_at: null, session_id: sessionIdForQuery, exercise_id: exerciseId,
+                    weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null,
+                    is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
+                });
+            }
         }
       }
 
@@ -167,8 +172,9 @@ export const useExerciseSets = ({
       setSets(finalSets);
     };
 
+    // Only run when the exercise or session context changes, not when set content changes
     loadSets();
-  }, [exerciseId, propCurrentSessionId, supabase, session, exerciseName, initialSets]); // Added initialSets to dependencies
+  }, [exerciseId, propCurrentSessionId, supabase, session, exerciseName]); // Removed initialSets from dependencies
 
   useEffect(() => {
     onUpdateSets(exerciseId, sets);
