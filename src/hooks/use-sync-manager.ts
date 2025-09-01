@@ -59,7 +59,7 @@ export const useSyncManager = () => {
 
     } catch (error: any) {
       const errorMessage = error?.message || JSON.stringify(error) || "An unknown error occurred during sync.";
-      console.error(`Failed to sync item ${item.id}:`, error);
+      console.error(`Failed to sync item ${item.id}:`, errorMessage); // Use errorMessage here
       // Increment attempt count and update error message
       await db.sync_queue.update(item.id!, {
         attempts: item.attempts + 1,
