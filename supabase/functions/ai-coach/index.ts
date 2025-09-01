@@ -64,62 +64,132 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const { sessionId } = await req.json(); // NEW: Get sessionId from request body
 
-    const { data: sessions, error: sessionsError } = await supabaseClient
-      .from('workout_sessions')
-      .select('id, session_date, template_name, rating') // MODIFIED: Added 'rating'
-      .eq('user_id', user.id)
-      .gte('session_date', thirtyDaysAgo.toISOString())
-      .returns<WorkoutSession[]>();
+    let sessions: WorkoutSession[] | null;
+    let setLogs: SetLog[] | null;
+    let prompt: string;
 
-    if (sessionsError) throw sessionsError;
-    if (!sessions || sessions.length === 0) {
-      return new Response(JSON.stringify({ analysis: "Not enough workout data from the last 30 days to provide an analysis. Go log some workouts!" }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (sessionId) {
+      // Fetch data for a specific session
+      const { data: specificSession, error: specificSessionError } = await supabaseClient
+        .from('workout_sessions')
+        .select('id, session_date, template_name, rating')
+        .eq('id', sessionId)
+        .eq('user_id', user.id)
+        .returns<WorkoutSession[]>();
+
+      if (specificSessionError) throw specificSessionError;
+      sessions = specificSession;
+
+      if (!sessions || sessions.length === 0) {
+        return new Response(JSON.stringify({ analysis: "Specific workout session not found." }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const { data: specificSetLogs, error: specificSetLogsError } = await supabaseClient
+        .from('set_logs')
+        .select('session_id, weight_kg, reps, time_seconds, exercise_definitions(name, main_muscle)')
+        .eq('session_id', sessionId)
+        .returns<SetLog[]>();
+
+      if (specificSetLogsError) throw specificSetLogsError;
+      setLogs = specificSetLogs;
+
+      const workoutHistory = sessions.map((sessionItem: WorkoutSession) => {
+        const logsForSession = setLogs?.filter((log: SetLog) => log.session_id === sessionItem.id);
+        return {
+          date: sessionItem.session_date,
+          name: sessionItem.template_name,
+          rating: sessionItem.rating,
+          exercises: logsForSession?.map((log: SetLog) => ({
+            name: log.exercise_definitions?.name,
+            muscle: log.exercise_definitions?.main_muscle,
+            weight: log.weight_kg,
+            reps: log.reps,
+            time: log.time_seconds,
+          }))
+        };
+      });
+
+      prompt = `
+        You are an expert AI fitness coach. Analyze the following single workout session.
+        The workout session includes a 'rating' from 1 to 5, where 5 is excellent and 1 is very poor.
+        Provide a concise, encouraging, and actionable analysis specific to this workout.
+        
+        Your analysis should include:
+        1.  **Overall Impression**: A brief summary of the session's performance and the user's rating.
+        2.  **Highlights**: Identify strong performances or exercises where the user excelled.
+        3.  **Areas for Improvement**: Suggest specific exercises or aspects of this workout that could be improved next time. Be gentle and encouraging.
+        4.  **Next Session Focus**: Provide a clear, actionable suggestion for what the user could focus on in their *next* workout of this type.
+
+        Keep the entire response under 250 words. Format your response using markdown for readability (e.g., use headings like **Highlights** and bullet points).
+
+        Here is the user's workout session:
+        ${JSON.stringify(workoutHistory, null, 2)}
+      `;
+
+    } else {
+      // Existing logic for last 30 days analysis
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const { data: recentSessions, error: recentSessionsError } = await supabaseClient
+        .from('workout_sessions')
+        .select('id, session_date, template_name, rating')
+        .eq('user_id', user.id)
+        .gte('session_date', thirtyDaysAgo.toISOString())
+        .returns<WorkoutSession[]>();
+
+      if (recentSessionsError) throw recentSessionsError;
+      sessions = recentSessions;
+
+      if (!sessions || sessions.length === 0) {
+        return new Response(JSON.stringify({ analysis: "Not enough workout data from the last 30 days to provide an analysis. Go log some workouts!" }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const sessionIds = sessions.map((s: WorkoutSession) => s.id);
+      const { data: recentSetLogs, error: recentSetLogsError } = await supabaseClient
+        .from('set_logs')
+        .select('session_id, weight_kg, reps, time_seconds, exercise_definitions(name, main_muscle)')
+        .in('session_id', sessionIds)
+        .returns<SetLog[]>();
+
+      if (recentSetLogsError) throw recentSetLogsError;
+      setLogs = recentSetLogs;
+
+      const workoutHistory = sessions.map((sessionItem: WorkoutSession) => {
+        const logsForSession = setLogs?.filter((log: SetLog) => log.session_id === sessionItem.id);
+        return {
+          date: sessionItem.session_date,
+          name: sessionItem.template_name,
+          rating: sessionItem.rating,
+          exercises: logsForSession?.map((log: SetLog) => ({
+            name: log.exercise_definitions?.name,
+            muscle: log.exercise_definitions?.main_muscle,
+            weight: log.weight_kg,
+            reps: log.reps,
+            time: log.time_seconds,
+          }))
+        };
+      });
+
+      prompt = `
+        You are an expert AI fitness coach. Analyze the following workout history from the last 30 days for a user.
+        Each workout session includes a 'rating' from 1 to 5, where 5 is excellent and 1 is very poor.
+        Provide a concise, encouraging, and actionable analysis.
+        
+        Your analysis should include:
+        1.  **Overall Progress**: A brief summary of their consistency and progress, considering both performance and how they rated their sessions.
+        2.  **Strengths**: Identify muscle groups or exercises where they are performing well or showing consistent improvement, especially noting high-rated sessions.
+        3.  **Weaknesses/Areas for Improvement**: Identify muscle groups that are trained less frequently or exercises where progress is stalling. Pay attention to low-rated sessions – these might indicate discomfort, dislike, or excessive challenge. Be gentle and encouraging in your wording.
+        4.  **Exercise Suggestions**: Recommend 1-2 specific exercises to help them with their weaknesses. Briefly explain why you are recommending them.
+
+        Keep the entire response under 250 words. Format your response using markdown for readability (e.g., use headings like **Strengths** and bullet points).
+
+        Here is the user's workout history:
+        ${JSON.stringify(workoutHistory, null, 2)}
+      `;
     }
-
-    const sessionIds = sessions.map((s: WorkoutSession) => s.id);
-    const { data: setLogs, error: setLogsError } = await supabaseClient
-      .from('set_logs')
-      .select('session_id, weight_kg, reps, time_seconds, exercise_definitions(name, main_muscle)') // Specify columns
-      .in('session_id', sessionIds)
-      .returns<SetLog[]>();
-
-    if (setLogsError) throw setLogsError;
-
-    const workoutHistory = sessions.map((session: WorkoutSession) => {
-      const logsForSession = setLogs?.filter((log: SetLog) => log.session_id === session.id);
-      return {
-        date: session.session_date,
-        name: session.template_name,
-        rating: session.rating, // ADDED: rating to workout history
-        exercises: logsForSession?.map((log: SetLog) => ({
-          name: log.exercise_definitions?.name,
-          muscle: log.exercise_definitions?.main_muscle,
-          weight: log.weight_kg,
-          reps: log.reps,
-          time: log.time_seconds,
-        }))
-      };
-    });
-
-    const prompt = `
-      You are an expert AI fitness coach. Analyze the following workout history from the last 30 days for a user.
-      Each workout session includes a 'rating' from 1 to 5, where 5 is excellent and 1 is very poor.
-      Provide a concise, encouraging, and actionable analysis.
-      
-      Your analysis should include:
-      1.  **Overall Progress**: A brief summary of their consistency and progress, considering both performance and how they rated their sessions.
-      2.  **Strengths**: Identify muscle groups or exercises where they are performing well or showing consistent improvement, especially noting high-rated sessions.
-      3.  **Weaknesses/Areas for Improvement**: Identify muscle groups that are trained less frequently or exercises where progress is stalling. Pay attention to low-rated sessions – these might indicate discomfort, dislike, or excessive challenge. Be gentle and encouraging in your wording.
-      4.  **Exercise Suggestions**: Recommend 1-2 specific exercises to help them with their weaknesses. Briefly explain why you are recommending them.
-
-      Keep the entire response under 250 words. Format your response using markdown for readability (e.g., use headings like **Strengths** and bullet points).
-
-      Here is the user's workout history:
-      ${JSON.stringify(workoutHistory, null, 2)}
-    `;
 
     const geminiResponse = await fetch(GEMINI_API_URL, {
       method: 'POST',

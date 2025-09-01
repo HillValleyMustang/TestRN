@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
-import { Tables, SetLogWithExercise } from '@/types/supabase';
+import { Tables, SetLogWithExercise, GetLastExerciseSetsForExerciseReturns } from '@/types/supabase';
 import { toast } from 'sonner';
 import { WorkoutStatsCard } from '@/components/workout-summary/workout-stats-card';
 import { WorkoutRatingCard } from '@/components/workout-summary/workout-rating-card';
 import { ExerciseSummaryCard } from '@/components/workout-summary/exercise-summary-card';
+import { WorkoutVolumeHistoryCard } from '@/components/workout-summary/workout-volume-history-card'; // Import new component
+import { AiSessionAnalysisCard } from '@/components/workout-summary/ai-session-analysis-card'; // Import new component
 import { getLevelFromPoints } from '@/lib/utils';
 import { ACHIEVEMENT_DISPLAY_INFO } from '@/lib/achievements'; // Import from new utility file
 // Removed: import { type PageProps } from 'next'; // Import PageProps from next
@@ -48,6 +50,7 @@ export default function WorkoutSummaryPage({
   const [error, setError] = useState<string | null>(null);
   const [totalVolume, setTotalVolume] = useState<number>(0);
   const [prsAchieved, setPrsAchieved] = useState<number>(0);
+  const [newPrExercises, setNewPrExercises] = useState<string[]>([]); // New state for PR highlights
   const [currentRating, setCurrentRating] = useState<number | null>(null);
   const [isRatingSaved, setIsRatingSaved] = useState(false);
   const [hasShownAchievementToasts, setHasShownAchievementToasts] = useState(false);
@@ -96,7 +99,10 @@ export default function WorkoutSummaryPage({
         let volume = 0;
         let prCount = 0;
         const processedSetLogs: SetLogWithExercise[] = [];
+        const uniqueExerciseIds = new Set<string>();
+        const newPrsThisSession = new Set<string>(); // To collect new PR exercise names
 
+        // First pass: calculate volume, PRs, and collect unique exercise IDs
         (setLogsData as (SetLog & { exercise_definitions: Pick<ExerciseDefinition, 'id' | 'name' | 'main_muscle' | 'type' | 'category'>[] | null })[]).forEach(log => {
           const exerciseDef = (log.exercise_definitions && log.exercise_definitions.length > 0) ? log.exercise_definitions[0] : null;
           if (exerciseDef?.type === 'weight' && log.weight_kg && log.reps) {
@@ -105,13 +111,57 @@ export default function WorkoutSummaryPage({
 
           if (log.is_pb) {
             prCount++;
+            if (exerciseDef?.name) {
+              newPrsThisSession.add(exerciseDef.name);
+            }
+          }
+          if (exerciseDef?.id) {
+            uniqueExerciseIds.add(exerciseDef.id);
           }
           processedSetLogs.push({ ...log, exercise_definitions: exerciseDef });
         });
         
-        setSetLogs(processedSetLogs);
         setTotalVolume(volume);
         setPrsAchieved(prCount);
+        setNewPrExercises(Array.from(newPrsThisSession));
+
+        // Second pass: Fetch last session's data for each unique exercise
+        const lastSetsPromises = Array.from(uniqueExerciseIds).map(async (exerciseId) => {
+          const { data: lastExerciseSets, error: rpcError } = await supabase.rpc('get_last_exercise_sets_for_exercise', {
+            p_user_id: session.user.id,
+            p_exercise_id: exerciseId,
+          });
+          if (rpcError && rpcError.code !== 'PGRST116') { // PGRST116 means no rows found
+            console.error(`Error fetching last sets for exercise ${exerciseId}:`, rpcError);
+            return { exerciseId, sets: [] };
+          }
+          return { exerciseId, sets: lastExerciseSets || [] };
+        });
+
+        const lastSetsResults = await Promise.all(lastSetsPromises);
+        const lastSetsMap = new Map<string, GetLastExerciseSetsForExerciseReturns>();
+        lastSetsResults.forEach(result => lastSetsMap.set(result.exerciseId, result.sets));
+
+        // Third pass: Enrich processedSetLogs with last session's data
+        const finalSetLogs = processedSetLogs.map((currentSet, index) => {
+          const exerciseId = currentSet.exercise_definitions?.id;
+          if (exerciseId) {
+            const lastSetsForExercise = lastSetsMap.get(exerciseId);
+            const correspondingLastSet = lastSetsForExercise?.[index]; // Match by index (set number)
+
+            return {
+              ...currentSet,
+              last_session_weight_kg: correspondingLastSet?.weight_kg || null,
+              last_session_reps: correspondingLastSet?.reps || null,
+              last_session_reps_l: correspondingLastSet?.reps_l || null,
+              last_session_reps_r: correspondingLastSet?.reps_r || null,
+              last_session_time_seconds: correspondingLastSet?.time_seconds || null,
+            };
+          }
+          return currentSet;
+        });
+
+        setSetLogs(finalSetLogs);
 
         // Fetch newly unlocked achievements for this session
         if (!hasShownAchievementToasts && session.user.id) {
@@ -212,7 +262,15 @@ export default function WorkoutSummaryPage({
         workoutSession={workoutSession} 
         totalVolume={totalVolume} 
         prsAchieved={prsAchieved} 
+        newPrExercises={newPrExercises} // Pass new PR exercises
       />
+
+      {workoutSession.template_name && workoutSession.template_name !== 'Ad Hoc Workout' && (
+        <WorkoutVolumeHistoryCard
+          workoutTemplateName={workoutSession.template_name}
+          currentSessionId={sessionId}
+        />
+      )}
 
       <WorkoutRatingCard 
         workoutSession={workoutSession} 
@@ -220,6 +278,8 @@ export default function WorkoutSummaryPage({
         currentRating={currentRating} 
         isRatingSaved={isRatingSaved} 
       />
+
+      <AiSessionAnalysisCard sessionId={sessionId} /> {/* Integrate the new AI analysis card */}
 
       <section className="mb-8">
         <h2 className="2xl font-bold mb-4">Exercises Performed</h2>

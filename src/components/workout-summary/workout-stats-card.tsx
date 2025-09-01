@@ -13,9 +13,10 @@ interface WorkoutStatsCardProps {
   workoutSession: WorkoutSession;
   totalVolume: number;
   prsAchieved: number;
+  newPrExercises: string[]; // New prop for PR highlights
 }
 
-export const WorkoutStatsCard = ({ workoutSession, totalVolume, prsAchieved }: WorkoutStatsCardProps) => {
+export const WorkoutStatsCard = ({ workoutSession, totalVolume, prsAchieved, newPrExercises }: WorkoutStatsCardProps) => {
   const workoutColorClass = getWorkoutColorClass(workoutSession.template_name || 'Ad Hoc Workout', 'text');
   return (
     <Card className="mb-6">
@@ -52,6 +53,11 @@ export const WorkoutStatsCard = ({ workoutSession, totalVolume, prsAchieved }: W
           <div>
             <p className="text-sm text-muted-foreground">PRs Achieved</p>
             <p className="text-lg font-semibold">{prsAchieved}</p>
+            {newPrExercises.length > 0 && (
+              <div className="text-xs text-yellow-500 mt-1">
+                New PRs: {newPrExercises.join(', ')}
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
