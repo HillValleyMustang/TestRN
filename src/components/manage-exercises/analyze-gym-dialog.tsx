@@ -10,14 +10,13 @@ import { useSession } from "@/components/session-context-provider";
 import { toast } from "sonner";
 import { Tables } from "@/types/supabase";
 import { LoadingOverlay } from '../loading-overlay';
-// Removed: import { DuplicateExerciseConfirmDialog } from "./duplicate-exercise-confirm-dialog"; // No longer needed here
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 interface AnalyzeGymDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onExerciseIdentified: (exerciseData: Partial<ExerciseDefinition>, isDuplicateConfirmed: boolean) => void; // Updated signature
+  onExerciseIdentified: (exerciseData: Partial<ExerciseDefinition>, isDuplicate: boolean) => void;
 }
 
 export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: AnalyzeGymDialogProps) => {
@@ -27,11 +26,6 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Removed states related to DuplicateConfirmDialog
-  // const [showDuplicateConfirmDialog, setShowDuplicateConfirmDialog] = useState(false);
-  // const [identifiedExerciseData, setIdentifiedExerciseData] = useState<Partial<ExerciseDefinition> | null>(null);
-  // const [duplicateLocation, setDuplicateLocation] = useState<'My Exercises' | 'Global Library'>('My Exercises');
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -62,7 +56,7 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
       const reader = new FileReader();
       reader.readAsDataURL(selectedFile);
       reader.onloadend = async () => {
-        const base64Image = reader.result?.toString().split(',')[1]; // Get base64 part
+        const base64Image = reader.result?.toString().split(',')[1];
 
         if (!base64Image) {
           throw new Error("Failed to read image file.");
@@ -85,29 +79,15 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
 
         if (data.identifiedExercise) {
           const aiExercise = data.identifiedExercise as Partial<ExerciseDefinition>;
-          
-          // Check for duplicates by name only
-          const { data: existingExercises, error: duplicateCheckError } = await supabase
-            .from('exercise_definitions')
-            .select('id, name, user_id')
-            .eq('name', aiExercise.name)
-            .or(`user_id.eq.${session.user.id},user_id.is.null`); // Check user's own and global
+          const isDuplicate = data.isDuplicate as boolean;
 
-          if (duplicateCheckError) {
-            throw new Error(duplicateCheckError.message);
-          }
-
-          if (existingExercises && existingExercises.length > 0) {
-            // Duplicate found, directly pass to parent with isDuplicateConfirmed = true
-            onExerciseIdentified(aiExercise, true); 
-            toast.info("Exercise already exists in your library or global library.");
-            onOpenChange(false); // Close dialog on success
+          if (isDuplicate) {
+            toast.info("Exercise already exists in your library or the global library.");
           } else {
-            // No duplicate, proceed to add
-            onExerciseIdentified(aiExercise, false); // Pass false for isDuplicateConfirmed
             toast.success("Equipment identified!");
-            onOpenChange(false); // Close dialog on success
           }
+          onExerciseIdentified(aiExercise, isDuplicate);
+          onOpenChange(false);
         } else {
           throw new Error("AI could not identify specific equipment from the photo.");
         }
@@ -125,14 +105,12 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
     }
   };
 
-  // Removed handleConfirmAddAnyway and handleCancelDuplicateAdd
-
   const handleClear = () => {
     setSelectedFile(null);
     setImagePreviewUrl(null);
     setError(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = ''; // Clear the file input
+      fileInputRef.current.value = '';
     }
   };
 
@@ -145,7 +123,7 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
               <Sparkles className="h-5 w-5 mr-2" /> Analyse My Gym
             </DialogTitle>
             <DialogDescription>
-              Upload photos of your gym equipment to automatically build your exercise library.
+              Upload photos of your gym equipment to automatically identify it and add it to your workout.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -171,10 +149,6 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
                 ref={fileInputRef}
                 className="w-full max-w-xs"
               />
-              {/* Future enhancement: Webcam capture */}
-              {/* <Button variant="outline" className="w-full max-w-xs">
-                <Camera className="h-4 w-4 mr-2" /> Take Photo
-              </Button> */}
             </div>
 
             {error && (
@@ -199,8 +173,6 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
           description="Please wait while the AI identifies equipment from your photo." 
         />
       </Dialog>
-
-      {/* Removed DuplicateExerciseConfirmDialog as it's no longer used here */}
     </>
   );
 };

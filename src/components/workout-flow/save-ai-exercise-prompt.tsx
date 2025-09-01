@@ -34,8 +34,8 @@ export const SaveAiExercisePrompt = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] grid grid-rows-[auto_1fr_auto]">
+          <DialogHeader className="row-start-1">
             <DialogTitle className="flex items-center">
               <Sparkles className="h-5 w-5 mr-2" /> AI Identified Exercise
             </DialogTitle>
@@ -47,8 +47,8 @@ export const SaveAiExercisePrompt = ({
               )}
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className="flex-grow pr-4"> {/* Removed py-4, added pr-4 */}
-            <div className="px-4"> {/* Added px-4 for content padding */}
+          <ScrollArea className="row-start-2 overflow-y-auto py-4">
+            <div className="px-4">
               <div className="space-y-4">
                 <div>
                   <h4 className="font-semibold text-sm mb-1">Name:</h4>
@@ -91,10 +91,10 @@ export const SaveAiExercisePrompt = ({
               </div>
             </div>
           </ScrollArea>
-          <div className="flex flex-col gap-2 pt-4 border-t px-4"> {/* Added px-4 for button padding */}
+          <div className="row-start-3 flex flex-col gap-2 pt-4 border-t px-4">
             <Button 
               onClick={() => onSaveToMyExercises(exercise)} 
-              disabled={isSaving || isDuplicate} // Disable if saving or if it's a duplicate
+              disabled={isSaving || isDuplicate}
             >
               <Save className="h-4 w-4 mr-2" /> {isSaving ? "Saving..." : "Add and Save to My Exercises"}
             </Button>

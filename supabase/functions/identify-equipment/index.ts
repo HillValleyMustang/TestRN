@@ -105,8 +105,22 @@ serve(async (req: Request) => {
       throw new Error("AI could not extract essential exercise details. Please try a different photo or use manual entry.");
     }
 
-    // Return the identified exercise data to the client
-    return new Response(JSON.stringify({ identifiedExercise }), {
+    // --- DUPLICATE CHECK ---
+    const { data: existingExercises, error: duplicateCheckError } = await supabaseClient
+      .from('exercise_definitions')
+      .select('id')
+      .ilike('name', identifiedExercise.name.trim()) // Case-insensitive exact match
+      .or(`user_id.eq.${user.id},user_id.is.null`);
+
+    if (duplicateCheckError) {
+      console.error("Error checking for duplicate exercises:", duplicateCheckError.message);
+      // Don't throw, just proceed without duplicate info
+    }
+
+    const isDuplicate = existingExercises && existingExercises.length > 0;
+
+    // Return the identified exercise data AND the duplicate flag to the client
+    return new Response(JSON.stringify({ identifiedExercise, isDuplicate }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
