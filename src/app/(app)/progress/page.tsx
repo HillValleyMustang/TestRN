@@ -8,7 +8,7 @@ import { PersonalRecordsCard } from "@/components/progress/personal-records-card
 export default function ProgressPage() {
   return (
     <div className="flex flex-col gap-4 p-2 sm:p-4">
-      <header className="mb-4">
+      <header className="mb-4 text-center">
         <h1 className="text-3xl font-bold">Your Progress</h1>
         <p className="text-muted-foreground">
           Charts, records, and summaries to track your fitness journey.
