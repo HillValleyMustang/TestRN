@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useSession } from '@/components/session-context-provider';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tables, SetLogWithExercise, GetLastExerciseSetsForExerciseReturns } from '@/types/supabase';
 import { toast } from 'sonner';
 import { WorkoutStatsCard } from '@/components/workout-summary/workout-stats-card';
@@ -202,12 +201,12 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="p-6 pb-4 border-b">
           <DialogTitle>Workout Summary</DialogTitle>
         </DialogHeader>
-        <ScrollArea className="flex-grow pr-6 -mr-6 min-h-0">
-          <div className="py-4 space-y-6">
+        <div className="flex-grow overflow-y-auto">
+          <div className="p-6 space-y-6">
             {loading && <p>Loading workout summary...</p>}
             {error && <p className="text-destructive">{error}</p>}
             {!loading && !error && workoutSession && (
@@ -248,8 +247,8 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
               </>
             )}
           </div>
-        </ScrollArea>
-        <DialogFooter>
+        </div>
+        <DialogFooter className="p-6 pt-4 border-t">
           <Button onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>
