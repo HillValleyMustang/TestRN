@@ -35,6 +35,7 @@ export interface LocalDraftSetLog {
   time_seconds: number | null;
   isSaved?: boolean; // NEW: Flag to indicate if this draft corresponds to a saved set_log
   set_log_id?: string | null; // NEW: Link to the actual set_log ID if saved
+  is_pb?: boolean; // NEW: Flag to store PR status
 }
 
 // New interface for storing the Supabase session
@@ -96,6 +97,10 @@ export class AppDatabase extends Dexie {
     // New version to add t_path_id to workout_sessions
     this.version(6).stores({
       workout_sessions: '&id, user_id, session_date, t_path_id',
+    });
+    // New version to add is_pb to draft_set_logs
+    this.version(7).stores({
+      draft_set_logs: '[exercise_id+set_index], session_id, exercise_id',
     });
   }
 }
