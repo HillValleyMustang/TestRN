@@ -15,7 +15,7 @@ export default function WorkoutPage() {
 
   const [summarySessionId, setSummarySessionId] = useState<string | null>(null);
 
-  const { selectedWorkoutId, ...workoutFlowManager } = useWorkoutFlowManager({
+  const workoutFlowManager = useWorkoutFlowManager({
     initialWorkoutId: initialWorkoutId,
     router,
   });
@@ -42,7 +42,7 @@ export default function WorkoutPage() {
         </header>
         <WorkoutSelector 
           {...workoutFlowManager} 
-          selectedWorkoutId={selectedWorkoutId}
+          selectedWorkoutId={workoutFlowManager.activeWorkout?.id || null}
           onWorkoutSelect={handleWorkoutSelect}
           loadingWorkoutFlow={workoutFlowManager.loading}
           createWorkoutSessionInDb={workoutFlowManager.createWorkoutSessionInDb}
