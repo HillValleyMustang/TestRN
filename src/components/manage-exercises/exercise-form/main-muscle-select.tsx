@@ -30,7 +30,6 @@ export const MainMuscleSelect = ({
         <FormLabel className="font-bold">Main Muscle Group(s)</FormLabel>
         <Popover>
           <PopoverTrigger asChild>
-            {/* Removed FormControl wrapper here */}
             <Button
               variant="outline"
               role="combobox"
@@ -39,6 +38,7 @@ export const MainMuscleSelect = ({
                 !field.value?.length && "text-muted-foreground"
               )}
             >
+              {/* This span now correctly wraps all children of the Button */}
               <span className="flex items-center justify-between w-full">
                 <div className="flex flex-wrap gap-1">
                   {field.value && field.value.length > 0 ? (
