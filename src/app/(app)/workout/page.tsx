@@ -28,7 +28,6 @@ export default function WorkoutPage() {
     const finishedSessionId = await workoutFlowManager.finishWorkoutSession();
     if (finishedSessionId) {
       setSummarySessionId(finishedSessionId);
-      workoutFlowManager.refreshAllData(); // Refresh data to update "last completed" times
     }
   };
 
@@ -57,6 +56,7 @@ export default function WorkoutPage() {
           onOpenChange={(isOpen) => {
             if (!isOpen) {
               setSummarySessionId(null);
+              workoutFlowManager.refreshAllData(); // Refresh data when summary is closed
             }
           }}
         />
