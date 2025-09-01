@@ -49,9 +49,14 @@ interface UseExerciseSetsReturn {
 const MAX_SETS = 5;
 const DEFAULT_INITIAL_SETS = 3;
 
-// Validation function to ensure keys are valid before DB operations
-const isValidKey = (key: any): key is string => {
-  return typeof key === 'string' && key.length > 0;
+// Helper function to validate if an ID is a non-empty string
+const isValidId = (id: string | null | undefined): id is string => {
+  return typeof id === 'string' && id.length > 0;
+};
+
+// Helper function to validate a composite key for draft_set_logs
+const isValidDraftKey = (exerciseId: string | null | undefined, setIndex: number | null | undefined): boolean => {
+  return isValidId(exerciseId) && typeof setIndex === 'number' && setIndex >= 0;
 };
 
 export const useExerciseSets = ({
@@ -99,8 +104,10 @@ export const useExerciseSets = ({
       // Use the prop directly for the query to ensure stability.
       const sessionIdForQuery = propCurrentSessionId;
 
-      if (!isValidKey(exerciseId) || typeof sessionIdForQuery === 'undefined') {
-        // This guard prevents the query from running with invalid keys.
+      // Assert that exerciseId is valid before proceeding with Dexie operations
+      console.assert(isValidId(exerciseId), `Invalid exerciseId in loadSets: ${exerciseId}`);
+      if (!isValidId(exerciseId)) {
+        console.warn(`Skipping loadSets for invalid exerciseId: ${exerciseId}`);
         return;
       }
 
@@ -171,7 +178,8 @@ export const useExerciseSets = ({
   }, [sets, exerciseId, onUpdateSets]);
 
   const handleAddSet = useCallback(() => {
-    if (!isValidKey(exerciseId)) {
+    console.assert(isValidId(exerciseId), `Invalid exerciseId in handleAddSet: ${exerciseId}`);
+    if (!isValidId(exerciseId)) {
       toast.error("Cannot add set: exercise information is incomplete.");
       return;
     }
@@ -181,6 +189,7 @@ export const useExerciseSets = ({
     }
     setSets(prev => {
       const lastSet = prev[prev.length - 1];
+      const newSetIndex = prev.length; // This is the set_index for the new draft
       const newSet: SetLogState = {
         id: null, created_at: null, session_id: propCurrentSessionId, exercise_id: exerciseId,
         weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null,
@@ -188,16 +197,19 @@ export const useExerciseSets = ({
         lastWeight: lastSet?.weight_kg, lastReps: lastSet?.reps, lastRepsL: lastSet?.reps_l, lastRepsR: lastSet?.reps_r, lastTimeSeconds: lastSet?.time_seconds,
       };
       const draftPayload: LocalDraftSetLog = {
-        exercise_id: exerciseId, set_index: prev.length, session_id: propCurrentSessionId,
+        exercise_id: exerciseId, set_index: newSetIndex, session_id: propCurrentSessionId,
         weight_kg: newSet.weight_kg, reps: newSet.reps, reps_l: newSet.reps_l, reps_r: newSet.reps_r, time_seconds: newSet.time_seconds,
       };
+      // Assert key validity before put
+      console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in handleAddSet: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
       db.draft_set_logs.put(draftPayload);
       return [...prev, newSet];
     });
   }, [exerciseId, propCurrentSessionId, sets.length]);
 
   const handleInputChange = useCallback((setIndex: number, field: keyof TablesInsert<'set_logs'>, value: string) => {
-    if (!isValidKey(exerciseId)) {
+    console.assert(isValidId(exerciseId), `Invalid exerciseId in handleInputChange: ${exerciseId}`);
+    if (!isValidId(exerciseId)) {
       toast.error("Cannot update set: exercise information is incomplete.");
       return;
     }
@@ -217,13 +229,16 @@ export const useExerciseSets = ({
         exercise_id: exerciseId, set_index: setIndex, session_id: propCurrentSessionId,
         weight_kg: newSets[setIndex].weight_kg, reps: newSets[setIndex].reps, reps_l: newSets[setIndex].reps_l, reps_r: newSets[setIndex].reps_r, time_seconds: newSets[setIndex].time_seconds,
       };
+      // Assert key validity before put
+      console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in handleInputChange: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
       db.draft_set_logs.put(draftPayload);
       return newSets;
     });
   }, [exerciseId, propCurrentSessionId, preferredWeightUnit]);
 
   const handleSaveSet = useCallback(async (setIndex: number) => {
-    if (!isValidKey(exerciseId)) {
+    console.assert(isValidId(exerciseId), `Invalid exerciseId in handleSaveSet: ${exerciseId}`);
+    if (!isValidId(exerciseId)) {
       toast.error("Cannot save set: exercise information is incomplete.");
       return;
     }
@@ -254,6 +269,8 @@ export const useExerciseSets = ({
       setSets(prev => {
         const newSets = [...prev];
         newSets[setIndex] = { ...savedSet, session_id: sessionIdToUse };
+        // Assert key validity before delete
+        console.assert(isValidDraftKey(exerciseId, setIndex), `Invalid draft key in handleSaveSet delete: [${exerciseId}, ${setIndex}]`);
         db.draft_set_logs.delete([exerciseId, setIndex]);
         return newSets;
       });
@@ -264,7 +281,8 @@ export const useExerciseSets = ({
   }, [sets, propCurrentSessionId, saveSetToDb, exerciseId, onFirstSetSaved]);
 
   const handleEditSet = useCallback((setIndex: number) => {
-    if (!isValidKey(exerciseId)) {
+    console.assert(isValidId(exerciseId), `Invalid exerciseId in handleEditSet: ${exerciseId}`);
+    if (!isValidId(exerciseId)) {
       toast.error("Cannot edit set: exercise information is incomplete.");
       return;
     }
@@ -275,19 +293,24 @@ export const useExerciseSets = ({
         exercise_id: exerciseId, set_index: setIndex, session_id: propCurrentSessionId,
         weight_kg: updatedSets[setIndex].weight_kg, reps: updatedSets[setIndex].reps, reps_l: updatedSets[setIndex].reps_l, reps_r: updatedSets[setIndex].reps_r, time_seconds: updatedSets[setIndex].time_seconds,
       };
+      // Assert key validity before put
+      console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in handleEditSet: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
       db.draft_set_logs.put(draftPayload);
       return updatedSets;
     });
   }, [exerciseId, propCurrentSessionId]);
 
   const handleDeleteSet = useCallback(async (setIndex: number) => {
-    if (!isValidKey(exerciseId)) {
+    console.assert(isValidId(exerciseId), `Invalid exerciseId in handleDeleteSet: ${exerciseId}`);
+    if (!isValidId(exerciseId)) {
       toast.error("Cannot delete set: exercise information is incomplete.");
       return;
     }
     const setToDelete = sets[setIndex];
     const previousSets = sets;
     setSets(prev => prev.filter((_, i) => i !== setIndex));
+    // Assert key validity before delete
+    console.assert(isValidDraftKey(exerciseId, setIndex), `Invalid draft key in handleDeleteSet delete: [${exerciseId}, ${setIndex}]`);
     db.draft_set_logs.delete([exerciseId, setIndex]);
     toast.success("Set removed.");
 
@@ -301,7 +324,8 @@ export const useExerciseSets = ({
   }, [sets, deleteSetFromDb, exerciseId]);
 
   const handleSaveExercise = useCallback(async (): Promise<boolean> => {
-    if (!isValidKey(exerciseId)) {
+    console.assert(isValidId(exerciseId), `Invalid exerciseId in handleSaveExercise: ${exerciseId}`);
+    if (!isValidId(exerciseId)) {
       toast.error("Cannot save exercise: exercise information is incomplete.");
       return false;
     }
@@ -351,7 +375,18 @@ export const useExerciseSets = ({
     try {
       const isNewPROverall = await updateExercisePRStatus(currentSessionIdToUse, updatedSetsState);
       await onExerciseComplete(exerciseId, isNewPROverall);
-      await db.draft_set_logs.where({ exercise_id: exerciseId, session_id: currentSessionIdToUse }).delete();
+      
+      // FIX: More robust deletion from draft_set_logs to handle null currentSessionIdToUse
+      const draftsToDelete = await db.draft_set_logs
+        .where('exercise_id').equals(exerciseId)
+        .filter(draft => draft.session_id === currentSessionIdToUse) // Filter by session_id, including null
+        .toArray();
+
+      if (draftsToDelete.length > 0) {
+        // Assert key validity before bulkDelete
+        console.assert(draftsToDelete.every(d => isValidDraftKey(d.exercise_id, d.set_index)), `Invalid draft keys in handleSaveExercise bulkDelete: ${JSON.stringify(draftsToDelete.map(d => [d.exercise_id, d.set_index]))}`);
+        await db.draft_set_logs.bulkDelete(draftsToDelete.map(d => [d.exercise_id, d.set_index]));
+      }
       return true;
     } catch (err: any) {
       console.error("Error saving exercise completion or PR:", err);
@@ -361,20 +396,35 @@ export const useExerciseSets = ({
   }, [sets, exerciseId, onExerciseComplete, onFirstSetSaved, propCurrentSessionId, saveSetToDb, updateExercisePRStatus]);
 
   const handleSuggestProgression = useCallback(async () => {
-    if (!isValidKey(exerciseId)) {
+    console.assert(isValidId(exerciseId), `Invalid exerciseId in handleSuggestProgression: ${exerciseId}`);
+    if (!isValidId(exerciseId)) {
       toast.error("Cannot suggest progression: exercise information is incomplete.");
       return;
     }
     const { newSets, message } = await getProgressionSuggestion(sets.length, propCurrentSessionId);
     if (newSets) {
-      setSets(newSets);
-      toast.info(message);
-      await db.draft_set_logs.where({ exercise_id: exerciseId, session_id: propCurrentSessionId }).delete();
+      // FIX: More robust deletion from draft_set_logs to handle null propCurrentSessionId
+      const draftsToDelete = await db.draft_set_logs
+        .where('exercise_id').equals(exerciseId)
+        .filter(draft => draft.session_id === propCurrentSessionId) // Filter by session_id, including null
+        .toArray();
+
+      if (draftsToDelete.length > 0) {
+        // Assert key validity before bulkDelete
+        console.assert(draftsToDelete.every(d => isValidDraftKey(d.exercise_id, d.set_index)), `Invalid draft keys in handleSuggestProgression bulkDelete: ${JSON.stringify(draftsToDelete.map(d => [d.exercise_id, d.set_index]))}`);
+        await db.draft_set_logs.bulkDelete(draftsToDelete.map(d => [d.exercise_id, d.set_index]));
+      }
+
       const draftPayloads: LocalDraftSetLog[] = newSets.map((set, index) => ({
         exercise_id: exerciseId, set_index: index, session_id: propCurrentSessionId,
         weight_kg: set.weight_kg, reps: set.reps, reps_l: set.reps_l, reps_r: set.reps_r, time_seconds: set.time_seconds,
       }));
+      // Assert key validity before bulkPut
+      console.assert(draftPayloads.every(d => isValidDraftKey(d.exercise_id, d.set_index)), `Invalid draft keys in handleSuggestProgression bulkPut: ${JSON.stringify(draftPayloads.map(d => [d.exercise_id, d.set_index]))}`);
       await db.draft_set_logs.bulkPut(draftPayloads);
+      
+      setSets(newSets);
+      toast.info(message);
     }
   }, [sets.length, propCurrentSessionId, getProgressionSuggestion, exerciseId]);
 
