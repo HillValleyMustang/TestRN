@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { Tables, WorkoutExercise } from '@/types/supabase'; // Import WorkoutExercise
+import { Tables, WorkoutExercise } from '@/types/supabase';
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
 import { LocalExerciseDefinition, LocalTPath } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
@@ -23,7 +23,7 @@ interface GroupedTPath {
 interface UseWorkoutDataFetcherReturn {
   allAvailableExercises: ExerciseDefinition[];
   groupedTPaths: GroupedTPath[];
-  workoutExercisesCache: Record<string, WorkoutExercise[]>; // Corrected type here
+  workoutExercisesCache: Record<string, WorkoutExercise[]>;
   loadingData: boolean;
   dataError: string | null;
   refreshAllData: () => void;
@@ -34,7 +34,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
 
   const [allAvailableExercises, setAllAvailableExercises] = useState<ExerciseDefinition[]>([]);
   const [groupedTPaths, setGroupedTPaths] = useState<GroupedTPath[]>([]);
-  const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, WorkoutExercise[]>>({}); // Corrected type here
+  const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, WorkoutExercise[]>>({});
   const [loadingData, setLoadingData] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
 
@@ -65,15 +65,34 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     sessionUserId: session?.user.id ?? null,
   });
 
-  const processCachedData = useCallback(async () => {
-    if (!session || cachedExercises === undefined || cachedTPaths === undefined) return; // Ensure cache data is available
+  // Phase 1: Process initial cached data (fast, no network calls)
+  const processInitialCachedData = useCallback(() => {
+    if (cachedExercises === undefined || cachedTPaths === undefined) return;
+    if (!cachedTPaths) return; // Add null check for cachedTPaths
 
-    setLoadingData(true); // Set loading true at the start of processing
-    setDataError(exercisesError || tPathsError);
+    setAllAvailableExercises(cachedExercises as ExerciseDefinition[]);
+    
+    // Create a basic groupedTPaths structure without network-dependent details
+    const newGroupedTPaths: GroupedTPath[] = [];
+    const mainTPaths = cachedTPaths.filter(tp => tp.parent_t_path_id === null && tp.user_id === session?.user.id);
+    mainTPaths.forEach(mainTPath => {
+      const childWorkouts = cachedTPaths.filter(tp => tp.parent_t_path_id === mainTPath.id && tp.is_bonus === true);
+      newGroupedTPaths.push({
+        mainTPath: mainTPath,
+        childWorkouts: childWorkouts.map(cw => ({ ...cw, last_completed_at: null })), // last_completed_at will be enriched later
+      });
+    });
+    setGroupedTPaths(newGroupedTPaths);
+    setLoadingData(false); // Crucially, set loading to false here!
+    setDataError(exercisesError || tPathsError); // Propagate any initial errors
 
-    if (cachedExercises && cachedTPaths) {
-      setAllAvailableExercises(cachedExercises as ExerciseDefinition[]);
+  }, [session, cachedExercises, cachedTPaths, exercisesError, tPathsError]);
 
+  // Phase 2: Enrich data with network calls (runs in background)
+  const enrichDataWithNetworkCalls = useCallback(async () => {
+    if (!session || !cachedExercises || !cachedTPaths) return; // Add null check for cachedTPaths
+
+    try {
       // Fetch user's profile to get active_t_path_id
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
@@ -83,93 +102,88 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
 
       if (profileError && profileError.code !== 'PGRST116') {
         console.error("Error fetching active T-Path ID from profile:", profileError);
-        setDataError("Could not load your active workout plan.");
-        setLoadingData(false);
+        // Don't set dataError here, as initial data is already displayed.
+        // This error is for background enrichment.
         return;
       }
 
       const activeTPathId = profileData?.active_t_path_id;
 
-      if (!activeTPathId) {
-        console.warn("User has no active T-Path set in their profile.");
-        setGroupedTPaths([]);
-        setLoadingData(false);
-        return;
-      }
-
-      // Find the single active main T-Path from the cache
-      const activeMainTPath = cachedTPaths.find(tp => tp.id === activeTPathId && tp.user_id === session.user.id && tp.parent_t_path_id === null);
-
-      if (!activeMainTPath) {
-        console.warn(`Active T-Path with ID ${activeTPathId} not found in cache or is not a main T-Path.`);
-        setGroupedTPaths([]);
-        setLoadingData(false);
-        return;
-      }
-
-      // Find child workouts for ONLY the active main T-Path
-      const allChildWorkouts = cachedTPaths.filter(tp => tp.parent_t_path_id === activeMainTPath.id && tp.is_bonus === true);
-
-      const workoutsWithLastDatePromises = allChildWorkouts.map(async (workout) => {
-        const { data: lastSessionDate } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
-        return { ...workout, last_completed_at: lastSessionDate?.[0]?.session_date || null };
-      });
-      const allChildWorkoutsWithLastDate = await Promise.all(workoutsWithLastDatePromises);
-
-      // Create the grouped structure for just the one active path
-      const newGroupedTPaths: GroupedTPath[] = [{
-        mainTPath: activeMainTPath,
-        childWorkouts: allChildWorkoutsWithLastDate,
-      }];
-      
-      setGroupedTPaths(newGroupedTPaths);
+      const newGroupedTPaths: GroupedTPath[] = [];
+      const mainTPaths = cachedTPaths.filter(tp => tp.parent_t_path_id === null && tp.user_id === session.user.id);
 
       const newWorkoutExercisesCache: Record<string, WorkoutExercise[]> = {};
-      for (const workout of allChildWorkouts) {
-        const { data: tPathExercises, error: fetchLinksError } = await supabase
-          .from('t_path_exercises')
-          .select('exercise_id, is_bonus_exercise, order_index')
-          .eq('template_id', workout.id)
-          .order('order_index', { ascending: true });
-        
-        if (fetchLinksError) {
-          console.error(`Error fetching t_path_exercises for workout ${workout.id}:`, fetchLinksError);
-          newWorkoutExercisesCache[workout.id] = [];
-          continue;
+
+      for (const mainTPath of mainTPaths) {
+        const allChildWorkouts = cachedTPaths.filter(tp => tp.parent_t_path_id === mainTPath.id && tp.is_bonus === true);
+
+        const workoutsWithLastDatePromises = allChildWorkouts.map(async (workout) => {
+          const { data: lastSessionDate } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
+          return { ...workout, last_completed_at: lastSessionDate?.[0]?.session_date || null };
+        });
+        const allChildWorkoutsWithLastDate = await Promise.all(workoutsWithLastDatePromises);
+
+        // Also fetch exercises for each workout and populate cache
+        for (const workout of allChildWorkouts) {
+          const { data: tPathExercises, error: fetchLinksError } = await supabase
+            .from('t_path_exercises')
+            .select('exercise_id, is_bonus_exercise, order_index')
+            .eq('template_id', workout.id)
+            .order('order_index', { ascending: true });
+          
+          if (fetchLinksError) {
+            console.error(`Error fetching t_path_exercises for workout ${workout.id}:`, fetchLinksError);
+            newWorkoutExercisesCache[workout.id] = [];
+            continue;
+          }
+
+          if (!tPathExercises || tPathExercises.length === 0) {
+            newWorkoutExercisesCache[workout.id] = [];
+            continue;
+          }
+
+          const exerciseIds = tPathExercises.map(e => e.exercise_id);
+          const exerciseInfoMap = new Map(tPathExercises.map(e => [e.exercise_id, { is_bonus_exercise: !!e.is_bonus_exercise, order_index: e.order_index }]));
+          
+          const mappedExercises: WorkoutExercise[] = cachedExercises
+            .filter(ex => exerciseIds.includes(ex.id))
+            .map((ex: LocalExerciseDefinition) => ({ ...ex, is_bonus_exercise: exerciseInfoMap.get(ex.id)?.is_bonus_exercise || false })) as WorkoutExercise[];
+          
+          const exercisesForWorkout = mappedExercises.sort((a: WorkoutExercise, b: WorkoutExercise) => (exerciseInfoMap.get(a.id)?.order_index || 0) - (exerciseInfoMap.get(b.id)?.order_index || 0));
+          
+          newWorkoutExercisesCache[workout.id] = exercisesForWorkout;
         }
 
-        if (!tPathExercises || tPathExercises.length === 0) {
-          newWorkoutExercisesCache[workout.id] = [];
-          continue;
-        }
-
-        const exerciseIds = tPathExercises.map(e => e.exercise_id);
-        const exerciseInfoMap = new Map(tPathExercises.map(e => [e.exercise_id, { is_bonus_exercise: !!e.is_bonus_exercise, order_index: e.order_index }]));
-        
-        const mappedExercises: WorkoutExercise[] = cachedExercises
-          .filter(ex => exerciseIds.includes(ex.id))
-          .map((ex: LocalExerciseDefinition) => ({ ...ex, is_bonus_exercise: exerciseInfoMap.get(ex.id)?.is_bonus_exercise || false })) as WorkoutExercise[];
-        
-        const exercisesForWorkout = mappedExercises.sort((a: WorkoutExercise, b: WorkoutExercise) => (exerciseInfoMap.get(a.id)?.order_index || 0) - (exerciseInfoMap.get(b.id)?.order_index || 0));
-        
-        newWorkoutExercisesCache[workout.id] = exercisesForWorkout;
+        newGroupedTPaths.push({
+          mainTPath: mainTPath,
+          childWorkouts: allChildWorkoutsWithLastDate,
+        });
       }
+      setGroupedTPaths(newGroupedTPaths);
       setWorkoutExercisesCache(newWorkoutExercisesCache);
-    } 
-    setLoadingData(false); // Set loading false at the end of processing
-  }, [session, supabase, cachedExercises, cachedTPaths, exercisesError, tPathsError]);
+
+    } catch (err: any) {
+      console.error("Error during background data enrichment:", err);
+      // Only set dataError if it's not already set by initial load, or if it's a critical error
+      if (!dataError) setDataError(err.message || "Failed to fully load workout data.");
+    }
+  }, [session, supabase, cachedExercises, cachedTPaths, dataError]);
 
   useEffect(() => {
-    // Process cached data as soon as it's available from IndexedDB
+    // Trigger initial fast load as soon as cached data is available
     if (cachedExercises !== undefined && cachedTPaths !== undefined) {
-      processCachedData();
+      processInitialCachedData();
+      // Then, trigger background enrichment
+      enrichDataWithNetworkCalls();
     }
-  }, [processCachedData, cachedExercises, cachedTPaths]); // Removed loadingExercises, loadingTPaths
+  }, [processInitialCachedData, enrichDataWithNetworkCalls, cachedExercises, cachedTPaths]);
 
   const refreshAllData = useCallback(() => {
     refreshExercises();
     refreshTPaths();
-  }, [refreshExercises, refreshTPaths]);
+    // After refreshing cache, re-trigger enrichment to get latest network data
+    enrichDataWithNetworkCalls();
+  }, [refreshExercises, refreshTPaths, enrichDataWithNetworkCalls]);
 
   return {
     allAvailableExercises,
