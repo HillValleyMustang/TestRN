@@ -17,7 +17,8 @@ import { ExerciseSelectionDropdown } from '@/components/shared/exercise-selectio
 import { AnalyzeGymDialog } from '../manage-exercises/analyze-gym-dialog';
 import { DuplicateExerciseConfirmDialog } from '../manage-exercises/duplicate-exercise-confirm-dialog';
 import { SaveAiExercisePrompt } from './save-ai-exercise-prompt';
-import { toast } from 'sonner'; // Added toast import
+import { toast } from 'sonner';
+import { v4 as uuidv4 } from 'uuid';
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -54,7 +55,7 @@ interface WorkoutSelectorProps {
   isCreatingSession: boolean;
   createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>;
   finishWorkoutSession: () => Promise<void>;
-  refreshAllData: () => void; // Added refreshAllData to props
+  refreshAllData: () => void;
 }
 
 const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName: string): Omit<WorkoutPillProps, 'isSelected' | 'onClick'> => {
@@ -112,7 +113,7 @@ export const WorkoutSelector = ({
   isCreatingSession,
   createWorkoutSessionInDb,
   finishWorkoutSession,
-  refreshAllData // Destructured refreshAllData
+  refreshAllData
 }: WorkoutSelectorProps) => {
   const { supabase, session } = useSession();
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
@@ -166,22 +167,53 @@ export const WorkoutSelector = ({
 
   // --- AI Gym Analysis Handlers ---
   const handleAIIdentifiedExercise = useCallback(async (identifiedData: Partial<ExerciseDefinition>) => {
-    if (!identifiedData.id) { // If it's a new AI-generated exercise without a DB ID yet
-      // Add to current ad-hoc session immediately
-      addExerciseToSession(identifiedData as ExerciseDefinition); // Cast to ExerciseDefinition for addExerciseToSession
-      setIdentifiedExerciseFromAI(identifiedData);
-      setShowSaveNewExercisePrompt(true); // Prompt to save to My Exercises
-    } else {
-      // If it's an existing exercise (e.g., from global library) identified by AI
-      addExerciseToSession(identifiedData as ExerciseDefinition);
-      toast.success(`'${identifiedData.name}' added to ad-hoc workout!`);
-    }
+    // Assign a temporary UUID if the exercise doesn't have one (i.e., it's a new AI-generated exercise)
+    const exerciseWithId: ExerciseDefinition = {
+      ...identifiedData,
+      id: identifiedData.id || uuidv4(), // Assign UUID if missing
+      name: identifiedData.name || 'Unknown Exercise', // Ensure name is present
+      main_muscle: identifiedData.main_muscle || 'Unknown', // Ensure main_muscle is present
+      type: identifiedData.type || 'weight', // Ensure type is present
+      category: identifiedData.category ?? null, // Explicitly handle undefined
+      description: identifiedData.description ?? null, // Explicitly handle undefined
+      pro_tip: identifiedData.pro_tip ?? null, // Explicitly handle undefined
+      video_url: identifiedData.video_url ?? null, // Explicitly handle undefined
+      created_at: identifiedData.created_at || new Date().toISOString(),
+      user_id: identifiedData.user_id || null,
+      library_id: identifiedData.library_id || null,
+      is_favorite: identifiedData.is_favorite || false,
+      icon_url: identifiedData.icon_url ?? null, // Explicitly handle undefined
+    };
+
+    // Add to current ad-hoc session immediately
+    addExerciseToSession(exerciseWithId);
+    setIdentifiedExerciseFromAI(exerciseWithId); // Store the version with the ID
+    setShowSaveNewExercisePrompt(true); // Prompt to save to My Exercises
+    
     setShowAnalyzeGymDialog(false); // Close the analyze dialog
   }, [addExerciseToSession]);
 
   const handleConfirmAddAnyway = useCallback((identifiedData: Partial<ExerciseDefinition>) => {
-    addExerciseToSession(identifiedData as ExerciseDefinition);
-    setIdentifiedExerciseFromAI(identifiedData);
+    // Assign a temporary UUID if the exercise doesn't have one
+    const exerciseWithId: ExerciseDefinition = {
+      ...identifiedData,
+      id: identifiedData.id || uuidv4(), // Assign UUID if missing
+      name: identifiedData.name || 'Unknown Exercise',
+      main_muscle: identifiedData.main_muscle || 'Unknown',
+      type: identifiedData.type || 'weight',
+      category: identifiedData.category ?? null, // Explicitly handle undefined
+      description: identifiedData.description ?? null, // Explicitly handle undefined
+      pro_tip: identifiedData.pro_tip ?? null, // Explicitly handle undefined
+      video_url: identifiedData.video_url ?? null, // Explicitly handle undefined
+      created_at: identifiedData.created_at || new Date().toISOString(),
+      user_id: identifiedData.user_id || null,
+      library_id: identifiedData.library_id || null,
+      is_favorite: identifiedData.is_favorite || false,
+      icon_url: identifiedData.icon_url ?? null, // Explicitly handle undefined
+    };
+
+    addExerciseToSession(exerciseWithId);
+    setIdentifiedExerciseFromAI(exerciseWithId); // Store the version with the ID
     setShowDuplicateConfirmDialog(false);
     setShowSaveNewExercisePrompt(true); // Prompt to save to My Exercises
   }, [addExerciseToSession]);
@@ -216,7 +248,7 @@ export const WorkoutSelector = ({
       if (error) throw error;
       toast.success(`'${exerciseToSave.name}' saved to My Exercises!`);
       // Refresh all data to ensure the new exercise appears in dropdowns/lists
-      await refreshAllData();
+      refreshAllData();
     } catch (err: any) {
       console.error("Failed to save AI-identified exercise to My Exercises:", err);
       toast.error("Failed to save exercise: " + err.message);
