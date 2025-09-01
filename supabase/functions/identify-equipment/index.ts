@@ -106,18 +106,39 @@ serve(async (req: Request) => {
     }
 
     // --- DUPLICATE CHECK ---
-    const { data: existingExercises, error: duplicateCheckError } = await supabaseClient
+    let isDuplicate = false;
+
+    // 1. Check for exact name/muscle/type match in user's OWN exercises
+    const { data: userOwnedDuplicates, error: userOwnedDuplicateError } = await supabaseClient
       .from('exercise_definitions')
       .select('id')
-      .ilike('name', identifiedExercise.name.trim()) // Case-insensitive exact match
-      .or(`user_id.eq.${user.id},user_id.is.null`);
+      .eq('user_id', user.id)
+      .ilike('name', identifiedExercise.name.trim())
+      .ilike('main_muscle', identifiedExercise.main_muscle.trim())
+      .eq('type', identifiedExercise.type);
 
-    if (duplicateCheckError) {
-      console.error("Error checking for duplicate exercises:", duplicateCheckError.message);
-      // Don't throw, just proceed without duplicate info
+    if (userOwnedDuplicateError) {
+      console.error("Error checking for user-owned duplicate exercises:", userOwnedDuplicateError.message);
+    } else if (userOwnedDuplicates && userOwnedDuplicates.length > 0) {
+      isDuplicate = true;
     }
 
-    const isDuplicate = existingExercises && existingExercises.length > 0;
+    // 2. If not already a duplicate, check if it's a global exercise that the user has already adopted
+    // This check is only relevant if the identified exercise is originally a global one (has a library_id)
+    // and the user has a custom copy of it.
+    if (!isDuplicate && identifiedExercise.library_id) {
+        const { data: adoptedDuplicates, error: adoptedDuplicateError } = await supabaseClient
+            .from('exercise_definitions')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('library_id', identifiedExercise.library_id); // Check if user has adopted this specific global exercise
+
+        if (adoptedDuplicateError) {
+            console.error("Error checking for adopted global duplicate exercises:", adoptedDuplicateError.message);
+        } else if (adoptedDuplicates && adoptedDuplicates.length > 0) {
+            isDuplicate = true;
+        }
+    }
 
     // Return the identified exercise data AND the duplicate flag to the client
     return new Response(JSON.stringify({ identifiedExercise, isDuplicate }), {
