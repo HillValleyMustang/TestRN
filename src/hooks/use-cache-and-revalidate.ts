@@ -28,27 +28,27 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
     () => {
       const table = db[cacheTable] as any;
 
-      // If the session is still loading, return an empty array to prevent any query.
       if (sessionUserId === undefined) {
         return [];
       }
 
-      // This is the new, more robust filtering strategy.
-      // It fetches all items and filters them in code, which avoids the
-      // underlying 'IDBKeyRange' error caused by the race condition with `anyOf`.
+      // If the table is one that doesn't have a user_id, just return everything.
+      // The consuming hook will be responsible for further filtering.
+      if (cacheTable === 't_path_exercises_cache') {
+        return table.toArray();
+      }
+
       const filteredData = table.filter((item: T) => {
-        // Special handling for profiles_cache (only one profile per user)
         if (cacheTable === 'profiles_cache') {
           return item.id === sessionUserId;
         }
-        // For other tables, filter by user_id or global (user_id is null)
+        // This is correct for exercises and t_paths
         return item.user_id === null || item.user_id === sessionUserId;
       }).toArray();
-      console.log(`[useCacheAndRevalidate] ${queryKey}: data from useLiveQuery (filtered):`, filteredData); // ADDED LOG
       return filteredData;
     },
-    [cacheTable, sessionUserId], // The query re-runs safely when sessionUserId changes.
-    [] // Default to an empty array while loading.
+    [cacheTable, sessionUserId],
+    []
   );
 
   const fetchDataAndRevalidate = useCallback(async () => {
@@ -65,20 +65,16 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
         const table = db[cacheTable] as any;
         
         await db.transaction('rw', table, async () => {
-          // For profiles_cache, we only expect one entry per user, so clear and put
           if (cacheTable === 'profiles_cache') {
-            console.log(`[useCacheAndRevalidate] ${queryKey}: remoteData for profile:`, remoteData); // ADDED LOG
-            await table.clear(); // Clear all profiles (assuming only one user's profile is ever cached)
+            await table.clear();
             if (remoteData.length > 0) {
-              await table.put(remoteData[0]); // Only put the first one if multiple are returned
+              await table.put(remoteData[0]);
             }
           } else {
-            // For other tables, clear and bulkPut
             await table.clear();
             await table.bulkPut(remoteData);
           }
         });
-        console.log(`[useCacheAndRevalidate] Synced cache for ${queryKey}.`);
       }
     } catch (err: any) {
       console.error(`Error during ${queryKey} revalidation:`, err);
@@ -87,10 +83,9 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
       setLoading(false);
       setIsRevalidating(false);
     }
-  }, [supabase, supabaseQuery, queryKey, cacheTable]); // Removed isRevalidating from dependencies
+  }, [supabase, supabaseQuery, queryKey, cacheTable, isRevalidating]);
 
   useEffect(() => {
-    // We still wait for sessionUserId to be defined before fetching from the server.
     if (sessionUserId !== undefined) {
       fetchDataAndRevalidate();
     } else {
