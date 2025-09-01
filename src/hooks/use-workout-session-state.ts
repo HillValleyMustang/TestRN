@@ -277,7 +277,8 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
       const updatePayload = { duration_string: durationString, completed_at: endTime.toISOString() };
       
       await db.workout_sessions.update(currentSessionId, updatePayload);
-      await addToSyncQueue('update', 'workout_sessions', { id: currentSessionId, ...updatePayload });
+      // Also include user_id in the sync payload to make the upsert more robust
+      await addToSyncQueue('update', 'workout_sessions', { id: currentSessionId, user_id: session.user.id, ...updatePayload });
 
       // Delete all drafts for the current session
       const draftsToDelete = await db.draft_set_logs

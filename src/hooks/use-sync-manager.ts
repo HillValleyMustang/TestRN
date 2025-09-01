@@ -12,9 +12,9 @@ export const useSyncManager = () => {
   const [isOnline, setIsOnline] = React.useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [isSyncing, setIsSyncing] = React.useState(false);
 
-  // Fetch syncQueue from IndexedDB using useLiveQuery
+  // Fetch syncQueue from IndexedDB using useLiveQuery, ordered by timestamp
   const syncQueue = useLiveQuery(async () => {
-    return db.sync_queue.toArray();
+    return db.sync_queue.orderBy('timestamp').toArray();
   }, []); // Empty dependency array means it runs once and then on any changes to sync_queue table
 
   const handleOnline = () => setIsOnline(true);
