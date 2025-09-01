@@ -26,19 +26,20 @@ export const ExerciseDetailsTextareas = ({ form }: ExerciseDetailsTextareasProps
         )} 
       />
       
-      <FormField 
+      {/* Temporarily commented out to diagnose React.Children.only error */}
+      {/* <FormField 
         control={form.control} 
         name="pro_tip" 
         render={({ field }) => (
           <FormItem>
             <FormLabel className="font-bold">Pro Tip (Optional)</FormLabel>
             <FormControl>
-              <Textarea {...field} value={field.value ?? ''} className="text-sm" rows={4} /> {/* Increased rows */}
+              <Textarea {...field} value={field.value ?? ''} className="text-sm" rows={4} />
             </FormControl>
             <FormMessage />
           </FormItem>
         )} 
-      />
+      /> */}
     </>
   );
 };
