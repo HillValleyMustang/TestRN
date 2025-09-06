@@ -281,7 +281,6 @@ export const useExerciseSets = ({
         let isNewSetPR = false;
         if (session?.user.id) {
           isNewSetPR = await checkAndSaveSetPR(currentSet, session.user.id);
-          console.log(`[useExerciseSets] Set ${setIndex + 1} PR check result: ${isNewSetPR}`); // LOG
         }
 
         const { savedSet } = await saveSetToDb({ ...currentSet, is_pb: isNewSetPR }, setIndex, sessionIdToUse);
@@ -289,9 +288,8 @@ export const useExerciseSets = ({
           const draftPayload: LocalDraftSetLog = {
             exercise_id: exerciseId, set_index: setIndex, session_id: sessionIdToUse,
             weight_kg: savedSet.weight_kg, reps: savedSet.reps, reps_l: savedSet.reps_l, reps_r: savedSet.reps_r, time_seconds: savedSet.time_seconds,
-            isSaved: true, set_log_id: savedSet.id, is_pb: savedSet.is_pb || false,
+            isSaved: true, set_log_id: savedSet.id, is_pb: savedSet.is_pb || false, // Correctly set is_pb here
           };
-          console.log(`[useExerciseSets] Draft payload for set ${setIndex + 1} after save:`, draftPayload); // LOG
           console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in handleSaveSet update: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
           await db.draft_set_logs.put(draftPayload);
         } else {
@@ -412,7 +410,6 @@ export const useExerciseSets = ({
 
         if (hasError) return { success: false, isNewPR: false };
 
-        console.log(`[useExerciseSets] handleSaveExercise: anySetIsPR before onExerciseComplete: ${anySetIsPR}`); // LOG
         try {
           await onExerciseComplete(exerciseId, anySetIsPR);
           return { success: true, isNewPR: anySetIsPR };
