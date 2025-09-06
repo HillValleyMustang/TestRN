@@ -61,7 +61,7 @@ export const useSetPersistence = ({
       reps_l: set.reps_l,
       reps_r: set.reps_r,
       time_seconds: set.time_seconds,
-      is_pb: false,
+      is_pb: set.is_pb, // FIX: Correctly use the is_pb status from the set object
       created_at: set.created_at || new Date().toISOString(),
     };
 
