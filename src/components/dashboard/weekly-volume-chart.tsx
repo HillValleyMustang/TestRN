@@ -14,8 +14,8 @@ type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 // Define a type for SetLog with joined ExerciseDefinition and WorkoutSession, including necessary IDs
 type SetLogWithExerciseAndSession = Pick<SetLog, 'id' | 'weight_kg' | 'reps' | 'exercise_id' | 'session_id'> & {
-  exercise_definitions: Pick<ExerciseDefinition, 'type'>[] | null; 
-  workout_sessions: Pick<WorkoutSession, 'session_date' | 'user_id'>[] | null;
+  exercise_definitions: Pick<ExerciseDefinition, 'type'> | null; // Expecting a single object or null
+  workout_sessions: Pick<WorkoutSession, 'session_date' | 'user_id'> | null; // Expecting a single object or null
 };
 
 interface ChartData {
@@ -76,17 +76,17 @@ export const WeeklyVolumeChart = () => {
         // Aggregate volume by week
         const weeklyVolumeMap = new Map<string, number>(); // 'YYYY-MM-DD (start of week)' -> total volume
 
-        (setLogsData as SetLogWithExerciseAndSession[]).forEach(log => {
-          const exerciseDef = log.exercise_definitions?.[0]; // Access first element
-          const workoutSession = log.workout_sessions?.[0]; // Access first element
-
-          console.log(`[WeeklyVolumeChart] Full Exercise Def Object:`, exerciseDef);
-          console.log(`[WeeklyVolumeChart] Full Workout Session Object:`, workoutSession);
+        // Correctly type the log object within the loop and access nested properties safely
+        (setLogsData as unknown as Array<SetLogWithExerciseAndSession>).forEach(log => {
+          const exerciseDef = log.exercise_definitions; // This is now correctly typed as an object or null
+          const workoutSession = log.workout_sessions; // This is now correctly typed as an object or null
 
           const exerciseType = exerciseDef?.type; 
           const sessionDate = workoutSession?.session_date; 
           
           console.log(`[WeeklyVolumeChart] SetLog ID: ${log.id}, Exercise ID: ${log.exercise_id}, Session ID: ${log.session_id}`);
+          console.log(`[WeeklyVolumeChart] Full Exercise Def Object:`, exerciseDef);
+          console.log(`[WeeklyVolumeChart] Full Workout Session Object:`, workoutSession);
           console.log(`[WeeklyVolumeChart] Extracted: type=${exerciseType}, date=${sessionDate}, weight=${log.weight_kg}, reps=${log.reps}`);
 
           if (exerciseType === 'weight' && log.weight_kg && log.reps && sessionDate) {
