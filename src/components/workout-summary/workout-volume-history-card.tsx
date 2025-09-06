@@ -155,8 +155,8 @@ export const WorkoutVolumeHistoryCard = ({ workoutTemplateName, currentSessionId
                 data={chartData}
                 margin={{
                   top: 5,
-                  right: 20,
-                  left: -10,
+                  right: 10,
+                  left: -25,
                   bottom: 5,
                 }}
               >
