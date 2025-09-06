@@ -111,6 +111,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
 
     if (workoutId === 'ad-hoc') {
       currentWorkout = { id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: session.user.id, created_at: new Date().toISOString(), version: 1, settings: null, progression_settings: null, parent_t_path_id: null };
+      
       // For ad-hoc, we need to load any existing drafts that are not yet associated with a session
       const adHocDrafts = await db.draft_set_logs.filter(draft => draft.session_id === null).toArray();
       const adHocExerciseIds = Array.from(new Set(adHocDrafts.map(d => d.exercise_id)));
