@@ -60,7 +60,7 @@ export const ExerciseCard = ({
   const timerRef = React.useRef<NodeJS.Timeout | null>(null);
   const [isExerciseSaved, setIsExerciseSaved] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [justAchievedPR, setJustAchievedPR] = useState(false);
+  // Removed: const [justAchievedPR, setJustAchievedPR] = useState(false); // No longer needed
 
   const [showSwapDialog, setShowSwapDialog] = useState(false);
   const [showCantDoDialog, setShowCantDoDialog] = useState(false);
@@ -114,14 +114,15 @@ export const ExerciseCard = ({
     onFirstSetSaved: onFirstSetSaved,
     onExerciseComplete: async (id, isNewPR) => {
       setIsExerciseSaved(true);
-      if (isNewPR) {
-        setJustAchievedPR(true);
-      }
+      // Removed setJustAchievedPR(true) as it's now derived
       onExerciseCompleted(id, isNewPR);
     },
     workoutTemplateName,
     exerciseNumber,
   });
+
+  // Derived state for PR status of the entire exercise
+  const hasAnySetPR = sets.some(set => set.is_pb);
 
   const handleSaveSetAndStartTimer = async (setIndex: number) => {
     await handleSaveSet(setIndex);
@@ -142,9 +143,7 @@ export const ExerciseCard = ({
     const { success, isNewPR } = await handleSaveExercise();
     if (success) {
       setIsExerciseSaved(true);
-      if (isNewPR) {
-        setJustAchievedPR(true);
-      }
+      // Removed setJustAchievedPR(true) as it's now derived
       setIsExpanded(false);
     }
   };
@@ -203,7 +202,7 @@ export const ExerciseCard = ({
             <div className="flex items-start justify-between">
               <div className="flex flex-col text-left">
                 <div className="flex items-center gap-2">
-                  {isExerciseSaved && justAchievedPR && (
+                  {isExerciseSaved && hasAnySetPR && ( // Updated condition here
                     <Trophy className="h-5 w-5 text-yellow-500 fill-yellow-500" />
                   )}
                   <CardTitle className={cn("text-lg font-semibold leading-none", workoutColorClass)}>
@@ -289,9 +288,7 @@ export const ExerciseCard = ({
                           </Button>
                         )}
                         {!isExerciseSaved && (
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" className="h-6 w-6">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" className="h-4 w-4 text-destructive" />
                         )}
                       </div>
                     </div>
@@ -404,7 +401,7 @@ export const ExerciseCard = ({
                 {isExerciseSaved ? (
                   <span className="flex items-center">
                     Saved
-                    {justAchievedPR && <Trophy className="h-4 w-4 ml-2 fill-white text-white" />}
+                    {hasAnySetPR && <Trophy className="h-4 w-4 ml-2 fill-white text-white" />} {/* Updated condition here */}
                   </span>
                 ) : (
                   <span className="flex items-center">
