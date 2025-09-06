@@ -145,18 +145,18 @@ export const WorkoutVolumeHistoryCard = ({ workoutTemplateName, currentSessionId
       </CardHeader>
       <CardContent>
         {!hasData ? (
-          <div className="h-[150px] flex items-center justify-center text-muted-foreground">
+          <div className="h-[200px] flex items-center justify-center text-muted-foreground">
             No previous workout data for "{workoutTemplateName}". Complete more sessions to see your trend!
           </div>
         ) : (
-          <div className="h-[150px]">
+          <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={chartData}
                 margin={{
                   top: 5,
-                  right: 10,
-                  left: 10,
+                  right: 20,
+                  left: -10,
                   bottom: 5,
                 }}
               >
