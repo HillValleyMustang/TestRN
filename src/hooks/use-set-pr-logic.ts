@@ -76,10 +76,10 @@ export const useSetPRLogic = ({ exerciseId, exerciseType, supabase }: UseSetPRLo
       isNewPR = true;
       console.log(`[useSetPRLogic] No previous PR, so this is a new PR for ${exerciseId}.`);
     } else if (exerciseType === 'weight' && currentPRState.best_volume_kg !== null) {
-      isNewPR = currentSetPerformance >= currentPRState.best_volume_kg;
+      isNewPR = currentSetPerformance > currentPRState.best_volume_kg;
       console.log(`[useSetPRLogic] Weight PR check: current ${currentSetPerformance} vs previous ${currentPRState.best_volume_kg}. New PR: ${isNewPR}`);
     } else if (exerciseType === 'timed' && currentPRState.best_time_seconds !== null) {
-      isNewPR = currentSetPerformance >= currentPRState.best_time_seconds;
+      isNewPR = currentSetPerformance > currentPRState.best_time_seconds;
       console.log(`[useSetPRLogic] Timed PR check: current ${currentSetPerformance} vs previous ${currentPRState.best_time_seconds}. New PR: ${isNewPR}`);
     } else {
       // This case handles when there's a PR record but the relevant field is null (e.g., first time doing a timed exercise)
