@@ -49,11 +49,18 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
   const [hasShownAchievementToasts, setHasShownAchievementToasts] = useState(false);
 
   useEffect(() => {
+    console.log("WorkoutSummaryModal: useEffect triggered. sessionId:", sessionId, "open:", open, "session:", !!session);
+
     if (!session || !sessionId || !open) {
       setWorkoutSession(null);
       setSetLogs([]);
       setLoading(true);
       setHasShownAchievementToasts(false); // Reset achievement toast flag when modal closes or session changes
+      if (!sessionId && open) {
+        console.warn("WorkoutSummaryModal: Modal is open but no sessionId provided.");
+        setError("No workout session ID provided for summary.");
+        setLoading(false);
+      }
       return;
     }
 
@@ -61,6 +68,7 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
       setLoading(true);
       setError(null);
       try {
+        console.log("WorkoutSummaryModal: Attempting to fetch workout session with ID:", sessionId, "for user:", session.user.id);
         const { data: sessionData, error: sessionError } = await supabase
           .from('workout_sessions')
           .select('id, template_name, duration_string, session_date, rating, created_at, user_id')
@@ -68,13 +76,21 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
           .eq('user_id', session.user.id)
           .single();
 
-        if (sessionError || !sessionData) {
-          throw new Error(sessionError?.message || "Workout session not found.");
+        if (sessionError) {
+          console.error("WorkoutSummaryModal: Error fetching session data:", sessionError);
+          throw new Error(sessionError.message);
         }
+        if (!sessionData) {
+          console.error("WorkoutSummaryModal: No session data found for ID:", sessionId);
+          throw new Error("Workout session not found.");
+        }
+        
+        console.log("WorkoutSummaryModal: Fetched sessionData:", sessionData);
         setWorkoutSession(sessionData as WorkoutSession);
         setCurrentRating(sessionData.rating);
         setIsRatingSaved(sessionData.rating !== null);
 
+        console.log("WorkoutSummaryModal: Attempting to fetch set logs for session ID:", sessionId);
         const { data: setLogsData, error: setLogsError } = await supabase
           .from('set_logs')
           .select(`
@@ -87,8 +103,11 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
           .order('created_at', { ascending: true });
 
         if (setLogsError) {
+          console.error("WorkoutSummaryModal: Error fetching set logs:", setLogsError);
           throw new Error(setLogsError.message);
         }
+        console.log("WorkoutSummaryModal: Fetched setLogsData:", setLogsData);
+
 
         let volume = 0;
         let prCount = 0;
@@ -117,13 +136,14 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
         setPrsAchieved(prCount);
         setNewPrExercises(Array.from(newPrsThisSession));
 
+        console.log("WorkoutSummaryModal: Attempting to fetch last sets for unique exercises:", Array.from(uniqueExerciseIds));
         const lastSetsPromises = Array.from(uniqueExerciseIds).map(async (exerciseId) => {
           const { data: lastExerciseSets, error: rpcError } = await supabase.rpc('get_last_exercise_sets_for_exercise', {
             p_user_id: session.user.id,
             p_exercise_id: exerciseId,
           });
           if (rpcError && rpcError.code !== 'PGRST116') {
-            console.error(`Error fetching last sets for exercise ${exerciseId}:`, rpcError);
+            console.error(`WorkoutSummaryModal: Error fetching last sets for exercise ${exerciseId}:`, rpcError);
             return { exerciseId, sets: [] };
           }
           return { exerciseId, sets: lastExerciseSets || [] };
@@ -153,6 +173,7 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
         setSetLogs(finalSetLogs);
 
         if (!hasShownAchievementToasts && session.user.id) {
+          console.log("WorkoutSummaryModal: Checking for session achievements.");
           const response = await fetch('/api/get-session-achievements', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
@@ -170,7 +191,7 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
           setHasShownAchievementToasts(true);
         }
       } catch (err: any) {
-        console.error("Failed to fetch workout summary or achievements:", err);
+        console.error("WorkoutSummaryModal: Failed to fetch workout summary or achievements:", err);
         setError(err.message || "Failed to load workout summary. Please try again.");
         toast.error(err.message || "Failed to load workout summary.");
       } finally {

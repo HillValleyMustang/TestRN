@@ -24,6 +24,7 @@ export default function WorkoutPage() {
 
   const handleFinishAndShowSummary = async () => {
     const finishedSessionId = await workoutFlowManager.finishWorkoutSession();
+    console.log("WorkoutPage: Finished workout session. Returned ID:", finishedSessionId);
     if (finishedSessionId) {
       setSummarySessionId(finishedSessionId);
       setShowSummaryModal(true);

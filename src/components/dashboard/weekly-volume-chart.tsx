@@ -32,11 +32,16 @@ export const WeeklyVolumeChart = () => {
 
   useEffect(() => {
     const fetchWeeklyVolume = async () => {
-      if (!session) return;
+      if (!session) {
+        console.log("WeeklyVolumeChart: No session, skipping data fetch.");
+        setLoading(false);
+        return;
+      }
 
       setLoading(true);
       setError(null);
       try {
+        console.log("WeeklyVolumeChart: Fetching set logs for user:", session.user.id);
         // Fetch all set logs for the user, joining with workout_sessions to get session_date
         // and exercise_definitions to get exercise type.
         const { data: setLogsData, error: setLogsError } = await supabase
@@ -50,10 +55,11 @@ export const WeeklyVolumeChart = () => {
           .order('created_at', { ascending: true }); // Order by created_at for chronological processing
 
         if (setLogsError) {
+          console.error("WeeklyVolumeChart: Error fetching set logs:", setLogsError);
           throw new Error(setLogsError.message);
         }
 
-        console.log("WeeklyVolumeChart: Fetched setLogsData:", setLogsData);
+        console.log("WeeklyVolumeChart: Fetched raw setLogsData:", setLogsData);
 
         // Aggregate volume by week
         const weeklyVolumeMap = new Map<string, number>(); // 'YYYY-WW' -> total volume
@@ -93,7 +99,7 @@ export const WeeklyVolumeChart = () => {
         console.log("WeeklyVolumeChart: Final sortedChartData:", sortedChartData);
 
       } catch (err: any) {
-        console.error("Failed to fetch weekly volume data:", err);
+        console.error("WeeklyVolumeChart: Failed to fetch weekly volume data:", err);
         setError(err.message || "Failed to load weekly volume chart.");
         toast.error(err.message || "Failed to load weekly volume chart.");
       } finally {

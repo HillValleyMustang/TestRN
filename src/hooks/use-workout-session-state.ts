@@ -341,7 +341,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
     
     if (draftsToDelete.length > 0) {
       const keysToDelete = draftsToDelete.map(d => [d.exercise_id, d.set_index] as [string, number]); // Explicitly cast to tuple
-      console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1])), `Invalid draft keys in removeExerciseFromSession bulkDelete: ${JSON.stringify(keysToDelete)}`);
+      console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1]), `Invalid draft keys in removeExerciseFromSession bulkDelete: ${JSON.stringify(keysToDelete)}`));
       await db.draft_set_logs.bulkDelete(keysToDelete);
     }
   }, [currentSessionId]);
@@ -395,7 +395,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
     
     if (draftsToDelete.length > 0) {
       const keysToDelete = draftsToDelete.map(d => [d.exercise_id, d.set_index] as [string, number]); // Explicitly cast to tuple
-      console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1])), `Invalid draft keys in substituteExercise bulkDelete: ${JSON.stringify(keysToDelete)}`);
+      console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1]), `Invalid draft keys in substituteExercise bulkDelete: ${JSON.stringify(keysToDelete)}`));
       await db.draft_set_logs.bulkDelete(keysToDelete);
     }
   }, [currentSessionId, exercisesForSession]);
@@ -415,6 +415,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
   const finishWorkoutSession = useCallback(async (): Promise<string | null> => {
     if (!currentSessionId || !sessionStartTime || !session || !activeWorkout) {
       toast.error("Workout session not properly started or no sets logged yet.");
+      console.error("finishWorkoutSession: Missing currentSessionId, sessionStartTime, session, or activeWorkout.");
       return null;
     }
 
@@ -454,7 +455,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
       
       if (draftsToDelete.length > 0) {
         const keysToDelete = draftsToDelete.map(d => [d.exercise_id, d.set_index] as [string, number]); // Explicitly cast to tuple
-        console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1])), `Invalid draft keys in finishWorkoutSession bulkDelete: ${JSON.stringify(keysToDelete)}`);
+        console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1]), `Invalid draft keys in finishWorkoutSession bulkDelete: ${JSON.stringify(keysToDelete)}`));
         await db.draft_set_logs.bulkDelete(keysToDelete);
       }
 
