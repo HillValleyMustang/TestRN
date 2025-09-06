@@ -12,7 +12,8 @@ export interface WorkoutPillProps {
   completedAt: Date | null;
   isSelected: boolean;
   onClick: (id: string) => void;
-  className?: string; // Added className prop
+  className?: string;
+  hideIcon?: boolean; // NEW PROP
 }
 
 export const WorkoutPill = ({
@@ -25,6 +26,7 @@ export const WorkoutPill = ({
   isSelected,
   onClick,
   className, // Destructure className here
+  hideIcon = false, // Default to false
 }: WorkoutPillProps) => {
   const {
     Icon,
@@ -52,7 +54,7 @@ export const WorkoutPill = ({
         className 
       )}
     >
-      <Icon className={cn("w-6 h-6 flex-shrink-0", isSelected ? 'text-white' : unselectedTextClass)} strokeWidth={2.5} />
+      {!hideIcon && <Icon className={cn("w-6 h-6 flex-shrink-0", isSelected ? 'text-white' : unselectedTextClass)} strokeWidth={2.5} />}
       <div className="flex flex-col gap-0 text-left">
         <span className={cn("text-sm font-semibold leading-tight whitespace-nowrap", isSelected ? 'text-white' : unselectedTextClass)}>{title}</span>
         <span className={cn(

@@ -156,6 +156,7 @@ export const AllWorkoutsQuickStart = () => {
                   isSelected={false} // Always unselected in this view
                   onClick={() => {}} // No direct click on pill, only button
                   className="flex-1"
+                  hideIcon={true} // HIDE THE ICON HERE
                 />
                 <Button 
                   size="sm" 
