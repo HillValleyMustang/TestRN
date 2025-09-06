@@ -1,16 +1,12 @@
 "use client";
 
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
-import { Tables, SetLogState, WorkoutExercise, GetLastExerciseSetsForExerciseReturns } from '@/types/supabase';
+import { Tables, SetLogState, WorkoutExercise } from '@/types/supabase';
 import { db, addToSyncQueue, LocalWorkoutSession, LocalDraftSetLog } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
-
-// Import new modular hooks
-import { useCoreWorkoutSessionState } from './use-core-workout-session-state';
-import { useWorkoutSessionPersistence } from './use-workout-session-persistence';
-import { useSessionExerciseManagement } from './use-session-exercise-management';
+import { useCoreWorkoutSessionState } from './use-core-workout-session-state'; // Import core state
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -27,42 +23,24 @@ const isValidDraftKey = (exerciseId: string | null | undefined, setIndex: number
   return isValidId(exerciseId) && typeof setIndex === 'number' && setIndex >= 0;
 };
 
-interface UseWorkoutSessionStateProps {
+interface UseWorkoutSessionPersistenceProps {
   allAvailableExercises: ExerciseDefinition[];
   workoutExercisesCache: Record<string, WorkoutExercise[]>;
+  coreState: ReturnType<typeof useCoreWorkoutSessionState>; // Pass core state
 }
 
-interface UseWorkoutSessionStateReturn {
-  activeWorkout: TPath | null;
-  exercisesForSession: WorkoutExercise[];
-  exercisesWithSets: Record<string, SetLogState[]>;
-  currentSessionId: string | null;
-  sessionStartTime: Date | null;
-  completedExercises: Set<string>;
-  isCreatingSession: boolean;
-  isWorkoutActive: boolean;
-  hasUnsavedChanges: boolean;
-  setActiveWorkout: (workout: TPath | null) => void;
-  setExercisesForSession: (exercises: WorkoutExercise[]) => void;
-  setExercisesWithSets: (sets: Record<string, SetLogState[]>) => void;
-  setCurrentSessionId: (id: string | null) => void;
-  setSessionStartTime: (time: Date | null) => void;
-  setCompletedExercises: (exercises: Set<string>) => void;
+interface UseWorkoutSessionPersistenceReturn {
   resetWorkoutSession: () => Promise<void>;
-  markExerciseAsCompleted: (exerciseId: string, isNewPR: boolean) => void;
-  addExerciseToSession: (exercise: ExerciseDefinition) => Promise<void>;
-  removeExerciseFromSession: (exerciseId: string) => Promise<void>;
-  substituteExercise: (oldExerciseId: string, newExercise: WorkoutExercise) => Promise<void>;
-  updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
   createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>;
   finishWorkoutSession: () => Promise<string | null>;
 }
 
-export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercisesCache }: UseWorkoutSessionStateProps): UseWorkoutSessionStateReturn => {
+export const useWorkoutSessionPersistence = ({
+  allAvailableExercises,
+  workoutExercisesCache,
+  coreState,
+}: UseWorkoutSessionPersistenceProps): UseWorkoutSessionPersistenceReturn => {
   const { session, supabase } = useSession();
-
-  // Core state management
-  const coreState = useCoreWorkoutSessionState();
   const {
     activeWorkout,
     exercisesForSession,
@@ -70,9 +48,6 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
     currentSessionId,
     sessionStartTime,
     completedExercises,
-    isCreatingSession,
-    isWorkoutActive,
-    hasUnsavedChanges,
     setActiveWorkout,
     setExercisesForSession,
     setExercisesWithSets,
@@ -83,29 +58,123 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
     _resetLocalState,
   } = coreState;
 
-  // Persistence logic
-  const {
-    resetWorkoutSession,
-    createWorkoutSessionInDb,
-    finishWorkoutSession,
-  } = useWorkoutSessionPersistence({
-    allAvailableExercises,
-    workoutExercisesCache,
-    coreState,
-  });
+  const resetWorkoutSession = useCallback(async () => {
+    if (session?.user.id) {
+      const allDrafts = await db.draft_set_logs.toArray();
+      const userDraftKeys = allDrafts
+        .filter(draft => isValidId(draft.exercise_id))
+        .map(draft => [draft.exercise_id, draft.set_index] as [string, number]);
+      
+      if (userDraftKeys.length > 0) {
+        console.assert(userDraftKeys.every(key => isValidDraftKey(key[0], key[1])), `Invalid draft keys in resetWorkoutSession bulkDelete: ${JSON.stringify(userDraftKeys)}`);
+        await db.draft_set_logs.bulkDelete(userDraftKeys);
+      }
+    }
+    _resetLocalState();
+  }, [session, _resetLocalState]);
 
-  // Exercise management within session
-  const {
-    markExerciseAsCompleted,
-    addExerciseToSession,
-    removeExerciseFromSession,
-    substituteExercise,
-    updateExerciseSets,
-  } = useSessionExerciseManagement({
-    allAvailableExercises,
-    coreState,
-    supabase,
-  });
+  const createWorkoutSessionInDb = useCallback(async (templateName: string, firstSetTimestamp: string): Promise<string> => {
+    if (!session) throw new Error("User not authenticated.");
+    setIsCreatingSession(true);
+    try {
+      const newSessionId = uuidv4();
+      const sessionDataToSave: LocalWorkoutSession = {
+        id: newSessionId,
+        user_id: session.user.id,
+        template_name: templateName,
+        t_path_id: activeWorkout?.id === 'ad-hoc' ? null : activeWorkout?.id,
+        session_date: firstSetTimestamp,
+        duration_string: null,
+        rating: null,
+        created_at: new Date().toISOString(),
+        completed_at: null,
+      };
+
+      await db.workout_sessions.put(sessionDataToSave);
+      await addToSyncQueue('create', 'workout_sessions', sessionDataToSave);
+
+      const draftsToUpdate = await db.draft_set_logs.filter(draft => draft.session_id === null).toArray();
+      const updatePromises = draftsToUpdate.map(draft => {
+        console.assert(isValidDraftKey(draft.exercise_id, draft.set_index), `Invalid draft key in createWorkoutSessionInDb update: [${draft.exercise_id}, ${draft.set_index}]`);
+        return db.draft_set_logs.update([draft.exercise_id, draft.set_index], { session_id: newSessionId });
+      });
+      await Promise.all(updatePromises);
+
+      setCurrentSessionId(newSessionId);
+      setSessionStartTime(new Date(firstSetTimestamp));
+      return newSessionId;
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create workout session locally.");
+      throw err;
+    } finally {
+      setIsCreatingSession(false);
+    }
+  }, [session, activeWorkout, setIsCreatingSession, setCurrentSessionId, setSessionStartTime]);
+
+  const finishWorkoutSession = useCallback(async (): Promise<string | null> => {
+    if (!currentSessionId || !sessionStartTime || !session || !activeWorkout) {
+      toast.error("Workout session not properly started or no sets logged yet.");
+      console.error("finishWorkoutSession: Missing currentSessionId, sessionStartTime, session, or activeWorkout.");
+      return null;
+    }
+
+    const endTime = new Date();
+    const durationMs = endTime.getTime() - sessionStartTime.getTime();
+    const durationMinutes = Math.round(durationMs / (1000 * 60));
+
+    let durationString = '';
+    if (durationMinutes < 60) {
+      durationString = `${durationMinutes} minutes`;
+    } else {
+      const hours = Math.floor(durationMinutes / 60);
+      const minutes = durationMinutes % 60;
+      durationString = `${hours}h ${minutes}m`;
+    }
+
+    try {
+      const updatePayload = { duration_string: durationString, completed_at: endTime.toISOString() };
+      
+      await db.workout_sessions.update(currentSessionId, updatePayload);
+      
+      const fullSyncPayload = {
+        id: currentSessionId,
+        user_id: session.user.id,
+        session_date: sessionStartTime.toISOString(),
+        template_name: activeWorkout.template_name,
+        t_path_id: activeWorkout.id === 'ad-hoc' ? null : activeWorkout.id,
+        ...updatePayload
+      };
+      await addToSyncQueue('update', 'workout_sessions', fullSyncPayload);
+
+      const draftsToDelete = await db.draft_set_logs
+        .where('session_id').equals(currentSessionId)
+        .toArray();
+      
+      if (draftsToDelete.length > 0) {
+        const keysToDelete = draftsToDelete.map(d => [d.exercise_id, d.set_index] as [string, number]);
+        console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1]), `Invalid draft keys in finishWorkoutSession bulkDelete: ${JSON.stringify(keysToDelete)}`));
+        await db.draft_set_logs.bulkDelete(keysToDelete);
+      }
+
+      const { error: achievementError } = await supabase.functions.invoke('process-achievements', {
+        body: { user_id: session.user.id, session_id: currentSessionId },
+      });
+
+      if (achievementError) {
+        console.error("Error processing achievements:", achievementError);
+        toast.warning("Could not check for new achievements, but your workout was saved!");
+      }
+
+      toast.success("Workout session finished! Generating Summary.");
+      const finishedSessionId = currentSessionId;
+      await resetWorkoutSession();
+      return finishedSessionId;
+    } catch (err: any) {
+      toast.error("Failed to save workout duration: " + err.message);
+      console.error("useWorkoutSessionState: Error in finishWorkoutSession:", err);
+      return null;
+    }
+  }, [currentSessionId, sessionStartTime, session, supabase, resetWorkoutSession, activeWorkout]);
 
   // Effect to load drafts when activeWorkout or currentSessionId changes
   useEffect(() => {
@@ -208,27 +277,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
   }, [session?.user.id, activeWorkout, currentSessionId, allAvailableExercises, workoutExercisesCache, _resetLocalState, setExercisesForSession, setExercisesWithSets, setCompletedExercises, setCurrentSessionId, setSessionStartTime]);
 
   return {
-    activeWorkout,
-    exercisesForSession,
-    exercisesWithSets,
-    currentSessionId,
-    sessionStartTime,
-    completedExercises,
-    isCreatingSession,
-    isWorkoutActive,
-    hasUnsavedChanges,
-    setActiveWorkout,
-    setExercisesForSession,
-    setExercisesWithSets,
-    setCurrentSessionId,
-    setSessionStartTime,
-    setCompletedExercises,
     resetWorkoutSession,
-    markExerciseAsCompleted,
-    addExerciseToSession,
-    removeExerciseFromSession,
-    substituteExercise,
-    updateExerciseSets,
     createWorkoutSessionInDb,
     finishWorkoutSession,
   };
