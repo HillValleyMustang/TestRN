@@ -31,7 +31,7 @@ interface GroupedTPath {
 }
 
 interface WorkoutSelectorProps {
-  onWorkoutSelect: (workoutId: string | null) => void;
+  onWorkoutSelect: (workoutId: string | null) => void; // This prop is now redundant, but kept for compatibility
   activeWorkout: TPath | null;
   exercisesForSession: WorkoutExercise[];
   exercisesWithSets: Record<string, SetLogState[]>;
@@ -44,9 +44,9 @@ interface WorkoutSelectorProps {
   substituteExercise: (oldExerciseId: string, newExercise: WorkoutExercise) => void;
   updateSessionStartTime: (timestamp: string) => void;
   markExerciseAsCompleted: (exerciseId: string, isNewPR: boolean) => void;
-  resetWorkoutSession: () => void;
+  resetWorkoutSession: () => void; // This prop is now redundant, but kept for compatibility
   updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
-  selectWorkout: (workoutId: string | null) => Promise<void>;
+  selectWorkout: (workoutId: string | null) => Promise<void>; // Use this directly
   loadingWorkoutFlow: boolean;
   groupedTPaths: GroupedTPath[];
   isCreatingSession: boolean;
@@ -88,7 +88,7 @@ const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName:
 };
 
 export const WorkoutSelector = ({ 
-  onWorkoutSelect, 
+  // Removed onWorkoutSelect, resetWorkoutSession from props as they are now handled internally by selectWorkout
   activeWorkout,
   exercisesForSession,
   exercisesWithSets,
@@ -101,9 +101,8 @@ export const WorkoutSelector = ({
   substituteExercise,
   updateSessionStartTime,
   markExerciseAsCompleted,
-  resetWorkoutSession,
   updateExerciseSets,
-  selectWorkout,
+  selectWorkout, // Use this directly
   loadingWorkoutFlow,
   groupedTPaths,
   isCreatingSession,
@@ -112,7 +111,6 @@ export const WorkoutSelector = ({
   refreshAllData
 }: WorkoutSelectorProps) => {
   const { supabase, session } = useSession();
-  // Removed: useWorkoutNavigation here, as it's not needed directly in this component
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
   const [isEditWorkoutDialogOpen, setIsEditWorkoutDialogOpen] = useState(false);
   const [selectedWorkoutToEdit, setSelectedWorkoutToEdit] = useState<{ id: string; name: string } | null>(null);
@@ -122,14 +120,14 @@ export const WorkoutSelector = ({
     return Array.from(new Set(allAvailableExercises.map(ex => ex.main_muscle))).sort();
   }, [allAvailableExercises]);
 
+  // Direct call to selectWorkout from workout pills
   const handleWorkoutClick = (workoutId: string) => {
-    // No longer need to intercept navigation here, WorkoutAwareLink handles it
-    onWorkoutSelect(workoutId);
+    selectWorkout(workoutId);
   };
 
+  // Direct call to selectWorkout for ad-hoc
   const handleAdHocClick = () => {
-    // No longer need to intercept navigation here, WorkoutAwareLink handles it
-    onWorkoutSelect('ad-hoc');
+    selectWorkout('ad-hoc');
   };
 
   const handleAddExercise = () => {
