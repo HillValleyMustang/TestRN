@@ -33,9 +33,9 @@ export interface LocalDraftSetLog {
   reps_l: number | null;
   reps_r: number | null;
   time_seconds: number | null;
-  isSaved?: boolean; // NEW: Flag to indicate if this draft corresponds to a saved set_log
+  isSaved?: boolean | null; // NEW: Flag to indicate if this draft corresponds to a saved set_log
   set_log_id?: string | null; // NEW: Link to the actual set_log ID if saved
-  is_pb?: boolean; // NEW: Flag to store PR status
+  is_pb?: boolean | null; // NEW: Flag to store PR status
 }
 
 // New interface for storing the Supabase session

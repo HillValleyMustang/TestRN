@@ -111,7 +111,7 @@ export const ExerciseCard = ({
     exerciseCategory: exercise.category,
     currentSessionId,
     supabase,
-    onUpdateSets: onUpdateGlobalSets,
+    onUpdateGlobalSets: onUpdateGlobalSets, // Corrected prop name
     preferredWeightUnit,
     onFirstSetSaved: onFirstSetSaved,
     onExerciseCompleted: async (id, isNewPR) => {
