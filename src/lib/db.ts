@@ -100,6 +100,10 @@ export class AppDatabase extends Dexie {
     this.version(7).stores({
       draft_set_logs: '[exercise_id+set_index], session_id, exercise_id',
     });
+    // New version to add template_name index to workout_sessions
+    this.version(8).stores({
+      workout_sessions: '&id, user_id, session_date, t_path_id, template_name',
+    });
   }
 }
 

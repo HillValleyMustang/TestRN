@@ -3,7 +3,7 @@
 import { useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
-import { TablesInsert, TablesUpdate, SetLogState, Tables } from '@/types/supabase';
+import { TablesInsert, TablesUpdate, SetLogState, Tables, WorkoutExercise } from '@/types/supabase';
 import { convertWeight } from '@/lib/unit-conversions';
 import { db, addToSyncQueue, LocalWorkoutSession, LocalDraftSetLog } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
