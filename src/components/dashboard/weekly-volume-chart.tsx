@@ -45,6 +45,7 @@ export const WeeklyVolumeChart = () => {
   useEffect(() => {
     const fetchWeeklyVolume = async () => {
       if (!session) {
+        console.log("[WeeklyVolumeChart] No session, skipping data fetch.");
         setLoading(false);
         return;
       }
@@ -52,8 +53,7 @@ export const WeeklyVolumeChart = () => {
       setLoading(true);
       setError(null);
       try {
-        // Fetch all set logs for the user, joining with workout_sessions to get session_date
-        // and exercise_definitions to get exercise type.
+        console.log(`[WeeklyVolumeChart] Fetching set logs for user: ${session.user.id}`);
         const { data: setLogsData, error: setLogsError } = await supabase
           .from('set_logs')
           .select(`
@@ -67,8 +67,11 @@ export const WeeklyVolumeChart = () => {
           .order('created_at', { ascending: true });
 
         if (setLogsError) {
+          console.error("[WeeklyVolumeChart] Error fetching set logs:", setLogsError.message);
           throw new Error(setLogsError.message);
         }
+
+        console.log("[WeeklyVolumeChart] Raw set logs data:", setLogsData);
 
         // Aggregate volume by week
         const weeklyVolumeMap = new Map<string, number>(); // 'YYYY-MM-DD (start of week)' -> total volume
@@ -77,6 +80,8 @@ export const WeeklyVolumeChart = () => {
           const exerciseType = log.exercise_definitions?.[0]?.type; 
           const sessionDate = log.workout_sessions?.[0]?.session_date; 
           
+          console.log(`[WeeklyVolumeChart] Processing log: type=${exerciseType}, date=${sessionDate}, weight=${log.weight_kg}, reps=${log.reps}`);
+
           if (exerciseType === 'weight' && log.weight_kg && log.reps && sessionDate) {
             const date = new Date(sessionDate);
             const startOfWeek = getStartOfWeek(date);
@@ -84,17 +89,22 @@ export const WeeklyVolumeChart = () => {
 
             const volume = (log.weight_kg || 0) * (log.reps || 0);
             weeklyVolumeMap.set(weekKey, (weeklyVolumeMap.get(weekKey) || 0) + volume);
+            console.log(`[WeeklyVolumeChart] Added volume ${volume} to week ${weekKey}. Current week total: ${weeklyVolumeMap.get(weekKey)}`);
           }
         });
+
+        console.log("[WeeklyVolumeChart] Weekly volume map:", weeklyVolumeMap);
 
         // Convert map to array of objects for Recharts, sorted by date
         const sortedChartData = Array.from(weeklyVolumeMap.entries())
           .map(([date, volume]) => ({ date, volume }))
           .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
+        console.log("[WeeklyVolumeChart] Final sorted chart data:", sortedChartData);
         setChartData(sortedChartData);
 
       } catch (err: any) {
+        console.error("[WeeklyVolumeChart] Failed to load weekly volume chart:", err);
         setError(err.message || "Failed to load weekly volume chart.");
         toast.error(err.message || "Failed to load weekly volume chart.");
       } finally {
