@@ -6,8 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useSession } from '@/components/session-context-provider';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
-import { Dumbbell, TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Dumbbell } from 'lucide-react';
 import { db } from '@/lib/db';
 
 type WorkoutSession = Tables<'workout_sessions'>;
@@ -121,47 +120,50 @@ export const WorkoutVolumeHistoryCard = ({ workoutTemplateName, currentSessionId
             No previous workout data for "{workoutTemplateName}". Complete more sessions to see your trend!
           </div>
         ) : (
-          <div className="h-[180px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.5} />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
-                <YAxis
-                  tick={{ fontSize: 12 }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => {
-                    if (value >= 1000) {
-                      return `${Math.round(value / 1000)}k`;
-                    }
-                    return value.toLocaleString();
-                  }}
-                />
-                <Tooltip
-                  cursor={{ fill: 'hsl(var(--muted))', opacity: 0.5 }}
-                  contentStyle={{ background: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius)' }}
-                  formatter={(value: number, name: string, props: any) => {
-                    const dataPoint = props.payload;
-                    if (dataPoint && dataPoint.change !== undefined) {
-                      const changeText = dataPoint.change > 0 ? `+${dataPoint.change.toFixed(1)}%` : `${dataPoint.change.toFixed(1)}%`;
-                      return [`${value.toLocaleString()} kg`, `Change: ${changeText}`];
-                    }
-                    return [`${value.toLocaleString()} kg`, 'Volume'];
-                  }}
-                />
-                <Bar dataKey="volume" name="Total Volume" barSize={20}>
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <>
+            <div className="h-[200px]"> {/* Increased height to accommodate legend */}
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 5, right: 5, left: 20, bottom: 5 }}> {/* Adjusted left margin */}
+                  <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.5} />
+                  <XAxis dataKey="date" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                  <YAxis
+                    tick={{ fontSize: 12 }}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value) => {
+                      if (value >= 1000) {
+                        return `${Math.round(value / 1000)}k`;
+                      }
+                      return value.toLocaleString();
+                    }}
+                    label={{ value: 'Volume (kg)', angle: -90, position: 'left', offset: -10, style: { textAnchor: 'middle', fontSize: 12 } }}
+                  />
+                  <Tooltip
+                    cursor={{ fill: 'hsl(var(--muted))', opacity: 0.5 }}
+                    contentStyle={{ background: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius)' }}
+                    formatter={(value: number, name: string, props: any) => {
+                      const dataPoint = props.payload;
+                      if (dataPoint && dataPoint.change !== undefined) {
+                        const changeText = dataPoint.change > 0 ? `+${dataPoint.change.toFixed(1)}%` : `${dataPoint.change.toFixed(1)}%`;
+                        return [`${value.toLocaleString()} kg`, `Change: ${changeText}`];
+                      }
+                      return [`${value.toLocaleString()} kg`, 'Volume'];
+                    }}
+                  />
+                  <Bar dataKey="volume" name="Total Volume" barSize={20}>
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
             <div className="flex justify-center items-center flex-wrap gap-x-4 gap-y-1 mt-4 text-xs text-muted-foreground">
               <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--action-primary))' }} /><span>Current</span></div>
               <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--chart-2))' }} /><span>Improved</span></div>
               <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--destructive))' }} /><span>Decreased</span></div>
             </div>
-          </div>
+          </>
         )}
       </CardContent>
     </Card>
