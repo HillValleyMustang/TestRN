@@ -137,7 +137,7 @@ export const useExerciseSets = ({
     });
 
     if (rpcError && rpcError.code !== 'PGRST116') { 
-      console.error(`Error fetching last sets for exercise ${exerciseName}:`, rpcError);
+      console.error(`[useExerciseSets] Error fetching last sets for exercise ${exerciseName}:`, rpcError);
       return new Map<string, GetLastExerciseSetsForExerciseReturns>();
     }
     
@@ -167,7 +167,7 @@ export const useExerciseSets = ({
           time_seconds: draft.time_seconds,
           is_pb: draft.is_pb || false,
           isSaved: draft.isSaved || false,
-          isPR: draft.is_pb || false,
+          isPR: draft.is_pb || false, // This is for set-level PR
           lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
         }));
       } else {
@@ -182,7 +182,7 @@ export const useExerciseSets = ({
             return {
               ...set,
               lastWeight: correspondingLastSet?.weight_kg || null,
-              lastReps: correspondingLastSet?.reps || null, // Fixed typo here
+              lastReps: correspondingLastSet?.reps || null,
               lastRepsL: correspondingLastSet?.reps_l || null,
               lastRepsR: correspondingLastSet?.reps_r || null,
               lastTimeSeconds: correspondingLastSet?.time_seconds || null,
@@ -284,6 +284,7 @@ export const useExerciseSets = ({
           const { isNewPR, updatedPR } = await checkAndSaveSetPR(currentSet, session.user.id, localCurrentExercisePR);
           isNewSetPR = isNewPR;
           localCurrentExercisePR = updatedPR; // Update local PR state for next iteration (if any)
+          console.log(`[useExerciseSets] handleSaveSet: Set ${setIndex + 1} PR check result: isNewPR=${isNewPR}, updatedPR=`, updatedPR);
         }
 
         const { savedSet } = await saveSetToDb({ ...currentSet, is_pb: isNewSetPR }, setIndex, sessionIdToUse);
@@ -295,6 +296,7 @@ export const useExerciseSets = ({
           };
           console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in handleSaveSet update: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
           await db.draft_set_logs.put(draftPayload);
+          console.log(`[useExerciseSets] handleSaveSet: Set ${setIndex + 1} saved locally with is_pb=${savedSet.is_pb}. Draft updated.`);
         } else {
           toast.error(`Failed to save set ${setIndex + 1}. Please try again.`);
           const draftPayload: LocalDraftSetLog = {
@@ -304,6 +306,7 @@ export const useExerciseSets = ({
           };
           console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in handleSaveSet rollback: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
           await db.draft_set_logs.put(draftPayload);
+          console.log(`[useExerciseSets] handleSaveSet: Set ${setIndex + 1} failed to save. Draft rolled back.`);
         }
       }, [sets, propCurrentSessionId, saveSetToDb, exerciseId, onFirstSetSaved, session, checkAndSaveSetPR, exercisePR]);
 
@@ -323,6 +326,7 @@ export const useExerciseSets = ({
         };
         console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in handleEditSet: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
         await db.draft_set_logs.put(draftPayload);
+        console.log(`[useExerciseSets] handleEditSet: Set ${setIndex + 1} marked for edit. Draft updated.`);
       }, [exerciseId, propCurrentSessionId, sets]);
 
       const handleDeleteSet = useCallback(async (setIndex: number) => {
@@ -338,6 +342,7 @@ export const useExerciseSets = ({
         console.assert(isValidDraftKey(exerciseId, setIndex), `Invalid draft key in handleDeleteSet delete: [${exerciseId}, ${setIndex}]`);
         await db.draft_set_logs.delete([exerciseId, setIndex]);
         toast.success("Set removed.");
+        console.log(`[useExerciseSets] handleDeleteSet: Set ${setIndex + 1} draft removed.`);
 
         if (!setToDelete.id) return;
 
@@ -351,6 +356,7 @@ export const useExerciseSets = ({
           };
           console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in handleDeleteSet rollback: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
           await db.draft_set_logs.put(draftPayload);
+          console.log(`[useExerciseSets] handleDeleteSet: Set ${setIndex + 1} database deletion failed. Draft rolled back.`);
         }
       }, [sets, deleteSetFromDb, exerciseId, propCurrentSessionId]);
 
@@ -374,6 +380,7 @@ export const useExerciseSets = ({
           try {
             const newSessionId = await onFirstSetSaved(new Date().toISOString());
             currentSessionIdToUse = newSessionId;
+            console.log(`[useExerciseSets] handleSaveExercise: New session created with ID: ${currentSessionIdToUse}`);
           } catch (err) {
             toast.error("Failed to start workout session. Please try again.");
             return { success: false, isNewPR: false };
@@ -396,6 +403,7 @@ export const useExerciseSets = ({
               localCurrentExercisePR = updatedPR; // Update local PR state for next iteration
               if (isNewSetPR) anySetIsPR = true;
             }
+            console.log(`[useExerciseSets] handleSaveExercise: Processing set ${i + 1}. isNewSetPR=${isNewSetPR}, anySetIsPR (cumulative)=${anySetIsPR}`);
 
             const { savedSet } = await saveSetToDb({ ...currentSet, is_pb: isNewSetPR }, i, currentSessionIdToUse);
             if (savedSet) {
@@ -406,21 +414,29 @@ export const useExerciseSets = ({
               };
               console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in handleSaveExercise update: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
               await db.draft_set_logs.put(draftPayload);
+              console.log(`[useExerciseSets] handleSaveExercise: Set ${i + 1} saved locally with is_pb=${savedSet.is_pb}. Draft updated.`);
             } else {
               hasError = true;
+              console.error(`[useExerciseSets] handleSaveExercise: Failed to save set ${i + 1}.`);
             }
           } else if (currentSet.is_pb) {
+            // If the set was already saved and was a PR, ensure it contributes to anySetIsPR
             anySetIsPR = true;
+            console.log(`[useExerciseSets] handleSaveExercise: Set ${i + 1} was already a PR. anySetIsPR (cumulative)=${anySetIsPR}`);
           }
         }
 
-        if (hasError) return { success: false, isNewPR: false };
+        if (hasError) {
+          console.error(`[useExerciseSets] handleSaveExercise: Encountered errors while saving sets.`);
+          return { success: false, isNewPR: false };
+        }
 
         try {
+          console.log(`[useExerciseSets] handleSaveExercise: Calling onExerciseCompleted for ${exerciseId} with anySetIsPR: ${anySetIsPR}`);
           await onExerciseCompleted(exerciseId, anySetIsPR);
           return { success: true, isNewPR: anySetIsPR };
         } catch (err: any) {
-          console.error("Error saving exercise completion:", err);
+          console.error("[useExerciseSets] Error saving exercise completion:", err);
           toast.error("Failed to complete exercise: " + err.message);
           return { success: false, isNewPR: false };
         }
@@ -445,6 +461,7 @@ export const useExerciseSets = ({
             const keysToDelete = draftsToDelete.map(d => [d.exercise_id, d.set_index] as [string, number]);
             console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1])), `Invalid draft keys in handleSuggestProgression bulkDelete: ${JSON.stringify(keysToDelete)}`);
             await db.draft_set_logs.bulkDelete(keysToDelete);
+            console.log(`[useExerciseSets] handleSuggestProgression: Deleted ${keysToDelete.length} old drafts.`);
           }
 
           const draftPayloads: LocalDraftSetLog[] = newSets.map((set, index) => ({
@@ -454,6 +471,7 @@ export const useExerciseSets = ({
           }));
           console.assert(draftPayloads.every(d => isValidDraftKey(d.exercise_id, d.set_index)), `Invalid draft keys in handleSuggestProgression bulkPut: ${JSON.stringify(draftPayloads.map(d => [d.exercise_id, d.set_index]))}`);
           await db.draft_set_logs.bulkPut(draftPayloads);
+          console.log(`[useExerciseSets] handleSuggestProgression: Added ${draftPayloads.length} new suggested drafts.`);
           
           toast.info(message);
         }

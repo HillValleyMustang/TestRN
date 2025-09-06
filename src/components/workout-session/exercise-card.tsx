@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react'; // Import useMemo
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,7 +60,7 @@ export const ExerciseCard = ({
   const timerRef = React.useRef<NodeJS.Timeout | null>(null);
   const [isExerciseSaved, setIsExerciseSaved] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [justAchievedPR, setJustAchievedPR] = useState(false);
+  // Removed: const [justAchievedPR, setJustAchievedPR] = useState(false); // This will now be derived
 
   const [showSwapDialog, setShowSwapDialog] = useState(false);
   const [showCantDoDialog, setShowCantDoDialog] = useState(false);
@@ -113,15 +113,19 @@ export const ExerciseCard = ({
     preferredWeightUnit,
     onFirstSetSaved: onFirstSetSaved,
     onExerciseCompleted: async (id, isNewPR) => {
+      // console.log(`[ExerciseCard] onExerciseCompleted received isNewPR: ${isNewPR}`); // Removed debug log
       setIsExerciseSaved(true);
-      if (isNewPR) {
-        setJustAchievedPR(true);
-      }
+      // setJustAchievedPR(isNewPR); // No longer needed as it's derived
       onExerciseCompleted(id, isNewPR);
     },
     workoutTemplateName,
     exerciseNumber,
   });
+
+  // Derived state for trophy icon visibility
+  const hasAchievedPRInSession = useMemo(() => {
+    return sets.some(set => set.is_pb);
+  }, [sets]);
 
   const handleSaveSetAndStartTimer = async (setIndex: number) => {
     await handleSaveSet(setIndex);
@@ -142,9 +146,7 @@ export const ExerciseCard = ({
     const { success, isNewPR } = await handleSaveExercise();
     if (success) {
       setIsExerciseSaved(true);
-      if (isNewPR) {
-        setJustAchievedPR(true);
-      }
+      // setJustAchievedPR(isNewPR); // No longer needed as it's derived
       setIsExpanded(false);
     }
   };
@@ -203,7 +205,7 @@ export const ExerciseCard = ({
             <div className="flex items-start justify-between">
               <div className="flex flex-col text-left">
                 <div className="flex items-center gap-2">
-                  {isExerciseSaved && justAchievedPR && (
+                  {isExerciseSaved && hasAchievedPRInSession && ( // Use derived state here
                     <Trophy className="h-5 w-5 text-yellow-500 fill-yellow-500" />
                   )}
                   <CardTitle className={cn("text-lg font-semibold leading-none", workoutColorClass)}>
@@ -404,7 +406,7 @@ export const ExerciseCard = ({
                 {isExerciseSaved ? (
                   <span className="flex items-center">
                     Saved
-                    {justAchievedPR && <Trophy className="h-4 w-4 ml-2 fill-white text-white" />}
+                    {hasAchievedPRInSession && <Trophy className="h-4 w-4 ml-2 fill-white text-white" />}
                   </span>
                 ) : (
                   <span className="flex items-center">
