@@ -152,9 +152,11 @@ export const NextWorkoutCard = () => {
     );
   }
 
-  // Removed workoutBorderClass as it's no longer needed for the border
+  // Get the background color class for the workout
+  const workoutBgClass = getWorkoutColorClass(nextWorkout.template_name, 'bg');
+
   return (
-    <Card> {/* Removed cn("border-2", workoutBorderClass) */}
+    <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Dumbbell className="h-5 w-5" />
@@ -170,7 +172,11 @@ export const NextWorkoutCard = () => {
               <span>Estimated {estimatedDuration}</span>
             </div>
           </div>
-          <Button onClick={() => router.push(`/workout?workoutId=${nextWorkout.id}`)} variant="brand" size="lg"> {/* Updated path and added query param */}
+          <Button 
+            onClick={() => router.push(`/workout?workoutId=${nextWorkout.id}`)} 
+            className={cn("text-white", workoutBgClass)} // Apply dynamic background color
+            size="lg"
+          >
             Start Workout
           </Button>
         </div>

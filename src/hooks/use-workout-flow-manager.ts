@@ -62,6 +62,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
   const [pendingNavigationPath, setPendingNavigationPath] = useState<string | null>(null);
   const resolveNavigationPromise = useRef<((confirm: boolean) => void) | null>(null); // Fix 1: Initialize with null and allow null in type
+  const hasInitializedInitialWorkout = useRef(false); // NEW: Ref to track if initial workout has been selected
 
   const {
     allAvailableExercises,
@@ -96,7 +97,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     updateExerciseSets,
     createWorkoutSessionInDb,
     finishWorkoutSession,
-  } = useWorkoutSessionState({ allAvailableExercises });
+  } = useWorkoutSessionState({ allAvailableExercises, workoutExercisesCache }); // Pass workoutExercisesCache
 
   useEffect(() => {
     setLoadingFlow(loadingData);
@@ -144,7 +145,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       return;
     }
 
-    await resetWorkoutSession();
+    await resetWorkoutSession(); // Always reset state and drafts when selecting a new workout
 
     if (!workoutId) {
       setActiveWorkout(null);
@@ -159,6 +160,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     if (workoutId === 'ad-hoc') {
       currentWorkout = { id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: session.user.id, created_at: new Date().toISOString(), version: 1, settings: null, progression_settings: null, parent_t_path_id: null };
       
+      // For ad-hoc, exercises are loaded from drafts or added manually
       const adHocDrafts = await db.draft_set_logs.filter(draft => draft.session_id === null).toArray();
       const adHocExerciseIds = Array.from(new Set(adHocDrafts.map(d => d.exercise_id)));
       
@@ -180,14 +182,18 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
 
     setActiveWorkout(currentWorkout);
     setExercisesForSession(exercises);
+    // setExercisesWithSets will be populated by the useEffect in useWorkoutSessionState
+    // when activeWorkout and currentSessionId are set.
 
     refreshAllData();
 
   }, [session, supabase, resetWorkoutSession, groupedTPaths, workoutExercisesCache, allAvailableExercises, refreshAllData, setActiveWorkout, setExercisesForSession, setExercisesWithSets]);
 
+  // MODIFIED: Only call selectWorkout once for initialWorkoutId
   useEffect(() => {
-    if (initialWorkoutId && !loadingData && !loadingFlow) {
+    if (initialWorkoutId && !loadingData && !loadingFlow && !hasInitializedInitialWorkout.current) {
       selectWorkout(initialWorkoutId);
+      hasInitializedInitialWorkout.current = true; // Mark as initialized
     }
   }, [initialWorkoutId, loadingData, loadingFlow, selectWorkout]);
 

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { useWorkoutFlowManager } from '@/hooks/use-workout-flow-manager';
 import { WorkoutSelector } from '@/components/workout-flow/workout-selector';
-import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal';
+// Removed: import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal'; // Modal is now a page
 // Removed: import { UnsavedChangesDialog } from '@/components/workout-flow/unsaved-changes-dialog'; // Dialog is now in layout
 // Removed: import { WorkoutNavigationProvider } from '@/components/workout-flow/workout-aware-link'; // Provider is now in layout
 
@@ -16,7 +16,7 @@ export default function WorkoutPage() {
   const initialWorkoutId = searchParams.get('workoutId');
   const isQuickStart = !!initialWorkoutId; // Determine if it's a quick start
 
-  const [summarySessionId, setSummarySessionId] = useState<string | null>(null);
+  // Removed: summarySessionId state as the summary is now a separate page
   // Removed: showUnsavedChangesDialog state
   // Removed: pendingNavigationPath state
 
@@ -35,7 +35,7 @@ export default function WorkoutPage() {
   const handleFinishAndShowSummary = async () => {
     const finishedSessionId = await workoutFlowManager.finishWorkoutSession();
     if (finishedSessionId) {
-      setSummarySessionId(finishedSessionId);
+      router.push(`/workout-summary/${finishedSessionId}`); // Navigate to the new summary page
     }
   };
 
@@ -56,13 +56,7 @@ export default function WorkoutPage() {
         finishWorkoutSession={handleFinishAndShowSummary}
         isQuickStart={isQuickStart} // Pass the new prop here
       />
-      <WorkoutSummaryModal
-        sessionId={summarySessionId}
-        open={!!summarySessionId}
-        onOpenChange={(open) => {
-          if (!open) setSummarySessionId(null);
-        }}
-      />
+      {/* Removed WorkoutSummaryModal rendering */}
     </div>
     // Removed: UnsavedChangesDialog rendering (moved to layout)
   );
