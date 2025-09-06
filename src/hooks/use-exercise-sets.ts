@@ -45,7 +45,6 @@ interface UseExerciseSetsReturn {
   exercisePR: UserExercisePR | null;
   loadingPR: boolean;
   handleSuggestProgression: () => Promise<void>;
-  isExerciseCompleted: boolean;
   hasAchievedPRInSession: boolean;
 }
 
@@ -122,7 +121,6 @@ export const useExerciseSets = ({
 
   const {
     handleCompleteExercise,
-    isExerciseCompleted,
     hasAchievedPRInSession,
   } = useExerciseCompletion({
     exerciseId,
@@ -181,7 +179,6 @@ export const useExerciseSets = ({
     exercisePR,
     loadingPR,
     handleSuggestProgression,
-    isExerciseCompleted,
     hasAchievedPRInSession,
   };
 };

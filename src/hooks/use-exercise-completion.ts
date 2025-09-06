@@ -39,7 +39,6 @@ interface UseExerciseCompletionProps {
 
 interface UseExerciseCompletionReturn {
   handleCompleteExercise: () => Promise<{ success: boolean; isNewPR: boolean }>;
-  isExerciseCompleted: boolean;
   hasAchievedPRInSession: boolean;
 }
 
@@ -68,12 +67,6 @@ export const useExerciseCompletion = ({
     exerciseType,
     supabase,
   });
-
-  // Derived state: true if the exercise is considered completed (all sets saved)
-  const isExerciseCompleted = useMemo(() => {
-    if (!sets || sets.length === 0) return false;
-    return sets.every(set => set.isSaved);
-  }, [sets]);
 
   // Derived state for trophy icon visibility
   const hasAchievedPRInSession = useMemo(() => {
@@ -167,7 +160,6 @@ export const useExerciseCompletion = ({
 
   return {
     handleCompleteExercise,
-    isExerciseCompleted,
     hasAchievedPRInSession,
   };
 };

@@ -38,7 +38,8 @@ interface ExerciseCardProps {
   workoutTemplateName: string;
   onFirstSetSaved: (timestamp: string) => Promise<string>;
   onExerciseCompleted: (exerciseId: string, isNewPR: boolean) => void;
-  isInitiallyCollapsed?: boolean; // NEW PROP
+  isInitiallyCollapsed?: boolean;
+  isExerciseCompleted: boolean;
 }
 
 export const ExerciseCard = ({
@@ -52,7 +53,8 @@ export const ExerciseCard = ({
   workoutTemplateName,
   onFirstSetSaved,
   onExerciseCompleted,
-  isInitiallyCollapsed = false, // Default to false (expanded)
+  isInitiallyCollapsed = false,
+  isExerciseCompleted,
 }: ExerciseCardProps) => {
   const { session } = useSession();
   const [preferredWeightUnit, setPreferredWeightUnit] = useState<Profile['preferred_weight_unit']>('kg');
@@ -60,7 +62,7 @@ export const ExerciseCard = ({
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeLeft, setTimeLeft] = useState(defaultRestTime);
   const timerRef = React.useRef<NodeJS.Timeout | null>(null);
-  const [isExpanded, setIsExpanded] = useState(!isInitiallyCollapsed); // Initialize based on prop
+  const [isExpanded, setIsExpanded] = useState(!isInitiallyCollapsed);
 
   // State for dialogs
   const [showSwapDialog, setShowSwapDialog] = useState(false);
@@ -99,11 +101,11 @@ export const ExerciseCard = ({
     handleSaveSet,
     handleEditSet,
     handleDeleteSet,
-    handleCompleteExercise, // Renamed from handleSaveExercise
+    handleCompleteExercise,
     exercisePR,
     loadingPR,
     handleSuggestProgression,
-    isExerciseCompleted, // Renamed from isAllSetsSaved
+    hasAchievedPRInSession,
   } = useExerciseSets({
     exerciseId: exercise.id,
     exerciseName: exercise.name,
@@ -111,7 +113,7 @@ export const ExerciseCard = ({
     exerciseCategory: exercise.category,
     currentSessionId,
     supabase,
-    onUpdateGlobalSets: onUpdateGlobalSets, // Corrected prop name
+    onUpdateGlobalSets: onUpdateGlobalSets,
     preferredWeightUnit,
     onFirstSetSaved: onFirstSetSaved,
     onExerciseCompleted: async (id, isNewPR) => {
@@ -120,11 +122,6 @@ export const ExerciseCard = ({
     workoutTemplateName,
     exerciseNumber,
   });
-
-  // Derived state for trophy icon visibility
-  const hasAchievedPRInSession = useMemo(() => {
-    return sets.some(set => set.is_pb);
-  }, [sets]);
 
   const handleSaveSetAndStartTimer = async (setIndex: number) => {
     await handleSaveSet(setIndex);
@@ -141,7 +138,7 @@ export const ExerciseCard = ({
     setTimeLeft(defaultRestTime);
   };
 
-  const handleCompleteExerciseClick = async () => { // Renamed to avoid conflict with hook return
+  const handleCompleteExerciseClick = async () => {
     const { success, isNewPR } = await handleCompleteExercise();
     if (success) {
       setIsExpanded(false);

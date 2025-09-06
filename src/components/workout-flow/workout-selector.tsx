@@ -44,7 +44,7 @@ interface WorkoutSelectorProps {
   substituteExercise: (oldExerciseId: string, newExercise: WorkoutExercise) => void;
   updateSessionStartTime: (timestamp: string) => void;
   markExerciseAsCompleted: (exerciseId: string, isNewPR: boolean) => void;
-  resetWorkoutSession: () => void; // This prop is now redundant, but kept for compatibility
+  resetWorkoutSession: () => Promise<void>; // This prop is now redundant, but kept for compatibility
   updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
   selectWorkout: (workoutId: string | null) => Promise<void>; // Use this directly
   loadingWorkoutFlow: boolean;
@@ -255,7 +255,8 @@ export const WorkoutSelector = ({
                         return await createWorkoutSessionInDb(activeWorkout.template_name, timestamp);
                       }}
                       onExerciseCompleted={markExerciseAsCompleted}
-                      isInitiallyCollapsed={isQuickStart} // Pass the new prop here
+                      isInitiallyCollapsed={isQuickStart}
+                      isExerciseCompleted={completedExercises.has(exercise.id)}
                     />
                   ))}
                 </div>
