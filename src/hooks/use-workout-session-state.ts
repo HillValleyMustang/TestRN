@@ -128,7 +128,8 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
       let drafts: LocalDraftSetLog[] = [];
       if (targetSessionId === null) {
         // For ad-hoc workouts before session creation, session_id is null
-        drafts = await db.draft_set_logs.where('session_id').equals(null).toArray();
+        // FIX: Using filter() for robust null checking
+        drafts = await db.draft_set_logs.filter(draft => draft.session_id === null).toArray();
       } else {
         // For T-Path workouts or ad-hoc after session creation, session_id is a string
         drafts = await db.draft_set_logs.where('session_id').equals(targetSessionId).toArray();
