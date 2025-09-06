@@ -3,9 +3,11 @@
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { MobileFooterNav } from "@/components/layout/mobile-footer-nav";
-import { WorkoutNavigationProvider } from "@/components/workout-flow/workout-aware-link"; // Import the provider
-import { useWorkoutFlowManager } from "@/hooks/use-workout-flow-manager"; // Import the hook
-import { useRouter } from "next/navigation"; // Import useRouter
+import { WorkoutNavigationProvider } from "@/components/workout-flow/workout-aware-link";
+import { useWorkoutFlowManager } from "@/hooks/use-workout-flow-manager";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react"; // Import useEffect
+import { UnsavedChangesDialog } from "@/components/workout-flow/unsaved-changes-dialog"; // Import the dialog
 
 export default function AppLayout({
   children,
@@ -13,21 +15,28 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const workoutFlowManager = useWorkoutFlowManager({ router }); // Initialize the manager
+  const workoutFlowManager = useWorkoutFlowManager({ router });
 
-  // This function will be passed to the provider
-  const handleNavigationAttempt = (path: string): boolean => {
-    if (workoutFlowManager.isWorkoutActive) {
-      // If a workout is active, we need to prompt the user.
-      // The actual dialog logic is handled in workout/page.tsx
-      // Here, we just indicate that navigation should be blocked.
-      return true; 
-    }
-    return false; // Allow navigation
-  };
+  // --- Browser-level warning (for page close/refresh/browser navigation) ---
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (workoutFlowManager.isWorkoutActive && workoutFlowManager.hasUnsavedChanges) {
+        event.preventDefault();
+        event.returnValue = ''; // Required for Chrome to show the prompt
+        return ''; // Standard for other browsers
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [workoutFlowManager.isWorkoutActive, workoutFlowManager.hasUnsavedChanges]);
+  // --- End Browser-level warning ---
 
   return (
-    <WorkoutNavigationProvider handleNavigationAttempt={handleNavigationAttempt}>
+    <WorkoutNavigationProvider promptBeforeNavigation={workoutFlowManager.promptBeforeNavigation}>
       <div className="flex min-h-screen w-full flex-col bg-muted/40">
         <Sidebar />
         <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
@@ -36,6 +45,12 @@ export default function AppLayout({
         </div>
         <MobileFooterNav />
       </div>
+      <UnsavedChangesDialog
+        open={workoutFlowManager.showUnsavedChangesDialog}
+        onOpenChange={workoutFlowManager.handleCancelLeave} // Allow closing with escape/outside click
+        onConfirmLeave={workoutFlowManager.handleConfirmLeave}
+        onCancelLeave={workoutFlowManager.handleCancelLeave}
+      />
     </WorkoutNavigationProvider>
   );
 }

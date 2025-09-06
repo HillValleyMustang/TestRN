@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Tables, SetLogState, WorkoutExercise, GetLastExerciseSetsForExerciseReturns } from '@/types/supabase';
 import { db, addToSyncQueue, LocalDraftSetLog } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
-import { useWorkoutDataFetcher } from './use-workout-data-fetcher'; // Import new hook
-import { useWorkoutSessionState } from './use-workout-session-state'; // Import new hook
+import { useWorkoutDataFetcher } from './use-workout-data-fetcher';
+import { useWorkoutSessionState } from './use-workout-session-state';
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -27,8 +27,8 @@ interface UseWorkoutFlowManagerReturn {
   currentSessionId: string | null;
   sessionStartTime: Date | null;
   completedExercises: Set<string>;
-  isWorkoutActive: boolean; // New derived state
-  hasUnsavedChanges: boolean; // New derived state
+  isWorkoutActive: boolean;
+  hasUnsavedChanges: boolean;
   selectWorkout: (workoutId: string | null) => Promise<void>;
   addExerciseToSession: (exercise: ExerciseDefinition) => Promise<void>;
   removeExerciseFromSession: (exerciseId: string) => Promise<void>;
@@ -41,7 +41,13 @@ interface UseWorkoutFlowManagerReturn {
   isCreatingSession: boolean;
   createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>;
   finishWorkoutSession: () => Promise<string | null>;
-  refreshAllData: () => void; // Added to return type
+  refreshAllData: () => void;
+  // New properties for navigation warning
+  showUnsavedChangesDialog: boolean;
+  pendingNavigationPath: string | null;
+  promptBeforeNavigation: (path: string) => Promise<boolean>;
+  handleConfirmLeave: () => void;
+  handleCancelLeave: () => void;
 }
 
 const DEFAULT_INITIAL_SETS = 3;
@@ -52,14 +58,18 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   const [loadingFlow, setLoadingFlow] = useState(true);
   const [flowError, setFlowError] = useState<string | null>(null);
 
-  // Use new modular hooks
+  // State for navigation warning dialog
+  const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
+  const [pendingNavigationPath, setPendingNavigationPath] = useState<string | null>(null);
+  const resolveNavigationPromise = useRef<((confirm: boolean) => void) | null>(null); // Fix 1: Initialize with null and allow null in type
+
   const {
     allAvailableExercises,
     groupedTPaths,
     workoutExercisesCache,
-    loadingData, // This now reflects the processing of cached data
+    loadingData,
     dataError,
-    refreshAllData, // Destructure refreshAllData
+    refreshAllData,
   } = useWorkoutDataFetcher();
 
   const {
@@ -70,8 +80,8 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     sessionStartTime,
     completedExercises,
     isCreatingSession,
-    isWorkoutActive, // Destructure new state
-    hasUnsavedChanges, // Destructure new state
+    isWorkoutActive,
+    hasUnsavedChanges,
     setActiveWorkout,
     setExercisesForSession,
     setExercisesWithSets,
@@ -89,9 +99,44 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   } = useWorkoutSessionState({ allAvailableExercises });
 
   useEffect(() => {
-    setLoadingFlow(loadingData); // loadingFlow now reflects if initial cache processing is done
+    setLoadingFlow(loadingData);
     setFlowError(dataError);
   }, [loadingData, dataError]);
+
+  // --- Navigation Warning Logic ---
+  const promptBeforeNavigation = useCallback(async (path: string): Promise<boolean> => {
+    if (isWorkoutActive && hasUnsavedChanges) {
+      setPendingNavigationPath(path);
+      setShowUnsavedChangesDialog(true);
+      return new Promise((resolve) => {
+        resolveNavigationPromise.current = resolve;
+      });
+    }
+    return Promise.resolve(false); // No active workout or no unsaved changes, allow navigation
+  }, [isWorkoutActive, hasUnsavedChanges]);
+
+  const handleConfirmLeave = useCallback(async () => {
+    setShowUnsavedChangesDialog(false);
+    if (pendingNavigationPath) {
+      await resetWorkoutSession(); // Discard current workout progress
+      router.push(pendingNavigationPath);
+      setPendingNavigationPath(null);
+    }
+    if (resolveNavigationPromise.current) {
+      resolveNavigationPromise.current(true); // Confirm navigation
+      resolveNavigationPromise.current = null; // Fix 2: Assign null
+    }
+  }, [pendingNavigationPath, router, resetWorkoutSession]);
+
+  const handleCancelLeave = useCallback(() => {
+    setShowUnsavedChangesDialog(false);
+    setPendingNavigationPath(null);
+    if (resolveNavigationPromise.current) {
+      resolveNavigationPromise.current(false); // Cancel navigation
+      resolveNavigationPromise.current = null; // Fix 3: Assign null
+    }
+  }, []);
+  // --- End Navigation Warning Logic ---
 
   const selectWorkout = useCallback(async (workoutId: string | null) => {
     if (!session) {
@@ -99,7 +144,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       return;
     }
 
-    await resetWorkoutSession(); // Always reset session state first
+    await resetWorkoutSession();
 
     if (!workoutId) {
       setActiveWorkout(null);
@@ -108,15 +153,12 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       return;
     }
 
-    // Use the already available groupedTPaths and workoutExercisesCache from the data fetcher
-    // These states are populated from IndexedDB as soon as possible.
     let currentWorkout: TPath | null = null;
     let exercises: WorkoutExercise[] = [];
 
     if (workoutId === 'ad-hoc') {
       currentWorkout = { id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: session.user.id, created_at: new Date().toISOString(), version: 1, settings: null, progression_settings: null, parent_t_path_id: null };
       
-      // For ad-hoc, we need to load any existing drafts that are not yet associated with a session
       const adHocDrafts = await db.draft_set_logs.filter(draft => draft.session_id === null).toArray();
       const adHocExerciseIds = Array.from(new Set(adHocDrafts.map(d => d.exercise_id)));
       
@@ -126,7 +168,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
           .map(ex => ({ ...ex, is_bonus_exercise: false }));
       }
     } else {
-      // Find the selected workout from the grouped T-Paths
       const foundGroup = groupedTPaths.find(group => group.childWorkouts.some(cw => cw.id === workoutId));
       currentWorkout = foundGroup?.childWorkouts.find(cw => cw.id === workoutId) || null;
 
@@ -140,11 +181,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     setActiveWorkout(currentWorkout);
     setExercisesForSession(exercises);
 
-    // No longer need to pre-populate exercisesWithSets here,
-    // as useExerciseSets will handle loading its own drafts via useLiveQuery.
-    // We just need to ensure the ExerciseCard components are rendered with the correct exerciseId and currentSessionId.
-
-    // Trigger a background refresh to ensure cache is up-to-date for next time
     refreshAllData();
 
   }, [session, supabase, resetWorkoutSession, groupedTPaths, workoutExercisesCache, allAvailableExercises, refreshAllData, setActiveWorkout, setExercisesForSession, setExercisesWithSets]);
@@ -158,15 +194,15 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   return {
     activeWorkout,
     exercisesForSession,
-    exercisesWithSets, // Still return this, but it will be managed by useExerciseSets
+    exercisesWithSets,
     allAvailableExercises,
     loading: loadingFlow,
     error: flowError,
     currentSessionId,
     sessionStartTime,
     completedExercises,
-    isWorkoutActive, // Return new state
-    hasUnsavedChanges, // Return new state
+    isWorkoutActive,
+    hasUnsavedChanges,
     selectWorkout,
     addExerciseToSession,
     removeExerciseFromSession,
@@ -183,6 +219,12 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     isCreatingSession,
     createWorkoutSessionInDb,
     finishWorkoutSession,
-    refreshAllData, // Return refreshAllData
+    refreshAllData,
+    // New properties for navigation warning
+    showUnsavedChangesDialog,
+    pendingNavigationPath,
+    promptBeforeNavigation,
+    handleConfirmLeave,
+    handleCancelLeave,
   };
 };

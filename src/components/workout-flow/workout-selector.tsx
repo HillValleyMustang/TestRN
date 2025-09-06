@@ -16,7 +16,7 @@ import { EditWorkoutExercisesDialog } from '../manage-t-paths/edit-workout-exerc
 import { ExerciseSelectionDropdown } from '@/components/shared/exercise-selection-dropdown';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
-import { WorkoutAwareLink, useWorkoutNavigation } from './workout-aware-link'; // Import WorkoutAwareLink and useWorkoutNavigation
+import { WorkoutAwareLink, useWorkoutNavigation } from './workout-aware-link';
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -80,7 +80,7 @@ const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName:
   return {
     id: workout.id,
     title: workout.template_name,
-    workoutType, // Pass workoutType here
+    workoutType,
     category,
     variant,
     completedAt: workout.last_completed_at ? new Date(workout.last_completed_at) : null,
@@ -112,7 +112,7 @@ export const WorkoutSelector = ({
   refreshAllData
 }: WorkoutSelectorProps) => {
   const { supabase, session } = useSession();
-  const { handleNavigationAttempt } = useWorkoutNavigation(); // Use the navigation context
+  // Removed: useWorkoutNavigation here, as it's not needed directly in this component
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
   const [isEditWorkoutDialogOpen, setIsEditWorkoutDialogOpen] = useState(false);
   const [selectedWorkoutToEdit, setSelectedWorkoutToEdit] = useState<{ id: string; name: string } | null>(null);
@@ -123,20 +123,12 @@ export const WorkoutSelector = ({
   }, [allAvailableExercises]);
 
   const handleWorkoutClick = (workoutId: string) => {
-    // Intercept navigation if trying to switch workouts while one is active
-    if (activeWorkout?.id && activeWorkout.id !== workoutId) {
-      const blocked = handleNavigationAttempt(`/workout?workoutId=${workoutId}`);
-      if (blocked) return;
-    }
+    // No longer need to intercept navigation here, WorkoutAwareLink handles it
     onWorkoutSelect(workoutId);
   };
 
   const handleAdHocClick = () => {
-    // Intercept navigation if trying to switch to ad-hoc while another workout is active
-    if (activeWorkout?.id && activeWorkout.id !== 'ad-hoc') {
-      const blocked = handleNavigationAttempt('/workout?workoutId=ad-hoc');
-      if (blocked) return;
-    }
+    // No longer need to intercept navigation here, WorkoutAwareLink handles it
     onWorkoutSelect('ad-hoc');
   };
 
@@ -160,7 +152,7 @@ export const WorkoutSelector = ({
   const handleEditWorkoutSaveSuccess = useCallback(async () => {
     setIsEditWorkoutDialogOpen(false);
     if (activeWorkout?.id) {
-      await selectWorkout(activeWorkout.id); // Re-fetch exercises for the current workout
+      await selectWorkout(activeWorkout.id);
     }
   }, [activeWorkout, selectWorkout]);
 
@@ -228,7 +220,7 @@ export const WorkoutSelector = ({
                     selectedExerciseId={selectedExerciseToAdd}
                     setSelectedExerciseId={setSelectedExerciseToAdd}
                     exerciseSourceFilter={adHocExerciseSourceFilter}
-                    setExerciseSourceFilter={setAdHocExerciseSourceFilter} // Corrected prop name
+                    setExerciseSourceFilter={setAdHocExerciseSourceFilter}
                     mainMuscleGroups={mainMuscleGroups}
                     placeholder="Select exercise to add"
                   />

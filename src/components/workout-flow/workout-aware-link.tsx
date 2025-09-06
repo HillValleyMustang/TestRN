@@ -5,14 +5,15 @@ import { usePathname, useRouter } from 'next/navigation';
 import React, { useCallback, useContext, createContext } from 'react';
 
 interface WorkoutNavigationContextType {
-  handleNavigationAttempt: (path: string) => boolean; // Returns true if navigation was blocked
+  // promptBeforeNavigation now returns a Promise<boolean>
+  promptBeforeNavigation: (path: string) => Promise<boolean>; 
 }
 
 const WorkoutNavigationContext = createContext<WorkoutNavigationContextType | undefined>(undefined);
 
-export const WorkoutNavigationProvider = ({ children, handleNavigationAttempt }: { children: React.ReactNode; handleNavigationAttempt: (path: string) => boolean; }) => {
+export const WorkoutNavigationProvider = ({ children, promptBeforeNavigation }: { children: React.ReactNode; promptBeforeNavigation: (path: string) => Promise<boolean>; }) => {
   return (
-    <WorkoutNavigationContext.Provider value={{ handleNavigationAttempt }}>
+    <WorkoutNavigationContext.Provider value={{ promptBeforeNavigation }}>
       {children}
     </WorkoutNavigationContext.Provider>
   );
@@ -33,21 +34,21 @@ interface WorkoutAwareLinkProps extends React.ComponentProps<typeof Link> {
 export const WorkoutAwareLink = ({ href, onClick, children, ...props }: WorkoutAwareLinkProps) => {
   const router = useRouter();
   const pathname = usePathname();
-  const { handleNavigationAttempt } = useWorkoutNavigation();
+  const { promptBeforeNavigation } = useWorkoutNavigation(); // Use the new prompt function
 
-  const handleClick = useCallback((event: React.MouseEvent<HTMLAnchorElement>) => {
+  const handleClick = useCallback(async (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (onClick) {
       onClick(event);
     }
 
-    // Only intercept if navigating to a different page and a workout is active
+    // Only intercept if navigating to a different page
     if (typeof href === 'string' && href !== pathname) {
-      const blocked = handleNavigationAttempt(href);
-      if (blocked) {
-        event.preventDefault(); // Prevent default Next.js navigation
+      const shouldBlock = await promptBeforeNavigation(href); // Await the promise
+      if (shouldBlock) {
+        event.preventDefault(); // Prevent default Next.js navigation if blocked
       }
     }
-  }, [href, onClick, pathname, handleNavigationAttempt]);
+  }, [href, onClick, pathname, promptBeforeNavigation]);
 
   return (
     <Link href={href} onClick={handleClick} {...props}>
