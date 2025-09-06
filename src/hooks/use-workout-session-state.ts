@@ -34,6 +34,8 @@ interface UseWorkoutSessionStateReturn {
   sessionStartTime: Date | null;
   completedExercises: Set<string>;
   isCreatingSession: boolean;
+  isWorkoutActive: boolean; // New derived state
+  hasUnsavedChanges: boolean; // New derived state
   setActiveWorkout: (workout: TPath | null) => void;
   setExercisesForSession: (exercises: WorkoutExercise[]) => void;
   setExercisesWithSets: (sets: Record<string, SetLogState[]>) => void;
@@ -60,6 +62,14 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
   const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
   const [isCreatingSession, setIsCreatingSession] = useState(false);
+
+  // Derived state for workout activity
+  const isWorkoutActive = !!currentSessionId && !!sessionStartTime;
+
+  // Derived state for unsaved changes
+  const hasUnsavedChanges = isWorkoutActive && Object.values(exercisesWithSets).some(setsArray =>
+    setsArray.some(set => !set.isSaved)
+  );
 
   const resetWorkoutSession = useCallback(async () => {
     setActiveWorkout(null);
@@ -329,6 +339,8 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
     sessionStartTime,
     completedExercises,
     isCreatingSession,
+    isWorkoutActive,
+    hasUnsavedChanges,
     setActiveWorkout,
     setExercisesForSession,
     setExercisesWithSets,

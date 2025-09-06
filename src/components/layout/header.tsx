@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { UserNav } from "./user-nav";
 import { NotificationBell } from "./notification-bell";
 import { ActivityLoggingDialog } from "../activity-logging-dialog";
-import { useScrollPosition } from "@/hooks/use-scroll-position"; // Import the new hook
-import { cn } from "@/lib/utils"; // Ensure cn is imported
-import { RollingStatusBadge } from "./rolling-status-badge"; // Import the new RollingStatusBadge
+import { useScrollPosition } from "@/hooks/use-scroll-position";
+import { cn } from "@/lib/utils";
+import { RollingStatusBadge } from "./rolling-status-badge";
+import { WorkoutAwareLink } from "../workout-flow/workout-aware-link"; // Import WorkoutAwareLink
 
 const mobileNavLinks = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -23,19 +24,18 @@ const mobileNavLinks = [
 
 export function Header() {
   const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
-  const isScrolled = useScrollPosition(); // Use the new hook
+  const isScrolled = useScrollPosition();
 
   return (
     <>
       <header className={cn(
         "sticky top-0 z-30 flex h-14 items-center gap-4 border-b px-4 sm:static sm:h-auto sm:border-0 sm:px-6",
-        "transition-all duration-300 ease-in-out", // Smooth transition
-        isScrolled ? "bg-background/80 backdrop-blur-md border-b-transparent" : "bg-background border-b" // Apply glassmorphism on scroll
+        "transition-all duration-300 ease-in-out",
+        isScrolled ? "bg-background/80 backdrop-blur-md border-b-transparent" : "bg-background border-b"
       )}>
         <Sheet>
           <SheetTrigger asChild>
             <Button size="icon" variant="outline" className="sm:hidden">
-              {/* Re-added span wrapper for content */}
               <span>
                 <PanelLeft className="h-5 w-5" />
                 <span className="sr-only">Toggle Menu</span>
@@ -45,24 +45,23 @@ export function Header() {
           <SheetContent side="left" className="sm:max-w-xs">
             <nav className="grid gap-6 text-lg font-medium">
               {mobileNavLinks.map(link => (
-                <Link
+                <WorkoutAwareLink
                   key={link.href}
                   href={link.href}
                   className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
                 >
                   <link.icon className="h-5 w-5" />
                   {link.label}
-                </Link>
+                </WorkoutAwareLink>
               ))}
               <hr className="my-2" />
-              {/* Updated path */}
-              <Link
+              <WorkoutAwareLink
                 href="/workout"
                 className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
               >
                 <Dumbbell className="h-5 w-5" />
                 Start Workout
-              </Link>
+              </WorkoutAwareLink>
               <Button variant="ghost" className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground justify-start text-lg font-medium" onClick={() => setIsActivityLogOpen(true)}>
                 <Plus className="h-5 w-5" />
                 Log Activity
@@ -71,7 +70,7 @@ export function Header() {
           </SheetContent>
         </Sheet>
         <div className="relative ml-auto flex flex-1 items-center justify-end gap-2 md:grow-0">
-          <RollingStatusBadge /> {/* Replaced StreakPill with RollingStatusBadge */}
+          <RollingStatusBadge />
           <NotificationBell />
           <UserNav />
         </div>

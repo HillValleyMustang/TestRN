@@ -14,11 +14,9 @@ import { useSession } from '@/components/session-context-provider';
 import { WorkoutPill, WorkoutPillProps } from './workout-pill';
 import { EditWorkoutExercisesDialog } from '../manage-t-paths/edit-workout-exercises-dialog';
 import { ExerciseSelectionDropdown } from '@/components/shared/exercise-selection-dropdown';
-// Removed: import { AnalyzeGymDialog } from '../manage-exercises/analyze-gym-dialog';
-// Removed: import { DuplicateExerciseConfirmDialog } from '../manage-exercises/duplicate-exercise-confirm-dialog';
-// Removed: import { SaveAiExercisePrompt } from './save-ai-exercise-prompt';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
+import { WorkoutAwareLink, useWorkoutNavigation } from './workout-aware-link'; // Import WorkoutAwareLink and useWorkoutNavigation
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -114,27 +112,31 @@ export const WorkoutSelector = ({
   refreshAllData
 }: WorkoutSelectorProps) => {
   const { supabase, session } = useSession();
+  const { handleNavigationAttempt } = useWorkoutNavigation(); // Use the navigation context
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
   const [isEditWorkoutDialogOpen, setIsEditWorkoutDialogOpen] = useState(false);
   const [selectedWorkoutToEdit, setSelectedWorkoutToEdit] = useState<{ id: string; name: string } | null>(null);
   const [adHocExerciseSourceFilter, setAdHocExerciseSourceFilter] = useState<'my-exercises' | 'global-library'>('my-exercises');
-
-  // Removed: State for AI gym analysis flow
-  // Removed: const [showAnalyzeGymDialog, setShowAnalyzeGymDialog] = useState(false);
-  // Removed: const [identifiedExerciseFromAI, setIdentifiedExerciseFromAI] = useState<Partial<ExerciseDefinition> | null>(null);
-  // Removed: const [showSaveNewExercisePrompt, setShowSaveNewExercisePrompt] = useState(false);
-  // Removed: const [isSavingNewExerciseToLibrary, setIsSavingNewExerciseToLibrary] = useState(false);
-  // Removed: const [isDuplicateIdentified, setIsDuplicateIdentified] = useState(false);
 
   const mainMuscleGroups = useMemo(() => {
     return Array.from(new Set(allAvailableExercises.map(ex => ex.main_muscle))).sort();
   }, [allAvailableExercises]);
 
   const handleWorkoutClick = (workoutId: string) => {
+    // Intercept navigation if trying to switch workouts while one is active
+    if (activeWorkout?.id && activeWorkout.id !== workoutId) {
+      const blocked = handleNavigationAttempt(`/workout?workoutId=${workoutId}`);
+      if (blocked) return;
+    }
     onWorkoutSelect(workoutId);
   };
 
   const handleAdHocClick = () => {
+    // Intercept navigation if trying to switch to ad-hoc while another workout is active
+    if (activeWorkout?.id && activeWorkout.id !== 'ad-hoc') {
+      const blocked = handleNavigationAttempt('/workout?workoutId=ad-hoc');
+      if (blocked) return;
+    }
     onWorkoutSelect('ad-hoc');
   };
 
@@ -162,12 +164,6 @@ export const WorkoutSelector = ({
     }
   }, [activeWorkout, selectWorkout]);
 
-  // Removed: AI Gym Analysis Handlers
-  // Removed: handleAIIdentifiedExercise
-  // Removed: handleSaveToMyExercises
-  // Removed: handleAddJustToThisWorkout
-  // Removed: handleCloseSavePrompt
-
   const totalExercises = exercisesForSession.length;
 
   return (
@@ -178,7 +174,7 @@ export const WorkoutSelector = ({
             <p className="text-muted-foreground text-center py-4">Loading Transformation Paths...</p>
           ) : groupedTPaths.length === 0 ? (
             <p className="text-muted-foreground text-center py-4">
-              You haven't created any Transformation Paths yet. Go to <a href="/manage-t-paths" className="text-primary underline">Manage T-Paths</a> to create one.
+              You haven't created any Transformation Paths yet. Go to <WorkoutAwareLink href="/manage-t-paths" className="text-primary underline">Manage T-Paths</WorkoutAwareLink> to create one.
             </p>
           ) : (
             groupedTPaths.map(group => (
@@ -239,7 +235,6 @@ export const WorkoutSelector = ({
                   <Button onClick={handleAddExercise} disabled={!selectedExerciseToAdd} className="flex-shrink-0">
                     <PlusCircle className="h-4 w-4" />
                   </Button>
-                  {/* Removed AI Analyse button */}
                 </div>
               </section>
             )}
@@ -261,7 +256,6 @@ export const WorkoutSelector = ({
                       currentSessionId={currentSessionId}
                       supabase={supabase}
                       onUpdateGlobalSets={updateExerciseSets}
-                      // Removed initialSets prop
                       onSubstituteExercise={substituteExercise}
                       onRemoveExercise={removeExerciseFromSession}
                       workoutTemplateName={activeWorkout.template_name}
@@ -322,10 +316,6 @@ export const WorkoutSelector = ({
           onSaveSuccess={handleEditWorkoutSaveSuccess}
         />
       )}
-
-      {/* Removed: AI Gym Analysis Dialogs */}
-      {/* Removed: AnalyzeGymDialog */}
-      {/* Removed: SaveAiExercisePrompt */}
     </>
   );
 };

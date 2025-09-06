@@ -27,6 +27,8 @@ interface UseWorkoutFlowManagerReturn {
   currentSessionId: string | null;
   sessionStartTime: Date | null;
   completedExercises: Set<string>;
+  isWorkoutActive: boolean; // New derived state
+  hasUnsavedChanges: boolean; // New derived state
   selectWorkout: (workoutId: string | null) => Promise<void>;
   addExerciseToSession: (exercise: ExerciseDefinition) => Promise<void>;
   removeExerciseFromSession: (exerciseId: string) => Promise<void>;
@@ -68,6 +70,8 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     sessionStartTime,
     completedExercises,
     isCreatingSession,
+    isWorkoutActive, // Destructure new state
+    hasUnsavedChanges, // Destructure new state
     setActiveWorkout,
     setExercisesForSession,
     setExercisesWithSets,
@@ -161,6 +165,8 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     currentSessionId,
     sessionStartTime,
     completedExercises,
+    isWorkoutActive, // Return new state
+    hasUnsavedChanges, // Return new state
     selectWorkout,
     addExerciseToSession,
     removeExerciseFromSession,

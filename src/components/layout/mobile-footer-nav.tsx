@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Dumbbell, BookOpen, BarChart3, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { WorkoutAwareLink } from "../workout-flow/workout-aware-link"; // Import WorkoutAwareLink
 
 const navLinks = [
   { href: "/dashboard", label: "Home", icon: Home },
-  { href: "/workout", label: "Workout", icon: Dumbbell }, // Corrected path
+  { href: "/workout", label: "Workout", icon: Dumbbell },
   { href: "/manage-exercises", label: "Exercises", icon: BookOpen },
   { href: "/progress", label: "Progress", icon: BarChart3 },
   { href: "/profile", label: "Profile", icon: User },
@@ -23,7 +24,7 @@ export function MobileFooterNav() {
           const isActive = pathname === link.href;
           const Icon = link.icon;
           return (
-            <Link
+            <WorkoutAwareLink
               key={link.href}
               href={link.href}
               className={cn(
@@ -33,7 +34,7 @@ export function MobileFooterNav() {
             >
               <Icon className="h-5 w-5" strokeWidth={2.5} />
               <span>{link.label}</span>
-            </Link>
+            </WorkoutAwareLink>
           );
         })}
       </nav>
