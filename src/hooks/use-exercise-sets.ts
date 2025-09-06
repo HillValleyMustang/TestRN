@@ -437,14 +437,13 @@ export const useExerciseSets = ({
         try {
           console.log(`[useExerciseSets] handleSaveExercise: Calling onExerciseCompleted for ${exerciseId} with anySetIsPR: ${anySetIsPR}`);
           await onExerciseCompleted(exerciseId, anySetIsPR);
-          toast.success(`Exercise '${exerciseName}' saved!`); // Added toast for exercise completion
           return { success: true, isNewPR: anySetIsPR };
         } catch (err: any) {
           console.error("[useExerciseSets] Error saving exercise completion:", err);
           toast.error("Failed to complete exercise: " + err.message);
           return { success: false, isNewPR: false };
         }
-      }, [sets, exerciseId, onExerciseCompleted, onFirstSetSaved, propCurrentSessionId, saveSetToDb, session, checkAndSaveSetPR, exercisePR, exerciseName]);
+      }, [sets, exerciseId, onExerciseCompleted, onFirstSetSaved, propCurrentSessionId, saveSetToDb, session, checkAndSaveSetPR, exercisePR]);
 
       const handleSuggestProgression = useCallback(async () => {
         console.assert(isValidId(exerciseId), `Invalid exerciseId in handleSuggestProgression: ${exerciseId}`);
