@@ -9,13 +9,15 @@ import { Tables, SetLogWithExercise, GetLastExerciseSetsForExerciseReturns } fro
 import { toast } from 'sonner';
 import { WorkoutStatsCard } from '@/components/workout-summary/workout-stats-card';
 import { WorkoutRatingCard } from '@/components/workout-summary/workout-rating-card';
-import { ExerciseSummaryCard } from '@/components/workout-summary/exercise-summary-card';
 import { WorkoutVolumeHistoryCard } from '@/components/workout-summary/workout-volume-history-card';
 import { AiSessionAnalysisCard } from '@/components/workout-summary/ai-session-analysis-card';
 import { ACHIEVEMENT_DISPLAY_INFO } from '@/lib/achievements';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowLeft } from 'lucide-react';
-import { db } from '@/lib/db'; // Import Dexie db
+import { ArrowLeft, Trophy } from 'lucide-react';
+import { db } from '@/lib/db';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatWeight, formatTime } from '@/lib/unit-conversions';
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
@@ -66,7 +68,6 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
       setLoading(true);
       setError(null);
       try {
-        // Fetch from local DB first
         const localSession = await db.workout_sessions.get(sessionId);
         if (!localSession) throw new Error("Workout session not found in local database.");
         
@@ -100,44 +101,8 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
         setTotalVolume(volume);
         setPrsAchieved(prCount);
         setNewPrExercises(Array.from(newPrsThisSession));
+        setSetLogs(processedSetLogs);
 
-        // Fetch last sets from Supabase for comparison (this is an enhancement, not core data)
-        const lastSetsPromises = Array.from(uniqueExerciseIds).map(async (exerciseId) => {
-          const { data: lastExerciseSets, error: rpcError } = await supabase.rpc('get_last_exercise_sets_for_exercise', {
-            p_user_id: session.user.id,
-            p_exercise_id: exerciseId,
-          });
-          if (rpcError && rpcError.code !== 'PGRST116') {
-            console.error(`Error fetching last sets for exercise ${exerciseId}:`, rpcError);
-            return { exerciseId, sets: [] };
-          }
-          return { exerciseId, sets: lastExerciseSets || [] };
-        });
-
-        const lastSetsResults = await Promise.all(lastSetsPromises);
-        const lastSetsMap = new Map<string, GetLastExerciseSetsForExerciseReturns>();
-        lastSetsResults.forEach(result => lastSetsMap.set(result.exerciseId, result.sets));
-
-        const finalSetLogs = processedSetLogs.map((currentSet, index) => {
-          const exerciseId = currentSet.exercise_definitions?.id;
-          if (exerciseId) {
-            const lastSetsForExercise = lastSetsMap.get(exerciseId);
-            const correspondingLastSet = lastSetsForExercise?.[index];
-            return {
-              ...currentSet,
-              last_session_weight_kg: correspondingLastSet?.weight_kg || null,
-              last_session_reps: correspondingLastSet?.reps || null,
-              last_session_reps_l: correspondingLastSet?.reps_l || null,
-              last_session_reps_r: correspondingLastSet?.reps_r || null,
-              last_session_time_seconds: correspondingLastSet?.time_seconds || null,
-            };
-          }
-          return currentSet;
-        });
-
-        setSetLogs(finalSetLogs);
-
-        // Check for achievements via Supabase function
         if (!hasShownAchievementToasts && session.user.id) {
           const response = await fetch('/api/get-session-achievements', {
             method: 'POST',
@@ -189,6 +154,21 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
       return acc;
     }, {} as Record<string, ExerciseGroup>);
 
+  const getBestSetString = (exerciseGroup: ExerciseGroup): string => {
+    if (exerciseGroup.sets.length === 0) return '-';
+    if (exerciseGroup.type === 'timed') {
+      const bestSet = Math.max(...exerciseGroup.sets.map(s => s.time_seconds || 0));
+      return formatTime(bestSet);
+    } else {
+      const bestSet = exerciseGroup.sets.reduce((best, current) => {
+        const currentVolume = (current.weight_kg || 0) * (current.reps || 0);
+        const bestVolume = (best.weight_kg || 0) * (best.reps || 0);
+        return currentVolume > bestVolume ? current : best;
+      });
+      return `${formatWeight(bestSet.weight_kg, 'kg')} x ${bestSet.reps}`;
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col p-0">
@@ -206,6 +186,7 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
                   totalVolume={totalVolume} 
                   prsAchieved={prsAchieved} 
                   newPrExercises={newPrExercises}
+                  exercisesPerformed={Object.keys(exercisesWithGroupedSets).length}
                 />
                 {workoutSession.template_name && workoutSession.template_name !== 'Ad Hoc Workout' && (
                   <WorkoutVolumeHistoryCard
@@ -220,20 +201,39 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
                   isRatingSaved={isRatingSaved} 
                 />
                 <AiSessionAnalysisCard sessionId={sessionId!} />
-                <section>
-                  <h2 className="text-xl font-bold mb-4">Exercises Performed</h2>
-                  {Object.values(exercisesWithGroupedSets).length === 0 ? (
-                    <p className="text-muted-foreground">No exercises logged for this session.</p>
-                  ) : (
-                    (Object.values(exercisesWithGroupedSets) as ExerciseGroup[]).map((exerciseGroup: ExerciseGroup) => (
-                      <ExerciseSummaryCard 
-                        key={exerciseGroup.name} 
-                        exerciseGroup={exerciseGroup} 
-                        currentSessionId={sessionId!}
-                      />
-                    ))
-                  )}
-                </section>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Exercises Performed</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {Object.values(exercisesWithGroupedSets).length === 0 ? (
+                      <p className="text-muted-foreground">No exercises logged for this session.</p>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Exercise</TableHead>
+                            <TableHead className="text-center">Sets</TableHead>
+                            <TableHead>Best Set</TableHead>
+                            <TableHead className="text-center">PR</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {Object.values(exercisesWithGroupedSets).map((group) => (
+                            <TableRow key={group.id}>
+                              <TableCell className="font-medium">{group.name}</TableCell>
+                              <TableCell className="text-center">{group.sets.length}</TableCell>
+                              <TableCell>{getBestSetString(group)}</TableCell>
+                              <TableCell className="text-center">
+                                {group.sets.some(s => s.is_pb) ? <Trophy className="h-4 w-4 text-yellow-500 mx-auto" /> : '-'}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
               </>
             )}
           </div>

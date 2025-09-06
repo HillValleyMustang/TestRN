@@ -120,7 +120,7 @@ export const WorkoutVolumeHistoryCard = ({ workoutTemplateName, currentSessionId
 
   if (loading) {
     return (
-      <Card className="h-[300px] flex items-center justify-center mb-6">
+      <Card className="h-[250px] flex items-center justify-center mb-6">
         <p className="text-muted-foreground">Loading workout volume history...</p>
       </Card>
     );
@@ -128,7 +128,7 @@ export const WorkoutVolumeHistoryCard = ({ workoutTemplateName, currentSessionId
 
   if (error) {
     return (
-      <Card className="h-[300px] flex items-center justify-center mb-6">
+      <Card className="h-[250px] flex items-center justify-center mb-6">
         <p className="text-destructive">Error: {error}</p>
       </Card>
     );
@@ -145,11 +145,11 @@ export const WorkoutVolumeHistoryCard = ({ workoutTemplateName, currentSessionId
       </CardHeader>
       <CardContent>
         {!hasData ? (
-          <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+          <div className="h-[150px] flex items-center justify-center text-muted-foreground">
             No previous workout data for "{workoutTemplateName}". Complete more sessions to see your trend!
           </div>
         ) : (
-          <div className="h-[200px]">
+          <div className="h-[150px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={chartData}
