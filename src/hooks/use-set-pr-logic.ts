@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { Tables, SetLogState, UserExercisePR, UserExercisePRInsert, UserExercisePRUpdate } from '@/types/supabase';
+import { useSession } from '@/components/session-context-provider'; // Import useSession to get user ID
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -14,30 +15,37 @@ interface UseSetPRLogicProps {
 }
 
 export const useSetPRLogic = ({ exerciseId, exerciseType, supabase }: UseSetPRLogicProps) => {
+  const { session } = useSession(); // Get session to access user ID
   const [exercisePR, setExercisePR] = useState<UserExercisePR | null>(null);
   const [loadingPR, setLoadingPR] = useState(true);
 
   useEffect(() => {
     const fetchExercisePR = async () => {
+      if (!session?.user.id) {
+        setLoadingPR(false);
+        return;
+      }
+
       setLoadingPR(true);
       const { data, error } = await supabase
         .from('user_exercise_prs')
         .select('id, user_id, exercise_id, best_volume_kg, best_time_seconds, last_achieved_date, created_at, updated_at')
         .eq('exercise_id', exerciseId)
-        .single();
+        .eq('user_id', session.user.id) // Explicitly filter by user_id
+        .limit(1); // Fetch up to one record
 
       if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
         console.error("Error fetching exercise PR:", error);
         setExercisePR(null);
-      } else if (data) {
-        setExercisePR(data as UserExercisePR);
+      } else if (data && data.length > 0) {
+        setExercisePR(data[0] as UserExercisePR); // Take the first (and only) record
       } else {
         setExercisePR(null);
       }
       setLoadingPR(false);
     };
     fetchExercisePR();
-  }, [exerciseId, supabase]);
+  }, [exerciseId, supabase, session?.user.id]); // Add session.user.id to dependencies
 
   const checkAndSaveSetPR = useCallback(async (set: SetLogState, userId: string): Promise<boolean> => {
     let currentSetPerformance: number | null = null;
@@ -87,7 +95,7 @@ export const useSetPRLogic = ({ exerciseId, exerciseType, supabase }: UseSetPRLo
       setExercisePR(updatedPR as UserExercisePR);
     }
     return isNewPR;
-  }, [exerciseId, exerciseType, exercisePR, supabase]);
+  }, [exerciseId, exerciseType, exercisePR, supabase, session?.user.id]); // Added session.user.id to dependencies
 
   return { exercisePR, loadingPR, checkAndSaveSetPR };
 };
