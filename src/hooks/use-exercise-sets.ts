@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'; // Import useMemo
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
@@ -46,6 +46,7 @@ interface UseExerciseSetsReturn {
   exercisePR: UserExercisePR | null;
   loadingPR: boolean;
   handleSuggestProgression: () => Promise<void>;
+  isAllSetsSaved: boolean; // Added to return type
 }
 
 const MAX_SETS = 5;
@@ -108,6 +109,12 @@ export const useExerciseSets = ({
   const [sets, setSets] = useState<SetLogState[]>([]);
   const loadingDrafts = drafts === undefined;
 
+  // Derived state: true if all sets have been saved
+  const isAllSetsSaved = useMemo(() => {
+    if (!sets || sets.length === 0) return false;
+    return sets.every(set => set.isSaved);
+  }, [sets]);
+
   const createInitialDrafts = useCallback(async () => {
     if (!isValidId(exerciseId)) return;
 
@@ -156,8 +163,8 @@ export const useExerciseSets = ({
 
       if (drafts && drafts.length > 0) {
         loadedSets = drafts.map((draft: LocalDraftSetLog) => ({
-          id: draft.set_log_id || null,
-          created_at: null,
+          id: draft.set_log_id || null, // Use set_log_id if available
+          created_at: null, // This will be populated from actual set_log if it exists
           session_id: draft.session_id,
           exercise_id: draft.exercise_id,
           weight_kg: draft.weight_kg,
@@ -165,9 +172,9 @@ export const useExerciseSets = ({
           reps_l: draft.reps_l,
           reps_r: draft.reps_r,
           time_seconds: draft.time_seconds,
-          is_pb: draft.is_pb || false,
-          isSaved: draft.isSaved || false,
-          isPR: draft.is_pb || false, // This is for set-level PR
+          is_pb: draft.is_pb || false, // Use is_pb from draft
+          isSaved: draft.isSaved || false, // Use isSaved from draft
+          isPR: draft.is_pb || false, // This is for set-level PR, derived from draft.is_pb
           lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
         }));
       } else {
@@ -488,5 +495,6 @@ export const useExerciseSets = ({
         exercisePR,
         loadingPR,
         handleSuggestProgression,
+        isAllSetsSaved, // Return the new derived state
       };
     };

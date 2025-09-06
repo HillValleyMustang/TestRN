@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react'; // Import useMemo
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,10 +58,9 @@ export const ExerciseCard = ({
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeLeft, setTimeLeft] = useState(defaultRestTime);
   const timerRef = React.useRef<NodeJS.Timeout | null>(null);
-  const [isExerciseSaved, setIsExerciseSaved] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  // Removed: const [justAchievedPR, setJustAchievedPR] = useState(false); // This will now be derived
 
+  // State for dialogs
   const [showSwapDialog, setShowSwapDialog] = useState(false);
   const [showCantDoDialog, setShowCantDoDialog] = useState(false);
   const [showExerciseInfoDialog, setShowExerciseInfoDialog] = useState(false);
@@ -102,6 +101,7 @@ export const ExerciseCard = ({
     exercisePR,
     loadingPR,
     handleSuggestProgression,
+    isAllSetsSaved,
   } = useExerciseSets({
     exerciseId: exercise.id,
     exerciseName: exercise.name,
@@ -113,9 +113,6 @@ export const ExerciseCard = ({
     preferredWeightUnit,
     onFirstSetSaved: onFirstSetSaved,
     onExerciseCompleted: async (id, isNewPR) => {
-      // console.log(`[ExerciseCard] onExerciseCompleted received isNewPR: ${isNewPR}`); // Removed debug log
-      setIsExerciseSaved(true);
-      // setJustAchievedPR(isNewPR); // No longer needed as it's derived
       onExerciseCompleted(id, isNewPR);
     },
     workoutTemplateName,
@@ -145,8 +142,6 @@ export const ExerciseCard = ({
   const handleCompleteExercise = async () => {
     const { success, isNewPR } = await handleSaveExercise();
     if (success) {
-      setIsExerciseSaved(true);
-      // setJustAchievedPR(isNewPR); // No longer needed as it's derived
       setIsExpanded(false);
     }
   };
@@ -180,7 +175,7 @@ export const ExerciseCard = ({
     };
   }, [isTimerRunning, defaultRestTime]);
 
-  const formatTime = (seconds: number) => {
+  const formatTimeDisplay = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
@@ -196,7 +191,7 @@ export const ExerciseCard = ({
 
   return (
     <React.Fragment>
-      <Card className={cn("mb-6 border-2 relative", workoutBorderClass, { "opacity-70": isExerciseSaved })}>
+      <Card className={cn("mb-6 border-2 relative", workoutBorderClass, { "opacity-70": isAllSetsSaved })}>
         <CardHeader 
           className="p-0 cursor-pointer relative"
           onClick={() => setIsExpanded(!isExpanded)}
@@ -205,7 +200,7 @@ export const ExerciseCard = ({
             <div className="flex items-start justify-between">
               <div className="flex flex-col text-left">
                 <div className="flex items-center gap-2">
-                  {isExerciseSaved && hasAchievedPRInSession && ( // Use derived state here
+                  {isAllSetsSaved && hasAchievedPRInSession && (
                     <Trophy className="h-5 w-5 text-yellow-500 fill-yellow-500" />
                   )}
                   <CardTitle className={cn("text-lg font-semibold leading-none", workoutColorClass)}>
@@ -226,7 +221,7 @@ export const ExerciseCard = ({
                 />
               )}
               <div className="flex items-center gap-2 flex-shrink-0">
-                {isExerciseSaved && (
+                {isAllSetsSaved && (
                   <Check className="h-8 w-8 text-green-500" />
                 )}
                 <DropdownMenu>
@@ -280,17 +275,17 @@ export const ExerciseCard = ({
                             <Trophy className="h-3 w-3" /> PR!
                           </span>
                         )}
-                        {!set.isSaved && !isExerciseSaved && (
-                          <Button variant="ghost" size="icon" onClick={() => handleSaveSetAndStartTimer(setIndex)} disabled={isExerciseSaved} title="Save Set" className="h-6 w-6">
+                        {!set.isSaved && !isAllSetsSaved && (
+                          <Button variant="ghost" size="icon" onClick={() => handleSaveSetAndStartTimer(setIndex)} disabled={isAllSetsSaved} title="Save Set" className="h-6 w-6">
                             <Save className="h-4 w-4" />
                           </Button>
                         )}
-                        {set.isSaved && !isExerciseSaved && (
+                        {set.isSaved && !isAllSetsSaved && (
                           <Button variant="ghost" size="icon" onClick={() => handleEditSet(setIndex)} title="Edit Set" className="h-6 w-6">
                             <Edit className="h-4 w-4" />
                           </Button>
                         )}
-                        {!isExerciseSaved && (
+                        {!isAllSetsSaved && (
                           <Button variant="ghost" size="icon" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" className="h-6 w-6">
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
@@ -307,8 +302,8 @@ export const ExerciseCard = ({
                             step="0.1"
                             placeholder="kg"
                             value={convertWeight(set.weight_kg, 'kg', preferredWeightUnit as 'kg' | 'lbs') ?? ''}
-                            onChange={(e) => handleInputChange(setIndex, 'weight_kg', e.target.value)}
-                            disabled={set.isSaved || isExerciseSaved}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange(setIndex, 'weight_kg', e.target.value)}
+                            disabled={set.isSaved || isAllSetsSaved}
                             className="w-20 text-center h-8 text-xs"
                           />
                           <span className="text-muted-foreground text-xs">x</span>
@@ -320,7 +315,7 @@ export const ExerciseCard = ({
                                 placeholder="L"
                                 value={set.reps_l ?? ''}
                                 onChange={(e) => handleInputChange(setIndex, 'reps_l', e.target.value)}
-                                disabled={set.isSaved || isExerciseSaved}
+                                disabled={set.isSaved || isAllSetsSaved}
                                 className="w-20 h-8 text-xs"
                               />
                               <Input
@@ -329,7 +324,7 @@ export const ExerciseCard = ({
                                 placeholder="R"
                                 value={set.reps_r ?? ''}
                                 onChange={(e) => handleInputChange(setIndex, 'reps_r', e.target.value)}
-                                disabled={set.isSaved || isExerciseSaved}
+                                disabled={set.isSaved || isAllSetsSaved}
                                 className="w-20 h-8 text-xs"
                               />
                             </>
@@ -340,7 +335,7 @@ export const ExerciseCard = ({
                               placeholder="reps"
                               value={set.reps ?? ''}
                               onChange={(e) => handleInputChange(setIndex, 'reps', e.target.value)}
-                              disabled={set.isSaved || isExerciseSaved}
+                              disabled={set.isSaved || isAllSetsSaved}
                               className="w-20 text-center h-8 text-xs"
                             />
                           )}
@@ -353,7 +348,7 @@ export const ExerciseCard = ({
                           placeholder="Time (seconds)"
                           value={set.time_seconds ?? ''}
                           onChange={(e) => handleInputChange(setIndex, 'time_seconds', e.target.value)}
-                          disabled={set.isSaved || isExerciseSaved}
+                          disabled={set.isSaved || isAllSetsSaved}
                           className="flex-1 h-8 text-xs"
                         />
                       )}
@@ -367,11 +362,11 @@ export const ExerciseCard = ({
             <div className="flex justify-between items-center mt-4 gap-2">
               <div className="flex gap-2">
                 {sets.length < 5 && (
-                  <Button variant="outline" onClick={handleAddSet} disabled={isExerciseSaved} size="icon" className="h-8 w-8">
+                  <Button variant="outline" onClick={handleAddSet} disabled={isAllSetsSaved} size="icon" className="h-8 w-8">
                     <Plus className="h-4 w-4" />
                   </Button>
                 )}
-                <Button variant="outline" onClick={handleSuggestProgression} disabled={isExerciseSaved} size="icon" className="h-8 w-8">
+                <Button variant="outline" onClick={handleSuggestProgression} disabled={isAllSetsSaved} size="icon" className="h-8 w-8">
                   <Lightbulb className="h-4 w-4 text-orange-500" />
                 </Button>
               </div>
@@ -383,7 +378,7 @@ export const ExerciseCard = ({
                   className="w-24 justify-center"
                 >
                   {isTimerRunning ? <Pause className="h-4 w-4 mr-1" /> : <Play className="h-4 w-4 mr-1" />}
-                  {formatTime(timeLeft)}
+                  {formatTimeDisplay(timeLeft)}
                 </Button>
                 <Button variant="ghost" size="icon" onClick={handleResetTimer} title="Reset Timer">
                   <RotateCcw className="h-4 w-4" />
@@ -396,14 +391,14 @@ export const ExerciseCard = ({
                 className={cn(
                   "w-full",
                   {
-                    "bg-orange-500 text-black hover:bg-orange-600": hasAnyInput && !isExerciseSaved,
-                    "bg-green-700 text-white hover:bg-green-800": isExerciseSaved,
+                    "bg-orange-500 text-black hover:bg-orange-600": hasAnyInput && !isAllSetsSaved,
+                    "bg-green-700 text-white hover:bg-green-800": isAllSetsSaved,
                   }
                 )}
                 onClick={handleCompleteExercise}
                 disabled={!hasAnyInput}
               >
-                {isExerciseSaved ? (
+                {isAllSetsSaved ? (
                   <span className="flex items-center">
                     Saved
                     {hasAchievedPRInSession && <Trophy className="h-4 w-4 ml-2 fill-white text-white" />}
