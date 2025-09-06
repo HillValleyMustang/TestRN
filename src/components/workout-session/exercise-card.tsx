@@ -58,9 +58,9 @@ export const ExerciseCard = ({
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeLeft, setTimeLeft] = useState(defaultRestTime);
   const timerRef = React.useRef<NodeJS.Timeout | null>(null);
-  const [isExerciseSaved, setIsExerciseSaved] = useState(false);
+  const [isExerciseSaved, setIsExerciseSaved] = useState(false); // This will now be derived
   const [isExpanded, setIsExpanded] = useState(false);
-  const [justAchievedPR, setJustAchievedPR] = useState(false);
+  const [justAchievedPR, setJustAchievedPR] = useState(false); // This will now be derived
 
   const [showSwapDialog, setShowSwapDialog] = useState(false);
   const [showCantDoDialog, setShowCantDoDialog] = useState(false);
@@ -113,15 +113,26 @@ export const ExerciseCard = ({
     preferredWeightUnit,
     onFirstSetSaved: onFirstSetSaved,
     onExerciseComplete: async (id, isNewPR) => {
-      setIsExerciseSaved(true);
-      if (isNewPR) {
-        setJustAchievedPR(true);
-      }
+      // This callback is for when the *entire exercise* is marked complete
+      // The individual set PR status is handled by useExerciseSets internally
       onExerciseCompleted(id, isNewPR);
     },
     workoutTemplateName,
     exerciseNumber,
   });
+
+  // NEW useEffect to derive isExerciseSaved and justAchievedPR from 'sets'
+  useEffect(() => {
+    if (sets.length > 0) {
+      const anySetSaved = sets.some(set => set.isSaved);
+      const anySetIsPR = sets.some(set => set.is_pb); // Use is_pb from SetLogState
+      setIsExerciseSaved(anySetSaved);
+      setJustAchievedPR(anySetIsPR);
+    } else {
+      setIsExerciseSaved(false);
+      setJustAchievedPR(false);
+    }
+  }, [sets]); // Re-run whenever 'sets' array changes
 
   const handleSaveSetAndStartTimer = async (setIndex: number) => {
     await handleSaveSet(setIndex);
@@ -141,10 +152,8 @@ export const ExerciseCard = ({
   const handleCompleteExercise = async () => {
     const { success, isNewPR } = await handleSaveExercise();
     if (success) {
-      setIsExerciseSaved(true);
-      if (isNewPR) {
-        setJustAchievedPR(true);
-      }
+      // The states setIsExerciseSaved and setJustAchievedPR are now derived from 'sets'
+      // so we don't need to set them directly here.
       setIsExpanded(false);
     }
   };
