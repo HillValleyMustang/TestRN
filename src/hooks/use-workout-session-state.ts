@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { Tables, SetLogState, WorkoutExercise, GetLastExerciseSetsForExerciseReturns } from '@/types/supabase';
@@ -33,7 +33,6 @@ const hasUserInput = (set: SetLogState): boolean => {
 
 interface UseWorkoutSessionStateProps {
   allAvailableExercises: ExerciseDefinition[];
-  workoutExercisesCache: Record<string, WorkoutExercise[]>; // NEW: Pass cache to initialize
 }
 
 interface UseWorkoutSessionStateReturn {
@@ -62,7 +61,7 @@ interface UseWorkoutSessionStateReturn {
   finishWorkoutSession: () => Promise<string | null>;
 }
 
-export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercisesCache }: UseWorkoutSessionStateProps): UseWorkoutSessionStateReturn => {
+export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSessionStateProps): UseWorkoutSessionStateReturn => {
   const { session, supabase } = useSession();
 
   const [activeWorkout, setActiveWorkout] = useState<TPath | null>(null);
@@ -81,18 +80,13 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
     setsArray.some(set => !set.isSaved && hasUserInput(set)) // Only count as unsaved if there's actual input
   );
 
-  // NEW: Internal function to clear only the local React state
-  const _resetLocalState = useCallback(() => {
+  const resetWorkoutSession = useCallback(async () => {
     setActiveWorkout(null);
     setExercisesForSession([]);
     setExercisesWithSets({});
     setCurrentSessionId(null);
     setSessionStartTime(null);
     setCompletedExercises(new Set());
-  }, []);
-
-  // MODIFIED: resetWorkoutSession now clears IndexedDB drafts and then local state
-  const resetWorkoutSession = useCallback(async () => {
     if (session?.user.id) {
       // Clear all drafts for the current user
       const allDrafts = await db.draft_set_logs.toArray();
@@ -105,123 +99,12 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
         await db.draft_set_logs.bulkDelete(userDraftKeys);
       }
     }
-    _resetLocalState(); // Clear local state after clearing IndexedDB
-  }, [session, _resetLocalState]);
+  }, [session]);
 
-  // NEW: Effect to load drafts when activeWorkout or currentSessionId changes
-  useEffect(() => {
-    const loadDraftsForActiveWorkout = async () => {
-      if (!session?.user.id) {
-        _resetLocalState();
-        return;
-      }
+  const markExerciseAsCompleted = useCallback((exerciseId: string, isNewPR: boolean) => {
+    setCompletedExercises((prev: Set<string>) => new Set(prev).add(exerciseId));
+  }, []);
 
-      if (!activeWorkout) {
-        _resetLocalState();
-        return;
-      }
-
-      // Determine the session_id to filter drafts by.
-      // For ad-hoc before session creation, it's null. Otherwise, it's currentSessionId.
-      const targetSessionId = activeWorkout.id === 'ad-hoc' ? null : currentSessionId;
-
-      let drafts: LocalDraftSetLog[] = [];
-      if (targetSessionId === null) {
-        // For ad-hoc workouts before session creation, session_id is null
-        // FIX: Using filter() for robust null checking
-        drafts = await db.draft_set_logs.filter(draft => draft.session_id === null).toArray();
-      } else {
-        // For T-Path workouts or ad-hoc after session creation, session_id is a string
-        drafts = await db.draft_set_logs.where('session_id').equals(targetSessionId).toArray();
-      }
-
-      const newExercisesForSession: WorkoutExercise[] = [];
-      const newExercisesWithSets: Record<string, SetLogState[]> = {};
-      const newCompletedExercises = new Set<string>();
-      let loadedSessionId: string | null = null;
-      let loadedSessionStartTime: Date | null = null;
-
-      if (drafts.length > 0) {
-        // Group drafts by exercise_id
-        const groupedDrafts = drafts.reduce((acc, draft) => {
-          if (!acc[draft.exercise_id]) {
-            acc[draft.exercise_id] = [];
-          }
-          acc[draft.exercise_id].push(draft);
-          return acc;
-        }, {} as Record<string, LocalDraftSetLog[]>);
-
-        for (const exerciseId in groupedDrafts) {
-          const sortedDrafts = groupedDrafts[exerciseId].sort((a, b) => a.set_index - b.set_index);
-          const exerciseDef = allAvailableExercises.find(ex => ex.id === exerciseId);
-
-          if (exerciseDef) {
-            newExercisesForSession.push({ ...exerciseDef, is_bonus_exercise: false }); // Assume not bonus for ad-hoc or if not explicitly stored
-            
-            const setsForExercise: SetLogState[] = sortedDrafts.map(draft => ({
-              id: draft.set_log_id || null,
-              created_at: null, // Will be populated on save
-              session_id: draft.session_id,
-              exercise_id: draft.exercise_id,
-              weight_kg: draft.weight_kg,
-              reps: draft.reps,
-              reps_l: draft.reps_l,
-              reps_r: draft.reps_r,
-              time_seconds: draft.time_seconds,
-              is_pb: draft.is_pb || false,
-              isSaved: draft.isSaved || false,
-              isPR: draft.is_pb || false,
-              lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null, // Will be fetched by useExerciseSets
-            }));
-            newExercisesWithSets[exerciseId] = setsForExercise;
-
-            // If all sets for this exercise are saved, mark as completed
-            if (setsForExercise.every(set => set.isSaved)) {
-              newCompletedExercises.add(exerciseId);
-            }
-
-            // Try to infer session ID and start time from drafts
-            if (drafts[0].session_id && !loadedSessionId) {
-              loadedSessionId = drafts[0].session_id;
-            }
-          }
-        }
-        // If a session ID was loaded from drafts, try to get its start time
-        if (loadedSessionId) {
-          const sessionRecord = await db.workout_sessions.get(loadedSessionId);
-          if (sessionRecord?.session_date) {
-            loadedSessionStartTime = new Date(sessionRecord.session_date);
-          }
-        }
-      } else {
-        // No drafts found for this workout. Initialize based on workout type.
-        if (activeWorkout.id !== 'ad-hoc') {
-          // For T-Path workouts, load from cache
-          const cachedExercises = workoutExercisesCache[activeWorkout.id] || [];
-          newExercisesForSession.push(...cachedExercises);
-          // Initialize empty sets for these exercises
-          cachedExercises.forEach(ex => {
-            newExercisesWithSets[ex.id] = Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({
-              id: null, created_at: null, session_id: null, exercise_id: ex.id,
-              weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null,
-              is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
-            }));
-          });
-        }
-        // For ad-hoc, newExercisesForSession and newExercisesWithSets remain empty
-      }
-
-      setExercisesForSession(newExercisesForSession);
-      setExercisesWithSets(newExercisesWithSets);
-      setCompletedExercises(newCompletedExercises);
-      setCurrentSessionId(loadedSessionId);
-      setSessionStartTime(loadedSessionStartTime);
-    };
-
-    loadDraftsForActiveWorkout();
-  }, [session?.user.id, activeWorkout, currentSessionId, allAvailableExercises, workoutExercisesCache, _resetLocalState]); // Added _resetLocalState to dependencies
-
-  // MODIFIED: createWorkoutSessionInDb now updates existing drafts
   const createWorkoutSessionInDb = useCallback(async (templateName: string, firstSetTimestamp: string): Promise<string> => {
     if (!session) throw new Error("User not authenticated.");
     setIsCreatingSession(true);
@@ -269,12 +152,6 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
       return;
     }
 
-    // Check if exercise is already in session
-    if (exercisesForSession.some(ex => ex.id === exercise.id)) {
-      toast.info(`'${exercise.name}' is already in this workout session.`);
-      return;
-    }
-
     let lastWeight = null, lastReps = null, lastTimeSeconds = null, lastRepsL = null, lastRepsR = null;
     
     const { data: lastExerciseSets, error: rpcError } = await supabase.rpc('get_last_exercise_sets_for_exercise', {
@@ -306,14 +183,13 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
       const draftPayload: LocalDraftSetLog = {
         exercise_id: exercise.id,
         set_index: setIndex,
-        session_id: currentSessionId, // This will be null for ad-hoc until first set is saved
+        session_id: currentSessionId,
         weight_kg: newSet.weight_kg,
         reps: newSet.reps,
         reps_l: newSet.reps_l,
         reps_r: newSet.reps_r,
         time_seconds: newSet.time_seconds,
         isSaved: false, set_log_id: null, // NEW
-        is_pb: false,
       };
       console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in addExerciseToSession put: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
       db.draft_set_logs.put(draftPayload);
@@ -321,7 +197,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
     });
 
     setExercisesWithSets(prev => ({ ...prev, [exercise.id]: newSetsForExercise }));
-  }, [currentSessionId, session, supabase, exercisesForSession]);
+  }, [currentSessionId, session, supabase]);
 
   const removeExerciseFromSession = useCallback(async (exerciseId: string) => {
     if (!isValidId(exerciseId)) {
@@ -336,7 +212,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
     // Delete all drafts for this exercise and session
     const draftsToDelete = await db.draft_set_logs
       .where('exercise_id').equals(exerciseId)
-      .filter(draft => draft.session_id === currentSessionId) // Filter by currentSessionId (can be null for ad-hoc)
+      .filter(draft => draft.session_id === currentSessionId)
       .toArray();
     
     if (draftsToDelete.length > 0) {
@@ -353,36 +229,30 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
       return;
     }
 
-    // Check if new exercise is already in session
-    if (exercisesForSession.some(ex => ex.id === newExercise.id)) {
-      toast.info(`'${newExercise.name}' is already in this workout session.`);
-      return;
-    }
-
     setExercisesForSession(prev => prev.map(ex => ex.id === oldExerciseId ? newExercise : ex));
     setExercisesWithSets(prev => {
       const newSets = { ...prev };
-      // Create new sets for the substituted exercise
-      const newSetsForExercise: SetLogState[] = Array.from({ length: DEFAULT_INITIAL_SETS }).map((_, setIndex) => {
-        const newSet: SetLogState = { id: null, created_at: null, session_id: currentSessionId, exercise_id: newExercise.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null };
-        const draftPayload: LocalDraftSetLog = {
-          exercise_id: newExercise.id,
-          set_index: setIndex,
-          session_id: currentSessionId, // This will be null for ad-hoc until first set is saved
-          weight_kg: newSet.weight_kg,
-          reps: newSet.reps,
-          reps_l: newSet.reps_l,
-          reps_r: newSet.reps_r,
-          time_seconds: newSet.time_seconds,
-          isSaved: false, set_log_id: null, // NEW
-          is_pb: false,
-        };
-        console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in substituteExercise put: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
-        db.draft_set_logs.put(draftPayload);
-        return newSet;
-      });
-      newSets[newExercise.id] = newSetsForExercise;
-      delete newSets[oldExerciseId]; // Remove old exercise's sets
+      if (!newSets[newExercise.id]) {
+        const newSetsForExercise: SetLogState[] = Array.from({ length: DEFAULT_INITIAL_SETS }).map((_, setIndex) => {
+          const newSet: SetLogState = { id: null, created_at: null, session_id: currentSessionId, exercise_id: newExercise.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null };
+          const draftPayload: LocalDraftSetLog = {
+            exercise_id: newExercise.id,
+            set_index: setIndex,
+            session_id: currentSessionId,
+            weight_kg: newSet.weight_kg,
+            reps: newSet.reps,
+            reps_l: newSet.reps_l,
+            reps_r: newSet.reps_r,
+            time_seconds: newSet.time_seconds,
+            isSaved: false, set_log_id: null, // NEW
+          };
+          console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in substituteExercise put: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
+          db.draft_set_logs.put(draftPayload);
+          return newSet;
+        });
+        newSets[newExercise.id] = newSetsForExercise;
+      }
+      delete newSets[oldExerciseId];
       return newSets;
     });
     setCompletedExercises((prev: Set<string>) => { const newCompleted = new Set(prev); newCompleted.delete(oldExerciseId); return newCompleted; });
@@ -390,7 +260,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
     // Delete drafts for the old exercise
     const draftsToDelete = await db.draft_set_logs
       .where('exercise_id').equals(oldExerciseId)
-      .filter(draft => draft.session_id === currentSessionId) // Filter by currentSessionId (can be null for ad-hoc)
+      .filter(draft => draft.session_id === currentSessionId)
       .toArray();
     
     if (draftsToDelete.length > 0) {
@@ -398,18 +268,10 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
       console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1])), `Invalid draft keys in substituteExercise bulkDelete: ${JSON.stringify(keysToDelete)}`);
       await db.draft_set_logs.bulkDelete(keysToDelete);
     }
-  }, [currentSessionId, exercisesForSession]);
+  }, [currentSessionId]);
 
   const updateExerciseSets = useCallback((exerciseId: string, newSets: SetLogState[]) => {
     setExercisesWithSets(prev => ({ ...prev, [exerciseId]: newSets }));
-  }, []);
-
-  const markExerciseAsCompleted = useCallback((exerciseId: string, isNewPR: boolean) => {
-    setCompletedExercises(prev => {
-      const newCompleted = new Set(prev);
-      newCompleted.add(exerciseId);
-      return newCompleted;
-    });
   }, []);
 
   const finishWorkoutSession = useCallback(async (): Promise<string | null> => {
