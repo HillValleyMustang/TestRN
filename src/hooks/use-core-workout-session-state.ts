@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, Dispatch, SetStateAction } from 'react'; // Import Dispatch, SetStateAction
+import { useState, useCallback, useEffect, useMemo, Dispatch, SetStateAction } from 'react'; // Import Dispatch, SetStateAction
 import { Tables, SetLogState, WorkoutExercise } from '@/types/supabase';
 
 type TPath = Tables<'t_paths'>;
@@ -33,6 +33,7 @@ interface UseCoreWorkoutSessionStateReturn {
   setCompletedExercises: Dispatch<SetStateAction<Set<string>>>; // Updated type
   setIsCreatingSession: Dispatch<SetStateAction<boolean>>; // Updated type
   _resetLocalState: () => void; // Internal reset for local state only
+  resetWorkoutSession: () => Promise<void>; // Added resetWorkoutSession
 }
 
 export const useCoreWorkoutSessionState = (): UseCoreWorkoutSessionStateReturn => {
@@ -65,6 +66,14 @@ export const useCoreWorkoutSessionState = (): UseCoreWorkoutSessionStateReturn =
     setIsCreatingSession(false);
   }, []);
 
+  // Placeholder for resetWorkoutSession, as its actual implementation is in useWorkoutSessionPersistence
+  const resetWorkoutSession = useCallback(async () => {
+    console.warn("resetWorkoutSession called from useCoreWorkoutSessionState. This should be handled by useWorkoutSessionPersistence.");
+    // In a real scenario, this might trigger a more global reset or clear cache.
+    // For now, we'll just reset the local state.
+    _resetLocalState();
+  }, [_resetLocalState]);
+
   return {
     activeWorkout,
     exercisesForSession,
@@ -83,5 +92,6 @@ export const useCoreWorkoutSessionState = (): UseCoreWorkoutSessionStateReturn =
     setCompletedExercises,
     setIsCreatingSession,
     _resetLocalState,
+    resetWorkoutSession,
   };
 };

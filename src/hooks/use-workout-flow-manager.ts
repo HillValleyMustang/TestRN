@@ -79,6 +79,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     setCompletedExercises,
     setIsCreatingSession, // Corrected setter name
     _resetLocalState,
+    resetWorkoutSession, // Added resetWorkoutSession
   } = useWorkoutSessionState({ allAvailableExercises: [], workoutExercisesCache: {} }); // Placeholder values, will be updated
 
   const {
