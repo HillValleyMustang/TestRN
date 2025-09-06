@@ -98,29 +98,31 @@ export const PreviousWorkoutsCard = () => {
 
               return (
                 <Card key={sessionItem.id} className={cn("border-2", workoutBorderClass)}>
-                  <CardHeader>
-                    <CardTitle className={cn("text-base", workoutTextClass)}>{workoutName}</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      {sessionItem.completed_at ? formatTimeAgo(new Date(sessionItem.completed_at)) : 'N/A'}
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                      <span className="flex items-center gap-1">
-                        <Dumbbell className="h-4 w-4" /> {sessionItem.exercise_count} Exercises
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Timer className="h-4 w-4" /> {sessionItem.duration_string || 'N/A'}
-                      </span>
+                  <div className="flex items-center justify-between p-3">
+                    <div className="flex flex-col">
+                      <CardTitle className={cn("text-base font-semibold leading-tight", workoutTextClass)}>{workoutName}</CardTitle>
+                      <p className="text-xs text-muted-foreground leading-tight">
+                        {sessionItem.completed_at ? formatTimeAgo(new Date(sessionItem.completed_at)) : 'N/A'}
+                      </p>
                     </div>
                     <Button
                       variant="outline"
-                      size="sm"
+                      size="icon" // Changed to icon size
                       onClick={() => router.push(`/workout-summary/${sessionItem.id}`)}
-                      className="w-full"
+                      title="View Summary" // Add title for accessibility
                     >
-                      <Eye className="h-4 w-4 mr-2" /> View Summary
+                      <Eye className="h-4 w-4" />
                     </Button>
+                  </div>
+                  <CardContent className="pt-0 pb-3 px-3"> {/* Adjusted padding */}
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground"> {/* Smaller text, reduced gap */}
+                      <span className="flex items-center gap-1">
+                        <Dumbbell className="h-3 w-3" /> {sessionItem.exercise_count} Exercises
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Timer className="h-3 w-3" /> {sessionItem.duration_string || 'N/A'}
+                      </span>
+                    </div>
                   </CardContent>
                 </Card>
               );

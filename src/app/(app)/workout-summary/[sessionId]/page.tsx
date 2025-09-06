@@ -27,6 +27,7 @@ type ExerciseGroup = {
   id: string;
 };
 
+// Explicitly define the PageProps interface for this component
 interface WorkoutSummaryPageProps {
   params: {
     sessionId: string;
