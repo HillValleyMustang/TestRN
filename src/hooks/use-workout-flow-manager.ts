@@ -96,7 +96,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     substituteExercise,
     updateExerciseSets,
     createWorkoutSessionInDb,
-    finishWorkoutSession,
+    finishWorkoutSession: finishWorkoutSessionState, // Renamed to avoid conflict
   } = useWorkoutSessionState({ allAvailableExercises, workoutExercisesCache }); // Pass workoutExercisesCache
 
   useEffect(() => {
@@ -224,7 +224,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     groupedTPaths,
     isCreatingSession,
     createWorkoutSessionInDb,
-    finishWorkoutSession,
+    finishWorkoutSession: finishWorkoutSessionState, // Expose the renamed function
     refreshAllData,
     // New properties for navigation warning
     showUnsavedChangesDialog,

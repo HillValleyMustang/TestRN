@@ -210,7 +210,7 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
         <DialogHeader className="p-6 pb-4 border-b flex-shrink-0">
           <DialogTitle>Workout Summary</DialogTitle>
         </DialogHeader>
-        <ScrollArea className="flex-grow">
+        <ScrollArea className="flex-grow overflow-y-auto"> {/* Added overflow-y-auto */}
           <div className="p-6 space-y-6">
             {loading && <p>Loading workout summary...</p>}
             {error && <p className="text-destructive">{error}</p>}

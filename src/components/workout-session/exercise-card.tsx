@@ -99,11 +99,11 @@ export const ExerciseCard = ({
     handleSaveSet,
     handleEditSet,
     handleDeleteSet,
-    handleSaveExercise,
+    handleCompleteExercise, // Renamed from handleSaveExercise
     exercisePR,
     loadingPR,
     handleSuggestProgression,
-    isAllSetsSaved,
+    isExerciseCompleted, // Renamed from isAllSetsSaved
   } = useExerciseSets({
     exerciseId: exercise.id,
     exerciseName: exercise.name,
@@ -141,8 +141,8 @@ export const ExerciseCard = ({
     setTimeLeft(defaultRestTime);
   };
 
-  const handleCompleteExercise = async () => {
-    const { success, isNewPR } = await handleSaveExercise();
+  const handleCompleteExerciseClick = async () => { // Renamed to avoid conflict with hook return
+    const { success, isNewPR } = await handleCompleteExercise();
     if (success) {
       setIsExpanded(false);
     }
@@ -193,7 +193,7 @@ export const ExerciseCard = ({
 
   return (
     <React.Fragment>
-      <Card className={cn("mb-6 border-2 relative", workoutBorderClass, { "opacity-70": isAllSetsSaved })}>
+      <Card className={cn("mb-6 border-2 relative", workoutBorderClass, { "opacity-70": isExerciseCompleted })}>
         <CardHeader 
           className="p-0 cursor-pointer relative"
           onClick={() => setIsExpanded(!isExpanded)}
@@ -202,7 +202,7 @@ export const ExerciseCard = ({
             <div className="flex items-start justify-between">
               <div className="flex flex-col text-left">
                 <div className="flex items-center gap-2">
-                  {isAllSetsSaved && hasAchievedPRInSession && (
+                  {isExerciseCompleted && hasAchievedPRInSession && (
                     <Trophy className="h-5 w-5 text-yellow-500 fill-yellow-500" />
                   )}
                   <CardTitle className={cn("text-lg font-semibold leading-none", workoutColorClass)}>
@@ -223,7 +223,7 @@ export const ExerciseCard = ({
                 />
               )}
               <div className="flex items-center gap-2 flex-shrink-0">
-                {isAllSetsSaved && (
+                {isExerciseCompleted && (
                   <Check className="h-8 w-8 text-green-500" />
                 )}
                 <DropdownMenu>
@@ -277,17 +277,17 @@ export const ExerciseCard = ({
                             <Trophy className="h-3 w-3" /> PR!
                           </span>
                         )}
-                        {!set.isSaved && !isAllSetsSaved && (
-                          <Button variant="ghost" size="icon" onClick={() => handleSaveSetAndStartTimer(setIndex)} disabled={isAllSetsSaved} title="Save Set" className="h-6 w-6">
+                        {!set.isSaved && !isExerciseCompleted && (
+                          <Button variant="ghost" size="icon" onClick={() => handleSaveSetAndStartTimer(setIndex)} disabled={isExerciseCompleted} title="Save Set" className="h-6 w-6">
                             <Save className="h-4 w-4" />
                           </Button>
                         )}
-                        {set.isSaved && !isAllSetsSaved && (
+                        {set.isSaved && !isExerciseCompleted && (
                           <Button variant="ghost" size="icon" onClick={() => handleEditSet(setIndex)} title="Edit Set" className="h-6 w-6">
                             <Edit className="h-4 w-4" />
                           </Button>
                         )}
-                        {!isAllSetsSaved && (
+                        {!isExerciseCompleted && (
                           <Button variant="ghost" size="icon" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" className="h-6 w-6">
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
@@ -305,7 +305,7 @@ export const ExerciseCard = ({
                             placeholder="kg"
                             value={convertWeight(set.weight_kg, 'kg', preferredWeightUnit as 'kg' | 'lbs') ?? ''}
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange(setIndex, 'weight_kg', e.target.value)}
-                            disabled={set.isSaved || isAllSetsSaved}
+                            disabled={set.isSaved || isExerciseCompleted}
                             className="w-20 text-center h-8 text-xs"
                           />
                           <span className="text-muted-foreground text-xs">x</span>
@@ -317,7 +317,7 @@ export const ExerciseCard = ({
                                 placeholder="L"
                                 value={set.reps_l ?? ''}
                                 onChange={(e) => handleInputChange(setIndex, 'reps_l', e.target.value)}
-                                disabled={set.isSaved || isAllSetsSaved}
+                                disabled={set.isSaved || isExerciseCompleted}
                                 className="w-20 h-8 text-xs"
                               />
                               <Input
@@ -326,7 +326,7 @@ export const ExerciseCard = ({
                                 placeholder="R"
                                 value={set.reps_r ?? ''}
                                 onChange={(e) => handleInputChange(setIndex, 'reps_r', e.target.value)}
-                                disabled={set.isSaved || isAllSetsSaved}
+                                disabled={set.isSaved || isExerciseCompleted}
                                 className="w-20 h-8 text-xs"
                               />
                             </>
@@ -337,7 +337,7 @@ export const ExerciseCard = ({
                               placeholder="reps"
                               value={set.reps ?? ''}
                               onChange={(e) => handleInputChange(setIndex, 'reps', e.target.value)}
-                              disabled={set.isSaved || isAllSetsSaved}
+                              disabled={set.isSaved || isExerciseCompleted}
                               className="w-20 text-center h-8 text-xs"
                             />
                           )}
@@ -350,7 +350,7 @@ export const ExerciseCard = ({
                           placeholder="Time (seconds)"
                           value={set.time_seconds ?? ''}
                           onChange={(e) => handleInputChange(setIndex, 'time_seconds', e.target.value)}
-                          disabled={set.isSaved || isAllSetsSaved}
+                          disabled={set.isSaved || isExerciseCompleted}
                           className="flex-1 h-8 text-xs"
                         />
                       )}
@@ -364,11 +364,11 @@ export const ExerciseCard = ({
             <div className="flex justify-between items-center mt-4 gap-2">
               <div className="flex gap-2">
                 {sets.length < 5 && (
-                  <Button variant="outline" onClick={handleAddSet} disabled={isAllSetsSaved} size="icon" className="h-8 w-8">
+                  <Button variant="outline" onClick={handleAddSet} disabled={isExerciseCompleted} size="icon" className="h-8 w-8">
                     <Plus className="h-4 w-4" />
                   </Button>
                 )}
-                <Button variant="outline" onClick={handleSuggestProgression} disabled={isAllSetsSaved} size="icon" className="h-8 w-8">
+                <Button variant="outline" onClick={handleSuggestProgression} disabled={isExerciseCompleted} size="icon" className="h-8 w-8">
                   <Lightbulb className="h-4 w-4 text-orange-500" />
                 </Button>
               </div>
@@ -393,14 +393,14 @@ export const ExerciseCard = ({
                 className={cn(
                   "w-full",
                   {
-                    "bg-orange-500 text-black hover:bg-orange-600": hasAnyInput && !isAllSetsSaved,
-                    "bg-green-700 text-white hover:bg-green-800": isAllSetsSaved,
+                    "bg-orange-500 text-black hover:bg-orange-600": hasAnyInput && !isExerciseCompleted,
+                    "bg-green-700 text-white hover:bg-green-800": isExerciseCompleted,
                   }
                 )}
-                onClick={handleCompleteExercise}
+                onClick={handleCompleteExerciseClick}
                 disabled={!hasAnyInput}
               >
-                {isAllSetsSaved ? (
+                {isExerciseCompleted ? (
                   <span className="flex items-center">
                     Saved
                     {hasAchievedPRInSession && <Trophy className="h-4 w-4 ml-2 fill-white text-white" />}

@@ -38,10 +38,10 @@ export const ActionHub = () => {
   return (
     <>
       <Card className="p-0 border rounded-xl bg-card"> {/* Converted div to Card, removed padding */}
-        <CardHeader className="pb-4 text-center"> {/* Added CardHeader, removed bottom padding */}
+        <CardHeader className="pb-2 text-center"> {/* Adjusted padding-bottom */}
           <CardTitle className="text-xl font-semibold">Quick Links</CardTitle> {/* Added CardTitle */}
         </CardHeader>
-        <CardContent className="grid grid-cols-3 grid-rows-2 gap-3 p-4"> {/* Moved padding to CardContent */}
+        <CardContent className="grid grid-cols-3 grid-rows-2 gap-3 p-4 pt-2"> {/* Adjusted padding-top */}
           <ActionButton
             title="Log Activity"
             icon={<Activity className="h-5 w-5 text-chart-2" strokeWidth={2.5} />}

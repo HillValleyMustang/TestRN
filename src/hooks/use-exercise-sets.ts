@@ -42,11 +42,11 @@ interface UseExerciseSetsReturn {
   handleSaveSet: (setIndex: number) => Promise<void>;
   handleEditSet: (setIndex: number) => void;
   handleDeleteSet: (setIndex: number) => Promise<void>;
-  handleSaveExercise: () => Promise<{ success: boolean; isNewPR: boolean }>;
+  handleCompleteExercise: () => Promise<{ success: boolean; isNewPR: boolean }>; // Renamed from handleSaveExercise
   exercisePR: UserExercisePR | null;
   loadingPR: boolean;
   handleSuggestProgression: () => Promise<void>;
-  isAllSetsSaved: boolean; // Added to return type
+  isExerciseCompleted: boolean; // Renamed from isAllSetsSaved
 }
 
 const MAX_SETS = 5;
@@ -58,6 +58,15 @@ const isValidId = (id: string | null | undefined): id is string => {
 
 const isValidDraftKey = (exerciseId: string | null | undefined, setIndex: number | null | undefined): boolean => {
   return isValidId(exerciseId) && typeof setIndex === 'number' && setIndex >= 0;
+};
+
+// NEW: Helper function to check if a set has any user input
+const hasUserInput = (set: SetLogState): boolean => {
+  return (set.weight_kg !== null && set.weight_kg > 0) ||
+         (set.reps !== null && set.reps > 0) ||
+         (set.reps_l !== null && set.reps_l > 0) ||
+         (set.reps_r !== null && set.reps_r > 0) ||
+         (set.time_seconds !== null && set.time_seconds > 0);
 };
 
 export const useExerciseSets = ({
@@ -109,8 +118,8 @@ export const useExerciseSets = ({
   const [sets, setSets] = useState<SetLogState[]>([]);
   const loadingDrafts = drafts === undefined;
 
-  // Derived state: true if all sets have been saved
-  const isAllSetsSaved = useMemo(() => {
+  // Derived state: true if the exercise is considered completed (all sets saved)
+  const isExerciseCompleted = useMemo(() => {
     if (!sets || sets.length === 0) return false;
     return sets.every(set => set.isSaved);
   }, [sets]);
@@ -253,7 +262,7 @@ export const useExerciseSets = ({
         } else {
           updatedSet[field] = parsedValue;
         }
-        updatedSet.isSaved = false;
+        updatedSet.isSaved = false; // Mark as unsaved when input changes
 
         const draftPayload: LocalDraftSetLog = {
           exercise_id: exerciseId, set_index: setIndex, session_id: propCurrentSessionId,
@@ -273,6 +282,10 @@ export const useExerciseSets = ({
         if (!sets || !sets[setIndex]) return;
 
         const currentSet = sets[setIndex];
+        if (!hasUserInput(currentSet)) {
+          toast.error(`Set ${setIndex + 1}: No data to save.`);
+          return;
+        }
 
         let sessionIdToUse = propCurrentSessionId;
         if (!sessionIdToUse) {
@@ -285,12 +298,13 @@ export const useExerciseSets = ({
           }
         }
 
+        // Only check PR for the individual set being saved
         let isNewSetPR = false;
-        let localCurrentExercisePR: UserExercisePR | null = exercisePR; // Use local variable for PR state
+        let localCurrentExercisePR: UserExercisePR | null = exercisePR;
         if (session?.user.id) {
           const { isNewPR, updatedPR } = await checkAndSaveSetPR(currentSet, session.user.id, localCurrentExercisePR);
           isNewSetPR = isNewPR;
-          localCurrentExercisePR = updatedPR; // Update local PR state for next iteration (if any)
+          localCurrentExercisePR = updatedPR;
           console.log(`[useExerciseSets] handleSaveSet: Set ${setIndex + 1} PR check result: isNewPR=${isNewPR}, updatedPR=`, updatedPR);
         }
 
@@ -299,7 +313,7 @@ export const useExerciseSets = ({
           const draftPayload: LocalDraftSetLog = {
             exercise_id: exerciseId, set_index: setIndex, session_id: sessionIdToUse,
             weight_kg: savedSet.weight_kg, reps: savedSet.reps, reps_l: savedSet.reps_l, reps_r: savedSet.reps_r, time_seconds: savedSet.time_seconds,
-            isSaved: true, set_log_id: savedSet.id, is_pb: savedSet.is_pb || false, // Correctly set is_pb here
+            isSaved: true, set_log_id: savedSet.id, is_pb: savedSet.is_pb || false,
           };
           console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in handleSaveSet update: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
           await db.draft_set_logs.put(draftPayload);
@@ -325,7 +339,7 @@ export const useExerciseSets = ({
         }
         if (!sets || !sets[setIndex]) return;
 
-        const updatedSet = { ...sets[setIndex], isSaved: false };
+        const updatedSet = { ...sets[setIndex], isSaved: false }; // Mark as unsaved to allow editing
         const draftPayload: LocalDraftSetLog = {
           exercise_id: exerciseId, set_index: setIndex, session_id: propCurrentSessionId,
           weight_kg: updatedSet.weight_kg, reps: updatedSet.reps, reps_l: updatedSet.reps_l, reps_r: updatedSet.reps_r, time_seconds: updatedSet.time_seconds,
@@ -367,19 +381,19 @@ export const useExerciseSets = ({
         }
       }, [sets, deleteSetFromDb, exerciseId, propCurrentSessionId]);
 
-      const handleSaveExercise = useCallback(async (): Promise<{ success: boolean; isNewPR: boolean }> => {
-        console.assert(isValidId(exerciseId), `Invalid exerciseId in handleSaveExercise: ${exerciseId}`);
+      const handleCompleteExercise = useCallback(async (): Promise<{ success: boolean; isNewPR: boolean }> => { // Renamed
+        console.assert(isValidId(exerciseId), `Invalid exerciseId in handleCompleteExercise: ${exerciseId}`);
         if (!isValidId(exerciseId)) {
-          toast.error("Cannot save exercise: exercise information is incomplete.");
+          toast.error("Cannot complete exercise: exercise information is incomplete.");
           return { success: false, isNewPR: false };
         }
         if (!sets) return { success: false, isNewPR: false };
 
         let currentSessionIdToUse = propCurrentSessionId;
 
-        const hasAnyData = sets.some(s => (s.weight_kg ?? 0) > 0 || (s.reps ?? 0) > 0 || (s.time_seconds ?? 0) > 0 || (s.reps_l ?? 0) > 0 || (s.reps_r ?? 0) > 0);
+        const hasAnyData = sets.some(s => hasUserInput(s));
         if (!hasAnyData) {
-          toast.error("No data to save for this exercise.");
+          toast.error("No data to save for this exercise. Please log at least one set.");
           return { success: false, isNewPR: false };
         }
 
@@ -387,7 +401,7 @@ export const useExerciseSets = ({
           try {
             const newSessionId = await onFirstSetSaved(new Date().toISOString());
             currentSessionIdToUse = newSessionId;
-            console.log(`[useExerciseSets] handleSaveExercise: New session created with ID: ${currentSessionIdToUse}`);
+            console.log(`[useExerciseSets] handleCompleteExercise: New session created with ID: ${currentSessionIdToUse}`);
           } catch (err) {
             toast.error("Failed to start workout session. Please try again.");
             return { success: false, isNewPR: false };
@@ -400,13 +414,13 @@ export const useExerciseSets = ({
 
         for (let i = 0; i < sets.length; i++) {
           const currentSet = sets[i];
-          const hasDataForSet = (currentSet.weight_kg ?? 0) > 0 || (currentSet.reps ?? 0) > 0 || (currentSet.time_seconds ?? 0) > 0 || (currentSet.reps_l ?? 0) > 0 || (currentSet.reps_r ?? 0) > 0;
+          const hasDataForSet = hasUserInput(currentSet);
 
           if (hasDataForSet && !currentSet.isSaved) {
             const { isNewPR, updatedPR } = await checkAndSaveSetPR(currentSet, session!.user.id, localCurrentExercisePR); // Pass local PR state
             if (isNewPR) anySetIsPR = true;
             localCurrentExercisePR = updatedPR; // Update local PR state for next iteration
-            console.log(`[useExerciseSets] handleSaveExercise: Processing set ${i + 1}. isNewPR=${isNewPR}, anySetIsPR (cumulative)=${anySetIsPR}`);
+            console.log(`[useExerciseSets] handleCompleteExercise: Processing set ${i + 1}. isNewPR=${isNewPR}, anySetIsPR (cumulative)=${anySetIsPR}`);
 
             const { savedSet } = await saveSetToDb({ ...currentSet, is_pb: isNewPR }, i, currentSessionIdToUse);
             if (savedSet) {
@@ -415,27 +429,27 @@ export const useExerciseSets = ({
                 weight_kg: savedSet.weight_kg, reps: savedSet.reps, reps_l: savedSet.reps_l, reps_r: savedSet.reps_r, time_seconds: savedSet.time_seconds,
                 isSaved: true, set_log_id: savedSet.id, is_pb: savedSet.is_pb || false,
               };
-              console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in handleSaveExercise update: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
+              console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in handleCompleteExercise update: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
               await db.draft_set_logs.put(draftPayload);
-              console.log(`[useExerciseSets] handleSaveExercise: Set ${i + 1} saved locally with is_pb=${savedSet.is_pb}. Draft updated.`);
+              console.log(`[useExerciseSets] handleCompleteExercise: Set ${i + 1} saved locally with is_pb=${savedSet.is_pb}. Draft updated.`);
             } else {
               hasError = true;
-              console.error(`[useExerciseSets] handleSaveExercise: Failed to save set ${i + 1}.`);
+              console.error(`[useExerciseSets] handleCompleteExercise: Failed to save set ${i + 1}.`);
             }
           } else if (currentSet.is_pb) {
             // If the set was already saved and was a PR, ensure it contributes to anySetIsPR
             anySetIsPR = true;
-            console.log(`[useExerciseSets] handleSaveExercise: Set ${i + 1} was already a PR. anySetIsPR (cumulative)=${anySetIsPR}`);
+            console.log(`[useExerciseSets] handleCompleteExercise: Set ${i + 1} was already a PR. anySetIsPR (cumulative)=${anySetIsPR}`);
           }
         }
 
         if (hasError) {
-          console.error(`[useExerciseSets] handleSaveExercise: Encountered errors while saving sets.`);
+          console.error(`[useExerciseSets] handleCompleteExercise: Encountered errors while saving sets.`);
           return { success: false, isNewPR: false };
         }
 
         try {
-          console.log(`[useExerciseSets] handleSaveExercise: Calling onExerciseCompleted for ${exerciseId} with anySetIsPR: ${anySetIsPR}`);
+          console.log(`[useExerciseSets] handleCompleteExercise: Calling onExerciseCompleted for ${exerciseId} with anySetIsPR: ${anySetIsPR}`);
           await onExerciseCompleted(exerciseId, anySetIsPR);
           return { success: true, isNewPR: anySetIsPR };
         } catch (err: any) {
@@ -487,10 +501,10 @@ export const useExerciseSets = ({
         handleSaveSet,
         handleEditSet,
         handleDeleteSet,
-        handleSaveExercise,
+        handleCompleteExercise, // Renamed
         exercisePR,
         loadingPR,
         handleSuggestProgression,
-        isAllSetsSaved, // Return the new derived state
+        isExerciseCompleted, // Renamed
       };
     };

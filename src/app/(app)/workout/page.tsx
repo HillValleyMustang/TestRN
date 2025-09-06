@@ -5,9 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { useWorkoutFlowManager } from '@/hooks/use-workout-flow-manager';
 import { WorkoutSelector } from '@/components/workout-flow/workout-selector';
-// Removed: import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal'; // Modal is now a page
-// Removed: import { UnsavedChangesDialog } from '@/components/workout-flow/unsaved-changes-dialog'; // Dialog is now in layout
-// Removed: import { WorkoutNavigationProvider } from '@/components/workout-flow/workout-aware-link'; // Provider is now in layout
+import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal'; // Import the modal
 
 export default function WorkoutPage() {
   const { session, supabase } = useSession();
@@ -16,31 +14,23 @@ export default function WorkoutPage() {
   const initialWorkoutId = searchParams.get('workoutId');
   const isQuickStart = !!initialWorkoutId; // Determine if it's a quick start
 
-  // Removed: summarySessionId state as the summary is now a separate page
-  // Removed: showUnsavedChangesDialog state
-  // Removed: pendingNavigationPath state
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [summarySessionId, setSummarySessionId] = useState<string | null>(null);
 
   const workoutFlowManager = useWorkoutFlowManager({
     initialWorkoutId: initialWorkoutId,
     router,
   });
 
-  // Removed: Browser-level warning useEffect (moved to layout)
-  // Removed: In-app navigation warning handlers (moved to useWorkoutFlowManager and layout)
-
-  const handleWorkoutSelect = (workoutId: string | null) => {
-    workoutFlowManager.selectWorkout(workoutId);
-  };
-
   const handleFinishAndShowSummary = async () => {
     const finishedSessionId = await workoutFlowManager.finishWorkoutSession();
     if (finishedSessionId) {
-      router.push(`/workout-summary/${finishedSessionId}`); // Navigate to the new summary page
+      setSummarySessionId(finishedSessionId);
+      setShowSummaryModal(true);
     }
   };
 
   return (
-    // Removed: WorkoutNavigationProvider wrapper (moved to layout)
     <div className="p-2 sm:p-4">
       <header className="mb-4 text-center">
         <h1 className="text-3xl font-bold">Workout Session</h1>
@@ -50,14 +40,17 @@ export default function WorkoutPage() {
       </header>
       <WorkoutSelector 
         {...workoutFlowManager} 
-        onWorkoutSelect={handleWorkoutSelect}
+        onWorkoutSelect={() => {}} // No longer directly used by WorkoutSelector
         loadingWorkoutFlow={workoutFlowManager.loading}
         createWorkoutSessionInDb={workoutFlowManager.createWorkoutSessionInDb}
         finishWorkoutSession={handleFinishAndShowSummary}
         isQuickStart={isQuickStart} // Pass the new prop here
       />
-      {/* Removed WorkoutSummaryModal rendering */}
+      <WorkoutSummaryModal
+        sessionId={summarySessionId}
+        open={showSummaryModal}
+        onOpenChange={setShowSummaryModal}
+      />
     </div>
-    // Removed: UnsavedChangesDialog rendering (moved to layout)
   );
 }
