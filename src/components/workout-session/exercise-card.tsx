@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn, getWorkoutColorClass, getWorkoutIcon } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Separator } from '@/components/ui/separator'; // Import Separator
+import { Separator } from '@/components/ui/separator';
 
 type Profile = Tables<'profiles'>;
 
@@ -33,12 +33,11 @@ interface ExerciseCardProps {
   currentSessionId: string | null;
   supabase: SupabaseClient;
   onUpdateGlobalSets: (exerciseId: string, newSets: SetLogState[]) => void;
-  // Removed initialSets prop
   onSubstituteExercise?: (oldExerciseId: string, newExercise: WorkoutExercise) => void;
   onRemoveExercise?: (exerciseId: string) => void;
   workoutTemplateName: string;
-  onFirstSetSaved: (timestamp: string) => Promise<string>; // Updated prop type
-  onExerciseCompleted: (exerciseId: string, isNewPR: boolean) => void; // New prop for parent
+  onFirstSetSaved: (timestamp: string) => Promise<string>;
+  onExerciseCompleted: (exerciseId: string, isNewPR: boolean) => void;
 }
 
 export const ExerciseCard = ({
@@ -47,7 +46,6 @@ export const ExerciseCard = ({
   currentSessionId,
   supabase,
   onUpdateGlobalSets,
-  // Removed initialSets prop
   onSubstituteExercise,
   onRemoveExercise,
   workoutTemplateName,
@@ -60,20 +58,18 @@ export const ExerciseCard = ({
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeLeft, setTimeLeft] = useState(defaultRestTime);
   const timerRef = React.useRef<NodeJS.Timeout | null>(null);
-  const [isExerciseSaved, setIsExerciseSaved] = useState(false); // New state for exercise completion
-  const [isExpanded, setIsExpanded] = useState(false); // New state for expand/collapse
-  const [justAchievedPR, setJustAchievedPR] = useState(false); // New state for PR trophy
+  const [isExerciseSaved, setIsExerciseSaved] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [justAchievedPR, setJustAchievedPR] = useState(false);
 
   const [showSwapDialog, setShowSwapDialog] = useState(false);
   const [showCantDoDialog, setShowCantDoDialog] = useState(false);
   const [showExerciseInfoDialog, setShowExerciseInfoDialog] = useState(false);
   const [showExerciseHistoryDialog, setShowExerciseHistoryDialog] = useState(false);
-  // Removed showExerciseProgressionDialog state
 
   const workoutColorClass = getWorkoutColorClass(workoutTemplateName, 'text');
   const workoutBorderClass = getWorkoutColorClass(workoutTemplateName, 'border');
   const workoutBgClass = getWorkoutColorClass(workoutTemplateName, 'bg');
-  // Removed WorkoutIcon as it's no longer needed
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -102,27 +98,29 @@ export const ExerciseCard = ({
     handleSaveSet,
     handleEditSet,
     handleDeleteSet,
-    handleSaveExercise, // New function
-    exercisePR, // New state
+    handleSaveExercise,
+    exercisePR,
     loadingPR,
-    handleSuggestProgression, // Added new function from hook
+    handleSuggestProgression,
   } = useExerciseSets({
     exerciseId: exercise.id,
-    exerciseName: exercise.name, // Pass exercise.name here
+    exerciseName: exercise.name,
     exerciseType: exercise.type,
     exerciseCategory: exercise.category,
     currentSessionId,
     supabase,
     onUpdateSets: onUpdateGlobalSets,
-    // Removed initialSets prop
     preferredWeightUnit,
-    onFirstSetSaved: onFirstSetSaved, // Pass the new prop
-    onExerciseComplete: async (id, isNewPR) => { // Implement the callback
+    onFirstSetSaved: onFirstSetSaved,
+    onExerciseComplete: async (id, isNewPR) => {
       setIsExerciseSaved(true);
+      if (isNewPR) {
+        setJustAchievedPR(true);
+      }
       onExerciseCompleted(id, isNewPR);
     },
-    workoutTemplateName, // Pass workoutTemplateName
-    exerciseNumber, // Pass exerciseNumber here
+    workoutTemplateName,
+    exerciseNumber,
   });
 
   const handleSaveSetAndStartTimer = async (setIndex: number) => {
@@ -147,7 +145,7 @@ export const ExerciseCard = ({
       if (isNewPR) {
         setJustAchievedPR(true);
       }
-      setIsExpanded(false); // Collapse the card on successful save
+      setIsExpanded(false);
     }
   };
 
@@ -186,7 +184,6 @@ export const ExerciseCard = ({
     return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  // Determine if any set has valid input data
   const hasAnyInput = sets.some(s => 
     (s.weight_kg !== null && s.weight_kg > 0) || 
     (s.reps !== null && s.reps > 0) || 
@@ -196,29 +193,29 @@ export const ExerciseCard = ({
   );
 
   return (
-    <React.Fragment> {/* Changed to React.Fragment */}
+    <React.Fragment>
       <Card className={cn("mb-6 border-2 relative", workoutBorderClass, { "opacity-70": isExerciseSaved })}>
         <CardHeader 
           className="p-0 cursor-pointer relative"
           onClick={() => setIsExpanded(!isExpanded)}
         >
           <div className="p-4 space-y-2">
-            {/* Top Row: Title and Subtitle */}
             <div className="flex items-start justify-between">
               <div className="flex flex-col text-left">
                 <div className="flex items-center gap-2">
+                  {isExerciseSaved && justAchievedPR && (
+                    <Trophy className="h-5 w-5 text-yellow-500 fill-yellow-500" />
+                  )}
                   <CardTitle className={cn("text-lg font-semibold leading-none", workoutColorClass)}>
                     {exerciseNumber}. {exercise.name}
                   </CardTitle>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1 truncate">{exercise.main_muscle}</p>
               </div>
-              {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus" className="flex-shrink-0">Bonus</WorkoutBadge>} {/* Moved here */}
+              {exercise.is_bonus_exercise && <WorkoutBadge workoutName="Bonus" className="flex-shrink-0">Bonus</WorkoutBadge>}
             </div>
 
-            {/* Bottom Row: Icon and Controls */}
             <div className="flex items-center justify-between">
-              {/* Exercise Icon */}
               {exercise.icon_url && (
                 <img
                   src={exercise.icon_url}
@@ -233,7 +230,6 @@ export const ExerciseCard = ({
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" title="More Options" onClick={(e) => e.stopPropagation()}>
-                      {/* Removed the extra span here */}
                       <Menu className="h-5 w-5" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -258,15 +254,13 @@ export const ExerciseCard = ({
               </div>
             </div>
           </div>
-
-          {/* Removed the absolute positioned CheckCircle2 */}
         </CardHeader>
         {isExpanded && (
-          <CardContent className="pb-16"> {/* Added bottom padding to make space for the icon */}
-            <div className="space-y-4"> {/* This div now wraps all sets and separators */}
+          <CardContent className="pb-16">
+            <div className="space-y-4">
               {sets.map((set, setIndex) => (
                 <React.Fragment key={set.id || `new-${setIndex}`}>
-                  <div className="space-y-1"> {/* Container for each set's content */}
+                  <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold text-base">Set {setIndex + 1}</h3>
@@ -278,7 +272,7 @@ export const ExerciseCard = ({
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2"> {/* Increased gap for better spacing */}
+                      <div className="flex items-center gap-2">
                         {set.isSaved && set.isPR && (
                           <span className="text-yellow-500 flex items-center text-xs font-semibold">
                             <Trophy className="h-3 w-3" /> PR!
@@ -294,7 +288,7 @@ export const ExerciseCard = ({
                             <Edit className="h-4 w-4" />
                           </Button>
                         )}
-                        {!isExerciseSaved && ( // Delete button always visible unless exercise is saved
+                        {!isExerciseSaved && (
                           <Button variant="ghost" size="icon" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" className="h-6 w-6">
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
@@ -302,8 +296,7 @@ export const ExerciseCard = ({
                       </div>
                     </div>
 
-                    {/* Input fields */}
-                    <div className="flex items-center gap-2 mt-2"> {/* Input fields */}
+                    <div className="flex items-center gap-2 mt-2">
                       {exercise.type === 'weight' && (
                         <>
                           <Input
@@ -326,7 +319,7 @@ export const ExerciseCard = ({
                                 value={set.reps_l ?? ''}
                                 onChange={(e) => handleInputChange(setIndex, 'reps_l', e.target.value)}
                                 disabled={set.isSaved || isExerciseSaved}
-                                className="w-20 h-8 text-xs" // Reduced width to w-20
+                                className="w-20 h-8 text-xs"
                               />
                               <Input
                                 id={`reps-r-${setIndex}`}
@@ -335,7 +328,7 @@ export const ExerciseCard = ({
                                 value={set.reps_r ?? ''}
                                 onChange={(e) => handleInputChange(setIndex, 'reps_r', e.target.value)}
                                 disabled={set.isSaved || isExerciseSaved}
-                                className="w-20 h-8 text-xs" // Reduced width to w-20
+                                className="w-20 h-8 text-xs"
                               />
                             </>
                           ) : (
@@ -364,20 +357,20 @@ export const ExerciseCard = ({
                       )}
                     </div>
                   </div>
-                  {setIndex < sets.length - 1 && <Separator className="my-4" />} {/* Separator between sets */}
+                  {setIndex < sets.length - 1 && <Separator className="my-4" />}
                 </React.Fragment>
               ))}
             </div>
 
-            <div className="flex justify-between items-center mt-4 gap-2"> {/* Reduced gap to gap-2 */}
-              <div className="flex gap-2"> {/* Group Add Set and Suggest buttons */}
+            <div className="flex justify-between items-center mt-4 gap-2">
+              <div className="flex gap-2">
                 {sets.length < 5 && (
-                  <Button variant="outline" onClick={handleAddSet} disabled={isExerciseSaved} size="icon" className="h-8 w-8"> {/* Made icon-only */}
+                  <Button variant="outline" onClick={handleAddSet} disabled={isExerciseSaved} size="icon" className="h-8 w-8">
                     <Plus className="h-4 w-4" />
                   </Button>
                 )}
-                <Button variant="outline" onClick={handleSuggestProgression} disabled={isExerciseSaved} size="icon" className="h-8 w-8"> {/* Made icon-only */}
-                  <Lightbulb className="h-4 w-4 text-orange-500" /> {/* Orange lightbulb */}
+                <Button variant="outline" onClick={handleSuggestProgression} disabled={isExerciseSaved} size="icon" className="h-8 w-8">
+                  <Lightbulb className="h-4 w-4 text-orange-500" />
                 </Button>
               </div>
               <div className="flex items-center space-x-2">
@@ -406,7 +399,7 @@ export const ExerciseCard = ({
                   }
                 )}
                 onClick={handleCompleteExercise}
-                disabled={!hasAnyInput} // Only disable if no input
+                disabled={!hasAnyInput}
               >
                 {isExerciseSaved ? (
                   <span className="flex items-center">
