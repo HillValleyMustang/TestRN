@@ -227,12 +227,12 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col p-0">
-        <DialogHeader className="p-6 pb-4 border-b flex-shrink-0">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="p-4 sm:p-6 pb-4 border-b flex-shrink-0">
           <DialogTitle>Workout Summary</DialogTitle>
         </DialogHeader>
-        <ScrollArea className="flex-grow overflow-y-auto"> {/* Added overflow-y-auto */}
-          <div className="p-6 space-y-6">
+        <ScrollArea className="flex-grow overflow-y-auto">
+          <div className="p-4 sm:p-6 space-y-4">
             {loading && <p>Loading workout summary...</p>}
             {error && <p className="text-destructive">{error}</p>}
             {!loading && !error && workoutSession && (
@@ -274,7 +274,7 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
             )}
           </div>
         </ScrollArea>
-        <DialogFooter className="p-6 pt-4 border-t flex-shrink-0">
+        <DialogFooter className="p-4 sm:p-6 pt-4 border-t flex-shrink-0">
           <Button onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>
