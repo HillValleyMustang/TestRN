@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react'; // Import useMemo
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
@@ -403,16 +403,12 @@ export const useExerciseSets = ({
           const hasDataForSet = (currentSet.weight_kg ?? 0) > 0 || (currentSet.reps ?? 0) > 0 || (currentSet.time_seconds ?? 0) > 0 || (currentSet.reps_l ?? 0) > 0 || (currentSet.reps_r ?? 0) > 0;
 
           if (hasDataForSet && !currentSet.isSaved) {
-            let isNewSetPR = false;
-            if (session?.user.id) {
-              const { isNewPR, updatedPR } = await checkAndSaveSetPR(currentSet, session.user.id, localCurrentExercisePR); // Pass local PR state
-              isNewSetPR = isNewPR;
-              localCurrentExercisePR = updatedPR; // Update local PR state for next iteration
-              if (isNewSetPR) anySetIsPR = true;
-            }
-            console.log(`[useExerciseSets] handleSaveExercise: Processing set ${i + 1}. isNewSetPR=${isNewSetPR}, anySetIsPR (cumulative)=${anySetIsPR}`);
+            const { isNewPR, updatedPR } = await checkAndSaveSetPR(currentSet, session!.user.id, localCurrentExercisePR); // Pass local PR state
+            if (isNewPR) anySetIsPR = true;
+            localCurrentExercisePR = updatedPR; // Update local PR state for next iteration
+            console.log(`[useExerciseSets] handleSaveExercise: Processing set ${i + 1}. isNewPR=${isNewPR}, anySetIsPR (cumulative)=${anySetIsPR}`);
 
-            const { savedSet } = await saveSetToDb({ ...currentSet, is_pb: isNewSetPR }, i, currentSessionIdToUse);
+            const { savedSet } = await saveSetToDb({ ...currentSet, is_pb: isNewPR }, i, currentSessionIdToUse);
             if (savedSet) {
               const draftPayload: LocalDraftSetLog = {
                 exercise_id: exerciseId, set_index: i, session_id: currentSessionIdToUse,
