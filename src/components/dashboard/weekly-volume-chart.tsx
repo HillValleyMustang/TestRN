@@ -52,6 +52,8 @@ export const WeeklyVolumeChart = () => {
             workout_sessions (session_date, user_id)
           `)
           .eq('workout_sessions.user_id', session.user.id) // Filter by user_id directly on the joined table
+          .not('exercise_id', 'is', null) // ADDED: Ensure exercise_id is not null
+          .not('session_id', 'is', null)   // ADDED: Ensure session_id is not null
           .order('created_at', { ascending: true }); // Order by created_at for chronological processing
 
         if (setLogsError) {

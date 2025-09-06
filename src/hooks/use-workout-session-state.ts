@@ -435,18 +435,22 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
     try {
       const updatePayload = { duration_string: durationString, completed_at: endTime.toISOString() };
       
+      // *** CRITICAL CHANGE: Directly update Supabase here, not just IndexedDB + sync queue ***
+      const { error: supabaseUpdateError } = await supabase
+        .from('workout_sessions')
+        .update(updatePayload)
+        .eq('id', currentSessionId)
+        .eq('user_id', session.user.id); // Ensure user owns the session
+
+      if (supabaseUpdateError) {
+        console.error("Error updating workout session in Supabase:", supabaseUpdateError);
+        throw new Error(supabaseUpdateError.message);
+      }
+      // Also update local IndexedDB for consistency, though Supabase is primary source now
       await db.workout_sessions.update(currentSessionId, updatePayload);
-      
-      // Create a complete payload for the sync queue to prevent race condition errors
-      const fullSyncPayload = {
-        id: currentSessionId,
-        user_id: session.user.id,
-        session_date: sessionStartTime.toISOString(),
-        template_name: activeWorkout.template_name,
-        t_path_id: activeWorkout.id === 'ad-hoc' ? null : activeWorkout.id,
-        ...updatePayload
-      };
-      await addToSyncQueue('update', 'workout_sessions', fullSyncPayload);
+
+      // No need to add to sync queue for this specific update, as it's already pushed to Supabase.
+      // However, other operations (create/delete) still use the sync queue.
 
       // Delete all drafts for the current session
       const draftsToDelete = await db.draft_set_logs
@@ -470,11 +474,12 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
 
       toast.success("Workout session finished! Generating Summary.");
       const finishedSessionId = currentSessionId;
-      await resetWorkoutSession();
+      console.log("useWorkoutSessionState: finishWorkoutSession returning ID:", finishedSessionId);
+      await resetWorkoutSession(); // Reset local state AFTER everything is saved and ID is captured
       return finishedSessionId;
     } catch (err: any) {
-      toast.error("Failed to save workout duration locally: " + err.message);
-      console.error("Error saving duration:", err);
+      toast.error("Failed to save workout duration: " + err.message);
+      console.error("useWorkoutSessionState: Error in finishWorkoutSession:", err);
       return null;
     }
   }, [currentSessionId, sessionStartTime, session, supabase, resetWorkoutSession, activeWorkout]);

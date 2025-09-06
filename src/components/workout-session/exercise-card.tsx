@@ -277,21 +277,19 @@ export const ExerciseCard = ({
                             <Trophy className="h-3 w-3" /> PR!
                           </span>
                         )}
-                        {!set.isSaved && !isExerciseCompleted && (
-                          <Button variant="ghost" size="icon" onClick={() => handleSaveSetAndStartTimer(setIndex)} disabled={isExerciseCompleted} title="Save Set" className="h-6 w-6">
+                        {!set.isSaved && ( // Only enable save button if not already saved
+                          <Button variant="ghost" size="icon" onClick={() => handleSaveSetAndStartTimer(setIndex)} title="Save Set" className="h-6 w-6">
                             <Save className="h-4 w-4" />
                           </Button>
                         )}
-                        {set.isSaved && !isExerciseCompleted && (
+                        {set.isSaved && ( // Only enable edit button if saved
                           <Button variant="ghost" size="icon" onClick={() => handleEditSet(setIndex)} title="Edit Set" className="h-6 w-6">
                             <Edit className="h-4 w-4" />
                           </Button>
                         )}
-                        {!isExerciseCompleted && (
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" className="h-6 w-6">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        )}
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteSet(setIndex)} title="Delete Set" className="h-6 w-6">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </div>
                     </div>
 
@@ -305,7 +303,7 @@ export const ExerciseCard = ({
                             placeholder="kg"
                             value={convertWeight(set.weight_kg, 'kg', preferredWeightUnit as 'kg' | 'lbs') ?? ''}
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange(setIndex, 'weight_kg', e.target.value)}
-                            disabled={set.isSaved || isExerciseCompleted}
+                            disabled={set.isSaved} // Disable input if set is saved
                             className="w-20 text-center h-8 text-xs"
                           />
                           <span className="text-muted-foreground text-xs">x</span>
@@ -317,7 +315,7 @@ export const ExerciseCard = ({
                                 placeholder="L"
                                 value={set.reps_l ?? ''}
                                 onChange={(e) => handleInputChange(setIndex, 'reps_l', e.target.value)}
-                                disabled={set.isSaved || isExerciseCompleted}
+                                disabled={set.isSaved} // Disable input if set is saved
                                 className="w-20 h-8 text-xs"
                               />
                               <Input
@@ -326,7 +324,7 @@ export const ExerciseCard = ({
                                 placeholder="R"
                                 value={set.reps_r ?? ''}
                                 onChange={(e) => handleInputChange(setIndex, 'reps_r', e.target.value)}
-                                disabled={set.isSaved || isExerciseCompleted}
+                                disabled={set.isSaved} // Disable input if set is saved
                                 className="w-20 h-8 text-xs"
                               />
                             </>
@@ -337,7 +335,7 @@ export const ExerciseCard = ({
                               placeholder="reps"
                               value={set.reps ?? ''}
                               onChange={(e) => handleInputChange(setIndex, 'reps', e.target.value)}
-                              disabled={set.isSaved || isExerciseCompleted}
+                              disabled={set.isSaved} // Disable input if set is saved
                               className="w-20 text-center h-8 text-xs"
                             />
                           )}
@@ -350,7 +348,7 @@ export const ExerciseCard = ({
                           placeholder="Time (seconds)"
                           value={set.time_seconds ?? ''}
                           onChange={(e) => handleInputChange(setIndex, 'time_seconds', e.target.value)}
-                          disabled={set.isSaved || isExerciseCompleted}
+                          disabled={set.isSaved} // Disable input if set is saved
                           className="flex-1 h-8 text-xs"
                         />
                       )}
@@ -364,11 +362,11 @@ export const ExerciseCard = ({
             <div className="flex justify-between items-center mt-4 gap-2">
               <div className="flex gap-2">
                 {sets.length < 5 && (
-                  <Button variant="outline" onClick={handleAddSet} disabled={isExerciseCompleted} size="icon" className="h-8 w-8">
+                  <Button variant="outline" onClick={handleAddSet} size="icon" className="h-8 w-8">
                     <Plus className="h-4 w-4" />
                   </Button>
                 )}
-                <Button variant="outline" onClick={handleSuggestProgression} disabled={isExerciseCompleted} size="icon" className="h-8 w-8">
+                <Button variant="outline" onClick={handleSuggestProgression} size="icon" className="h-8 w-8">
                   <Lightbulb className="h-4 w-4 text-orange-500" />
                 </Button>
               </div>
