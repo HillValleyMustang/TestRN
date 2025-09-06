@@ -51,6 +51,15 @@ export interface LocalTPath extends Tables<'t_paths'> {}
 export interface LocalProfile extends Tables<'profiles'> {} // New: Cache Profile
 export interface LocalTPathExercise extends Tables<'t_path_exercises'> {} // New: Cache TPathExercises
 
+// Helper functions for validation within Dexie migrations
+const isValidIdForDb = (id: string | null | undefined): id is string => {
+  return typeof id === 'string' && id.length > 0;
+};
+
+const isValidDraftKeyForDb = (exerciseId: string | null | undefined, setIndex: number | null | undefined): boolean => {
+  return isValidIdForDb(exerciseId) && typeof setIndex === 'number' && setIndex >= 0;
+};
+
 export class AppDatabase extends Dexie {
   workout_sessions!: Table<LocalWorkoutSession, string>;
   set_logs!: Table<LocalSetLog, string>;
@@ -101,6 +110,27 @@ export class AppDatabase extends Dexie {
     // New version to add is_pb to draft_set_logs
     this.version(7).stores({
       draft_set_logs: '[exercise_id+set_index], session_id, exercise_id',
+    });
+    // NEW: Version 8 for cleaning up invalid draft_set_logs entries
+    this.version(8).stores({
+      // No schema changes, just data migration
+    }).upgrade(async (tx) => {
+      // Clean up invalid draft_set_logs entries
+      const drafts = await tx.table('draft_set_logs').toArray();
+      const invalidDraftKeys: [string, number][] = [];
+      for (const draft of drafts) {
+        if (!isValidDraftKeyForDb(draft.exercise_id, draft.set_index)) {
+          console.warn(`[Dexie Migration] Deleting invalid draft_set_log: ${JSON.stringify(draft)}`);
+          // We need to ensure draft.exercise_id and draft.set_index are actually present to form the key.
+          if (typeof draft.exercise_id === 'string' && typeof draft.set_index === 'number') {
+            invalidDraftKeys.push([draft.exercise_id, draft.set_index]);
+          }
+        }
+      }
+      if (invalidDraftKeys.length > 0) {
+        await tx.table('draft_set_logs').bulkDelete(invalidDraftKeys);
+        console.log(`[Dexie Migration] Removed ${invalidDraftKeys.length} invalid draft_set_logs entries.`);
+      }
     });
   }
 }
