@@ -22,6 +22,15 @@ const isValidDraftKey = (exerciseId: string | null | undefined, setIndex: number
   return isValidId(exerciseId) && typeof setIndex === 'number' && setIndex >= 0;
 };
 
+// NEW: Helper function to check if a set has any user input
+const hasUserInput = (set: SetLogState): boolean => {
+  return (set.weight_kg !== null && set.weight_kg > 0) ||
+         (set.reps !== null && set.reps > 0) ||
+         (set.reps_l !== null && set.reps_l > 0) ||
+         (set.reps_r !== null && set.reps_r > 0) ||
+         (set.time_seconds !== null && set.time_seconds > 0);
+};
+
 interface UseWorkoutSessionStateProps {
   allAvailableExercises: ExerciseDefinition[];
 }
@@ -64,11 +73,11 @@ export const useWorkoutSessionState = ({ allAvailableExercises }: UseWorkoutSess
   const [isCreatingSession, setIsCreatingSession] = useState(false);
 
   // Derived state for workout activity
-  const isWorkoutActive = !!currentSessionId && !!sessionStartTime;
+  const isWorkoutActive = !!activeWorkout; // A workout is active as soon as one is selected.
 
   // Derived state for unsaved changes
   const hasUnsavedChanges = isWorkoutActive && Object.values(exercisesWithSets).some(setsArray =>
-    setsArray.some(set => !set.isSaved)
+    setsArray.some(set => !set.isSaved && hasUserInput(set)) // Only count as unsaved if there's actual input
   );
 
   const resetWorkoutSession = useCallback(async () => {
