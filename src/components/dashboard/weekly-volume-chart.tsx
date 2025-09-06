@@ -13,7 +13,7 @@ type SetLog = Tables<'set_logs'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 // Define a type for SetLog with joined ExerciseDefinition and WorkoutSession
-type SetLogWithExerciseAndSession = Pick<SetLog, 'weight_kg' | 'reps'> & {
+type SetLogWithExerciseAndSession = Pick<SetLog, 'id' | 'weight_kg' | 'reps' | 'exercise_id' | 'session_id'> & {
   exercise_definitions: Pick<ExerciseDefinition, 'type'>[] | null;
   workout_sessions: Pick<WorkoutSession, 'session_date' | 'user_id'>[] | null;
 };
@@ -57,7 +57,7 @@ export const WeeklyVolumeChart = () => {
         const { data: setLogsData, error: setLogsError } = await supabase
           .from('set_logs')
           .select(`
-            weight_kg, reps,
+            id, weight_kg, reps, exercise_id, session_id,
             exercise_definitions (type),
             workout_sessions (session_date, user_id)
           `)
@@ -77,10 +77,16 @@ export const WeeklyVolumeChart = () => {
         const weeklyVolumeMap = new Map<string, number>(); // 'YYYY-MM-DD (start of week)' -> total volume
 
         (setLogsData as SetLogWithExerciseAndSession[]).forEach(log => {
-          const exerciseType = log.exercise_definitions?.[0]?.type; 
-          const sessionDate = log.workout_sessions?.[0]?.session_date; 
+          const exerciseDefArray = log.exercise_definitions;
+          const workoutSessionArray = log.workout_sessions;
+
+          const exerciseType = (exerciseDefArray && exerciseDefArray.length > 0) ? exerciseDefArray[0].type : undefined;
+          const sessionDate = (workoutSessionArray && workoutSessionArray.length > 0) ? workoutSessionArray[0].session_date : undefined;
           
-          console.log(`[WeeklyVolumeChart] Processing log: type=${exerciseType}, date=${sessionDate}, weight=${log.weight_kg}, reps=${log.reps}`);
+          console.log(`[WeeklyVolumeChart] SetLog ID: ${log.id}, Exercise ID: ${log.exercise_id}, Session ID: ${log.session_id}`);
+          console.log(`[WeeklyVolumeChart] Nested Exercise Def:`, exerciseDefArray);
+          console.log(`[WeeklyVolumeChart] Nested Workout Session:`, workoutSessionArray);
+          console.log(`[WeeklyVolumeChart] Extracted: type=${exerciseType}, date=${sessionDate}, weight=${log.weight_kg}, reps=${log.reps}`);
 
           if (exerciseType === 'weight' && log.weight_kg && log.reps && sessionDate) {
             const date = new Date(sessionDate);
