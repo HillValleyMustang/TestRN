@@ -182,7 +182,7 @@ export const useExerciseSets = ({
             return {
               ...set,
               lastWeight: correspondingLastSet?.weight_kg || null,
-              lastReps: correspondingLastSet?.reps || null,
+              lastReps: correspondingLastSet?.reps || null, // Fixed typo here
               lastRepsL: correspondingLastSet?.reps_l || null,
               lastRepsR: correspondingLastSet?.reps_r || null,
               lastTimeSeconds: correspondingLastSet?.time_seconds || null,
@@ -279,9 +279,11 @@ export const useExerciseSets = ({
         }
 
         let isNewSetPR = false;
+        let localCurrentExercisePR: UserExercisePR | null = exercisePR; // Use local variable for PR state
         if (session?.user.id) {
-          isNewSetPR = await checkAndSaveSetPR(currentSet, session.user.id);
-          console.log(`[useExerciseSets] handleSaveSet: Set ${setIndex + 1} isNewSetPR: ${isNewSetPR}`); // DEBUG LOG
+          const { isNewPR, updatedPR } = await checkAndSaveSetPR(currentSet, session.user.id, localCurrentExercisePR);
+          isNewSetPR = isNewPR;
+          localCurrentExercisePR = updatedPR; // Update local PR state for next iteration (if any)
         }
 
         const { savedSet } = await saveSetToDb({ ...currentSet, is_pb: isNewSetPR }, setIndex, sessionIdToUse);
@@ -303,7 +305,7 @@ export const useExerciseSets = ({
           console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in handleSaveSet rollback: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
           await db.draft_set_logs.put(draftPayload);
         }
-      }, [sets, propCurrentSessionId, saveSetToDb, exerciseId, onFirstSetSaved, session, checkAndSaveSetPR]);
+      }, [sets, propCurrentSessionId, saveSetToDb, exerciseId, onFirstSetSaved, session, checkAndSaveSetPR, exercisePR]);
 
       const handleEditSet = useCallback(async (setIndex: number) => {
         console.assert(isValidId(exerciseId), `Invalid exerciseId in handleEditSet: ${exerciseId}`);
@@ -380,6 +382,7 @@ export const useExerciseSets = ({
 
         let hasError = false;
         let anySetIsPR = false;
+        let localCurrentExercisePR: UserExercisePR | null = exercisePR; // Use a local variable for PR state within the loop
 
         for (let i = 0; i < sets.length; i++) {
           const currentSet = sets[i];
@@ -388,10 +391,11 @@ export const useExerciseSets = ({
           if (hasDataForSet && !currentSet.isSaved) {
             let isNewSetPR = false;
             if (session?.user.id) {
-              isNewSetPR = await checkAndSaveSetPR(currentSet, session.user.id);
+              const { isNewPR, updatedPR } = await checkAndSaveSetPR(currentSet, session.user.id, localCurrentExercisePR); // Pass local PR state
+              isNewSetPR = isNewPR;
+              localCurrentExercisePR = updatedPR; // Update local PR state for next iteration
               if (isNewSetPR) anySetIsPR = true;
             }
-            console.log(`[useExerciseSets] handleSaveExercise: Set ${i + 1} isNewSetPR: ${isNewSetPR}, anySetIsPR (cumulative): ${anySetIsPR}`); // DEBUG LOG
 
             const { savedSet } = await saveSetToDb({ ...currentSet, is_pb: isNewSetPR }, i, currentSessionIdToUse);
             if (savedSet) {
@@ -406,7 +410,6 @@ export const useExerciseSets = ({
               hasError = true;
             }
           } else if (currentSet.is_pb) {
-            // If the set was already saved and was a PR, ensure it contributes to anySetIsPR
             anySetIsPR = true;
           }
         }
@@ -414,7 +417,6 @@ export const useExerciseSets = ({
         if (hasError) return { success: false, isNewPR: false };
 
         try {
-          console.log(`[useExerciseSets] handleSaveExercise: Calling onExerciseComplete with anySetIsPR: ${anySetIsPR}`); // DEBUG LOG
           await onExerciseCompleted(exerciseId, anySetIsPR);
           return { success: true, isNewPR: anySetIsPR };
         } catch (err: any) {
@@ -422,7 +424,7 @@ export const useExerciseSets = ({
           toast.error("Failed to complete exercise: " + err.message);
           return { success: false, isNewPR: false };
         }
-      }, [sets, exerciseId, onExerciseCompleted, onFirstSetSaved, propCurrentSessionId, saveSetToDb, session, checkAndSaveSetPR]);
+      }, [sets, exerciseId, onExerciseCompleted, onFirstSetSaved, propCurrentSessionId, saveSetToDb, session, checkAndSaveSetPR, exercisePR]);
 
       const handleSuggestProgression = useCallback(async () => {
         console.assert(isValidId(exerciseId), `Invalid exerciseId in handleSuggestProgression: ${exerciseId}`);

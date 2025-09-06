@@ -47,7 +47,12 @@ export const useSetPRLogic = ({ exerciseId, exerciseType, supabase }: UseSetPRLo
     fetchExercisePR();
   }, [exerciseId, supabase, session?.user.id]);
 
-  const checkAndSaveSetPR = useCallback(async (set: SetLogState, userId: string): Promise<boolean> => {
+  // Modified checkAndSaveSetPR to accept current PR and return updated PR
+  const checkAndSaveSetPR = useCallback(async (
+    set: SetLogState,
+    userId: string,
+    currentPRState: UserExercisePR | null // New argument
+  ): Promise<{ isNewPR: boolean; updatedPR: UserExercisePR | null }> => {
     let currentSetPerformance: number | null = null;
 
     if (exerciseType === 'weight') {
@@ -57,28 +62,28 @@ export const useSetPRLogic = ({ exerciseId, exerciseType, supabase }: UseSetPRLo
     }
 
     if (currentSetPerformance === null || currentSetPerformance <= 0) {
-      return false; // No valid performance to check for PR
+      return { isNewPR: false, updatedPR: currentPRState };
     }
 
     let isNewPR = false;
-    if (!exercisePR) {
+    if (!currentPRState) { // Use currentPRState for comparison
       isNewPR = true;
-    } else if (exerciseType === 'weight' && exercisePR.best_volume_kg !== null) {
-      isNewPR = currentSetPerformance >= exercisePR.best_volume_kg;
-    } else if (exerciseType === 'timed' && exercisePR.best_time_seconds !== null) {
-      isNewPR = currentSetPerformance >= exercisePR.best_time_seconds;
+    } else if (exerciseType === 'weight' && currentPRState.best_volume_kg !== null) {
+      isNewPR = currentSetPerformance >= currentPRState.best_volume_kg;
+    } else if (exerciseType === 'timed' && currentPRState.best_time_seconds !== null) {
+      isNewPR = currentSetPerformance >= currentPRState.best_time_seconds;
     } else {
+      // This case handles when there's a PR record but the relevant field is null (e.g., first time doing a timed exercise)
       isNewPR = true;
     }
 
     if (isNewPR) {
-      console.log(`[useSetPRLogic] New PR detected for exercise ${exerciseId}! Performance: ${currentSetPerformance}`); // DEBUG LOG
       const prData: UserExercisePRInsert | UserExercisePRUpdate = {
         user_id: userId,
         exercise_id: exerciseId,
         last_achieved_date: new Date().toISOString(),
-        best_volume_kg: exerciseType === 'weight' ? currentSetPerformance : (exercisePR?.best_volume_kg || null),
-        best_time_seconds: exerciseType === 'timed' ? currentSetPerformance : (exercisePR?.best_time_seconds || null),
+        best_volume_kg: exerciseType === 'weight' ? currentSetPerformance : (currentPRState?.best_volume_kg || null),
+        best_time_seconds: exerciseType === 'timed' ? currentSetPerformance : (currentPRState?.best_time_seconds || null),
       };
 
       const { error: upsertError, data: updatedPR } = await supabase
@@ -90,12 +95,13 @@ export const useSetPRLogic = ({ exerciseId, exerciseType, supabase }: UseSetPRLo
       if (upsertError) {
         console.error("Error saving set PR:", upsertError);
         toast.error("Failed to update personal record: " + upsertError.message);
-        return false;
+        return { isNewPR: false, updatedPR: currentPRState }; // Return original if error
       }
-      setExercisePR(updatedPR as UserExercisePR);
+      setExercisePR(updatedPR as UserExercisePR); // Update internal state
+      return { isNewPR: true, updatedPR: updatedPR as UserExercisePR };
     }
-    return isNewPR;
-  }, [exerciseId, exerciseType, exercisePR, supabase, session?.user.id]);
+    return { isNewPR: false, updatedPR: currentPRState };
+  }, [exerciseId, exerciseType, supabase, session?.user.id]);
 
   return { exercisePR, loadingPR, checkAndSaveSetPR };
 };

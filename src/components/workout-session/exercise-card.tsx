@@ -113,7 +113,6 @@ export const ExerciseCard = ({
     preferredWeightUnit,
     onFirstSetSaved: onFirstSetSaved,
     onExerciseCompleted: async (id, isNewPR) => {
-      console.log(`[ExerciseCard] onExerciseCompleted received isNewPR: ${isNewPR}`); // DEBUG LOG
       setIsExerciseSaved(true);
       if (isNewPR) {
         setJustAchievedPR(true);
