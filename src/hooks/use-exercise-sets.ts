@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Tables, TablesInsert, TablesUpdate, SetLogState, UserExercisePRInsert, UserExercisePRUpdate, GetLastExerciseSetsForExerciseReturns } from '@/types/supabase';
 import { convertWeight, formatWeight } from '@/lib/unit-conversions';
 import { useSetPersistence } from './use-set-persistence';
-import { useSetPRLogic } from './use-set-pr-logic'; // Updated import
+import { useSetPRLogic } from './use-set-pr-logic'; // Corrected import
 import { useProgressionSuggestion } from './use-progression-suggestion';
 import { db, addToSyncQueue, LocalDraftSetLog } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
