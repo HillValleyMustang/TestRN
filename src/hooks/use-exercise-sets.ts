@@ -30,7 +30,7 @@ interface UseExerciseSetsProps {
   onUpdateSets: (exerciseId: string, newSets: SetLogState[]) => void;
   preferredWeightUnit: Profile['preferred_weight_unit'];
   onFirstSetSaved: (timestamp: string) => Promise<string>;
-  onExerciseComplete: (exerciseId: string, isNewPR: boolean) => Promise<void>;
+  onExerciseCompleted: (exerciseId: string, isNewPR: boolean) => void;
   workoutTemplateName: string;
   exerciseNumber: number;
 }
@@ -69,7 +69,7 @@ export const useExerciseSets = ({
   onUpdateSets,
   preferredWeightUnit,
   onFirstSetSaved,
-  onExerciseComplete,
+  onExerciseCompleted,
   workoutTemplateName,
   exerciseNumber,
 }: UseExerciseSetsProps): UseExerciseSetsReturn => {
@@ -281,6 +281,7 @@ export const useExerciseSets = ({
         let isNewSetPR = false;
         if (session?.user.id) {
           isNewSetPR = await checkAndSaveSetPR(currentSet, session.user.id);
+          console.log(`[useExerciseSets] handleSaveSet: Set ${setIndex + 1} isNewSetPR: ${isNewSetPR}`); // DEBUG LOG
         }
 
         const { savedSet } = await saveSetToDb({ ...currentSet, is_pb: isNewSetPR }, setIndex, sessionIdToUse);
@@ -390,6 +391,7 @@ export const useExerciseSets = ({
               isNewSetPR = await checkAndSaveSetPR(currentSet, session.user.id);
               if (isNewSetPR) anySetIsPR = true;
             }
+            console.log(`[useExerciseSets] handleSaveExercise: Set ${i + 1} isNewSetPR: ${isNewSetPR}, anySetIsPR (cumulative): ${anySetIsPR}`); // DEBUG LOG
 
             const { savedSet } = await saveSetToDb({ ...currentSet, is_pb: isNewSetPR }, i, currentSessionIdToUse);
             if (savedSet) {
@@ -404,6 +406,7 @@ export const useExerciseSets = ({
               hasError = true;
             }
           } else if (currentSet.is_pb) {
+            // If the set was already saved and was a PR, ensure it contributes to anySetIsPR
             anySetIsPR = true;
           }
         }
@@ -411,14 +414,15 @@ export const useExerciseSets = ({
         if (hasError) return { success: false, isNewPR: false };
 
         try {
-          await onExerciseComplete(exerciseId, anySetIsPR);
+          console.log(`[useExerciseSets] handleSaveExercise: Calling onExerciseComplete with anySetIsPR: ${anySetIsPR}`); // DEBUG LOG
+          await onExerciseCompleted(exerciseId, anySetIsPR);
           return { success: true, isNewPR: anySetIsPR };
         } catch (err: any) {
           console.error("Error saving exercise completion:", err);
           toast.error("Failed to complete exercise: " + err.message);
           return { success: false, isNewPR: false };
         }
-      }, [sets, exerciseId, onExerciseComplete, onFirstSetSaved, propCurrentSessionId, saveSetToDb, session, checkAndSaveSetPR]);
+      }, [sets, exerciseId, onExerciseCompleted, onFirstSetSaved, propCurrentSessionId, saveSetToDb, session, checkAndSaveSetPR]);
 
       const handleSuggestProgression = useCallback(async () => {
         console.assert(isValidId(exerciseId), `Invalid exerciseId in handleSuggestProgression: ${exerciseId}`);
