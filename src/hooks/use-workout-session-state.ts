@@ -97,10 +97,11 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
       // Clear all drafts for the current user
       const allDrafts = await db.draft_set_logs.toArray();
       const userDraftKeys = allDrafts
-        .filter(draft => isValidDraftKey(draft.exercise_id, draft.set_index)) // Filter here
+        .filter(draft => isValidId(draft.exercise_id)) // Ensure exercise_id is valid
         .map(draft => [draft.exercise_id, draft.set_index] as [string, number]); // Explicitly cast to tuple
       
       if (userDraftKeys.length > 0) {
+        console.assert(userDraftKeys.every(key => isValidDraftKey(key[0], key[1])), `Invalid draft keys in resetWorkoutSession bulkDelete: ${JSON.stringify(userDraftKeys)}`);
         await db.draft_set_logs.bulkDelete(userDraftKeys);
       }
     }
@@ -127,8 +128,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
       let drafts: LocalDraftSetLog[] = [];
       if (targetSessionId === null) {
         // For ad-hoc workouts before session creation, session_id is null
-        // Use filter for null comparison to satisfy TypeScript's IndexableType constraint
-        drafts = await db.draft_set_logs.filter(draft => draft.session_id === null).toArray();
+        drafts = await db.draft_set_logs.where('session_id').equals(null).toArray();
       } else {
         // For T-Path workouts or ad-hoc after session creation, session_id is a string
         drafts = await db.draft_set_logs.where('session_id').equals(targetSessionId).toArray();
@@ -244,10 +244,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
       // Update all existing drafts (which currently have session_id: null) to the new session ID
       const draftsToUpdate = await db.draft_set_logs.filter(draft => draft.session_id === null).toArray();
       const updatePromises = draftsToUpdate.map(draft => {
-        if (!isValidDraftKey(draft.exercise_id, draft.set_index)) { // Defensive check
-          console.error(`Skipping update for invalid draft key in createWorkoutSessionInDb: [${draft.exercise_id}, ${draft.set_index}]`);
-          return Promise.resolve(); // Skip this invalid draft
-        }
+        console.assert(isValidDraftKey(draft.exercise_id, draft.set_index), `Invalid draft key in createWorkoutSessionInDb update: [${draft.exercise_id}, ${draft.set_index}]`);
         return db.draft_set_logs.update([draft.exercise_id, draft.set_index], { session_id: newSessionId });
       });
       await Promise.all(updatePromises);
@@ -342,13 +339,9 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
       .toArray();
     
     if (draftsToDelete.length > 0) {
-      const keysToDelete = draftsToDelete
-        .filter(draft => isValidDraftKey(draft.exercise_id, draft.set_index)) // Filter here
-        .map(d => [d.exercise_id, d.set_index] as [string, number]); // Explicitly cast to tuple
-      
-      if (keysToDelete.length > 0) { // Only delete if there are valid keys
-        await db.draft_set_logs.bulkDelete(keysToDelete);
-      }
+      const keysToDelete = draftsToDelete.map(d => [d.exercise_id, d.set_index] as [string, number]); // Explicitly cast to tuple
+      console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1])), `Invalid draft keys in removeExerciseFromSession bulkDelete: ${JSON.stringify(keysToDelete)}`);
+      await db.draft_set_logs.bulkDelete(keysToDelete);
     }
   }, [currentSessionId]);
 
@@ -400,13 +393,9 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
       .toArray();
     
     if (draftsToDelete.length > 0) {
-      const keysToDelete = draftsToDelete
-        .filter(draft => isValidDraftKey(draft.exercise_id, draft.set_index)) // Filter here
-        .map(d => [d.exercise_id, d.set_index] as [string, number]); // Explicitly cast to tuple
-      
-      if (keysToDelete.length > 0) { // Only delete if there are valid keys
-        await db.draft_set_logs.bulkDelete(keysToDelete);
-      }
+      const keysToDelete = draftsToDelete.map(d => [d.exercise_id, d.set_index] as [string, number]); // Explicitly cast to tuple
+      console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1])), `Invalid draft keys in substituteExercise bulkDelete: ${JSON.stringify(keysToDelete)}`);
+      await db.draft_set_logs.bulkDelete(keysToDelete);
     }
   }, [currentSessionId, exercisesForSession]);
 
@@ -463,13 +452,9 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
         .toArray();
       
       if (draftsToDelete.length > 0) {
-        const keysToDelete = draftsToDelete
-          .filter(draft => isValidDraftKey(draft.exercise_id, draft.set_index)) // Filter here
-          .map(d => [d.exercise_id, d.set_index] as [string, number]);
-        
-        if (keysToDelete.length > 0) { // Only delete if there are valid keys
-          await db.draft_set_logs.bulkDelete(keysToDelete);
-        }
+        const keysToDelete = draftsToDelete.map(d => [d.exercise_id, d.set_index] as [string, number]); // Explicitly cast to tuple
+        console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1])), `Invalid draft keys in finishWorkoutSession bulkDelete: ${JSON.stringify(keysToDelete)}`);
+        await db.draft_set_logs.bulkDelete(keysToDelete);
       }
 
       const { error: achievementError } = await supabase.functions.invoke('process-achievements', {
