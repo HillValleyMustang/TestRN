@@ -54,24 +54,24 @@ export const ExerciseSummaryCard = ({ exerciseGroup, currentSessionId }: Exercis
 
   return (
     <Card key={exerciseGroup.name} className="mb-4">
-      <CardHeader className="p-4">
-        <CardTitle className="text-base">{exerciseGroup.name}</CardTitle>
+      <CardHeader className="p-3">
+        <CardTitle className="text-sm">{exerciseGroup.name}</CardTitle>
       </CardHeader>
-      <CardContent className="p-4 pt-0">
+      <CardContent className="p-3 pt-0">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[40px] px-2">Set</TableHead>
-              {exerciseGroup.type === 'weight' && <TableHead className="px-2">Weight (kg)</TableHead>}
-              {exerciseGroup.type === 'weight' && <TableHead className="px-2">Reps</TableHead>}
-              {exerciseGroup.type === 'timed' && <TableHead className="px-2">Time</TableHead>}
+              <TableHead className="w-[30px] px-1 text-xs">Set</TableHead>
+              {exerciseGroup.type === 'weight' && <TableHead className="px-1 text-xs">Weight (kg)</TableHead>}
+              {exerciseGroup.type === 'weight' && <TableHead className="px-1 text-xs">Reps</TableHead>}
+              {exerciseGroup.type === 'timed' && <TableHead className="px-1 text-xs">Time</TableHead>}
               {exerciseGroup.category === 'Unilateral' && (
                 <>
-                  <TableHead className="px-2">Reps (L)</TableHead>
-                  <TableHead className="px-2">Reps (R)</TableHead>
+                  <TableHead className="px-1 text-xs">Reps (L)</TableHead>
+                  <TableHead className="px-1 text-xs">Reps (R)</TableHead>
                 </>
               )}
-              <TableHead className="text-center px-2">PR</TableHead>
+              <TableHead className="text-center px-1 text-xs">PR</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -85,27 +85,27 @@ export const ExerciseSummaryCard = ({ exerciseGroup, currentSessionId }: Exercis
 
               return (
                 <React.Fragment key={set.id}>
-                  <TableRow className={cn(isEvenRow ? 'bg-muted/20' : '')}>
-                    <TableCell className="font-medium px-2">{index + 1}</TableCell>
+                  <TableRow className={cn(isEvenRow ? 'bg-muted/20' : '', "text-xs")}>
+                    <TableCell className="font-medium px-1">{index + 1}</TableCell>
                     {exerciseGroup.type === 'weight' && (
                       <>
-                        <TableCell className="flex items-center gap-1 px-2">
+                        <TableCell className="flex items-center gap-1 px-1">
                           {set.weight_kg ?? '-'}
                           {weightIndicator.icon && <span className={weightIndicator.color} title={weightIndicator.tooltip}>{weightIndicator.icon}</span>}
                         </TableCell>
                         {exerciseGroup.category === 'Unilateral' ? (
                           <>
-                            <TableCell className="flex items-center gap-1 px-2">
+                            <TableCell className="flex items-center gap-1 px-1">
                               {set.reps_l ?? '-'}
                               {repsLIndicator.icon && <span className={repsLIndicator.color} title={repsLIndicator.tooltip}>{repsLIndicator.icon}</span>}
                             </TableCell>
-                            <TableCell className="flex items-center gap-1 px-2">
+                            <TableCell className="flex items-center gap-1 px-1">
                               {set.reps_r ?? '-'}
                               {repsRIndicator.icon && <span className={repsRIndicator.color} title={repsRIndicator.tooltip}>{repsRIndicator.icon}</span>}
                             </TableCell>
                           </>
                         ) : (
-                          <TableCell className="flex items-center gap-1 px-2">
+                          <TableCell className="flex items-center gap-1 px-1">
                             {set.reps ?? '-'}
                             {repsIndicator.icon && <span className={repsIndicator.color} title={repsIndicator.tooltip}>{repsIndicator.icon}</span>}
                           </TableCell>
@@ -113,12 +113,12 @@ export const ExerciseSummaryCard = ({ exerciseGroup, currentSessionId }: Exercis
                       </>
                     )}
                     {exerciseGroup.type === 'timed' && (
-                      <TableCell className="flex items-center gap-1 px-2">
+                      <TableCell className="flex items-center gap-1 px-1">
                         {set.time_seconds ? formatTime(set.time_seconds) : '-'}
                         {timeIndicator.icon && <span className={timeIndicator.color} title={timeIndicator.tooltip}>{timeIndicator.icon}</span>}
                       </TableCell>
                     )}
-                    <TableCell className="text-center px-2">{set.is_pb ? <Trophy className="h-4 w-4 text-yellow-500 mx-auto" /> : '-'}</TableCell>
+                    <TableCell className="text-center px-1">{set.is_pb ? <Trophy className="h-4 w-4 text-yellow-500 mx-auto" /> : '-'}</TableCell>
                   </TableRow>
                   {index < exerciseGroup.sets.length - 1 && (
                     <TableRow className={cn(isEvenRow ? 'bg-muted/20' : '')}>

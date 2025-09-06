@@ -3,7 +3,8 @@
 import { useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
-import { Tables, SetLogState, WorkoutExercise } from '@/types/supabase';
+import { TablesInsert, TablesUpdate, SetLogState, Tables } from '@/types/supabase';
+import { convertWeight } from '@/lib/unit-conversions';
 import { db, addToSyncQueue, LocalWorkoutSession, LocalDraftSetLog } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
 import { useCoreWorkoutSessionState } from './use-core-workout-session-state'; // Import core state
@@ -82,7 +83,7 @@ export const useWorkoutSessionPersistence = ({
         id: newSessionId,
         user_id: session.user.id,
         template_name: templateName,
-        t_path_id: activeWorkout?.id === 'ad-hoc' ? null : activeWorkout?.id,
+        t_path_id: !activeWorkout || activeWorkout.id === 'ad-hoc' ? null : activeWorkout.id,
         session_date: firstSetTimestamp,
         duration_string: null,
         rating: null,

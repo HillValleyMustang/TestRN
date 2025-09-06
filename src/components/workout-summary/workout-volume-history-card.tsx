@@ -8,6 +8,7 @@ import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { Dumbbell, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { db } from '@/lib/db'; // Import Dexie db
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
@@ -38,19 +39,13 @@ export const WorkoutVolumeHistoryCard = ({ workoutTemplateName, currentSessionId
       setLoading(true);
       setError(null);
       try {
-        // 1. Fetch all completed workout sessions for this template name
-        const { data: sessionsData, error: sessionsError } = await supabase
-          .from('workout_sessions')
-          .select('id, session_date, template_name')
-          .eq('user_id', session.user.id)
-          .eq('template_name', workoutTemplateName)
-          .not('completed_at', 'is', null) // Only consider completed sessions
-          .order('session_date', { ascending: false })
-          .limit(4); // Current session + last 3
+        // 1. Fetch all completed workout sessions for this template name from Dexie
+        const sessionsData = await db.workout_sessions
+          .where('template_name').equals(workoutTemplateName)
+          .and(s => s.user_id === session.user.id && s.completed_at !== null)
+          .sortBy('session_date');
 
-        if (sessionsError) throw sessionsError;
-
-        const relevantSessionIds = (sessionsData || []).map((s: { id: string }) => s.id);
+        const relevantSessionIds = (sessionsData || []).map(s => s.id);
 
         if (relevantSessionIds.length === 0) {
           setChartData([]);
@@ -58,34 +53,32 @@ export const WorkoutVolumeHistoryCard = ({ workoutTemplateName, currentSessionId
           return;
         }
 
-        // 2. Fetch all set logs for these sessions
-        const { data: setLogsData, error: setLogsError } = await supabase
-          .from('set_logs')
-          .select(`
-            session_id, weight_kg, reps,
-            exercise_definitions (type)
-          `)
-          .in('session_id', relevantSessionIds);
-
-        if (setLogsError) throw setLogsError;
+        // 2. Fetch all set logs for these sessions from Dexie
+        const setLogsData = await db.set_logs
+          .where('session_id').anyOf(relevantSessionIds)
+          .toArray();
+        
+        const allExerciseDefs = await db.exercise_definitions_cache.toArray();
+        const exerciseDefMap = new Map(allExerciseDefs.map(def => [def.id, def]));
 
         // 3. Calculate total volume for each session
         const sessionVolumes: Record<string, { date: string; volume: number }> = {};
-        (sessionsData || []).forEach((s: { id: string; session_date: string }) => {
+        (sessionsData || []).forEach(s => {
           sessionVolumes[s.id] = { date: new Date(s.session_date).toLocaleDateString(), volume: 0 };
         });
 
-        (setLogsData || []).forEach((log: any) => { // Use 'any' for joined data
-          const exerciseType = log.exercise_definitions?.[0]?.type;
-          if (exerciseType === 'weight' && log.weight_kg && log.reps) {
-            sessionVolumes[log.session_id].volume += (log.weight_kg * log.reps);
+        (setLogsData || []).forEach(log => {
+          const exerciseDef = log.exercise_id ? exerciseDefMap.get(log.exercise_id) : null;
+          if (exerciseDef?.type === 'weight' && log.weight_kg && log.reps) {
+            sessionVolumes[log.session_id!].volume += (log.weight_kg * log.reps);
           }
         });
 
-        // 4. Format for chart and calculate changes
+        // 4. Format for chart and calculate changes, taking the last 4 sessions
         const sortedVolumes = Object.entries(sessionVolumes)
           .map(([id, data]) => ({ id, ...data }))
-          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+          .slice(-4);
 
         const formattedChartData: ChartData[] = sortedVolumes.map((item, index) => {
           const previousVolume = index > 0 ? sortedVolumes[index - 1].volume : 0;
@@ -114,7 +107,7 @@ export const WorkoutVolumeHistoryCard = ({ workoutTemplateName, currentSessionId
         setChartData(formattedChartData);
 
       } catch (err: any) {
-        console.error("Failed to fetch workout volume history:", err);
+        console.error("Failed to fetch workout volume history from local DB:", err);
         setError(err.message || "Failed to load workout volume history.");
         toast.error(err.message || "Failed to load workout volume history.");
       } finally {

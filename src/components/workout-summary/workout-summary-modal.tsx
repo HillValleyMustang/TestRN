@@ -15,6 +15,7 @@ import { AiSessionAnalysisCard } from '@/components/workout-summary/ai-session-a
 import { ACHIEVEMENT_DISPLAY_INFO } from '@/lib/achievements';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArrowLeft } from 'lucide-react';
+import { db } from '@/lib/db'; // Import Dexie db
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
@@ -36,7 +37,7 @@ interface WorkoutSummaryModalProps {
 
 export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSummaryModalProps) => {
   const { session, supabase } = useSession();
-  const router = useRouter(); // Keep router for potential future navigation, though not used for closing modal
+  const router = useRouter();
   const [workoutSession, setWorkoutSession] = useState<WorkoutSession | null>(null);
   const [setLogs, setSetLogs] = useState<SetLogWithExercise[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,15 +50,12 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
   const [hasShownAchievementToasts, setHasShownAchievementToasts] = useState(false);
 
   useEffect(() => {
-    console.log("WorkoutSummaryModal: useEffect triggered. sessionId:", sessionId, "open:", open, "session:", !!session);
-
     if (!session || !sessionId || !open) {
       setWorkoutSession(null);
       setSetLogs([]);
       setLoading(true);
-      setHasShownAchievementToasts(false); // Reset achievement toast flag when modal closes or session changes
+      setHasShownAchievementToasts(false);
       if (!sessionId && open) {
-        console.warn("WorkoutSummaryModal: Modal is open but no sessionId provided.");
         setError("No workout session ID provided for summary.");
         setLoading(false);
       }
@@ -68,46 +66,17 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
       setLoading(true);
       setError(null);
       try {
-        console.log("WorkoutSummaryModal: Attempting to fetch workout session with ID:", sessionId, "for user:", session.user.id);
-        const { data: sessionData, error: sessionError } = await supabase
-          .from('workout_sessions')
-          .select('id, template_name, duration_string, session_date, rating, created_at, user_id')
-          .eq('id', sessionId)
-          .eq('user_id', session.user.id)
-          .single();
-
-        if (sessionError) {
-          console.error("WorkoutSummaryModal: Error fetching session data:", sessionError);
-          throw new Error(sessionError.message);
-        }
-        if (!sessionData) {
-          console.error("WorkoutSummaryModal: No session data found for ID:", sessionId);
-          throw new Error("Workout session not found.");
-        }
+        // Fetch from local DB first
+        const localSession = await db.workout_sessions.get(sessionId);
+        if (!localSession) throw new Error("Workout session not found in local database.");
         
-        console.log("WorkoutSummaryModal: Fetched sessionData:", sessionData);
-        setWorkoutSession(sessionData as WorkoutSession);
-        setCurrentRating(sessionData.rating);
-        setIsRatingSaved(sessionData.rating !== null);
+        setWorkoutSession(localSession as WorkoutSession);
+        setCurrentRating(localSession.rating);
+        setIsRatingSaved(localSession.rating !== null);
 
-        console.log("WorkoutSummaryModal: Attempting to fetch set logs for session ID:", sessionId);
-        const { data: setLogsData, error: setLogsError } = await supabase
-          .from('set_logs')
-          .select(`
-            id, exercise_id, weight_kg, reps, reps_l, reps_r, time_seconds, is_pb, created_at, session_id,
-            exercise_definitions (
-              id, name, main_muscle, type, category
-            )
-          `)
-          .eq('session_id', sessionId)
-          .order('created_at', { ascending: true });
-
-        if (setLogsError) {
-          console.error("WorkoutSummaryModal: Error fetching set logs:", setLogsError);
-          throw new Error(setLogsError.message);
-        }
-        console.log("WorkoutSummaryModal: Fetched setLogsData:", setLogsData);
-
+        const localSetLogs = await db.set_logs.where('session_id').equals(sessionId).toArray();
+        const allExerciseDefs = await db.exercise_definitions_cache.toArray();
+        const exerciseDefMap = new Map(allExerciseDefs.map(def => [def.id, def]));
 
         let volume = 0;
         let prCount = 0;
@@ -115,35 +84,31 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
         const uniqueExerciseIds = new Set<string>();
         const newPrsThisSession = new Set<string>();
 
-        (setLogsData as (SetLog & { exercise_definitions: Pick<ExerciseDefinition, 'id' | 'name' | 'main_muscle' | 'type' | 'category'>[] | null })[]).forEach(log => {
-          const exerciseDef = (log.exercise_definitions && log.exercise_definitions.length > 0) ? log.exercise_definitions[0] : null;
+        localSetLogs.forEach(log => {
+          const exerciseDef = log.exercise_id ? exerciseDefMap.get(log.exercise_id) : null;
           if (exerciseDef?.type === 'weight' && log.weight_kg && log.reps) {
             volume += log.weight_kg * log.reps;
           }
           if (log.is_pb) {
             prCount++;
-            if (exerciseDef?.name) {
-              newPrsThisSession.add(exerciseDef.name);
-            }
+            if (exerciseDef?.name) newPrsThisSession.add(exerciseDef.name);
           }
-          if (exerciseDef?.id) {
-            uniqueExerciseIds.add(exerciseDef.id);
-          }
-          processedSetLogs.push({ ...log, exercise_definitions: exerciseDef });
+          if (exerciseDef?.id) uniqueExerciseIds.add(exerciseDef.id);
+          processedSetLogs.push({ ...log, exercise_definitions: exerciseDef || null });
         });
         
         setTotalVolume(volume);
         setPrsAchieved(prCount);
         setNewPrExercises(Array.from(newPrsThisSession));
 
-        console.log("WorkoutSummaryModal: Attempting to fetch last sets for unique exercises:", Array.from(uniqueExerciseIds));
+        // Fetch last sets from Supabase for comparison (this is an enhancement, not core data)
         const lastSetsPromises = Array.from(uniqueExerciseIds).map(async (exerciseId) => {
           const { data: lastExerciseSets, error: rpcError } = await supabase.rpc('get_last_exercise_sets_for_exercise', {
             p_user_id: session.user.id,
             p_exercise_id: exerciseId,
           });
           if (rpcError && rpcError.code !== 'PGRST116') {
-            console.error(`WorkoutSummaryModal: Error fetching last sets for exercise ${exerciseId}:`, rpcError);
+            console.error(`Error fetching last sets for exercise ${exerciseId}:`, rpcError);
             return { exerciseId, sets: [] };
           }
           return { exerciseId, sets: lastExerciseSets || [] };
@@ -172,8 +137,8 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
 
         setSetLogs(finalSetLogs);
 
+        // Check for achievements via Supabase function
         if (!hasShownAchievementToasts && session.user.id) {
-          console.log("WorkoutSummaryModal: Checking for session achievements.");
           const response = await fetch('/api/get-session-achievements', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
@@ -191,7 +156,6 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
           setHasShownAchievementToasts(true);
         }
       } catch (err: any) {
-        console.error("WorkoutSummaryModal: Failed to fetch workout summary or achievements:", err);
         setError(err.message || "Failed to load workout summary. Please try again.");
         toast.error(err.message || "Failed to load workout summary.");
       } finally {
@@ -227,7 +191,7 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col p-0">
         <DialogHeader className="p-4 sm:p-6 pb-4 border-b flex-shrink-0">
           <DialogTitle>Workout Summary</DialogTitle>
         </DialogHeader>

@@ -15,13 +15,11 @@ export interface SyncQueueItem {
 }
 
 // Local versions of tables will have a string UUID as primary key
-export interface LocalWorkoutSession extends TablesInsert<'workout_sessions'> {
-  id: string;
-  completed_at?: string | null;
-  t_path_id?: string | null;
+export interface LocalWorkoutSession extends Tables<'workout_sessions'> {
+  // This now correctly uses the Row type, which expects `null` instead of `undefined`
 }
-export interface LocalSetLog extends TablesInsert<'set_logs'> {
-  id: string;
+export interface LocalSetLog extends Tables<'set_logs'> {
+  // This now correctly uses the Row type, which expects `null` instead of `undefined`
 }
 
 export interface LocalDraftSetLog {
