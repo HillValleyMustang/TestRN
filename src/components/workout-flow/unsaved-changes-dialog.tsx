@@ -34,13 +34,13 @@ export const UnsavedChangesDialog = ({
             <TriangleAlert className="h-5 w-5 mr-2" /> Unsaved Workout Progress
           </AlertDialogTitle>
           <AlertDialogDescription>
-            You have an active workout session with unsaved changes. If you leave now, your progress for this workout will be lost.
+            Wait! Continuing will erase current workout data. Are you sure you want to leave?
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={onCancelLeave}>Stay on Page</AlertDialogCancel>
+          <AlertDialogCancel onClick={onCancelLeave}>Back to Workout</AlertDialogCancel>
           <AlertDialogAction onClick={onConfirmLeave} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-            Discard & Leave
+            Continue and Exit
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
