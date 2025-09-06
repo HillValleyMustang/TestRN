@@ -107,7 +107,7 @@ export const NextWorkoutCard = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-center text-xl">
             <Dumbbell className="h-5 w-5" />
             Your Next Workout
           </CardTitle>
@@ -123,7 +123,7 @@ export const NextWorkoutCard = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-center text-xl">
             <Dumbbell className="h-5 w-5" />
             Your Next Workout
           </CardTitle>
@@ -139,7 +139,7 @@ export const NextWorkoutCard = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-center text-xl">
             <Dumbbell className="h-5 w-5" />
             Your Next Workout
           </CardTitle>
@@ -158,7 +158,7 @@ export const NextWorkoutCard = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-center text-xl">
           <Dumbbell className="h-5 w-5" />
           Your Next Workout
         </CardTitle>

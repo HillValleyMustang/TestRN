@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -13,6 +14,7 @@ import { WorkoutVolumeHistoryCard } from '@/components/workout-summary/workout-v
 import { AiSessionAnalysisCard } from '@/components/workout-summary/ai-session-analysis-card';
 import { ACHIEVEMENT_DISPLAY_INFO } from '@/lib/achievements';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ArrowLeft } from 'lucide-react';
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
@@ -34,6 +36,7 @@ interface WorkoutSummaryModalProps {
 
 export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSummaryModalProps) => {
   const { session, supabase } = useSession();
+  const router = useRouter(); // Keep router for potential future navigation, though not used for closing modal
   const [workoutSession, setWorkoutSession] = useState<WorkoutSession | null>(null);
   const [setLogs, setSetLogs] = useState<SetLogWithExercise[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,6 +53,7 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
       setWorkoutSession(null);
       setSetLogs([]);
       setLoading(true);
+      setHasShownAchievementToasts(false); // Reset achievement toast flag when modal closes or session changes
       return;
     }
 

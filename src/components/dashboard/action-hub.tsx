@@ -25,6 +25,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { WorkoutLogModal } from './workout-log-modal';
 import { ConsistencyCalendarModal } from './consistency-calendar-modal';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'; // Import Card components
 
 export const ActionHub = () => {
   const router = useRouter();
@@ -36,62 +37,67 @@ export const ActionHub = () => {
 
   return (
     <>
-      <div className="grid grid-cols-3 grid-rows-2 gap-3 p-4 border rounded-xl bg-card">
-        <ActionButton
-          title="Log Activity"
-          icon={<Activity className="h-5 w-5 text-chart-2" strokeWidth={2.5} />}
-          onClick={() => setIsActivityLogOpen(true)}
-        />
-        <ActionButton
-          title="AI Coach"
-          icon={<Sparkles className="h-5 w-5 text-chart-4" strokeWidth={2.5} />}
-          onClick={() => setIsAiCoachOpen(true)}
-        />
-        <ActionButton
-          title="Workout Log"
-          icon={<History className="h-5 w-5 text-chart-1" strokeWidth={2.5} />}
-          onClick={() => setIsWorkoutLogOpen(true)}
-        />
-        <ActionButton
-          title="Consistency Calendar"
-          icon={<CalendarDays className="h-5 w-5 text-chart-5" strokeWidth={2.5} />}
-          onClick={() => setIsCalendarOpen(true)}
-          className="col-span-2"
-        />
-        
-        <DropdownMenu onOpenChange={setIsMoreMenuOpen}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              className="h-full w-full p-2 flex flex-col items-center justify-center text-center whitespace-normal gap-1 font-semibold text-sm leading-tight border-0 shadow-sm hover:shadow-md transition-shadow bg-card"
-            >
-              {/* Re-added span wrapper for content */}
-              <span>
-                {isMoreMenuOpen ? <ChevronUp className="h-5 w-5" strokeWidth={2.5} /> : <ChevronDown className="h-5 w-5" strokeWidth={2.5} />}
-                <span>More</span>
-              </span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => router.push('/workout')}>
-              <Dumbbell className="mr-2 h-4 w-4" strokeWidth={2.5} />
-              <span>Start Workout</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => router.push('/manage-exercises')}>
-              <Dumbbell className="mr-2 h-4 w-4" strokeWidth={2.5} />
-              <span>Manage Exercises</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => router.push('/manage-t-paths')}>
-              <LayoutTemplate className="mr-2 h-4 w-4" strokeWidth={2.5} />
-              <span>Manage T-Paths</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => router.push('/profile?tab=settings&edit=true')}>
-              <Settings className="mr-2 h-4 w-4" strokeWidth={2.5} />
-              <span>Profile Settings (Edit)</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      <Card className="p-0 border rounded-xl bg-card"> {/* Converted div to Card, removed padding */}
+        <CardHeader className="pb-4 text-center"> {/* Added CardHeader, removed bottom padding */}
+          <CardTitle className="text-xl font-semibold">Quick Links</CardTitle> {/* Added CardTitle */}
+        </CardHeader>
+        <CardContent className="grid grid-cols-3 grid-rows-2 gap-3 p-4"> {/* Moved padding to CardContent */}
+          <ActionButton
+            title="Log Activity"
+            icon={<Activity className="h-5 w-5 text-chart-2" strokeWidth={2.5} />}
+            onClick={() => setIsActivityLogOpen(true)}
+          />
+          <ActionButton
+            title="AI Coach"
+            icon={<Sparkles className="h-5 w-5 text-chart-4" strokeWidth={2.5} />}
+            onClick={() => setIsAiCoachOpen(true)}
+          />
+          <ActionButton
+            title="Workout Log"
+            icon={<History className="h-5 w-5 text-chart-1" strokeWidth={2.5} />}
+            onClick={() => setIsWorkoutLogOpen(true)}
+          />
+          <ActionButton
+            title="Consistency Calendar"
+            icon={<CalendarDays className="h-5 w-5 text-chart-5" strokeWidth={2.5} />}
+            onClick={() => setIsCalendarOpen(true)}
+            className="col-span-2"
+          />
+          
+          <DropdownMenu onOpenChange={setIsMoreMenuOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="h-full w-full p-2 flex flex-col items-center justify-center text-center whitespace-normal gap-1 font-semibold text-sm leading-tight border-0 shadow-sm hover:shadow-md transition-shadow bg-card"
+              >
+                {/* Re-added span wrapper for content */}
+                <span>
+                  {isMoreMenuOpen ? <ChevronUp className="h-5 w-5" strokeWidth={2.5} /> : <ChevronDown className="h-5 w-5" strokeWidth={2.5} />}
+                  <span>More</span>
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => router.push('/workout')}>
+                <Dumbbell className="mr-2 h-4 w-4" strokeWidth={2.5} />
+                <span>Start Workout</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => router.push('/manage-exercises')}>
+                <Dumbbell className="mr-2 h-4 w-4" strokeWidth={2.5} />
+                <span>Manage Exercises</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => router.push('/manage-t-paths')}>
+                <LayoutTemplate className="mr-2 h-4 w-4" strokeWidth={2.5} />
+                <span>Manage T-Paths</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => router.push('/profile?tab=settings&edit=true')}>
+                <Settings className="mr-2 h-4 w-4" strokeWidth={2.5} />
+                <span>Profile Settings (Edit)</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </CardContent>
+      </Card>
 
       <ActivityLoggingDialog open={isActivityLogOpen} onOpenChange={setIsActivityLogOpen} />
       <AiCoachDialog open={isAiCoachOpen} onOpenChange={setIsAiCoachOpen} />

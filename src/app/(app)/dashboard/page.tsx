@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PreviousWorkoutsCard } from '@/components/dashboard/previous-workouts-card'; // NEW
 import { AllWorkoutsQuickStart } from '@/components/dashboard/all-workouts-quick-start'; // NEW
+import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal'; // Import the modal
 
 type Profile = Tables<'profiles'>;
 
@@ -20,6 +21,10 @@ export default function DashboardPage() {
   const [welcomeName, setWelcomeName] = useState<string>('');
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // State for WorkoutSummaryModal
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [selectedSessionIdForSummary, setSelectedSessionIdForSummary] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) {
@@ -125,6 +130,15 @@ export default function DashboardPage() {
       <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.4s' }}>
         <PreviousWorkoutsCard />
       </div>
+
+      {/* Workout Summary Modal */}
+      {selectedSessionIdForSummary && (
+        <WorkoutSummaryModal
+          sessionId={selectedSessionIdForSummary}
+          open={showSummaryModal}
+          onOpenChange={setShowSummaryModal}
+        />
+      )}
     </div>
   );
 }

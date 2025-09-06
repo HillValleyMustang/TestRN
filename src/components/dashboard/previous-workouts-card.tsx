@@ -10,6 +10,7 @@ import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatTimeAgo, getWorkoutColorClass, cn } from '@/lib/utils'; // Added cn
+import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal'; // Corrected import path
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
@@ -23,6 +24,8 @@ export const PreviousWorkoutsCard = () => {
   const router = useRouter();
   const [recentSessions, setRecentSessions] = useState<WorkoutSessionWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showSummaryModal, setShowSummaryModal] = useState(false); // State for modal visibility
+  const [selectedSessionIdForSummary, setSelectedSessionIdForSummary] = useState<string | null>(null); // State for session ID
 
   useEffect(() => {
     const fetchRecentWorkouts = async () => {
@@ -72,10 +75,15 @@ export const PreviousWorkoutsCard = () => {
     fetchRecentWorkouts();
   }, [session, supabase]);
 
+  const handleViewSummaryClick = (sessionId: string) => {
+    setSelectedSessionIdForSummary(sessionId);
+    setShowSummaryModal(true);
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-center text-xl">
           <History className="h-5 w-5" />
           Previous Workouts
         </CardTitle>
@@ -100,22 +108,22 @@ export const PreviousWorkoutsCard = () => {
                 <Card key={sessionItem.id} className={cn("border-2", workoutBorderClass)}>
                   <div className="flex items-center justify-between p-3">
                     <div className="flex flex-col">
-                      <CardTitle className={cn("text-base font-semibold leading-tight", workoutTextClass)}>{workoutName}</CardTitle>
+                      <CardTitle className={cn("text-base font-semibold leading-tight text-center", workoutTextClass)}>{workoutName}</CardTitle>
                       <p className="text-xs text-muted-foreground leading-tight">
                         {sessionItem.completed_at ? formatTimeAgo(new Date(sessionItem.completed_at)) : 'N/A'}
                       </p>
                     </div>
                     <Button
                       variant="outline"
-                      size="icon" // Changed to icon size
-                      onClick={() => router.push(`/workout-summary/${sessionItem.id}`)}
-                      title="View Summary" // Add title for accessibility
+                      size="icon"
+                      onClick={() => handleViewSummaryClick(sessionItem.id)}
+                      title="View Summary"
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
                   </div>
-                  <CardContent className="pt-0 pb-3 px-3"> {/* Adjusted padding */}
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground"> {/* Smaller text, reduced gap */}
+                  <CardContent className="pt-0 pb-3 px-3">
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Dumbbell className="h-3 w-3" /> {sessionItem.exercise_count} Exercises
                       </span>
@@ -137,6 +145,14 @@ export const PreviousWorkoutsCard = () => {
           </div>
         )}
       </CardContent>
+      {/* Workout Summary Modal */}
+      {selectedSessionIdForSummary && (
+        <WorkoutSummaryModal
+          sessionId={selectedSessionIdForSummary}
+          open={showSummaryModal}
+          onOpenChange={setShowSummaryModal}
+        />
+      )}
     </Card>
   );
 };

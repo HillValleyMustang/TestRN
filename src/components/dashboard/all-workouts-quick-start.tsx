@@ -92,7 +92,7 @@ export const AllWorkoutsQuickStart = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-center text-xl">
             <Dumbbell className="h-5 w-5" />
             All Workouts
           </CardTitle>
@@ -108,7 +108,7 @@ export const AllWorkoutsQuickStart = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-center text-xl">
             <Dumbbell className="h-5 w-5" />
             All Workouts
           </CardTitle>
@@ -124,7 +124,7 @@ export const AllWorkoutsQuickStart = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-center text-xl">
             <Dumbbell className="h-5 w-5" />
             All Workouts
           </CardTitle>
@@ -140,7 +140,7 @@ export const AllWorkoutsQuickStart = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-center text-xl">
           <Dumbbell className="h-5 w-5" />
           Workouts in "{activeMainTPath.template_name}"
         </CardTitle>
@@ -156,14 +156,13 @@ export const AllWorkoutsQuickStart = () => {
                   isSelected={false} // Always unselected in this view
                   onClick={() => {}} // No direct click on pill, only button
                   className="flex-1"
-                  hideIcon={true} // HIDE THE ICON HERE
                 />
                 <Button 
-                  size="sm" 
+                  size="icon" // Changed to icon size
                   onClick={() => handleStartWorkout(workout.id)}
                   className="flex-shrink-0"
                 >
-                  Start
+                  <Play className="h-4 w-4" /> {/* Added Play icon */}
                 </Button>
               </div>
             );

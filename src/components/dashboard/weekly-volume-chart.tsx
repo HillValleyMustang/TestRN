@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts'; // Import Cell
 import { useSession } from '@/components/session-context-provider';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
@@ -12,16 +12,17 @@ type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>; // Import ExerciseDefinition
 
+// Define a type for SetLog with joined ExerciseDefinition and WorkoutSession
+// Corrected to expect arrays for joined relationships, as Supabase returns them this way.
+type SetLogWithExerciseAndSession = Pick<SetLog, 'weight_kg' | 'reps'> & {
+  exercise_definitions: Pick<ExerciseDefinition, 'type'>[] | null; // Changed to array
+  workout_sessions: Pick<WorkoutSession, 'session_date' | 'user_id'>[] | null; // Changed to array
+};
+
 interface ChartData {
   date: string;
   volume: number;
 }
-
-// Define a type for SetLog with joined ExerciseDefinition and WorkoutSession
-type SetLogWithExerciseAndSession = Pick<SetLog, 'weight_kg' | 'reps'> & {
-  exercise_definitions: Pick<ExerciseDefinition, 'type'>[] | null;
-  workout_sessions: Pick<WorkoutSession, 'session_date' | 'user_id'>[] | null; // Changed to array
-};
 
 export const WeeklyVolumeChart = () => {
   const { session, supabase } = useSession();
@@ -52,12 +53,17 @@ export const WeeklyVolumeChart = () => {
           throw new Error(setLogsError.message);
         }
 
+        console.log("WeeklyVolumeChart: Fetched setLogsData:", setLogsData);
+
         // Aggregate volume by week
         const weeklyVolumeMap = new Map<string, number>(); // 'YYYY-WW' -> total volume
 
         (setLogsData as SetLogWithExerciseAndSession[]).forEach(log => {
-          const exerciseType = log.exercise_definitions?.[0]?.type;
-          const sessionDate = log.workout_sessions?.[0]?.session_date; // Access the first element of the array
+          // Access the first element of the array for joined data
+          const exerciseType = log.exercise_definitions?.[0]?.type; 
+          const sessionDate = log.workout_sessions?.[0]?.session_date; 
+          
+          console.log(`WeeklyVolumeChart: Processing log: exerciseType=${exerciseType}, sessionDate=${sessionDate}, weight_kg=${log.weight_kg}, reps=${log.reps}`);
 
           if (exerciseType === 'weight' && log.weight_kg && log.reps && sessionDate) {
             const date = new Date(sessionDate);
@@ -70,8 +76,13 @@ export const WeeklyVolumeChart = () => {
 
             const volume = (log.weight_kg || 0) * (log.reps || 0);
             weeklyVolumeMap.set(weekKey, (weeklyVolumeMap.get(weekKey) || 0) + volume);
+            console.log(`  Added volume ${volume} to week ${weekKey}. Current week total: ${weeklyVolumeMap.get(weekKey)}`);
+          } else {
+            console.log(`  Skipping log: criteria not met (type=${exerciseType}, weight=${log.weight_kg}, reps=${log.reps}, date=${sessionDate})`);
           }
         });
+
+        console.log("WeeklyVolumeChart: Aggregated weeklyVolumeMap:", weeklyVolumeMap);
 
         // Convert map to array of objects for Recharts, sorted by date
         const sortedChartData = Array.from(weeklyVolumeMap.entries())
@@ -79,6 +90,7 @@ export const WeeklyVolumeChart = () => {
           .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         setChartData(sortedChartData);
+        console.log("WeeklyVolumeChart: Final sortedChartData:", sortedChartData);
 
       } catch (err: any) {
         console.error("Failed to fetch weekly volume data:", err);
@@ -111,7 +123,7 @@ export const WeeklyVolumeChart = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Weekly Workout Volume (kg)</CardTitle>
+        <CardTitle className="text-center text-xl">Weekly Workout Volume (kg)</CardTitle>
       </CardHeader>
       <CardContent>
         {chartData.length === 0 ? (
