@@ -35,7 +35,7 @@ interface WorkoutSelectorProps {
   activeWorkout: TPath | null;
   exercisesForSession: WorkoutExercise[];
   exercisesWithSets: Record<string, SetLogState[]>;
-  allAvailableExercises: Tables<'exercise_definitions'>[];
+  allAvailableExercises: ExerciseDefinition[];
   currentSessionId: string | null;
   sessionStartTime: Date | null;
   completedExercises: Set<string>;
@@ -53,6 +53,7 @@ interface WorkoutSelectorProps {
   createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>;
   finishWorkoutSession: () => Promise<void>;
   refreshAllData: () => void;
+  isQuickStart?: boolean; // NEW PROP
 }
 
 const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName: string): Omit<WorkoutPillProps, 'isSelected' | 'onClick'> => {
@@ -108,7 +109,8 @@ export const WorkoutSelector = ({
   isCreatingSession,
   createWorkoutSessionInDb,
   finishWorkoutSession,
-  refreshAllData
+  refreshAllData,
+  isQuickStart = false, // NEW PROP
 }: WorkoutSelectorProps) => {
   const { supabase, session } = useSession();
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
@@ -253,6 +255,7 @@ export const WorkoutSelector = ({
                         return await createWorkoutSessionInDb(activeWorkout.template_name, timestamp);
                       }}
                       onExerciseCompleted={markExerciseAsCompleted}
+                      isInitiallyCollapsed={isQuickStart} // Pass the new prop here
                     />
                   ))}
                 </div>

@@ -14,6 +14,7 @@ export default function WorkoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialWorkoutId = searchParams.get('workoutId');
+  const isQuickStart = !!initialWorkoutId; // Determine if it's a quick start
 
   const [summarySessionId, setSummarySessionId] = useState<string | null>(null);
   // Removed: showUnsavedChangesDialog state
@@ -53,6 +54,14 @@ export default function WorkoutPage() {
         loadingWorkoutFlow={workoutFlowManager.loading}
         createWorkoutSessionInDb={workoutFlowManager.createWorkoutSessionInDb}
         finishWorkoutSession={handleFinishAndShowSummary}
+        isQuickStart={isQuickStart} // Pass the new prop here
+      />
+      <WorkoutSummaryModal
+        sessionId={summarySessionId}
+        open={!!summarySessionId}
+        onOpenChange={(open) => {
+          if (!open) setSummarySessionId(null);
+        }}
       />
     </div>
     // Removed: UnsavedChangesDialog rendering (moved to layout)

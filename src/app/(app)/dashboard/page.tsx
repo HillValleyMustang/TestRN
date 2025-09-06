@@ -9,6 +9,8 @@ import { NextWorkoutCard } from '@/components/dashboard/next-workout-card';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PreviousWorkoutsCard } from '@/components/dashboard/previous-workouts-card'; // NEW
+import { AllWorkoutsQuickStart } from '@/components/dashboard/all-workouts-quick-start'; // NEW
 
 type Profile = Tables<'profiles'>;
 
@@ -51,6 +53,7 @@ export default function DashboardPage() {
           .from('t_paths')
           .select('id')
           .eq('user_id', session.user.id)
+          .is('parent_t_path_id', null) // Look for main T-Paths
           .limit(1);
 
         if (tPathError) {
@@ -108,11 +111,19 @@ export default function DashboardPage() {
       <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.1s' }}>
         <NextWorkoutCard />
       </div>
+      {/* NEW: All Workouts Quick Start */}
+      <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.15s' }}>
+        <AllWorkoutsQuickStart />
+      </div>
       <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.2s' }}>
         <ActionHub />
       </div>
       <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.3s' }}>
         <WeeklyVolumeChart />
+      </div>
+      {/* NEW: Previous Workouts Card */}
+      <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.4s' }}>
+        <PreviousWorkoutsCard />
       </div>
     </div>
   );

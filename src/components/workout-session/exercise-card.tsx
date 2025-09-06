@@ -38,6 +38,7 @@ interface ExerciseCardProps {
   workoutTemplateName: string;
   onFirstSetSaved: (timestamp: string) => Promise<string>;
   onExerciseCompleted: (exerciseId: string, isNewPR: boolean) => void;
+  isInitiallyCollapsed?: boolean; // NEW PROP
 }
 
 export const ExerciseCard = ({
@@ -51,6 +52,7 @@ export const ExerciseCard = ({
   workoutTemplateName,
   onFirstSetSaved,
   onExerciseCompleted,
+  isInitiallyCollapsed = false, // Default to false (expanded)
 }: ExerciseCardProps) => {
   const { session } = useSession();
   const [preferredWeightUnit, setPreferredWeightUnit] = useState<Profile['preferred_weight_unit']>('kg');
@@ -58,7 +60,7 @@ export const ExerciseCard = ({
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeLeft, setTimeLeft] = useState(defaultRestTime);
   const timerRef = React.useRef<NodeJS.Timeout | null>(null);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(!isInitiallyCollapsed); // Initialize based on prop
 
   // State for dialogs
   const [showSwapDialog, setShowSwapDialog] = useState(false);
