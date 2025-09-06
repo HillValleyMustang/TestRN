@@ -156,7 +156,7 @@ export const WorkoutVolumeHistoryCard = ({ workoutTemplateName, currentSessionId
                 margin={{
                   top: 5,
                   right: 10,
-                  left: -25,
+                  left: -35,
                   bottom: 5,
                 }}
               >
@@ -173,7 +173,7 @@ export const WorkoutVolumeHistoryCard = ({ workoutTemplateName, currentSessionId
                     return [`${value.toLocaleString()} kg`, 'Volume'];
                   }}
                 />
-                <Bar dataKey="volume" name="Total Volume">
+                <Bar dataKey="volume" name="Total Volume" barSize={20}>
                   {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
