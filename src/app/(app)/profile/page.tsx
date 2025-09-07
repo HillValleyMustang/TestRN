@@ -21,7 +21,7 @@ import { ProfileOverviewTab } from '@/components/profile/profile-overview-tab';
 import { ProfileStatsTab } from '@/components/profile/profile-stats-tab';
 import { ProfileSettingsTab } from '@/components/profile/profile-settings-tab';
 import { achievementsList } from '@/lib/achievements';
-import { LoadingOverlay } from '@/components/loading-overlay'; // Import LoadingOverlay
+import { LoadingOverlay } from '@/components/loading-overlay';
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
@@ -49,7 +49,7 @@ export default function ProfilePage() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false); // New state for saving/regeneration
+  const [isSaving, setIsSaving] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [activeTPath, setActiveTPath] = useState<TPath | null>(null);
   const [aiCoachUsageToday, setAiCoachUsageToday] = useState(0);
@@ -237,6 +237,7 @@ export default function ProfilePage() {
 
         if (!response.ok) {
           const errorText = await response.text();
+          console.error("API Error during T-Path regeneration:", errorText); // Log the full error response
           throw new Error(`Failed to regenerate T-Path workouts: ${errorText}`);
         }
         toast.success("Your workout plan has been updated!");
@@ -308,7 +309,7 @@ export default function ProfilePage() {
           isEditing={isEditing}
           onEditToggle={() => setIsEditing(prev => !prev)}
           onSave={form.handleSubmit(onSubmit)}
-          isSaving={isSaving} // Pass saving state
+          isSaving={isSaving}
         />
 
         <div className="text-center mb-8">

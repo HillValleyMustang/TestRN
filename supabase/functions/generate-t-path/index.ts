@@ -34,9 +34,12 @@ serve(async (req: Request) => {
     console.log(`Received tPathId (main T-Path ID): ${tPathId}`);
 
     // Step 1: SYNCHRONIZE SOURCE DATA
+    console.log('Calling synchronizeSourceData...');
     await synchronizeSourceData(supabaseServiceRoleClient);
+    console.log('synchronizeSourceData completed.');
 
     // Step 2: Fetch T-Path details and user's preferred session length
+    console.log(`Fetching T-Path details for ID: ${tPathId} and user profile for preferred session length.`);
     const { data: tPathData, error: tPathError } = await supabaseServiceRoleClient
       .from('t_paths')
       .select('id, template_name, settings, user_id')
@@ -46,6 +49,7 @@ serve(async (req: Request) => {
     if (tPathError) throw tPathError;
     if (!tPathData) throw new Error('Main T-Path not found or does not belong to user.');
     const tPath: TPathData = tPathData;
+    console.log('Fetched T-Path data:', tPath);
 
     const { data: profileData, error: profileError } = await supabaseServiceRoleClient
       .from('profiles')
@@ -54,6 +58,7 @@ serve(async (req: Request) => {
       .single();
     if (profileError) throw profileError;
     const preferredSessionLength = (profileData as ProfileData)?.preferred_session_length;
+    console.log('Fetched profile data, preferred_session_length:', preferredSessionLength);
 
     const tPathSettings = tPath.settings as { tPathType?: string };
     if (!tPathSettings || !tPathSettings.tPathType) throw new Error('Invalid T-Path settings.');
@@ -63,8 +68,10 @@ serve(async (req: Request) => {
     console.log(`Workout split: ${workoutSplit}, Max Minutes: ${maxAllowedMinutes}`);
 
     const workoutNames = getWorkoutNamesForSplit(workoutSplit);
+    console.log('Workout names to process:', workoutNames);
 
     // Step 3: Fetch all user-owned and global exercises for efficient lookup
+    console.log('Fetching all user-owned and global exercises for lookup map...');
     const { data: allUserAndGlobalExercises, error: fetchAllExercisesError } = await supabaseServiceRoleClient
       .from('exercise_definitions')
       .select('id, library_id, user_id, icon_url') // Include icon_url
@@ -82,6 +89,7 @@ serve(async (req: Request) => {
     // Step 4: Process each workout (child T-Path)
     const generatedWorkouts = [];
     for (const workoutName of workoutNames) {
+      console.log(`Starting processSingleChildWorkout for: ${workoutName}`);
       const result = await processSingleChildWorkout(
         supabaseServiceRoleClient,
         user,
@@ -92,6 +100,7 @@ serve(async (req: Request) => {
         exerciseLookupMap
       );
       generatedWorkouts.push(result);
+      console.log(`Finished processSingleChildWorkout for: ${workoutName}. Result:`, result);
     }
 
     console.log('Edge Function: generate-t-path finished successfully.');
