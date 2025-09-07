@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react'; // Import useEffect
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +32,15 @@ export const UnsavedChangesDialog = ({
   activeWorkoutId, // Destructure new prop
   activeWorkoutName, // Destructure new prop
 }: UnsavedChangesDialogProps) => {
+  useEffect(() => {
+    if (open) {
+      console.log("UnsavedChangesDialog opened.");
+      console.log("activeWorkoutId:", activeWorkoutId);
+      console.log("activeWorkoutName:", activeWorkoutName);
+      console.log("Should 'Manage Workout' button be visible?", activeWorkoutId && activeWorkoutName && activeWorkoutId !== 'ad-hoc');
+    }
+  }, [open, activeWorkoutId, activeWorkoutName]);
+
   const handleManageWorkoutsClick = () => {
     if (activeWorkoutId && activeWorkoutName) {
       onManageWorkouts(activeWorkoutId, activeWorkoutName);
