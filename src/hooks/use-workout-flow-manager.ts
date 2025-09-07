@@ -103,6 +103,8 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   }, []);
 
   const selectWorkout = useCallback(async (workoutId: string | null) => {
+    console.log(`[useWorkoutFlowManager - selectWorkout] Called with workoutId: ${workoutId}, current activeWorkout.id: ${activeWorkout?.id}`);
+
     if (workoutId === activeWorkout?.id) {
       if (hasUnsavedChanges) {
         const shouldBlock = await new Promise<boolean>(resolve => {
@@ -115,10 +117,12 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
         }
         await resetWorkoutSession();
       }
+      console.log(`[useWorkoutFlowManager - selectWorkout] Clicked on already active workout. Returning.`);
       return;
     }
 
     if (isWorkoutActive && hasUnsavedChanges) {
+      console.log(`[useWorkoutFlowManager - selectWorkout] Active workout with unsaved changes. Prompting user.`);
       const shouldBlock = await new Promise<boolean>(resolve => {
         setPendingNavigationPath(workoutId);
         setShowUnsavedChangesDialog(true);
@@ -126,23 +130,39 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       });
 
       if (shouldBlock) {
+        console.log(`[useWorkoutFlowManager - selectWorkout] User chose to stay. Blocking navigation.`);
         return;
       }
+      console.log(`[useWorkoutFlowManager - selectWorkout] User chose to leave. Resetting session.`);
     }
 
     // Reset previous session and trigger data refresh
     await resetWorkoutSession();
     setPendingWorkoutIdToSelect(workoutId); // Set pending ID
+    console.log(`[useWorkoutFlowManager - selectWorkout] Resetting session and refreshing data. Pending workout ID: ${workoutId}`);
     await refreshAllData(); // Trigger data re-fetch
   }, [isWorkoutActive, hasUnsavedChanges, activeWorkout?.id, resetWorkoutSession, setPendingNavigationPath, setShowUnsavedChangesDialog, refreshAllData]);
 
   // Effect to handle actual workout selection once data is refreshed
   useEffect(() => {
-    if (loadingData || !pendingWorkoutIdToSelect) return;
+    if (loadingData || !pendingWorkoutIdToSelect) {
+      console.log(`[useWorkoutFlowManager - performSelection] Skipping: loadingData=${loadingData}, pendingWorkoutIdToSelect=${pendingWorkoutIdToSelect}`);
+      return;
+    }
+
+    // NEW: Ensure data is actually available before proceeding
+    if (groupedTPaths.length === 0 && pendingWorkoutIdToSelect !== 'ad-hoc') {
+      console.log(`[useWorkoutFlowManager - performSelection] groupedTPaths is empty, waiting for data.`);
+      return;
+    }
+    if (Object.keys(workoutExercisesCache).length === 0 && pendingWorkoutIdToSelect !== 'ad-hoc') {
+      console.log(`[useWorkoutFlowManager - performSelection] workoutExercisesCache is empty, waiting for data.`);
+      return;
+    }
 
     const performSelection = async () => {
       console.log(`[useWorkoutFlowManager - performSelection] START`);
-      console.log(`[useWorkoutFlowManager - performSelection] pendingWorkoutIdToSelect:`, pendingWorkoutIdToSelect);
+      console.log(`[useWorkoutFlowManager - performSelection] pendingWorkoutIdToSelect: ${pendingWorkoutIdToSelect}`);
       console.log(`[useWorkoutFlowManager - performSelection] Current groupedTPaths (full):`, JSON.stringify(groupedTPaths, null, 2));
       console.log(`[useWorkoutFlowManager - performSelection] Current workoutExercisesCache (full):`, JSON.stringify(workoutExercisesCache, null, 2));
 
@@ -167,7 +187,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
           setExercisesWithSets({});
           setCurrentSessionId(null);
           setSessionStartTime(null);
-          console.log(`[useWorkoutFlowManager - performSelection] Successfully selected workout:`, selectedWorkout.template_name);
+          console.log(`[useWorkoutFlowManager - performSelection] Successfully selected workout: ${selectedWorkout.template_name}`);
         } else {
           console.warn(`[useWorkoutFlowManager - performSelection] Selected workout ID ${pendingWorkoutIdToSelect} not found in groupedTPaths. Starting Ad-Hoc workout.`);
           toast.error("Selected workout not found. Starting Ad-Hoc workout.");

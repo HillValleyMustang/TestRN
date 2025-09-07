@@ -40,7 +40,9 @@ export default function WorkoutPage() {
           Select a workout or start an ad-hoc session.
         </p>
       </header>
+      {/* Add key prop here */}
       <WorkoutSelector 
+        key={workoutFlowManager.activeWorkout?.id || 'no-workout'}
         {...workoutFlowManager} 
         onWorkoutSelect={() => {}} // No longer directly used by WorkoutSelector
         loadingWorkoutFlow={workoutFlowManager.loading}
