@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, Dispatch, SetStateAction } from 'react'; // Import Dispatch, SetStateAction
+import { useState, useCallback, useMemo, Dispatch, SetStateAction } from 'react';
 import { Tables, SetLogState, WorkoutExercise } from '@/types/supabase';
 
 type TPath = Tables<'t_paths'>;
@@ -25,14 +25,16 @@ interface UseCoreWorkoutSessionStateReturn {
   isCreatingSession: boolean;
   isWorkoutActive: boolean;
   hasUnsavedChanges: boolean;
-  setActiveWorkout: Dispatch<SetStateAction<TPath | null>>; // Updated type
-  setExercisesForSession: Dispatch<SetStateAction<WorkoutExercise[]>>; // Updated type
-  setExercisesWithSets: Dispatch<SetStateAction<Record<string, SetLogState[]>>>; // Updated type
-  setCurrentSessionId: Dispatch<SetStateAction<string | null>>; // Updated type
-  setSessionStartTime: Dispatch<SetStateAction<Date | null>>; // Updated type
-  setCompletedExercises: Dispatch<SetStateAction<Set<string>>>; // Updated type
-  setIsCreatingSession: Dispatch<SetStateAction<boolean>>; // Updated type
-  _resetLocalState: () => void; // Internal reset for local state only
+  expandedExerciseCards: Record<string, boolean>;
+  setActiveWorkout: Dispatch<SetStateAction<TPath | null>>;
+  setExercisesForSession: Dispatch<SetStateAction<WorkoutExercise[]>>;
+  setExercisesWithSets: Dispatch<SetStateAction<Record<string, SetLogState[]>>>;
+  setCurrentSessionId: Dispatch<SetStateAction<string | null>>;
+  setSessionStartTime: Dispatch<SetStateAction<Date | null>>;
+  setCompletedExercises: Dispatch<SetStateAction<Set<string>>>;
+  setIsCreatingSession: Dispatch<SetStateAction<boolean>>;
+  setExpandedExerciseCards: Dispatch<SetStateAction<Record<string, boolean>>>;
+  _resetLocalState: () => void;
 }
 
 export const useCoreWorkoutSessionState = (): UseCoreWorkoutSessionStateReturn => {
@@ -43,6 +45,7 @@ export const useCoreWorkoutSessionState = (): UseCoreWorkoutSessionStateReturn =
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
   const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
   const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [expandedExerciseCards, setExpandedExerciseCards] = useState<Record<string, boolean>>({});
 
   // Derived state for workout activity
   const isWorkoutActive = !!activeWorkout;
@@ -70,6 +73,7 @@ export const useCoreWorkoutSessionState = (): UseCoreWorkoutSessionStateReturn =
     setSessionStartTime(null);
     setCompletedExercises(new Set());
     setIsCreatingSession(false);
+    setExpandedExerciseCards({});
   }, []);
 
   return {
@@ -82,6 +86,7 @@ export const useCoreWorkoutSessionState = (): UseCoreWorkoutSessionStateReturn =
     isCreatingSession,
     isWorkoutActive,
     hasUnsavedChanges,
+    expandedExerciseCards,
     setActiveWorkout,
     setExercisesForSession,
     setExercisesWithSets,
@@ -89,6 +94,7 @@ export const useCoreWorkoutSessionState = (): UseCoreWorkoutSessionStateReturn =
     setSessionStartTime,
     setCompletedExercises,
     setIsCreatingSession,
+    setExpandedExerciseCards,
     _resetLocalState,
   };
 };

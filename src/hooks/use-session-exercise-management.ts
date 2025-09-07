@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Tables, SetLogState, WorkoutExercise } from '@/types/supabase';
 import { db, LocalDraftSetLog } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
-import { useCoreWorkoutSessionState } from './use-core-workout-session-state'; // Import core state
+import { useCoreWorkoutSessionState } from './use-core-workout-session-state';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -24,8 +24,8 @@ const isValidDraftKey = (exerciseId: string | null | undefined, setIndex: number
 
 interface UseSessionExerciseManagementProps {
   allAvailableExercises: ExerciseDefinition[];
-  coreState: ReturnType<typeof useCoreWorkoutSessionState>; // Pass core state
-  supabase: SupabaseClient; // Pass supabase client
+  coreState: ReturnType<typeof useCoreWorkoutSessionState>;
+  supabase: SupabaseClient;
 }
 
 interface UseSessionExerciseManagementReturn {
@@ -49,6 +49,7 @@ export const useSessionExerciseManagement = ({
     setExercisesForSession,
     setExercisesWithSets,
     setCompletedExercises,
+    setExpandedExerciseCards,
   } = coreState;
 
   const addExerciseToSession = useCallback(async (exercise: ExerciseDefinition) => {
@@ -109,7 +110,8 @@ export const useSessionExerciseManagement = ({
     });
 
     setExercisesWithSets((prev: Record<string, SetLogState[]>) => ({ ...prev, [exercise.id]: newSetsForExercise }));
-  }, [currentSessionId, session, supabase, exercisesForSession, setExercisesForSession, setExercisesWithSets]);
+    setExpandedExerciseCards(prev => ({ ...prev, [exercise.id]: true }));
+  }, [currentSessionId, session, supabase, exercisesForSession, setExercisesForSession, setExercisesWithSets, setExpandedExerciseCards]);
 
   const removeExerciseFromSession = useCallback(async (exerciseId: string) => {
     if (!isValidId(exerciseId)) {
@@ -120,6 +122,7 @@ export const useSessionExerciseManagement = ({
     setExercisesForSession((prev: WorkoutExercise[]) => prev.filter((ex: WorkoutExercise) => ex.id !== exerciseId));
     setExercisesWithSets((prev: Record<string, SetLogState[]>) => { const newSets = { ...prev }; delete newSets[exerciseId]; return newSets; });
     setCompletedExercises((prev: Set<string>) => { const newCompleted = new Set(prev); newCompleted.delete(exerciseId); return newCompleted; });
+    setExpandedExerciseCards(prev => { const newExpanded = { ...prev }; delete newExpanded[exerciseId]; return newExpanded; });
     
     const draftsToDelete = await db.draft_set_logs
       .where('exercise_id').equals(exerciseId)
@@ -131,7 +134,7 @@ export const useSessionExerciseManagement = ({
       console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1]), `Invalid draft keys in removeExerciseFromSession bulkDelete: ${JSON.stringify(keysToDelete)}`));
       await db.draft_set_logs.bulkDelete(keysToDelete);
     }
-  }, [currentSessionId, setExercisesForSession, setExercisesWithSets, setCompletedExercises]);
+  }, [currentSessionId, setExercisesForSession, setExercisesWithSets, setCompletedExercises, setExpandedExerciseCards]);
 
   const substituteExercise = useCallback(async (oldExerciseId: string, newExercise: WorkoutExercise) => {
     if (!isValidId(oldExerciseId) || !isValidId(newExercise.id)) {
@@ -171,6 +174,12 @@ export const useSessionExerciseManagement = ({
       return newSets;
     });
     setCompletedExercises((prev: Set<string>) => { const newCompleted = new Set(prev); newCompleted.delete(oldExerciseId); return newCompleted; });
+    setExpandedExerciseCards(prev => {
+      const newExpanded = { ...prev };
+      delete newExpanded[oldExerciseId];
+      newExpanded[newExercise.id] = true; // Expand the new exercise
+      return newExpanded;
+    });
     
     const draftsToDelete = await db.draft_set_logs
       .where('exercise_id').equals(oldExerciseId)
@@ -182,10 +191,11 @@ export const useSessionExerciseManagement = ({
       console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1]), `Invalid draft keys in substituteExercise bulkDelete: ${JSON.stringify(keysToDelete)}`));
       await db.draft_set_logs.bulkDelete(keysToDelete);
     }
-  }, [currentSessionId, exercisesForSession, setExercisesForSession, setExercisesWithSets, setCompletedExercises]);
+  }, [currentSessionId, exercisesForSession, setExercisesForSession, setExercisesWithSets, setCompletedExercises, setExpandedExerciseCards]);
 
   const updateExerciseSets = useCallback((exerciseId: string, newSets: SetLogState[]) => {
     setExercisesWithSets((prev: Record<string, SetLogState[]>) => ({ ...prev, [exerciseId]: newSets }));
+    // No change to expanded state here, as saving a set should keep it open
   }, [setExercisesWithSets]);
 
   const markExerciseAsCompleted = useCallback((exerciseId: string, isNewPR: boolean) => {
@@ -194,7 +204,8 @@ export const useSessionExerciseManagement = ({
       newCompleted.add(exerciseId);
       return newCompleted;
     });
-  }, [setCompletedExercises]);
+    setExpandedExerciseCards(prev => ({ ...prev, [exerciseId]: false })); // Collapse on completion
+  }, [setCompletedExercises, setExpandedExerciseCards]);
 
   return {
     markExerciseAsCompleted,

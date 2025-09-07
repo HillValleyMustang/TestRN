@@ -4,12 +4,12 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Tables } from '@/types/supabase';
-import { db } from '@/lib/db'; // Import db
+import { db } from '@/lib/db';
 import { useWorkoutDataFetcher } from './use-workout-data-fetcher';
 import { useCoreWorkoutSessionState } from './use-core-workout-session-state';
 import { useWorkoutSessionPersistence } from './use-workout-session-persistence';
 import { useSessionExerciseManagement } from './use-session-exercise-management';
-import { useSession } from '@/components/session-context-provider'; // Import useSession
+import { useSession } from '@/components/session-context-provider';
 
 type TPath = Tables<'t_paths'>;
 
@@ -19,7 +19,7 @@ interface UseWorkoutFlowManagerProps {
 }
 
 export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFlowManagerProps) => {
-  const { supabase } = useSession(); // Get supabase client from useSession
+  const { supabase } = useSession();
 
   const {
     activeWorkout,
@@ -31,6 +31,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     isCreatingSession,
     isWorkoutActive,
     hasUnsavedChanges,
+    expandedExerciseCards,
     setActiveWorkout,
     setExercisesForSession,
     setExercisesWithSets,
@@ -38,6 +39,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     setSessionStartTime,
     setCompletedExercises,
     setIsCreatingSession,
+    setExpandedExerciseCards,
     _resetLocalState,
   } = useCoreWorkoutSessionState();
 
@@ -60,8 +62,9 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     coreState: {
       activeWorkout, exercisesForSession, exercisesWithSets, currentSessionId, sessionStartTime,
       completedExercises, isCreatingSession, isWorkoutActive, hasUnsavedChanges,
+      expandedExerciseCards, // Include here
       setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId,
-      setSessionStartTime, setCompletedExercises, setIsCreatingSession, _resetLocalState,
+      setSessionStartTime, setCompletedExercises, setIsCreatingSession, setExpandedExerciseCards, _resetLocalState,
     },
   });
 
@@ -76,10 +79,11 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     coreState: {
       activeWorkout, exercisesForSession, exercisesWithSets, currentSessionId, sessionStartTime,
       completedExercises, isCreatingSession, isWorkoutActive, hasUnsavedChanges,
+      expandedExerciseCards, // Include here
       setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId,
-      setSessionStartTime, setCompletedExercises, setIsCreatingSession, _resetLocalState,
+      setSessionStartTime, setCompletedExercises, setIsCreatingSession, setExpandedExerciseCards, _resetLocalState,
     },
-    supabase: supabase, // Pass the supabase client from useSession
+    supabase: supabase,
   });
 
   const [pendingNavigationPath, setPendingNavigationPath] = useState<string | null>(null);
@@ -165,12 +169,12 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
         setActiveWorkout({ id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: null, version: null, settings: null, progression_settings: null, parent_t_path_id: null });
       }
     }
-  }, [initialWorkoutId, groupedTPaths, activeWorkout, setActiveWorkout, selectWorkout]); // Added selectWorkout to dependencies
+  }, [initialWorkoutId, groupedTPaths, activeWorkout, setActiveWorkout, selectWorkout]);
 
   const finishWorkoutSession = useCallback(async () => {
     const finishedSessionId = await persistAndFinishWorkoutSession();
     if (finishedSessionId) {
-      await resetWorkoutSession(); // Ensure all local state is cleared after successful finish
+      await resetWorkoutSession();
       router.push(`/workout-summary/${finishedSessionId}`);
     }
     return finishedSessionId;
@@ -182,8 +186,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     const draftCount = await db.draft_set_logs.count();
     console.log(`[useWorkoutFlowManager] Draft count in IndexedDB: ${draftCount}`);
 
-    // Only the /workout page itself is considered 'safe' if there are drafts.
-    // Any other path should trigger the warning if drafts exist.
     const allowedPathsWithoutWarning = ['/workout']; 
 
     if (draftCount > 0 && !allowedPathsWithoutWarning.includes(path)) {
@@ -194,17 +196,17 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       });
     }
 
-    return Promise.resolve(false); // No drafts, or navigating to an allowed path, allow navigation
+    return Promise.resolve(false);
   }, [setPendingNavigationPath, setShowUnsavedChangesDialog]);
 
   const handleConfirmLeave = useCallback(async () => {
     setShowUnsavedChangesDialog(false);
     if (pendingNavigationPath) {
-      await resetWorkoutSession(); // Clear all local state and drafts
+      await resetWorkoutSession();
       router.push(pendingNavigationPath);
     }
     if (resolveNavigationPromise.current) {
-      resolveNavigationPromise.current(false); // Resolve to false, meaning navigation should proceed
+      resolveNavigationPromise.current(false);
       resolveNavigationPromise.current = null;
     }
     setPendingNavigationPath(null);
@@ -213,7 +215,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   const handleCancelLeave = useCallback(() => {
     setShowUnsavedChangesDialog(false);
     if (resolveNavigationPromise.current) {
-      resolveNavigationPromise.current(true); // Resolve to true, meaning navigation should be blocked
+      resolveNavigationPromise.current(true);
       resolveNavigationPromise.current = null;
     }
     setPendingNavigationPath(null);
@@ -222,6 +224,13 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   const updateSessionStartTime = useCallback((timestamp: string) => {
     setSessionStartTime(new Date(timestamp));
   }, [setSessionStartTime]);
+
+  const toggleExerciseCardExpansion = useCallback((exerciseId: string) => {
+    setExpandedExerciseCards(prev => ({
+      ...prev,
+      [exerciseId]: !prev[exerciseId]
+    }));
+  }, [setExpandedExerciseCards]);
 
   return {
     activeWorkout,
@@ -238,6 +247,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     setExercisesWithSets,
     setCurrentSessionId,
     setSessionStartTime,
+    setCompletedExercises,
     resetWorkoutSession,
     markExerciseAsCompleted,
     addExerciseToSession,
@@ -254,13 +264,14 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     handleConfirmLeave,
     handleCancelLeave,
     promptBeforeNavigation,
-    allAvailableExercises, // Expose allAvailableExercises
-    updateSessionStartTime, // Expose the new function
-    // New exports for EditWorkoutExercisesDialog
+    allAvailableExercises,
+    updateSessionStartTime,
     isEditWorkoutDialogOpen,
     selectedWorkoutToEdit,
     handleOpenEditWorkoutDialog,
     handleEditWorkoutSaveSuccess,
-    setIsEditWorkoutDialogOpen, // Expose setter to allow closing from layout
+    setIsEditWorkoutDialogOpen,
+    expandedExerciseCards,
+    toggleExerciseCardExpansion,
   };
 };

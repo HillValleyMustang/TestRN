@@ -73,6 +73,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
     isCreatingSession,
     isWorkoutActive,
     hasUnsavedChanges,
+    expandedExerciseCards, // Include here
     setActiveWorkout,
     setExercisesForSession,
     setExercisesWithSets,
@@ -80,6 +81,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
     setSessionStartTime,
     setCompletedExercises,
     setIsCreatingSession,
+    setExpandedExerciseCards,
     _resetLocalState,
   } = coreState;
 
@@ -91,7 +93,13 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
   } = useWorkoutSessionPersistence({
     allAvailableExercises,
     workoutExercisesCache,
-    coreState,
+    coreState: {
+      activeWorkout, exercisesForSession, exercisesWithSets, currentSessionId, sessionStartTime,
+      completedExercises, isCreatingSession, isWorkoutActive, hasUnsavedChanges,
+      expandedExerciseCards, // Include here
+      setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId,
+      setSessionStartTime, setCompletedExercises, setIsCreatingSession, setExpandedExerciseCards, _resetLocalState,
+    },
   });
 
   // Exercise management within session
@@ -103,8 +111,14 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
     updateExerciseSets,
   } = useSessionExerciseManagement({
     allAvailableExercises,
-    coreState,
-    supabase,
+    coreState: {
+      activeWorkout, exercisesForSession, exercisesWithSets, currentSessionId, sessionStartTime,
+      completedExercises, isCreatingSession, isWorkoutActive, hasUnsavedChanges,
+      expandedExerciseCards, // Include here
+      setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId,
+      setSessionStartTime, setCompletedExercises, setIsCreatingSession, setExpandedExerciseCards, _resetLocalState,
+    },
+    supabase: supabase,
   });
 
   // Effect to load drafts when activeWorkout or currentSessionId changes
@@ -134,6 +148,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
       const newCompletedExercises = new Set<string>();
       let loadedSessionId: string | null = null;
       let loadedSessionStartTime: Date | null = null;
+      const newExpandedExerciseCards: Record<string, boolean> = {};
 
       if (drafts.length > 0) {
         const groupedDrafts = drafts.reduce((acc, draft) => {
@@ -170,6 +185,9 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
 
             if (setsForExercise.every(set => set.isSaved)) {
               newCompletedExercises.add(exerciseId);
+              newExpandedExerciseCards[exerciseId] = false; // Collapse if completed
+            } else {
+              newExpandedExerciseCards[exerciseId] = true; // Expand if not completed
             }
 
             if (drafts[0].session_id && !loadedSessionId) {
@@ -193,6 +211,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
               weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null,
               is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
             }));
+            newExpandedExerciseCards[ex.id] = true; // Expand new exercises by default
           });
         }
       }
@@ -202,10 +221,11 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
       setCompletedExercises(newCompletedExercises);
       setCurrentSessionId(loadedSessionId);
       setSessionStartTime(loadedSessionStartTime);
+      setExpandedExerciseCards(newExpandedExerciseCards);
     };
 
     loadDraftsForActiveWorkout();
-  }, [session?.user.id, activeWorkout, currentSessionId, allAvailableExercises, workoutExercisesCache, _resetLocalState, setExercisesForSession, setExercisesWithSets, setCompletedExercises, setCurrentSessionId, setSessionStartTime]);
+  }, [session?.user.id, activeWorkout, currentSessionId, allAvailableExercises, workoutExercisesCache, _resetLocalState, setExercisesForSession, setExercisesWithSets, setCompletedExercises, setCurrentSessionId, setSessionStartTime, setExpandedExerciseCards]);
 
   return {
     activeWorkout,

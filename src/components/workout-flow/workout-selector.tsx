@@ -31,7 +31,7 @@ interface GroupedTPath {
 }
 
 interface WorkoutSelectorProps {
-  onWorkoutSelect: (workoutId: string | null) => void; // This prop is now redundant, but kept for compatibility
+  onWorkoutSelect: (workoutId: string | null) => void;
   activeWorkout: TPath | null;
   exercisesForSession: WorkoutExercise[];
   exercisesWithSets: Record<string, SetLogState[]>;
@@ -44,16 +44,18 @@ interface WorkoutSelectorProps {
   substituteExercise: (oldExerciseId: string, newExercise: WorkoutExercise) => void;
   updateSessionStartTime: (timestamp: string) => void;
   markExerciseAsCompleted: (exerciseId: string, isNewPR: boolean) => void;
-  resetWorkoutSession: () => Promise<void>; // This prop is now redundant, but kept for compatibility
+  resetWorkoutSession: () => Promise<void>;
   updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
-  selectWorkout: (workoutId: string | null) => Promise<void>; // Use this directly
+  selectWorkout: (workoutId: string | null) => Promise<void>;
   loadingWorkoutFlow: boolean;
   groupedTPaths: GroupedTPath[];
   isCreatingSession: boolean;
   createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>;
   finishWorkoutSession: () => Promise<void>;
   refreshAllData: () => void;
-  isQuickStart?: boolean; // NEW PROP
+  isQuickStart?: boolean;
+  expandedExerciseCards: Record<string, boolean>;
+  toggleExerciseCardExpansion: (exerciseId: string) => void;
 }
 
 const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName: string): Omit<WorkoutPillProps, 'isSelected' | 'onClick'> => {
@@ -110,7 +112,9 @@ export const WorkoutSelector = ({
   createWorkoutSessionInDb,
   finishWorkoutSession,
   refreshAllData,
-  isQuickStart = false, // NEW PROP
+  isQuickStart = false,
+  expandedExerciseCards,
+  toggleExerciseCardExpansion,
 }: WorkoutSelectorProps) => {
   const { supabase, session } = useSession();
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
@@ -141,8 +145,6 @@ export const WorkoutSelector = ({
       }
     }
   };
-
-  // Removed: handleOpenEditWorkoutDialog and handleEditWorkoutSaveSuccess
 
   const totalExercises = exercisesForSession.length;
 
@@ -243,9 +245,9 @@ export const WorkoutSelector = ({
                         return await createWorkoutSessionInDb(activeWorkout.template_name, timestamp);
                       }}
                       onExerciseCompleted={markExerciseAsCompleted}
-                      isInitiallyCollapsed={true}
                       isExerciseCompleted={completedExercises.has(exercise.id)}
-                      // Removed: onOpenEditWorkoutDialog={handleOpenEditWorkoutDialog}
+                      isExpandedProp={expandedExerciseCards[exercise.id] || false}
+                      onToggleExpand={toggleExerciseCardExpansion}
                     />
                   ))}
                 </div>
@@ -289,8 +291,6 @@ export const WorkoutSelector = ({
         </Card>
         <LoadingOverlay isOpen={isCreatingSession} title="Starting Workout..." description="Please wait while your session is being prepared." />
       </div>
-
-      {/* Removed: EditWorkoutExercisesDialog */}
     </>
   );
 };

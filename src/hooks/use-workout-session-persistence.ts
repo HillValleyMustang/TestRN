@@ -56,6 +56,7 @@ export const useWorkoutSessionPersistence = ({
     setSessionStartTime,
     setCompletedExercises,
     setIsCreatingSession,
+    setExpandedExerciseCards, // Include here
     _resetLocalState,
   } = coreState;
 
@@ -285,7 +286,27 @@ export const useWorkoutSessionPersistence = ({
   }, [session?.user.id, activeWorkout, currentSessionId, allAvailableExercises, workoutExercisesCache, _resetLocalState, setExercisesForSession, setExercisesWithSets, setCompletedExercises, setCurrentSessionId, setSessionStartTime]);
 
   return {
+    activeWorkout,
+    exercisesForSession,
+    exercisesWithSets,
+    currentSessionId,
+    sessionStartTime,
+    completedExercises,
+    isCreatingSession,
+    isWorkoutActive,
+    hasUnsavedChanges,
+    setActiveWorkout,
+    setExercisesForSession,
+    setExercisesWithSets,
+    setCurrentSessionId,
+    setSessionStartTime,
+    setCompletedExercises,
     resetWorkoutSession,
+    markExerciseAsCompleted,
+    addExerciseToSession,
+    removeExerciseFromSession,
+    substituteExercise,
+    updateExerciseSets,
     createWorkoutSessionInDb,
     finishWorkoutSession,
   };

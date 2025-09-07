@@ -38,9 +38,9 @@ interface ExerciseCardProps {
   workoutTemplateName: string;
   onFirstSetSaved: (timestamp: string) => Promise<string>;
   onExerciseCompleted: (exerciseId: string, isNewPR: boolean) => void;
-  isInitiallyCollapsed?: boolean;
   isExerciseCompleted: boolean;
-  // Removed: onOpenEditWorkoutDialog: (workoutId: string, workoutName: string) => void;
+  isExpandedProp: boolean;
+  onToggleExpand: (exerciseId: string) => void;
 }
 
 export const ExerciseCard = ({
@@ -54,9 +54,9 @@ export const ExerciseCard = ({
   workoutTemplateName,
   onFirstSetSaved,
   onExerciseCompleted,
-  isInitiallyCollapsed = false,
   isExerciseCompleted,
-  // Removed: onOpenEditWorkoutDialog,
+  isExpandedProp,
+  onToggleExpand,
 }: ExerciseCardProps) => {
   const { session } = useSession();
   const [preferredWeightUnit, setPreferredWeightUnit] = useState<Profile['preferred_weight_unit']>('kg');
@@ -64,7 +64,6 @@ export const ExerciseCard = ({
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeLeft, setTimeLeft] = useState(defaultRestTime);
   const timerRef = React.useRef<NodeJS.Timeout | null>(null);
-  const [isExpanded, setIsExpanded] = useState(!isInitiallyCollapsed);
 
   // State for dialogs
   const [showSwapDialog, setShowSwapDialog] = useState(false);
@@ -131,19 +130,23 @@ export const ExerciseCard = ({
     setTimeLeft(defaultRestTime);
   };
 
+  const handleCompleteExerciseClick = async () => {
+    const { success, isNewPR } = await handleCompleteExercise();
+    if (success) {
+      // Parent will handle collapsing via onExerciseCompleted
+    }
+  };
+
   const handleToggleTimer = () => {
-    setIsTimerRunning(prev => !prev);
+    setIsTimerRunning((prev) => !prev);
   };
 
   const handleResetTimer = () => {
     setIsTimerRunning(false);
     setTimeLeft(defaultRestTime);
-  };
-
-  const handleCompleteExerciseClick = async () => {
-    const { success, isNewPR } = await handleCompleteExercise();
-    if (success) {
-      setIsExpanded(false);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
     }
   };
 
@@ -167,7 +170,7 @@ export const ExerciseCard = ({
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
-    }
+    };
 
     return () => {
       if (timerRef.current) {
@@ -195,7 +198,7 @@ export const ExerciseCard = ({
       <Card className={cn("mb-6 border-2 relative", workoutBorderClass, { "opacity-70": isExerciseCompleted })}>
         <CardHeader 
           className="p-0 cursor-pointer relative"
-          onClick={() => setIsExpanded(!isExpanded)}
+          onClick={() => onToggleExpand(exercise.id)}
         >
           <div className="p-4 space-y-2">
             <div className="flex items-start justify-between">
@@ -241,20 +244,19 @@ export const ExerciseCard = ({
                     <DropdownMenuItem onSelect={() => setShowSwapDialog(true)}>
                       <RefreshCcw className="h-4 w-4 mr-2" /> Swap Exercise
                     </DropdownMenuItem>
-                    {/* Removed: Manage Workout DropdownMenuItem */}
                     <DropdownMenuItem onSelect={() => setShowCantDoDialog(true)} className="text-destructive">
                       <Trash2 className="h-4 w-4 mr-2" /> Can't Do
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }} title={isExpanded ? "Collapse" : "Expand"}>
-                  {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onToggleExpand(exercise.id); }} title={isExpandedProp ? "Collapse" : "Expand"}>
+                  {isExpandedProp ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
                 </Button>
               </div>
             </div>
           </div>
         </CardHeader>
-        {isExpanded && (
+        {isExpandedProp && (
           <CardContent className="pb-16">
             <div className="space-y-4">
               {sets.map((set, setIndex) => (
@@ -277,12 +279,12 @@ export const ExerciseCard = ({
                             <Trophy className="h-3 w-3" /> PR!
                           </span>
                         )}
-                        {!set.isSaved && ( // Only enable save button if not already saved
+                        {!set.isSaved && (
                           <Button variant="ghost" size="icon" onClick={() => handleSaveSetAndStartTimer(setIndex)} title="Save Set" className="h-6 w-6">
                             <Save className="h-4 w-4" />
                           </Button>
                         )}
-                        {set.isSaved && ( // Only enable edit button if saved
+                        {set.isSaved && (
                           <Button variant="ghost" size="icon" onClick={() => handleEditSet(setIndex)} title="Edit Set" className="h-6 w-6">
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -303,7 +305,7 @@ export const ExerciseCard = ({
                             placeholder="kg"
                             value={convertWeight(set.weight_kg, 'kg', preferredWeightUnit as 'kg' | 'lbs') ?? ''}
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange(setIndex, 'weight_kg', e.target.value)}
-                            disabled={set.isSaved} // Disable input if set is saved
+                            disabled={set.isSaved}
                             className="w-20 text-center h-8 text-xs"
                           />
                           <span className="text-muted-foreground text-xs">x</span>
@@ -315,7 +317,7 @@ export const ExerciseCard = ({
                                 placeholder="L"
                                 value={set.reps_l ?? ''}
                                 onChange={(e) => handleInputChange(setIndex, 'reps_l', e.target.value)}
-                                disabled={set.isSaved} // Disable input if set is saved
+                                disabled={set.isSaved}
                                 className="w-20 h-8 text-xs"
                               />
                               <Input
@@ -324,7 +326,7 @@ export const ExerciseCard = ({
                                 placeholder="R"
                                 value={set.reps_r ?? ''}
                                 onChange={(e) => handleInputChange(setIndex, 'reps_r', e.target.value)}
-                                disabled={set.isSaved} // Disable input if set is saved
+                                disabled={set.isSaved}
                                 className="w-20 h-8 text-xs"
                               />
                             </>
@@ -335,7 +337,7 @@ export const ExerciseCard = ({
                               placeholder="reps"
                               value={set.reps ?? ''}
                               onChange={(e) => handleInputChange(setIndex, 'reps', e.target.value)}
-                              disabled={set.isSaved} // Disable input if set is saved
+                              disabled={set.isSaved}
                               className="w-20 text-center h-8 text-xs"
                             />
                           )}
@@ -348,7 +350,7 @@ export const ExerciseCard = ({
                           placeholder="Time (seconds)"
                           value={set.time_seconds ?? ''}
                           onChange={(e) => handleInputChange(setIndex, 'time_seconds', e.target.value)}
-                          disabled={set.isSaved} // Disable input if set is saved
+                          disabled={set.isSaved}
                           className="flex-1 h-8 text-xs"
                         />
                       )}
