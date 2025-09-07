@@ -37,10 +37,10 @@ export const UnsavedChangesDialog = ({
             You have an active workout session with unsaved changes. If you leave now, your progress for this workout will be lost.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={onCancelLeave}>Stay on Page</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirmLeave} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-            Discard & Leave
+        <AlertDialogFooter className="flex flex-col sm:flex-row gap-2">
+          <AlertDialogCancel onClick={onCancelLeave} className="flex-1">Go back to Workout</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirmLeave} className="flex-1 bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Continue and Exit
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
