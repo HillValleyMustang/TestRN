@@ -142,10 +142,11 @@ export const WorkoutSelector = ({
     }
   };
 
-  const handleOpenEditWorkoutDialog = useCallback((workoutId: string, workoutName: string) => {
-    setSelectedWorkoutToEdit({ id: workoutId, name: workoutName });
-    setIsEditWorkoutDialogOpen(true);
-  }, []);
+  // Removed handleOpenEditWorkoutDialog as it's no longer passed to ExerciseCard
+  // const handleOpenEditWorkoutDialog = useCallback((workoutId: string, workoutName: string) => {
+  //   setSelectedWorkoutToEdit({ id: workoutId, name: workoutName });
+  //   setIsEditWorkoutDialogOpen(true);
+  // }, []);
 
   const handleEditWorkoutSaveSuccess = useCallback(async () => {
     setIsEditWorkoutDialogOpen(false);
@@ -255,7 +256,7 @@ export const WorkoutSelector = ({
                       onExerciseCompleted={markExerciseAsCompleted}
                       isInitiallyCollapsed={isQuickStart}
                       isExerciseCompleted={completedExercises.has(exercise.id)}
-                      onOpenEditWorkoutDialog={handleOpenEditWorkoutDialog} // Pass the handler here
+                      // Removed onOpenEditWorkoutDialog prop
                     />
                   ))}
                 </div>
@@ -265,7 +266,10 @@ export const WorkoutSelector = ({
             {activeWorkout.id !== 'ad-hoc' && activeWorkout && (
               <Button 
                 variant="outline" 
-                onClick={() => handleOpenEditWorkoutDialog(activeWorkout.id, activeWorkout.template_name)} 
+                onClick={() => {
+                  setSelectedWorkoutToEdit({ id: activeWorkout.id, name: activeWorkout.template_name });
+                  setIsEditWorkoutDialogOpen(true);
+                }} 
                 className="w-full mt-4 mb-6"
               >
                 <Settings className="h-4 w-4 mr-2" /> Manage Exercises for this Workout

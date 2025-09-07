@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Check, Trophy, Edit, Trash2, Timer, RefreshCcw, Info, History, Menu, Play, Pause, RotateCcw, Save, ChevronDown, ChevronUp, Lightbulb, Settings } from 'lucide-react';
+import { Plus, Check, Trophy, Edit, Trash2, Timer, RefreshCcw, Info, History, Menu, Play, Pause, RotateCcw, Save, ChevronDown, ChevronUp, Lightbulb } from 'lucide-react';
 import { ExerciseHistoryDialog } from '@/components/exercise-history-dialog';
 import { ExerciseInfoDialog } from '@/components/exercise-info-dialog';
 import { Tables, SetLogState, WorkoutExercise, UserExercisePR } from '@/types/supabase';
@@ -40,7 +40,7 @@ interface ExerciseCardProps {
   onExerciseCompleted: (exerciseId: string, isNewPR: boolean) => void;
   isInitiallyCollapsed?: boolean;
   isExerciseCompleted: boolean;
-  onOpenEditWorkoutDialog: (workoutId: string, workoutName: string) => void; // NEW PROP
+  // Removed onOpenEditWorkoutDialog prop
 }
 
 export const ExerciseCard = ({
@@ -56,7 +56,7 @@ export const ExerciseCard = ({
   onExerciseCompleted,
   isInitiallyCollapsed = false,
   isExerciseCompleted,
-  onOpenEditWorkoutDialog, // Destructure new prop
+  // Removed onOpenEditWorkoutDialog from destructuring
 }: ExerciseCardProps) => {
   const { session } = useSession();
   const [preferredWeightUnit, setPreferredWeightUnit] = useState<Profile['preferred_weight_unit']>('kg');
@@ -241,11 +241,7 @@ export const ExerciseCard = ({
                     <DropdownMenuItem onSelect={() => setShowSwapDialog(true)}>
                       <RefreshCcw className="h-4 w-4 mr-2" /> Swap Exercise
                     </DropdownMenuItem>
-                    {workoutTemplateName !== 'Ad Hoc Workout' && ( // Only show if not Ad Hoc
-                      <DropdownMenuItem onSelect={() => onOpenEditWorkoutDialog(currentSessionId!, workoutTemplateName)}>
-                        <Settings className="h-4 w-4 mr-2" /> Manage Workout
-                      </DropdownMenuItem>
-                    )}
+                    {/* Removed the "Manage Workout" dropdown item */}
                     <DropdownMenuItem onSelect={() => setShowCantDoDialog(true)} className="text-destructive">
                       <Trash2 className="h-4 w-4 mr-2" /> Can't Do
                     </DropdownMenuItem>
@@ -270,7 +266,7 @@ export const ExerciseCard = ({
                         {(set.lastWeight != null || set.lastReps != null || set.lastRepsL != null || set.lastRepsR != null || set.lastTimeSeconds != null) && (
                           <span className="text-muted-foreground text-xs">
                             (Last: {exercise.type === 'weight' ?
-                              `${set.lastWeight != null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${exercise.category === 'Unilateral' ? `${set.lastRepsL != null ? set.lastRepsL : '-'} L / ${set.lastRepsR != null ? set.lastRepsR : '-'} R` : (set.lastReps != null ? set.lastReps : '-')}` :
+                              `${set.lastWeight != null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${exercise.category === 'Unilateral' ? `${set.lastRepsL != null ? set.lastRepsL : '-'} L / ${set.lastRepsR != null ? set.lastRepsR : '-'} R` : (set.lastReps != null ? set.reps : '-')}` :
                               `${set.lastTimeSeconds != null ? `${set.lastTimeSeconds}s` : '-'}`})
                           </span>
                         )}

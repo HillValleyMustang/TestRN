@@ -50,6 +50,7 @@ export default function AppLayout({
         onOpenChange={workoutFlowManager.handleCancelLeave} // Allow closing with escape/outside click
         onConfirmLeave={workoutFlowManager.handleConfirmLeave}
         onCancelLeave={workoutFlowManager.handleCancelLeave}
+        onManageWorkouts={workoutFlowManager.handleManageWorkouts} // Pass the new handler
       />
     </WorkoutNavigationProvider>
   );

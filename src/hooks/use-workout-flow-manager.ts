@@ -200,6 +200,19 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     setPendingNavigationPath(null);
   }, []);
 
+  const handleManageWorkouts = useCallback(async () => {
+    // This action is similar to "Continue and Exit" in that it leaves the current workout.
+    // So, we confirm leaving (which clears drafts) and then navigate to /manage-t-paths.
+    setShowUnsavedChangesDialog(false);
+    await resetWorkoutSession(); // Clear all local state and drafts
+    router.push('/manage-t-paths');
+    if (resolveNavigationPromise.current) {
+      resolveNavigationPromise.current(false); // Resolve to false, meaning navigation should proceed
+      resolveNavigationPromise.current = null;
+    }
+    setPendingNavigationPath(null); // Clear any pending path
+  }, [router, resetWorkoutSession]);
+
   const updateSessionStartTime = useCallback((timestamp: string) => {
     setSessionStartTime(new Date(timestamp));
   }, [setSessionStartTime]);
@@ -234,6 +247,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     showUnsavedChangesDialog,
     handleConfirmLeave,
     handleCancelLeave,
+    handleManageWorkouts, // Expose the new handler
     promptBeforeNavigation,
     allAvailableExercises, // Expose allAvailableExercises
     updateSessionStartTime, // Expose the new function
