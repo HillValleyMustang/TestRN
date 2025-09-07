@@ -6,6 +6,7 @@ import { useSession } from '@/components/session-context-provider';
 import { useWorkoutFlowManager } from '@/hooks/use-workout-flow-manager';
 import { WorkoutSelector } from '@/components/workout-flow/workout-selector';
 import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal'; // Import the modal
+import { WorkoutProgressBar } from '@/components/workout-flow/workout-progress-bar'; // Import the new progress bar
 
 export default function WorkoutPage() {
   const { session, supabase } = useSession();
@@ -53,6 +54,11 @@ export default function WorkoutPage() {
         sessionId={summarySessionId}
         open={showSummaryModal}
         onOpenChange={setShowSummaryModal}
+      />
+      <WorkoutProgressBar
+        exercisesForSession={workoutFlowManager.exercisesForSession}
+        completedExercises={workoutFlowManager.completedExercises}
+        isWorkoutActive={workoutFlowManager.isWorkoutActive}
       />
     </div>
   );
