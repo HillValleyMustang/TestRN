@@ -128,11 +128,13 @@ export const WorkoutSelector = ({
 
   // Direct call to selectWorkout from workout pills
   const handleWorkoutClick = (workoutId: string) => {
+    console.log(`[WorkoutSelector] handleWorkoutClick triggered for ID: ${workoutId}`);
     selectWorkout(workoutId);
   };
 
   // Direct call to selectWorkout for ad-hoc
   const handleAdHocClick = () => {
+    console.log(`[WorkoutSelector] handleAdHocClick triggered.`);
     selectWorkout('ad-hoc');
   };
 
@@ -179,7 +181,7 @@ export const WorkoutSelector = ({
                           {...pillProps}
                           isSelected={isSelectedPill}
                           onClick={handleWorkoutClick}
-                          className={cn(isPPLAndLegs && "col-span-2 justify-self-center")} // Removed max-w
+                          className={cn(isPPLAndLegs && "col-span-2 justify-self-center")}
                         />
                       );
                     })}
