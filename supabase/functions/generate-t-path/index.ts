@@ -2,7 +2,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 import { getSupabaseClients, getMaxMinutes, getWorkoutNamesForSplit } from './utils';
-import { synchronizeSourceData } from './sync';
 import { processSingleChildWorkout } from './workout_processor';
 import { ExerciseDefinitionForWorkoutGeneration, TPathData, ProfileData } from './types';
 
@@ -33,12 +32,7 @@ serve(async (req: Request) => {
     if (!tPathId) throw new Error('tPathId is required');
     console.log(`Received tPathId (main T-Path ID): ${tPathId}`);
 
-    // Step 1: SYNCHRONIZE SOURCE DATA
-    console.log('Calling synchronizeSourceData...');
-    await synchronizeSourceData(supabaseServiceRoleClient);
-    console.log('synchronizeSourceData completed.');
-
-    // Step 2: Fetch T-Path details and user's preferred session length
+    // Step 1: Fetch T-Path details and user's preferred session length
     console.log(`Fetching T-Path details for ID: ${tPathId} and user profile for preferred session length.`);
     const { data: tPathData, error: tPathError } = await supabaseServiceRoleClient
       .from('t_paths')
@@ -70,7 +64,7 @@ serve(async (req: Request) => {
     const workoutNames = getWorkoutNamesForSplit(workoutSplit);
     console.log('Workout names to process:', workoutNames);
 
-    // Step 3: Fetch all user-owned and global exercises for efficient lookup
+    // Step 2: Fetch all user-owned and global exercises for efficient lookup
     console.log('Fetching all user-owned and global exercises for lookup map...');
     const { data: allUserAndGlobalExercises, error: fetchAllExercisesError } = await supabaseServiceRoleClient
       .from('exercise_definitions')
@@ -86,7 +80,7 @@ serve(async (req: Request) => {
     });
     console.log(`Fetched ${exerciseLookupMap.size} user and global exercises for lookup.`);
 
-    // Step 4: Process each workout (child T-Path)
+    // Step 3: Process each workout (child T-Path)
     const generatedWorkouts = [];
     for (const workoutName of workoutNames) {
       console.log(`Starting processSingleChildWorkout for: ${workoutName}`);
