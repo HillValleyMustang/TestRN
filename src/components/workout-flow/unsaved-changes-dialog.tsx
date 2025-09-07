@@ -18,7 +18,9 @@ interface UnsavedChangesDialogProps {
   onOpenChange: (open: boolean) => void;
   onConfirmLeave: () => void;
   onCancelLeave: () => void;
-  onManageWorkouts: () => void; // New prop for managing workouts
+  onManageWorkouts: (workoutId: string, workoutName: string) => void; // Updated prop signature
+  activeWorkoutId: string | null; // New prop
+  activeWorkoutName: string | null; // New prop
 }
 
 export const UnsavedChangesDialog = ({
@@ -26,8 +28,19 @@ export const UnsavedChangesDialog = ({
   onOpenChange,
   onConfirmLeave,
   onCancelLeave,
-  onManageWorkouts, // Destructure new prop
+  onManageWorkouts,
+  activeWorkoutId, // Destructure new prop
+  activeWorkoutName, // Destructure new prop
 }: UnsavedChangesDialogProps) => {
+  const handleManageWorkoutsClick = () => {
+    if (activeWorkoutId && activeWorkoutName) {
+      onManageWorkouts(activeWorkoutId, activeWorkoutName);
+    } else {
+      // Fallback if for some reason active workout details are missing
+      onConfirmLeave(); // Treat as a regular exit
+    }
+  };
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -41,9 +54,11 @@ export const UnsavedChangesDialog = ({
         </AlertDialogHeader>
         <AlertDialogFooter className="flex flex-col sm:flex-row gap-2">
           <AlertDialogCancel onClick={onCancelLeave} className="flex-1">Go back to Workout</AlertDialogCancel>
-          <AlertDialogAction onClick={onManageWorkouts} className="flex-1 bg-secondary text-secondary-foreground hover:bg-secondary/80">
-            <LayoutTemplate className="h-4 w-4 mr-2" /> Manage Workouts
-          </AlertDialogAction>
+          {activeWorkoutId && activeWorkoutName && activeWorkoutId !== 'ad-hoc' && ( // Only show if a specific workout is active
+            <AlertDialogAction onClick={handleManageWorkoutsClick} className="flex-1 bg-secondary text-secondary-foreground hover:bg-secondary/80">
+              <LayoutTemplate className="h-4 w-4 mr-2" /> Manage Workout
+            </AlertDialogAction>
+          )}
           <AlertDialogAction onClick={onConfirmLeave} className="flex-1 bg-destructive text-destructive-foreground hover:bg-destructive/90">
             Continue and Exit
           </AlertDialogAction>

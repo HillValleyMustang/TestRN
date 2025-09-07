@@ -6,6 +6,7 @@ import { useSession } from '@/components/session-context-provider';
 import { useWorkoutFlowManager } from '@/hooks/use-workout-flow-manager';
 import { WorkoutSelector } from '@/components/workout-flow/workout-selector';
 import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal'; // Import the modal
+import { EditWorkoutExercisesDialog } from '@/components/manage-t-paths/edit-workout-exercises-dialog'; // Import the dialog
 
 export default function WorkoutPage() {
   const { session, supabase } = useSession();
@@ -54,6 +55,7 @@ export default function WorkoutPage() {
         open={showSummaryModal}
         onOpenChange={setShowSummaryModal}
       />
+      {/* The EditWorkoutExercisesDialog is now rendered in AppLayout.tsx */}
     </div>
   );
 }
