@@ -163,6 +163,8 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
 
   const promptBeforeNavigation = useCallback(async (path: string): Promise<boolean> => {
     console.log(`[useWorkoutFlowManager] Checking navigation to: ${path}`);
+    console.log(`[useWorkoutFlowManager] Current activeWorkout:`, activeWorkout);
+    console.log(`[useWorkoutFlowManager] Current hasUnsavedChanges:`, hasUnsavedChanges);
 
     const draftCount = await db.draft_set_logs.count();
     console.log(`[useWorkoutFlowManager] Draft count in IndexedDB: ${draftCount}`);
@@ -180,7 +182,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     }
 
     return Promise.resolve(false); // No drafts, or navigating to an allowed path, allow navigation
-  }, [setPendingNavigationPath, setShowUnsavedChangesDialog]);
+  }, [activeWorkout, hasUnsavedChanges, setPendingNavigationPath, setShowUnsavedChangesDialog]);
 
   const handleConfirmLeave = useCallback(async () => {
     setShowUnsavedChangesDialog(false);
