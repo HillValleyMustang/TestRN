@@ -86,10 +86,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
   const resolveNavigationPromise = useRef<((value: boolean) => void) | null>(null);
 
-  // New state for controlling the EditWorkoutExercisesDialog
-  const [showEditWorkoutDialog, setShowEditWorkoutDialog] = useState(false);
-  const [editWorkoutDetails, setEditWorkoutDetails] = useState<{ id: string; name: string } | null>(null);
-
   useEffect(() => {
     if (initialWorkoutId && groupedTPaths.length > 0 && !activeWorkout) {
       const workoutToSelect = groupedTPaths
@@ -204,30 +200,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     setPendingNavigationPath(null);
   }, []);
 
-  const openEditWorkoutDialog = useCallback(async (workoutId: string, workoutName: string) => {
-    // This action is similar to "Continue and Exit" in that it leaves the current workout.
-    // So, we confirm leaving (which clears drafts) and then open the dialog.
-    setShowUnsavedChangesDialog(false);
-    await resetWorkoutSession(); // Clear all local state and drafts
-
-    setEditWorkoutDetails({ id: workoutId, name: workoutName });
-    setShowEditWorkoutDialog(true);
-
-    if (resolveNavigationPromise.current) {
-      resolveNavigationPromise.current(false); // Resolve to false, meaning navigation should proceed (to the dialog)
-      resolveNavigationPromise.current = null;
-    }
-    setPendingNavigationPath(null); // Clear any pending path
-  }, [resetWorkoutSession]);
-
-  const closeEditWorkoutDialog = useCallback(async () => {
-    setShowEditWorkoutDialog(false);
-    setEditWorkoutDetails(null);
-    // After closing the edit dialog, we should refresh the workout data
-    // to reflect any changes made in the dialog.
-    await refreshAllData();
-  }, [refreshAllData]);
-
   const updateSessionStartTime = useCallback((timestamp: string) => {
     setSessionStartTime(new Date(timestamp));
   }, [setSessionStartTime]);
@@ -262,10 +234,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     showUnsavedChangesDialog,
     handleConfirmLeave,
     handleCancelLeave,
-    openEditWorkoutDialog, // Expose the new handler
-    closeEditWorkoutDialog, // Expose the new handler
-    showEditWorkoutDialog, // Expose the new state
-    editWorkoutDetails, // Expose the new state
     promptBeforeNavigation,
     allAvailableExercises, // Expose allAvailableExercises
     updateSessionStartTime, // Expose the new function
