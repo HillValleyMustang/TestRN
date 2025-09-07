@@ -15,6 +15,7 @@ import { db } from '@/lib/db'; // Import db for IndexedDB operations
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
+type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 interface WorkoutSessionWithDetails extends WorkoutSession {
   exercise_count: number;
@@ -34,6 +35,7 @@ export const PreviousWorkoutsCard = () => {
       
       setLoading(true);
       try {
+        // 1. Fetch recent workout sessions
         const { data: sessionsData, error: sessionsError } = await supabase
           .from('workout_sessions')
           .select('id, template_name, session_date, duration_string, completed_at, created_at, rating, t_path_id, user_id')
@@ -49,19 +51,54 @@ export const PreviousWorkoutsCard = () => {
           await db.workout_sessions.bulkPut(sessionsData);
         }
 
+        const sessionIds = (sessionsData || []).map(s => s.id);
+
+        // 2. Fetch set logs for these sessions
+        const { data: setLogsData, error: setLogsError } = await supabase
+          .from('set_logs')
+          .select('id, session_id, exercise_id, weight_kg, reps, reps_l, reps_r, time_seconds, is_pb, created_at')
+          .in('session_id', sessionIds);
+
+        if (setLogsError) throw setLogsError;
+
+        // Store fetched set logs in IndexedDB
+        if (setLogsData && setLogsData.length > 0) {
+          await db.set_logs.bulkPut(setLogsData);
+        }
+
+        // 3. Collect all unique exercise IDs from these set logs
+        const exerciseIds = new Set<string>();
+        (setLogsData || []).forEach(log => {
+          if (log.exercise_id) {
+            exerciseIds.add(log.exercise_id);
+          }
+        });
+
+        // 4. Fetch exercise definitions for these exercises (if not already in cache)
+        const existingExerciseDefs = await db.exercise_definitions_cache.where('id').anyOf(Array.from(exerciseIds)).toArray();
+        const existingExerciseDefIds = new Set(existingExerciseDefs.map(ex => ex.id));
+        const missingExerciseIds = Array.from(exerciseIds).filter(id => !existingExerciseDefIds.has(id));
+
+        if (missingExerciseIds.length > 0) {
+          const { data: missingExerciseDefs, error: missingDefsError } = await supabase
+            .from('exercise_definitions')
+            .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url')
+            .in('id', missingExerciseIds);
+          
+          if (missingDefsError) throw missingDefsError;
+          if (missingExerciseDefs && missingExerciseDefs.length > 0) {
+            await db.exercise_definitions_cache.bulkPut(missingExerciseDefs);
+          }
+        }
+
         const sessionsWithDetails: WorkoutSessionWithDetails[] = await Promise.all(
           (sessionsData || []).map(async (sessionItem) => {
-            // Fetch exercise_ids from set_logs for this session
-            const { data: setLogsData, error: setLogsError } = await supabase
-              .from('set_logs')
-              .select('exercise_id')
-              .eq('session_id', sessionItem.id);
-
-            if (setLogsError) {
-              console.error(`Error fetching set logs for session ${sessionItem.id}:`, setLogsError);
-            }
-            // Count unique exercise_ids
-            const uniqueExerciseCount = new Set((setLogsData || []).map((log: { exercise_id: string | null }) => log.exercise_id)).size;
+            // Count unique exercise_ids from the fetched setLogsData
+            const uniqueExerciseCount = new Set(
+              (setLogsData || [])
+                .filter(log => log.session_id === sessionItem.id && log.exercise_id)
+                .map(log => log.exercise_id)
+            ).size;
 
             return {
               ...sessionItem,
