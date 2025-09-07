@@ -69,6 +69,7 @@ interface ExerciseFormProps {
 
 export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(({ editingExercise, onCancelEdit, onSaveSuccess, isExpandedInDialog = false }, ref) => {
   const { session, supabase } = useSession();
+  // FIX: Initialize to isExpandedInDialog. For the "Add" form, this will be false.
   const [isExpanded, setIsExpanded] = useState(isExpandedInDialog);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]);

@@ -159,19 +159,19 @@ export const useSetDrafts = ({
         });
         setSets(finalSets);
       } else if (drafts && drafts.length === 0) {
-        if (currentSessionId === null) {
+        // FIX: Only create initial drafts if the component's own `sets` state is also empty.
+        // This prevents a race condition where a temporary empty `drafts` array from
+        // useLiveQuery would wipe the existing state.
+        if (currentSessionId === null && sets.length === 0) {
           await createInitialDrafts();
         } else {
-          // A session ID exists, but no drafts were found.
-          // This could be a race condition where the session ID was just set.
-          // We should NOT clear the sets here, as that causes the wipe.
-          console.log(`[useSetDrafts - useEffect] No drafts found for exercise ${exerciseId} with active session ${currentSessionId}. Waiting for potential DB update.`);
+          // Do nothing, wait for useLiveQuery to catch up with the correct data.
         }
       }
     };
 
     processAndSetSets();
-  }, [drafts, loadingDrafts, exerciseId, currentSessionId, exerciseName, createInitialDrafts, fetchLastSets]);
+  }, [drafts, loadingDrafts, exerciseId, currentSessionId, exerciseName, createInitialDrafts, fetchLastSets, sets.length]); // Add sets.length to dependency array
 
   const updateDraft = useCallback(async (setIndex: number, updatedSet: Partial<SetLogState>) => {
     if (!isValidDraftKey(exerciseId, setIndex)) {
