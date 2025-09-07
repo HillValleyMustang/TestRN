@@ -1,15 +1,16 @@
 {
   "compilerOptions": {
     "target": "esnext",
-    "lib": ["esnext", "deno.ns"],
     "module": "esnext",
-    "moduleResolution": "bundler",
+    "lib": ["esnext", "dom"],
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "allowSyntheticDefaultImports": true,
-    "types": ["https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts"]
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "https://esm.sh/react@18.2.0"
   },
-  "include": ["**/*.ts"]
+  "include": ["./functions/**/*"]
 }
