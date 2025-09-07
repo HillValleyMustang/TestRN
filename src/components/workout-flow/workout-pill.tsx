@@ -40,6 +40,8 @@ export const WorkoutPill = ({
     unselectedShadowClass,
   } = getPillStyles(workoutType, category, variant);
 
+  console.log(`[WorkoutPill] Rendering ${title} (ID: ${id}). isSelected: ${isSelected}`);
+
   return (
     <button
       onClick={() => onClick(id)}
