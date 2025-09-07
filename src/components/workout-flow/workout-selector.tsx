@@ -128,13 +128,11 @@ export const WorkoutSelector = ({
 
   // Direct call to selectWorkout from workout pills
   const handleWorkoutClick = (workoutId: string) => {
-    // console.log(`[WorkoutSelector] Workout pill clicked: ${workoutId}`); // Removed log
     selectWorkout(workoutId);
   };
 
   // Direct call to selectWorkout for ad-hoc
   const handleAdHocClick = () => {
-    // console.log(`[WorkoutSelector] Ad-Hoc pill clicked.`); // Removed log
     selectWorkout('ad-hoc');
   };
 
@@ -149,8 +147,6 @@ export const WorkoutSelector = ({
   };
 
   const totalExercises = exercisesForSession.length;
-
-  console.log(`[WorkoutSelector] Rendering. Active Workout ID: ${activeWorkout?.id}`);
 
   return (
     <>
@@ -177,7 +173,6 @@ export const WorkoutSelector = ({
                       const pillProps = mapWorkoutToPillProps(workout, group.mainTPath.template_name);
                       const isPPLAndLegs = pillProps.workoutType === 'push-pull-legs' && pillProps.category === 'legs';
                       const isSelectedPill = activeWorkout?.id === workout.id; // Explicitly calculate isSelected
-                      console.log(`[WorkoutSelector - Pill Map] activeWorkout.id: ${activeWorkout?.id}, current pill workout.id: ${workout.id}, isSelectedPill: ${isSelectedPill}`);
                       return (
                         <WorkoutPill
                           key={workout.id}
