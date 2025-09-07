@@ -49,7 +49,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     }, []),
     queryKey: 'all_exercises',
     supabase,
-    sessionUserId: session?.user.id ?? null,
+    sessionUserId: session?.user.id ?? null, // Still pass sessionUserId for cache key, but query fetches all
   });
 
   // Use the caching hook for T-Paths
@@ -102,6 +102,8 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       const isLoading = loadingExercises || loadingTPaths || loadingProfile || loadingTPathExercises;
       const anyError = exercisesError || tPathsError || profileError || tPathExercisesError;
 
+      console.log(`[useWorkoutDataFetcher] processAndEnrichData: isLoading=${isLoading}, anyError=${anyError}`);
+
       if (isLoading) {
         setLoadingData(true);
         return;
@@ -110,23 +112,26 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       if (anyError) {
         setDataError(anyError);
         setLoadingData(false);
-        console.error("Data fetching error:", anyError);
+        console.error("[useWorkoutDataFetcher] Data fetching error:", anyError);
         toast.error("Failed to load workout data from cache.");
         return;
       }
 
       if (!session?.user.id || !cachedProfile || cachedProfile.length === 0) {
+        console.log("[useWorkoutDataFetcher] No user session or profile, skipping data processing.");
         setLoadingData(false); // Not loading, just no user/profile yet
         return;
       }
 
       // --- Start Data Processing ---
+      console.log("[useWorkoutDataFetcher] Starting data processing...");
       setAllAvailableExercises(cachedExercises as ExerciseDefinition[]);
       
       const userProfile = cachedProfile[0];
       const activeTPathId = userProfile.active_t_path_id;
 
       if (!activeTPathId) {
+        console.log("[useWorkoutDataFetcher] No active T-Path ID found in profile.");
         setGroupedTPaths([]);
         setWorkoutExercisesCache({});
         setLoadingData(false);
@@ -136,7 +141,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       const activeMainTPath = (cachedTPaths || []).find(tp => tp.id === activeTPathId);
 
       if (!activeMainTPath) {
-        console.warn("Active T-Path ID found in profile, but T-Path itself not found in cache.");
+        console.warn("[useWorkoutDataFetcher] Active T-Path ID found in profile, but T-Path itself not found in cache.");
         setGroupedTPaths([]);
         setWorkoutExercisesCache({});
         setLoadingData(false);
@@ -163,6 +168,8 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       }
 
       setWorkoutExercisesCache(newWorkoutExercisesCache);
+      console.log("[useWorkoutDataFetcher] workoutExercisesCache updated:", newWorkoutExercisesCache);
+
 
       // Enrich child workouts with last completed date
       try {
@@ -170,7 +177,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
           childWorkouts.map(async (workout) => {
             const { data: lastSessionDate, error: rpcError } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
             if (rpcError) {
-              console.error(`Error fetching last completed date for workout ${workout.id}:`, rpcError);
+              console.error(`[useWorkoutDataFetcher] Error fetching last completed date for workout ${workout.id}:`, rpcError);
             }
             return { ...workout, last_completed_at: lastSessionDate?.[0]?.last_completed_at || null };
           })
@@ -180,8 +187,9 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
           mainTPath: activeMainTPath,
           childWorkouts: enrichedChildWorkouts,
         }]);
+        console.log("[useWorkoutDataFetcher] groupedTPaths updated:", [{ mainTPath: activeMainTPath, childWorkouts: enrichedChildWorkouts }]);
       } catch (enrichError: any) {
-        console.error("Failed to enrich workout data:", enrichError);
+        console.error("[useWorkoutDataFetcher] Failed to enrich workout data:", enrichError);
         toast.error("Could not load workout completion dates.");
         // Set data anyway, just without completion dates
         setGroupedTPaths([{
@@ -192,6 +200,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
 
       setLoadingData(false);
       setDataError(null);
+      console.log("[useWorkoutDataFetcher] Data processing finished.");
     };
 
     processAndEnrichData();
@@ -204,6 +213,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   ]);
 
   const refreshAllData = useCallback(() => {
+    console.log("[useWorkoutDataFetcher] refreshAllData triggered.");
     refreshExercises();
     refreshTPaths();
     refreshProfile();

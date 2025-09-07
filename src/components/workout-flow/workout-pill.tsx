@@ -28,6 +28,8 @@ export const WorkoutPill = ({
   className, // Destructure className here
   hideIcon = false, // Default to false
 }: WorkoutPillProps) => {
+  console.log(`[WorkoutPill] Rendering ${title} (ID: ${id}). isSelected: ${isSelected}`);
+
   const {
     Icon,
     selectedBgClass,
