@@ -128,13 +128,13 @@ export const WorkoutSelector = ({
 
   // Direct call to selectWorkout from workout pills
   const handleWorkoutClick = (workoutId: string) => {
-    console.log(`[WorkoutSelector] Workout pill clicked: ${workoutId}`);
+    // console.log(`[WorkoutSelector] Workout pill clicked: ${workoutId}`); // Removed log
     selectWorkout(workoutId);
   };
 
   // Direct call to selectWorkout for ad-hoc
   const handleAdHocClick = () => {
-    console.log(`[WorkoutSelector] Ad-Hoc pill clicked.`);
+    // console.log(`[WorkoutSelector] Ad-Hoc pill clicked.`); // Removed log
     selectWorkout('ad-hoc');
   };
 
@@ -176,12 +176,13 @@ export const WorkoutSelector = ({
                     {group.childWorkouts.map(workout => {
                       const pillProps = mapWorkoutToPillProps(workout, group.mainTPath.template_name);
                       const isPPLAndLegs = pillProps.workoutType === 'push-pull-legs' && pillProps.category === 'legs';
-                      console.log(`[WorkoutSelector] Rendering WorkoutPill for ${workout.template_name}. isSelected: ${activeWorkout?.id === workout.id}`);
+                      const isSelectedPill = activeWorkout?.id === workout.id; // Explicitly calculate isSelected
+                      console.log(`[WorkoutSelector - Pill Map] activeWorkout.id: ${activeWorkout?.id}, current pill workout.id: ${workout.id}, isSelectedPill: ${isSelectedPill}`);
                       return (
                         <WorkoutPill
                           key={workout.id}
                           {...pillProps}
-                          isSelected={activeWorkout?.id === workout.id}
+                          isSelected={isSelectedPill}
                           onClick={handleWorkoutClick}
                           className={cn(isPPLAndLegs && "col-span-2 justify-self-center max-w-[calc(50%-0.5rem)]")}
                         />

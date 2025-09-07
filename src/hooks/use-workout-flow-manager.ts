@@ -100,32 +100,32 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   }, []);
 
   const selectWorkout = useCallback(async (workoutId: string | null) => {
-    console.log(`[selectWorkout] START - Attempting to select workoutId: ${workoutId}`);
-    console.log(`[selectWorkout] Current activeWorkout.id: ${activeWorkout?.id}`);
-    console.log(`[selectWorkout] isWorkoutActive: ${isWorkoutActive}, hasUnsavedChanges: ${hasUnsavedChanges}`);
+    // console.log(`[selectWorkout] START - Attempting to select workoutId: ${workoutId}`); // Removed log
+    // console.log(`[selectWorkout] Current activeWorkout.id: ${activeWorkout?.id}`); // Removed log
+    // console.log(`[selectWorkout] isWorkoutActive: ${isWorkoutActive}, hasUnsavedChanges: ${hasUnsavedChanges}`); // Removed log
 
     if (workoutId === activeWorkout?.id) {
-      console.log(`[selectWorkout] Attempted to select already active workout. No change needed.`);
+      // console.log(`[selectWorkout] Attempted to select already active workout. No change needed.`); // Removed log
       if (hasUnsavedChanges) {
-        console.log(`[selectWorkout] Unsaved changes detected for same workout. Prompting user.`);
+        // console.log(`[selectWorkout] Unsaved changes detected for same workout. Prompting user.`); // Removed log
         const shouldBlock = await new Promise<boolean>(resolve => {
           setPendingNavigationPath(workoutId);
           setShowUnsavedChangesDialog(true);
           resolveNavigationPromise.current = resolve;
         });
         if (shouldBlock) {
-          console.log(`[selectWorkout] Navigation blocked by user choice (stay on same workout).`);
+          // console.log(`[selectWorkout] Navigation blocked by user choice (stay on same workout).`); // Removed log
           return;
         }
-        console.log(`[selectWorkout] User confirmed to reset and stay on same workout.`);
+        // console.log(`[selectWorkout] User confirmed to reset and stay on same workout.`); // Removed log
         await resetWorkoutSession();
       }
-      console.log(`[selectWorkout] END - No change or reset for same workout.`);
+      // console.log(`[selectWorkout] END - No change or reset for same workout.`); // Removed log
       return;
     }
 
     if (isWorkoutActive && hasUnsavedChanges) {
-      console.log(`[selectWorkout] Unsaved changes detected for different workout. Prompting user.`);
+      // console.log(`[selectWorkout] Unsaved changes detected for different workout. Prompting user.`); // Removed log
       const shouldBlock = await new Promise<boolean>(resolve => {
         setPendingNavigationPath(workoutId);
         setShowUnsavedChangesDialog(true);
@@ -133,22 +133,17 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       });
 
       if (shouldBlock) {
-        console.log(`[selectWorkout] Navigation to new workout blocked by user choice.`);
+        // console.log(`[selectWorkout] Navigation to new workout blocked by user choice.`); // Removed log
         return;
       }
-      console.log(`[selectWorkout] User confirmed to leave unsaved changes and switch.`);
+      // console.log(`[selectWorkout] User confirmed to leave unsaved changes and switch.`); // Removed log
     }
 
-    console.log(`[selectWorkout] Resetting previous session and refreshing all data.`);
+    // console.log(`[selectWorkout] Resetting previous session and refreshing all data.`); // Removed log
     await resetWorkoutSession();
     await refreshAllData(); // Ensure groupedTPaths is up-to-date
 
-    // IMPORTANT: After refreshAllData, groupedTPaths might not be immediately updated in this callback's scope.
-    // We need to re-fetch it or ensure the state update has propagated.
-    // For now, let's assume groupedTPaths is eventually consistent.
-    // We can add a small delay or use a more robust state management if this continues to be an issue.
-    
-    console.log(`[selectWorkout] groupedTPaths after refresh:`, groupedTPaths);
+    // console.log(`[selectWorkout] groupedTPaths after refresh:`, groupedTPaths); // Removed log
 
     if (workoutId === 'ad-hoc') {
       const adHocWorkout = { id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: null, version: null, settings: null, progression_settings: null, parent_t_path_id: null };
@@ -157,7 +152,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       setExercisesWithSets({});
       setCurrentSessionId(null);
       setSessionStartTime(null);
-      console.log(`[selectWorkout] Set activeWorkout to Ad-Hoc.`);
+      // console.log(`[selectWorkout] Set activeWorkout to Ad-Hoc.`); // Removed log
     } else if (workoutId) {
       const selectedWorkout = groupedTPaths
         .flatMap(group => group.childWorkouts)
@@ -169,10 +164,10 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
         setExercisesWithSets({});
         setCurrentSessionId(null);
         setSessionStartTime(null);
-        console.log(`[selectWorkout] Set activeWorkout to: ${selectedWorkout.template_name} (${selectedWorkout.id})`);
+        // console.log(`[selectWorkout] Set activeWorkout to: ${selectedWorkout.template_name} (${selectedWorkout.id})`); // Removed log
       } else {
         toast.error("Selected workout not found.");
-        console.error(`[selectWorkout] Error: Selected workout ID ${workoutId} not found in groupedTPaths after refresh.`);
+        // console.error(`[selectWorkout] Error: Selected workout ID ${workoutId} not found in groupedTPaths after refresh.`); // Removed log
         setActiveWorkout(null);
         setExercisesForSession([]);
         setExercisesWithSets({});
@@ -185,16 +180,16 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       setExercisesWithSets({});
       setCurrentSessionId(null);
       setSessionStartTime(null);
-      console.log(`[selectWorkout] Set activeWorkout to null.`);
+      // console.log(`[selectWorkout] Set activeWorkout to null.`); // Removed log
     }
-    console.log(`[selectWorkout] END - Workout selection process completed.`);
+    // console.log(`[selectWorkout] END - Workout selection process completed.`); // Removed log
   }, [isWorkoutActive, hasUnsavedChanges, groupedTPaths, workoutExercisesCache, resetWorkoutSession, setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId, setSessionStartTime, setPendingNavigationPath, setShowUnsavedChangesDialog, activeWorkout?.id, refreshAllData]);
 
   const handleEditWorkoutSaveSuccess = useCallback(async () => {
     setIsEditWorkoutDialogOpen(false);
     await refreshAllData();
     if (activeWorkout?.id) {
-      console.log(`[handleEditWorkoutSaveSuccess] Re-selecting active workout ${activeWorkout.id} after save.`);
+      // console.log(`[handleEditWorkoutSaveSuccess] Re-selecting active workout ${activeWorkout.id} after save.`); // Removed log
       await selectWorkout(activeWorkout.id);
     }
   }, [activeWorkout, selectWorkout, refreshAllData]);
@@ -202,7 +197,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
 
   useEffect(() => {
     if (initialWorkoutId && groupedTPaths.length > 0 && !activeWorkout) {
-      console.log(`[useEffect - initialWorkoutId] Initializing workout from URL: ${initialWorkoutId}`);
+      // console.log(`[useEffect - initialWorkoutId] Initializing workout from URL: ${initialWorkoutId}`); // Removed log
       const workoutToSelect = groupedTPaths
         .flatMap(group => group.childWorkouts)
         .find(workout => workout.id === initialWorkoutId);
@@ -213,14 +208,14 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
         setExercisesWithSets({});
         setCurrentSessionId(null);
         setSessionStartTime(null);
-        console.log(`[useEffect - initialWorkoutId] Set activeWorkout to: ${workoutToSelect.template_name} (${workoutToSelect.id})`);
+        // console.log(`[useEffect - initialWorkoutId] Set activeWorkout to: ${workoutToSelect.template_name} (${workoutToSelect.id})`); // Removed log
       } else if (initialWorkoutId === 'ad-hoc') {
         setActiveWorkout({ id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: null, version: null, settings: null, progression_settings: null, parent_t_path_id: null });
         setExercisesForSession([]);
         setExercisesWithSets({});
         setCurrentSessionId(null);
         setSessionStartTime(null);
-        console.log(`[useEffect - initialWorkoutId] Set activeWorkout to Ad-Hoc.`);
+        // console.log(`[useEffect - initialWorkoutId] Set activeWorkout to Ad-Hoc.`); // Removed log
       } else {
         toast.error("Selected workout not found. Starting Ad-Hoc workout.");
         setActiveWorkout({ id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: null, version: null, settings: null, progression_settings: null, parent_t_path_id: null });
@@ -228,7 +223,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
         setExercisesWithSets({});
         setCurrentSessionId(null);
         setSessionStartTime(null);
-        console.log(`[useEffect - initialWorkoutId] Selected workout not found, defaulting to Ad-Hoc.`);
+        // console.log(`[useEffect - initialWorkoutId] Selected workout not found, defaulting to Ad-Hoc.`); // Removed log
       }
     }
   }, [initialWorkoutId, groupedTPaths, activeWorkout, setActiveWorkout, workoutExercisesCache, setExercisesForSession, setExercisesWithSets, setCurrentSessionId, setSessionStartTime]);
@@ -243,10 +238,10 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   }, [persistAndFinishWorkoutSession, resetWorkoutSession, router]);
 
   const promptBeforeNavigation = useCallback(async (path: string): Promise<boolean> => {
-    console.log(`[useWorkoutFlowManager] Checking navigation to: ${path}`);
+    // console.log(`[useWorkoutFlowManager] Checking navigation to: ${path}`); // Removed log
 
     const draftCount = await db.draft_set_logs.count();
-    console.log(`[useWorkoutFlowManager] Draft count in IndexedDB: ${draftCount}`);
+    // console.log(`[useWorkoutFlowManager] Draft count in IndexedDB: ${draftCount}`); // Removed log
 
     const allowedPathsWithoutWarning = ['/workout']; 
 

@@ -38,7 +38,7 @@ interface UseCoreWorkoutSessionStateReturn {
 }
 
 export const useCoreWorkoutSessionState = (): UseCoreWorkoutSessionStateReturn => {
-  const [activeWorkout, setActiveWorkout] = useState<TPath | null>(null);
+  const [activeWorkout, _setActiveWorkout] = useState<TPath | null>(null); // Renamed internal setter
   const [exercisesForSession, setExercisesForSession] = useState<WorkoutExercise[]>([]);
   const [exercisesWithSets, setExercisesWithSets] = useState<Record<string, SetLogState[]>>({});
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -64,9 +64,17 @@ export const useCoreWorkoutSessionState = (): UseCoreWorkoutSessionStateReturn =
     );
   }, [isWorkoutActive, currentSessionId, exercisesForSession.length, exercisesWithSets]);
 
+  // Custom setter for activeWorkout to include logging
+  const setActiveWorkout: Dispatch<SetStateAction<TPath | null>> = useCallback((value: SetStateAction<TPath | null>) => {
+    _setActiveWorkout(value);
+    // If value is a function, we can't log the new ID directly here without calling it.
+    // For logging purposes, we'd typically use another useEffect that watches `activeWorkout`.
+    // console.log(`[useCoreWorkoutSessionState] setActiveWorkout called. New activeWorkout ID: ${typeof value === 'function' ? 'function' : value?.id}`);
+  }, []);
+
   // Internal function to clear only the local React state
   const _resetLocalState = useCallback(() => {
-    setActiveWorkout(null);
+    _setActiveWorkout(null);
     setExercisesForSession([]);
     setExercisesWithSets({});
     setCurrentSessionId(null);
