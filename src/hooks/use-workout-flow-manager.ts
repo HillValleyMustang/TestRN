@@ -158,14 +158,16 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   }, [persistAndFinishWorkoutSession, resetWorkoutSession, router]);
 
   const promptBeforeNavigation = useCallback(async (path: string): Promise<boolean> => {
-    console.log(`[useWorkoutFlowManager] Checking navigation.`);
+    console.log(`[useWorkoutFlowManager] Checking navigation to: ${path}`);
 
-    // A more robust check: if ANY drafts exist in the DB,
-    // it means the session is in progress and hasn't been finished or reset.
     const draftCount = await db.draft_set_logs.count();
     console.log(`[useWorkoutFlowManager] Draft count in IndexedDB: ${draftCount}`);
 
-    if (draftCount > 0) {
+    // Define pages where the warning should NOT appear even if there are drafts
+    // These are pages considered "safe" to navigate to from the workout page without losing progress
+    const allowedPathsWithoutWarning = ['/workout', '/manage-exercises']; 
+
+    if (draftCount > 0 && !allowedPathsWithoutWarning.includes(path)) {
       setPendingNavigationPath(path);
       setShowUnsavedChangesDialog(true);
       return new Promise<boolean>(resolve => {
@@ -173,7 +175,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       });
     }
 
-    return Promise.resolve(false); // No drafts, allow navigation
+    return Promise.resolve(false); // No drafts, or navigating to an allowed path, allow navigation
   }, [setPendingNavigationPath, setShowUnsavedChangesDialog]);
 
   const handleConfirmLeave = useCallback(async () => {

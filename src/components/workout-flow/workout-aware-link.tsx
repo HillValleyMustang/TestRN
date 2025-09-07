@@ -37,18 +37,22 @@ export const WorkoutAwareLink = ({ href, onClick, children, ...props }: WorkoutA
   const { promptBeforeNavigation } = useWorkoutNavigation(); // Use the new prompt function
 
   const handleClick = useCallback(async (event: React.MouseEvent<HTMLAnchorElement>) => {
+    // Always prevent default navigation if we're taking control
+    event.preventDefault(); 
+
     if (onClick) {
       onClick(event);
     }
 
-    // Only intercept if navigating to a different page
-    if (typeof href === 'string' && href !== pathname) {
+    // Only intercept if navigating to a different page or if it's the workout page itself
+    if (typeof href === 'string') {
       const shouldBlock = await promptBeforeNavigation(href); // Await the promise
-      if (shouldBlock) {
-        event.preventDefault(); // Prevent default Next.js navigation if blocked
+      if (!shouldBlock) { // If navigation is NOT blocked, proceed
+        router.push(href); // Manually navigate
       }
+      // If shouldBlock is true, do nothing (stay on current page)
     }
-  }, [href, onClick, pathname, promptBeforeNavigation]);
+  }, [href, onClick, promptBeforeNavigation, router]);
 
   return (
     <Link href={href} onClick={handleClick} {...props}>
