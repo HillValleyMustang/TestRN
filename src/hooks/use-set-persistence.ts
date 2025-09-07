@@ -61,18 +61,20 @@ export const useSetPersistence = ({
       reps_l: set.reps_l,
       reps_r: set.reps_r,
       time_seconds: set.time_seconds,
-      is_pb: set.is_pb, // FIX: Correctly use the is_pb status from the set object
+      is_pb: set.is_pb,
       created_at: set.created_at || new Date().toISOString(),
     };
+
+    console.log(`[useSetPersistence] Attempting to save setLogData:`, setLogData);
 
     try {
       await db.set_logs.put(setLogData);
       await addToSyncQueue(isNewSet ? 'create' : 'update', 'set_logs', setLogData);
-      // Removed: toast.success(`Set ${setIndex + 1} saved locally.`);
+      console.log(`[useSetPersistence] Set ${setIndex + 1} saved locally and added to sync queue.`);
       return { savedSet: { ...set, ...setLogData, isSaved: true } };
     } catch (error: any) {
+      console.error(`[useSetPersistence] ERROR saving set ${setIndex + 1} locally:`, error);
       toast.error(`Failed to save set ${setIndex + 1} locally: ` + error.message);
-      console.error("Error saving set locally:", error);
       return { savedSet: null };
     }
   }, [exerciseId, exerciseType, exerciseCategory, supabase, preferredWeightUnit]);

@@ -6,7 +6,7 @@ import { SetLogState, Tables, UserExercisePR } from '@/types/supabase';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { useSession } from '@/components/session-context-provider';
 import { useSetPersistence } from './use-set-persistence';
-import { useSetPRLogic } from './use-set-pr-logic';
+import { useSetPRLogic } from './use-set-pr-logic'; // Import useSetPRLogic
 import { useSetDrafts } from './use-set-drafts'; // Import useSetDrafts
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -68,13 +68,16 @@ export const useSetSaver = ({
   });
 
   const handleSaveSet = useCallback(async (setIndex: number) => {
+    console.log(`[useSetSaver] handleSaveSet called for setIndex: ${setIndex}. Initial currentSessionId: ${currentSessionId}`);
+
     if (!isValidId(exerciseId)) {
       toast.error("Cannot save set: exercise information is incomplete.");
       return;
     }
     if (!sets[setIndex]) return;
 
-    const currentSet = sets[setIndex];
+    let currentSet = { ...sets[setIndex] }; // Create a mutable copy
+
     if (!hasUserInput(currentSet)) {
       toast.error(`Set ${setIndex + 1}: No data to save.`);
       return;
@@ -82,27 +85,35 @@ export const useSetSaver = ({
 
     let sessionIdToUse = currentSessionId;
     if (!sessionIdToUse) {
+      console.log(`[useSetSaver] currentSessionId is null. Calling onFirstSetSaved.`);
       try {
         const newSessionId = await onFirstSetSaved(new Date().toISOString());
         sessionIdToUse = newSessionId;
+        console.log(`[useSetSaver] New sessionId generated: ${sessionIdToUse}`);
+        currentSet.session_id = newSessionId; // IMPORTANT: Update session_id in the currentSet copy
       } catch (err) {
         toast.error("Failed to start workout session.");
         return;
       }
+    } else {
+      console.log(`[useSetSaver] Using existing sessionId: ${sessionIdToUse}`);
+      currentSet.session_id = sessionIdToUse; // Ensure it's set even if not new
     }
 
-    // Only check PR for the individual set being saved
     let isNewSetPR = false;
     let localCurrentExercisePR: UserExercisePR | null = exercisePR;
     if (session?.user.id) {
+      // Pass the updated currentSet to PR check
       const { isNewPR, updatedPR } = await checkAndSaveSetPR(currentSet, session.user.id, localCurrentExercisePR);
       isNewSetPR = isNewPR;
       localCurrentExercisePR = updatedPR;
       console.log(`[useSetSaver] handleSaveSet: Set ${setIndex + 1} PR check result: isNewPR=${isNewPR}, updatedPR=`, updatedPR);
     }
 
+    // Pass the updated currentSet to saveSetToDb
     const { savedSet } = await saveSetToDb({ ...currentSet, is_pb: isNewSetPR }, setIndex, sessionIdToUse);
     if (savedSet) {
+      console.log(`[useSetSaver] saveSetToDb returned savedSet:`, savedSet);
       await updateDraft(setIndex, {
         id: savedSet.id,
         session_id: sessionIdToUse,
