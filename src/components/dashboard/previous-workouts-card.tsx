@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatTimeAgo, getWorkoutColorClass, cn } from '@/lib/utils'; // Added cn
 import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal'; // Corrected import path
+import { db } from '@/lib/db'; // Import db for IndexedDB operations
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
@@ -42,6 +43,11 @@ export const PreviousWorkoutsCard = () => {
           .limit(3);
 
         if (sessionsError) throw sessionsError;
+
+        // Store fetched sessions in IndexedDB
+        if (sessionsData && sessionsData.length > 0) {
+          await db.workout_sessions.bulkPut(sessionsData);
+        }
 
         const sessionsWithDetails: WorkoutSessionWithDetails[] = await Promise.all(
           (sessionsData || []).map(async (sessionItem) => {
