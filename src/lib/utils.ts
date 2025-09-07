@@ -136,7 +136,7 @@ export const getPillStyles = (workoutType: 'upper-lower' | 'push-pull-legs', cat
   const selectedBorderClass = `border-transparent`;
   const selectedShadowClass = `shadow-workout-pill-selected`;
 
-  const unselectedBgClass = `bg-card`; // Changed from `bg-white` to `bg-card`
+  const unselectedBgClass = `bg-muted`; // Changed from `bg-card` to `bg-muted`
   const unselectedTextClass = `text-workout-${colorKey}`;
   const unselectedBorderClass = `border-workout-${colorKey}`;
   const unselectedShadowClass = `shadow-none`;

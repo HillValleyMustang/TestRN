@@ -148,8 +148,6 @@ export const WorkoutSelector = ({
 
   const totalExercises = exercisesForSession.length;
 
-  console.log(`[WorkoutSelector Render] activeWorkout ID: ${activeWorkout?.id}`);
-
   return (
     <>
       <div className="space-y-6">
@@ -175,14 +173,13 @@ export const WorkoutSelector = ({
                       const pillProps = mapWorkoutToPillProps(workout, group.mainTPath.template_name);
                       const isPPLAndLegs = pillProps.workoutType === 'push-pull-legs' && pillProps.category === 'legs';
                       const isSelectedPill = activeWorkout?.id === workout.id; // Explicitly calculate isSelected
-                      console.log(`[WorkoutSelector - Pill] Workout ID: ${workout.id}, activeWorkout ID: ${activeWorkout?.id}, isSelectedPill: ${isSelectedPill}`);
                       return (
                         <WorkoutPill
                           key={workout.id}
                           {...pillProps}
                           isSelected={isSelectedPill}
                           onClick={handleWorkoutClick}
-                          className={cn(isPPLAndLegs && "col-span-2 justify-self-center max-w-[calc(50%-0.5rem)]")}
+                          className={cn(isPPLAndLegs && "col-span-2 justify-self-center")} // Removed max-w
                         />
                       );
                     })}

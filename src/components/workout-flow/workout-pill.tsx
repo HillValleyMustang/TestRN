@@ -40,8 +40,6 @@ export const WorkoutPill = ({
     unselectedShadowClass,
   } = getPillStyles(workoutType, category, variant);
 
-  // console.log(`[WorkoutPill] Rendering ${title} (ID: ${id}). isSelected: ${isSelected}`); // Removed log
-
   return (
     <button
       onClick={() => onClick(id)}
@@ -50,9 +48,9 @@ export const WorkoutPill = ({
         'font-sans cursor-pointer',
         'transition-all duration-200 ease-out w-full', // Changed w-fit to w-full
         isSelected
-          ? cn(selectedBgClass, selectedTextClass, selectedBorderClass, selectedShadowClass, 'opacity-100 scale-100')
-          : cn(unselectedBgClass, unselectedTextClass, unselectedBorderClass, unselectedShadowClass, 'opacity-100 scale-98'),
-        'hover:scale-[1.02] active:scale-98', // Adjusted hover scale for consistency
+          ? cn(selectedBgClass, selectedTextClass, selectedBorderClass, selectedShadowClass, 'opacity-100 scale-105') // More prominent scale
+          : cn(unselectedBgClass, unselectedTextClass, unselectedBorderClass, unselectedShadowClass, 'opacity-100 scale-95', 'hover:scale-100'), // Slightly smaller when unselected, normal on hover
+        'active:scale-95', // Active state for press effect
         className 
       )}
     >
