@@ -243,7 +243,7 @@ export const WorkoutSelector = ({
                         return await createWorkoutSessionInDb(activeWorkout.template_name, timestamp);
                       }}
                       onExerciseCompleted={markExerciseAsCompleted}
-                      isInitiallyCollapsed={isQuickStart}
+                      isInitiallyCollapsed={index !== 0}
                       isExerciseCompleted={completedExercises.has(exercise.id)}
                       // Removed: onOpenEditWorkoutDialog={handleOpenEditWorkoutDialog}
                     />

@@ -159,19 +159,21 @@ export const useSetDrafts = ({
         });
         setSets(finalSets);
       } else if (drafts && drafts.length === 0) {
-        // FIX: Only create initial drafts if the component's own `sets` state is also empty.
-        // This prevents a race condition where a temporary empty `drafts` array from
-        // useLiveQuery would wipe the existing state.
-        if (currentSessionId === null && sets.length === 0) {
-          await createInitialDrafts();
+        // If we have sets in state but drafts are empty, it's likely the race condition.
+        // Do NOT update the state. Let it be.
+        if (sets.length > 0) {
+          console.log(`[useSetDrafts - useEffect] Drafts are empty, but sets exist in state. Preserving state to avoid wipe.`);
         } else {
-          // Do nothing, wait for useLiveQuery to catch up with the correct data.
+          // No drafts and no sets in state. This is a clean slate.
+          if (currentSessionId === null) {
+            await createInitialDrafts();
+          }
         }
       }
     };
 
     processAndSetSets();
-  }, [drafts, loadingDrafts, exerciseId, currentSessionId, exerciseName, createInitialDrafts, fetchLastSets, sets.length]); // Add sets.length to dependency array
+  }, [drafts, loadingDrafts, exerciseId, currentSessionId, exerciseName, createInitialDrafts, fetchLastSets]);
 
   const updateDraft = useCallback(async (setIndex: number, updatedSet: Partial<SetLogState>) => {
     if (!isValidDraftKey(exerciseId, setIndex)) {
