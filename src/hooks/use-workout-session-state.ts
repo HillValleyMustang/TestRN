@@ -93,13 +93,13 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
   } = useWorkoutSessionPersistence({
     allAvailableExercises,
     workoutExercisesCache,
-    coreState: {
-      activeWorkout, exercisesForSession, exercisesWithSets, currentSessionId, sessionStartTime,
-      completedExercises, isCreatingSession, isWorkoutActive, hasUnsavedChanges,
-      expandedExerciseCards, // Include here
-      setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId,
-      setSessionStartTime, setCompletedExercises, setIsCreatingSession, setExpandedExerciseCards, _resetLocalState,
-    },
+    activeWorkout,
+    currentSessionId,
+    sessionStartTime,
+    setIsCreatingSession,
+    setCurrentSessionId,
+    setSessionStartTime,
+    _resetLocalState,
   });
 
   // Exercise management within session

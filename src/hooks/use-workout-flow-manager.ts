@@ -59,13 +59,13 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   } = useWorkoutSessionPersistence({
     allAvailableExercises,
     workoutExercisesCache,
-    coreState: {
-      activeWorkout, exercisesForSession, exercisesWithSets, currentSessionId, sessionStartTime,
-      completedExercises, isCreatingSession, isWorkoutActive, hasUnsavedChanges,
-      expandedExerciseCards, // Include here
-      setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId,
-      setSessionStartTime, setCompletedExercises, setIsCreatingSession, setExpandedExerciseCards, _resetLocalState,
-    },
+    activeWorkout, // Pass directly
+    currentSessionId, // Pass directly
+    sessionStartTime, // Pass directly
+    setIsCreatingSession, // Pass directly
+    setCurrentSessionId, // Pass directly
+    setSessionStartTime, // Pass directly
+    _resetLocalState, // Pass directly
   });
 
   const {

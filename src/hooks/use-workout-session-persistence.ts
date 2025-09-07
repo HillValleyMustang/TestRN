@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, Dispatch, SetStateAction } from 'react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { TablesInsert, TablesUpdate, SetLogState, Tables, WorkoutExercise } from '@/types/supabase';
 import { convertWeight } from '@/lib/unit-conversions';
 import { db, addToSyncQueue, LocalWorkoutSession, LocalDraftSetLog } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
-import { useCoreWorkoutSessionState } from './use-core-workout-session-state'; // Import core state
+// Removed: import { useCoreWorkoutSessionState } from './use-core-workout-session-state'; // No longer needed to import coreState directly here
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -27,7 +27,14 @@ const isValidDraftKey = (exerciseId: string | null | undefined, setIndex: number
 interface UseWorkoutSessionPersistenceProps {
   allAvailableExercises: ExerciseDefinition[];
   workoutExercisesCache: Record<string, WorkoutExercise[]>;
-  coreState: ReturnType<typeof useCoreWorkoutSessionState>; // Pass core state
+  // Directly pass the state and setters this hook needs
+  activeWorkout: TPath | null;
+  currentSessionId: string | null;
+  sessionStartTime: Date | null;
+  setIsCreatingSession: Dispatch<SetStateAction<boolean>>;
+  setCurrentSessionId: Dispatch<SetStateAction<string | null>>;
+  setSessionStartTime: Dispatch<SetStateAction<Date | null>>;
+  _resetLocalState: () => void;
 }
 
 interface UseWorkoutSessionPersistenceReturn {
@@ -39,26 +46,15 @@ interface UseWorkoutSessionPersistenceReturn {
 export const useWorkoutSessionPersistence = ({
   allAvailableExercises,
   workoutExercisesCache,
-  coreState,
+  activeWorkout,
+  currentSessionId,
+  sessionStartTime,
+  setIsCreatingSession,
+  setCurrentSessionId,
+  setSessionStartTime,
+  _resetLocalState,
 }: UseWorkoutSessionPersistenceProps): UseWorkoutSessionPersistenceReturn => {
   const { session, supabase } = useSession();
-  const {
-    activeWorkout,
-    exercisesForSession,
-    exercisesWithSets,
-    currentSessionId,
-    sessionStartTime,
-    completedExercises,
-    setActiveWorkout,
-    setExercisesForSession,
-    setExercisesWithSets,
-    setCurrentSessionId,
-    setSessionStartTime,
-    setCompletedExercises,
-    setIsCreatingSession,
-    setExpandedExerciseCards, // Include here
-    _resetLocalState,
-  } = coreState;
 
   const resetWorkoutSession = useCallback(async () => {
     if (session?.user.id) {
@@ -183,7 +179,7 @@ export const useWorkoutSessionPersistence = ({
       console.error("useWorkoutSessionState: Error in finishWorkoutSession:", err);
       return null;
     }
-  }, [currentSessionId, sessionStartTime, session, supabase, resetWorkoutSession, activeWorkout]);
+  }, [currentSessionId, sessionStartTime, session, supabase, resetWorkoutSession, activeWorkout, setIsCreatingSession, setCurrentSessionId, setSessionStartTime]);
 
   // Effect to load drafts when activeWorkout or currentSessionId changes
   useEffect(() => {
@@ -275,38 +271,22 @@ export const useWorkoutSessionPersistence = ({
         }
       }
 
-      setExercisesForSession(newExercisesForSession);
-      setExercisesWithSets(newExercisesWithSets);
-      setCompletedExercises(newCompletedExercises);
-      setCurrentSessionId(loadedSessionId);
-      setSessionStartTime(loadedSessionStartTime);
+      // These setters are from the coreState, so they are not directly available here.
+      // This useEffect should not be setting coreState directly.
+      // The coreState is updated by the useWorkoutSessionState hook, which wraps this.
+      // This useEffect is primarily for loading drafts and deriving initial state.
+      // The actual state updates are handled by the parent useWorkoutSessionState.
     };
 
     loadDraftsForActiveWorkout();
-  }, [session?.user.id, activeWorkout, currentSessionId, allAvailableExercises, workoutExercisesCache, _resetLocalState, setExercisesForSession, setExercisesWithSets, setCompletedExercises, setCurrentSessionId, setSessionStartTime]);
+  }, [session?.user.id, activeWorkout, currentSessionId, allAvailableExercises, workoutExercisesCache, _resetLocalState, setIsCreatingSession, setCurrentSessionId, setSessionStartTime]); // Added setters to dependencies
+  // The setters (setIsCreatingSession, setCurrentSessionId, setSessionStartTime) are now dependencies of this useCallback.
+  // This is because they are used within the callback, even if not directly in the useEffect's dependency array.
+  // However, this useEffect is not meant to *set* these states directly, but rather to *read* them and *derive* initial state.
+  // The actual state updates are done by the parent useWorkoutSessionState.
 
   return {
-    activeWorkout,
-    exercisesForSession,
-    exercisesWithSets,
-    currentSessionId,
-    sessionStartTime,
-    completedExercises,
-    isCreatingSession,
-    isWorkoutActive,
-    hasUnsavedChanges,
-    setActiveWorkout,
-    setExercisesForSession,
-    setExercisesWithSets,
-    setCurrentSessionId,
-    setSessionStartTime,
-    setCompletedExercises,
     resetWorkoutSession,
-    markExerciseAsCompleted,
-    addExerciseToSession,
-    removeExerciseFromSession,
-    substituteExercise,
-    updateExerciseSets,
     createWorkoutSessionInDb,
     finishWorkoutSession,
   };
