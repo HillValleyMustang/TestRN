@@ -1,68 +1,45 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Tables, SetLogState, WorkoutExercise, GetLastExerciseSetsForExerciseReturns } from '@/types/supabase';
-import { db, addToSyncQueue, LocalDraftSetLog } from '@/lib/db';
-import { useSession } from '@/components/session-context-provider';
+import { Tables } from '@/types/supabase';
+import { db } from '@/lib/db'; // Import db
 import { useWorkoutDataFetcher } from './use-workout-data-fetcher';
-import { useWorkoutSessionState } from './use-workout-session-state';
+import { useCoreWorkoutSessionState } from './use-core-workout-session-state';
+import { useWorkoutSessionPersistence } from './use-workout-session-persistence';
+import { useSessionExerciseManagement } from './use-session-exercise-management';
+import { useSession } from '@/components/session-context-provider'; // Import useSession
 
 type TPath = Tables<'t_paths'>;
-type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 interface UseWorkoutFlowManagerProps {
   initialWorkoutId?: string | null;
   router: ReturnType<typeof useRouter>;
 }
 
-interface UseWorkoutFlowManagerReturn {
-  activeWorkout: TPath | null;
-  exercisesForSession: WorkoutExercise[];
-  exercisesWithSets: Record<string, SetLogState[]>;
-  allAvailableExercises: ExerciseDefinition[];
-  loading: boolean;
-  error: string | null;
-  currentSessionId: string | null;
-  sessionStartTime: Date | null;
-  completedExercises: Set<string>;
-  isWorkoutActive: boolean;
-  hasUnsavedChanges: boolean;
-  selectWorkout: (workoutId: string | null) => Promise<void>;
-  addExerciseToSession: (exercise: ExerciseDefinition) => Promise<void>;
-  removeExerciseFromSession: (exerciseId: string) => Promise<void>;
-  substituteExercise: (oldExerciseId: string, newExercise: WorkoutExercise) => Promise<void>;
-  updateSessionStartTime: (timestamp: string) => void;
-  markExerciseAsCompleted: (exerciseId: string, isNewPR: boolean) => void;
-  resetWorkoutSession: () => Promise<void>;
-  updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
-  groupedTPaths: { mainTPath: TPath; childWorkouts: (TPath & { last_completed_at: string | null; })[]; }[];
-  isCreatingSession: boolean;
-  createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>;
-  finishWorkoutSession: () => Promise<string | null>;
-  refreshAllData: () => void;
-  // New properties for navigation warning
-  showUnsavedChangesDialog: boolean;
-  pendingNavigationPath: string | null;
-  promptBeforeNavigation: (path: string) => Promise<boolean>;
-  handleConfirmLeave: () => void;
-  handleCancelLeave: () => void;
-}
+export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFlowManagerProps) => {
+  const { supabase } = useSession(); // Get supabase client from useSession
 
-const DEFAULT_INITIAL_SETS = 3;
-
-export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFlowManagerProps): UseWorkoutFlowManagerReturn => {
-  const { session, supabase } = useSession();
-
-  const [loadingFlow, setLoadingFlow] = useState(true);
-  const [flowError, setFlowError] = useState<string | null>(null);
-
-  // State for navigation warning dialog
-  const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
-  const [pendingNavigationPath, setPendingNavigationPath] = useState<string | null>(null);
-  const resolveNavigationPromise = useRef<((confirm: boolean) => void) | null>(null); // Fix 1: Initialize with null and allow null in type
-  const hasInitializedInitialWorkout = useRef(false); // NEW: Ref to track if initial workout has been selected
+  const {
+    activeWorkout,
+    exercisesForSession,
+    exercisesWithSets,
+    currentSessionId,
+    sessionStartTime,
+    completedExercises,
+    isCreatingSession,
+    isWorkoutActive,
+    hasUnsavedChanges,
+    setActiveWorkout,
+    setExercisesForSession,
+    setExercisesWithSets,
+    setCurrentSessionId,
+    setSessionStartTime,
+    setCompletedExercises,
+    setIsCreatingSession,
+    _resetLocalState,
+  } = useCoreWorkoutSessionState();
 
   const {
     allAvailableExercises,
@@ -74,6 +51,171 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   } = useWorkoutDataFetcher();
 
   const {
+    resetWorkoutSession,
+    createWorkoutSessionInDb,
+    finishWorkoutSession: persistAndFinishWorkoutSession,
+  } = useWorkoutSessionPersistence({
+    allAvailableExercises,
+    workoutExercisesCache,
+    coreState: {
+      activeWorkout, exercisesForSession, exercisesWithSets, currentSessionId, sessionStartTime,
+      completedExercises, isCreatingSession, isWorkoutActive, hasUnsavedChanges,
+      setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId,
+      setSessionStartTime, setCompletedExercises, setIsCreatingSession, _resetLocalState,
+    },
+  });
+
+  const {
+    markExerciseAsCompleted,
+    addExerciseToSession,
+    removeExerciseFromSession,
+    substituteExercise,
+    updateExerciseSets,
+  } = useSessionExerciseManagement({
+    allAvailableExercises,
+    coreState: {
+      activeWorkout, exercisesForSession, exercisesWithSets, currentSessionId, sessionStartTime,
+      completedExercises, isCreatingSession, isWorkoutActive, hasUnsavedChanges,
+      setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId,
+      setSessionStartTime, setCompletedExercises, setIsCreatingSession, _resetLocalState,
+    },
+    supabase: supabase, // Pass the supabase client from useSession
+  });
+
+  const [pendingNavigationPath, setPendingNavigationPath] = useState<string | null>(null);
+  const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
+  const resolveNavigationPromise = useRef<((value: boolean) => void) | null>(null);
+
+  useEffect(() => {
+    if (initialWorkoutId && groupedTPaths.length > 0 && !activeWorkout) {
+      const workoutToSelect = groupedTPaths
+        .flatMap(group => group.childWorkouts)
+        .find(workout => workout.id === initialWorkoutId);
+
+      if (workoutToSelect) {
+        setActiveWorkout(workoutToSelect);
+      } else if (initialWorkoutId === 'ad-hoc') {
+        setActiveWorkout({ id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: null, version: null, settings: null, progression_settings: null, parent_t_path_id: null });
+      } else {
+        toast.error("Selected workout not found. Starting Ad-Hoc workout.");
+        setActiveWorkout({ id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: null, version: null, settings: null, progression_settings: null, parent_t_path_id: null });
+      }
+    }
+  }, [initialWorkoutId, groupedTPaths, activeWorkout, setActiveWorkout]);
+
+  const selectWorkout = useCallback(async (workoutId: string | null) => {
+    if (isWorkoutActive && hasUnsavedChanges) {
+      const shouldBlock = await new Promise<boolean>(resolve => {
+        setPendingNavigationPath(workoutId);
+        setShowUnsavedChangesDialog(true);
+        resolveNavigationPromise.current = resolve;
+      });
+
+      if (shouldBlock) {
+        return; // User chose to stay
+      }
+    }
+
+    // If we reach here, either no active workout, no unsaved changes, or user confirmed to leave
+    await resetWorkoutSession(); // Clear previous session data and drafts
+
+    if (workoutId === 'ad-hoc') {
+      setActiveWorkout({ id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: null, version: null, settings: null, progression_settings: null, parent_t_path_id: null });
+      setExercisesForSession([]);
+      setExercisesWithSets({});
+      setCurrentSessionId(null); // Ad-hoc starts with null session ID until first set saved
+      setSessionStartTime(null);
+    } else if (workoutId) {
+      const selectedWorkout = groupedTPaths
+        .flatMap(group => group.childWorkouts)
+        .find(workout => workout.id === workoutId);
+
+      if (selectedWorkout) {
+        setActiveWorkout(selectedWorkout);
+        setExercisesForSession(workoutExercisesCache[selectedWorkout.id] || []);
+        setExercisesWithSets({}); // Will be populated by useSetDrafts
+        setCurrentSessionId(null); // T-Path workout starts with null session ID until first set saved
+        setSessionStartTime(null);
+      } else {
+        toast.error("Selected workout not found.");
+      }
+    } else {
+      setActiveWorkout(null);
+      setExercisesForSession([]);
+      setExercisesWithSets({});
+      setCurrentSessionId(null);
+      setSessionStartTime(null);
+    }
+  }, [isWorkoutActive, hasUnsavedChanges, groupedTPaths, workoutExercisesCache, resetWorkoutSession, setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId, setSessionStartTime, setPendingNavigationPath, setShowUnsavedChangesDialog]);
+
+  const finishWorkoutSession = useCallback(async () => {
+    const finishedSessionId = await persistAndFinishWorkoutSession();
+    if (finishedSessionId) {
+      await resetWorkoutSession(); // Ensure all local state is cleared after successful finish
+      router.push(`/workout-summary/${finishedSessionId}`);
+    }
+    return finishedSessionId;
+  }, [persistAndFinishWorkoutSession, resetWorkoutSession, router]);
+
+  const promptBeforeNavigation = useCallback(async (path: string): Promise<boolean> => {
+    if (!isWorkoutActive) {
+      return false; // No active workout, allow navigation
+    }
+
+    // Directly query IndexedDB for draft sets associated with the current active workout
+    // This is more robust against React state update delays and ensures we catch any interaction.
+    // If currentSessionId is null (e.g., before first set is saved for a new session),
+    // we check for drafts linked to a null session_id (ad-hoc initial state).
+    // If currentSessionId is set, we check for drafts linked to that specific session.
+    const targetSessionIdForDrafts = currentSessionId; // Use currentSessionId directly
+    
+    let hasDraftsInDb = false;
+    if (targetSessionIdForDrafts === null) { // Ad-hoc or initial state before first set saved
+        const count = await db.draft_set_logs.filter(draft => draft.session_id === null).count();
+        hasDraftsInDb = count > 0;
+    } else { // T-Path workout or ad-hoc after first set saved
+        // Ensure currentSessionId is a valid string before querying
+        if (typeof targetSessionIdForDrafts !== 'string' || targetSessionIdForDrafts.length === 0) {
+            console.warn("Invalid currentSessionId for IndexedDB query:", targetSessionIdForDrafts);
+            return false;
+        }
+        const count = await db.draft_set_logs.where('session_id').equals(targetSessionIdForDrafts).count();
+        hasDraftsInDb = count > 0;
+    }
+
+    if (isWorkoutActive && hasDraftsInDb) {
+      setPendingNavigationPath(path);
+      setShowUnsavedChangesDialog(true);
+      return new Promise<boolean>(resolve => {
+        resolveNavigationPromise.current = resolve;
+      });
+    }
+    return Promise.resolve(false); // No active workout or no drafts in DB, allow navigation
+  }, [activeWorkout, currentSessionId, setPendingNavigationPath, setShowUnsavedChangesDialog]);
+
+  const handleConfirmLeave = useCallback(async () => {
+    setShowUnsavedChangesDialog(false);
+    if (pendingNavigationPath) {
+      await resetWorkoutSession(); // Clear all local state and drafts
+      router.push(pendingNavigationPath);
+    }
+    if (resolveNavigationPromise.current) {
+      resolveNavigationPromise.current(false); // Resolve to false, meaning navigation should proceed
+      resolveNavigationPromise.current = null;
+    }
+    setPendingNavigationPath(null);
+  }, [pendingNavigationPath, router, resetWorkoutSession]);
+
+  const handleCancelLeave = useCallback(() => {
+    setShowUnsavedChangesDialog(false);
+    if (resolveNavigationPromise.current) {
+      resolveNavigationPromise.current(true); // Resolve to true, meaning navigation should be blocked
+      resolveNavigationPromise.current = null;
+    }
+    setPendingNavigationPath(null);
+  }, []);
+
+  return {
     activeWorkout,
     exercisesForSession,
     exercisesWithSets,
@@ -95,142 +237,17 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     removeExerciseFromSession,
     substituteExercise,
     updateExerciseSets,
-    createWorkoutSessionInDb,
-    finishWorkoutSession: finishWorkoutSessionState, // Renamed to avoid conflict
-  } = useWorkoutSessionState({ allAvailableExercises, workoutExercisesCache }); // Pass workoutExercisesCache
-
-  useEffect(() => {
-    setLoadingFlow(loadingData);
-    setFlowError(dataError);
-  }, [loadingData, dataError]);
-
-  // --- Navigation Warning Logic ---
-  const promptBeforeNavigation = useCallback(async (path: string): Promise<boolean> => {
-    if (isWorkoutActive && hasUnsavedChanges) {
-      setPendingNavigationPath(path);
-      setShowUnsavedChangesDialog(true);
-      return new Promise((resolve) => {
-        resolveNavigationPromise.current = resolve;
-      });
-    }
-    return Promise.resolve(false); // No active workout or no unsaved changes, allow navigation
-  }, [isWorkoutActive, hasUnsavedChanges]);
-
-  const handleConfirmLeave = useCallback(async () => {
-    setShowUnsavedChangesDialog(false);
-    if (pendingNavigationPath) {
-      await resetWorkoutSession(); // Discard current workout progress
-      router.push(pendingNavigationPath);
-      setPendingNavigationPath(null);
-    }
-    if (resolveNavigationPromise.current) {
-      resolveNavigationPromise.current(true); // Confirm navigation
-      resolveNavigationPromise.current = null; // Fix 2: Assign null
-    }
-  }, [pendingNavigationPath, router, resetWorkoutSession]);
-
-  const handleCancelLeave = useCallback(() => {
-    setShowUnsavedChangesDialog(false);
-    setPendingNavigationPath(null);
-    if (resolveNavigationPromise.current) {
-      resolveNavigationPromise.current(false); // Cancel navigation
-      resolveNavigationPromise.current = null; // Fix 3: Assign null
-    }
-  }, []);
-  // --- End Navigation Warning Logic ---
-
-  const selectWorkout = useCallback(async (workoutId: string | null) => {
-    if (!session) {
-      toast.error("You must be logged in to select a workout.");
-      return;
-    }
-
-    await resetWorkoutSession(); // Always reset state and drafts when selecting a new workout
-
-    if (!workoutId) {
-      setActiveWorkout(null);
-      setExercisesForSession([]);
-      setExercisesWithSets({});
-      return;
-    }
-
-    let currentWorkout: TPath | null = null;
-    let exercises: WorkoutExercise[] = [];
-
-    if (workoutId === 'ad-hoc') {
-      currentWorkout = { id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: session.user.id, created_at: new Date().toISOString(), version: 1, settings: null, progression_settings: null, parent_t_path_id: null };
-      
-      // For ad-hoc, exercises are loaded from drafts or added manually
-      const adHocDrafts = await db.draft_set_logs.filter(draft => draft.session_id === null).toArray();
-      const adHocExerciseIds = Array.from(new Set(adHocDrafts.map(d => d.exercise_id)));
-      
-      if (adHocExerciseIds.length > 0 && allAvailableExercises) {
-        exercises = allAvailableExercises
-          .filter(ex => adHocExerciseIds.includes(ex.id))
-          .map(ex => ({ ...ex, is_bonus_exercise: false }));
-      }
-    } else {
-      const foundGroup = groupedTPaths.find(group => group.childWorkouts.some(cw => cw.id === workoutId));
-      currentWorkout = foundGroup?.childWorkouts.find(cw => cw.id === workoutId) || null;
-
-      if (!currentWorkout) {
-        toast.error("Selected workout not found in your active Transformation Path.");
-        return;
-      }
-      exercises = workoutExercisesCache[workoutId] || [];
-    }
-
-    setActiveWorkout(currentWorkout);
-    setExercisesForSession(exercises);
-    // setExercisesWithSets will be populated by the useEffect in useWorkoutSessionState
-    // when activeWorkout and currentSessionId are set.
-
-    refreshAllData();
-
-  }, [session, supabase, resetWorkoutSession, groupedTPaths, workoutExercisesCache, allAvailableExercises, refreshAllData, setActiveWorkout, setExercisesForSession, setExercisesWithSets]);
-
-  // MODIFIED: Only call selectWorkout once for initialWorkoutId
-  useEffect(() => {
-    if (initialWorkoutId && !loadingData && !loadingFlow && !hasInitializedInitialWorkout.current) {
-      selectWorkout(initialWorkoutId);
-      hasInitializedInitialWorkout.current = true; // Mark as initialized
-    }
-  }, [initialWorkoutId, loadingData, loadingFlow, selectWorkout]);
-
-  return {
-    activeWorkout,
-    exercisesForSession,
-    exercisesWithSets,
-    allAvailableExercises,
-    loading: loadingFlow,
-    error: flowError,
-    currentSessionId,
-    sessionStartTime,
-    completedExercises,
-    isWorkoutActive,
-    hasUnsavedChanges,
     selectWorkout,
-    addExerciseToSession,
-    removeExerciseFromSession,
-    substituteExercise,
-    updateSessionStartTime: useCallback((timestamp: string) => {
-      if (currentSessionId && !sessionStartTime) {
-        setSessionStartTime(new Date(timestamp));
-      }
-    }, [currentSessionId, sessionStartTime, setSessionStartTime]),
-    markExerciseAsCompleted,
-    resetWorkoutSession,
-    updateExerciseSets,
+    loading: loadingData,
     groupedTPaths,
-    isCreatingSession,
     createWorkoutSessionInDb,
-    finishWorkoutSession: finishWorkoutSessionState, // Expose the renamed function
+    finishWorkoutSession,
     refreshAllData,
-    // New properties for navigation warning
     showUnsavedChangesDialog,
-    pendingNavigationPath,
-    promptBeforeNavigation,
     handleConfirmLeave,
     handleCancelLeave,
+    promptBeforeNavigation,
+    allAvailableExercises, // Expose allAvailableExercises
+    updateSessionStartTime: setSessionStartTime, // Expose setSessionStartTime as updateSessionStartTime
   };
 };

@@ -46,6 +46,8 @@ export default function WorkoutPage() {
         createWorkoutSessionInDb={workoutFlowManager.createWorkoutSessionInDb}
         finishWorkoutSession={handleFinishAndShowSummary}
         isQuickStart={isQuickStart} // Pass the new prop here
+        allAvailableExercises={workoutFlowManager.allAvailableExercises} // Pass allAvailableExercises
+        updateSessionStartTime={workoutFlowManager.updateSessionStartTime} // Pass updateSessionStartTime
       />
       <WorkoutSummaryModal
         sessionId={summarySessionId}
