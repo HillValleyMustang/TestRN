@@ -49,10 +49,17 @@ export const useCoreWorkoutSessionState = (): UseCoreWorkoutSessionStateReturn =
 
   // Derived state for unsaved changes
   const hasUnsavedChanges = useMemo(() => {
-    return isWorkoutActive && Object.values(exercisesWithSets).some(setsArray =>
-      setsArray.some(set => !set.isSaved && hasUserInput(set))
+    // A workout has "unsaved changes" if it's active AND:
+    // 1. A session ID has been assigned (meaning a session has started, even if just locally).
+    // 2. Or there are exercises loaded for the session (implies a workout was selected/started).
+    // 3. Or any set has user input (even if that specific set is marked as 'isSaved' locally,
+    //    because the overall session isn't 'finished' yet).
+    return isWorkoutActive && (
+      currentSessionId !== null || 
+      exercisesForSession.length > 0 || 
+      Object.values(exercisesWithSets).some(setsArray => setsArray.some(set => hasUserInput(set)))
     );
-  }, [isWorkoutActive, exercisesWithSets]);
+  }, [isWorkoutActive, currentSessionId, exercisesForSession.length, exercisesWithSets]);
 
   // Internal function to clear only the local React state
   const _resetLocalState = useCallback(() => {
