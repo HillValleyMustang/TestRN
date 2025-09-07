@@ -64,6 +64,7 @@ export const useSetDrafts = ({
   const createInitialDrafts = useCallback(async () => {
     if (!isValidId(exerciseId)) return;
 
+    console.log(`[useSetDrafts] Creating ${DEFAULT_INITIAL_SETS} initial drafts for exercise: ${exerciseId}`);
     const draftPayloads: LocalDraftSetLog[] = [];
     for (let i = 0; i < DEFAULT_INITIAL_SETS; i++) {
       const newSet: SetLogState = {
@@ -150,6 +151,7 @@ export const useSetDrafts = ({
   const updateDraft = useCallback(async (setIndex: number, updatedSet: Partial<SetLogState>) => {
     if (!isValidDraftKey(exerciseId, setIndex)) return;
 
+    console.log(`[useSetDrafts] Updating draft for exercise: ${exerciseId}, setIndex: ${setIndex} with data:`, updatedSet);
     const currentDraft = await db.draft_set_logs.get([exerciseId, setIndex]);
     if (!currentDraft) return;
 

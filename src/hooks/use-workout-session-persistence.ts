@@ -61,6 +61,7 @@ export const useWorkoutSessionPersistence = ({
 
   const resetWorkoutSession = useCallback(async () => {
     if (session?.user.id) {
+      console.log(`[useWorkoutSessionPersistence] Resetting workout session, clearing all drafts.`);
       const allDrafts = await db.draft_set_logs.toArray();
       const userDraftKeys = allDrafts
         .filter(draft => isValidId(draft.exercise_id))
