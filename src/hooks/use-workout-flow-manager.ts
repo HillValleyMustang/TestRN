@@ -100,6 +100,12 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   }, []);
 
   const selectWorkout = useCallback(async (workoutId: string | null) => {
+    // NEW: If the selected workout is already the active one, do nothing.
+    if (workoutId === activeWorkout?.id) {
+      console.log(`[useWorkoutFlowManager] Workout ${workoutId} is already active. Skipping selection.`);
+      return;
+    }
+
     if (isWorkoutActive && hasUnsavedChanges) {
       const shouldBlock = await new Promise<boolean>(resolve => {
         setPendingNavigationPath(workoutId);
@@ -121,6 +127,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       setExercisesWithSets({});
       setCurrentSessionId(null); // Ad-hoc starts with null session ID until first set saved
       setSessionStartTime(null);
+      setExpandedExerciseCards({}); // Ensure all cards are collapsed for a new ad-hoc workout
     } else if (workoutId) {
       const selectedWorkout = groupedTPaths
         .flatMap(group => group.childWorkouts)
@@ -132,6 +139,12 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
         setExercisesWithSets({}); // Will be populated by useSetDrafts
         setCurrentSessionId(null); // T-Path workout starts with null session ID until first set saved
         setSessionStartTime(null);
+        // Expand the first exercise card by default for a new workout selection
+        if (workoutExercisesCache[selectedWorkout.id] && workoutExercisesCache[selectedWorkout.id].length > 0) {
+          setExpandedExerciseCards({ [workoutExercisesCache[selectedWorkout.id][0].id]: true });
+        } else {
+          setExpandedExerciseCards({});
+        }
       } else {
         toast.error("Selected workout not found.");
       }
@@ -141,8 +154,9 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       setExercisesWithSets({});
       setCurrentSessionId(null);
       setSessionStartTime(null);
+      setExpandedExerciseCards({});
     }
-  }, [isWorkoutActive, hasUnsavedChanges, groupedTPaths, workoutExercisesCache, resetWorkoutSession, setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId, setSessionStartTime, setPendingNavigationPath, setShowUnsavedChangesDialog]);
+  }, [activeWorkout?.id, isWorkoutActive, hasUnsavedChanges, groupedTPaths, workoutExercisesCache, resetWorkoutSession, setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId, setSessionStartTime, setPendingNavigationPath, setShowUnsavedChangesDialog, setExpandedExerciseCards]);
 
   const handleEditWorkoutSaveSuccess = useCallback(async () => {
     setIsEditWorkoutDialogOpen(false);
