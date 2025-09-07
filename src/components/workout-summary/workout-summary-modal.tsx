@@ -17,6 +17,7 @@ import { db } from '@/lib/db';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatWeight, formatTime } from '@/lib/unit-conversions';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -29,14 +30,13 @@ type ExerciseGroup = {
   id: string;
 };
 
-interface WorkoutSummaryPageProps {
-  params: {
-    sessionId: string;
-  };
+interface WorkoutSummaryModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  sessionId: string | null;
 }
 
-export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) {
-  const { sessionId } = params;
+export const WorkoutSummaryModal = ({ open, onOpenChange, sessionId }: WorkoutSummaryModalProps) => {
   const { session, supabase } = useSession();
   const router = useRouter();
   const [workoutSession, setWorkoutSession] = useState<WorkoutSession | null>(null);
@@ -51,12 +51,12 @@ export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) 
   const [hasShownAchievementToasts, setHasShownAchievementToasts] = useState(false);
 
   useEffect(() => {
-    if (!session || !sessionId) {
+    if (!session || !sessionId || !open) {
       setWorkoutSession(null);
       setSetLogs([]);
       setLoading(true);
       setHasShownAchievementToasts(false);
-      if (!sessionId) {
+      if (!sessionId && open) {
         setError("No workout session ID provided for summary.");
         setLoading(false);
       }
@@ -128,7 +128,7 @@ export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) 
     };
 
     fetchWorkoutSummary();
-  }, [session, sessionId, supabase, hasShownAchievementToasts]);
+  }, [session, sessionId, supabase, hasShownAchievementToasts, open]);
 
   const handleRatingChange = (rating: number) => {
     setCurrentRating(rating);
@@ -169,77 +169,76 @@ export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) 
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-2 sm:p-4">
-      <header className="mb-8 flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Workout Summary</h1>
-        <Button variant="outline" onClick={() => router.push('/dashboard')}>
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
-        </Button>
-      </header>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="p-6 pb-4 border-b">
+          <DialogTitle className="text-2xl font-bold">Workout Summary</DialogTitle>
+        </DialogHeader>
 
-      <ScrollArea className="h-[calc(100vh-150px)]">
-        <div className="max-w-lg mx-auto space-y-6">
-          {loading && <p>Loading workout summary...</p>}
-          {error && <p className="text-destructive">{error}</p>}
-          {!loading && !error && workoutSession && (
-            <>
-              <WorkoutStatsCard 
-                workoutSession={workoutSession} 
-                totalVolume={totalVolume} 
-                prsAchieved={prsAchieved} 
-                newPrExercises={newPrExercises}
-                exercisesPerformed={Object.keys(exercisesWithGroupedSets).length}
-              />
-              {workoutSession.template_name && workoutSession.template_name !== 'Ad Hoc Workout' && (
-                <WorkoutVolumeHistoryCard
-                  workoutTemplateName={workoutSession.template_name}
-                  currentSessionId={sessionId!}
+        <ScrollArea className="flex-grow overflow-y-auto px-6 pb-6">
+          <div className="space-y-6">
+            {loading && <p>Loading workout summary...</p>}
+            {error && <p className="text-destructive">{error}</p>}
+            {!loading && !error && workoutSession && (
+              <>
+                <WorkoutStatsCard 
+                  workoutSession={workoutSession} 
+                  totalVolume={totalVolume} 
+                  prsAchieved={prsAchieved} 
+                  newPrExercises={newPrExercises}
+                  exercisesPerformed={Object.keys(exercisesWithGroupedSets).length}
                 />
-              )}
-              <WorkoutRatingCard 
-                workoutSession={workoutSession} 
-                onRatingChange={handleRatingChange} 
-                currentRating={currentRating} 
-                isRatingSaved={isRatingSaved} 
-              />
-              <AiSessionAnalysisCard sessionId={sessionId!} />
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Exercises Performed</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {Object.values(exercisesWithGroupedSets).length === 0 ? (
-                    <p className="text-muted-foreground">No exercises logged for this session.</p>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Exercise</TableHead>
-                          <TableHead className="text-center">Sets</TableHead>
-                          <TableHead>Best Set</TableHead>
-                          <TableHead className="text-center">PR</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {Object.values(exercisesWithGroupedSets).map((group) => (
-                          <TableRow key={group.id}>
-                            <TableCell className="font-medium">{group.name}</TableCell>
-                            <TableCell className="text-center">{group.sets.length}</TableCell>
-                            <TableCell>{getBestSetString(group)}</TableCell>
-                            <TableCell className="text-center">
-                              {group.sets.some(s => s.is_pb) ? <Trophy className="h-4 w-4 text-yellow-500 mx-auto" /> : '-'}
-                            </TableCell>
+                {workoutSession.template_name && workoutSession.template_name !== 'Ad Hoc Workout' && (
+                  <WorkoutVolumeHistoryCard
+                    workoutTemplateName={workoutSession.template_name}
+                    currentSessionId={sessionId!}
+                  />
+                )}
+                <WorkoutRatingCard 
+                  workoutSession={workoutSession} 
+                  onRatingChange={handleRatingChange} 
+                  currentRating={currentRating} 
+                  isRatingSaved={isRatingSaved} 
+                />
+                <AiSessionAnalysisCard sessionId={sessionId!} />
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Exercises Performed</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {Object.values(exercisesWithGroupedSets).length === 0 ? (
+                      <p className="text-muted-foreground">No exercises logged for this session.</p>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Exercise</TableHead>
+                            <TableHead className="text-center">Sets</TableHead>
+                            <TableHead>Best Set</TableHead>
+                            <TableHead className="text-center">PR</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
-            </>
-          )}
-        </div>
-      </ScrollArea>
-    </div>
+                        </TableHeader>
+                        <TableBody>
+                          {Object.values(exercisesWithGroupedSets).map((group) => (
+                            <TableRow key={group.id}>
+                              <TableCell className="font-medium">{group.name}</TableCell>
+                              <TableCell className="text-center">{group.sets.length}</TableCell>
+                              <TableCell>{getBestSetString(group)}</TableCell>
+                              <TableCell className="text-center">
+                                {group.sets.some(s => s.is_pb) ? <Trophy className="h-4 w-4 text-yellow-500 mx-auto" /> : '-'}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            )}
+          </div>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
   );
-}
+};

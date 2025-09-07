@@ -5,24 +5,31 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { useWorkoutFlowManager } from '@/hooks/use-workout-flow-manager';
 import { WorkoutSelector } from '@/components/workout-flow/workout-selector';
-import { WorkoutProgressBar } from '@/components/workout-flow/workout-progress-bar'; // Import the new progress bar
+import { WorkoutProgressBar } from '@/components/workout-flow/workout-progress-bar';
+import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal'; // Import the modal
 
 export default function WorkoutPage() {
   const { session, supabase } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialWorkoutId = searchParams.get('workoutId');
-  const isQuickStart = !!initialWorkoutId; // Determine if it's a quick start
+  const isQuickStart = !!initialWorkoutId;
 
   const workoutFlowManager = useWorkoutFlowManager({
     initialWorkoutId: initialWorkoutId,
     router,
   });
 
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [summarySessionId, setSummarySessionId] = useState<string | null>(null);
+
   const handleFinishAndShowSummary = async () => {
     const finishedSessionId = await workoutFlowManager.finishWorkoutSession();
     console.log("WorkoutPage: Finished workout session. Returned ID:", finishedSessionId);
-    // The navigation to the summary page is now handled directly within useWorkoutFlowManager's finishWorkoutSession
+    if (finishedSessionId) {
+      setSummarySessionId(finishedSessionId);
+      setShowSummaryModal(true);
+    }
   };
 
   return (
@@ -33,22 +40,26 @@ export default function WorkoutPage() {
           Select a workout or start an ad-hoc session.
         </p>
       </header>
-      {/* Add key prop here */}
       <WorkoutSelector 
         key={workoutFlowManager.activeWorkout?.id || 'no-workout'}
         {...workoutFlowManager} 
-        onWorkoutSelect={() => {}} // No longer directly used by WorkoutSelector
+        onWorkoutSelect={() => {}}
         loadingWorkoutFlow={workoutFlowManager.loading}
         createWorkoutSessionInDb={workoutFlowManager.createWorkoutSessionInDb}
-        finishWorkoutSession={handleFinishAndShowSummary}
-        isQuickStart={isQuickStart} // Pass the new prop here
-        allAvailableExercises={workoutFlowManager.allAvailableExercises} // Pass allAvailableExercises
-        updateSessionStartTime={workoutFlowManager.updateSessionStartTime} // Pass updateSessionStartTime
+        finishWorkoutSession={handleFinishAndShowSummary} // Use the local handler
+        isQuickStart={isQuickStart}
+        allAvailableExercises={workoutFlowManager.allAvailableExercises}
+        updateSessionStartTime={workoutFlowManager.updateSessionStartTime}
       />
       <WorkoutProgressBar
         exercisesForSession={workoutFlowManager.exercisesForSession}
         completedExercises={workoutFlowManager.completedExercises}
         isWorkoutActive={workoutFlowManager.isWorkoutActive}
+      />
+      <WorkoutSummaryModal
+        open={showSummaryModal}
+        onOpenChange={setShowSummaryModal}
+        sessionId={summarySessionId}
       />
     </div>
   );

@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { History, ArrowRight, Eye, Dumbbell, Timer } from 'lucide-react'; // Added Eye, Dumbbell, Timer
+import { History, ArrowRight, Eye, Dumbbell, Timer } from 'lucide-react';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatTimeAgo, getWorkoutColorClass, cn } from '@/lib/utils'; // Added cn
-import { db } from '@/lib/db'; // Import db for IndexedDB operations
+import { formatTimeAgo, getWorkoutColorClass, cn } from '@/lib/utils';
+import { db } from '@/lib/db';
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
@@ -20,7 +20,11 @@ interface WorkoutSessionWithDetails extends WorkoutSession {
   exercise_count: number;
 }
 
-export const PreviousWorkoutsCard = () => {
+interface PreviousWorkoutsCardProps {
+  onViewSummary: (sessionId: string) => void; // New prop to open the summary modal
+}
+
+export const PreviousWorkoutsCard = ({ onViewSummary }: PreviousWorkoutsCardProps) => {
   const { session, supabase } = useSession();
   const router = useRouter();
   const [recentSessions, setRecentSessions] = useState<WorkoutSessionWithDetails[]>([]);
@@ -116,7 +120,7 @@ export const PreviousWorkoutsCard = () => {
   }, [session, supabase]);
 
   const handleViewSummaryClick = (sessionId: string) => {
-    router.push(`/workout-summary/${sessionId}`); // Navigate to the new summary page
+    onViewSummary(sessionId); // Use the callback prop
   };
 
   return (

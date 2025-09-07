@@ -8,7 +8,7 @@ import { db } from '@/lib/db';
 import { useWorkoutDataFetcher } from './use-workout-data-fetcher';
 import { useCoreWorkoutSessionState } from './use-core-workout-session-state';
 import { useWorkoutSessionPersistence } from './use-workout-session-persistence';
-import { useSessionExerciseManagement } from './use-session-exercise-management'; // Re-writing this import
+import { useSessionExerciseManagement } from './use-session-exercise-management';
 import { useSession } from '@/components/session-context-provider';
 
 type TPath = Tables<'t_paths'>;
@@ -30,7 +30,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     completedExercises,
     isCreatingSession,
     isWorkoutActive,
-    hasUnsavedChanges, // <-- Now directly using this derived state
+    hasUnsavedChanges,
     expandedExerciseCards,
     setActiveWorkout,
     setExercisesForSession,
@@ -59,13 +59,13 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   } = useWorkoutSessionPersistence({
     allAvailableExercises,
     workoutExercisesCache,
-    activeWorkout, // Pass directly
-    currentSessionId, // Pass directly
-    sessionStartTime, // Pass directly
-    setIsCreatingSession, // Pass directly
-    setCurrentSessionId, // Pass directly
-    setSessionStartTime, // Pass directly
-    _resetLocalState, // Pass directly
+    activeWorkout,
+    currentSessionId,
+    sessionStartTime,
+    setIsCreatingSession,
+    setCurrentSessionId,
+    setSessionStartTime,
+    _resetLocalState,
   });
 
   const {
@@ -79,7 +79,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     coreState: {
       activeWorkout, exercisesForSession, exercisesWithSets, currentSessionId, sessionStartTime,
       completedExercises, isCreatingSession, isWorkoutActive, hasUnsavedChanges,
-      expandedExerciseCards, // Include here
+      expandedExerciseCards,
       setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId,
       setSessionStartTime, setCompletedExercises, setIsCreatingSession, setExpandedExerciseCards, _resetLocalState,
     },
@@ -90,10 +90,8 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
   const resolveNavigationPromise = useRef<((value: boolean) => void) | null>(null);
 
-  // New state to manage pending workout selection after data refresh
   const [pendingWorkoutIdToSelect, setPendingWorkoutIdToSelect] = useState<string | null>(null);
 
-  // New states and handlers for EditWorkoutExercisesDialog
   const [isEditWorkoutDialogOpen, setIsEditWorkoutDialogOpen] = useState(false);
   const [selectedWorkoutToEdit, setSelectedWorkoutToEdit] = useState<{ id: string; name: string } | null>(null);
 
@@ -103,8 +101,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   }, []);
 
   const selectWorkout = useCallback(async (workoutId: string | null) => {
-    console.log(`[useWorkoutFlowManager - selectWorkout] Called with workoutId: ${workoutId}, current activeWorkout.id: ${activeWorkout?.id}`);
-
     if (workoutId === activeWorkout?.id) {
       if (hasUnsavedChanges) {
         const shouldBlock = await new Promise<boolean>(resolve => {
@@ -117,12 +113,10 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
         }
         await resetWorkoutSession();
       }
-      console.log(`[useWorkoutFlowManager - selectWorkout] Clicked on already active workout. Returning.`);
       return;
     }
 
     if (isWorkoutActive && hasUnsavedChanges) {
-      console.log(`[useWorkoutFlowManager - selectWorkout] Active workout with unsaved changes. Prompting user.`);
       const shouldBlock = await new Promise<boolean>(resolve => {
         setPendingNavigationPath(workoutId);
         setShowUnsavedChangesDialog(true);
@@ -130,42 +124,28 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       });
 
       if (shouldBlock) {
-        console.log(`[useWorkoutFlowManager - selectWorkout] User chose to stay. Blocking navigation.`);
         return;
       }
-      console.log(`[useWorkoutFlowManager - selectWorkout] User chose to leave. Resetting session.`);
     }
 
-    // Reset previous session and trigger data refresh
     await resetWorkoutSession();
-    setPendingWorkoutIdToSelect(workoutId); // Set pending ID
-    console.log(`[useWorkoutFlowManager - selectWorkout] Resetting session and refreshing data. Pending workout ID: ${workoutId}`);
-    await refreshAllData(); // Trigger data re-fetch
+    setPendingWorkoutIdToSelect(workoutId);
+    await refreshAllData();
   }, [isWorkoutActive, hasUnsavedChanges, activeWorkout?.id, resetWorkoutSession, setPendingNavigationPath, setShowUnsavedChangesDialog, refreshAllData]);
 
-  // Effect to handle actual workout selection once data is refreshed
   useEffect(() => {
     if (loadingData || !pendingWorkoutIdToSelect) {
-      console.log(`[useWorkoutFlowManager - performSelection] Skipping: loadingData=${loadingData}, pendingWorkoutIdToSelect=${pendingWorkoutIdToSelect}`);
       return;
     }
 
-    // NEW: Ensure data is actually available before proceeding
     if (groupedTPaths.length === 0 && pendingWorkoutIdToSelect !== 'ad-hoc') {
-      console.log(`[useWorkoutFlowManager - performSelection] groupedTPaths is empty, waiting for data.`);
       return;
     }
     if (Object.keys(workoutExercisesCache).length === 0 && pendingWorkoutIdToSelect !== 'ad-hoc') {
-      console.log(`[useWorkoutFlowManager - performSelection] workoutExercisesCache is empty, waiting for data.`);
       return;
     }
 
     const performSelection = async () => {
-      console.log(`[useWorkoutFlowManager - performSelection] START`);
-      console.log(`[useWorkoutFlowManager - performSelection] pendingWorkoutIdToSelect: ${pendingWorkoutIdToSelect}`);
-      console.log(`[useWorkoutFlowManager - performSelection] Current groupedTPaths (full):`, JSON.stringify(groupedTPaths, null, 2));
-      console.log(`[useWorkoutFlowManager - performSelection] Current workoutExercisesCache (full):`, JSON.stringify(workoutExercisesCache, null, 2));
-
       if (pendingWorkoutIdToSelect === 'ad-hoc') {
         const adHocWorkout = { id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: null, version: null, settings: null, progression_settings: null, parent_t_path_id: null };
         setActiveWorkout(adHocWorkout);
@@ -173,13 +153,10 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
         setExercisesWithSets({});
         setCurrentSessionId(null);
         setSessionStartTime(null);
-        console.log(`[useWorkoutFlowManager - performSelection] Selected Ad-Hoc workout.`);
       } else if (pendingWorkoutIdToSelect) {
         const selectedWorkout = groupedTPaths
           .flatMap(group => group.childWorkouts)
           .find(workout => workout.id === pendingWorkoutIdToSelect);
-
-        console.log(`[useWorkoutFlowManager - performSelection] Result of find for workout ID ${pendingWorkoutIdToSelect}:`, selectedWorkout);
 
         if (selectedWorkout) {
           setActiveWorkout(selectedWorkout);
@@ -187,9 +164,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
           setExercisesWithSets({});
           setCurrentSessionId(null);
           setSessionStartTime(null);
-          console.log(`[useWorkoutFlowManager - performSelection] Successfully selected workout: ${selectedWorkout.template_name}`);
         } else {
-          console.warn(`[useWorkoutFlowManager - performSelection] Selected workout ID ${pendingWorkoutIdToSelect} not found in groupedTPaths. Starting Ad-Hoc workout.`);
           toast.error("Selected workout not found. Starting Ad-Hoc workout.");
           setActiveWorkout({ id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: null, version: null, settings: null, progression_settings: null, parent_t_path_id: null });
           setExercisesForSession([]);
@@ -203,10 +178,8 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
         setExercisesWithSets({});
         setCurrentSessionId(null);
         setSessionStartTime(null);
-        console.log(`[useWorkoutFlowManager - performSelection] No pending workout ID, resetting active workout.`);
       }
-      setPendingWorkoutIdToSelect(null); // Clear pending ID after selection
-      console.log(`[useWorkoutFlowManager - performSelection] END`);
+      setPendingWorkoutIdToSelect(null);
     };
 
     performSelection();
@@ -217,14 +190,14 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     setIsEditWorkoutDialogOpen(false);
     await refreshAllData();
     if (activeWorkout?.id) {
-      setPendingWorkoutIdToSelect(activeWorkout.id); // Re-select the active workout after save
+      setPendingWorkoutIdToSelect(activeWorkout.id);
     }
   }, [activeWorkout, refreshAllData]);
 
 
   useEffect(() => {
     if (initialWorkoutId && groupedTPaths.length > 0 && !activeWorkout && !pendingWorkoutIdToSelect) {
-      setPendingWorkoutIdToSelect(initialWorkoutId); // Trigger initial selection from URL
+      setPendingWorkoutIdToSelect(initialWorkoutId);
     }
   }, [initialWorkoutId, groupedTPaths, activeWorkout, pendingWorkoutIdToSelect]);
 
@@ -232,18 +205,14 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     const finishedSessionId = await persistAndFinishWorkoutSession();
     if (finishedSessionId) {
       await resetWorkoutSession();
-      router.push(`/workout-summary/${finishedSessionId}`);
     }
     return finishedSessionId;
-  }, [persistAndFinishWorkoutSession, resetWorkoutSession, router]);
+  }, [persistAndFinishWorkoutSession, resetWorkoutSession]);
 
   const promptBeforeNavigation = useCallback(async (path: string): Promise<boolean> => {
     const allowedPathsWithoutWarning = ['/workout']; 
-    console.log(`[promptBeforeNavigation] Attempting to navigate to: ${path}`);
-    console.log(`[promptBeforeNavigation] isWorkoutActive: ${isWorkoutActive}, hasUnsavedChanges: ${hasUnsavedChanges}`);
 
     if (hasUnsavedChanges && !allowedPathsWithoutWarning.includes(path)) {
-      console.log(`[promptBeforeNavigation] Unsaved changes detected, showing dialog.`);
       setPendingNavigationPath(path);
       setShowUnsavedChangesDialog(true);
       return new Promise<boolean>(resolve => {
@@ -251,9 +220,8 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       });
     }
 
-    console.log(`[promptBeforeNavigation] No unsaved changes or allowed path. Proceeding.`);
     return Promise.resolve(false);
-  }, [hasUnsavedChanges, isWorkoutActive, setPendingNavigationPath, setShowUnsavedChangesDialog]); // Added isWorkoutActive to dependencies
+  }, [hasUnsavedChanges, isWorkoutActive, setPendingNavigationPath, setShowUnsavedChangesDialog]);
 
   const handleConfirmLeave = useCallback(async () => {
     setShowUnsavedChangesDialog(false);

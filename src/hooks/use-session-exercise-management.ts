@@ -36,12 +36,11 @@ interface UseSessionExerciseManagementReturn {
   updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
 }
 
-export const useSessionExerciseManagement = ({ // Ensure this export is correctly picked up
+export const useSessionExerciseManagement = ({
   allAvailableExercises,
   coreState,
   supabase,
 }: UseSessionExerciseManagementProps): UseSessionExerciseManagementReturn => {
-  console.log("[useSessionExerciseManagement] Hook initialized."); // Added console log
   const { session } = useSession();
   const {
     exercisesForSession,
@@ -56,7 +55,6 @@ export const useSessionExerciseManagement = ({ // Ensure this export is correctl
   const addExerciseToSession = useCallback(async (exercise: ExerciseDefinition) => {
     if (!session) return;
     if (!isValidId(exercise.id)) {
-      console.error("Attempted to add exercise with invalid ID:", exercise);
       toast.error("Cannot add exercise: invalid exercise ID.");
       return;
     }
@@ -105,7 +103,6 @@ export const useSessionExerciseManagement = ({ // Ensure this export is correctl
         isSaved: false, set_log_id: null,
         is_pb: false,
       };
-      console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in addExerciseToSession put: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
       db.draft_set_logs.put(draftPayload);
       return newSet;
     });
@@ -116,7 +113,6 @@ export const useSessionExerciseManagement = ({ // Ensure this export is correctl
 
   const removeExerciseFromSession = useCallback(async (exerciseId: string) => {
     if (!isValidId(exerciseId)) {
-      console.error("Attempted to remove exercise with invalid ID:", exerciseId);
       toast.error("Cannot remove exercise: invalid exercise ID.");
       return;
     }
@@ -132,14 +128,12 @@ export const useSessionExerciseManagement = ({ // Ensure this export is correctl
     
     if (draftsToDelete.length > 0) {
       const keysToDelete = draftsToDelete.map(d => [d.exercise_id, d.set_index] as [string, number]);
-      console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1]), `Invalid draft keys in removeExerciseFromSession bulkDelete: ${JSON.stringify(keysToDelete)}`));
       await db.draft_set_logs.bulkDelete(keysToDelete);
     }
   }, [currentSessionId, setExercisesForSession, setExercisesWithSets, setCompletedExercises, setExpandedExerciseCards]);
 
   const substituteExercise = useCallback(async (oldExerciseId: string, newExercise: WorkoutExercise) => {
     if (!isValidId(oldExerciseId) || !isValidId(newExercise.id)) {
-      console.error("Attempted to substitute exercise with invalid IDs:", oldExerciseId, newExercise);
       toast.error("Cannot substitute exercise: invalid exercise ID(s).");
       return;
     }
@@ -166,7 +160,6 @@ export const useSessionExerciseManagement = ({ // Ensure this export is correctl
           isSaved: false, set_log_id: null,
           is_pb: false,
         };
-        console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in substituteExercise put: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
         db.draft_set_logs.put(draftPayload);
         return newSet;
       });
@@ -178,7 +171,7 @@ export const useSessionExerciseManagement = ({ // Ensure this export is correctl
     setExpandedExerciseCards(prev => {
       const newExpanded = { ...prev };
       delete newExpanded[oldExerciseId];
-      newExpanded[newExercise.id] = true; // Expand the new exercise
+      newExpanded[newExercise.id] = true;
       return newExpanded;
     });
     
@@ -189,14 +182,12 @@ export const useSessionExerciseManagement = ({ // Ensure this export is correctl
     
     if (draftsToDelete.length > 0) {
       const keysToDelete = draftsToDelete.map(d => [d.exercise_id, d.set_index] as [string, number]);
-      console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1]), `Invalid draft keys in substituteExercise bulkDelete: ${JSON.stringify(keysToDelete)}`));
       await db.draft_set_logs.bulkDelete(keysToDelete);
     }
   }, [currentSessionId, exercisesForSession, setExercisesForSession, setExercisesWithSets, setCompletedExercises, setExpandedExerciseCards]);
 
   const updateExerciseSets = useCallback((exerciseId: string, newSets: SetLogState[]) => {
     setExercisesWithSets((prev: Record<string, SetLogState[]>) => ({ ...prev, [exerciseId]: newSets }));
-    // No change to expanded state here, as saving a set should keep it open
   }, [setExercisesWithSets]);
 
   const markExerciseAsCompleted = useCallback((exerciseId: string, isNewPR: boolean) => {
@@ -205,7 +196,7 @@ export const useSessionExerciseManagement = ({ // Ensure this export is correctl
       newCompleted.add(exerciseId);
       return newCompleted;
     });
-    setExpandedExerciseCards(prev => ({ ...prev, [exerciseId]: false })); // Collapse on completion
+    setExpandedExerciseCards(prev => ({ ...prev, [exerciseId]: false }));
   }, [setCompletedExercises, setExpandedExerciseCards]);
 
   return {

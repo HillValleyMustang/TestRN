@@ -50,14 +50,12 @@ export const useSetDrafts = ({
 
   const drafts = useLiveQuery(async () => {
     if (!isValidId(exerciseId)) {
-      console.log(`[useSetDrafts - useLiveQuery] Invalid exerciseId: ${exerciseId}. Returning empty drafts.`);
       return [];
     }
     const fetchedDrafts = await db.draft_set_logs
       .where('exercise_id').equals(exerciseId)
       .filter(draft => draft.session_id === currentSessionId)
       .sortBy('set_index');
-    console.log(`[useSetDrafts - useLiveQuery] Fetched drafts for exercise ${exerciseId}, session ${currentSessionId}:`, fetchedDrafts);
     return fetchedDrafts;
   }, [exerciseId, currentSessionId]);
 
@@ -66,21 +64,17 @@ export const useSetDrafts = ({
 
   const createInitialDrafts = useCallback(async () => {
     if (!isValidId(exerciseId)) {
-      console.warn(`[useSetDrafts - createInitialDrafts] Invalid exerciseId: ${exerciseId}. Cannot create drafts.`);
       return;
     }
-    // Check if drafts already exist for this exercise and currentSessionId before creating
     const existingDraftsCheck = await db.draft_set_logs
       .where('exercise_id').equals(exerciseId)
       .filter(draft => draft.session_id === currentSessionId)
       .count();
 
     if (existingDraftsCheck > 0) {
-      console.log(`[useSetDrafts - createInitialDrafts] Drafts already exist for exercise ${exerciseId}, session ${currentSessionId}. Skipping creation.`);
       return;
     }
 
-    console.log(`[useSetDrafts - createInitialDrafts] Creating ${DEFAULT_INITIAL_SETS} initial drafts for exercise: ${exerciseId}, session: ${currentSessionId}`);
     const draftPayloads: LocalDraftSetLog[] = [];
     for (let i = 0; i < DEFAULT_INITIAL_SETS; i++) {
       const newSet: SetLogState = {
@@ -95,31 +89,25 @@ export const useSetDrafts = ({
         is_pb: false,
       });
     }
-    console.assert(draftPayloads.every(d => isValidDraftKey(d.exercise_id, d.set_index)), `Invalid draft keys in createInitialDrafts bulkPut: ${JSON.stringify(draftPayloads.map(d => [d.exercise_id, d.set_index]))}`);
     await db.draft_set_logs.bulkPut(draftPayloads);
-    console.log(`[useSetDrafts - createInitialDrafts] Successfully bulkPut ${draftPayloads.length} drafts.`);
   }, [exerciseId, currentSessionId]);
 
   const fetchLastSets = useCallback(async () => {
     if (!session || !isValidId(exerciseId)) return new Map<string, GetLastExerciseSetsForExerciseReturns>();
     
-    console.log(`[useSetDrafts - fetchLastSets] Fetching last sets for exercise: ${exerciseId}`);
     const { data: lastExerciseSets, error: rpcError } = await supabase.rpc('get_last_exercise_sets_for_exercise', {
       p_user_id: session.user.id,
       p_exercise_id: exerciseId,
     });
 
     if (rpcError && rpcError.code !== 'PGRST116') { 
-      console.error(`[useSetDrafts - fetchLastSets] Error fetching last sets for exercise ${exerciseName}:`, rpcError);
+      console.error(`Error fetching last sets for exercise ${exerciseName}:`, rpcError);
       return new Map<string, GetLastExerciseSetsForExerciseReturns>();
     }
     
     const lastSetsMap = new Map<string, GetLastExerciseSetsForExerciseReturns>();
     if (lastExerciseSets) {
       lastSetsMap.set(exerciseId, lastExerciseSets);
-      console.log(`[useSetDrafts - fetchLastSets] Found ${lastExerciseSets.length} last sets for exercise ${exerciseId}.`);
-    } else {
-      console.log(`[useSetDrafts - fetchLastSets] No last sets found for exercise ${exerciseId}.`);
     }
     return lastSetsMap;
   }, [session, supabase, exerciseId, exerciseName]);
@@ -161,12 +149,9 @@ export const useSetDrafts = ({
         });
         setSets(finalSets);
       } else if (drafts && drafts.length === 0) {
-        // If we have sets in state but drafts are empty, it's likely the race condition.
-        // Do NOT update the state. Let it be.
         if (sets.length > 0) {
-          console.log(`[useSetDrafts - useEffect] Drafts are empty, but sets exist in state. Preserving state to avoid wipe.`);
+          // Do nothing, preserve state to avoid wipe
         } else {
-          // No drafts and no sets in state. This is a clean slate.
           if (currentSessionId === null) {
             await createInitialDrafts();
           }
@@ -175,24 +160,20 @@ export const useSetDrafts = ({
     };
 
     processAndSetSets();
-  }, [drafts, loadingDrafts, exerciseId, currentSessionId, exerciseName, createInitialDrafts, fetchLastSets, sets.length]); // Add sets.length to dependency array
+  }, [drafts, loadingDrafts, exerciseId, currentSessionId, exerciseName, createInitialDrafts, fetchLastSets, sets.length]);
 
   const updateDraft = useCallback(async (setIndex: number, updatedSet: Partial<SetLogState>) => {
     if (!isValidDraftKey(exerciseId, setIndex)) {
-      console.warn(`[useSetDrafts - updateDraft] Invalid draft key: exerciseId=${exerciseId}, setIndex=${setIndex}. Skipping update.`);
       return;
     }
 
-    console.log(`[useSetDrafts - updateDraft] Updating draft for exercise: ${exerciseId}, setIndex: ${setIndex} with data:`, updatedSet);
     const currentDraft = await db.draft_set_logs.get([exerciseId, setIndex]);
     if (!currentDraft) {
-      console.warn(`[useSetDrafts - updateDraft] No current draft found for [${exerciseId}, ${setIndex}]. Cannot update.`);
       return;
     }
 
     const newDraft: LocalDraftSetLog = {
       ...currentDraft,
-      // Spread properties from updatedSet, ensuring explicit handling for optional/nullable fields
       weight_kg: updatedSet.weight_kg !== undefined ? updatedSet.weight_kg : currentDraft.weight_kg,
       reps: updatedSet.reps !== undefined ? updatedSet.reps : currentDraft.reps,
       reps_l: updatedSet.reps_l !== undefined ? updatedSet.reps_l : currentDraft.reps_l,
@@ -201,15 +182,12 @@ export const useSetDrafts = ({
       isSaved: updatedSet.isSaved !== undefined ? updatedSet.isSaved : currentDraft.isSaved,
       is_pb: updatedSet.is_pb !== undefined ? updatedSet.is_pb : currentDraft.is_pb,
       
-      // Ensure exercise_id and set_index are always set
       exercise_id: exerciseId, 
       set_index: setIndex, 
       session_id: updatedSet.session_id !== undefined ? updatedSet.session_id : currentDraft.session_id,
       set_log_id: updatedSet.id !== undefined ? updatedSet.id : currentDraft.set_log_id,
     };
-    console.assert(isValidDraftKey(newDraft.exercise_id, newDraft.set_index), `Invalid draft key in updateDraft put: [${newDraft.exercise_id}, ${newDraft.set_index}]`);
     await db.draft_set_logs.put(newDraft);
-    console.log(`[useSetDrafts - updateDraft] Successfully put new draft for [${exerciseId}, ${setIndex}]. New draft state:`, newDraft);
   }, [exerciseId]);
 
   const addDraft = useCallback(async (newSet: SetLogState) => {
@@ -219,19 +197,14 @@ export const useSetDrafts = ({
       weight_kg: newSet.weight_kg, reps: newSet.reps, reps_l: newSet.reps_l, reps_r: newSet.reps_r, time_seconds: newSet.time_seconds,
       isSaved: newSet.isSaved, set_log_id: newSet.id, is_pb: newSet.is_pb,
     };
-    console.assert(isValidDraftKey(draftPayload.exercise_id, draftPayload.set_index), `Invalid draft key in addDraft put: [${draftPayload.exercise_id}, ${draftPayload.set_index}]`);
     await db.draft_set_logs.put(draftPayload);
-    console.log(`[useSetDrafts - addDraft] Successfully added new draft for [${exerciseId}, ${newSetIndex}].`);
   }, [exerciseId, currentSessionId, sets.length]);
 
   const deleteDraft = useCallback(async (setIndex: number) => {
     if (!isValidDraftKey(exerciseId, setIndex)) {
-      console.warn(`[useSetDrafts - deleteDraft] Invalid draft key: exerciseId=${exerciseId}, setIndex=${setIndex}. Skipping delete.`);
       return;
     }
-    console.assert(isValidDraftKey(exerciseId, setIndex), `Invalid draft key in deleteDraft delete: [${exerciseId}, ${setIndex}]`);
     await db.draft_set_logs.delete([exerciseId, setIndex]);
-    console.log(`[useSetDrafts - deleteDraft] Successfully deleted draft for [${exerciseId}, ${setIndex}].`);
   }, [exerciseId]);
 
   return {

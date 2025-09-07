@@ -5,10 +5,10 @@ import { Header } from "@/components/layout/header";
 import { MobileFooterNav } from "@/components/layout/mobile-footer-nav";
 import { WorkoutNavigationProvider } from "@/components/workout-flow/workout-aware-link";
 import { useWorkoutFlowManager } from "@/hooks/use-workout-flow-manager";
-import { useEffect } from "react"; // Import useEffect
-import { UnsavedChangesDialog } from "@/components/workout-flow/unsaved-changes-dialog"; // Import the dialog
-import { EditWorkoutExercisesDialog } from "@/components/manage-t-paths/edit-workout-exercises-dialog"; // Import EditWorkoutExercisesDialog
-import { useRouter } from "next/navigation"; // Import useRouter
+import { useEffect } from "react";
+import { UnsavedChangesDialog } from "@/components/workout-flow/unsaved-changes-dialog";
+import { EditWorkoutExercisesDialog } from "@/components/manage-t-paths/edit-workout-exercises-dialog";
+import { useRouter } from "next/navigation";
 
 export default function AppLayout({
   children,
@@ -48,11 +48,11 @@ export default function AppLayout({
       </div>
       <UnsavedChangesDialog
         open={workoutFlowManager.showUnsavedChangesDialog}
-        onOpenChange={workoutFlowManager.handleCancelLeave} // Allow closing with escape/outside click
+        onOpenChange={workoutFlowManager.handleCancelLeave}
         onConfirmLeave={workoutFlowManager.handleConfirmLeave}
         onCancelLeave={workoutFlowManager.handleCancelLeave}
-        activeWorkout={workoutFlowManager.activeWorkout} // Pass activeWorkout
-        onOpenEditWorkoutDialog={workoutFlowManager.handleOpenEditWorkoutDialog} // Pass handler
+        activeWorkout={workoutFlowManager.activeWorkout}
+        onOpenEditWorkoutDialog={workoutFlowManager.handleOpenEditWorkoutDialog}
       />
       {workoutFlowManager.selectedWorkoutToEdit && (
         <EditWorkoutExercisesDialog

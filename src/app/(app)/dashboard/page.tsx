@@ -9,8 +9,9 @@ import { NextWorkoutCard } from '@/components/dashboard/next-workout-card';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PreviousWorkoutsCard } from '@/components/dashboard/previous-workouts-card'; // NEW
-import { AllWorkoutsQuickStart } from '@/components/dashboard/all-workouts-quick-start'; // NEW
+import { PreviousWorkoutsCard } from '@/components/dashboard/previous-workouts-card';
+import { AllWorkoutsQuickStart } from '@/components/dashboard/all-workouts-quick-start';
+import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal'; // Import the modal
 
 type Profile = Tables<'profiles'>;
 
@@ -20,6 +21,14 @@ export default function DashboardPage() {
   const [welcomeName, setWelcomeName] = useState<string>('');
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [summarySessionId, setSummarySessionId] = useState<string | null>(null);
+
+  const handleViewSummary = (sessionId: string) => {
+    setSummarySessionId(sessionId);
+    setShowSummaryModal(true);
+  };
 
   useEffect(() => {
     if (!session) {
@@ -32,7 +41,7 @@ export default function DashboardPage() {
         // Check if user has completed onboarding
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('first_name, last_name, active_t_path_id, body_fat_pct, created_at, default_rest_time_seconds, full_name, health_notes, height_cm, id, last_ai_coach_use_at, preferred_distance_unit, preferred_muscles, preferred_session_length, preferred_weight_unit, primary_goal, target_date, updated_at, weight_kg') // Specify all columns required by Profile
+          .select('first_name, last_name, active_t_path_id, body_fat_pct, created_at, default_rest_time_seconds, full_name, health_notes, height_cm, id, last_ai_coach_use_at, preferred_distance_unit, preferred_muscles, preferred_session_length, preferred_weight_unit, primary_goal, target_date, updated_at, weight_kg')
           .eq('id', session.user.id)
           .single();
         
@@ -46,14 +55,14 @@ export default function DashboardPage() {
           return;
         }
 
-        setProfile(profileData as Profile); // Explicitly cast
+        setProfile(profileData as Profile);
 
         // Check if user has T-Paths
         const { data: tPaths, error: tPathError } = await supabase
           .from('t_paths')
           .select('id')
           .eq('user_id', session.user.id)
-          .is('parent_t_path_id', null) // Look for main T-Paths
+          .is('parent_t_path_id', null)
           .limit(1);
 
         if (tPathError) {
@@ -111,7 +120,6 @@ export default function DashboardPage() {
       <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.1s' }}>
         <NextWorkoutCard />
       </div>
-      {/* NEW: All Workouts Quick Start */}
       <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.15s' }}>
         <AllWorkoutsQuickStart />
       </div>
@@ -121,10 +129,14 @@ export default function DashboardPage() {
       <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.3s' }}>
         <WeeklyVolumeChart />
       </div>
-      {/* NEW: Previous Workouts Card */}
       <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.4s' }}>
-        <PreviousWorkoutsCard />
+        <PreviousWorkoutsCard onViewSummary={handleViewSummary} /> {/* Pass the handler */}
       </div>
+      <WorkoutSummaryModal
+        open={showSummaryModal}
+        onOpenChange={setShowSummaryModal}
+        sessionId={summarySessionId}
+      />
     </div>
   );
 }
