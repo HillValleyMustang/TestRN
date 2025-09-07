@@ -8,11 +8,15 @@ type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 // Helper function to check if a set has any user input
 const hasUserInput = (set: SetLogState): boolean => {
-  return (set.weight_kg !== null && set.weight_kg > 0) ||
+  const inputDetected = (set.weight_kg !== null && set.weight_kg > 0) ||
          (set.reps !== null && set.reps > 0) ||
          (set.reps_l !== null && set.reps_l > 0) ||
          (set.reps_r !== null && set.reps_r > 0) ||
          (set.time_seconds !== null && set.time_seconds > 0);
+  if (inputDetected) {
+    console.log(`[hasUserInput] Set for exercise ${set.exercise_id} has input. Weight: ${set.weight_kg}, Reps: ${set.reps}, Time: ${set.time_seconds}`);
+  }
+  return inputDetected;
 };
 
 interface UseCoreWorkoutSessionStateReturn {
@@ -53,12 +57,14 @@ export const useCoreWorkoutSessionState = (): UseCoreWorkoutSessionStateReturn =
   // Derived state for unsaved changes
   const hasUnsavedChanges = useMemo(() => {
     if (!isWorkoutActive) {
+      console.log("[useCoreWorkoutSessionState] hasUnsavedChanges: Workout not active, returning false.");
       return false;
     }
-    // A workout has unsaved changes ONLY if there is actual user input in any set.
-    return Object.values(exercisesWithSets).some(setsArray => 
+    const hasChanges = Object.values(exercisesWithSets).some(setsArray => 
       setsArray.some(set => hasUserInput(set))
     );
+    console.log(`[useCoreWorkoutSessionState] hasUnsavedChanges: Final result: ${hasChanges}`);
+    return hasChanges;
   }, [isWorkoutActive, exercisesWithSets]);
 
   // Custom setter for activeWorkout to include logging

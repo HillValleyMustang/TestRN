@@ -53,11 +53,12 @@ export const useSetDrafts = ({
       console.log(`[useSetDrafts - useLiveQuery] Invalid exerciseId: ${exerciseId}. Returning empty drafts.`);
       return [];
     }
-    console.log(`[useSetDrafts - useLiveQuery] Querying drafts for exercise: ${exerciseId}, session: ${currentSessionId}`);
-    return db.draft_set_logs
+    const fetchedDrafts = await db.draft_set_logs
       .where('exercise_id').equals(exerciseId)
       .filter(draft => draft.session_id === currentSessionId)
       .sortBy('set_index');
+    console.log(`[useSetDrafts - useLiveQuery] Fetched drafts for exercise ${exerciseId}, session ${currentSessionId}:`, fetchedDrafts);
+    return fetchedDrafts;
   }, [exerciseId, currentSessionId]);
 
   const [sets, setSets] = useState<SetLogState[]>([]);
@@ -90,7 +91,8 @@ export const useSetDrafts = ({
       draftPayloads.push({
         exercise_id: exerciseId, set_index: i, session_id: currentSessionId,
         weight_kg: newSet.weight_kg, reps: newSet.reps, reps_l: newSet.reps_l, reps_r: newSet.reps_r, time_seconds: newSet.time_seconds,
-        isSaved: false, set_log_id: null, is_pb: false,
+        isSaved: false, set_log_id: null,
+        is_pb: false,
       });
     }
     console.assert(draftPayloads.every(d => isValidDraftKey(d.exercise_id, d.set_index)), `Invalid draft keys in createInitialDrafts bulkPut: ${JSON.stringify(draftPayloads.map(d => [d.exercise_id, d.set_index]))}`);
@@ -207,7 +209,7 @@ export const useSetDrafts = ({
     };
     console.assert(isValidDraftKey(newDraft.exercise_id, newDraft.set_index), `Invalid draft key in updateDraft put: [${newDraft.exercise_id}, ${newDraft.set_index}]`);
     await db.draft_set_logs.put(newDraft);
-    console.log(`[useSetDrafts - updateDraft] Successfully put new draft for [${exerciseId}, ${setIndex}].`);
+    console.log(`[useSetDrafts - updateDraft] Successfully put new draft for [${exerciseId}, ${setIndex}]. New draft state:`, newDraft);
   }, [exerciseId]);
 
   const addDraft = useCallback(async (newSet: SetLogState) => {

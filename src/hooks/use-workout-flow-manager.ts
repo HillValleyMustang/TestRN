@@ -239,9 +239,11 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
 
   const promptBeforeNavigation = useCallback(async (path: string): Promise<boolean> => {
     const allowedPathsWithoutWarning = ['/workout']; 
+    console.log(`[promptBeforeNavigation] Attempting to navigate to: ${path}`);
+    console.log(`[promptBeforeNavigation] isWorkoutActive: ${isWorkoutActive}, hasUnsavedChanges: ${hasUnsavedChanges}`);
 
-    // Use the derived state from useCoreWorkoutSessionState
     if (hasUnsavedChanges && !allowedPathsWithoutWarning.includes(path)) {
+      console.log(`[promptBeforeNavigation] Unsaved changes detected, showing dialog.`);
       setPendingNavigationPath(path);
       setShowUnsavedChangesDialog(true);
       return new Promise<boolean>(resolve => {
@@ -249,8 +251,9 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       });
     }
 
+    console.log(`[promptBeforeNavigation] No unsaved changes or allowed path. Proceeding.`);
     return Promise.resolve(false);
-  }, [hasUnsavedChanges, setPendingNavigationPath, setShowUnsavedChangesDialog]); // Add hasUnsavedChanges to dependencies
+  }, [hasUnsavedChanges, isWorkoutActive, setPendingNavigationPath, setShowUnsavedChangesDialog]); // Added isWorkoutActive to dependencies
 
   const handleConfirmLeave = useCallback(async () => {
     setShowUnsavedChangesDialog(false);
