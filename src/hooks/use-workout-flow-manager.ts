@@ -162,36 +162,20 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       return false; // No active workout, allow navigation
     }
 
-    // Directly query IndexedDB for draft sets associated with the current active workout
-    // This is more robust against React state update delays and ensures we catch any interaction.
-    // If currentSessionId is null (e.g., before first set is saved for a new session),
-    // we check for drafts linked to a null session_id (ad-hoc initial state).
-    // If currentSessionId is set, we check for drafts linked to that specific session.
-    const targetSessionIdForDrafts = currentSessionId; // Use currentSessionId directly
-    
-    let hasDraftsInDb = false;
-    if (targetSessionIdForDrafts === null) { // Ad-hoc or initial state before first set saved
-        const count = await db.draft_set_logs.filter(draft => draft.session_id === null).count();
-        hasDraftsInDb = count > 0;
-    } else { // T-Path workout or ad-hoc after first set saved
-        // Ensure currentSessionId is a valid string before querying
-        if (typeof targetSessionIdForDrafts !== 'string' || targetSessionIdForDrafts.length === 0) {
-            console.warn("Invalid currentSessionId for IndexedDB query:", targetSessionIdForDrafts);
-            return false;
-        }
-        const count = await db.draft_set_logs.where('session_id').equals(targetSessionIdForDrafts).count();
-        hasDraftsInDb = count > 0;
-    }
+    // A more robust check: if a workout is active and ANY drafts exist in the DB,
+    // it means the session is in progress and hasn't been finished or reset.
+    const draftCount = await db.draft_set_logs.count();
 
-    if (isWorkoutActive && hasDraftsInDb) {
+    if (draftCount > 0) {
       setPendingNavigationPath(path);
       setShowUnsavedChangesDialog(true);
       return new Promise<boolean>(resolve => {
         resolveNavigationPromise.current = resolve;
       });
     }
-    return Promise.resolve(false); // No active workout or no drafts in DB, allow navigation
-  }, [activeWorkout, currentSessionId, setPendingNavigationPath, setShowUnsavedChangesDialog]);
+
+    return Promise.resolve(false); // No drafts, allow navigation
+  }, [isWorkoutActive, setPendingNavigationPath, setShowUnsavedChangesDialog]);
 
   const handleConfirmLeave = useCallback(async () => {
     setShowUnsavedChangesDialog(false);
@@ -215,6 +199,10 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     setPendingNavigationPath(null);
   }, []);
 
+  const updateSessionStartTime = useCallback((timestamp: string) => {
+    setSessionStartTime(new Date(timestamp));
+  }, [setSessionStartTime]);
+
   return {
     activeWorkout,
     exercisesForSession,
@@ -230,7 +218,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     setExercisesWithSets,
     setCurrentSessionId,
     setSessionStartTime,
-    setCompletedExercises,
     resetWorkoutSession,
     markExerciseAsCompleted,
     addExerciseToSession,
@@ -248,6 +235,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     handleCancelLeave,
     promptBeforeNavigation,
     allAvailableExercises, // Expose allAvailableExercises
-    updateSessionStartTime: setSessionStartTime, // Expose setSessionStartTime as updateSessionStartTime
+    updateSessionStartTime, // Expose the new function
   };
 };
