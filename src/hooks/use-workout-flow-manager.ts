@@ -141,6 +141,10 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     if (loadingData || !pendingWorkoutIdToSelect) return;
 
     const performSelection = async () => {
+      console.log(`[useWorkoutFlowManager - performSelection] Attempting to select: ${pendingWorkoutIdToSelect}`);
+      console.log(`[useWorkoutFlowManager - performSelection] Current groupedTPaths:`, groupedTPaths);
+      console.log(`[useWorkoutFlowManager - performSelection] Current workoutExercisesCache:`, workoutExercisesCache);
+
       if (pendingWorkoutIdToSelect === 'ad-hoc') {
         const adHocWorkout = { id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: null, version: null, settings: null, progression_settings: null, parent_t_path_id: null };
         setActiveWorkout(adHocWorkout);
@@ -154,12 +158,14 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
           .find(workout => workout.id === pendingWorkoutIdToSelect);
 
         if (selectedWorkout) {
+          console.log(`[useWorkoutFlowManager - performSelection] Found selected workout:`, selectedWorkout);
           setActiveWorkout(selectedWorkout);
           setExercisesForSession(workoutExercisesCache[selectedWorkout.id] || []);
           setExercisesWithSets({});
           setCurrentSessionId(null);
           setSessionStartTime(null);
         } else {
+          console.warn(`[useWorkoutFlowManager - performSelection] Selected workout ID ${pendingWorkoutIdToSelect} not found in groupedTPaths.`);
           toast.error("Selected workout not found. Starting Ad-Hoc workout.");
           setActiveWorkout({ id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: null, version: null, settings: null, progression_settings: null, parent_t_path_id: null });
           setExercisesForSession([]);
