@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Tables, SetLogWithExercise, GetLastExerciseSetsForExerciseReturns } from '@/types/supabase';
+import { Tables, SetLogWithExercise } from '@/types/supabase';
 import { toast } from 'sonner';
 import { WorkoutStatsCard } from '@/components/workout-summary/workout-stats-card';
 import { WorkoutRatingCard } from '@/components/workout-summary/workout-rating-card';
@@ -20,7 +19,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatWeight, formatTime } from '@/lib/unit-conversions';
 
 type WorkoutSession = Tables<'workout_sessions'>;
-type SetLog = Tables<'set_logs'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 type ExerciseGroup = {
@@ -31,13 +29,14 @@ type ExerciseGroup = {
   id: string;
 };
 
-interface WorkoutSummaryModalProps {
-  sessionId: string | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface WorkoutSummaryPageProps {
+  params: {
+    sessionId: string;
+  };
 }
 
-export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSummaryModalProps) => {
+export default function WorkoutSummaryPage({ params }: WorkoutSummaryPageProps) {
+  const { sessionId } = params;
   const { session, supabase } = useSession();
   const router = useRouter();
   const [workoutSession, setWorkoutSession] = useState<WorkoutSession | null>(null);
@@ -52,12 +51,12 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
   const [hasShownAchievementToasts, setHasShownAchievementToasts] = useState(false);
 
   useEffect(() => {
-    if (!session || !sessionId || !open) {
+    if (!session || !sessionId) {
       setWorkoutSession(null);
       setSetLogs([]);
       setLoading(true);
       setHasShownAchievementToasts(false);
-      if (!sessionId && open) {
+      if (!sessionId) {
         setError("No workout session ID provided for summary.");
         setLoading(false);
       }
@@ -129,7 +128,7 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
     };
 
     fetchWorkoutSummary();
-  }, [session, sessionId, open, supabase, hasShownAchievementToasts]);
+  }, [session, sessionId, supabase, hasShownAchievementToasts]);
 
   const handleRatingChange = (rating: number) => {
     setCurrentRating(rating);
@@ -170,78 +169,77 @@ export const WorkoutSummaryModal = ({ sessionId, open, onOpenChange }: WorkoutSu
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col p-0">
-        <DialogHeader className="p-4 sm:p-6 pb-4 border-b flex-shrink-0">
-          <DialogTitle>Workout Summary</DialogTitle>
-        </DialogHeader>
-        <ScrollArea className="flex-grow overflow-y-auto">
-          <div className="p-4 sm:p-6 space-y-4">
-            {loading && <p>Loading workout summary...</p>}
-            {error && <p className="text-destructive">{error}</p>}
-            {!loading && !error && workoutSession && (
-              <>
-                <WorkoutStatsCard 
-                  workoutSession={workoutSession} 
-                  totalVolume={totalVolume} 
-                  prsAchieved={prsAchieved} 
-                  newPrExercises={newPrExercises}
-                  exercisesPerformed={Object.keys(exercisesWithGroupedSets).length}
+    <div className="min-h-screen bg-background text-foreground p-2 sm:p-4">
+      <header className="mb-8 flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Workout Summary</h1>
+        <Button variant="outline" onClick={() => router.push('/dashboard')}>
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
+        </Button>
+      </header>
+
+      <ScrollArea className="h-[calc(100vh-150px)]">
+        <div className="max-w-lg mx-auto space-y-6">
+          {loading && <p>Loading workout summary...</p>}
+          {error && <p className="text-destructive">{error}</p>}
+          {!loading && !error && workoutSession && (
+            <>
+              <WorkoutStatsCard 
+                workoutSession={workoutSession} 
+                totalVolume={totalVolume} 
+                prsAchieved={prsAchieved} 
+                newPrExercises={newPrExercises}
+                exercisesPerformed={Object.keys(exercisesWithGroupedSets).length}
+              />
+              {workoutSession.template_name && workoutSession.template_name !== 'Ad Hoc Workout' && (
+                <WorkoutVolumeHistoryCard
+                  workoutTemplateName={workoutSession.template_name}
+                  currentSessionId={sessionId!}
                 />
-                {workoutSession.template_name && workoutSession.template_name !== 'Ad Hoc Workout' && (
-                  <WorkoutVolumeHistoryCard
-                    workoutTemplateName={workoutSession.template_name}
-                    currentSessionId={sessionId!}
-                  />
-                )}
-                <WorkoutRatingCard 
-                  workoutSession={workoutSession} 
-                  onRatingChange={handleRatingChange} 
-                  currentRating={currentRating} 
-                  isRatingSaved={isRatingSaved} 
-                />
-                <AiSessionAnalysisCard sessionId={sessionId!} />
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Exercises Performed</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {Object.values(exercisesWithGroupedSets).length === 0 ? (
-                      <p className="text-muted-foreground">No exercises logged for this session.</p>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Exercise</TableHead>
-                            <TableHead className="text-center">Sets</TableHead>
-                            <TableHead>Best Set</TableHead>
-                            <TableHead className="text-center">PR</TableHead>
+              )}
+              <WorkoutRatingCard 
+                workoutSession={workoutSession} 
+                onRatingChange={handleRatingChange} 
+                currentRating={currentRating} 
+                isRatingSaved={isRatingSaved} 
+              />
+              <AiSessionAnalysisCard sessionId={sessionId!} />
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Exercises Performed</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {Object.values(exercisesWithGroupedSets).length === 0 ? (
+                    <p className="text-muted-foreground">No exercises logged for this session.</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Exercise</TableHead>
+                          <TableHead className="text-center">Sets</TableHead>
+                          <TableHead>Best Set</TableHead>
+                          <TableHead className="text-center">PR</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {Object.values(exercisesWithGroupedSets).map((group) => (
+                          <TableRow key={group.id}>
+                            <TableCell className="font-medium">{group.name}</TableCell>
+                            <TableCell className="text-center">{group.sets.length}</TableCell>
+                            <TableCell>{getBestSetString(group)}</TableCell>
+                            <TableCell className="text-center">
+                              {group.sets.some(s => s.is_pb) ? <Trophy className="h-4 w-4 text-yellow-500 mx-auto" /> : '-'}
+                            </TableCell>
                           </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {Object.values(exercisesWithGroupedSets).map((group) => (
-                            <TableRow key={group.id}>
-                              <TableCell className="font-medium">{group.name}</TableCell>
-                              <TableCell className="text-center">{group.sets.length}</TableCell>
-                              <TableCell>{getBestSetString(group)}</TableCell>
-                              <TableCell className="text-center">
-                                {group.sets.some(s => s.is_pb) ? <Trophy className="h-4 w-4 text-yellow-500 mx-auto" /> : '-'}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    )}
-                  </CardContent>
-                </Card>
-              </>
-            )}
-          </div>
-        </ScrollArea>
-        <DialogFooter className="p-4 sm:p-6 pt-4 border-t flex-shrink-0">
-          <Button onClick={() => onOpenChange(false)}>Close</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
   );
-};
+}

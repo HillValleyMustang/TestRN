@@ -36,11 +36,12 @@ interface UseSessionExerciseManagementReturn {
   updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
 }
 
-export const useSessionExerciseManagement = ({
+export const useSessionExerciseManagement = ({ // Ensure this export is correctly picked up
   allAvailableExercises,
   coreState,
   supabase,
 }: UseSessionExerciseManagementProps): UseSessionExerciseManagementReturn => {
+  console.log("[useSessionExerciseManagement] Hook initialized."); // Added console log
   const { session } = useSession();
   const {
     exercisesForSession,

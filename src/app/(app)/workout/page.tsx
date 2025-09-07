@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { useWorkoutFlowManager } from '@/hooks/use-workout-flow-manager';
 import { WorkoutSelector } from '@/components/workout-flow/workout-selector';
-import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal'; // Import the modal
 import { WorkoutProgressBar } from '@/components/workout-flow/workout-progress-bar'; // Import the new progress bar
 
 export default function WorkoutPage() {
@@ -15,9 +14,6 @@ export default function WorkoutPage() {
   const initialWorkoutId = searchParams.get('workoutId');
   const isQuickStart = !!initialWorkoutId; // Determine if it's a quick start
 
-  const [showSummaryModal, setShowSummaryModal] = useState(false);
-  const [summarySessionId, setSummarySessionId] = useState<string | null>(null);
-
   const workoutFlowManager = useWorkoutFlowManager({
     initialWorkoutId: initialWorkoutId,
     router,
@@ -26,10 +22,7 @@ export default function WorkoutPage() {
   const handleFinishAndShowSummary = async () => {
     const finishedSessionId = await workoutFlowManager.finishWorkoutSession();
     console.log("WorkoutPage: Finished workout session. Returned ID:", finishedSessionId);
-    if (finishedSessionId) {
-      setSummarySessionId(finishedSessionId);
-      setShowSummaryModal(true);
-    }
+    // The navigation to the summary page is now handled directly within useWorkoutFlowManager's finishWorkoutSession
   };
 
   return (
@@ -51,11 +44,6 @@ export default function WorkoutPage() {
         isQuickStart={isQuickStart} // Pass the new prop here
         allAvailableExercises={workoutFlowManager.allAvailableExercises} // Pass allAvailableExercises
         updateSessionStartTime={workoutFlowManager.updateSessionStartTime} // Pass updateSessionStartTime
-      />
-      <WorkoutSummaryModal
-        sessionId={summarySessionId}
-        open={showSummaryModal}
-        onOpenChange={setShowSummaryModal}
       />
       <WorkoutProgressBar
         exercisesForSession={workoutFlowManager.exercisesForSession}

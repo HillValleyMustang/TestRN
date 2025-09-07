@@ -10,7 +10,6 @@ import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatTimeAgo, getWorkoutColorClass, cn } from '@/lib/utils'; // Added cn
-import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal'; // Corrected import path
 import { db } from '@/lib/db'; // Import db for IndexedDB operations
 
 type WorkoutSession = Tables<'workout_sessions'>;
@@ -26,8 +25,6 @@ export const PreviousWorkoutsCard = () => {
   const router = useRouter();
   const [recentSessions, setRecentSessions] = useState<WorkoutSessionWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showSummaryModal, setShowSummaryModal] = useState(false); // State for modal visibility
-  const [selectedSessionIdForSummary, setSelectedSessionIdForSummary] = useState<string | null>(null); // State for session ID
 
   useEffect(() => {
     const fetchRecentWorkouts = async () => {
@@ -119,8 +116,7 @@ export const PreviousWorkoutsCard = () => {
   }, [session, supabase]);
 
   const handleViewSummaryClick = (sessionId: string) => {
-    setSelectedSessionIdForSummary(sessionId);
-    setShowSummaryModal(true);
+    router.push(`/workout-summary/${sessionId}`); // Navigate to the new summary page
   };
 
   return (
@@ -188,14 +184,6 @@ export const PreviousWorkoutsCard = () => {
           </div>
         )}
       </CardContent>
-      {/* Workout Summary Modal */}
-      {selectedSessionIdForSummary && (
-        <WorkoutSummaryModal
-          sessionId={selectedSessionIdForSummary}
-          open={showSummaryModal}
-          onOpenChange={setShowSummaryModal}
-        />
-      )}
     </Card>
   );
 };

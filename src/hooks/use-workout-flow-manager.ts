@@ -8,7 +8,7 @@ import { db } from '@/lib/db';
 import { useWorkoutDataFetcher } from './use-workout-data-fetcher';
 import { useCoreWorkoutSessionState } from './use-core-workout-session-state';
 import { useWorkoutSessionPersistence } from './use-workout-session-persistence';
-import { useSessionExerciseManagement } from './use-session-exercise-management';
+import { useSessionExerciseManagement } from './use-session-exercise-management'; // Re-writing this import
 import { useSession } from '@/components/session-context-provider';
 
 type TPath = Tables<'t_paths'>;
