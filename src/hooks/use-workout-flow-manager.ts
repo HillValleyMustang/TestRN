@@ -30,7 +30,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     completedExercises,
     isCreatingSession,
     isWorkoutActive,
-    hasUnsavedChanges,
+    hasUnsavedChanges, // <-- Now directly using this derived state
     expandedExerciseCards,
     setActiveWorkout,
     setExercisesForSession,
@@ -238,10 +238,10 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   }, [persistAndFinishWorkoutSession, resetWorkoutSession, router]);
 
   const promptBeforeNavigation = useCallback(async (path: string): Promise<boolean> => {
-    const draftCount = await db.draft_set_logs.count();
     const allowedPathsWithoutWarning = ['/workout']; 
 
-    if (draftCount > 0 && !allowedPathsWithoutWarning.includes(path)) {
+    // Use the derived state from useCoreWorkoutSessionState
+    if (hasUnsavedChanges && !allowedPathsWithoutWarning.includes(path)) {
       setPendingNavigationPath(path);
       setShowUnsavedChangesDialog(true);
       return new Promise<boolean>(resolve => {
@@ -250,7 +250,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     }
 
     return Promise.resolve(false);
-  }, [setPendingNavigationPath, setShowUnsavedChangesDialog]);
+  }, [hasUnsavedChanges, setPendingNavigationPath, setShowUnsavedChangesDialog]); // Add hasUnsavedChanges to dependencies
 
   const handleConfirmLeave = useCallback(async () => {
     setShowUnsavedChangesDialog(false);
