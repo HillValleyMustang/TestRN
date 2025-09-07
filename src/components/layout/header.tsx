@@ -12,19 +12,21 @@ import { useScrollPosition } from "@/hooks/use-scroll-position";
 import { cn } from "@/lib/utils";
 import { RollingStatusBadge } from "./rolling-status-badge";
 import { WorkoutAwareLink } from "../workout-flow/workout-aware-link"; // Import WorkoutAwareLink
+import { usePathname } from "next/navigation"; // Import usePathname to check active link
 
 const mobileNavLinks = [
-  { href: "/dashboard", label: "Dashboard", icon: Home },
-  { href: "/workout-history", label: "Workout History", icon: History },
-  { href: "/activity-logs", label: "Activity Logs", icon: BarChart3 },
-  { href: "/manage-exercises", label: "Manage Exercises", icon: Dumbbell },
-  { href: "/manage-t-paths", label: "Manage T-Paths", icon: LayoutTemplate },
-  { href: "/profile", label: "My Profile", icon: User },
+  { href: "/dashboard", label: "Home", icon: Home },
+  { href: "/workout-history", label: "History", icon: History }, // Reduced text
+  { href: "/activity-logs", label: "Activities", icon: BarChart3 }, // Reduced text
+  { href: "/manage-exercises", label: "Exercises", icon: Dumbbell }, // Reduced text
+  { href: "/manage-t-paths", label: "Paths", icon: LayoutTemplate }, // Reduced text
+  { href: "/profile", label: "Profile", icon: User }, // Reduced text
 ];
 
 export function Header() {
   const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
   const isScrolled = useScrollPosition();
+  const pathname = usePathname(); // Get current pathname
 
   return (
     <>
@@ -44,27 +46,41 @@ export function Header() {
           </SheetTrigger>
           <SheetContent side="left" className="sm:max-w-xs">
             <nav className="grid gap-6 text-lg font-medium">
-              {mobileNavLinks.map(link => (
-                <WorkoutAwareLink
-                  key={link.href}
-                  href={link.href}
-                  className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
-                >
-                  <link.icon className="h-5 w-5" />
-                  {link.label}
-                </WorkoutAwareLink>
-              ))}
+              {mobileNavLinks.map(link => {
+                const isActive = pathname === link.href;
+                const Icon = link.icon;
+                return (
+                  <WorkoutAwareLink
+                    key={link.href}
+                    href={link.href}
+                    className={cn(
+                      "flex items-center gap-4 px-2.5 py-2 rounded-md transition-colors", // Added py-2, rounded-md
+                      isActive ? "bg-action/10 text-action font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-muted" // Added bg-action/10 for active, hover:bg-muted
+                    )}
+                  >
+                    <Icon className={cn("h-6 w-6", isActive ? "text-action" : "text-muted-foreground")} /> {/* Increased icon size, dynamic color */}
+                    {link.label}
+                  </WorkoutAwareLink>
+                );
+              })}
               <hr className="my-2" />
               <WorkoutAwareLink
                 href="/workout"
-                className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+                className={cn(
+                  "flex items-center gap-4 px-2.5 py-2 rounded-md transition-colors",
+                  pathname === "/workout" ? "bg-action/10 text-action font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                )}
               >
-                <Dumbbell className="h-5 w-5" />
-                Start Workout
+                <Dumbbell className={cn("h-6 w-6", pathname === "/workout" ? "text-action" : "text-muted-foreground")} />
+                Workout {/* Reduced text */}
               </WorkoutAwareLink>
-              <Button variant="ghost" className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground justify-start text-lg font-medium" onClick={() => setIsActivityLogOpen(true)}>
-                <Plus className="h-5 w-5" />
-                Log Activity
+              <Button 
+                variant="ghost" 
+                className="flex items-center gap-4 px-2.5 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted justify-start text-lg font-medium" 
+                onClick={() => setIsActivityLogOpen(true)}
+              >
+                <Plus className="h-6 w-6 text-muted-foreground" /> {/* Increased icon size */}
+                Log {/* Reduced text */}
               </Button>
             </nav>
           </SheetContent>
