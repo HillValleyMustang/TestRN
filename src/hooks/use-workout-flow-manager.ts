@@ -163,9 +163,9 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     const draftCount = await db.draft_set_logs.count();
     console.log(`[useWorkoutFlowManager] Draft count in IndexedDB: ${draftCount}`);
 
-    // Define pages where the warning should NOT appear even if there are drafts
-    // These are pages considered "safe" to navigate to from the workout page without losing progress
-    const allowedPathsWithoutWarning = ['/workout', '/manage-exercises']; 
+    // Only the /workout page itself is considered 'safe' if there are drafts.
+    // Any other path should trigger the warning if drafts exist.
+    const allowedPathsWithoutWarning = ['/workout']; 
 
     if (draftCount > 0 && !allowedPathsWithoutWarning.includes(path)) {
       setPendingNavigationPath(path);
