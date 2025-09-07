@@ -1,9 +1,9 @@
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
-import { getSupabaseClients, getMaxMinutes, getWorkoutNamesForSplit } from './utils.ts';
-import { processSingleChildWorkout } from './workout_processor.ts';
-import { ExerciseDefinitionForWorkoutGeneration, TPathData, ProfileData } from './types.ts';
+import { getSupabaseClients, getMaxMinutes, getWorkoutNamesForSplit } from './utils';
+import { processSingleChildWorkout } from './workout_processor';
+import { ExerciseDefinitionForWorkoutGeneration, TPathData, ProfileData } from './types';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
