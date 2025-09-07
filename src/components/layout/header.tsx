@@ -15,12 +15,12 @@ import { WorkoutAwareLink } from "../workout-flow/workout-aware-link"; // Import
 import { usePathname } from "next/navigation"; // Import usePathname to check active link
 
 const mobileNavLinks = [
-  { href: "/dashboard", label: "Home", icon: Home },
-  { href: "/workout-history", label: "History", icon: History }, // Reduced text
-  { href: "/activity-logs", label: "Activities", icon: BarChart3 }, // Reduced text
-  { href: "/manage-exercises", label: "Exercises", icon: Dumbbell }, // Reduced text
-  { href: "/manage-t-paths", label: "Paths", icon: LayoutTemplate }, // Reduced text
-  { href: "/profile", label: "Profile", icon: User }, // Reduced text
+  { href: "/dashboard", label: "Dashboard", icon: Home }, // Reverted to Dashboard
+  { href: "/workout-history", label: "History", icon: History },
+  { href: "/activity-logs", label: "Activities", icon: BarChart3 },
+  { href: "/manage-exercises", label: "Exercises", icon: Dumbbell },
+  { href: "/manage-t-paths", label: "Paths", icon: LayoutTemplate },
+  { href: "/profile", label: "Profile", icon: User },
 ];
 
 export function Header() {
@@ -45,7 +45,7 @@ export function Header() {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="sm:max-w-xs">
-            <nav className="grid gap-6 text-lg font-medium">
+            <nav className="grid gap-3 text-lg font-medium overflow-y-auto h-full py-4"> {/* Added overflow-y-auto, h-full, py-4, reduced gap */}
               {mobileNavLinks.map(link => {
                 const isActive = pathname === link.href;
                 const Icon = link.icon;
@@ -54,11 +54,13 @@ export function Header() {
                     key={link.href}
                     href={link.href}
                     className={cn(
-                      "flex items-center gap-4 px-2.5 py-2 rounded-md transition-colors", // Added py-2, rounded-md
-                      isActive ? "bg-action/10 text-action font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-muted" // Added bg-action/10 for active, hover:bg-muted
+                      "flex items-center gap-4 px-4 py-3 rounded-lg transition-colors", // Adjusted px, py
+                      isActive 
+                        ? "bg-action text-action-foreground font-semibold shadow-md" // Solid action color, shadow
+                        : "text-foreground hover:bg-muted" // Default text, hover effect
                     )}
                   >
-                    <Icon className={cn("h-6 w-6", isActive ? "text-action" : "text-muted-foreground")} /> {/* Increased icon size, dynamic color */}
+                    <Icon className={cn("h-6 w-6", isActive ? "text-action-foreground" : "text-primary")} /> {/* Dynamic icon color */}
                     {link.label}
                   </WorkoutAwareLink>
                 );
@@ -67,20 +69,22 @@ export function Header() {
               <WorkoutAwareLink
                 href="/workout"
                 className={cn(
-                  "flex items-center gap-4 px-2.5 py-2 rounded-md transition-colors",
-                  pathname === "/workout" ? "bg-action/10 text-action font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  "flex items-center gap-4 px-4 py-3 rounded-lg transition-colors",
+                  pathname === "/workout" 
+                    ? "bg-action text-action-foreground font-semibold shadow-md" 
+                    : "text-foreground hover:bg-muted"
                 )}
               >
-                <Dumbbell className={cn("h-6 w-6", pathname === "/workout" ? "text-action" : "text-muted-foreground")} />
-                Workout {/* Reduced text */}
+                <Dumbbell className={cn("h-6 w-6", pathname === "/workout" ? "text-action-foreground" : "text-primary")} />
+                Workout
               </WorkoutAwareLink>
               <Button 
-                variant="ghost" 
-                className="flex items-center gap-4 px-2.5 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted justify-start text-lg font-medium" 
+                variant="default" // Changed to default variant
+                className="flex items-center gap-4 px-4 py-3 rounded-lg justify-start text-lg font-medium bg-primary text-primary-foreground hover:bg-primary/90" // Styled as a primary button
                 onClick={() => setIsActivityLogOpen(true)}
               >
-                <Plus className="h-6 w-6 text-muted-foreground" /> {/* Increased icon size */}
-                Log {/* Reduced text */}
+                <Plus className="h-6 w-6 text-primary-foreground" />
+                Log Activity {/* Full text for clarity on button */}
               </Button>
             </nav>
           </SheetContent>
