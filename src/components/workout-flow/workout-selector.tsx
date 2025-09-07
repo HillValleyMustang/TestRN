@@ -142,12 +142,10 @@ export const WorkoutSelector = ({
     }
   };
 
-  const handleOpenEditWorkoutDialog = () => {
-    if (activeWorkout && activeWorkout.id !== 'ad-hoc') {
-      setSelectedWorkoutToEdit({ id: activeWorkout.id, name: activeWorkout.template_name });
-      setIsEditWorkoutDialogOpen(true);
-    }
-  };
+  const handleOpenEditWorkoutDialog = useCallback((workoutId: string, workoutName: string) => {
+    setSelectedWorkoutToEdit({ id: workoutId, name: workoutName });
+    setIsEditWorkoutDialogOpen(true);
+  }, []);
 
   const handleEditWorkoutSaveSuccess = useCallback(async () => {
     setIsEditWorkoutDialogOpen(false);
@@ -257,6 +255,7 @@ export const WorkoutSelector = ({
                       onExerciseCompleted={markExerciseAsCompleted}
                       isInitiallyCollapsed={isQuickStart}
                       isExerciseCompleted={completedExercises.has(exercise.id)}
+                      onOpenEditWorkoutDialog={handleOpenEditWorkoutDialog} // Pass the handler here
                     />
                   ))}
                 </div>
@@ -266,7 +265,7 @@ export const WorkoutSelector = ({
             {activeWorkout.id !== 'ad-hoc' && activeWorkout && (
               <Button 
                 variant="outline" 
-                onClick={handleOpenEditWorkoutDialog} 
+                onClick={() => handleOpenEditWorkoutDialog(activeWorkout.id, activeWorkout.template_name)} 
                 className="w-full mt-4 mb-6"
               >
                 <Settings className="h-4 w-4 mr-2" /> Manage Exercises for this Workout
