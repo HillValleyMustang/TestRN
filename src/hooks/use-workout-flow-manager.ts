@@ -96,6 +96,10 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   }, []);
 
   const selectWorkout = useCallback(async (workoutId: string | null) => {
+    console.log(`[selectWorkout] Attempting to select workout: ${workoutId}`);
+    console.log(`[selectWorkout] Current activeWorkout (before reset check):`, activeWorkout);
+    console.log(`[selectWorkout] isWorkoutActive: ${isWorkoutActive}, hasUnsavedChanges: ${hasUnsavedChanges}`);
+
     if (isWorkoutActive && hasUnsavedChanges) {
       const shouldBlock = await new Promise<boolean>(resolve => {
         setPendingNavigationPath(workoutId);
@@ -104,25 +108,31 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       });
 
       if (shouldBlock) {
+        console.log(`[selectWorkout] User chose to stay, blocking navigation.`);
         return; // User chose to stay
       }
+      console.log(`[selectWorkout] User confirmed to leave, proceeding with reset.`);
     }
 
     // If we reach here, either no active workout, no unsaved changes, or user confirmed to leave
     await resetWorkoutSession(); // Clear previous session data and drafts
+    console.log(`[selectWorkout] resetWorkoutSession completed. activeWorkout should now be null.`);
 
     if (workoutId === 'ad-hoc') {
+      console.log(`[selectWorkout] Setting Ad-Hoc workout.`);
       setActiveWorkout({ id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: null, version: null, settings: null, progression_settings: null, parent_t_path_id: null });
       setExercisesForSession([]);
       setExercisesWithSets({});
       setCurrentSessionId(null); // Ad-hoc starts with null session ID until first set saved
       setSessionStartTime(null);
     } else if (workoutId) {
+      console.log(`[selectWorkout] Looking for workout with ID: ${workoutId}`);
       const selectedWorkout = groupedTPaths
         .flatMap(group => group.childWorkouts)
         .find(workout => workout.id === workoutId);
 
       if (selectedWorkout) {
+        console.log(`[selectWorkout] Found selected workout:`, selectedWorkout);
         setActiveWorkout(selectedWorkout);
         setExercisesForSession(workoutExercisesCache[selectedWorkout.id] || []);
         setExercisesWithSets({}); // Will be populated by useSetDrafts
@@ -130,15 +140,17 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
         setSessionStartTime(null);
       } else {
         toast.error("Selected workout not found.");
+        console.error(`[selectWorkout] Selected workout ID ${workoutId} not found in groupedTPaths.`);
       }
     } else {
+      console.log(`[selectWorkout] No workoutId provided, resetting to null active workout.`);
       setActiveWorkout(null);
       setExercisesForSession([]);
       setExercisesWithSets({});
       setCurrentSessionId(null);
       setSessionStartTime(null);
     }
-  }, [isWorkoutActive, hasUnsavedChanges, groupedTPaths, workoutExercisesCache, resetWorkoutSession, setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId, setSessionStartTime, setPendingNavigationPath, setShowUnsavedChangesDialog]);
+  }, [isWorkoutActive, hasUnsavedChanges, groupedTPaths, workoutExercisesCache, resetWorkoutSession, setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId, setSessionStartTime, setPendingNavigationPath, setShowUnsavedChangesDialog, activeWorkout]); // Added activeWorkout to dependencies for logging
 
   const handleEditWorkoutSaveSuccess = useCallback(async () => {
     setIsEditWorkoutDialogOpen(false);
