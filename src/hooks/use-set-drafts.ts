@@ -125,17 +125,13 @@ export const useSetDrafts = ({
   useEffect(() => {
     const processAndSetSets = async () => {
       if (loadingDrafts || !isValidId(exerciseId)) {
-        console.log(`[useSetDrafts - useEffect] Skipping processAndSetSets: loadingDrafts=${loadingDrafts}, isValidId=${isValidId(exerciseId)}`);
         return;
       }
 
-      let loadedSets: SetLogState[] = [];
-
       if (drafts && drafts.length > 0) {
-        console.log(`[useSetDrafts - useEffect] LiveQuery returned ${drafts.length} drafts for exercise ${exerciseId}, currentSessionId: ${currentSessionId}. First draft session_id: ${drafts[0].session_id}`);
-        loadedSets = drafts.map((draft: LocalDraftSetLog) => ({
-          id: draft.set_log_id || null, // Use set_log_id if available
-          created_at: null, // This will be populated from actual set_log if it exists
+        const loadedSets = drafts.map((draft: LocalDraftSetLog) => ({
+          id: draft.set_log_id || null,
+          created_at: null,
           session_id: draft.session_id,
           exercise_id: draft.exercise_id,
           weight_kg: draft.weight_kg,
@@ -143,47 +139,39 @@ export const useSetDrafts = ({
           reps_l: draft.reps_l,
           reps_r: draft.reps_r,
           time_seconds: draft.time_seconds,
-          is_pb: draft.is_pb || false, // Use is_pb from draft
-          isSaved: draft.isSaved || false, // Use isSaved from draft
-          isPR: draft.is_pb || false, // This is for set-level PR, derived from draft.is_pb
+          is_pb: draft.is_pb || false,
+          isSaved: draft.isSaved || false,
+          isPR: draft.is_pb || false,
           lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
         }));
-      } else {
-        // If drafts is empty, and currentSessionId is null, it means this is a fresh start for the exercise.
-        // We should create initial drafts.
+
+        const lastSetsMap = await fetchLastSets();
+        const finalSets = loadedSets.map((set, setIndex) => {
+          const correspondingLastSet = lastSetsMap.get(exerciseId)?.[setIndex];
+          return {
+            ...set,
+            lastWeight: correspondingLastSet?.weight_kg || null,
+            lastReps: correspondingLastSet?.reps || null,
+            lastRepsL: correspondingLastSet?.reps_l || null,
+            lastRepsR: correspondingLastSet?.reps_r || null,
+            lastTimeSeconds: correspondingLastSet?.time_seconds || null,
+          };
+        });
+        setSets(finalSets);
+      } else if (drafts && drafts.length === 0) {
         if (currentSessionId === null) {
-          console.log(`[useSetDrafts - useEffect] No drafts found for exercise ${exerciseId}, session ${currentSessionId}. Calling createInitialDrafts.`);
           await createInitialDrafts();
-          return; // Exit early, as initial drafts will trigger re-render via useLiveQuery
         } else {
-          // If drafts is empty, but currentSessionId is NOT null, it means either:
-          // 1. The drafts were correctly updated to the new session ID, and useLiveQuery will pick them up on next render.
-          // 2. The drafts were somehow deleted or never created for this exercise/session combination.
-          // In this case, we should not create new drafts, but ensure sets are empty.
-          console.log(`[useSetDrafts - useEffect] No drafts found for exercise ${exerciseId} with active session ${currentSessionId}. Setting sets to empty.`);
-          setSets([]);
-          return;
+          // A session ID exists, but no drafts were found.
+          // This could be a race condition where the session ID was just set.
+          // We should NOT clear the sets here, as that causes the wipe.
+          console.log(`[useSetDrafts - useEffect] No drafts found for exercise ${exerciseId} with active session ${currentSessionId}. Waiting for potential DB update.`);
         }
       }
+    };
 
-      const lastSetsMap = await fetchLastSets();
-
-      const finalSets = loadedSets.map((set, setIndex) => {
-            const correspondingLastSet = lastSetsMap.get(exerciseId)?.[setIndex];
-            return {
-              ...set,
-              lastWeight: correspondingLastSet?.weight_kg || null,
-              lastReps: correspondingLastSet?.reps || null,
-              lastRepsL: correspondingLastSet?.reps_l || null,
-              lastRepsR: correspondingLastSet?.reps_r || null,
-              lastTimeSeconds: correspondingLastSet?.time_seconds || null,
-            };
-          });
-          setSets(finalSets);
-        };
-
-        processAndSetSets();
-      }, [drafts, loadingDrafts, exerciseId, currentSessionId, exerciseName, createInitialDrafts, fetchLastSets]);
+    processAndSetSets();
+  }, [drafts, loadingDrafts, exerciseId, currentSessionId, exerciseName, createInitialDrafts, fetchLastSets]);
 
   const updateDraft = useCallback(async (setIndex: number, updatedSet: Partial<SetLogState>) => {
     if (!isValidDraftKey(exerciseId, setIndex)) {

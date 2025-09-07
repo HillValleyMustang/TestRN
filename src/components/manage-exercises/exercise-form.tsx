@@ -69,8 +69,7 @@ interface ExerciseFormProps {
 
 export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(({ editingExercise, onCancelEdit, onSaveSuccess, isExpandedInDialog = false }, ref) => {
   const { session, supabase } = useSession();
-  // isExpanded state is now controlled by isExpandedInDialog or defaults to false for standalone use
-  const [isExpanded, setIsExpanded] = useState(isExpandedInDialog || false); 
+  const [isExpanded, setIsExpanded] = useState(isExpandedInDialog);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]);
   // Removed: const [showAnalyzeGymDialog, setShowAnalyzeGymDialog] = useState(false);
@@ -122,14 +121,12 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
       });
       setSelectedMuscles(muscleGroups);
       setSelectedTypes(editingExercise.type ? [editingExercise.type] as ("weight" | "timed")[] : []);
-      if (!isExpandedInDialog) setIsExpanded(true); // Only expand if not in dialog
     } else {
       form.reset();
       setSelectedMuscles([]);
       setSelectedTypes([]);
-      if (!isExpandedInDialog) setIsExpanded(false); // Only collapse if not in dialog
     }
-  }, [editingExercise, form, isExpandedInDialog]);
+  }, [editingExercise, form]);
 
   const handleTypeChange = (type: "weight" | "timed") => {
     form.setValue("type", [type]);
@@ -235,7 +232,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
     <Card ref={ref} className="w-full">
       {!isExpandedInDialog && ( // Only show header if not in dialog
         <CardHeader 
-          className="flex items-center justify-between cursor-pointer"
+          className="flex flex-row items-center justify-between cursor-pointer"
           onClick={toggleExpand}
           role="button"
           tabIndex={0}
