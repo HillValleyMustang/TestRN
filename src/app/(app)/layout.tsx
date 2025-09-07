@@ -5,9 +5,10 @@ import { Header } from "@/components/layout/header";
 import { MobileFooterNav } from "@/components/layout/mobile-footer-nav";
 import { WorkoutNavigationProvider } from "@/components/workout-flow/workout-aware-link";
 import { useWorkoutFlowManager } from "@/hooks/use-workout-flow-manager";
-import { useRouter } from "next/navigation";
 import { useEffect } from "react"; // Import useEffect
 import { UnsavedChangesDialog } from "@/components/workout-flow/unsaved-changes-dialog"; // Import the dialog
+import { EditWorkoutExercisesDialog } from "@/components/manage-t-paths/edit-workout-exercises-dialog"; // Import EditWorkoutExercisesDialog
+import { useRouter } from "next/navigation"; // Import useRouter
 
 export default function AppLayout({
   children,
@@ -50,7 +51,18 @@ export default function AppLayout({
         onOpenChange={workoutFlowManager.handleCancelLeave} // Allow closing with escape/outside click
         onConfirmLeave={workoutFlowManager.handleConfirmLeave}
         onCancelLeave={workoutFlowManager.handleCancelLeave}
+        activeWorkout={workoutFlowManager.activeWorkout} // Pass activeWorkout
+        onOpenEditWorkoutDialog={workoutFlowManager.handleOpenEditWorkoutDialog} // Pass handler
       />
+      {workoutFlowManager.selectedWorkoutToEdit && (
+        <EditWorkoutExercisesDialog
+          open={workoutFlowManager.isEditWorkoutDialogOpen}
+          onOpenChange={workoutFlowManager.setIsEditWorkoutDialogOpen}
+          workoutId={workoutFlowManager.selectedWorkoutToEdit.id}
+          workoutName={workoutFlowManager.selectedWorkoutToEdit.name}
+          onSaveSuccess={workoutFlowManager.handleEditWorkoutSaveSuccess}
+        />
+      )}
     </WorkoutNavigationProvider>
   );
 }

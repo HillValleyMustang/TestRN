@@ -142,17 +142,7 @@ export const WorkoutSelector = ({
     }
   };
 
-  const handleOpenEditWorkoutDialog = useCallback((workoutId: string, workoutName: string) => {
-    setSelectedWorkoutToEdit({ id: workoutId, name: workoutName });
-    setIsEditWorkoutDialogOpen(true);
-  }, []);
-
-  const handleEditWorkoutSaveSuccess = useCallback(async () => {
-    setIsEditWorkoutDialogOpen(false);
-    if (activeWorkout?.id) {
-      await selectWorkout(activeWorkout.id);
-    }
-  }, [activeWorkout, selectWorkout]);
+  // Removed: handleOpenEditWorkoutDialog and handleEditWorkoutSaveSuccess
 
   const totalExercises = exercisesForSession.length;
 
@@ -255,7 +245,7 @@ export const WorkoutSelector = ({
                       onExerciseCompleted={markExerciseAsCompleted}
                       isInitiallyCollapsed={isQuickStart}
                       isExerciseCompleted={completedExercises.has(exercise.id)}
-                      onOpenEditWorkoutDialog={handleOpenEditWorkoutDialog} // Pass the handler here
+                      // Removed: onOpenEditWorkoutDialog={handleOpenEditWorkoutDialog}
                     />
                   ))}
                 </div>
@@ -265,7 +255,7 @@ export const WorkoutSelector = ({
             {activeWorkout.id !== 'ad-hoc' && activeWorkout && (
               <Button 
                 variant="outline" 
-                onClick={() => handleOpenEditWorkoutDialog(activeWorkout.id, activeWorkout.template_name)} 
+                // Removed: onClick={() => handleOpenEditWorkoutDialog(activeWorkout.id, activeWorkout.template_name)} 
                 className="w-full mt-4 mb-6"
               >
                 <Settings className="h-4 w-4 mr-2" /> Manage Exercises for this Workout
@@ -300,15 +290,7 @@ export const WorkoutSelector = ({
         <LoadingOverlay isOpen={isCreatingSession} title="Starting Workout..." description="Please wait while your session is being prepared." />
       </div>
 
-      {selectedWorkoutToEdit && (
-        <EditWorkoutExercisesDialog
-          open={isEditWorkoutDialogOpen}
-          onOpenChange={setIsEditWorkoutDialogOpen}
-          workoutId={selectedWorkoutToEdit.id}
-          workoutName={selectedWorkoutToEdit.name}
-          onSaveSuccess={handleEditWorkoutSaveSuccess}
-        />
-      )}
+      {/* Removed: EditWorkoutExercisesDialog */}
     </>
   );
 };

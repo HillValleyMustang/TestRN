@@ -86,22 +86,14 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
   const resolveNavigationPromise = useRef<((value: boolean) => void) | null>(null);
 
-  useEffect(() => {
-    if (initialWorkoutId && groupedTPaths.length > 0 && !activeWorkout) {
-      const workoutToSelect = groupedTPaths
-        .flatMap(group => group.childWorkouts)
-        .find(workout => workout.id === initialWorkoutId);
+  // New states and handlers for EditWorkoutExercisesDialog
+  const [isEditWorkoutDialogOpen, setIsEditWorkoutDialogOpen] = useState(false);
+  const [selectedWorkoutToEdit, setSelectedWorkoutToEdit] = useState<{ id: string; name: string } | null>(null);
 
-      if (workoutToSelect) {
-        setActiveWorkout(workoutToSelect);
-      } else if (initialWorkoutId === 'ad-hoc') {
-        setActiveWorkout({ id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: null, version: null, settings: null, progression_settings: null, parent_t_path_id: null });
-      } else {
-        toast.error("Selected workout not found. Starting Ad-Hoc workout.");
-        setActiveWorkout({ id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: null, version: null, settings: null, progression_settings: null, parent_t_path_id: null });
-      }
-    }
-  }, [initialWorkoutId, groupedTPaths, activeWorkout, setActiveWorkout]);
+  const handleOpenEditWorkoutDialog = useCallback((workoutId: string, workoutName: string) => {
+    setSelectedWorkoutToEdit({ id: workoutId, name: workoutName });
+    setIsEditWorkoutDialogOpen(true);
+  }, []);
 
   const selectWorkout = useCallback(async (workoutId: string | null) => {
     if (isWorkoutActive && hasUnsavedChanges) {
@@ -147,6 +139,33 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
       setSessionStartTime(null);
     }
   }, [isWorkoutActive, hasUnsavedChanges, groupedTPaths, workoutExercisesCache, resetWorkoutSession, setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId, setSessionStartTime, setPendingNavigationPath, setShowUnsavedChangesDialog]);
+
+  const handleEditWorkoutSaveSuccess = useCallback(async () => {
+    setIsEditWorkoutDialogOpen(false);
+    // After saving changes in the edit dialog, we need to re-select the active workout
+    // to refresh its exercises from the updated database/cache.
+    if (activeWorkout?.id) {
+      await selectWorkout(activeWorkout.id);
+    }
+  }, [activeWorkout, selectWorkout]);
+
+
+  useEffect(() => {
+    if (initialWorkoutId && groupedTPaths.length > 0 && !activeWorkout) {
+      const workoutToSelect = groupedTPaths
+        .flatMap(group => group.childWorkouts)
+        .find(workout => workout.id === initialWorkoutId);
+
+      if (workoutToSelect) {
+        setActiveWorkout(workoutToSelect);
+      } else if (initialWorkoutId === 'ad-hoc') {
+        setActiveWorkout({ id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: null, version: null, settings: null, progression_settings: null, parent_t_path_id: null });
+      } else {
+        toast.error("Selected workout not found. Starting Ad-Hoc workout.");
+        setActiveWorkout({ id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: null, version: null, settings: null, progression_settings: null, parent_t_path_id: null });
+      }
+    }
+  }, [initialWorkoutId, groupedTPaths, activeWorkout, setActiveWorkout, selectWorkout]); // Added selectWorkout to dependencies
 
   const finishWorkoutSession = useCallback(async () => {
     const finishedSessionId = await persistAndFinishWorkoutSession();
@@ -237,5 +256,11 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     promptBeforeNavigation,
     allAvailableExercises, // Expose allAvailableExercises
     updateSessionStartTime, // Expose the new function
+    // New exports for EditWorkoutExercisesDialog
+    isEditWorkoutDialogOpen,
+    selectedWorkoutToEdit,
+    handleOpenEditWorkoutDialog,
+    handleEditWorkoutSaveSuccess,
+    setIsEditWorkoutDialogOpen, // Expose setter to allow closing from layout
   };
 };
