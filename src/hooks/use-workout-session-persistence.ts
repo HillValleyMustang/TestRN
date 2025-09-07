@@ -94,13 +94,19 @@ export const useWorkoutSessionPersistence = ({
 
       await db.workout_sessions.put(sessionDataToSave);
       await addToSyncQueue('create', 'workout_sessions', sessionDataToSave);
+      console.log(`[createWorkoutSessionInDb] New workout session ${newSessionId} created locally and added to sync queue.`);
 
       const draftsToUpdate = await db.draft_set_logs.filter(draft => draft.session_id === null).toArray();
-      const updatePromises = draftsToUpdate.map(draft => {
+      console.log(`[createWorkoutSessionInDb] Found ${draftsToUpdate.length} drafts with null session_id to update.`);
+      const updatePromises = draftsToUpdate.map(async (draft) => {
         console.assert(isValidDraftKey(draft.exercise_id, draft.set_index), `Invalid draft key in createWorkoutSessionInDb update: [${draft.exercise_id}, ${draft.set_index}]`);
-        return db.draft_set_logs.update([draft.exercise_id, draft.set_index], { session_id: newSessionId });
+        console.log(`[createWorkoutSessionInDb] Attempting to update draft [${draft.exercise_id}, ${draft.set_index}] from session_id: ${draft.session_id} to ${newSessionId}`);
+        const result = await db.draft_set_logs.update([draft.exercise_id, draft.set_index], { session_id: newSessionId });
+        console.log(`[createWorkoutSessionInDb] Update result for [${draft.exercise_id}, ${draft.set_index}]: ${result === 1 ? 'Success' : 'Failed/Not Found'}`);
+        return result;
       });
       await Promise.all(updatePromises);
+      console.log(`[createWorkoutSessionInDb] All drafts with null session_id updated to ${newSessionId}.`);
 
       setCurrentSessionId(newSessionId);
       setSessionStartTime(new Date(firstSetTimestamp));
@@ -154,7 +160,7 @@ export const useWorkoutSessionPersistence = ({
       
       if (draftsToDelete.length > 0) {
         const keysToDelete = draftsToDelete.map(d => [d.exercise_id, d.set_index] as [string, number]);
-        console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1]), `Invalid draft keys in finishWorkoutSession bulkDelete: ${JSON.stringify(keysToDelete)}`));
+        console.assert(keysToDelete.every(key => isValidDraftKey(key[0], key[1])), `Invalid draft keys in finishWorkoutSession bulkDelete: ${JSON.stringify(keysToDelete)}`);
         await db.draft_set_logs.bulkDelete(keysToDelete);
       }
 
