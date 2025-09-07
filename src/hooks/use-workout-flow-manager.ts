@@ -158,12 +158,9 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   }, [persistAndFinishWorkoutSession, resetWorkoutSession, router]);
 
   const promptBeforeNavigation = useCallback(async (path: string): Promise<boolean> => {
-    console.log(`[useWorkoutFlowManager] Checking navigation. isWorkoutActive: ${isWorkoutActive}`);
-    if (!isWorkoutActive) {
-      return false; // No active workout, allow navigation
-    }
+    console.log(`[useWorkoutFlowManager] Checking navigation.`);
 
-    // A more robust check: if a workout is active and ANY drafts exist in the DB,
+    // A more robust check: if ANY drafts exist in the DB,
     // it means the session is in progress and hasn't been finished or reset.
     const draftCount = await db.draft_set_logs.count();
     console.log(`[useWorkoutFlowManager] Draft count in IndexedDB: ${draftCount}`);
@@ -177,7 +174,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     }
 
     return Promise.resolve(false); // No drafts, allow navigation
-  }, [isWorkoutActive, setPendingNavigationPath, setShowUnsavedChangesDialog]);
+  }, [setPendingNavigationPath, setShowUnsavedChangesDialog]);
 
   const handleConfirmLeave = useCallback(async () => {
     setShowUnsavedChangesDialog(false);
