@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { useWorkoutFlowManager } from '@/hooks/use-workout-flow-manager';
 import { WorkoutSelector } from '@/components/workout-flow/workout-selector';
@@ -42,11 +42,10 @@ export default function WorkoutPage() {
       <WorkoutSelector 
         {...workoutFlowManager} 
         onWorkoutSelect={() => {}} // No longer directly used by WorkoutSelector
-        loadingWorkoutFlow={workoutFlowManager.loading} // Corrected prop name
+        loadingWorkoutFlow={workoutFlowManager.loading}
         createWorkoutSessionInDb={workoutFlowManager.createWorkoutSessionInDb}
         finishWorkoutSession={handleFinishAndShowSummary}
         isQuickStart={isQuickStart} // Pass the new prop here
-        allAvailableExercises={workoutFlowManager.allAvailableExercises} // Pass allAvailableExercises
       />
       <WorkoutSummaryModal
         sessionId={summarySessionId}

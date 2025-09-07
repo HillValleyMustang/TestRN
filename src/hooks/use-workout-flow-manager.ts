@@ -21,10 +21,12 @@ interface UseWorkoutFlowManagerReturn {
   activeWorkout: TPath | null;
   exercisesForSession: WorkoutExercise[];
   exercisesWithSets: Record<string, SetLogState[]>;
+  allAvailableExercises: ExerciseDefinition[];
+  loading: boolean;
+  error: string | null;
   currentSessionId: string | null;
   sessionStartTime: Date | null;
   completedExercises: Set<string>;
-  isCreatingSession: boolean;
   isWorkoutActive: boolean;
   hasUnsavedChanges: boolean;
   selectWorkout: (workoutId: string | null) => Promise<void>;
@@ -59,7 +61,17 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
   // State for navigation warning dialog
   const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
   const [pendingNavigationPath, setPendingNavigationPath] = useState<string | null>(null);
-  const resolveNavigationPromise = useRef<((confirm: boolean) => void) | null>(null); // Initialize with null
+  const resolveNavigationPromise = useRef<((confirm: boolean) => void) | null>(null); // Fix 1: Initialize with null and allow null in type
+  const hasInitializedInitialWorkout = useRef(false); // NEW: Ref to track if initial workout has been selected
+
+  const {
+    allAvailableExercises,
+    groupedTPaths,
+    workoutExercisesCache,
+    loadingData,
+    dataError,
+    refreshAllData,
+  } = useWorkoutDataFetcher();
 
   const {
     activeWorkout,
@@ -73,46 +85,24 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     hasUnsavedChanges,
     setActiveWorkout,
     setExercisesForSession,
-    setExercisesWithSets, // Corrected setter name
+    setExercisesWithSets,
     setCurrentSessionId,
     setSessionStartTime,
     setCompletedExercises,
-    setIsCreatingSession, // Corrected setter name
-    _resetLocalState,
-    resetWorkoutSession, // Added resetWorkoutSession
-  } = useWorkoutSessionState({ allAvailableExercises: [], workoutExercisesCache: {} }); // Placeholder values, will be updated
+    resetWorkoutSession,
+    markExerciseAsCompleted,
+    addExerciseToSession,
+    removeExerciseFromSession,
+    substituteExercise,
+    updateExerciseSets,
+    createWorkoutSessionInDb,
+    finishWorkoutSession: finishWorkoutSessionState, // Renamed to avoid conflict
+  } = useWorkoutSessionState({ allAvailableExercises, workoutExercisesCache }); // Pass workoutExercisesCache
 
-  const {
-    allAvailableExercises,
-    groupedTPaths,
-    workoutExercisesCache,
-    loadingData,
-    dataError,
-    refreshAllData,
-  } = useWorkoutDataFetcher();
-
-  // Update core state dependencies
   useEffect(() => {
-    setExercisesForSession(exercisesForSession);
-    setExercisesWithSets(exercisesWithSets); // Use the correct setter
-    setCurrentSessionId(currentSessionId);
-    setSessionStartTime(sessionStartTime);
-    setCompletedExercises(completedExercises);
-    setIsCreatingSession(isCreatingSession);
-  }, [
-    exercisesForSession,
-    exercisesWithSets,
-    currentSessionId,
-    sessionStartTime,
-    completedExercises,
-    isCreatingSession,
-    setExercisesForSession,
-    setExercisesWithSets, // Use the correct setter
-    setCurrentSessionId,
-    setSessionStartTime,
-    setCompletedExercises,
-    setIsCreatingSession, // Corrected setter name
-  ]);
+    setLoadingFlow(loadingData);
+    setFlowError(dataError);
+  }, [loadingData, dataError]);
 
   // --- Navigation Warning Logic ---
   const promptBeforeNavigation = useCallback(async (path: string): Promise<boolean> => {
@@ -135,7 +125,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     }
     if (resolveNavigationPromise.current) {
       resolveNavigationPromise.current(true); // Confirm navigation
-      resolveNavigationPromise.current = null; // Clear the ref
+      resolveNavigationPromise.current = null; // Fix 2: Assign null
     }
   }, [pendingNavigationPath, router, resetWorkoutSession]);
 
@@ -144,31 +134,68 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     setPendingNavigationPath(null);
     if (resolveNavigationPromise.current) {
       resolveNavigationPromise.current(false); // Cancel navigation
-      resolveNavigationPromise.current = null; // Clear the ref
+      resolveNavigationPromise.current = null; // Fix 3: Assign null
     }
   }, []);
   // --- End Navigation Warning Logic ---
 
-  // Effect to initialize workout if initialWorkoutId is provided
+  const selectWorkout = useCallback(async (workoutId: string | null) => {
+    if (!session) {
+      toast.error("You must be logged in to select a workout.");
+      return;
+    }
+
+    await resetWorkoutSession(); // Always reset state and drafts when selecting a new workout
+
+    if (!workoutId) {
+      setActiveWorkout(null);
+      setExercisesForSession([]);
+      setExercisesWithSets({});
+      return;
+    }
+
+    let currentWorkout: TPath | null = null;
+    let exercises: WorkoutExercise[] = [];
+
+    if (workoutId === 'ad-hoc') {
+      currentWorkout = { id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: session.user.id, created_at: new Date().toISOString(), version: 1, settings: null, progression_settings: null, parent_t_path_id: null };
+      
+      // For ad-hoc, exercises are loaded from drafts or added manually
+      const adHocDrafts = await db.draft_set_logs.filter(draft => draft.session_id === null).toArray();
+      const adHocExerciseIds = Array.from(new Set(adHocDrafts.map(d => d.exercise_id)));
+      
+      if (adHocExerciseIds.length > 0 && allAvailableExercises) {
+        exercises = allAvailableExercises
+          .filter(ex => adHocExerciseIds.includes(ex.id))
+          .map(ex => ({ ...ex, is_bonus_exercise: false }));
+      }
+    } else {
+      const foundGroup = groupedTPaths.find(group => group.childWorkouts.some(cw => cw.id === workoutId));
+      currentWorkout = foundGroup?.childWorkouts.find(cw => cw.id === workoutId) || null;
+
+      if (!currentWorkout) {
+        toast.error("Selected workout not found in your active Transformation Path.");
+        return;
+      }
+      exercises = workoutExercisesCache[workoutId] || [];
+    }
+
+    setActiveWorkout(currentWorkout);
+    setExercisesForSession(exercises);
+    // setExercisesWithSets will be populated by the useEffect in useWorkoutSessionState
+    // when activeWorkout and currentSessionId are set.
+
+    refreshAllData();
+
+  }, [session, supabase, resetWorkoutSession, groupedTPaths, workoutExercisesCache, allAvailableExercises, refreshAllData, setActiveWorkout, setExercisesForSession, setExercisesWithSets]);
+
+  // MODIFIED: Only call selectWorkout once for initialWorkoutId
   useEffect(() => {
     if (initialWorkoutId && !loadingData && !loadingFlow && !hasInitializedInitialWorkout.current) {
       selectWorkout(initialWorkoutId);
-      hasInitializedInitialWorkout.current = true;
+      hasInitializedInitialWorkout.current = true; // Mark as initialized
     }
   }, [initialWorkoutId, loadingData, loadingFlow, selectWorkout]);
-
-  // Re-fetch data when the component mounts or dependencies change
-  useEffect(() => {
-    if (!loadingData && !dataError) {
-      refreshAllData();
-    }
-  }, [loadingData, dataError, refreshAllData]);
-
-  // Update loading and error states based on data fetching
-  useEffect(() => {
-    setLoadingFlow(loadingData);
-    setFlowError(dataError);
-  }, [loadingData, dataError]);
 
   return {
     activeWorkout,
@@ -180,7 +207,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     currentSessionId,
     sessionStartTime,
     completedExercises,
-    isCreatingSession,
     isWorkoutActive,
     hasUnsavedChanges,
     selectWorkout,
@@ -198,9 +224,9 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     groupedTPaths,
     isCreatingSession,
     createWorkoutSessionInDb,
-    finishWorkoutSession,
+    finishWorkoutSession: finishWorkoutSessionState, // Expose the renamed function
     refreshAllData,
-    // Navigation warning properties
+    // New properties for navigation warning
     showUnsavedChangesDialog,
     pendingNavigationPath,
     promptBeforeNavigation,
