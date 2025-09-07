@@ -173,7 +173,7 @@ export const useSetDrafts = ({
     };
 
     processAndSetSets();
-  }, [drafts, loadingDrafts, exerciseId, currentSessionId, exerciseName, createInitialDrafts, fetchLastSets]);
+  }, [drafts, loadingDrafts, exerciseId, currentSessionId, exerciseName, createInitialDrafts, fetchLastSets, sets.length]); // Add sets.length to dependency array
 
   const updateDraft = useCallback(async (setIndex: number, updatedSet: Partial<SetLogState>) => {
     if (!isValidDraftKey(exerciseId, setIndex)) {
