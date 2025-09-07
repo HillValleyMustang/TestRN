@@ -41,7 +41,6 @@ export default function WorkoutPage() {
         </p>
       </header>
       <WorkoutSelector 
-        key={workoutFlowManager.activeWorkout?.id || 'no-workout'} // ADDED KEY PROP
         {...workoutFlowManager} 
         onWorkoutSelect={() => {}} // No longer directly used by WorkoutSelector
         loadingWorkoutFlow={workoutFlowManager.loading}

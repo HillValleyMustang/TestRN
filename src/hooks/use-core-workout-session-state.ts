@@ -63,7 +63,6 @@ export const useCoreWorkoutSessionState = (): UseCoreWorkoutSessionStateReturn =
 
   // Internal function to clear only the local React state
   const _resetLocalState = useCallback(() => {
-    console.log("[_resetLocalState] Setting activeWorkout to null."); // ADDED LOG
     setActiveWorkout(null);
     setExercisesForSession([]);
     setExercisesWithSets({});

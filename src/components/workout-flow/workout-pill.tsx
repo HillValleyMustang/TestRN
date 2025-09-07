@@ -40,14 +40,9 @@ export const WorkoutPill = ({
     unselectedShadowClass,
   } = getPillStyles(workoutType, category, variant);
 
-  console.log(`[WorkoutPill ${id}] rendered. isSelected: ${isSelected}, title: ${title}`); // ADDED LOG
-
   return (
     <button
-      onClick={() => {
-        console.log(`[WorkoutPill ${id}] clicked!`); // ADDED LOG
-        onClick(id);
-      }}
+      onClick={() => onClick(id)}
       className={cn(
         'flex items-center gap-2 h-14 pl-3 pr-3 rounded-2xl border-2', // Reduced gap, pl, and pr
         'font-sans cursor-pointer',
