@@ -44,7 +44,7 @@ export default function WorkoutPage() {
       <WorkoutSelector 
         key={workoutFlowManager.activeWorkout?.id || 'no-workout'}
         {...workoutFlowManager} 
-        onWorkoutSelect={() => {}}
+        // Removed onWorkoutSelect as it's no longer a valid prop
         loadingWorkoutFlow={workoutFlowManager.loading}
         createWorkoutSessionInDb={workoutFlowManager.createWorkoutSessionInDb}
         finishWorkoutSession={handleFinishAndShowSummary} // Use the local handler
