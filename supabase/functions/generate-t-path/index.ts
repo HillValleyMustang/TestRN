@@ -1,9 +1,9 @@
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
-import { getSupabaseClients, getMaxMinutes, getWorkoutNamesForSplit } from './utils'; // Removed .ts
-import { processSingleChildWorkout } from './workout_processor'; // Removed .ts
-import { ExerciseDefinitionForWorkoutGeneration, TPathData, ProfileData } from './types'; // Removed .ts
+import { getSupabaseClients, getMaxMinutes, getWorkoutNamesForSplit } from './utils';
+import { processSingleChildWorkout } from './workout_processor';
+import { ExerciseDefinitionForWorkoutGeneration, TPathData, ProfileData } from './types';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,25 +12,28 @@ const corsHeaders = {
 
 // --- Main Serve Function ---
 serve(async (req: Request) => {
+  console.log('Edge Function: generate-t-path received request.'); // NEW LOG HERE
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('Edge Function: generate-t-path started.');
+    console.log('Edge Function: generate-t-path started processing.'); // Existing log
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) throw new Error('Authorization header missing');
+    console.log('Edge Function: Authorization header present.'); // Added log
 
     const { supabaseAuthClient, supabaseServiceRoleClient } = getSupabaseClients(authHeader);
+    console.log('Edge Function: Supabase clients initialized.'); // Added log
 
     const { data: { user }, error: userError } = await supabaseAuthClient.auth.getUser();
     if (userError || !user) throw new Error('Unauthorized');
-    console.log(`User authenticated: ${user.id}`);
+    console.log(`Edge Function: User authenticated: ${user.id}`); // Existing log
 
     const { tPathId } = await req.json();
     if (!tPathId) throw new Error('tPathId is required');
-    console.log(`Received tPathId (main T-Path ID): ${tPathId}`);
+    console.log(`Edge Function: Received tPathId (main T-Path ID): ${tPathId}`); // Existing log
 
     // --- IMMEDIATE RESPONSE ---
     const response = new Response(
