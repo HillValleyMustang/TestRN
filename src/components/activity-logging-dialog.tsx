@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, Bike, Activity, Run } from "lucide-react"; // ADDED: Run icon
+import { CalendarDays, Bike, Activity } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +16,7 @@ import { TablesInsert, Tables } from "@/types/supabase";
 import { convertDistance, KM_TO_MILES } from '@/lib/unit-conversions';
 
 type ActivityLog = Tables<'activity_logs'>;
-type ActivityType = "Cycling" | "Swimming" | "Tennis" | "Running"; // ADDED: Running
+type ActivityType = "Cycling" | "Swimming" | "Tennis" | "Running";
 type Profile = Tables<'profiles'>;
 
 interface ActivityLoggingDialogProps {
@@ -52,7 +52,7 @@ const formatMinutesAndSecondsForStorage = (minutes: number, seconds: number): st
 
   if (totalMinutes === 0 && remainingSeconds === 0) return "";
   if (totalMinutes === 0) return `${remainingSeconds}s`;
-  if (remainingSeconds === 0) return `${totalMinutes}m`;
+  if (remainingSeconds === 0) return `${totalMinutes}m`; // Corrected from remainingMinutes
   return `${totalMinutes}m ${remainingSeconds}s`;
 };
 
@@ -81,7 +81,7 @@ const tennisSchema = z.object({
   log_date: z.string().min(1, "Date is required."),
 });
 
-const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
+export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
   const { session, supabase } = useSession();
   const [preferredDistanceUnit, setPreferredDistanceUnit] = useState<Profile['preferred_distance_unit']>('km');
 
@@ -190,7 +190,7 @@ const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
 };
 
 // NEW: LogRunningForm component
-const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
+export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
   const { session, supabase } = useSession();
   const [preferredDistanceUnit, setPreferredDistanceUnit] = useState<Profile['preferred_distance_unit']>('km');
 
@@ -297,7 +297,7 @@ const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
 };
 
 
-const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
+export const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
   const { session, supabase } = useSession();
   const form = useForm<z.infer<typeof swimmingSchema>>({
     resolver: zodResolver(swimmingSchema),
@@ -369,7 +369,7 @@ const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
   );
 };
 
-const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
+export const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
   const { session, supabase } = useSession();
   const form = useForm<z.infer<typeof tennisSchema>>({
     resolver: zodResolver(tennisSchema),
@@ -467,7 +467,7 @@ export const ActivityLoggingDialog = ({ open, onOpenChange, initialActivity, tri
         </DialogHeader>
         {!selectedActivity ? (
           <div className="grid gap-4 py-4">
-            <Button variant="outline" onClick={() => handleActivitySelect("Running")}> <Run className="h-4 w-4 mr-2" /> Log Running </Button> {/* ADDED: Running button */}
+            <Button variant="outline" onClick={() => handleActivitySelect("Running")}> <Activity className="h-4 w-4 mr-2" /> Log Running </Button>
             <Button variant="outline" onClick={() => handleActivitySelect("Cycling")}> <Bike className="h-4 w-4 mr-2" /> Log Cycling </Button>
             <Button variant="outline" onClick={() => handleActivitySelect("Swimming")}> <Activity className="h-4 w-4 mr-2" /> Log Swimming </Button>
             <Button variant="outline" onClick={() => handleActivitySelect("Tennis")}> <Activity className="h-4 w-4 mr-2" /> Log Tennis </Button>
@@ -476,7 +476,7 @@ export const ActivityLoggingDialog = ({ open, onOpenChange, initialActivity, tri
           <div className="py-4">
             <h3 className="text-lg font-semibold mb-4">Log {selectedActivity}</h3>
             <Button variant="outline" className="mb-4 w-full" onClick={() => setSelectedActivity(null)}> Back to Activity Types </Button>
-            {selectedActivity === "Running" && <LogRunningForm onLogSuccess={handleLogSuccess} />} {/* ADDED: Running form */}
+            {selectedActivity === "Running" && <LogRunningForm onLogSuccess={handleLogSuccess} />}
             {selectedActivity === "Cycling" && <LogCyclingForm onLogSuccess={handleLogSuccess} />}
             {selectedActivity === "Swimming" && <LogSwimmingForm onLogSuccess={handleLogSuccess} />}
             {selectedActivity === "Tennis" && <LogTennisForm onLogSuccess={handleLogSuccess} />}

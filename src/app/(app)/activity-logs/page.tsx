@@ -6,7 +6,7 @@ import { useSession } from '@/components/session-context-provider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Bike, Run, Activity, CalendarDays, Clock, Gauge, Trophy } from 'lucide-react'; // ADDED: Run, Clock, Gauge icons
+import { ArrowLeft, Bike, Activity, CalendarDays, Clock, Gauge, Trophy } from 'lucide-react'; // Replaced 'Run' with 'Activity'
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { convertDistance, formatDistance, KM_TO_MILES } from '@/lib/unit-conversions';
@@ -115,10 +115,20 @@ export default function ActivityLogsPage() {
   const renderLogCard = (log: ActivityLog) => {
     let displayDistance = log.distance;
     let displayAvgTime = '-';
-    let IconComponent: React.ElementType = Activity;
+    let IconComponent: React.ElementType = Activity; // Default to generic Activity icon
 
-    if (log.activity_type === 'Cycling' || log.activity_type === 'Running') {
-      IconComponent = log.activity_type === 'Cycling' ? Bike : Run;
+    if (log.activity_type === 'Cycling') {
+      IconComponent = Bike;
+      if (log.distance) {
+        const distanceMatch = log.distance.match(/^(\d+(\.\d+)?) km$/);
+        if (distanceMatch) {
+          const distanceInKm = parseFloat(distanceMatch[1]);
+          displayDistance = formatDistance(convertDistance(distanceInKm, 'km', preferredDistanceUnit as 'km' | 'miles'), preferredDistanceUnit as 'km' | 'miles');
+        }
+      }
+      displayAvgTime = formatAvgTime(log.avg_time, preferredDistanceUnit as 'km' | 'miles');
+    } else if (log.activity_type === 'Running') {
+      IconComponent = Activity; // Using generic Activity icon for Running temporarily
       if (log.distance) {
         const distanceMatch = log.distance.match(/^(\d+(\.\d+)?) km$/);
         if (distanceMatch) {
@@ -182,7 +192,7 @@ export default function ActivityLogsPage() {
       <Tabs defaultValue="all" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="Running">Running</TabsTrigger> {/* ADDED: Running tab */}
+          <TabsTrigger value="Running">Running</TabsTrigger>
           <TabsTrigger value="Cycling">Cycling</TabsTrigger>
           <TabsTrigger value="Swimming">Swimming</TabsTrigger>
           {/* <TabsTrigger value="Tennis">Tennis</TabsTrigger> Removed Tennis tab for space, can be re-added if needed */}
@@ -194,7 +204,7 @@ export default function ActivityLogsPage() {
             activityLogs.map(renderLogCard)
           )}
         </TabsContent>
-        <TabsContent value="Running" className="mt-4"> {/* ADDED: Running content */}
+        <TabsContent value="Running" className="mt-4">
           {filterLogs('Running').length === 0 ? (
             <p className="text-muted-foreground text-center py-8">No running activities logged yet.</p>
           ) : (
