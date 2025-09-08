@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { WorkoutAwareLink } from "../workout-flow/workout-aware-link"; // Import WorkoutAwareLink
 
 const navLinks = [
-  { href: "/dashboard", label: "Dashboard", icon: Home }, // Changed label from 'Home' to 'Dashboard'
+  { href: "/dashboard", label: "Dashboard", icon: Home },
   { href: "/workout", label: "Workout", icon: Dumbbell },
   { href: "/manage-exercises", label: "Exercises", icon: BookOpen },
   { href: "/progress", label: "Progress", icon: BarChart3 },
@@ -33,7 +33,7 @@ export function MobileFooterNav() {
               )}
             >
               <Icon className="h-5 w-5" strokeWidth={2.5} />
-              <span>{link.label}</span>
+              {/* Removed the text label from here */}
             </WorkoutAwareLink>
           );
         })}

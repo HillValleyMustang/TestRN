@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, Bike, Activity } from "lucide-react";
+import { CalendarDays, Bike, Activity, Run } from "lucide-react"; // ADDED: Run icon
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +16,7 @@ import { TablesInsert, Tables } from "@/types/supabase";
 import { convertDistance, KM_TO_MILES } from '@/lib/unit-conversions';
 
 type ActivityLog = Tables<'activity_logs'>;
-type ActivityType = "Cycling" | "Swimming" | "Tennis";
+type ActivityType = "Cycling" | "Swimming" | "Tennis" | "Running"; // ADDED: Running
 type Profile = Tables<'profiles'>;
 
 interface ActivityLoggingDialogProps {
@@ -26,27 +26,49 @@ interface ActivityLoggingDialogProps {
   trigger?: React.ReactNode;
 }
 
-// Helper function to convert time string (e.g., "1h 30m") to total minutes
-const timeStringToMinutes = (timeStr: string): number => {
-  let totalMinutes = 0;
+// Helper function to convert time string (e.g., "1h 30m", "90m", "1m 30s") to total seconds
+const timeStringToSeconds = (timeStr: string): number => {
+  let totalSeconds = 0;
   const hoursMatch = timeStr.match(/(\d+)h/);
   const minutesMatch = timeStr.match(/(\d+)m/);
+  const secondsMatch = timeStr.match(/(\d+)s/);
 
   if (hoursMatch) {
-    totalMinutes += parseInt(hoursMatch[1]) * 60;
+    totalSeconds += parseInt(hoursMatch[1]) * 3600;
   }
   if (minutesMatch) {
-    totalMinutes += parseInt(minutesMatch[1]);
+    totalSeconds += parseInt(minutesMatch[1]) * 60;
   }
-  return totalMinutes;
+  if (secondsMatch) {
+    totalSeconds += parseInt(secondsMatch[1]);
+  }
+  return totalSeconds;
+};
+
+// Helper to format minutes and seconds into a display string (e.g., "1h 30m" or "90m")
+const formatMinutesAndSecondsForStorage = (minutes: number, seconds: number): string => {
+  const totalMinutes = minutes + Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+
+  if (totalMinutes === 0 && remainingSeconds === 0) return "";
+  if (totalMinutes === 0) return `${remainingSeconds}s`;
+  if (remainingSeconds === 0) return `${totalMinutes}m`;
+  return `${totalMinutes}m ${remainingSeconds}s`;
 };
 
 // Schemas for activity logging forms
-const cyclingSchema = z.object({
+const distanceTimeSchema = z.object({
   distance: z.coerce.number().min(0.1, "Distance is required and must be positive."),
-  time: z.string().min(1, "Time is required."),
+  minutes: z.coerce.number().min(0, "Minutes cannot be negative.").max(999, "Minutes must be less than 1000."),
+  seconds: z.coerce.number().min(0, "Seconds cannot be negative.").max(59, "Seconds must be between 0 and 59."),
   log_date: z.string().min(1, "Date is required."),
+}).refine(data => data.minutes > 0 || data.seconds > 0, {
+  message: "Time (minutes or seconds) is required.",
+  path: ["minutes"], // Attach error to minutes field
 });
+
+const cyclingSchema = distanceTimeSchema;
+const runningSchema = distanceTimeSchema; // Running uses the same schema
 
 const swimmingSchema = z.object({
   lengths: z.coerce.number().min(1, "Lengths is required and must be positive."),
@@ -85,7 +107,8 @@ const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
     resolver: zodResolver(cyclingSchema),
     defaultValues: {
       distance: 0,
-      time: "",
+      minutes: 0,
+      seconds: 0,
       log_date: new Date().toISOString().split('T')[0],
     },
   });
@@ -103,8 +126,8 @@ const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
       return;
     }
 
-    const totalMinutes = timeStringToMinutes(values.time);
-    const totalSeconds = totalMinutes * 60;
+    const totalSeconds = (values.minutes * 60) + values.seconds;
+    const timeStringForStorage = formatMinutesAndSecondsForStorage(values.minutes, values.seconds);
 
     let avgTimePerKm: number | null = null;
     if (distanceInKm > 0) {
@@ -134,7 +157,7 @@ const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
       user_id: session.user.id,
       activity_type: 'Cycling',
       distance: `${distanceInKm} km`, // Store in KM
-      time: values.time,
+      time: timeStringForStorage,
       avg_time: avgTimePerKm,
       is_pb: isPR,
       log_date: values.log_date,
@@ -155,13 +178,124 @@ const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField control={form.control} name="distance" render={({ field }) => ( <FormItem> <FormLabel>Distance ({preferredDistanceUnit})</FormLabel> <FormControl><Input type="number" step="0.1" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-        <FormField control={form.control} name="time" render={({ field }) => ( <FormItem> <FormLabel>Time (e.g., 1h 30m)</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+        <div className="flex gap-2">
+          <FormField control={form.control} name="minutes" render={({ field }) => ( <FormItem className="flex-1"> <FormLabel>Minutes</FormLabel> <FormControl><Input type="number" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+          <FormField control={form.control} name="seconds" render={({ field }) => ( <FormItem className="flex-1"> <FormLabel>Seconds</FormLabel> <FormControl><Input type="number" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+        </div>
         <FormField control={form.control} name="log_date" render={({ field }) => ( <FormItem> <FormLabel>Date</FormLabel> <FormControl><Input type="date" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
         <Button type="submit" className="w-full">Log Cycling</Button>
       </form>
     </Form>
   );
 };
+
+// NEW: LogRunningForm component
+const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
+  const { session, supabase } = useSession();
+  const [preferredDistanceUnit, setPreferredDistanceUnit] = useState<Profile['preferred_distance_unit']>('km');
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!session) return;
+      const { data: profileData, error } = await supabase
+        .from('profiles')
+        .select('preferred_distance_unit')
+        .eq('id', session.user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error("Error fetching user profile for distance unit:", error);
+      } else if (profileData) {
+        setPreferredDistanceUnit(profileData.preferred_distance_unit || 'km');
+      }
+    };
+    fetchUserProfile();
+  }, [session, supabase]);
+
+  const form = useForm<z.infer<typeof runningSchema>>({
+    resolver: zodResolver(runningSchema),
+    defaultValues: {
+      distance: 0,
+      minutes: 0,
+      seconds: 0,
+      log_date: new Date().toISOString().split('T')[0],
+    },
+  });
+
+  async function onSubmit(values: z.infer<typeof runningSchema>) {
+    if (!session) {
+      toast.error("You must be logged in to log activities.");
+      return;
+    }
+
+    const distanceInKm = convertDistance(values.distance, preferredDistanceUnit as 'km' | 'miles', 'km');
+    if (distanceInKm === null) {
+      toast.error("Invalid distance value.");
+      return;
+    }
+
+    const totalSeconds = (values.minutes * 60) + values.seconds;
+    const timeStringForStorage = formatMinutesAndSecondsForStorage(values.minutes, values.seconds);
+
+    let avgTimePerKm: number | null = null;
+    if (distanceInKm > 0) {
+      avgTimePerKm = totalSeconds / distanceInKm;
+    }
+
+    let isPR = false;
+    try {
+      const { data: previousLogs, error: fetchError } = await supabase
+        .from('activity_logs')
+        .select('avg_time')
+        .eq('user_id', session.user.id)
+        .eq('activity_type', 'Running')
+        .order('log_date', { ascending: false });
+
+      if (fetchError) throw fetchError;
+
+      if (avgTimePerKm !== null) {
+        isPR = previousLogs.every(log => log.avg_time === null || avgTimePerKm! < log.avg_time);
+      }
+    } catch (err) {
+      console.error("Error checking running PR:", err);
+    }
+
+    const newLog: TablesInsert<'activity_logs'> = {
+      user_id: session.user.id,
+      activity_type: 'Running',
+      distance: `${distanceInKm} km`, // Store in KM
+      time: timeStringForStorage,
+      avg_time: avgTimePerKm,
+      is_pb: isPR,
+      log_date: values.log_date,
+    };
+
+    const { error } = await supabase.from('activity_logs').insert([newLog]);
+
+    if (error) {
+      toast.error("Failed to log running activity: " + error.message);
+    } else {
+      toast.success("Running activity logged successfully!");
+      form.reset();
+      onLogSuccess();
+    }
+  }
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField control={form.control} name="distance" render={({ field }) => ( <FormItem> <FormLabel>Distance ({preferredDistanceUnit})</FormLabel> <FormControl><Input type="number" step="0.1" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+        <div className="flex gap-2">
+          <FormField control={form.control} name="minutes" render={({ field }) => ( <FormItem className="flex-1"> <FormLabel>Minutes</FormLabel> <FormControl><Input type="number" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+          <FormField control={form.control} name="seconds" render={({ field }) => ( <FormItem className="flex-1"> <FormLabel>Seconds</FormLabel> <FormControl><Input type="number" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+        </div>
+        <FormField control={form.control} name="log_date" render={({ field }) => ( <FormItem> <FormLabel>Date</FormLabel> <FormControl><Input type="date" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+        <Button type="submit" className="w-full">Log Running</Button>
+      </form>
+    </Form>
+  );
+};
+
 
 const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
   const { session, supabase } = useSession();
@@ -251,7 +385,7 @@ const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
       return;
     }
 
-    const durationMinutes = timeStringToMinutes(values.duration);
+    const durationMinutes = timeStringToSeconds(values.duration) / 60; // Convert to minutes for PR check
     let isPR = false;
     try {
       const { data: previousLogs, error: fetchError } = await supabase
@@ -263,7 +397,7 @@ const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
 
       if (fetchError) throw fetchError;
 
-      const previousDurations = previousLogs.map(log => timeStringToMinutes(log.time || '0m'));
+      const previousDurations = previousLogs.map(log => timeStringToSeconds(log.time || '0m') / 60);
       isPR = previousDurations.every(prevDur => durationMinutes > prevDur);
     } catch (err) {
       console.error("Error checking tennis PR:", err);
@@ -293,7 +427,7 @@ const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField control={form.control} name="duration" render={({ field }) => ( <FormItem> <FormLabel>Duration (e.g., 1h 30m)</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+        <FormField control={form.control} name="duration" render={({ field }) => ( <FormItem> <FormLabel>Duration (e.g., 1h 30m or 90m)</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
         <FormField control={form.control} name="log_date" render={({ field }) => ( <FormItem> <FormLabel>Date</FormLabel> <FormControl><Input type="date" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
         <Button type="submit" className="w-full">Log Tennis</Button>
       </form>
@@ -333,6 +467,7 @@ export const ActivityLoggingDialog = ({ open, onOpenChange, initialActivity, tri
         </DialogHeader>
         {!selectedActivity ? (
           <div className="grid gap-4 py-4">
+            <Button variant="outline" onClick={() => handleActivitySelect("Running")}> <Run className="h-4 w-4 mr-2" /> Log Running </Button> {/* ADDED: Running button */}
             <Button variant="outline" onClick={() => handleActivitySelect("Cycling")}> <Bike className="h-4 w-4 mr-2" /> Log Cycling </Button>
             <Button variant="outline" onClick={() => handleActivitySelect("Swimming")}> <Activity className="h-4 w-4 mr-2" /> Log Swimming </Button>
             <Button variant="outline" onClick={() => handleActivitySelect("Tennis")}> <Activity className="h-4 w-4 mr-2" /> Log Tennis </Button>
@@ -341,6 +476,7 @@ export const ActivityLoggingDialog = ({ open, onOpenChange, initialActivity, tri
           <div className="py-4">
             <h3 className="text-lg font-semibold mb-4">Log {selectedActivity}</h3>
             <Button variant="outline" className="mb-4 w-full" onClick={() => setSelectedActivity(null)}> Back to Activity Types </Button>
+            {selectedActivity === "Running" && <LogRunningForm onLogSuccess={handleLogSuccess} />} {/* ADDED: Running form */}
             {selectedActivity === "Cycling" && <LogCyclingForm onLogSuccess={handleLogSuccess} />}
             {selectedActivity === "Swimming" && <LogSwimmingForm onLogSuccess={handleLogSuccess} />}
             {selectedActivity === "Tennis" && <LogTennisForm onLogSuccess={handleLogSuccess} />}

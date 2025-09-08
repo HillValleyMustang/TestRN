@@ -12,7 +12,8 @@ import { ScrollArea } from '../ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Dumbbell, History, Trash2, CalendarDays, Timer, ListChecks } from 'lucide-react';
-import { formatTime, formatTimeAgo, getWorkoutColorClass, cn } from '@/lib/utils';
+import { formatTimeAgo, getWorkoutColorClass, cn } from '@/lib/utils';
+import { formatTime } from '@/lib/unit-conversions'; // Corrected import path for formatTime
 import { db } from '@/lib/db';
 
 type WorkoutSession = Tables<'workout_sessions'>;
@@ -42,7 +43,7 @@ const UPPER_BODY_MUSCLES = new Set([
   'Pectorals', 'Deltoids', 'Lats', 'Traps', 'Biceps', 'Triceps', 'Forearms'
 ]);
 const LOWER_BODY_MUSCLES = new Set([
-  'Quadriceps', 'Hamstrings', 'Glutes', 'Calves', 'Abdominals', 'Core'
+  'Quadriceps', 'Hamstrings', 'Glutes', 'Calves', 'Abdominals', 'Core' // Including Core in Lower Body for this context
 ]);
 
 const categorizeMuscle = (muscle: string): 'upper' | 'lower' | 'other' => {

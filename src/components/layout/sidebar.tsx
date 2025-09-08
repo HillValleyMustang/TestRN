@@ -27,7 +27,7 @@ export function Sidebar() {
   return (
     <>
       <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">
-        <nav className="flex flex-col items-center gap-2 px-2 sm:py-5"> {/* Reduced gap from 4 to 2 */}
+        <nav className="flex flex-col items-center gap-1 px-2 sm:py-3"> {/* Reduced gap from 2 to 1, py from 5 to 3 */}
           {mainNavLinks.map((link) => {
             const isActive = pathname === link.href;
             const Icon = link.icon;
@@ -37,12 +37,12 @@ export function Sidebar() {
                   <WorkoutAwareLink
                     href={link.href}
                     className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-lg transition-colors", // Reduced h/w from 9 to 8
+                      "flex h-7 w-7 items-center justify-center rounded-lg transition-colors", // Reduced h/w from 8 to 7
                       isActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"
                     )}
                   >
                     <span>
-                      <Icon className="h-4 w-4" /> {/* Reduced h/w from 5 to 4 */}
+                      <Icon className="h-3.5 w-3.5" /> {/* Reduced h/w from 4 to 3.5 */}
                       <span className="sr-only">{link.label}</span>
                     </span>
                   </WorkoutAwareLink>
@@ -57,10 +57,10 @@ export function Sidebar() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors text-muted-foreground hover:text-foreground"
+                className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors text-muted-foreground hover:text-foreground" // Reduced h/w from 8 to 7
                 onClick={() => setIsActivityLogOpen(true)}
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-3.5 w-3.5" /> {/* Reduced h/w from 4 to 3.5 */}
                 <span className="sr-only">Log Activity</span>
               </Button>
             </TooltipTrigger>
