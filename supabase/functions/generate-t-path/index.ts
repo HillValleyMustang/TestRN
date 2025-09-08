@@ -1,9 +1,9 @@
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
-import { getSupabaseClients, getMaxMinutes, getWorkoutNamesForSplit } from './utils';
-import { processSingleChildWorkout } from './workout_processor';
-import { ExerciseDefinitionForWorkoutGeneration, TPathData, ProfileData } from './types';
+import { getSupabaseClients, getMaxMinutes, getWorkoutNamesForSplit } from './utils'; // Removed .ts
+import { processSingleChildWorkout } from './workout_processor'; // Removed .ts
+import { ExerciseDefinitionForWorkoutGeneration, TPathData, ProfileData } from './types'; // Removed .ts
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,20 +20,15 @@ serve(async (req: Request) => {
     console.log('Edge Function: generate-t-path started.');
 
     const authHeader = req.headers.get('Authorization');
-    console.log(`Edge Function: Auth header present: ${!!authHeader}`);
     if (!authHeader) throw new Error('Authorization header missing');
 
     const { supabaseAuthClient, supabaseServiceRoleClient } = getSupabaseClients(authHeader);
-    console.log('Edge Function: Supabase clients initialized.');
 
     const { data: { user }, error: userError } = await supabaseAuthClient.auth.getUser();
-    console.log(`Edge Function: User fetch result - user: ${!!user}, error: ${userError?.message}`);
     if (userError || !user) throw new Error('Unauthorized');
     console.log(`User authenticated: ${user.id}`);
 
-    const requestBody = await req.json();
-    console.log('Edge Function: Request body parsed.');
-    const { tPathId } = requestBody;
+    const { tPathId } = await req.json();
     if (!tPathId) throw new Error('tPathId is required');
     console.log(`Received tPathId (main T-Path ID): ${tPathId}`);
 
