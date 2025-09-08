@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Info, Youtube, Search, Trash2 } from "lucide-react";
-import { Tables } from '@/types/supabase';
+import { Tables, FetchedExerciseDefinition } from '@/types/supabase'; // Import FetchedExerciseDefinition
 import { toast } from "sonner";
 import { useSession } from "@/components/session-context-provider";
 import {
@@ -19,16 +19,16 @@ import {
 } from "@/components/ui/alert-dialog";
 import { WorkoutBadge } from './workout-badge'; // Import WorkoutBadge
 
-type ExerciseDefinition = Tables<'exercise_definitions'>;
+// Removed local ExerciseDefinition definition
 
 interface ExerciseInfoDialogProps {
   open?: boolean; // Make open prop optional for controlled/uncontrolled usage
   onOpenChange?: (open: boolean) => void; // Make onOpenChange prop optional
-  exercise: ExerciseDefinition;
+  exercise: FetchedExerciseDefinition; // Use FetchedExerciseDefinition
   trigger?: React.ReactNode;
   exerciseWorkouts?: { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]; // Added isBonus
   onRemoveFromWorkout?: (workoutId: string, exerciseId: string) => void;
-  onDeleteExercise?: (exercise: ExerciseDefinition) => void;
+  onDeleteExercise?: (exercise: FetchedExerciseDefinition) => void;
 }
 
 // Helper function to get YouTube embed URL
@@ -59,6 +59,10 @@ export const ExerciseInfoDialog = ({ open, onOpenChange, exercise, trigger, exer
       return;
     }
     if (onRemoveFromWorkout) {
+      if (exercise.id === null) {
+        toast.error("Cannot remove exercise: invalid exercise ID.");
+        return;
+      }
       onRemoveFromWorkout(workoutId, exercise.id);
     }
   };

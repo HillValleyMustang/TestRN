@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react"; // Import useRef and useEffect
-import { Tables } from "@/types/supabase";
+import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -30,10 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { EditExerciseDialog } from "./edit-exercise-dialog"; // Import the new dialog
 
-// Extend the ExerciseDefinition type to include a temporary flag for global exercises
-interface FetchedExerciseDefinition extends Tables<'exercise_definitions'> {
-  is_favorited_by_current_user?: boolean;
-}
+// Removed local FetchedExerciseDefinition definition
 
 interface UserExerciseListProps {
   exercises: FetchedExerciseDefinition[];
@@ -144,9 +141,9 @@ export const UserExerciseList = ({
                   <div className="flex-1 py-1 px-0">
                     <p className="font-medium">{ex.name}</p> {/* Exercise name */}
                     <p className="text-sm text-muted-foreground">{ex.main_muscle}</p> {/* Muscle group on new line */}
-                    {exerciseWorkoutsMap[ex.id]?.length > 0 && (
+                    {exerciseWorkoutsMap[ex.id as string]?.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {exerciseWorkoutsMap[ex.id].map(workout => (
+                        {exerciseWorkoutsMap[ex.id as string].map(workout => (
                           <div key={workout.id} className="flex items-center gap-1 p-1 rounded-md"> {/* Removed bg-muted */}
                             <WorkoutBadge 
                               workoutName={workout.name}
@@ -219,7 +216,7 @@ export const UserExerciseList = ({
           open={isInfoDialogOpen}
           onOpenChange={setIsInfoDialogOpen}
           exercise={selectedExerciseForInfo}
-          exerciseWorkouts={exerciseWorkoutsMap[selectedExerciseForInfo.id] || []}
+          exerciseWorkouts={exerciseWorkoutsMap[selectedExerciseForInfo.id as string] || []}
           onRemoveFromWorkout={onRemoveFromWorkout}
           onDeleteExercise={onDelete}
         />

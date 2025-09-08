@@ -6,17 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useSession } from "@/components/session-context-provider";
-import { Tables } from '@/types/supabase';
+import { Tables, FetchedExerciseDefinition } from '@/types/supabase'; // Import FetchedExerciseDefinition
 import { PlusCircle } from "lucide-react";
 
-type ExerciseDefinition = Tables<'exercise_definitions'>;
+// Removed local ExerciseDefinition definition
+
 type TPath = Tables<'t_paths'>;
 type Profile = Tables<'profiles'>;
 
 interface AddExerciseToTPathDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  exercise: ExerciseDefinition;
+  exercise: FetchedExerciseDefinition; // Use FetchedExerciseDefinition
   onAddSuccess: () => void;
   onOptimisticAdd: (exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => void;
   onAddFailure: (exerciseId: string, workoutId: string) => void;
@@ -94,6 +95,11 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
     try {
       // Optimistic update: Update UI immediately
       // We use the original exercise.id directly, as no adoption is happening.
+      if (exercise.id === null) {
+        toast.error("Cannot add exercise: invalid exercise ID.");
+        setIsAdding(false);
+        return;
+      }
       onOptimisticAdd(exercise.id, selectedWorkoutId, workoutName, false); // Assuming not bonus for now
 
       // 2. Determine the next order_index for the selected workout
@@ -134,7 +140,9 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
     } catch (err: any) {
       console.error("Failed to add exercise to workout:", err);
       toast.error("Failed to add exercise: " + err.message);
-      onAddFailure(exercise.id, selectedWorkoutId); // Rollback on error
+      if (exercise.id) { // Only call onAddFailure if exercise.id is not null
+        onAddFailure(exercise.id, selectedWorkoutId); // Rollback on error
+      }
     } finally {
       setIsAdding(false);
     }

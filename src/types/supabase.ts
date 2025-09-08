@@ -61,3 +61,9 @@ export type UserAchievement = UserAchievementsRow;
 
 // New type for ai_coach_usage_logs table
 export type AiCoachUsageLog = AiCoachUsageLogsRow;
+
+// Centralized FetchedExerciseDefinition for consistency across manage-exercises components
+export interface FetchedExerciseDefinition extends Omit<Tables<'exercise_definitions'>, 'id'> {
+  id: string | null; // Allow null for new exercises (e.g., when creating from global)
+  is_favorited_by_current_user?: boolean; // For global exercises favorited by user
+}

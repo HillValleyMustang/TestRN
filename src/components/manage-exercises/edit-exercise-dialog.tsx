@@ -3,14 +3,14 @@
 import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ExerciseForm } from "@/components/manage-exercises/exercise-form";
-import { Tables } from "@/types/supabase";
+import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
 
-type ExerciseDefinition = Tables<'exercise_definitions'>;
+// Removed local ExerciseDefinition definition
 
 interface EditExerciseDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  exercise: ExerciseDefinition | null;
+  exercise: FetchedExerciseDefinition | null;
   onSaveSuccess: () => void;
 }
 

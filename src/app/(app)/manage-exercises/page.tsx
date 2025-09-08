@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useSession } from "@/components/session-context-provider";
-import { Tables } from "@/types/supabase";
+import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
 import {
   Sheet,
   SheetContent,
@@ -22,10 +22,7 @@ import { GlobalExerciseList } from "@/components/manage-exercises/global-exercis
 import { UserExerciseList } from "@/components/manage-exercises/user-exercise-list";
 import { useManageExercisesData } from '@/hooks/use-manage-exercises-data'; // Import the new hook
 
-// Extend the ExerciseDefinition type to include a temporary flag for global exercises
-interface FetchedExerciseDefinition extends Tables<'exercise_definitions'> {
-  is_favorited_by_current_user?: boolean;
-}
+// Removed local FetchedExerciseDefinition definition
 
 export default function ManageExercisesPage() {
   const { session, supabase } = useSession();

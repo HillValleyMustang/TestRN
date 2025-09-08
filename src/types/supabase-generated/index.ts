@@ -4,7 +4,8 @@
  */
 
 // Import generated Supabase types to be used and re-exported
-import type { Json, Database } from "./database";
+import type { Database } from "./database";
+import type { Json } from "./json"; // Corrected: Import Json directly from json.ts
 import type { Tables, TablesInsert, TablesUpdate } from "./tables";
 import type { Enums } from "./enums";
 import type { UserAchievementsRow } from "./tables/user_achievements";
@@ -13,7 +14,7 @@ import type { GetLastExerciseSetsForExerciseReturns } from "./functions/get_last
 import type { GetTotalCompletedExerciseInstancesArgs, GetTotalCompletedExerciseInstancesReturns } from "./functions/get_total_completed_exercise_instances";
 
 export type {
-  Json,
+  Json, // Re-export Json
   Database,
   Tables,
   TablesInsert,

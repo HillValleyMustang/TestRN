@@ -3,15 +3,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from "sonner";
-import { Tables } from "@/types/supabase";
+import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
 import { getMaxMinutes } from '@/lib/utils';
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
 import { LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise } from '@/lib/db';
 
-// Extend the ExerciseDefinition type to include a temporary flag for global exercises
-interface FetchedExerciseDefinition extends Tables<'exercise_definitions'> {
-  is_favorited_by_current_user?: boolean;
-}
+// Removed local FetchedExerciseDefinition definition
 
 type TPath = Tables<'t_paths'>;
 
@@ -223,10 +220,11 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       (cachedExercises || []).forEach(ex => {
         // User-owned exercises must have user_id matching session and library_id must be null
         if (ex.user_id === sessionUserId && ex.library_id === null) {
-          userOwnedExercisesList.push({ ...ex, is_favorite: !!ex.is_favorite });
+          userOwnedExercisesList.push({ ...ex, id: ex.id, is_favorite: !!ex.is_favorite });
         } else if (ex.user_id === null) { // Global exercises must have user_id === null
           globalExercisesList.push({
             ...ex,
+            id: ex.id,
             is_favorited_by_current_user: favoritedGlobalExerciseIds.has(ex.id)
           });
         }
@@ -329,7 +327,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
         const { error } = await supabase
           .from('exercise_definitions')
           .update({ is_favorite: newFavoriteStatus })
-          .eq('id', exercise.id)
+          .eq('id', exercise.id as string) // Cast to string as id can be null
           .eq('user_id', sessionUserId);
 
         if (error) throw error;
@@ -338,7 +336,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
         if (newFavoriteStatus) {
           const { error } = await supabase
             .from('user_global_favorites')
-            .insert({ user_id: sessionUserId, exercise_id: exercise.id });
+            .insert({ user_id: sessionUserId, exercise_id: exercise.id as string }); // Cast to string
           if (error) throw error;
           toast.success("Added to favourites!", { id: toastId });
         } else {
@@ -346,7 +344,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
             .from('user_global_favorites')
             .delete()
             .eq('user_id', sessionUserId)
-            .eq('exercise_id', exercise.id);
+            .eq('exercise_id', exercise.id as string); // Cast to string
           if (error) throw error;
           toast.success("Removed from favourites.", { id: toastId });
         }

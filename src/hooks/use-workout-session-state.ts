@@ -42,6 +42,7 @@ interface UseWorkoutSessionStateReturn {
   isCreatingSession: boolean;
   isWorkoutActive: boolean;
   hasUnsavedChanges: boolean;
+  expandedExerciseCards: Record<string, boolean>;
   setActiveWorkout: (workout: TPath | null) => void;
   setExercisesForSession: (exercises: WorkoutExercise[]) => void;
   setExercisesWithSets: (sets: Record<string, SetLogState[]>) => void;
@@ -56,7 +57,6 @@ interface UseWorkoutSessionStateReturn {
   updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
   createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>;
   finishWorkoutSession: () => Promise<string | null>;
-  expandedExerciseCards: Record<string, boolean>;
   toggleExerciseCardExpansion: (exerciseId: string) => void;
 }
 
