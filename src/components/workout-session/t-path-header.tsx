@@ -16,7 +16,9 @@ export const TPathHeader = ({ tPathName }: TPathHeaderProps) => {
   return (
     <header className="mb-8 flex justify-between items-center">
       <h1 className={cn("text-3xl font-bold", workoutColorClass)}>{tPathName}</h1>
-      <Button variant="outline" onClick={() => router.push('/dashboard')}>Back to Dashboard</Button>
+      <Button variant="ghost" onClick={() => router.push('/dashboard')}>
+        <ArrowLeft className="h-4 w-4 mr-2" /> Back
+      </Button>
     </header>
   );
 };

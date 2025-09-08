@@ -178,8 +178,8 @@ export default function WorkoutHistoryPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background text-destructive p-4">
         <p>{error}</p>
-        <Button onClick={() => router.push('/dashboard')} className="mt-4">
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
+        <Button variant="ghost" onClick={() => router.push('/dashboard')}>
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back
         </Button>
       </div>
     );
@@ -189,8 +189,8 @@ export default function WorkoutHistoryPage() {
     <div className="min-h-screen bg-background text-foreground p-2 sm:p-4">
       <header className="mb-8 flex justify-between items-center">
         <h1 className="text-3xl font-bold">Workout History</h1>
-        <Button variant="outline" onClick={() => router.push('/dashboard')}>
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
+        <Button variant="ghost" onClick={() => router.push('/dashboard')}>
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back
         </Button>
       </header>
 

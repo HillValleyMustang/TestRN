@@ -123,8 +123,8 @@ export default function ActivityLogsPage() {
     <div className="min-h-screen bg-background text-foreground p-2 sm:p-4">
       <header className="mb-8 flex justify-between items-center">
         <h1 className="text-3xl font-bold">Activity Logs</h1>
-        <Button variant="outline" onClick={() => router.push('/dashboard')}>
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
+        <Button variant="ghost" onClick={() => router.push('/dashboard')}>
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back
         </Button>
       </header>
 
