@@ -4,10 +4,9 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Dumbbell, Settings, Sparkles } from 'lucide-react';
-import { Tables } from '@/types/supabase';
+import { Tables, WorkoutWithLastCompleted, GroupedTPath, SetLogState, WorkoutExercise, FetchedExerciseDefinition } from '@/types/supabase'; // Import centralized types
 import { cn, formatTimeAgo, getPillStyles } from '@/lib/utils';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
-import { SetLogState, WorkoutExercise } from '@/types/supabase';
 import { WorkoutBadge } from '../workout-badge';
 import { LoadingOverlay } from '../loading-overlay';
 import { useSession } from '@/components/session-context-provider';
@@ -21,39 +20,26 @@ import { WorkoutAwareLink, useWorkoutNavigation } from './workout-aware-link';
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
-interface WorkoutWithLastCompleted extends TPath {
-  id: string; // Explicitly define id
-  template_name: string; // Explicitly define template_name
-  last_completed_at: string | null;
-}
-
-interface GroupedTPath {
-  mainTPath: TPath;
-  childWorkouts: WorkoutWithLastCompleted[];
-}
-
 interface WorkoutSelectorProps {
-  onWorkoutSelect: (workoutId: string | null) => void;
   activeWorkout: TPath | null;
   exercisesForSession: WorkoutExercise[];
   exercisesWithSets: Record<string, SetLogState[]>;
-  allAvailableExercises: ExerciseDefinition[];
+  allAvailableExercises: Tables<'exercise_definitions'>[]; // Corrected type to Tables<'exercise_definitions'>[]
   currentSessionId: string | null;
   sessionStartTime: Date | null;
   completedExercises: Set<string>;
-  addExerciseToSession: (exercise: Tables<'exercise_definitions'>) => void;
-  removeExerciseFromSession: (exerciseId: string) => void;
-  substituteExercise: (oldExerciseId: string, newExercise: WorkoutExercise) => void;
+  addExerciseToSession: (exercise: ExerciseDefinition) => Promise<void>;
+  removeExerciseFromSession: (exerciseId: string) => Promise<void>;
+  substituteExercise: (oldExerciseId: string, newExercise: WorkoutExercise) => Promise<void>;
   updateSessionStartTime: (timestamp: string) => void;
   markExerciseAsCompleted: (exerciseId: string, isNewPR: boolean) => void;
-  resetWorkoutSession: () => Promise<void>;
   updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
   selectWorkout: (workoutId: string | null) => Promise<void>;
   loadingWorkoutFlow: boolean;
   groupedTPaths: GroupedTPath[];
   isCreatingSession: boolean;
   createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>;
-  finishWorkoutSession: () => Promise<void>;
+  finishWorkoutSession: () => Promise<string | null>;
   refreshAllData: () => void;
   isQuickStart?: boolean;
   expandedExerciseCards: Record<string, boolean>;
@@ -124,8 +110,8 @@ export const WorkoutSelector = ({
   const [selectedWorkoutToEdit, setSelectedWorkoutToEdit] = useState<{ id: string; name: string } | null>(null);
   const [adHocExerciseSourceFilter, setAdHocExerciseSourceFilter] = useState<'my-exercises' | 'global-library'>('my-exercises');
 
-  const mainMuscleGroups = useMemo(() => {
-    return Array.from(new Set(allAvailableExercises.map(ex => ex.main_muscle))).sort();
+  const mainMuscleGroups: string[] = useMemo(() => { // Explicitly type mainMuscleGroups
+    return Array.from(new Set(allAvailableExercises.map((ex: Tables<'exercise_definitions'>) => ex.main_muscle))).sort();
   }, [allAvailableExercises]);
 
   // Direct call to selectWorkout from workout pills
@@ -142,9 +128,10 @@ export const WorkoutSelector = ({
 
   const handleAddExercise = () => {
     if (selectedExerciseToAdd) {
-      const exercise = allAvailableExercises.find((ex) => ex.id === selectedExerciseToAdd);
+      const exercise = allAvailableExercises.find((ex: Tables<'exercise_definitions'>) => ex.id === selectedExerciseToAdd); // Explicitly type ex
       if (exercise) {
-        addExerciseToSession(exercise);
+        // Cast to ExerciseDefinition as addExerciseToSession expects it
+        addExerciseToSession(exercise as ExerciseDefinition); 
         setSelectedExerciseToAdd("");
       }
     }
@@ -163,7 +150,7 @@ export const WorkoutSelector = ({
               You haven't created any Transformation Paths yet. Go to <WorkoutAwareLink href="/manage-t-paths" className="text-primary underline">Manage T-Paths</WorkoutAwareLink> to create one.
             </p>
           ) : (
-            groupedTPaths.map(group => (
+            groupedTPaths.map((group: GroupedTPath) => ( // Explicitly type group
               <div key={group.mainTPath.id} className="space-y-3">
                 <h4 className="text-lg font-semibold flex items-center gap-2">
                   <Dumbbell className="h-5 w-5 text-muted-foreground" />
@@ -173,7 +160,7 @@ export const WorkoutSelector = ({
                   <p className="text-muted-foreground text-sm ml-7">No workouts defined for this path. This may happen if your session length is too short for any workouts.</p>
                 ) : (
                   <div className="grid grid-cols-2 gap-2">
-                    {group.childWorkouts.map(workout => {
+                    {group.childWorkouts.map((workout: WorkoutWithLastCompleted) => { // Explicitly type workout
                       const pillProps = mapWorkoutToPillProps(workout, group.mainTPath.template_name);
                       const isPPLAndLegs = pillProps.workoutType === 'push-pull-legs' && pillProps.category === 'legs';
                       const isSelectedPill = activeWorkout?.id === workout.id; // Explicitly calculate isSelected
@@ -210,7 +197,7 @@ export const WorkoutSelector = ({
                 <h3 className="text-lg font-semibold mb-3">Add Exercises</h3>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <ExerciseSelectionDropdown
-                    allAvailableExercises={allAvailableExercises}
+                    allAvailableExercises={allAvailableExercises} // Corrected type
                     exercisesInCurrentContext={exercisesForSession}
                     selectedExerciseId={selectedExerciseToAdd}
                     setSelectedExerciseId={setSelectedExerciseToAdd}
@@ -235,7 +222,7 @@ export const WorkoutSelector = ({
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {exercisesForSession.map((exercise, index) => (
+                  {exercisesForSession.map((exercise: WorkoutExercise, index: number) => ( // Explicitly type exercise and index
                     <ExerciseCard
                       key={exercise.id}
                       exercise={exercise}

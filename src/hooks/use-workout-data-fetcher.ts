@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { Tables, WorkoutExercise } from '@/types/supabase';
+import { Tables, WorkoutExercise, WorkoutWithLastCompleted, GroupedTPath } from '@/types/supabase'; // Import centralized types
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
 import { db, LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
@@ -11,16 +11,7 @@ import { useSession } from '@/components/session-context-provider';
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
-interface WorkoutWithLastCompleted extends TPath {
-  id: string; // Explicitly define id
-  template_name: string; // Explicitly define template_name
-  last_completed_at: string | null;
-}
-
-interface GroupedTPath {
-  mainTPath: TPath;
-  childWorkouts: WorkoutWithLastCompleted[];
-}
+// Removed local WorkoutWithLastCompleted and GroupedTPath definitions, now using centralized types
 
 interface UseWorkoutDataFetcherReturn {
   allAvailableExercises: ExerciseDefinition[];

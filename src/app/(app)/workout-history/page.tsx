@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Trash2, Dumbbell, Timer, ListChecks, Trophy, CalendarDays } from 'lucide-react'; // Added CalendarDays
-import { Tables } from '@/types/supabase';
+import { Tables, WorkoutSessionWithAggregatedDetails } from '@/types/supabase'; // Import WorkoutSessionWithAggregatedDetails
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatTimeAgo, getWorkoutColorClass, cn } from '@/lib/utils';
@@ -20,16 +20,14 @@ type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
-interface WorkoutSessionWithAggregatedDetails extends WorkoutSession {
-  exercise_count: number;
-  total_volume_kg: number;
-  has_prs: boolean;
-}
+// Removed local WorkoutSessionWithDetails definition, now using centralized type
+
+// Removed local declaration of WorkoutSessionWithAggregatedDetails to avoid conflict
 
 export default function WorkoutHistoryPage() {
   const { session, supabase } = useSession();
   const router = useRouter();
-  const [workoutSessions, setWorkoutSessions] = useState<WorkoutSessionWithAggregatedDetails[]>([]);
+  const [workoutSessions, setWorkoutSessions] = useState<WorkoutSessionWithAggregatedDetails[]>([]); // Use centralized type
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

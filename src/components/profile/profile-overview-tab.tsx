@@ -11,7 +11,7 @@ interface ProfileOverviewTabProps {
   profile: ProfileType | null;
   bmi: string | null;
   dailyCalories: string | null;
-  // Removed 'achievements' prop as achievementsList is now imported directly
+  achievements: { id: string; name: string; icon: string }[]; // Added achievements prop
   unlockedAchievements: Set<string>;
   onAchievementClick: (achievement: { id: string; name: string; icon: string }) => void;
   onOpenPointsExplanation: () => void;
@@ -23,7 +23,7 @@ export const ProfileOverviewTab = ({
   profile,
   bmi,
   dailyCalories,
-  // Removed 'achievements' from destructuring
+  achievements, // Destructure achievements prop
   unlockedAchievements,
   onAchievementClick,
   onOpenPointsExplanation,
@@ -93,9 +93,9 @@ export const ProfileOverviewTab = ({
         <CardHeader><CardTitle>Achievements</CardTitle></CardHeader>
         <CardContent>
           <AchievementGrid
-            achievements={achievementsList} // Use the imported list
+            achievements={achievements} // Use the achievements prop
             unlockedAchievements={unlockedAchievements}
-            onAchievementClick={onAchievementClick} // Use the correct prop
+            onAchievementClick={onAchievementClick}
           />
           <p className="text-center text-muted-foreground text-sm mt-4">
             Tap to see requirements

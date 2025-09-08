@@ -3,13 +3,13 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Edit, XCircle } from "lucide-react";
-import { Tables } from "@/types/supabase";
+import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
 import { useSession } from "@/components/session-context-provider"; // Import useSession
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 interface ExerciseFormActionsProps {
-  editingExercise: ExerciseDefinition | null;
+  editingExercise: FetchedExerciseDefinition | null; // Changed type to FetchedExerciseDefinition
   onCancelEdit: () => void;
   toggleExpand: () => void; // This prop is now used to close the dialog if not in dialog mode
 }

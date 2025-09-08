@@ -23,13 +23,14 @@ export default function WorkoutPage() {
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [summarySessionId, setSummarySessionId] = useState<string | null>(null);
 
-  const handleFinishAndShowSummary = async () => {
+  const handleFinishAndShowSummary = async (): Promise<string | null> => { // Explicitly define return type
     const finishedSessionId = await workoutFlowManager.finishWorkoutSession();
     console.log("WorkoutPage: Finished workout session. Returned ID:", finishedSessionId);
     if (finishedSessionId) {
       setSummarySessionId(finishedSessionId);
       setShowSummaryModal(true);
     }
+    return finishedSessionId; // Return the session ID
   };
 
   return (

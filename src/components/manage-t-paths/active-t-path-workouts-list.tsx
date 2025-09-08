@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Tables } from "@/types/supabase";
+import { Tables, WorkoutWithLastCompleted } from "@/types/supabase"; // Import WorkoutWithLastCompleted
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -11,11 +11,7 @@ import { formatTimeAgo } from "@/lib/utils";
 
 type TPath = Tables<'t_paths'>;
 
-interface WorkoutWithLastCompleted extends TPath {
-  id: string; // Explicitly define id
-  template_name: string; // Explicitly define template_name
-  last_completed_at: string | null;
-}
+// Removed local WorkoutWithLastCompleted definition, now using centralized type
 
 interface ActiveTPathWorkoutsListProps {
   activeTPathName: string;

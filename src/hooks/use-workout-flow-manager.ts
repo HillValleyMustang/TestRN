@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Tables } from '@/types/supabase';
+import { Tables, GroupedTPath } from '@/types/supabase'; // Import GroupedTPath
 import { db } from '@/lib/db';
 import { useWorkoutDataFetcher } from './use-workout-data-fetcher';
 import { useCoreWorkoutSessionState } from './use-core-workout-session-state';

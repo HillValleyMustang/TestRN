@@ -6,7 +6,7 @@ import { useSession } from '@/components/session-context-provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dumbbell, Play } from 'lucide-react';
-import { Tables } from '@/types/supabase';
+import { Tables, WorkoutWithLastCompleted, GroupedTPath } from '@/types/supabase'; // Import centralized types
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { WorkoutPill, WorkoutPillProps } from '@/components/workout-flow/workout-pill';
@@ -15,11 +15,7 @@ import { cn } from '@/lib/utils';
 
 type TPath = Tables<'t_paths'>;
 
-interface WorkoutWithLastCompleted extends TPath {
-  id: string; // Explicitly define id
-  template_name: string; // Explicitly define template_name
-  last_completed_at: string | null;
-}
+// Removed local WorkoutWithLastCompleted definition, now using centralized type
 
 const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName: string): Omit<WorkoutPillProps, 'isSelected' | 'onClick'> => {
   const lowerTitle = workout.template_name.toLowerCase();
@@ -149,8 +145,10 @@ export const AllWorkoutsQuickStart = () => {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {childWorkouts.map(workout => {
+          {childWorkouts.map((workout: WorkoutWithLastCompleted) => { // Explicitly type workout
             const pillProps = mapWorkoutToPillProps(workout, activeMainTPath.template_name);
+            const isPPLAndLegs = pillProps.workoutType === 'push-pull-legs' && pillProps.category === 'legs';
+            // Removed isSelectedPill as it's not relevant in this component
             return (
               <div key={workout.id} className="flex items-center gap-2">
                 <WorkoutPill

@@ -56,7 +56,7 @@ export default function ProfilePage() {
   const [aiCoachUsageToday, setAiCoachUsageToday] = useState(0);
   const [unlockedAchievements, setUnlockedAchievements] = useState<Set<string>>(new Set());
   const [totalWorkoutsCount, setTotalWorkoutsCount] = useState(0);
-  const [totalExercisesCount, setTotalExercisesCount] = useState(0); // Renamed from totalSetsCount
+  const [totalExercisesCount, setTotalExercisesCount] = useState(0);
 
   const [isAchievementDetailOpen, setIsAchievementDetailOpen] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<{ id: string; name: string; icon: string } | null>(null);
