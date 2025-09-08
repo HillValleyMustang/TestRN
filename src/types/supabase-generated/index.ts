@@ -10,7 +10,6 @@ import type { Tables, TablesInsert, TablesUpdate } from "./tables";
 import type { Enums } from "./enums";
 import type { UserAchievementsRow } from "./tables/user_achievements";
 import type { AiCoachUsageLogsRow } from "./tables/ai_coach_usage_logs";
-import type { GetLastExerciseSetsForExerciseReturns } from "./functions/get_last_exercise_sets_for_exercise";
 import type { GetTotalCompletedExerciseInstancesArgs, GetTotalCompletedExerciseInstancesReturns } from "./functions/get_total_completed_exercise_instances";
 
 export type {
@@ -22,7 +21,6 @@ export type {
   Enums,
   UserAchievementsRow,
   AiCoachUsageLogsRow,
-  GetLastExerciseSetsForExerciseReturns,
   GetTotalCompletedExerciseInstancesArgs,
   GetTotalCompletedExerciseInstancesReturns,
 };

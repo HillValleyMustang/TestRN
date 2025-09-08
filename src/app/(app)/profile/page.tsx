@@ -10,7 +10,7 @@ import * as z from "zod";
 import { toast } from 'sonner';
 import { Profile as ProfileType, ProfileUpdate, Tables } from '@/types/supabase';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart2, User, Settings, ChevronLeft, ChevronRight, Flame, Dumbbell, Trophy, Star, Footprints } from 'lucide-react';
+import { BarChart2, User, Settings, ChevronLeft, ChevronRight, Flame, Dumbbell, Trophy, Star, Footprints, ListChecks } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, getLevelFromPoints } from '@/lib/utils';
 import { AchievementDetailDialog } from '@/components/profile/achievement-detail-dialog';
@@ -55,8 +55,8 @@ export default function ProfilePage() {
   const [activeTPath, setActiveTPath] = useState<TPath | null>(null);
   const [aiCoachUsageToday, setAiCoachUsageToday] = useState(0);
   const [unlockedAchievements, setUnlockedAchievements] = useState<Set<string>>(new Set());
-  const [totalWorkoutsCount, setTotalWorkoutsCount] = useState(0); // NEW state for total workouts
-  const [totalExercisesCount, setTotalExercisesCount] = useState(0); // NEW state for total exercises
+  const [totalWorkoutsCount, setTotalWorkoutsCount] = useState(0);
+  const [totalExercisesCount, setTotalExercisesCount] = useState(0); // Renamed from totalSetsCount
 
   const [isAchievementDetailOpen, setIsAchievementDetailOpen] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<{ id: string; name: string; icon: string } | null>(null);
@@ -144,7 +144,7 @@ export default function ProfilePage() {
         setUnlockedAchievements(new Set((userAchievements || []).map(a => a.achievement_id)));
         console.log("[ProfilePage Debug] fetchData: Unlocked achievements fetched.");
 
-        // NEW: Fetch total completed workouts
+        // Fetch total completed workouts
         console.log("[ProfilePage Debug] fetchData: Fetching total completed workouts.");
         const { count: workoutsCount, error: workoutsCountError } = await supabase
           .from('workout_sessions')
@@ -158,7 +158,7 @@ export default function ProfilePage() {
         setTotalWorkoutsCount(workoutsCount || 0);
         console.log(`[ProfilePage Debug] fetchData: Total workouts count: ${workoutsCount}`);
 
-        // NEW: Fetch total exercise instances completed via RPC
+        // Fetch total exercise instances completed via RPC
         console.log("[ProfilePage Debug] fetchData: Fetching total exercise instances completed via RPC.");
         const { data: totalExerciseInstances, error: totalExerciseInstancesError } = await supabase
           .rpc('get_total_completed_exercise_instances', { p_user_id: session.user.id });
@@ -406,8 +406,8 @@ export default function ProfilePage() {
                     unlockedAchievements={unlockedAchievements}
                     onAchievementClick={handleAchievementClick}
                     onOpenPointsExplanation={() => setIsPointsExplanationOpen(true)}
-                    totalWorkoutsCount={totalWorkoutsCount} // PASS NEW PROP
-                    totalExercisesCount={totalExercisesCount} // PASS NEW PROP
+                    totalWorkoutsCount={totalWorkoutsCount}
+                    totalExercisesCount={totalExercisesCount}
                   />
                 </div>
 

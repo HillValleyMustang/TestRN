@@ -15,8 +15,8 @@ interface ProfileOverviewTabProps {
   unlockedAchievements: Set<string>;
   onAchievementClick: (achievement: { id: string; name: string; icon: string }) => void;
   onOpenPointsExplanation: () => void;
-  totalWorkoutsCount: number; // NEW prop
-  totalExercisesCount: number; // NEW prop
+  totalWorkoutsCount: number;
+  totalExercisesCount: number; // Renamed from totalSetsCount
 }
 
 export const ProfileOverviewTab = ({
@@ -27,13 +27,10 @@ export const ProfileOverviewTab = ({
   unlockedAchievements,
   onAchievementClick,
   onOpenPointsExplanation,
-  totalWorkoutsCount, // DESTRUCTURE NEW PROP
-  totalExercisesCount, // DESTRUCTURE NEW PROP
+  totalWorkoutsCount,
+  totalExercisesCount, // Renamed from totalSetsCount
 }: ProfileOverviewTabProps) => {
   if (!profile) return null;
-
-  // Removed local calculation of totalWorkouts and totalExercisesCompleted
-  // They are now passed directly as props.
 
   return (
     <div className="mt-6 space-y-6 border-none p-0">
@@ -53,16 +50,16 @@ export const ProfileOverviewTab = ({
             <Dumbbell className="h-4 w-4" />
           </CardHeader>
           <CardContent className="p-0 pt-2">
-            <div className="text-2xl font-bold">{totalWorkoutsCount}</div> {/* USE NEW PROP */}
+            <div className="text-2xl font-bold">{totalWorkoutsCount}</div>
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-purple-400 to-purple-500 text-primary-foreground shadow-lg flex flex-col justify-between p-4">
           <CardHeader className="flex-row items-center justify-between pb-2 p-0">
-            <CardTitle className="text-sm font-medium">Total Exercises</CardTitle>
-            <ListChecks className="h-4 w-4" />
+            <CardTitle className="text-sm font-medium">Total Exercises</CardTitle> {/* Changed label */}
+            <ListChecks className="h-4 w-4" /> {/* Changed icon */}
           </CardHeader>
           <CardContent className="p-0 pt-2">
-            <div className="text-2xl font-bold">{totalExercisesCount}</div> {/* USE NEW PROP */}
+            <div className="text-2xl font-bold">{totalExercisesCount}</div> {/* Using totalExercisesCount */}
           </CardContent>
         </Card>
         <Card 
@@ -96,9 +93,9 @@ export const ProfileOverviewTab = ({
         <CardHeader><CardTitle>Achievements</CardTitle></CardHeader>
         <CardContent>
           <AchievementGrid
-            achievements={achievements}
+            achievements={achievementsList}
             unlockedAchievements={unlockedAchievements}
-            onAchievementClick={onAchievementClick}
+            onAchievementClick={handleAchievementClick}
           />
           <p className="text-center text-muted-foreground text-sm mt-4">
             Tap to see requirements

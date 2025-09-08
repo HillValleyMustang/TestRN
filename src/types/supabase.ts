@@ -8,8 +8,8 @@
  */
 
 // Import generated Supabase types to be used and re-exported
-import type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums, UserAchievementsRow, AiCoachUsageLogsRow, GetLastExerciseSetsForExerciseReturns } from "./supabase-generated";
-export type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums, GetLastExerciseSetsForExerciseReturns }; // Export new RPC types
+import type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums, UserAchievementsRow, AiCoachUsageLogsRow, GetLastExerciseSetsForExerciseReturns, GetTotalCompletedExerciseInstancesArgs, GetTotalCompletedExerciseInstancesReturns } from "./supabase-generated";
+export type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums, GetLastExerciseSetsForExerciseReturns, GetTotalCompletedExerciseInstancesArgs, GetTotalCompletedExerciseInstancesReturns }; // Export new RPC types
 
 // --- Custom Types ---
 // These are application-specific types that extend or combine Supabase-generated types.
