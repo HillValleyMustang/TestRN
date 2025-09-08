@@ -194,7 +194,7 @@ export const useOnboardingForm = () => {
 
       if (profileUpdateError) throw profileUpdateError;
 
-      toast.success("Onboarding completed! Welcome to your fitness journey.");
+      // toast.success("Onboarding completed! Welcome to your fitness journey."); // REMOVED
       router.push('/dashboard');
     } catch (error: any) {
       toast.error("Failed to save personal details: " + error.message);
