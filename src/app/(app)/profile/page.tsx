@@ -173,6 +173,7 @@ export default function ProfilePage() {
         }
 
         const sessionIds = (completedSessionIds || []).map(s => s.id);
+        console.log(`[ProfilePage Debug] fetchData: Number of completed session IDs: ${sessionIds.length}`);
 
         if (sessionIds.length > 0) {
           // Then, get all exercise_ids from set_logs associated with these completed sessions
@@ -185,8 +186,13 @@ export default function ProfilePage() {
             console.error("[ProfilePage Debug] fetchData: Set logs for unique exercises error:", setLogsError);
             throw setLogsError;
           }
-          const uniqueExerciseIds = new Set((setLogsData || []).map(log => log.exercise_id));
+          console.log(`[ProfilePage Debug] fetchData: Number of set logs fetched: ${setLogsData?.length || 0}`);
+          const exerciseIdsFromLogs = (setLogsData || []).map(log => log.exercise_id);
+          console.log(`[ProfilePage Debug] fetchData: Raw exercise IDs from set logs:`, exerciseIdsFromLogs);
+
+          const uniqueExerciseIds = new Set(exerciseIdsFromLogs.filter(id => id !== null)); // Filter out nulls explicitly
           setTotalExercisesCount(uniqueExerciseIds.size);
+          console.log(`[ProfilePage Debug] fetchData: Unique exercise IDs set:`, Array.from(uniqueExerciseIds));
           console.log(`[ProfilePage Debug] fetchData: Total unique exercises count: ${uniqueExerciseIds.size}`);
         } else {
           setTotalExercisesCount(0);
