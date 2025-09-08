@@ -48,7 +48,7 @@ export const useCoreWorkoutSessionState = (): UseCoreWorkoutSessionStateReturn =
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [expandedExerciseCards, setExpandedExerciseCards] = useState<Record<string, boolean>>({});
 
-  const isWorkoutActive = !!activeWorkout;
+  const isWorkoutActive = !!activeWorkout && !!currentSessionId; // Only active if a workout is selected AND a session has started
 
   const hasUnsavedChanges = useMemo(() => {
     if (!isWorkoutActive) {
