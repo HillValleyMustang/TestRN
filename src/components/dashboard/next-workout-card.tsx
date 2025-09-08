@@ -5,7 +5,7 @@ import { useSession } from '@/components/session-context-provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dumbbell, Clock } from 'lucide-react';
-import { Tables } from '@/types/supabase';
+import { Tables, WorkoutWithLastCompleted } from '@/types/supabase';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { cn, getWorkoutColorClass, getMaxMinutes } from '@/lib/utils'; // Import getMaxMinutes
@@ -13,13 +13,17 @@ import { cn, getWorkoutColorClass, getMaxMinutes } from '@/lib/utils'; // Import
 type TPath = Tables<'t_paths'>;
 type Profile = Tables<'profiles'>; // Import Profile type
 
+// Define the workout orders
+const ULUL_ORDER = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
+const PPL_ORDER = ['Push', 'Pull', 'Legs']; // Corrected PPL order as per user request
+
 export const NextWorkoutCard = () => {
   const { session, supabase } = useSession();
   const router = useRouter();
-  const [mainTPath, setMainTPath] = useState<TPath | null>(null); // Stores the user's active main T-Path
-  const [nextWorkout, setNextWorkout] = useState<TPath | null>(null); // Stores the specific child workout to display
+  const [mainTPath, setMainTPath] = useState<TPath | null>(null);
+  const [nextWorkout, setNextWorkout] = useState<TPath | null>(null);
   const [loading, setLoading] = useState(true);
-  const [estimatedDuration, setEstimatedDuration] = useState<string>('N/A'); // New state for estimated duration
+  const [estimatedDuration, setEstimatedDuration] = useState<string>('N/A');
 
   useEffect(() => {
     const fetchNextWorkout = async () => {
@@ -34,7 +38,7 @@ export const NextWorkoutCard = () => {
           .eq('id', session.user.id)
           .single();
 
-        if (profileError && profileError.code !== 'PGRST116') { // PGRST116 means no rows found
+        if (profileError && profileError.code !== 'PGRST116') {
           throw profileError;
         }
 
@@ -42,7 +46,6 @@ export const NextWorkoutCard = () => {
         const preferredSessionLength = profileData?.preferred_session_length;
 
         if (preferredSessionLength) {
-          const maxMinutes = getMaxMinutes(preferredSessionLength);
           setEstimatedDuration(`${preferredSessionLength} minutes`);
         } else {
           setEstimatedDuration('N/A');
@@ -61,7 +64,7 @@ export const NextWorkoutCard = () => {
           .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
           .eq('id', activeMainTPathId)
           .eq('user_id', session.user.id)
-          .is('parent_t_path_id', null) // Correctly identify a main T-Path
+          .is('parent_t_path_id', null)
           .single();
 
         if (mainTPathError || !mainTPathData) {
@@ -78,19 +81,63 @@ export const NextWorkoutCard = () => {
           .from('t_paths')
           .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
           .eq('parent_t_path_id', mainTPathData.id)
-          .eq('is_bonus', true) // These are the actual individual workouts
-          .order('template_name', { ascending: true }); // Order for consistent "next" selection
+          .eq('is_bonus', true)
+          .order('template_name', { ascending: true }); // Order for consistent processing
 
         if (childWorkoutsError) {
           throw childWorkoutsError;
         }
 
-        // 4. Determine the "next" workout (e.g., the first one in the list)
-        if (childWorkoutsData && childWorkoutsData.length > 0) {
-          setNextWorkout(childWorkoutsData[0]); // Set the first child workout as the next one
-        } else {
-          setNextWorkout(null); // No child workouts found for this main T-Path
+        if (!childWorkoutsData || childWorkoutsData.length === 0) {
+          setNextWorkout(null);
+          setLoading(false);
+          return;
         }
+
+        // 4. Determine the "next" workout based on last completed and predefined order
+        const workoutOrder = mainTPathData.template_name.includes('Upper/Lower') ? ULUL_ORDER : PPL_ORDER;
+        
+        let lastCompletedWorkout: WorkoutWithLastCompleted | null = null;
+        let mostRecentCompletionDate: Date | null = null;
+
+        // Fetch last completed date for each child workout
+        const workoutsWithLastDatePromises = (childWorkoutsData || []).map(async (workout) => {
+          const { data: lastSessionDate } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
+          return { ...workout, last_completed_at: lastSessionDate?.[0]?.last_completed_at || null };
+        });
+        const childWorkoutsWithLastDate: WorkoutWithLastCompleted[] = await Promise.all(workoutsWithLastDatePromises);
+
+        childWorkoutsWithLastDate.forEach(workout => {
+          if (workout.last_completed_at) {
+            const completionDate = new Date(workout.last_completed_at);
+            if (!mostRecentCompletionDate || completionDate > mostRecentCompletionDate) {
+              mostRecentCompletionDate = completionDate;
+              lastCompletedWorkout = workout;
+            }
+          }
+        });
+
+        let nextWorkoutToSuggest: TPath | null = null;
+
+        if (lastCompletedWorkout) {
+          // Explicitly re-assign to a const to help TypeScript's control flow analysis
+          const confirmedLastCompletedWorkout: WorkoutWithLastCompleted = lastCompletedWorkout;
+          const lastWorkoutName = confirmedLastCompletedWorkout.template_name;
+          const currentIndex = workoutOrder.indexOf(lastWorkoutName);
+          if (currentIndex !== -1) {
+            const nextIndex = (currentIndex + 1) % workoutOrder.length;
+            const nextWorkoutName = workoutOrder[nextIndex];
+            nextWorkoutToSuggest = childWorkoutsData.find(w => w.template_name === nextWorkoutName) || null;
+          } else {
+            // If last completed workout name is not in the predefined order, default to first
+            nextWorkoutToSuggest = childWorkoutsData.find(w => w.template_name === workoutOrder[0]) || null;
+          }
+        } else {
+          // No workouts completed yet, suggest the first in the sequence
+          nextWorkoutToSuggest = childWorkoutsData.find(w => w.template_name === workoutOrder[0]) || null;
+        }
+        
+        setNextWorkout(nextWorkoutToSuggest);
 
       } catch (err: any) {
         toast.error("Failed to load your next workout: " + err.message);

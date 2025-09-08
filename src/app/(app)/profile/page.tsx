@@ -144,42 +144,54 @@ export default function ProfilePage() {
     }
     setLoading(true);
     try {
-      await refreshProfileCache();
-      await refreshAchievementsCache();
+      await refreshProfileCache(); // This updates the IndexedDB cache.
+      await refreshAchievementsCache(); // This updates the IndexedDB cache.
 
-      if (profile) { // Use the updated profile from cache
+      // Now, explicitly fetch the *latest* profile from the cache after it's been refreshed.
+      // This avoids relying on the 'profile' variable from the outer scope's closure.
+      const latestCachedProfile = await db.profiles_cache.get(session.user.id);
+      const currentProfile = latestCachedProfile || null; // Use a local variable for the current profile data
+
+      if (currentProfile) {
         form.reset({
-          full_name: [profile.first_name, profile.last_name].filter(Boolean).join(' '),
-          height_cm: profile.height_cm,
-          weight_kg: profile.weight_kg,
-          body_fat_pct: profile.body_fat_pct,
-          primary_goal: profile.primary_goal,
-          health_notes: profile.health_notes,
-          preferred_session_length: profile.preferred_session_length,
-          preferred_muscles: profile.preferred_muscles ? profile.preferred_muscles.split(',').map((m: string) => m.trim()) : [],
+          full_name: [currentProfile.first_name, currentProfile.last_name].filter(Boolean).join(' '),
+          height_cm: currentProfile.height_cm,
+          weight_kg: currentProfile.weight_kg,
+          body_fat_pct: currentProfile.body_fat_pct,
+          primary_goal: currentProfile.primary_goal,
+          health_notes: currentProfile.health_notes,
+          preferred_session_length: currentProfile.preferred_session_length,
+          preferred_muscles: currentProfile.preferred_muscles ? currentProfile.preferred_muscles.split(',').map((m: string) => m.trim()) : [],
         });
         console.log("[ProfilePage Debug] refreshProfileData: Profile data loaded and form reset.");
 
-        if (profile.active_t_path_id) {
+        if (currentProfile.active_t_path_id) {
           console.log("[ProfilePage Debug] refreshProfileData: Fetching active T-Path.");
-          const { data: tpathData, error: tpathError } = await supabase.from('t_paths').select('*, settings').eq('id', profile.active_t_path_id).single();
+          const { data: tpathData, error: tpathError } = await supabase.from('t_paths').select('*, settings').eq('id', currentProfile.active_t_path_id).single();
           if (tpathError) console.error("[ProfilePage Debug] refreshProfileData: Failed to load active T-Path:", tpathError);
           else {
             setActiveTPath(tpathData as TPath);
             console.log("[ProfilePage Debug] refreshProfileData: Active T-Path loaded.");
           }
+        } else {
+          setActiveTPath(null); // Clear active T-Path if none in profile
         }
 
         // AI Coach Usage
         console.log("[ProfilePage Debug] refreshProfileData: Checking AI Coach usage.");
-        if (profile.last_ai_coach_use_at) {
-          const lastUsedDate = new Date(profile.last_ai_coach_use_at).toDateString();
+        if (currentProfile.last_ai_coach_use_at) {
+          const lastUsedDate = new Date(currentProfile.last_ai_coach_use_at).toDateString();
           const today = new Date().toDateString();
           setAiCoachUsageToday(lastUsedDate === today ? 1 : 0);
         } else {
           setAiCoachUsageToday(0);
         }
         console.log("[ProfilePage Debug] refreshProfileData: AI Coach usage checked.");
+      } else {
+        // If no profile found after refresh, reset form and states
+        form.reset();
+        setActiveTPath(null);
+        setAiCoachUsageToday(0);
       }
     } catch (err: any) {
       toast.error("Failed to load profile data: " + err.message);
@@ -188,7 +200,7 @@ export default function ProfilePage() {
       setLoading(false);
       console.log("[ProfilePage Debug] refreshProfileData: Fetch operation finished.");
     }
-  }, [session, supabase, form, profile, refreshProfileCache, refreshAchievementsCache]);
+  }, [session, supabase, form, refreshProfileCache, refreshAchievementsCache, setActiveTPath, setAiCoachUsageToday]); // Removed 'profile' from dependencies.
 
 
   useEffect(() => {
