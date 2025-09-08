@@ -38,9 +38,19 @@ const mainMuscleGroups = [
 
 const profileSchema = z.object({
   full_name: z.string().min(1, "Your name is required."),
-  height_cm: z.coerce.number().positive("Height must be positive.").optional().nullable(),
-  weight_kg: z.coerce.number().positive("Weight must be positive.").optional().nullable(),
-  body_fat_pct: z.coerce.number().min(0, "Cannot be negative.").max(100, "Cannot exceed 100.").optional().nullable(),
+  height_cm: z.coerce.number()
+    .int("Height must be a whole number.")
+    .positive("Height must be positive.")
+    .optional().nullable(),
+  weight_kg: z.coerce.number()
+    .int("Weight must be a whole number.")
+    .positive("Weight must be positive.")
+    .optional().nullable(),
+  body_fat_pct: z.coerce.number()
+    .int("Body Fat % must be a whole number.")
+    .min(0, "Cannot be negative.")
+    .max(100, "Cannot exceed 100.")
+    .optional().nullable(),
   primary_goal: z.string().optional().nullable(),
   health_notes: z.string().optional().nullable(),
   preferred_session_length: z.string().optional().nullable(),

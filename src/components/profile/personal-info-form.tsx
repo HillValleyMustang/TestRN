@@ -72,7 +72,7 @@ export const PersonalInfoForm = ({ form, isEditing, mainMuscleGroups }: Personal
             <FormItem>
               <div className="flex items-center gap-2 mb-1">
                 <FormLabel>Body Fat (%)</FormLabel>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsBodyFatInfoModalOpen(true)}>
+                <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsBodyFatInfoModalOpen(true)}>
                   <Info className="h-4 w-4 text-muted-foreground" />
                 </Button>
               </div>
@@ -87,6 +87,7 @@ export const PersonalInfoForm = ({ form, isEditing, mainMuscleGroups }: Personal
                 <PopoverTrigger asChild>
                   {/* Removed FormControl wrapper here */}
                   <Button
+                    type="button" // Ensure this button doesn't submit the form
                     variant="outline"
                     role="combobox"
                     className={cn(
