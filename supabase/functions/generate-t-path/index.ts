@@ -20,32 +20,33 @@ serve(async (req: Request) => {
     console.log('Edge Function: generate-t-path started.');
 
     const authHeader = req.headers.get('Authorization');
+    console.log(`Edge Function: Auth header present: ${!!authHeader}`);
     if (!authHeader) throw new Error('Authorization header missing');
 
     const { supabaseAuthClient, supabaseServiceRoleClient } = getSupabaseClients(authHeader);
+    console.log('Edge Function: Supabase clients initialized.');
 
     const { data: { user }, error: userError } = await supabaseAuthClient.auth.getUser();
+    console.log(`Edge Function: User fetch result - user: ${!!user}, error: ${userError?.message}`);
     if (userError || !user) throw new Error('Unauthorized');
     console.log(`User authenticated: ${user.id}`);
 
-    const { tPathId } = await req.json();
+    const requestBody = await req.json();
+    console.log('Edge Function: Request body parsed.');
+    const { tPathId } = requestBody;
     if (!tPathId) throw new Error('tPathId is required');
     console.log(`Received tPathId (main T-Path ID): ${tPathId}`);
 
     // --- IMMEDIATE RESPONSE ---
-    // Send a 200 OK response immediately to unblock the client.
-    // The rest of the function will continue to execute in the background.
-    // This is a common pattern for long-running tasks in serverless functions.
     const response = new Response(
       JSON.stringify({ message: 'T-Path generation initiated successfully (background process).', functionId: 'N/A' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
     // --- ASYNCHRONOUS BACKGROUND WORK ---
-    // Use a self-executing async function to perform the heavy work
-    // This allows the main `serve` function to return `response` immediately.
     (async () => {
       try {
+        console.log('[Background] Starting asynchronous T-Path generation...');
         // Step 1: Fetch T-Path details and user's preferred session length
         console.log(`[Background] Fetching T-Path details for ID: ${tPathId} and user profile for preferred session length.`);
         const { data: tPathData, error: tPathError } = await supabaseServiceRoleClient
