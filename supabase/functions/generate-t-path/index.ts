@@ -60,6 +60,23 @@ interface NullIconExercise {
   library_id: string | null;
 }
 
+// NEW: Local interface mirroring TablesInsert<'exercise_definitions'>
+interface ExerciseDefinitionInsert {
+  category?: string | null;
+  created_at?: string | null;
+  description?: string | null;
+  id?: string;
+  main_muscle: string;
+  name: string;
+  pro_tip?: string | null;
+  type?: string;
+  user_id?: string | null;
+  video_url?: string | null;
+  library_id?: string | null;
+  is_favorite?: boolean | null;
+  icon_url?: string | null;
+}
+
 // --- Utility Functions (from utils.ts) ---
 const toNullOrNumber = (val: string | null | undefined): number | null => {
   if (val === null || val === undefined || val.trim() === '') return null;
@@ -235,7 +252,7 @@ const workoutStructureData: WorkoutStructureEntry[] = (() => {
       }
     }
   });
-  return structure;
+  return Array.from(new Set(structure.map(s => JSON.stringify(s)))).map(s => JSON.parse(s)); // Deduplicate
 })();
 
 // --- Workout Processor (from workout_processor.ts) ---
@@ -246,9 +263,10 @@ const processSingleChildWorkout = async (
   workoutName: string,
   workoutSplit: string,
   maxAllowedMinutes: number,
-  exerciseLookupMap: Map<string, ExerciseDefinitionForWorkoutGeneration>
+  allUserAndGlobalExercises: ExerciseDefinitionForWorkoutGeneration[], // Pass this down
+  globalExerciseDefMap: Map<string, ExerciseDefFromCSV> // Pass this down
 ) => {
-  console.log(`Processing workout: ${workoutName}`);
+  console.log(`[Background] Processing workout: ${workoutName}`);
   
   // 1. Find or Create the child t_path (the individual workout like "Upper Body A")
   let childWorkoutId: string;
@@ -267,7 +285,7 @@ const processSingleChildWorkout = async (
 
   if (existingChildWorkout) {
     childWorkoutId = existingChildWorkout.id;
-    console.log(`Found existing child workout ${workoutName} with ID: ${childWorkoutId}`);
+    console.log(`[Background] Found existing child workout ${workoutName} with ID: ${childWorkoutId}`);
   } else {
     const { data: newChildWorkout, error: createChildWorkoutError } = await supabaseServiceRoleClient
       .from('t_paths')
@@ -282,7 +300,7 @@ const processSingleChildWorkout = async (
       .single();
     if (createChildWorkoutError) throw createChildWorkoutError;
     childWorkoutId = newChildWorkout.id;
-    console.log(`Created new child workout ${workoutName} with ID: ${childWorkoutId}`);
+    console.log(`[Background] Created new child workout ${workoutName} with ID: ${childWorkoutId}`);
   }
 
   // 2. Delete all existing exercise links for this child workout to ensure a clean slate.
@@ -291,7 +309,7 @@ const processSingleChildWorkout = async (
       .delete()
       .eq('template_id', childWorkoutId);
   if (deleteError) throw deleteError;
-  console.log(`Cleared existing exercises for workout ${workoutName} (ID: ${childWorkoutId}).`);
+  console.log(`[Background] Cleared existing exercises for workout ${workoutName} (ID: ${childWorkoutId}).`);
 
   // 3. Determine `desiredDefaultExercises` from workout_exercise_structure
   const { data: structureEntries, error: structureError } = await supabaseServiceRoleClient
@@ -303,12 +321,57 @@ const processSingleChildWorkout = async (
     .order('bonus_for_time_group', { ascending: true, nullsFirst: true });
   if (structureError) throw structureError;
 
+  // Create a map to quickly find user's custom version of a global exercise
+  const userCustomExerciseMap = new Map<string, string>(); // Map<library_id, user_exercise_id>
+  (allUserAndGlobalExercises || []).filter(ex => ex.user_id === user.id && ex.library_id !== null)
+    .forEach(ex => userCustomExerciseMap.set(ex.library_id!, ex.id));
+  console.log(`[Background] Initial userCustomExerciseMap for ${workoutName}:`, userCustomExerciseMap);
+
+
   const exercisesToInsertPayload: { template_id: string; exercise_id: string; order_index: number; is_bonus_exercise: boolean }[] = [];
   for (const entry of structureEntries || []) {
-    const exerciseDef = exerciseLookupMap.get(entry.exercise_library_id);
-    if (!exerciseDef) {
-      console.warn(`Could not find exercise definition for library_id: ${entry.exercise_library_id}. Skipping.`);
-      continue;
+    const globalLibraryId = entry.exercise_library_id;
+    let finalExerciseId: string; // This will be the ID we use in t_path_exercises
+
+    // Check if user already has a custom version of this global exercise
+    if (userCustomExerciseMap.has(globalLibraryId)) {
+      finalExerciseId = userCustomExerciseMap.get(globalLibraryId)!;
+      console.log(`[Background] User already has custom version of ${globalLibraryId}: ${finalExerciseId}`);
+    } else {
+      // User does not have a custom version, create one
+      const globalDef = globalExerciseDefMap.get(globalLibraryId);
+      if (!globalDef) {
+        console.warn(`[Background] Global exercise definition not found for library_id: ${globalLibraryId}. Skipping.`);
+        continue;
+      }
+
+      const newCustomExercise: ExerciseDefinitionInsert = { // Use the new local interface
+        user_id: user.id,
+        name: globalDef.name,
+        main_muscle: globalDef.main_muscle,
+        type: globalDef.type,
+        category: globalDef.category,
+        description: globalDef.description,
+        pro_tip: globalDef.pro_tip,
+        video_url: globalDef.video_url,
+        library_id: globalLibraryId, // Link back to the global library ID
+        is_favorite: false,
+        icon_url: globalDef.icon_url,
+      };
+
+      const { data: insertedCustomExercise, error: insertCustomError } = await supabaseServiceRoleClient
+        .from('exercise_definitions')
+        .insert(newCustomExercise)
+        .select('id')
+        .single();
+
+      if (insertCustomError) {
+        console.error(`[Background] Error creating custom exercise for ${globalLibraryId}:`, insertCustomError);
+        continue;
+      }
+      finalExerciseId = insertedCustomExercise.id;
+      userCustomExerciseMap.set(globalLibraryId, finalExerciseId); // Add to map for future lookups in this session
+      console.log(`[Background] Created new custom exercise ${globalDef.name} with ID: ${finalExerciseId} (from global ${globalLibraryId})`);
     }
 
     const isIncludedAsMain = entry.min_session_minutes !== null && maxAllowedMinutes >= entry.min_session_minutes;
@@ -318,7 +381,7 @@ const processSingleChildWorkout = async (
       const isBonus = isIncludedAsBonus && !isIncludedAsMain;
       exercisesToInsertPayload.push({
         template_id: childWorkoutId,
-        exercise_id: exerciseDef.id, // Use the ID from exercise_definitions, which is the global ID
+        exercise_id: finalExerciseId, // THIS IS THE KEY CHANGE
         order_index: isBonus ? (entry.bonus_for_time_group || 0) : (entry.min_session_minutes || 0),
         is_bonus_exercise: isBonus,
       });
@@ -331,7 +394,7 @@ const processSingleChildWorkout = async (
     ex.order_index = i;
   });
 
-  console.log(`Prepared ${exercisesToInsertPayload.length} exercises for insertion into ${workoutName}.`);
+  console.log(`[Background] Prepared ${exercisesToInsertPayload.length} exercises for insertion into ${workoutName}.`);
 
   // 5. Perform a single bulk insert.
   if (exercisesToInsertPayload.length > 0) {
@@ -339,7 +402,7 @@ const processSingleChildWorkout = async (
       .from('t_path_exercises')
       .insert(exercisesToInsertPayload);
     if (insertError) throw insertError;
-    console.log(`Successfully inserted exercises for workout ${workoutName}.`);
+    console.log(`[Background] Successfully inserted exercises for workout ${workoutName}.`);
   }
 
   return { id: childWorkoutId, template_name: workoutName };
@@ -490,17 +553,15 @@ serve(async (req: Request) => {
         console.log('[Background] Fetching all user-owned and global exercises for lookup map...');
         const { data: allUserAndGlobalExercises, error: fetchAllExercisesError } = await supabaseServiceRoleClient
           .from('exercise_definitions')
-          .select('id, library_id, user_id, icon_url')
-          .or(`user_id.eq.${user.id},user_id.is.null`);
+          .select('id, library_id, user_id, icon_url, name, main_muscle, type, category, description, pro_tip, video_url'); // Select all fields needed for creating a copy
         if (fetchAllExercisesError) throw fetchAllExercisesError;
-        const exerciseLookupMap = new Map<string, ExerciseDefinitionForWorkoutGeneration>();
-        (allUserAndGlobalExercises as ExerciseDefinitionForWorkoutGeneration[]).forEach(ex => {
-          exerciseLookupMap.set(ex.id, ex);
-          if (ex.library_id) {
-            exerciseLookupMap.set(ex.library_id, ex);
-          }
-        });
-        console.log(`[Background] Fetched ${exerciseLookupMap.size} user and global exercises for lookup.`);
+        
+        // Create a map for global exercise definitions by their library_id
+        const globalExerciseDefMap = new Map<string, ExerciseDefFromCSV>();
+        exerciseLibraryData.forEach(ex => globalExerciseDefMap.set(ex.exercise_id, ex));
+        console.log(`[Background] Loaded ${globalExerciseDefMap.size} global exercise definitions from CSV.`);
+
+        console.log(`[Background] Fetched ${allUserAndGlobalExercises?.length || 0} user and global exercises from DB.`);
 
         // Step 3: Process each workout (child T-Path)
         const generatedWorkouts = [];
@@ -513,7 +574,8 @@ serve(async (req: Request) => {
             workoutName,
             workoutSplit,
             maxAllowedMinutes,
-            exerciseLookupMap
+            allUserAndGlobalExercises as ExerciseDefinitionForWorkoutGeneration[], // Pass all exercises
+            globalExerciseDefMap // Pass global def map
           );
           generatedWorkouts.push(result);
           console.log(`[Background] Finished processSingleChildWorkout for: ${workoutName}. Result:`, result);
