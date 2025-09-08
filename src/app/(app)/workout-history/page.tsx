@@ -13,6 +13,7 @@ import { formatTimeAgo, getWorkoutColorClass, cn } from '@/lib/utils';
 import { db } from '@/lib/db';
 import { WorkoutBadge } from '@/components/workout-badge';
 import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal'; // Import the modal
+import { ConsistencyCalendarModal } from '@/components/dashboard/consistency-calendar-modal'; // Import ConsistencyCalendarModal
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
@@ -33,6 +34,7 @@ export default function WorkoutHistoryPage() {
 
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [summarySessionId, setSummarySessionId] = useState<string | null>(null);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false); // State for Consistency Calendar modal
 
   const fetchWorkoutHistory = async () => {
     if (!session) {
@@ -270,10 +272,23 @@ export default function WorkoutHistoryPage() {
         )}
       </section>
 
+      <Button
+        variant="outline"
+        className="w-full mt-4"
+        onClick={() => setIsCalendarOpen(true)}
+      >
+        <CalendarDays className="h-4 w-4 mr-2" /> View Consistency Calendar
+      </Button>
+
       <WorkoutSummaryModal
         open={showSummaryModal}
         onOpenChange={setShowSummaryModal}
         sessionId={summarySessionId}
+      />
+
+      <ConsistencyCalendarModal
+        open={isCalendarOpen}
+        onOpenChange={setIsCalendarOpen}
       />
     </div>
   );
