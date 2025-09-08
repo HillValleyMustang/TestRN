@@ -152,9 +152,9 @@ export const useOnboardingForm = () => {
         }
       });
 
-      await Promise.all(generationPromises);
+      await Promise.all(generationPromises); // Use Promise.all to wait for all generations to start
 
-      toast.success("Initial setup complete! Please provide your personal details.");
+      // Removed toast.success("Initial setup complete! Please provide your personal details.");
 
     } catch (error: any) {
       toast.error("Failed to complete initial setup: " + error.message);
@@ -166,7 +166,7 @@ export const useOnboardingForm = () => {
     }
   }, [session, supabase, tPathType, experience, goalFocus, preferredMuscles, constraints, sessionLength, equipmentMethod]);
 
-  const handleSubmit = useCallback(async (fullName: string, heightCm: number | null, weightKg: number | null, bodyFatPct: number | null) => {
+  const handleSubmit = useCallback(async (fullName: string, heightCm: number, weightKg: number, bodyFatPct: number | null) => {
     if (!session) return;
     
     setLoading(true);

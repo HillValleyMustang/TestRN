@@ -78,6 +78,30 @@ export type Database = {
           },
         ];
       };
+      body_fat_reference_images: {
+        Row: {
+          id: string;
+          percentage: number;
+          image_url: string;
+          description: string | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          percentage: number;
+          image_url: string;
+          description?: string | null;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          percentage?: number;
+          image_url?: string;
+          description?: string | null;
+          created_at?: string | null;
+        };
+        Relationships: [];
+      };
       exercise_definitions: {
         Row: {
           category: string | null;

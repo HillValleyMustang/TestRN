@@ -11,6 +11,7 @@ import { OnboardingStep6_Consent } from "@/components/onboarding/onboarding-step
 import { useSession } from "@/components/session-context-provider";
 import { LoadingOverlay } from "@/components/loading-overlay"; // Import LoadingOverlay
 import { useCallback, useState } from "react"; // Import useCallback and useState
+import { toast } from "sonner"; // NEW: Import toast
 
 export default function OnboardingPage() {
   const { session } = useSession(); // Use session to check if user is logged in
@@ -62,7 +63,14 @@ export default function OnboardingPage() {
   }, [currentStep, originalHandleNext, handleAdvanceToFinalStep]);
 
   const handleSubmit = useCallback(async () => {
-    await originalHandleSubmit(fullName, heightCm, weightKg, bodyFatPct);
+    // Ensure heightCm and weightKg are not null before passing, as they are now required
+    if (fullName && heightCm !== null && weightKg !== null) {
+      await originalHandleSubmit(fullName, heightCm, weightKg, bodyFatPct);
+    } else {
+      // This case should ideally be prevented by the disabled state of the button
+      // but adding a toast for robustness.
+      toast.error("Please fill in all required personal details.");
+    }
   }, [originalHandleSubmit, fullName, heightCm, weightKg, bodyFatPct]);
 
 
@@ -213,9 +221,9 @@ export default function OnboardingPage() {
         </Card>
       </div>
       <LoadingOverlay 
-        isOpen={loading || isInitialSetupLoading} // Use both loading states
-        title={isInitialSetupLoading ? "Preparing Your Workout Plan" : "Completing Setup..."} // Dynamic title
-        description={isInitialSetupLoading ? "Please wait while the AI creates your personalised workout plan in the background." : "Finalizing your profile details."} // Dynamic description
+        isOpen={loading} // Only show loading for the final submit
+        title="Completing Setup..."
+        description="Finalizing your profile details."
       />
     </div>
   );

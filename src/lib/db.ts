@@ -4,6 +4,7 @@ import Dexie, { Table } from 'dexie';
 import { TablesInsert, TablesUpdate, Tables } from '@/types/supabase'; // Import Tables
 import { Session } from '@supabase/supabase-js'; // Import Session type
 import { UserAchievementsRow } from '@/types/supabase-generated/tables/user_achievements'; // Import UserAchievementsRow
+import { Json } from '@/types/supabase-generated'; // Import Json type
 
 export interface SyncQueueItem {
   id?: number;
@@ -80,12 +81,35 @@ export interface LocalTPath extends Tables<'t_paths'> {
   is_bonus: boolean | null;
   parent_t_path_id: string | null;
   created_at: string; // Must be non-null for local cache
+  version: number | null; // Added missing property
+  settings: Json | null; // Added missing property
+  progression_settings: Json | null; // Added missing property
 }
 export interface LocalProfile extends Tables<'profiles'> {
   id: string;
   active_t_path_id: string | null;
   preferred_session_length: string | null;
   created_at: string; // Must be non-null for local cache
+  first_name: string | null; // Added missing property
+  last_name: string | null; // Added missing property
+  full_name: string | null; // Added missing property
+  height_cm: number | null; // Added missing property
+  weight_kg: number | null; // Added missing property
+  body_fat_pct: number | null; // Added missing property
+  primary_goal: string | null; // Added missing property
+  health_notes: string | null; // Added missing property
+  default_rest_time_seconds: number | null; // Added missing property
+  preferred_distance_unit: string | null; // Added missing property
+  preferred_muscles: string | null; // Added missing property
+  preferred_weight_unit: string | null; // Added missing property
+  target_date: string | null; // Added missing property
+  updated_at: string | null; // Added missing property
+  last_ai_coach_use_at: string | null; // Added missing property
+  total_points: number | null; // Added missing property
+  current_streak: number | null; // Added missing property
+  longest_streak: number | null; // Added missing property
+  last_workout_date: string | null; // Added missing property
+  rolling_workout_status: string | null; // Added missing property
 }
 export interface LocalTPathExercise extends Tables<'t_path_exercises'> {
   id: string;
