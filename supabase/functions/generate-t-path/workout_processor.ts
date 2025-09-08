@@ -1,6 +1,6 @@
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-import { ExerciseDefinitionForWorkoutGeneration, TPathData } from './types'; // Removed .ts
+import { ExerciseDefinitionForWorkoutGeneration, TPathData } from './types';
 
 export const processSingleChildWorkout = async (
   supabaseServiceRoleClient: ReturnType<typeof createClient>,

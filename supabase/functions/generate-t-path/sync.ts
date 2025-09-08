@@ -1,7 +1,7 @@
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-import { exerciseLibraryData, workoutStructureData } from './data'; // Removed .ts
-import { NullIconExercise } from './types'; // Removed .ts
+import { exerciseLibraryData, workoutStructureData } from './data';
+import { NullIconExercise } from './types';
 
 export const synchronizeSourceData = async (supabaseServiceRoleClient: ReturnType<typeof createClient>) => {
     console.log('Synchronizing source data...');

@@ -1,5 +1,6 @@
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+// Removed unused import: import { ExerciseDefFromCSV, WorkoutStructureEntry } from './types';
 
 export const toNullOrNumber = (val: string | null | undefined): number | null => {
   if (val === null || val === undefined || val.trim() === '') return null;
