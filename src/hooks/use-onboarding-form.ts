@@ -148,13 +148,14 @@ export const useOnboardingForm = () => {
 
         if (!response.ok) {
           const errorText = await response.text();
-          throw new Error(`Failed to generate T-Path workouts for ${tp.template_name}: ${errorText}`);
+          throw new Error(`Failed to initiate T-Path workout generation for ${tp.template_name}: ${errorText}`);
         }
       });
 
       await Promise.all(generationPromises);
 
-      toast.success("Onboarding completed successfully!");
+      // Updated success message to reflect asynchronous generation
+      toast.success("Onboarding completed! Your workout plan is being generated in the background.");
       router.push('/dashboard');
     } catch (error: any) {
       toast.error("Failed to complete onboarding: " + error.message);

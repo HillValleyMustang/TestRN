@@ -224,7 +224,7 @@ export default function ProfilePage() {
     toast.success("Profile updated successfully!");
 
     if (sessionLengthChanged && activeTPath) {
-      toast.info("Session length changed. Regenerating your workout plan...");
+      toast.info("Session length changed. Initiating workout plan regeneration in the background...");
       try {
         const response = await fetch(`/api/generate-t-path`, {
           method: 'POST',
@@ -237,13 +237,14 @@ export default function ProfilePage() {
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error("API Error during T-Path regeneration:", errorText); // Log the full error response
-          throw new Error(`Failed to regenerate T-Path workouts: ${errorText}`);
+          console.error("API Error during T-Path regeneration initiation:", errorText);
+          throw new Error(`Failed to initiate T-Path workout regeneration: ${errorText}`);
         }
-        toast.success("Your workout plan has been updated!");
+        // The API route now returns immediately, so this toast confirms initiation, not completion.
+        toast.success("Your workout plan update has been initiated and will be ready shortly!");
       } catch (err: any) {
-        toast.error("Error updating workout plan: " + err.message);
-        console.error("T-Path regeneration error:", err);
+        toast.error("Error initiating workout plan update: " + err.message);
+        console.error("T-Path regeneration initiation error:", err);
       }
     }
 

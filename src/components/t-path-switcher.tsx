@@ -94,7 +94,7 @@ export const TPathSwitcher = ({ currentTPathId, onTPathChange, disabled }: TPath
         throw new Error(switchData.error || 'Failed to switch T-Path via API.');
       }
 
-      // Step 2: Call the API to generate the workouts for the NEW T-Path
+      // Step 2: Call the API to initiate generation of workouts for the NEW T-Path (asynchronous)
       const generateResponse = await fetch('/api/generate-t-path', {
           method: 'POST',
           headers: {
@@ -106,12 +106,13 @@ export const TPathSwitcher = ({ currentTPathId, onTPathChange, disabled }: TPath
 
       if (!generateResponse.ok) {
           const errorText = await generateResponse.text();
-          throw new Error(`Switched T-Path, but failed to generate new workouts: ${errorText}`);
+          throw new Error(`Switched T-Path, but failed to initiate new workout generation: ${errorText}`);
       }
 
       onTPathChange(selectedTPathId); // Notify parent component of the change
       setShowSwitchDialog(false);
-      toast.success("Switched to new T-Path and generated workouts!", { id: toastId }); // Update to success
+      // Updated success message to reflect asynchronous generation
+      toast.success("Switched to new T-Path! Workouts are being generated in the background.", { id: toastId });
     } catch (err: any) {
       toast.error("Failed to switch T-Path: " + err.message, { id: toastId }); // Update to error
       console.error("Error switching T-Path:", err);

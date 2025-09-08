@@ -5,18 +5,17 @@ export async function POST(request: Request) {
   try {
     const { tPathId } = await request.json();
     
-    // Extract the Authorization header from the incoming request
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) {
-      // If no authorization header is present, return an unauthorized error
       return NextResponse.json({ error: 'Authorization header missing' }, { status: 401 });
     }
 
-    // Call the edge function, explicitly passing the Authorization header
+    // Revert to 'invoke' as 'invoke_async' is not a standard method.
+    // The Edge Function itself is designed to return quickly, making the client-side call effectively asynchronous.
     const { data, error } = await supabase.functions.invoke('generate-t-path', {
       body: { tPathId },
       headers: {
-        Authorization: authHeader, // Forward the user's JWT
+        Authorization: authHeader,
       },
     });
 
@@ -24,9 +23,10 @@ export async function POST(request: Request) {
       throw new Error(error.message);
     }
 
-    return NextResponse.json(data);
+    // The response from invoke indicates the function was queued, not completed.
+    return NextResponse.json({ message: 'T-Path generation initiated successfully.', functionId: data?.function_id });
   } catch (error: any) {
-    console.error('Error generating T-Path:', error);
+    console.error('Error initiating T-Path generation:', error);
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
