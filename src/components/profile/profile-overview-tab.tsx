@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Flame, Dumbbell, BarChart2 } from 'lucide-react';
+import { Flame, Dumbbell, BarChart2, ListChecks, Star } from 'lucide-react'; // Added ListChecks and Star
 import { Profile as ProfileType } from '@/types/supabase';
 import { AchievementGrid } from './achievement-grid';
 import { ACHIEVEMENT_IDS } from '@/lib/achievements';
@@ -14,6 +14,7 @@ interface ProfileOverviewTabProps {
   achievements: { id: string; name: string; icon: string }[];
   unlockedAchievements: Set<string>;
   onAchievementClick: (achievement: { id: string; name: string; icon: string }) => void;
+  onOpenPointsExplanation: () => void; // New prop for opening points modal
 }
 
 export const ProfileOverviewTab = ({
@@ -23,28 +24,53 @@ export const ProfileOverviewTab = ({
   achievements,
   unlockedAchievements,
   onAchievementClick,
+  onOpenPointsExplanation,
 }: ProfileOverviewTabProps) => {
   if (!profile) return null;
 
+  const totalWorkouts = (profile.total_points || 0) / 10; // Calculate total workouts from points
+  const totalExercisesCompleted = profile.total_exercises_completed || 0; // New field
+
   return (
     <div className="mt-6 space-y-6 border-none p-0">
-      <div className="grid grid-cols-2 gap-4">
-        <Card className="bg-gradient-to-br from-orange-400 to-orange-500 text-primary-foreground shadow-lg">
-          <CardHeader className="flex-row items-center justify-between pb-2">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card className="bg-gradient-to-br from-orange-400 to-orange-500 text-primary-foreground shadow-lg flex flex-col justify-between p-4">
+          <CardHeader className="flex-row items-center justify-between pb-2 p-0">
             <CardTitle className="text-sm font-medium">Current Streak</CardTitle>
             <Flame className="h-4 w-4" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0 pt-2">
             <div className="text-2xl font-bold">{profile.current_streak || 0} Days</div>
           </CardContent>
         </Card>
-        <Card className="bg-gradient-to-br from-blue-400 to-blue-500 text-primary-foreground shadow-lg">
-          <CardHeader className="flex-row items-center justify-between pb-2">
+        <Card className="bg-gradient-to-br from-blue-400 to-blue-500 text-primary-foreground shadow-lg flex flex-col justify-between p-4">
+          <CardHeader className="flex-row items-center justify-between pb-2 p-0">
             <CardTitle className="text-sm font-medium">Total Workouts</CardTitle>
             <Dumbbell className="h-4 w-4" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{(profile.total_points || 0) / 10}</div>
+          <CardContent className="p-0 pt-2">
+            <div className="text-2xl font-bold">{totalWorkouts}</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-purple-400 to-purple-500 text-primary-foreground shadow-lg flex flex-col justify-between p-4">
+          <CardHeader className="flex-row items-center justify-between pb-2 p-0">
+            <CardTitle className="text-sm font-medium">Total Exercises</CardTitle>
+            <ListChecks className="h-4 w-4" />
+          </CardHeader>
+          <CardContent className="p-0 pt-2">
+            <div className="text-2xl font-bold">{totalExercisesCompleted}</div>
+          </CardContent>
+        </Card>
+        <Card 
+          className="bg-gradient-to-br from-yellow-400 to-yellow-500 text-primary-foreground shadow-lg flex flex-col justify-between p-4 cursor-pointer hover:scale-[1.02] transition-transform duration-200 ease-in-out"
+          onClick={onOpenPointsExplanation}
+        >
+          <CardHeader className="flex-row items-center justify-between pb-2 p-0">
+            <CardTitle className="text-sm font-medium">Total Points</CardTitle>
+            <Star className="h-4 w-4" />
+          </CardHeader>
+          <CardContent className="p-0 pt-2">
+            <div className="text-2xl font-bold">{profile.total_points || 0}</div>
           </CardContent>
         </Card>
       </div>

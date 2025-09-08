@@ -46,7 +46,7 @@ export interface LocalSupabaseSession {
 // New interfaces for cached data
 export interface LocalExerciseDefinition extends Tables<'exercise_definitions'> {}
 export interface LocalTPath extends Tables<'t_paths'> {}
-export interface LocalProfile extends Tables<'profiles'> {} // New: Cache Profile
+export interface LocalProfile extends Tables<'profiles'> {} // Removed manual total_exercises_completed
 export interface LocalTPathExercise extends Tables<'t_path_exercises'> {} // New: Cache TPathExercises
 
 export class AppDatabase extends Dexie {

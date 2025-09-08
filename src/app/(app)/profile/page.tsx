@@ -20,6 +20,7 @@ import { ProfileHeader } from '@/components/profile/profile-header';
 import { ProfileOverviewTab } from '@/components/profile/profile-overview-tab';
 import { ProfileStatsTab } from '@/components/profile/profile-stats-tab';
 import { ProfileSettingsTab } from '@/components/profile/profile-settings-tab';
+import { PointsExplanationModal } from '@/components/profile/points-explanation-modal'; // NEW: Import PointsExplanationModal
 import { achievementsList } from '@/lib/achievements';
 import { LoadingOverlay } from '@/components/loading-overlay';
 
@@ -57,6 +58,7 @@ export default function ProfilePage() {
 
   const [isAchievementDetailOpen, setIsAchievementDetailOpen] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<{ id: string; name: string; icon: string } | null>(null);
+  const [isPointsExplanationOpen, setIsPointsExplanationOpen] = useState(false); // NEW: State for points modal
   const [activeTab, setActiveTab] = useState("overview");
 
   const AI_COACH_LIMIT_PER_SESSION = 2;
@@ -376,6 +378,7 @@ export default function ProfilePage() {
                     achievements={achievementsList}
                     unlockedAchievements={unlockedAchievements}
                     onAchievementClick={handleAchievementClick}
+                    onOpenPointsExplanation={() => setIsPointsExplanationOpen(true)} // NEW: Pass handler
                   />
                 </div>
 
@@ -431,6 +434,10 @@ export default function ProfilePage() {
         session={session}
         supabase={supabase}
         achievementInfo={selectedAchievement}
+      />
+      <PointsExplanationModal // NEW: Render the PointsExplanationModal
+        open={isPointsExplanationOpen}
+        onOpenChange={setIsPointsExplanationOpen}
       />
       <LoadingOverlay 
         isOpen={isSaving} 
