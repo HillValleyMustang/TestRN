@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { Tables, WorkoutExercise, WorkoutWithLastCompleted, GroupedTPath, LocalUserAchievement } from '@/types/supabase'; // Import centralized types
+import { Tables, WorkoutExercise, WorkoutWithLastCompleted, GroupedTPath, LocalUserAchievement, Profile } from '@/types/supabase'; // Import centralized types, including Profile
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
 import { db, LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
@@ -11,7 +11,9 @@ import { useSession } from '@/components/session-context-provider';
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
-// Removed local WorkoutWithLastCompleted and GroupedTPath definitions, now using centralized types
+// Define the workout orders
+const ULUL_ORDER = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
+const PPL_ORDER = ['Push', 'Pull', 'Legs'];
 
 interface UseWorkoutDataFetcherReturn {
   allAvailableExercises: ExerciseDefinition[];
@@ -20,6 +22,7 @@ interface UseWorkoutDataFetcherReturn {
   loadingData: boolean;
   dataError: string | null;
   refreshAllData: () => void;
+  profile: Profile | null; // Expose the user's profile
   refreshProfile: () => void; // Expose refresh for profile
   refreshAchievements: () => void; // Expose refresh for achievements
 }
@@ -100,7 +103,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
         .from('user_achievements')
         .select('id, user_id, achievement_id, unlocked_at')
         .eq('user_id', session.user.id);
-      return { data: data || [], error };
+      return { data: data as LocalUserAchievement[] || [], error }; // Explicitly cast data
     }, [session?.user.id]),
     queryKey: 'user_achievements',
     supabase,
@@ -131,6 +134,8 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
 
       if (!session?.user.id || !cachedProfile || cachedProfile.length === 0) {
         console.log("[useWorkoutDataFetcher] No user session or profile, skipping data processing.");
+        setGroupedTPaths([]); // Ensure groupedTPaths is reset if no profile
+        setWorkoutExercisesCache({}); // Ensure cache is reset
         setLoadingData(false); // Not loading, just no user/profile yet
         return;
       }
@@ -160,7 +165,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
         return;
       }
 
-      const childWorkouts = (cachedTPaths || []).filter(tp => tp.parent_t_path_id === activeMainTPath.id && tp.is_bonus);
+      let childWorkouts = (cachedTPaths || []).filter(tp => tp.parent_t_path_id === activeMainTPath.id && tp.is_bonus);
 
       const exerciseDefMap = new Map<string, ExerciseDefinition>();
       (cachedExercises || []).forEach(def => exerciseDefMap.set(def.id, def as ExerciseDefinition));
@@ -194,6 +199,28 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
             return { ...workout, last_completed_at: lastSessionDate?.[0]?.last_completed_at || null };
           })
         );
+
+        // Apply custom sorting for PPL and ULUL workouts
+        const tPathSettings = activeMainTPath.settings as { tPathType?: string };
+        if (tPathSettings?.tPathType === 'ppl') {
+          enrichedChildWorkouts.sort((a, b) => {
+            const indexA = PPL_ORDER.indexOf(a.template_name);
+            const indexB = PPL_ORDER.indexOf(b.template_name);
+            if (indexA === -1 && indexB === -1) return 0;
+            if (indexA === -1) return 1;
+            if (indexB === -1) return -1;
+            return indexA - indexB;
+          });
+        } else if (tPathSettings?.tPathType === 'ulul') {
+          enrichedChildWorkouts.sort((a, b) => {
+            const indexA = ULUL_ORDER.indexOf(a.template_name);
+            const indexB = ULUL_ORDER.indexOf(b.template_name);
+            if (indexA === -1 && indexB === -1) return 0;
+            if (indexA === -1) return 1;
+            if (indexB === -1) return -1;
+            return indexA - indexB;
+          });
+        }
 
         setGroupedTPaths([{
           mainTPath: activeMainTPath,
@@ -241,6 +268,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     loadingData,
     dataError,
     refreshAllData,
+    profile: cachedProfile?.[0] || null, // Expose the first profile from cache
     refreshProfile, // Expose refreshProfile
     refreshAchievements, // Expose refreshAchievements
   };

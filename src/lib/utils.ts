@@ -106,10 +106,10 @@ export const getPillStyles = (workoutType: 'upper-lower' | 'push-pull-legs', cat
 
   if (workoutType === 'upper-lower') {
     if (category === 'upper') {
-      Icon = ChevronUp;
+      Icon = ArrowUp; // Changed from ChevronUp
       colorKey = variant === 'a' ? 'upper-body-a' : 'upper-body-b';
     } else if (category === 'lower') {
-      Icon = ChevronDown;
+      Icon = ArrowDown; // Changed from ChevronDown
       colorKey = variant === 'a' ? 'lower-body-a' : 'lower-body-b';
     }
   } else if (workoutType === 'push-pull-legs') {
