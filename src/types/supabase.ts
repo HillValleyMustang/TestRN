@@ -28,7 +28,9 @@ export interface SetLogState extends Omit<Tables<'set_logs'>, 'id' | 'created_at
 }
 
 // Explicitly define extended Profile types to include preferred_session_length and active_t_path_id
-export type Profile = Tables<'profiles'>;
+export type Profile = Tables<'profiles'> & {
+  total_exercises_completed?: number | null; // TEMPORARY FIX: This should be automatically generated.
+};
 
 export type ProfileInsert = TablesInsert<'profiles'>;
 
