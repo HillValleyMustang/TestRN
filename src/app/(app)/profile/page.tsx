@@ -78,11 +78,19 @@ export default function ProfilePage() {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
 
   const fetchData = useCallback(async () => {
-    if (!session) return;
+    console.log("[ProfilePage Debug] fetchData: Starting fetch operation.");
+    if (!session) {
+      console.log("[ProfilePage Debug] fetchData: No session, returning.");
+      return;
+    }
     setLoading(true);
     try {
+      console.log("[ProfilePage Debug] fetchData: Fetching profile data from Supabase.");
       const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-      if (profileError && profileError.code !== 'PGRST116') throw profileError;
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error("[ProfilePage Debug] fetchData: Profile fetch error:", profileError);
+        throw profileError;
+      }
       if (profileData) {
         setProfile(profileData as Profile);
         form.reset({
@@ -95,16 +103,20 @@ export default function ProfilePage() {
           preferred_session_length: profileData.preferred_session_length,
           preferred_muscles: profileData.preferred_muscles ? profileData.preferred_muscles.split(',').map((m: string) => m.trim()) : [],
         });
+        console.log("[ProfilePage Debug] fetchData: Profile data loaded and form reset.");
 
         if (profileData.active_t_path_id) {
+          console.log("[ProfilePage Debug] fetchData: Fetching active T-Path.");
           const { data: tpathData, error: tpathError } = await supabase.from('t_paths').select('*, settings').eq('id', profileData.active_t_path_id).single();
-          if (tpathError) toast.error("Failed to load active T-Path");
+          if (tpathError) console.error("[ProfilePage Debug] fetchData: Failed to load active T-Path:", tpathError);
           else {
             setActiveTPath(tpathData as TPath);
+            console.log("[ProfilePage Debug] fetchData: Active T-Path loaded.");
           }
         }
 
         // AI Coach Usage
+        console.log("[ProfilePage Debug] fetchData: Checking AI Coach usage.");
         if (profileData.last_ai_coach_use_at) {
           const lastUsedDate = new Date(profileData.last_ai_coach_use_at).toDateString();
           const today = new Date().toDateString();
@@ -112,21 +124,28 @@ export default function ProfilePage() {
         } else {
           setAiCoachUsageToday(0);
         }
+        console.log("[ProfilePage Debug] fetchData: AI Coach usage checked.");
 
         // Fetch unlocked achievements
+        console.log("[ProfilePage Debug] fetchData: Fetching unlocked achievements.");
         const { data: userAchievements, error: achievementsError } = await supabase
           .from('user_achievements')
           .select('achievement_id')
           .eq('user_id', session.user.id);
 
-        if (achievementsError) throw achievementsError;
+        if (achievementsError) {
+          console.error("[ProfilePage Debug] fetchData: Achievements fetch error:", achievementsError);
+          throw achievementsError;
+        }
         setUnlockedAchievements(new Set((userAchievements || []).map(a => a.achievement_id)));
+        console.log("[ProfilePage Debug] fetchData: Unlocked achievements fetched.");
       }
     } catch (err: any) {
       toast.error("Failed to load profile data: " + err.message);
-      console.error("Profile fetch error:", err);
+      console.error("[ProfilePage Debug] fetchData: Caught error during fetch:", err);
     } finally {
       setLoading(false);
+      console.log("[ProfilePage Debug] fetchData: Fetch operation finished.");
     }
   }, [session, supabase, form]);
 
@@ -195,12 +214,18 @@ export default function ProfilePage() {
   const fitnessLevel = getFitnessLevel();
 
   async function onSubmit(values: z.infer<typeof profileSchema>) {
-    if (!session || !profile) return;
+    console.log("[ProfilePage Debug] onSubmit: Starting save operation.");
+    if (!session || !profile) {
+      console.log("[ProfilePage Debug] onSubmit: No session or profile, returning.");
+      return;
+    }
     setIsSaving(true);
+    console.log("[ProfilePage Debug] onSubmit: isSaving set to true.");
 
     const oldSessionLength = profile.preferred_session_length;
     const newSessionLength = values.preferred_session_length;
     const sessionLengthChanged = oldSessionLength !== newSessionLength;
+    console.log(`[ProfilePage Debug] onSubmit: Session length changed: ${sessionLengthChanged}`);
 
     const nameParts = values.full_name.split(' ');
     const firstName = nameParts.shift() || '';
@@ -214,18 +239,23 @@ export default function ProfilePage() {
       updated_at: new Date().toISOString()
     };
     
+    console.log("[ProfilePage Debug] onSubmit: Attempting to update profile in Supabase with data:", updateData);
     const { error } = await supabase.from('profiles').update(updateData).eq('id', session.user.id);
     if (error) {
       toast.error("Failed to update profile: " + error.message);
+      console.error("[ProfilePage Debug] onSubmit: Supabase update error:", error);
       setIsSaving(false);
       return;
     }
+    console.log("[ProfilePage Debug] onSubmit: Profile updated successfully in Supabase.");
 
     toast.success("Profile updated successfully!");
 
     if (sessionLengthChanged && activeTPath) {
+      console.log("[ProfilePage Debug] onSubmit: Session length changed and active T-Path exists. Initiating workout plan regeneration.");
       toast.info("Session length changed. Initiating workout plan regeneration in the background...");
       try {
+        console.log("[ProfilePage Debug] onSubmit: Calling /api/generate-t-path API route.");
         const response = await fetch(`/api/generate-t-path`, {
           method: 'POST',
           headers: {
@@ -237,20 +267,22 @@ export default function ProfilePage() {
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error("API Error during T-Path regeneration initiation:", errorText);
+          console.error("[ProfilePage Debug] onSubmit: API Error during T-Path regeneration initiation:", errorText);
           throw new Error(`Failed to initiate T-Path workout regeneration: ${errorText}`);
         }
-        // The API route now returns immediately, so this toast confirms initiation, not completion.
+        console.log("[ProfilePage Debug] onSubmit: T-Path regeneration initiated successfully via API.");
         toast.success("Your workout plan update has been initiated and will be ready shortly!");
       } catch (err: any) {
         toast.error("Error initiating workout plan update: " + err.message);
-        console.error("T-Path regeneration initiation error:", err);
+        console.error("[ProfilePage Debug] onSubmit: T-Path regeneration initiation error:", err);
       }
     }
-
+    console.log("[ProfilePage Debug] onSubmit: Calling fetchData to refresh profile.");
     await fetchData();
+    console.log("[ProfilePage Debug] onSubmit: fetchData completed.");
     setIsEditing(false);
     setIsSaving(false);
+    console.log("[ProfilePage Debug] onSubmit: isEditing and isSaving set to false. Save operation finished.");
   }
 
   const handleAchievementClick = (achievement: { id: string; name: string; icon: string }) => {
