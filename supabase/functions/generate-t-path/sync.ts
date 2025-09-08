@@ -63,7 +63,7 @@ export const synchronizeSourceData = async (supabaseServiceRoleClient: ReturnTyp
 
         const { error: updateIconsError } = await supabaseServiceRoleClient
             .from('exercise_definitions')
-            .upsert(updatesForNullIcons, { onConflict: 'id' }); // Upsert by 'id' to update existing rows
+            .upsert(updatesForNullIcons, { onConflict: 'id' });
         
         if (updateIconsError) {
             console.error("Error updating NULL icon_urls:", updateIconsError);
