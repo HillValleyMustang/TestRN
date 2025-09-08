@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatTimeAgo, getWorkoutColorClass, cn } from '@/lib/utils';
 import { db } from '@/lib/db';
 import { WorkoutBadge } from '@/components/workout-badge';
+import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal'; // Import the modal
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
@@ -29,6 +30,9 @@ export default function WorkoutHistoryPage() {
   const [workoutSessions, setWorkoutSessions] = useState<WorkoutSessionWithAggregatedDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [summarySessionId, setSummarySessionId] = useState<string | null>(null);
 
   const fetchWorkoutHistory = async () => {
     if (!session) {
@@ -161,6 +165,11 @@ export default function WorkoutHistoryPage() {
     }
   };
 
+  const handleViewSummary = (sessionId: string) => {
+    setSummarySessionId(sessionId);
+    setShowSummaryModal(true);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground p-4">
@@ -248,7 +257,7 @@ export default function WorkoutHistoryPage() {
                       </div>
                     </div>
                     <Button
-                      onClick={() => router.push(`/workout-summary/${sessionItem.id}`)}
+                      onClick={() => handleViewSummary(sessionItem.id)} // Changed to open modal
                       className="w-full mt-4"
                     >
                       View Summary
@@ -260,6 +269,12 @@ export default function WorkoutHistoryPage() {
           </div>
         )}
       </section>
+
+      <WorkoutSummaryModal
+        open={showSummaryModal}
+        onOpenChange={setShowSummaryModal}
+        sessionId={summarySessionId}
+      />
     </div>
   );
 }
