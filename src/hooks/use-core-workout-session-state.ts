@@ -51,14 +51,16 @@ export const useCoreWorkoutSessionState = (): UseCoreWorkoutSessionStateReturn =
   const isWorkoutActive = !!activeWorkout && !!currentSessionId; // Only active if a workout is selected AND a session has started
 
   const hasUnsavedChanges = useMemo(() => {
-    if (!isWorkoutActive) {
+    // If no workout is even selected, there are no unsaved changes for a workout session.
+    if (!activeWorkout) {
       return false;
     }
+    // Check if any exercise in the session has sets with user input that are not yet saved.
     const hasChanges = Object.values(exercisesWithSets).some(setsArray => 
-      setsArray.some(set => hasUserInput(set))
+      setsArray.some(set => hasUserInput(set) && !set.isSaved)
     );
     return hasChanges;
-  }, [isWorkoutActive, exercisesWithSets]);
+  }, [activeWorkout, exercisesWithSets]);
 
   const setActiveWorkout: Dispatch<SetStateAction<TPath | null>> = useCallback((value: SetStateAction<TPath | null>) => {
     _setActiveWorkout(value);
