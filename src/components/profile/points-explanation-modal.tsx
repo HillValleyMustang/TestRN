@@ -14,7 +14,7 @@ interface PointsExplanationModalProps {
 export const PointsExplanationModal = ({ open, onOpenChange }: PointsExplanationModalProps) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col"> {/* Added flex-col and max-h */}
+      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col overflow-y-auto"> {/* Added overflow-y-auto here */}
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Star className="h-5 w-5 text-yellow-500" /> How Points Are Calculated
@@ -23,7 +23,7 @@ export const PointsExplanationModal = ({ open, onOpenChange }: PointsExplanation
             Your fitness points reflect your overall engagement and progress in the app.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="flex-grow py-4 pr-4"> {/* Added flex-grow, py, and pr for scroll area */}
+        <ScrollArea className="flex-grow py-4 pr-4">
           <div className="space-y-4">
             <div className="flex items-start gap-3">
               <Dumbbell className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
@@ -57,7 +57,7 @@ export const PointsExplanationModal = ({ open, onOpenChange }: PointsExplanation
             </p>
           </div>
         </ScrollArea>
-        <div className="flex justify-center pt-4"> {/* Added pt for spacing */}
+        <div className="flex justify-center pt-4">
           <Button onClick={() => onOpenChange(false)}>Got It!</Button>
         </div>
       </DialogContent>
