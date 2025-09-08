@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Flame, Dumbbell, BarChart2, ListChecks, Star } from 'lucide-react'; // Added ListChecks and Star
+import { Flame, Dumbbell, BarChart2, ListChecks, Star } from 'lucide-react';
 import { Profile as ProfileType } from '@/types/supabase';
 import { AchievementGrid } from './achievement-grid';
 import { ACHIEVEMENT_IDS } from '@/lib/achievements';
@@ -14,7 +14,9 @@ interface ProfileOverviewTabProps {
   achievements: { id: string; name: string; icon: string }[];
   unlockedAchievements: Set<string>;
   onAchievementClick: (achievement: { id: string; name: string; icon: string }) => void;
-  onOpenPointsExplanation: () => void; // New prop for opening points modal
+  onOpenPointsExplanation: () => void;
+  totalWorkoutsCount: number; // NEW prop
+  totalExercisesCount: number; // NEW prop
 }
 
 export const ProfileOverviewTab = ({
@@ -25,11 +27,13 @@ export const ProfileOverviewTab = ({
   unlockedAchievements,
   onAchievementClick,
   onOpenPointsExplanation,
+  totalWorkoutsCount, // DESTRUCTURE NEW PROP
+  totalExercisesCount, // DESTRUCTURE NEW PROP
 }: ProfileOverviewTabProps) => {
   if (!profile) return null;
 
-  const totalWorkouts = (profile.total_points || 0) / 10; // Calculate total workouts from points
-  const totalExercisesCompleted = profile.total_exercises_completed || 0; // New field
+  // Removed local calculation of totalWorkouts and totalExercisesCompleted
+  // They are now passed directly as props.
 
   return (
     <div className="mt-6 space-y-6 border-none p-0">
@@ -49,7 +53,7 @@ export const ProfileOverviewTab = ({
             <Dumbbell className="h-4 w-4" />
           </CardHeader>
           <CardContent className="p-0 pt-2">
-            <div className="text-2xl font-bold">{totalWorkouts}</div>
+            <div className="text-2xl font-bold">{totalWorkoutsCount}</div> {/* USE NEW PROP */}
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-purple-400 to-purple-500 text-primary-foreground shadow-lg flex flex-col justify-between p-4">
@@ -58,7 +62,7 @@ export const ProfileOverviewTab = ({
             <ListChecks className="h-4 w-4" />
           </CardHeader>
           <CardContent className="p-0 pt-2">
-            <div className="text-2xl font-bold">{totalExercisesCompleted}</div>
+            <div className="text-2xl font-bold">{totalExercisesCount}</div> {/* USE NEW PROP */}
           </CardContent>
         </Card>
         <Card 

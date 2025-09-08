@@ -20,7 +20,7 @@ import { ProfileHeader } from '@/components/profile/profile-header';
 import { ProfileOverviewTab } from '@/components/profile/profile-overview-tab';
 import { ProfileStatsTab } from '@/components/profile/profile-stats-tab';
 import { ProfileSettingsTab } from '@/components/profile/profile-settings-tab';
-import { PointsExplanationModal } from '@/components/profile/points-explanation-modal'; // NEW: Import PointsExplanationModal
+import { PointsExplanationModal } from '@/components/profile/points-explanation-modal';
 import { achievementsList } from '@/lib/achievements';
 import { LoadingOverlay } from '@/components/loading-overlay';
 
@@ -55,10 +55,12 @@ export default function ProfilePage() {
   const [activeTPath, setActiveTPath] = useState<TPath | null>(null);
   const [aiCoachUsageToday, setAiCoachUsageToday] = useState(0);
   const [unlockedAchievements, setUnlockedAchievements] = useState<Set<string>>(new Set());
+  const [totalWorkoutsCount, setTotalWorkoutsCount] = useState(0); // NEW state for total workouts
+  const [totalExercisesCount, setTotalExercisesCount] = useState(0); // NEW state for total exercises
 
   const [isAchievementDetailOpen, setIsAchievementDetailOpen] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<{ id: string; name: string; icon: string } | null>(null);
-  const [isPointsExplanationOpen, setIsPointsExplanationOpen] = useState(false); // NEW: State for points modal
+  const [isPointsExplanationOpen, setIsPointsExplanationOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
 
   const AI_COACH_LIMIT_PER_SESSION = 2;
@@ -141,6 +143,36 @@ export default function ProfilePage() {
         }
         setUnlockedAchievements(new Set((userAchievements || []).map(a => a.achievement_id)));
         console.log("[ProfilePage Debug] fetchData: Unlocked achievements fetched.");
+
+        // NEW: Fetch total completed workouts
+        console.log("[ProfilePage Debug] fetchData: Fetching total completed workouts.");
+        const { count: workoutsCount, error: workoutsCountError } = await supabase
+          .from('workout_sessions')
+          .select('id', { count: 'exact' })
+          .eq('user_id', session.user.id)
+          .not('completed_at', 'is', null);
+        if (workoutsCountError) {
+          console.error("[ProfilePage Debug] fetchData: Workouts count error:", workoutsCountError);
+          throw workoutsCountError;
+        }
+        setTotalWorkoutsCount(workoutsCount || 0);
+        console.log(`[ProfilePage Debug] fetchData: Total workouts count: ${workoutsCount}`);
+
+        // NEW: Fetch total unique exercises completed
+        console.log("[ProfilePage Debug] fetchData: Fetching total unique exercises completed.");
+        const { data: setLogsData, error: setLogsError } = await supabase
+          .from('set_logs')
+          .select('exercise_id')
+          .eq('workout_sessions.user_id', session.user.id)
+          .not('workout_sessions.completed_at', 'is', null); // Only count exercises from completed sessions
+        if (setLogsError) {
+          console.error("[ProfilePage Debug] fetchData: Set logs for unique exercises error:", setLogsError);
+          throw setLogsError;
+        }
+        const uniqueExerciseIds = new Set((setLogsData || []).map(log => log.exercise_id));
+        setTotalExercisesCount(uniqueExerciseIds.size);
+        console.log(`[ProfilePage Debug] fetchData: Total unique exercises count: ${uniqueExerciseIds.size}`);
+
       }
     } catch (err: any) {
       toast.error("Failed to load profile data: " + err.message);
@@ -255,7 +287,6 @@ export default function ProfilePage() {
 
     if (sessionLengthChanged && activeTPath) {
       console.log("[ProfilePage Debug] onSubmit: Session length changed and active T-Path exists. Initiating workout plan regeneration.");
-      // toast.info("Session length changed. Initiating workout plan regeneration in the background..."); // Removed
       try {
         console.log("[ProfilePage Debug] onSubmit: Calling /api/generate-t-path API route.");
         const response = await fetch(`/api/generate-t-path`, {
@@ -274,7 +305,6 @@ export default function ProfilePage() {
           throw new Error(`Failed to initiate T-Path workout regeneration: ${errorText}`);
         }
         console.log("[ProfilePage Debug] onSubmit: T-Path regeneration initiated successfully via API.");
-        // toast.success("Your workout plan update has been initiated and will be ready shortly!"); // Removed
       } catch (err: any) {
         toast.error("Error initiating workout plan update: " + err.message);
         console.error("[ProfilePage Debug] onSubmit: T-Path regeneration initiation error:", err);
@@ -378,7 +408,9 @@ export default function ProfilePage() {
                     achievements={achievementsList}
                     unlockedAchievements={unlockedAchievements}
                     onAchievementClick={handleAchievementClick}
-                    onOpenPointsExplanation={() => setIsPointsExplanationOpen(true)} // NEW: Pass handler
+                    onOpenPointsExplanation={() => setIsPointsExplanationOpen(true)}
+                    totalWorkoutsCount={totalWorkoutsCount} // PASS NEW PROP
+                    totalExercisesCount={totalExercisesCount} // PASS NEW PROP
                   />
                 </div>
 
@@ -435,7 +467,7 @@ export default function ProfilePage() {
         supabase={supabase}
         achievementInfo={selectedAchievement}
       />
-      <PointsExplanationModal // NEW: Render the PointsExplanationModal
+      <PointsExplanationModal
         open={isPointsExplanationOpen}
         onOpenChange={setIsPointsExplanationOpen}
       />
