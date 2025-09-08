@@ -4,7 +4,7 @@ import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Star, Dumbbell, ListChecks, CalendarCheck } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area'; // Import ScrollArea
+// Removed: import { ScrollArea } from '@/components/ui/scroll-area'; // Removed import
 
 interface PointsExplanationModalProps {
   open: boolean;
@@ -14,7 +14,7 @@ interface PointsExplanationModalProps {
 export const PointsExplanationModal = ({ open, onOpenChange }: PointsExplanationModalProps) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col overflow-y-auto"> {/* Added overflow-y-auto here */}
+      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col overflow-y-auto"> {/* DialogContent itself is scrollable */}
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Star className="h-5 w-5 text-yellow-500" /> How Points Are Calculated
@@ -23,7 +23,7 @@ export const PointsExplanationModal = ({ open, onOpenChange }: PointsExplanation
             Your fitness points reflect your overall engagement and progress in the app.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="flex-grow py-4 pr-4">
+        <div className="flex-grow py-4 pr-4"> {/* Content area, now directly scrollable via DialogContent */}
           <div className="space-y-4">
             <div className="flex items-start gap-3">
               <Dumbbell className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
@@ -56,7 +56,7 @@ export const PointsExplanationModal = ({ open, onOpenChange }: PointsExplanation
               Keep logging your workouts and activities to increase your points and climb the fitness ranks!
             </p>
           </div>
-        </ScrollArea>
+        </div>
         <div className="flex justify-center pt-4">
           <Button onClick={() => onOpenChange(false)}>Got It!</Button>
         </div>
