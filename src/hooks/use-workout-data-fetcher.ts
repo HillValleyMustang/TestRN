@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { Tables, WorkoutExercise, WorkoutWithLastCompleted, GroupedTPath } from '@/types/supabase'; // Import centralized types
+import { Tables, WorkoutExercise, WorkoutWithLastCompleted, GroupedTPath, LocalUserAchievement } from '@/types/supabase'; // Import centralized types
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
 import { db, LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
@@ -20,6 +20,8 @@ interface UseWorkoutDataFetcherReturn {
   loadingData: boolean;
   dataError: string | null;
   refreshAllData: () => void;
+  refreshProfile: () => void; // Expose refresh for profile
+  refreshAchievements: () => void; // Expose refresh for achievements
 }
 
 export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
@@ -89,11 +91,28 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     sessionUserId: session?.user.id ?? null,
   });
 
+  // NEW: Use the caching hook for User Achievements
+  const { data: cachedAchievements, loading: loadingAchievements, error: achievementsError, refresh: refreshAchievements } = useCacheAndRevalidate<LocalUserAchievement>({
+    cacheTable: 'user_achievements_cache',
+    supabaseQuery: useCallback(async (client: SupabaseClient) => {
+      if (!session?.user.id) return { data: [], error: null };
+      const { data, error } = await client
+        .from('user_achievements')
+        .select('id, user_id, achievement_id, unlocked_at')
+        .eq('user_id', session.user.id);
+      return { data: data || [], error };
+    }, [session?.user.id]),
+    queryKey: 'user_achievements',
+    supabase,
+    sessionUserId: session?.user.id ?? null,
+  });
+
+
   // Effect to process cached data and then trigger enrichment
   useEffect(() => {
     const processAndEnrichData = async () => {
-      const isLoading = loadingExercises || loadingTPaths || loadingProfile || loadingTPathExercises;
-      const anyError = exercisesError || tPathsError || profileError || tPathExercisesError;
+      const isLoading = loadingExercises || loadingTPaths || loadingProfile || loadingTPathExercises || loadingAchievements;
+      const anyError = exercisesError || tPathsError || profileError || tPathExercisesError || achievementsError;
 
       console.log(`[useWorkoutDataFetcher] processAndEnrichData: isLoading=${isLoading}, anyError=${anyError}`);
 
@@ -202,7 +221,8 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     cachedExercises, loadingExercises, exercisesError,
     cachedTPaths, loadingTPaths, tPathsError,
     cachedProfile, loadingProfile, profileError,
-    cachedTPathExercises, loadingTPathExercises, tPathExercisesError
+    cachedTPathExercises, loadingTPathExercises, tPathExercisesError,
+    cachedAchievements, loadingAchievements, achievementsError // Added achievements dependencies
   ]);
 
   const refreshAllData = useCallback(() => {
@@ -211,7 +231,8 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     refreshTPaths();
     refreshProfile();
     refreshTPathExercises();
-  }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises]);
+    refreshAchievements(); // Refresh achievements
+  }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, refreshAchievements]);
 
   return {
     allAvailableExercises,
@@ -220,5 +241,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     loadingData,
     dataError,
     refreshAllData,
+    refreshProfile, // Expose refreshProfile
+    refreshAchievements, // Expose refreshAchievements
   };
 };

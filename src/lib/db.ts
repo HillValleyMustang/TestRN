@@ -3,6 +3,7 @@
 import Dexie, { Table } from 'dexie';
 import { TablesInsert, TablesUpdate, Tables } from '@/types/supabase'; // Import Tables
 import { Session } from '@supabase/supabase-js'; // Import Session type
+import { UserAchievementsRow } from '@/types/supabase-generated/tables/user_achievements'; // Import UserAchievementsRow
 
 export interface SyncQueueItem {
   id?: number;
@@ -94,6 +95,14 @@ export interface LocalTPathExercise extends Tables<'t_path_exercises'> {
   is_bonus_exercise: boolean | null;
   created_at: string; // Must be non-null for local cache
 }
+// NEW: LocalUserAchievement
+export interface LocalUserAchievement extends UserAchievementsRow {
+  id: string;
+  user_id: string;
+  achievement_id: string;
+  unlocked_at: string | null;
+}
+
 
 export class AppDatabase extends Dexie {
   workout_sessions!: Table<LocalWorkoutSession, string>;
@@ -105,6 +114,7 @@ export class AppDatabase extends Dexie {
   t_paths_cache!: Table<LocalTPath, string>; // New table for caching T-Paths
   profiles_cache!: Table<LocalProfile, string>; // New: Cache Profile
   t_path_exercises_cache!: Table<LocalTPathExercise, string>; // New: Cache TPathExercises
+  user_achievements_cache!: Table<LocalUserAchievement, string>; // NEW: Cache user achievements
 
   constructor() {
     super('WorkoutTrackerDB');
@@ -149,6 +159,10 @@ export class AppDatabase extends Dexie {
     // New version to add template_name index to workout_sessions
     this.version(8).stores({
       workout_sessions: '&id, user_id, session_date, t_path_id, template_name',
+    });
+    // NEW: Add user_achievements_cache
+    this.version(9).stores({
+      user_achievements_cache: '&id, user_id, achievement_id',
     });
   }
 }

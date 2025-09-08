@@ -50,6 +50,8 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     loadingData,
     dataError,
     refreshAllData,
+    refreshProfile, // Destructure refreshProfile
+    refreshAchievements, // Destructure refreshAchievements
   } = useWorkoutDataFetcher();
 
   const {
@@ -297,5 +299,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     handleEditWorkoutSaveSuccess,
     setIsEditWorkoutDialogOpen,
     toggleExerciseCardExpansion, // Removed duplicate
+    refreshProfile, // Expose refreshProfile
+    refreshAchievements, // Expose refreshAchievements
   };
 };

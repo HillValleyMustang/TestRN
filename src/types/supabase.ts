@@ -58,6 +58,9 @@ export type UserExercisePRUpdate = TablesUpdate<'user_exercise_prs'>;
 
 // Re-export UserAchievementRow for direct use
 export type UserAchievement = UserAchievementsRow;
+// NEW: LocalUserAchievement type
+export type LocalUserAchievement = UserAchievementsRow;
+
 
 // New type for ai_coach_usage_logs table
 export type AiCoachUsageLog = AiCoachUsageLogsRow;
