@@ -6,7 +6,7 @@ import { useSession } from '@/components/session-context-provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { History, ArrowRight, Eye, Dumbbell, Timer } from 'lucide-react';
-import { Tables } from '@/types/supabase';
+import { Tables, WorkoutSessionWithAggregatedDetails } from '@/types/supabase'; // Import WorkoutSessionWithAggregatedDetails
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatTimeAgo, getWorkoutColorClass, cn } from '@/lib/utils';
@@ -16,9 +16,7 @@ type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
-interface WorkoutSessionWithDetails extends WorkoutSession {
-  exercise_count: number;
-}
+// Removed local WorkoutSessionWithDetails definition, now using centralized type
 
 interface PreviousWorkoutsCardProps {
   onViewSummary: (sessionId: string) => void; // New prop to open the summary modal
@@ -27,7 +25,7 @@ interface PreviousWorkoutsCardProps {
 export const PreviousWorkoutsCard = ({ onViewSummary }: PreviousWorkoutsCardProps) => {
   const { session, supabase } = useSession();
   const router = useRouter();
-  const [recentSessions, setRecentSessions] = useState<WorkoutSessionWithDetails[]>([]);
+  const [recentSessions, setRecentSessions] = useState<WorkoutSessionWithAggregatedDetails[]>([]); // Use centralized type
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -92,7 +90,7 @@ export const PreviousWorkoutsCard = ({ onViewSummary }: PreviousWorkoutsCardProp
           }
         }
 
-        const sessionsWithDetails: WorkoutSessionWithDetails[] = await Promise.all(
+        const sessionsWithDetails: WorkoutSessionWithAggregatedDetails[] = await Promise.all( // Use centralized type
           (sessionsData || []).map(async (sessionItem) => {
             // Count unique exercise_ids from the fetched setLogsData
             const uniqueExerciseCount = new Set(
@@ -104,6 +102,8 @@ export const PreviousWorkoutsCard = ({ onViewSummary }: PreviousWorkoutsCardProp
             return {
               ...sessionItem,
               exercise_count: uniqueExerciseCount,
+              total_volume_kg: 0, // Placeholder, not calculated here
+              has_prs: false, // Placeholder, not calculated here
             };
           })
         );

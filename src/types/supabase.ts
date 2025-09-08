@@ -28,7 +28,7 @@ export interface SetLogState extends Omit<Tables<'set_logs'>, 'id' | 'created_at
 }
 
 // Explicitly define extended Profile types to include preferred_session_length and active_t_path_id
-export type Profile = Tables<'profiles'>; // Removed total_exercises_completed
+export type Profile = Tables<'profiles'>;
 
 export type ProfileInsert = TablesInsert<'profiles'>;
 
@@ -66,4 +66,29 @@ export type AiCoachUsageLog = AiCoachUsageLogsRow;
 export interface FetchedExerciseDefinition extends Omit<Tables<'exercise_definitions'>, 'id'> {
   id: string | null; // Allow null for new exercises (e.g., when creating from global)
   is_favorited_by_current_user?: boolean; // For global exercises favorited by user
+}
+
+// Centralized type for workouts with last completed date
+export interface WorkoutWithLastCompleted extends Tables<'t_paths'> {
+  id: string; // Ensure ID is always present
+  template_name: string; // Ensure template_name is always present
+  last_completed_at: string | null;
+}
+
+// Centralized type for workout sessions with aggregated details
+export interface WorkoutSessionWithAggregatedDetails extends Tables<'workout_sessions'> {
+  id: string; // Ensure ID is always present
+  template_name: string | null; // Ensure template_name is always present
+  session_date: string; // Ensure session_date is always present
+  completed_at: string | null; // Ensure completed_at is always present
+  duration_string: string | null; // Ensure duration_string is always present
+  exercise_count: number;
+  total_volume_kg: number;
+  has_prs: boolean;
+}
+
+// Centralized type for grouped T-Paths
+export interface GroupedTPath {
+  mainTPath: Tables<'t_paths'>;
+  childWorkouts: WorkoutWithLastCompleted[];
 }

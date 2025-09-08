@@ -5,30 +5,30 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Flame, Dumbbell, BarChart2, ListChecks, Star } from 'lucide-react';
 import { Profile as ProfileType } from '@/types/supabase';
 import { AchievementGrid } from './achievement-grid';
-import { ACHIEVEMENT_IDS } from '@/lib/achievements';
+import { ACHIEVEMENT_IDS, achievementsList } from '@/lib/achievements'; // Import achievementsList
 
 interface ProfileOverviewTabProps {
   profile: ProfileType | null;
   bmi: string | null;
   dailyCalories: string | null;
-  achievements: { id: string; name: string; icon: string }[];
+  // Removed 'achievements' prop as achievementsList is now imported directly
   unlockedAchievements: Set<string>;
   onAchievementClick: (achievement: { id: string; name: string; icon: string }) => void;
   onOpenPointsExplanation: () => void;
   totalWorkoutsCount: number;
-  totalExercisesCount: number; // Renamed from totalSetsCount
+  totalExercisesCount: number;
 }
 
 export const ProfileOverviewTab = ({
   profile,
   bmi,
   dailyCalories,
-  achievements,
+  // Removed 'achievements' from destructuring
   unlockedAchievements,
   onAchievementClick,
   onOpenPointsExplanation,
   totalWorkoutsCount,
-  totalExercisesCount, // Renamed from totalSetsCount
+  totalExercisesCount,
 }: ProfileOverviewTabProps) => {
   if (!profile) return null;
 
@@ -55,11 +55,11 @@ export const ProfileOverviewTab = ({
         </Card>
         <Card className="bg-gradient-to-br from-purple-400 to-purple-500 text-primary-foreground shadow-lg flex flex-col justify-between p-4">
           <CardHeader className="flex-row items-center justify-between pb-2 p-0">
-            <CardTitle className="text-sm font-medium">Total Exercises</CardTitle> {/* Changed label */}
-            <ListChecks className="h-4 w-4" /> {/* Changed icon */}
+            <CardTitle className="text-sm font-medium">Total Exercises</CardTitle>
+            <ListChecks className="h-4 w-4" />
           </CardHeader>
           <CardContent className="p-0 pt-2">
-            <div className="text-2xl font-bold">{totalExercisesCount}</div> {/* Using totalExercisesCount */}
+            <div className="text-2xl font-bold">{totalExercisesCount}</div>
           </CardContent>
         </Card>
         <Card 
@@ -93,9 +93,9 @@ export const ProfileOverviewTab = ({
         <CardHeader><CardTitle>Achievements</CardTitle></CardHeader>
         <CardContent>
           <AchievementGrid
-            achievements={achievementsList}
+            achievements={achievementsList} // Use the imported list
             unlockedAchievements={unlockedAchievements}
-            onAchievementClick={handleAchievementClick}
+            onAchievementClick={onAchievementClick} // Use the correct prop
           />
           <p className="text-center text-muted-foreground text-sm mt-4">
             Tap to see requirements

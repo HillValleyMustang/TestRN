@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useSession } from "@/components/session-context-provider";
-import { Tables } from "@/types/supabase";
+import { Tables, WorkoutWithLastCompleted } from "@/types/supabase"; // Import WorkoutWithLastCompleted
 import { toast } from "sonner";
 import { ActiveTPathWorkoutsList } from "@/components/manage-t-paths/active-t-path-workouts-list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,15 +16,13 @@ import { EditWorkoutExercisesDialog } from "@/components/manage-t-paths/edit-wor
 type TPath = Tables<'t_paths'>;
 type Profile = Tables<'profiles'>;
 
-interface WorkoutWithLastCompleted extends TPath {
-  last_completed_at: string | null;
-}
+// Removed local WorkoutWithLastCompleted definition, now using centralized type
 
 export default function ManageTPathsPage() {
   const { session, supabase } = useSession();
   const router = useRouter();
   const [activeMainTPath, setActiveMainTPath] = useState<TPath | null>(null);
-  const [childWorkouts, setChildWorkouts] = useState<WorkoutWithLastCompleted[]>([]);
+  const [childWorkouts, setChildWorkouts] = useState<WorkoutWithLastCompleted[]>([]); // Use centralized type
   const [loading, setLoading] = useState(true);
   const [isSwitchingTPath, setIsSwitchingTPath] = useState(false); // This state is now unused but kept for potential future use if switcher is re-added
   
@@ -108,7 +106,7 @@ export default function ManageTPathsPage() {
         });
       }
 
-      setChildWorkouts(childWorkoutsWithLastDate);
+      setChildWorkouts(childWorkoutsWithLastDate as WorkoutWithLastCompleted[]); // Cast to centralized type
 
     } catch (err: any) {
       toast.error("Failed to load Transformation Path data: " + err.message);

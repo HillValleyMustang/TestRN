@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useSession } from "@/components/session-context-provider";
-import { Tables } from "@/types/supabase";
+import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -61,7 +61,7 @@ const exerciseSchema = z.object({
 });
 
 interface ExerciseFormProps {
-  editingExercise: ExerciseDefinition | null;
+  editingExercise: FetchedExerciseDefinition | null;
   onCancelEdit: () => void;
   onSaveSuccess: () => void;
   isExpandedInDialog?: boolean; // New prop to indicate if it's in a dialog
@@ -177,14 +177,15 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
     };
 
     // Determine if we are editing an existing user-owned exercise or creating a new one
-    const isEditingUserOwned = editingExercise && editingExercise.user_id === session.user.id && editingExercise.library_id === null;
+    // Ensure editingExercise.id is not null for an update operation
+    const isEditingUserOwned = editingExercise && editingExercise.user_id === session.user.id && editingExercise.library_id === null && editingExercise.id !== null;
 
     if (isEditingUserOwned) {
       // This is an actual edit of a user-owned exercise
       const { error } = await supabase
         .from('exercise_definitions')
         .update(exerciseData)
-        .eq('id', editingExercise.id);
+        .eq('id', editingExercise.id); // Now TypeScript knows editingExercise.id is string
 
       if (error) {
         toast.error("Failed to update exercise: " + error.message);
