@@ -264,6 +264,7 @@ export default function ProfilePage() {
           },
           body: JSON.stringify({ tPathId: activeTPath.id })
         });
+        console.log("[ProfilePage Debug] onSubmit: Fetch call to /api/generate-t-path completed.");
 
         if (!response.ok) {
           const errorText = await response.text();
