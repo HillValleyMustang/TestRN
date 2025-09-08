@@ -13,7 +13,7 @@ import { AiSessionAnalysisCard } from '@/components/workout-summary/ai-session-a
 import { ACHIEVEMENT_DISPLAY_INFO } from '@/lib/achievements';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArrowLeft, Trophy } from 'lucide-react';
-import { db } from '@/lib/db';
+import { db, LocalWorkoutSession, LocalSetLog, LocalExerciseDefinition } from '@/lib/db';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatWeight, formatTime } from '@/lib/unit-conversions';
@@ -94,7 +94,18 @@ export const WorkoutSummaryModal = ({ open, onOpenChange, sessionId }: WorkoutSu
             if (exerciseDef?.name) newPrsThisSession.add(exerciseDef.name);
           }
           if (exerciseDef?.id) uniqueExerciseIds.add(exerciseDef.id);
-          processedSetLogs.push({ ...log, exercise_definitions: exerciseDef || null });
+          
+          // Explicitly pick properties for exercise_definitions to match SetLogWithExercise type
+          processedSetLogs.push({ 
+            ...log, 
+            exercise_definitions: exerciseDef ? { 
+              id: exerciseDef.id, 
+              name: exerciseDef.name, 
+              main_muscle: exerciseDef.main_muscle, 
+              type: exerciseDef.type, 
+              category: exerciseDef.category 
+            } : null 
+          });
         });
         
         setTotalVolume(volume);

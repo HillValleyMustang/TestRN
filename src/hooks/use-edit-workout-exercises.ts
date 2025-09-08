@@ -4,11 +4,14 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "@/components/session-context-provider";
 import { Tables } from "@/types/supabase";
 import { toast } from "sonner";
+import { LocalExerciseDefinition } from '@/lib/db'; // Import LocalExerciseDefinition
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type Profile = Tables<'profiles'>;
 
 export interface WorkoutExerciseWithDetails extends ExerciseDefinition {
+  id: string; // Explicitly define id
+  name: string; // Explicitly define name
   order_index: number;
   is_bonus_exercise: boolean;
   t_path_exercise_id: string; // ID from t_path_exercises table
@@ -58,7 +61,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       // 2. Fetch all exercise definitions that are either user-owned or global
       const { data: allExercisesData, error: allExercisesError } = await supabase
         .from('exercise_definitions')
-        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, is_favorite, created_at, user_id, icon_url')
+        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url')
         .or(`user_id.eq.${session.user.id},user_id.is.null`) // Fetch all user's and global exercises
         .order('name', { ascending: true });
 
@@ -77,6 +80,8 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         }
         return {
           ...exerciseDef,
+          id: exerciseDef.id, // Ensure id is explicitly set
+          name: exerciseDef.name, // Ensure name is explicitly set
           order_index: link.order_index,
           is_bonus_exercise: link.is_bonus_exercise || false,
           t_path_exercise_id: link.id,
@@ -141,6 +146,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       const newExerciseWithDetails: WorkoutExerciseWithDetails = {
         ...exerciseToAddDetails,
         id: finalExerciseId, // Use the original ID
+        name: exerciseToAddDetails.name, // Ensure name is explicitly set
         order_index: newOrderIndex,
         is_bonus_exercise: isBonus,
         t_path_exercise_id: tempTPathExerciseId,

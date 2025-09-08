@@ -4,22 +4,24 @@
  */
 
 // Import generated Supabase types to be used and re-exported
-import type { Json } from "./json";
-import type { Database } from "./database";
+import type { Json, Database } from "./database";
 import type { Tables, TablesInsert, TablesUpdate } from "./tables";
 import type { Enums } from "./enums";
-import type { GetLastExerciseSetsForExerciseArgs, GetLastExerciseSetsForExerciseReturns } from "./functions/get_last_exercise_sets_for_exercise"; // Import new RPC types
+import type { UserAchievementsRow } from "./tables/user_achievements";
+import type { AiCoachUsageLogsRow } from "./tables/ai_coach_usage_logs";
+import type { GetLastExerciseSetsForExerciseReturns } from "./functions/get_last_exercise_sets_for_exercise";
+import type { GetTotalCompletedExerciseInstancesArgs, GetTotalCompletedExerciseInstancesReturns } from "./functions/get_total_completed_exercise_instances";
 
-export type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums };
-
-// Re-exporting all from tables.ts and enums.ts to ensure they are available
-export * from "./tables";
-export * from "./enums";
-export * from "./tables/user_achievements"; // Export the new user_achievements types
-export * from "./tables/ai_coach_usage_logs"; // Export the new ai_coach_usage_logs types
-
-// Re-export new RPC types
-export type { GetLastExerciseSetsForExerciseArgs, GetLastExerciseSetsForExerciseReturns };
-
-// No individual table/function exports here to avoid circular dependencies.
-// Application code should use `Tables<'table_name'>` or `Database['public']['Tables']['table_name']['Row']`
+export type {
+  Json,
+  Database,
+  Tables,
+  TablesInsert,
+  TablesUpdate,
+  Enums,
+  UserAchievementsRow,
+  AiCoachUsageLogsRow,
+  GetLastExerciseSetsForExerciseReturns,
+  GetTotalCompletedExerciseInstancesArgs,
+  GetTotalCompletedExerciseInstancesReturns,
+};

@@ -147,7 +147,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
 
     const performSelection = async () => {
       if (pendingWorkoutIdToSelect === 'ad-hoc') {
-        const adHocWorkout = { id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: null, version: null, settings: null, progression_settings: null, parent_t_path_id: null };
+        const adHocWorkout: TPath = { id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: new Date().toISOString(), version: null, settings: null, progression_settings: null, parent_t_path_id: null };
         setActiveWorkout(adHocWorkout);
         setExercisesForSession([]);
         setExercisesWithSets({});
@@ -166,7 +166,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
           setSessionStartTime(null);
         } else {
           toast.error("Selected workout not found. Starting Ad-Hoc workout.");
-          setActiveWorkout({ id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: null, version: null, settings: null, progression_settings: null, parent_t_path_id: null });
+          setActiveWorkout({ id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: new Date().toISOString(), version: null, settings: null, progression_settings: null, parent_t_path_id: null });
           setExercisesForSession([]);
           setExercisesWithSets({});
           setCurrentSessionId(null);
@@ -266,6 +266,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     isCreatingSession,
     isWorkoutActive,
     hasUnsavedChanges,
+    expandedExerciseCards,
     setActiveWorkout,
     setExercisesForSession,
     setExercisesWithSets,
@@ -295,7 +296,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     handleOpenEditWorkoutDialog,
     handleEditWorkoutSaveSuccess,
     setIsEditWorkoutDialogOpen,
-    expandedExerciseCards,
-    toggleExerciseCardExpansion,
+    toggleExerciseCardExpansion, // Removed duplicate
   };
 };

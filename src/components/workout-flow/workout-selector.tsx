@@ -22,6 +22,8 @@ type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 interface WorkoutWithLastCompleted extends TPath {
+  id: string; // Explicitly define id
+  template_name: string; // Explicitly define template_name
   last_completed_at: string | null;
 }
 

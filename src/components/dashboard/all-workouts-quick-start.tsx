@@ -16,6 +16,8 @@ import { cn } from '@/lib/utils';
 type TPath = Tables<'t_paths'>;
 
 interface WorkoutWithLastCompleted extends TPath {
+  id: string; // Explicitly define id
+  template_name: string; // Explicitly define template_name
   last_completed_at: string | null;
 }
 

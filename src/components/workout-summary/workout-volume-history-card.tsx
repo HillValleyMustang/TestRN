@@ -7,7 +7,7 @@ import { useSession } from '@/components/session-context-provider';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { Dumbbell } from 'lucide-react';
-import { db } from '@/lib/db';
+import { db, LocalWorkoutSession, LocalSetLog, LocalExerciseDefinition } from '@/lib/db';
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
@@ -125,11 +125,8 @@ export const WorkoutVolumeHistoryCard = ({ workoutTemplateName, currentSessionId
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 5, right: 5, left: 20, bottom: 5 }}> {/* Adjusted left margin */}
                   <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.5} />
-                  <XAxis dataKey="date" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                  <XAxis dataKey="date" tickFormatter={(tick) => new Date(tick).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
                   <YAxis
-                    tick={{ fontSize: 12 }}
-                    tickLine={false}
-                    axisLine={false}
                     tickFormatter={(value) => {
                       if (value >= 1000) {
                         return `${Math.round(value / 1000)}k`;

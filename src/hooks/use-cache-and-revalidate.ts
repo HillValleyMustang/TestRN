@@ -17,7 +17,7 @@ interface UseCacheAndRevalidateProps<T> {
   sessionUserId: string | null | undefined;
 }
 
-export function useCacheAndRevalidate<T extends { id: string; user_id?: string | null; template_id?: string; exercise_id?: string }>(
+export function useCacheAndRevalidate<T extends { id: string; user_id?: string | null; template_id?: string; exercise_id?: string; created_at?: string }>(
   { cacheTable, supabaseQuery, queryKey, supabase, sessionUserId }: UseCacheAndRevalidateProps<T>
 ) {
   const [loading, setLoading] = useState(true);

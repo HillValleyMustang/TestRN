@@ -10,7 +10,7 @@ import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatTimeAgo, getWorkoutColorClass, cn } from '@/lib/utils';
-import { db } from '@/lib/db';
+import { db, LocalWorkoutSession, LocalSetLog, LocalExerciseDefinition } from '@/lib/db';
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
@@ -49,7 +49,7 @@ export const PreviousWorkoutsCard = ({ onViewSummary }: PreviousWorkoutsCardProp
 
         // Store fetched sessions in IndexedDB
         if (sessionsData && sessionsData.length > 0) {
-          await db.workout_sessions.bulkPut(sessionsData);
+          await db.workout_sessions.bulkPut(sessionsData as LocalWorkoutSession[]);
         }
 
         const sessionIds = (sessionsData || []).map(s => s.id);
@@ -64,7 +64,7 @@ export const PreviousWorkoutsCard = ({ onViewSummary }: PreviousWorkoutsCardProp
 
         // Store fetched set logs in IndexedDB
         if (setLogsData && setLogsData.length > 0) {
-          await db.set_logs.bulkPut(setLogsData);
+          await db.set_logs.bulkPut(setLogsData as LocalSetLog[]);
         }
 
         // 3. Collect all unique exercise IDs from these set logs
@@ -88,7 +88,7 @@ export const PreviousWorkoutsCard = ({ onViewSummary }: PreviousWorkoutsCardProp
           
           if (missingDefsError) throw missingDefsError;
           if (missingExerciseDefs && missingExerciseDefs.length > 0) {
-            await db.exercise_definitions_cache.bulkPut(missingExerciseDefs);
+            await db.exercise_definitions_cache.bulkPut(missingExerciseDefs as LocalExerciseDefinition[]);
           }
         }
 

@@ -141,12 +141,14 @@ export const useWorkoutSessionPersistence = ({
       
       await db.workout_sessions.update(currentSessionId, updatePayload);
       
-      const fullSyncPayload = {
+      const fullSyncPayload: LocalWorkoutSession = { // Explicitly type fullSyncPayload
         id: currentSessionId,
         user_id: session.user.id,
         session_date: sessionStartTime.toISOString(),
         template_name: activeWorkout.template_name,
         t_path_id: activeWorkout.id === 'ad-hoc' ? null : activeWorkout.id,
+        created_at: sessionStartTime.toISOString(), // Ensure created_at is present
+        rating: null, // Ensure rating is present
         ...updatePayload
       };
       await addToSyncQueue('update', 'workout_sessions', fullSyncPayload);

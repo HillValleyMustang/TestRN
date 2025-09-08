@@ -16,10 +16,27 @@ export interface SyncQueueItem {
 
 // Local versions of tables will have a string UUID as primary key
 export interface LocalWorkoutSession extends Tables<'workout_sessions'> {
-  // This now correctly uses the Row type, which expects `null` instead of `undefined`
+  id: string;
+  user_id: string; // Must be non-null for local cache
+  session_date: string;
+  template_name: string | null;
+  completed_at: string | null;
+  rating: number | null;
+  duration_string: string | null;
+  t_path_id: string | null;
+  created_at: string; // Must be non-null for local cache
 }
 export interface LocalSetLog extends Tables<'set_logs'> {
-  // This now correctly uses the Row type, which expects `null` instead of `undefined`
+  id: string;
+  session_id: string; // Must be non-null for local cache
+  exercise_id: string; // Must be non-null for local cache
+  weight_kg: number | null;
+  reps: number | null;
+  reps_l: number | null;
+  reps_r: number | null;
+  time_seconds: number | null;
+  is_pb: boolean | null;
+  created_at: string; // Must be non-null for local cache
 }
 
 export interface LocalDraftSetLog {
@@ -44,10 +61,39 @@ export interface LocalSupabaseSession {
 }
 
 // New interfaces for cached data
-export interface LocalExerciseDefinition extends Tables<'exercise_definitions'> {}
-export interface LocalTPath extends Tables<'t_paths'> {}
-export interface LocalProfile extends Tables<'profiles'> {} // Removed manual total_exercises_completed
-export interface LocalTPathExercise extends Tables<'t_path_exercises'> {} // New: Cache TPathExercises
+export interface LocalExerciseDefinition extends Tables<'exercise_definitions'> {
+  id: string;
+  user_id: string | null;
+  library_id: string | null;
+  name: string;
+  main_muscle: string;
+  type: string;
+  is_favorite: boolean | null;
+  category: string | null; // Added category
+  created_at: string; // Must be non-null for local cache
+}
+export interface LocalTPath extends Tables<'t_paths'> {
+  id: string;
+  user_id: string | null;
+  template_name: string;
+  is_bonus: boolean | null;
+  parent_t_path_id: string | null;
+  created_at: string; // Must be non-null for local cache
+}
+export interface LocalProfile extends Tables<'profiles'> {
+  id: string;
+  active_t_path_id: string | null;
+  preferred_session_length: string | null;
+  created_at: string; // Must be non-null for local cache
+}
+export interface LocalTPathExercise extends Tables<'t_path_exercises'> {
+  id: string;
+  template_id: string;
+  exercise_id: string;
+  order_index: number;
+  is_bonus_exercise: boolean | null;
+  created_at: string; // Must be non-null for local cache
+}
 
 export class AppDatabase extends Dexie {
   workout_sessions!: Table<LocalWorkoutSession, string>;

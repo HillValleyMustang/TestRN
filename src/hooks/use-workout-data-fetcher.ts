@@ -12,6 +12,8 @@ type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 interface WorkoutWithLastCompleted extends TPath {
+  id: string; // Explicitly define id
+  template_name: string; // Explicitly define template_name
   last_completed_at: string | null;
 }
 
@@ -44,7 +46,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
       return client
         .from('exercise_definitions')
-        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, is_favorite, created_at, user_id, icon_url')
+        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url')
         .order('name', { ascending: true });
     }, []),
     queryKey: 'all_exercises',

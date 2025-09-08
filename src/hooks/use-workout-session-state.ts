@@ -56,6 +56,8 @@ interface UseWorkoutSessionStateReturn {
   updateExerciseSets: (exerciseId: string, newSets: SetLogState[]) => void;
   createWorkoutSessionInDb: (templateName: string, firstSetTimestamp: string) => Promise<string>;
   finishWorkoutSession: () => Promise<string | null>;
+  expandedExerciseCards: Record<string, boolean>;
+  toggleExerciseCardExpansion: (exerciseId: string) => void;
 }
 
 export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercisesCache }: UseWorkoutSessionStateProps): UseWorkoutSessionStateReturn => {
@@ -227,6 +229,13 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
     loadDraftsForActiveWorkout();
   }, [session?.user.id, activeWorkout, currentSessionId, allAvailableExercises, workoutExercisesCache, _resetLocalState, setExercisesForSession, setExercisesWithSets, setCompletedExercises, setCurrentSessionId, setSessionStartTime, setExpandedExerciseCards]);
 
+  const toggleExerciseCardExpansion = useCallback((exerciseId: string) => {
+    setExpandedExerciseCards(prev => ({
+      ...prev,
+      [exerciseId]: !prev[exerciseId]
+    }));
+  }, [setExpandedExerciseCards]);
+
   return {
     activeWorkout,
     exercisesForSession,
@@ -237,6 +246,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
     isCreatingSession,
     isWorkoutActive,
     hasUnsavedChanges,
+    expandedExerciseCards,
     setActiveWorkout,
     setExercisesForSession,
     setExercisesWithSets,
@@ -251,5 +261,6 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
     updateExerciseSets,
     createWorkoutSessionInDb,
     finishWorkoutSession,
+    toggleExerciseCardExpansion,
   };
 };

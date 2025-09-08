@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Tables } from "@/types/supabase";
 import { getMaxMinutes } from '@/lib/utils';
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
-import { LocalExerciseDefinition, LocalTPath } from '@/lib/db';
+import { LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise } from '@/lib/db';
 
 // Extend the ExerciseDefinition type to include a temporary flag for global exercises
 interface FetchedExerciseDefinition extends Tables<'exercise_definitions'> {
@@ -105,7 +105,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       if (activeTPathId) {
         const activeMainTPath = allTPaths.find(tp => tp.id === activeTPathId);
         if (activeMainTPath) {
-          const childWorkouts = allTPaths.filter(tp => tp.parent_t_path_id === activeMainTPath.id);
+          const childWorkouts = allTPaths.filter(tp => tp.parent_t_path_id === activeMainTPath.id && tp.is_bonus);
           activeChildWorkoutIds = childWorkouts.map(cw => cw.id);
           activeWorkoutNames = childWorkouts.map(cw => cw.template_name);
         }
@@ -271,7 +271,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
   const handleEditClick = useCallback((exercise: FetchedExerciseDefinition) => {
     // When editing a global exercise, pre-fill the "Add New Exercise" form
     // The user will then create a new custom exercise based on the global one.
-    setEditingExercise(exercise.user_id === sessionUserId ? exercise : { ...exercise, id: '', user_id: sessionUserId, is_favorite: false, library_id: null });
+    setEditingExercise(exercise.user_id === sessionUserId ? exercise : { ...exercise, id: null, user_id: sessionUserId, is_favorite: false, library_id: null });
   }, [sessionUserId]);
 
   const handleCancelEdit = useCallback(() => {

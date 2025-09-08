@@ -158,17 +158,17 @@ export default function ProfilePage() {
         setTotalWorkoutsCount(workoutsCount || 0);
         console.log(`[ProfilePage Debug] fetchData: Total workouts count: ${workoutsCount}`);
 
-        // NEW: Fetch total unique exercises completed via RPC
-        console.log("[ProfilePage Debug] fetchData: Fetching total unique exercises completed via RPC.");
-        const { data: uniqueExercisesCount, error: uniqueExercisesError } = await supabase
-          .rpc('get_unique_completed_exercise_count', { p_user_id: session.user.id });
+        // NEW: Fetch total exercise instances completed via RPC
+        console.log("[ProfilePage Debug] fetchData: Fetching total exercise instances completed via RPC.");
+        const { data: totalExerciseInstances, error: totalExerciseInstancesError } = await supabase
+          .rpc('get_total_completed_exercise_instances', { p_user_id: session.user.id });
 
-        if (uniqueExercisesError) {
-          console.error("[ProfilePage Debug] fetchData: RPC error fetching unique exercises count:", uniqueExercisesError);
-          throw uniqueExercisesError;
+        if (totalExerciseInstancesError) {
+          console.error("[ProfilePage Debug] fetchData: RPC error fetching total exercise instances count:", totalExerciseInstancesError);
+          throw totalExerciseInstancesError;
         }
-        setTotalExercisesCount(uniqueExercisesCount || 0);
-        console.log(`[ProfilePage Debug] fetchData: Total unique exercises count from RPC: ${uniqueExercisesCount}`);
+        setTotalExercisesCount(totalExerciseInstances || 0);
+        console.log(`[ProfilePage Debug] fetchData: Total exercise instances from RPC: ${totalExerciseInstances}`);
 
       }
     } catch (err: any) {
