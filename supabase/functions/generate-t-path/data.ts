@@ -1,5 +1,5 @@
-import { ExerciseDefFromCSV, WorkoutStructureEntry } from './types';
-import { toNullOrNumber, toNullIfEmpty } from './utils';
+import { ExerciseDefFromCSV, WorkoutStructureEntry } from './types.ts';
+import { toNullOrNumber, toNullIfEmpty } from './utils.ts';
 
 // --- Master Data Source (from CSV) ---
 export const rawCsvData = [
