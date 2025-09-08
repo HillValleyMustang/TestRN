@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Trash2, Dumbbell, Timer, ListChecks, Trophy } from 'lucide-react';
+import { ArrowLeft, Trash2, Dumbbell, Timer, ListChecks, Trophy, CalendarDays } from 'lucide-react'; // Added CalendarDays
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -194,6 +194,10 @@ export default function WorkoutHistoryPage() {
         </Button>
       </header>
 
+      <p className="text-muted-foreground mb-6 text-center text-lg">
+        Total Workouts: <span className="font-semibold text-primary">{workoutSessions.length}</span>
+      </p>
+
       <section className="mb-8">
         {workoutSessions.length === 0 ? (
           <p className="text-muted-foreground text-center">No workout sessions logged yet. Start a workout to see your history!</p>
@@ -222,6 +226,10 @@ export default function WorkoutHistoryPage() {
                   </CardHeader>
                   <CardContent className="pt-0 pb-3 px-3">
                     <div className="grid grid-cols-2 gap-y-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <CalendarDays className="h-4 w-4 text-primary" /> {/* Added CalendarDays icon */}
+                        <span>{new Date(sessionItem.session_date).toLocaleDateString()}</span> {/* Display workout date */}
+                      </div>
                       <div className="flex items-center gap-1">
                         <Timer className="h-4 w-4 text-primary" />
                         <span>{sessionItem.duration_string || 'Less than a minute'}</span>
