@@ -21,6 +21,7 @@ const mobileNavLinks = [
   { href: "/manage-exercises", label: "Exercises", icon: Dumbbell },
   { href: "/manage-t-paths", label: "Paths", icon: LayoutTemplate },
   { href: "/profile", label: "Profile", icon: User },
+  { href: "/workout", label: "Workout", icon: Dumbbell }, // Moved workout here for consistent styling
 ];
 
 export function Header() {
@@ -45,7 +46,7 @@ export function Header() {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="sm:max-w-xs">
-            <nav className="grid gap-3 text-lg font-medium overflow-y-auto h-full py-4"> {/* Added overflow-y-auto, h-full, py-4, reduced gap */}
+            <nav className="grid gap-2 text-lg font-medium overflow-y-auto h-full py-2"> {/* Reduced gap, py */}
               {mobileNavLinks.map(link => {
                 const isActive = pathname === link.href;
                 const Icon = link.icon;
@@ -54,37 +55,25 @@ export function Header() {
                     key={link.href}
                     href={link.href}
                     className={cn(
-                      "flex items-center gap-4 px-4 py-3 rounded-lg transition-colors", // Adjusted px, py
+                      "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors", // Adjusted px, py, gap
                       isActive 
-                        ? "bg-action text-action-foreground font-semibold shadow-md" // Solid action color, shadow
-                        : "text-foreground hover:bg-muted" // Default text, hover effect
+                        ? "bg-action text-action-foreground font-semibold shadow-md" 
+                        : "text-foreground hover:bg-muted"
                     )}
                   >
-                    <Icon className={cn("h-6 w-6", isActive ? "text-action-foreground" : "text-primary")} /> {/* Dynamic icon color */}
+                    <Icon className={cn("h-5 w-5", isActive ? "text-action-foreground" : "text-primary")} /> {/* Reduced h/w */}
                     {link.label}
                   </WorkoutAwareLink>
                 );
               })}
               <hr className="my-2" />
-              <WorkoutAwareLink
-                href="/workout"
-                className={cn(
-                  "flex items-center gap-4 px-4 py-3 rounded-lg transition-colors",
-                  pathname === "/workout" 
-                    ? "bg-action text-action-foreground font-semibold shadow-md" 
-                    : "text-foreground hover:bg-muted"
-                )}
-              >
-                <Dumbbell className={cn("h-6 w-6", pathname === "/workout" ? "text-action-foreground" : "text-primary")} />
-                Workout
-              </WorkoutAwareLink>
               <Button 
-                variant="default" // Changed to default variant
-                className="flex items-center gap-4 px-4 py-3 rounded-lg justify-start text-lg font-medium bg-primary text-primary-foreground hover:bg-primary/90" // Styled as a primary button
+                variant="default" 
+                className="flex items-center gap-3 px-3 py-2 rounded-lg justify-start text-lg font-medium bg-primary text-primary-foreground hover:bg-primary/90" // Styled as a primary button
                 onClick={() => setIsActivityLogOpen(true)}
               >
-                <Plus className="h-6 w-6 text-primary-foreground" />
-                Log Activity {/* Full text for clarity on button */}
+                <Plus className="h-5 w-5 text-primary-foreground" /> {/* Reduced h/w */}
+                Log Activity
               </Button>
             </nav>
           </SheetContent>

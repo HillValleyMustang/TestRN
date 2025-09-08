@@ -23,7 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from '@/components/ui/button';
-import { WorkoutLogModal } from './workout-log-modal';
+import { WorkoutPerformanceModal } from './workout-performance-modal'; // Import the new modal
 import { ConsistencyCalendarModal } from './consistency-calendar-modal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'; // Import Card components
 
@@ -31,17 +31,17 @@ export const ActionHub = () => {
   const router = useRouter();
   const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
   const [isAiCoachOpen, setIsAiCoachOpen] = useState(false);
-  const [isWorkoutLogOpen, setIsWorkoutLogOpen] = useState(false);
+  const [isWorkoutPerformanceOpen, setIsWorkoutPerformanceOpen] = useState(false); // New state for the new modal
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
   return (
     <>
-      <Card className="p-0 border rounded-xl bg-card"> {/* Converted div to Card, removed padding */}
-        <CardHeader className="pb-2 text-center"> {/* Adjusted padding-bottom */}
-          <CardTitle className="text-xl font-semibold">Quick Links</CardTitle> {/* Added CardTitle */}
+      <Card className="p-0 border rounded-xl bg-card">
+        <CardHeader className="pb-2 text-center">
+          <CardTitle className="text-xl font-semibold">Quick Links</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-3 grid-rows-2 gap-3 p-4 pt-2"> {/* Adjusted padding-top */}
+        <CardContent className="grid grid-cols-3 grid-rows-2 gap-3 p-4 pt-2">
           <ActionButton
             title="Log Activity"
             icon={<Activity className="h-5 w-5 text-chart-2" strokeWidth={2.5} />}
@@ -55,7 +55,7 @@ export const ActionHub = () => {
           <ActionButton
             title="Workout Log"
             icon={<History className="h-5 w-5 text-chart-1" strokeWidth={2.5} />}
-            onClick={() => setIsWorkoutLogOpen(true)}
+            onClick={() => setIsWorkoutPerformanceOpen(true)} // Open new modal
           />
           <ActionButton
             title="Consistency Calendar"
@@ -70,7 +70,6 @@ export const ActionHub = () => {
                 variant="outline"
                 className="h-full w-full p-2 flex flex-col items-center justify-center text-center whitespace-normal gap-1 font-semibold text-sm leading-tight border-0 shadow-sm hover:shadow-md transition-shadow bg-card"
               >
-                {/* Re-added span wrapper for content */}
                 <span>
                   {isMoreMenuOpen ? <ChevronUp className="h-5 w-5" strokeWidth={2.5} /> : <ChevronDown className="h-5 w-5" strokeWidth={2.5} />}
                   <span>More</span>
@@ -101,7 +100,7 @@ export const ActionHub = () => {
 
       <ActivityLoggingDialog open={isActivityLogOpen} onOpenChange={setIsActivityLogOpen} />
       <AiCoachDialog open={isAiCoachOpen} onOpenChange={setIsAiCoachOpen} />
-      <WorkoutLogModal open={isWorkoutLogOpen} onOpenChange={setIsWorkoutLogOpen} />
+      <WorkoutPerformanceModal open={isWorkoutPerformanceOpen} onOpenChange={setIsWorkoutPerformanceOpen} /> {/* Use the new modal */}
       <ConsistencyCalendarModal open={isCalendarOpen} onOpenChange={setIsCalendarOpen} />
     </>
   );

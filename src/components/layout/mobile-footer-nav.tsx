@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { WorkoutAwareLink } from "../workout-flow/workout-aware-link"; // Import WorkoutAwareLink
 
 const navLinks = [
-  { href: "/dashboard", label: "Dashboard", icon: Home },
+  { href: "/dashboard", label: "Dashboard", icon: Home }, // Changed label from 'Home' to 'Dashboard'
   { href: "/workout", label: "Workout", icon: Dumbbell },
   { href: "/manage-exercises", label: "Exercises", icon: BookOpen },
   { href: "/progress", label: "Progress", icon: BarChart3 },

@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { ArrowLeft, Trash2, Dumbbell, Timer, ListChecks, Trophy, CalendarDays } from 'lucide-react'; // Added CalendarDays
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
@@ -198,16 +198,25 @@ export default function WorkoutHistoryPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground p-2 sm:p-4">
-      <header className="mb-8 flex justify-between items-center">
+      <header className="mb-4 flex justify-between items-center"> {/* Reduced mb-8 to mb-4 */}
         <h1 className="text-3xl font-bold">Workout History</h1>
         <Button variant="ghost" onClick={() => router.push('/dashboard')}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Back
         </Button>
       </header>
 
-      <p className="text-muted-foreground mb-6 text-center text-lg">
-        Total Workouts: <span className="font-semibold text-primary">{workoutSessions.length}</span>
-      </p>
+      <div className="flex justify-between items-center mb-6"> {/* New div for total workouts and calendar button */}
+        <p className="text-muted-foreground text-lg">
+          Total Workouts: <span className="font-semibold text-primary">{workoutSessions.length}</span>
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsCalendarOpen(true)}
+        >
+          <CalendarDays className="h-4 w-4 mr-2" /> Calendar
+        </Button>
+      </div>
 
       <section className="mb-8">
         {workoutSessions.length === 0 ? (
@@ -271,14 +280,6 @@ export default function WorkoutHistoryPage() {
           </div>
         )}
       </section>
-
-      <Button
-        variant="outline"
-        className="w-full mt-4"
-        onClick={() => setIsCalendarOpen(true)}
-      >
-        <CalendarDays className="h-4 w-4 mr-2" /> View Consistency Calendar
-      </Button>
 
       <WorkoutSummaryModal
         open={showSummaryModal}
