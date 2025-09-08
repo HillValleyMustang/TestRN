@@ -17,9 +17,9 @@ import * as z from 'zod';
 
 const profileSchema = z.object({
   full_name: z.string().min(1, "Your name is required."),
-  height_cm: z.coerce.number().positive("Height must be positive.").optional().nullable(),
-  weight_kg: z.coerce.number().positive("Weight must be positive.").optional().nullable(),
-  body_fat_pct: z.coerce.number().min(0, "Cannot be negative.").max(100, "Cannot exceed 100.").optional().nullable(),
+  height_cm: z.coerce.number().int("Height must be a whole number.").positive("Height must be positive.").optional().nullable(),
+  weight_kg: z.coerce.number().int("Weight must be a whole number.").positive("Weight must be positive.").optional().nullable(),
+  body_fat_pct: z.coerce.number().int("Body Fat % must be a whole number.").min(0, "Cannot be negative.").max(100, "Cannot exceed 100.").optional().nullable(),
   primary_goal: z.string().optional().nullable(),
   health_notes: z.string().optional().nullable(),
   preferred_session_length: z.string().optional().nullable(),
@@ -52,14 +52,14 @@ export const PersonalInfoForm = ({ form, isEditing, mainMuscleGroups }: Personal
           <FormField control={form.control} name="height_cm" render={({ field }) => (
             <FormItem className="flex-1">
               <FormLabel>Height (cm)</FormLabel>
-              <FormControl><Input type="number" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px]" /></FormControl>
+              <FormControl><Input type="number" inputMode="numeric" step="1" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px]" /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
           <FormField control={form.control} name="weight_kg" render={({ field }) => (
             <FormItem className="flex-1">
               <FormLabel>Weight (kg)</FormLabel>
-              <FormControl><Input type="number" step="0.1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px]" /></FormControl>
+              <FormControl><Input type="number" step="1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px]" /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
@@ -67,7 +67,7 @@ export const PersonalInfoForm = ({ form, isEditing, mainMuscleGroups }: Personal
         <FormField control={form.control} name="body_fat_pct" render={({ field }) => (
           <FormItem>
             <FormLabel>Body Fat (%)</FormLabel>
-            <FormControl><Input type="number" step="0.1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px]" /></FormControl>
+            <FormControl><Input type="number" inputMode="numeric" step="1" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px]" /></FormControl>
             <FormMessage />
           </FormItem>
         )} />
