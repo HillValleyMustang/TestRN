@@ -158,46 +158,17 @@ export default function ProfilePage() {
         setTotalWorkoutsCount(workoutsCount || 0);
         console.log(`[ProfilePage Debug] fetchData: Total workouts count: ${workoutsCount}`);
 
-        // NEW: Fetch total unique exercises completed (FIXED LOGIC)
-        console.log("[ProfilePage Debug] fetchData: Fetching total unique exercises completed.");
-        // First, get all completed session IDs for the user
-        const { data: completedSessionIds, error: sessionIdsError } = await supabase
-          .from('workout_sessions')
-          .select('id')
-          .eq('user_id', session.user.id)
-          .not('completed_at', 'is', null);
+        // NEW: Fetch total unique exercises completed via RPC
+        console.log("[ProfilePage Debug] fetchData: Fetching total unique exercises completed via RPC.");
+        const { data: uniqueExercisesCount, error: uniqueExercisesError } = await supabase
+          .rpc('get_unique_completed_exercise_count', { p_user_id: session.user.id });
 
-        if (sessionIdsError) {
-          console.error("[ProfilePage Debug] fetchData: Error fetching completed session IDs:", sessionIdsError);
-          throw sessionIdsError;
+        if (uniqueExercisesError) {
+          console.error("[ProfilePage Debug] fetchData: RPC error fetching unique exercises count:", uniqueExercisesError);
+          throw uniqueExercisesError;
         }
-
-        const sessionIds = (completedSessionIds || []).map(s => s.id);
-        console.log(`[ProfilePage Debug] fetchData: Number of completed session IDs: ${sessionIds.length}`);
-
-        if (sessionIds.length > 0) {
-          // Then, get all exercise_ids from set_logs associated with these completed sessions
-          const { data: setLogsData, error: setLogsError } = await supabase
-            .from('set_logs')
-            .select('exercise_id')
-            .in('session_id', sessionIds); // Filter by the fetched session IDs
-
-          if (setLogsError) {
-            console.error("[ProfilePage Debug] fetchData: Set logs for unique exercises error:", setLogsError);
-            throw setLogsError;
-          }
-          console.log(`[ProfilePage Debug] fetchData: Number of set logs fetched: ${setLogsData?.length || 0}`);
-          const exerciseIdsFromLogs = (setLogsData || []).map(log => log.exercise_id);
-          console.log(`[ProfilePage Debug] fetchData: Raw exercise IDs from set logs:`, exerciseIdsFromLogs);
-
-          const uniqueExerciseIds = new Set(exerciseIdsFromLogs.filter(id => id !== null)); // Filter out nulls explicitly
-          setTotalExercisesCount(uniqueExerciseIds.size);
-          console.log(`[ProfilePage Debug] fetchData: Unique exercise IDs set:`, Array.from(uniqueExerciseIds));
-          console.log(`[ProfilePage Debug] fetchData: Total unique exercises count: ${uniqueExerciseIds.size}`);
-        } else {
-          setTotalExercisesCount(0);
-          console.log("[ProfilePage Debug] fetchData: No completed sessions, so 0 unique exercises.");
-        }
+        setTotalExercisesCount(uniqueExercisesCount || 0);
+        console.log(`[ProfilePage Debug] fetchData: Total unique exercises count from RPC: ${uniqueExercisesCount}`);
 
       }
     } catch (err: any) {
