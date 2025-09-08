@@ -24,6 +24,7 @@ export const NextWorkoutCard = () => {
   const [nextWorkout, setNextWorkout] = useState<TPath | null>(null);
   const [loading, setLoading] = useState(true);
   const [estimatedDuration, setEstimatedDuration] = useState<string>('N/A');
+  const [lastWorkoutName, setLastWorkoutName] = useState<string | null>(null); // New state for last workout name
 
   useEffect(() => {
     const fetchNextWorkout = async () => {
@@ -55,6 +56,7 @@ export const NextWorkoutCard = () => {
           setMainTPath(null);
           setNextWorkout(null);
           setLoading(false);
+          setLastWorkoutName(null); // Reset last workout name
           return;
         }
 
@@ -72,6 +74,7 @@ export const NextWorkoutCard = () => {
           setMainTPath(null);
           setNextWorkout(null);
           setLoading(false);
+          setLastWorkoutName(null); // Reset last workout name
           return;
         }
         setMainTPath(mainTPathData);
@@ -91,6 +94,7 @@ export const NextWorkoutCard = () => {
         if (!childWorkoutsData || childWorkoutsData.length === 0) {
           setNextWorkout(null);
           setLoading(false);
+          setLastWorkoutName(null); // Reset last workout name
           return;
         }
 
@@ -120,9 +124,9 @@ export const NextWorkoutCard = () => {
         let nextWorkoutToSuggest: TPath | null = null;
 
         if (lastCompletedWorkout) {
-          // Explicitly re-assign to a const to help TypeScript's control flow analysis
           const confirmedLastCompletedWorkout: WorkoutWithLastCompleted = lastCompletedWorkout;
           const lastWorkoutName = confirmedLastCompletedWorkout.template_name;
+          setLastWorkoutName(lastWorkoutName); // Set the last workout name
           const currentIndex = workoutOrder.indexOf(lastWorkoutName);
           if (currentIndex !== -1) {
             const nextIndex = (currentIndex + 1) % workoutOrder.length;
@@ -135,6 +139,7 @@ export const NextWorkoutCard = () => {
         } else {
           // No workouts completed yet, suggest the first in the sequence
           nextWorkoutToSuggest = childWorkoutsData.find(w => w.template_name === workoutOrder[0]) || null;
+          setLastWorkoutName("No previous workout"); // Indicate no previous workout
         }
         
         setNextWorkout(nextWorkoutToSuggest);
@@ -218,6 +223,11 @@ export const NextWorkoutCard = () => {
               <Clock className="h-4 w-4" />
               <span>Estimated {estimatedDuration}</span>
             </div>
+            {lastWorkoutName && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Last workout: {lastWorkoutName}
+              </p>
+            )}
           </div>
           <Button 
             onClick={() => router.push(`/workout?workoutId=${nextWorkout.id}`)} 
