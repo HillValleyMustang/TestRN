@@ -218,7 +218,7 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Consistency Calendar</DialogTitle>
         </DialogHeader>
@@ -231,7 +231,7 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
               <Calendar
                 mode="multiple"
                 selected={Array.from(activityMap.values()).flatMap(events => events.map(e => e.date))}
-                className="rounded-md border"
+                className="rounded-md border w-full"
                 modifiers={calendarModifiers.modifiers}
                 modifiersStyles={calendarModifiers.styles}
                 components={{
