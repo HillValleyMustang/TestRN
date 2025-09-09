@@ -279,7 +279,9 @@
 .rdp {
   width: 100% !important;
   max-width: 100% !important;
-  box-sizing: border-box !important; /* Ensure padding is included in width */
+  box-sizing: border-box !important;
+  display: flex !important; /* Ensure it's a flex container */
+  flex-direction: column !important; /* Stack children vertically */
 }
 
 .rdp-months {
@@ -287,12 +289,15 @@
   display: flex !important;
   flex-wrap: wrap !important;
   justify-content: space-between !important;
+  flex-grow: 1 !important; /* Allow months to grow */
 }
 
 .rdp-month {
   flex: 1 1 0% !important; /* Use flex-basis 0% for equal distribution */
   max-width: none !important;
   width: 100% !important; /* Fallback for single month */
+  display: flex !important; /* Make month a flex container */
+  flex-direction: column !important; /* Stack month children vertically */
 }
 
 .rdp-caption {
@@ -310,6 +315,7 @@
 .rdp-head {
   width: 100% !important;
   display: flex !important;
+  flex-direction: column !important; /* Stack head children vertically */
 }
 
 .rdp-head_row {
@@ -327,12 +333,14 @@
 .rdp-body {
   width: 100% !important;
   display: flex !important;
-  flex-wrap: wrap !important; /* Allow days to wrap */
+  flex-direction: column !important; /* Stack body children vertically */
+  flex-grow: 1 !important; /* Allow body to grow */
 }
 
 .rdp-row {
   display: flex !important;
   width: 100% !important; /* Each row takes full width */
+  flex-grow: 1 !important; /* Allow rows to grow */
 }
 
 .rdp-cell {
@@ -353,4 +361,15 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+}
+
+/* Target the actual day number element within the custom content */
+.rdp-day {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 6px !important; /* Re-apply padding directly to the day element */
+  box-sizing: border-box !important; /* Ensure padding is included in width/height */
 }
