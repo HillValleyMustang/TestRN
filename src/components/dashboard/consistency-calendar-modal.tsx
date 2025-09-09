@@ -218,7 +218,7 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-4xl p-2 sm:p-4"> {/* Changed max-w-2xl to max-w-4xl and added p-2 sm:p-4 */}
         <DialogHeader>
           <DialogTitle>Consistency Calendar</DialogTitle>
         </DialogHeader>
