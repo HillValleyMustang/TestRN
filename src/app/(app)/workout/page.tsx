@@ -44,15 +44,16 @@ export default function WorkoutPage() {
           Select a workout or start an ad-hoc session.
         </p>
       </header>
-      <WorkoutSelector 
+      <WorkoutSelector
         key={workoutFlowManager.activeWorkout?.id || 'no-workout'}
-        {...workoutFlowManager} 
+        {...workoutFlowManager}
         // Removed onWorkoutSelect as it's no longer a valid prop
         loadingWorkoutFlow={workoutFlowManager.loading}
         createWorkoutSessionInDb={workoutFlowManager.createWorkoutSessionInDb}
         finishWorkoutSession={handleFinishAndShowSummary} // Use the local handler
         isQuickStart={isQuickStart}
         allAvailableExercises={workoutFlowManager.allAvailableExercises} // Corrected type is now handled by WorkoutSelectorProps
+        setAllAvailableExercises={workoutFlowManager.setAllAvailableExercises} // Pass the setter
         updateSessionStartTime={workoutFlowManager.updateSessionStartTime}
       />
       <WorkoutProgressBar

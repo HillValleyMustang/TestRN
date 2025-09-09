@@ -28,6 +28,7 @@ interface WorkoutSelectorProps {
   exercisesForSession: WorkoutExercise[];
   exercisesWithSets: Record<string, SetLogState[]>;
   allAvailableExercises: FetchedExerciseDefinition[];
+  setAllAvailableExercises: React.Dispatch<React.SetStateAction<FetchedExerciseDefinition[]>>; // New prop
   currentSessionId: string | null;
   sessionStartTime: Date | null;
   completedExercises: Set<string>;
@@ -91,6 +92,7 @@ export const WorkoutSelector = ({
   exercisesForSession,
   exercisesWithSets,
   allAvailableExercises,
+  setAllAvailableExercises, // Destructure new prop
   currentSessionId,
   sessionStartTime,
   completedExercises,
@@ -165,7 +167,7 @@ export const WorkoutSelector = ({
     }
     setIsAiSaving(true);
     try {
-      let finalExerciseId: string | null = exercise.id ?? null; // Ensure finalExerciseId can be null
+      let finalExerciseId: string | null = exercise.id ?? null;
 
       if (!isDuplicateAiExercise) { // Only insert if not a duplicate
         const { data: insertedExercise, error: insertError } = await supabase.from('exercise_definitions').insert([{
@@ -180,7 +182,7 @@ export const WorkoutSelector = ({
           library_id: null, // User-created, not from global library
           is_favorite: false,
           created_at: new Date().toISOString(),
-        }]).select('id').single();
+        }]).select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url').single(); // Select all fields for FetchedExerciseDefinition
 
         if (insertError) {
           if (insertError.code === '23505') { // Unique violation code
@@ -191,6 +193,8 @@ export const WorkoutSelector = ({
         } else {
           toast.success(`'${exercise.name}' added to My Exercises!`);
           finalExerciseId = insertedExercise.id;
+          // Immediately update allAvailableExercises with the new exercise
+          setAllAvailableExercises((prev: FetchedExerciseDefinition[]) => [...prev, insertedExercise as FetchedExerciseDefinition]);
         }
       } else {
         // If it's a duplicate, we just need its ID to add to the workout
@@ -215,7 +219,7 @@ export const WorkoutSelector = ({
         }
       }
 
-      refreshAllData(); // Trigger refresh of exercise lists
+      // refreshAllData(); // No longer strictly needed here as state is updated directly
       setShowSaveAiExercisePrompt(false);
       setAiIdentifiedExercise(null);
 
@@ -225,7 +229,7 @@ export const WorkoutSelector = ({
     } finally {
       setIsAiSaving(false);
     }
-  }, [session, supabase, isDuplicateAiExercise, allAvailableExercises, addExerciseToSession, refreshAllData]);
+  }, [session, supabase, isDuplicateAiExercise, allAvailableExercises, setAllAvailableExercises, addExerciseToSession, refreshAllData]);
 
   const handleAddAiExerciseToWorkoutOnly = useCallback(async (exercise: Partial<Tables<'exercise_definitions'>>) => {
     if (!session) {
@@ -234,7 +238,7 @@ export const WorkoutSelector = ({
     }
     setIsAiSaving(true);
     try {
-      let finalExerciseId: string | null = exercise.id ?? null; // Ensure finalExerciseId can be null
+      let finalExerciseId: string | null = exercise.id ?? null;
 
       // If it's a duplicate, we just need its ID to add to the workout
       if (isDuplicateAiExercise) {
@@ -249,8 +253,6 @@ export const WorkoutSelector = ({
       } else {
         // If not a duplicate, but only adding to workout, we still need to create it in the DB
         // as a user-owned exercise, but without explicitly saving to "My Exercises" list.
-        // This is a bit of a grey area, but for now, we'll create it as a user-owned exercise
-        // with a null library_id, so it's available for the workout.
         const { data: insertedExercise, error: insertError } = await supabase.from('exercise_definitions').insert([{
           name: exercise.name!,
           main_muscle: exercise.main_muscle!,
@@ -263,12 +265,14 @@ export const WorkoutSelector = ({
           library_id: null, // User-created, not from global library
           is_favorite: false,
           created_at: new Date().toISOString(),
-        }]).select('id').single();
+        }]).select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url').single(); // Select all fields for FetchedExerciseDefinition
 
         if (insertError) {
           throw insertError;
         }
         finalExerciseId = insertedExercise.id;
+        // Immediately update allAvailableExercises with the new exercise
+        setAllAvailableExercises((prev: FetchedExerciseDefinition[]) => [...prev, insertedExercise as FetchedExerciseDefinition]);
       }
 
       if (finalExerciseId) {
@@ -281,7 +285,7 @@ export const WorkoutSelector = ({
         }
       }
 
-      refreshAllData(); // Trigger refresh of exercise lists
+      // refreshAllData(); // No longer strictly needed here as state is updated directly
       setShowSaveAiExercisePrompt(false);
       setAiIdentifiedExercise(null);
 
@@ -291,7 +295,7 @@ export const WorkoutSelector = ({
     } finally {
       setIsAiSaving(false);
     }
-  }, [session, supabase, isDuplicateAiExercise, allAvailableExercises, addExerciseToSession, refreshAllData]);
+  }, [session, supabase, isDuplicateAiExercise, allAvailableExercises, setAllAvailableExercises, addExerciseToSession, refreshAllData]);
 
 
   const totalExercises = exercisesForSession.length;
@@ -359,7 +363,7 @@ export const WorkoutSelector = ({
                     selectedExerciseId={selectedExerciseToAdd}
                     setSelectedExerciseId={setSelectedExerciseToAdd}
                     exerciseSourceFilter={adHocExerciseSourceFilter}
-                    setExerciseSourceFilter={setAdHocExerciseSourceFilter} // Corrected prop name
+                    setExerciseSourceFilter={setAdHocExerciseSourceFilter}
                     mainMuscleGroups={mainMuscleGroups}
                     placeholder="Select exercise to add"
                   />

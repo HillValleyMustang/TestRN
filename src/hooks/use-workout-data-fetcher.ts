@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { Tables, WorkoutExercise, WorkoutWithLastCompleted, GroupedTPath, LocalUserAchievement, Profile } from '@/types/supabase'; // Import centralized types, including Profile
+import { Tables, WorkoutExercise, WorkoutWithLastCompleted, GroupedTPath, LocalUserAchievement, Profile, FetchedExerciseDefinition } from '@/types/supabase'; // Import centralized types, including Profile and FetchedExerciseDefinition
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
 import { db, LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
@@ -16,7 +16,8 @@ const ULUL_ORDER = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body 
 const PPL_ORDER = ['Push', 'Pull', 'Legs'];
 
 interface UseWorkoutDataFetcherReturn {
-  allAvailableExercises: ExerciseDefinition[];
+  allAvailableExercises: FetchedExerciseDefinition[]; // Changed to FetchedExerciseDefinition[]
+  setAllAvailableExercises: React.Dispatch<React.SetStateAction<FetchedExerciseDefinition[]>>; // Changed to FetchedExerciseDefinition[]
   groupedTPaths: GroupedTPath[];
   workoutExercisesCache: Record<string, WorkoutExercise[]>;
   loadingData: boolean;
@@ -30,7 +31,7 @@ interface UseWorkoutDataFetcherReturn {
 export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const { session, supabase } = useSession();
 
-  const [allAvailableExercises, setAllAvailableExercises] = useState<ExerciseDefinition[]>([]);
+  const [allAvailableExercises, setAllAvailableExercises] = useState<FetchedExerciseDefinition[]>([]); // Changed to FetchedExerciseDefinition[]
   const [groupedTPaths, setGroupedTPaths] = useState<GroupedTPath[]>([]);
   const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, WorkoutExercise[]>>({});
   const [loadingData, setLoadingData] = useState(true);
@@ -142,7 +143,12 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
 
       // --- Start Data Processing ---
       console.log("[useWorkoutDataFetcher] Starting data processing...");
-      setAllAvailableExercises(cachedExercises as ExerciseDefinition[]);
+      // Map LocalExerciseDefinition to FetchedExerciseDefinition
+      setAllAvailableExercises((cachedExercises || []).map(ex => ({
+        ...ex,
+        id: ex.id, // LocalExerciseDefinition.id is string, compatible with FetchedExerciseDefinition.id: string | null
+        is_favorited_by_current_user: false, // Default, will be updated later if needed
+      })));
       
       const userProfile = cachedProfile[0];
       const activeTPathId = userProfile.active_t_path_id;
@@ -263,6 +269,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
 
   return {
     allAvailableExercises,
+    setAllAvailableExercises, // Expose setter
     groupedTPaths,
     workoutExercisesCache,
     loadingData,

@@ -50,8 +50,9 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     loadingData,
     dataError,
     refreshAllData,
-    refreshProfile, // Destructure refreshProfile
-    refreshAchievements, // Destructure refreshAchievements
+    refreshProfile,
+    refreshAchievements,
+    setAllAvailableExercises, // Destructure setAllAvailableExercises
   } = useWorkoutDataFetcher();
 
   const {
@@ -59,7 +60,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     createWorkoutSessionInDb,
     finishWorkoutSession: persistAndFinishWorkoutSession,
   } = useWorkoutSessionPersistence({
-    allAvailableExercises,
+    allAvailableExercises: allAvailableExercises as Tables<'exercise_definitions'>[], // Cast to ExerciseDefinition[] for this hook's internal use
     workoutExercisesCache,
     activeWorkout,
     currentSessionId,
@@ -77,7 +78,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     substituteExercise,
     updateExerciseSets,
   } = useSessionExerciseManagement({
-    allAvailableExercises,
+    allAvailableExercises: allAvailableExercises as Tables<'exercise_definitions'>[], // Cast to ExerciseDefinition[] for this hook's internal use
     coreState: {
       activeWorkout, exercisesForSession, exercisesWithSets, currentSessionId, sessionStartTime,
       completedExercises, isCreatingSession, isWorkoutActive, hasUnsavedChanges,
@@ -291,15 +292,16 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     handleConfirmLeave,
     handleCancelLeave,
     promptBeforeNavigation,
-    allAvailableExercises: allAvailableExercises as FetchedExerciseDefinition[], // Expose allAvailableExercises
+    allAvailableExercises: allAvailableExercises, // Expose allAvailableExercises directly
+    setAllAvailableExercises, // Expose setAllAvailableExercises
     updateSessionStartTime,
     isEditWorkoutDialogOpen,
     selectedWorkoutToEdit,
     handleOpenEditWorkoutDialog,
     handleEditWorkoutSaveSuccess,
     setIsEditWorkoutDialogOpen,
-    toggleExerciseCardExpansion, // Removed duplicate
-    refreshProfile, // Expose refreshProfile
-    refreshAchievements, // Expose refreshAchievements
+    toggleExerciseCardExpansion,
+    refreshProfile,
+    refreshAchievements,
   };
 };
