@@ -151,12 +151,13 @@ export default function ManageExercisesPage() {
       user_id: session?.user.id || null,
       is_favorite: false,
       library_id: exercise.library_id || null,
-      // Ensure description and pro_tip are explicitly string | null
-      description: exercise.description === undefined ? null : exercise.description,
-      pro_tip: exercise.pro_tip === undefined ? null : exercise.pro_tip,
-      // Ensure category and video_url are explicitly string | null
-      category: exercise.category === undefined ? null : exercise.category,
-      video_url: exercise.video_url === undefined ? null : exercise.video_url,
+      // Explicitly cast potentially undefined values to string | null
+      created_at: exercise.created_at ?? null,
+      description: exercise.description ?? null,
+      pro_tip: exercise.pro_tip ?? null,
+      category: exercise.category ?? null,
+      video_url: exercise.video_url ?? null,
+      icon_url: exercise.icon_url ?? null, // Fix for icon_url
       // Ensure name, main_muscle, type are explicitly string
       name: exercise.name || '',
       main_muscle: exercise.main_muscle || '',
