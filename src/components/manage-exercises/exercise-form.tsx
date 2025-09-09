@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react"; // Added useCallback
 import { useSession } from "@/components/session-context-provider";
 import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
 import { toast } from "sonner";
@@ -39,7 +39,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from "@/components/ui/badge";
 
 // Import new modular components with corrected paths
-// Removed: import { AnalyzeGymButton } from "@/components/manage-exercises/exercise-form/analyze-gym-button";
+import { AnalyzeGymButton } from "@/components/manage-exercises/exercise-form/analyze-gym-button"; // Re-added
 import { ExerciseNameInput } from "@/components/manage-exercises/exercise-form/exercise-name-input";
 import { MainMuscleSelect } from "@/components/manage-exercises/exercise-form/main-muscle-select";
 import { ExerciseTypeSelector } from "@/components/manage-exercises/exercise-form/exercise-type-selector";
@@ -47,6 +47,8 @@ import { ExerciseCategorySelect } from "@/components/manage-exercises/exercise-f
 import { ExerciseDetailsTextareas } from "@/components/manage-exercises/exercise-form/exercise-details-textareas";
 import { ExerciseVideoUrlInput } from "@/components/manage-exercises/exercise-form/exercise-video-url-input";
 import { ExerciseFormActions } from "@/components/manage-exercises/exercise-form/exercise-form-actions";
+import { AnalyzeGymDialog } from "./exercise-form/analyze-gym-dialog"; // Re-added
+import { SaveAiExercisePrompt } from "../workout-flow/save-ai-exercise-prompt"; // Re-added
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -73,7 +75,12 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
   const [isExpanded, setIsExpanded] = useState(isExpandedInDialog);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]);
-  // Removed: const [showAnalyzeGymDialog, setShowAnalyzeGymDialog] = useState(false);
+  // Re-added states for Analyze Gym functionality
+  const [showAnalyzeGymDialog, setShowAnalyzeGymDialog] = useState(false);
+  const [showSaveAiExercisePrompt, setShowSaveAiExercisePrompt] = useState(false);
+  const [aiIdentifiedExercise, setAiIdentifiedExercise] = useState<Partial<ExerciseDefinition> | null>(null);
+  const [isAiSaving, setIsAiSaving] = useState(false);
+  const [isDuplicateAiExercise, setIsDuplicateAiExercise] = useState(false);
 
   const mainMuscleGroups = [
     "Pectorals", "Deltoids", "Lats", "Traps", "Biceps", 
@@ -148,7 +155,62 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
     setSelectedMuscles(newMuscles);
   };
 
-  // Removed: handleExerciseIdentified function
+  // Re-added handleExerciseIdentified function
+  const handleExerciseIdentified = useCallback((exercise: Partial<ExerciseDefinition>, isDuplicate: boolean) => {
+    setAiIdentifiedExercise(exercise);
+    setIsDuplicateAiExercise(isDuplicate);
+    setShowSaveAiExercisePrompt(true);
+  }, []);
+
+  const handleSaveAiExerciseToMyExercises = useCallback(async (exercise: Partial<ExerciseDefinition>) => {
+    if (!session) {
+      toast.error("You must be logged in to save exercises.");
+      return;
+    }
+    setIsAiSaving(true);
+    try {
+      const { error } = await supabase.from('exercise_definitions').insert([{
+        name: exercise.name!,
+        main_muscle: exercise.main_muscle!,
+        type: exercise.type!,
+        category: exercise.category,
+        description: exercise.description,
+        pro_tip: exercise.pro_tip,
+        video_url: exercise.video_url,
+        user_id: session.user.id,
+        library_id: null, // User-created, not from global library
+        is_favorite: false,
+        created_at: new Date().toISOString(),
+      }]).select('id').single();
+
+      if (error) {
+        if (error.code === '23505') { // Unique violation code
+          toast.error("This exercise already exists in your custom exercises.");
+        } else {
+          throw error;
+        }
+      } else {
+        toast.success(`'${exercise.name}' added to My Exercises!`);
+        onSaveSuccess(); // Trigger refresh of exercise lists
+        setShowSaveAiExercisePrompt(false);
+        setAiIdentifiedExercise(null);
+      }
+    } catch (err: any) {
+      console.error("Failed to save AI identified exercise:", err);
+      toast.error("Failed to save exercise: " + err.message);
+    } finally {
+      setIsAiSaving(false);
+    }
+  }, [session, supabase, onSaveSuccess]);
+
+  const handleAddAiExerciseToWorkoutOnly = useCallback(() => {
+    // This function is for adding to the current ad-hoc workout only, without saving to My Exercises.
+    // For now, we'll just close the dialog and let the user manually add it if they wish.
+    // In a full implementation, this would involve adding it to the current workout session state.
+    toast.info("Exercise added to current workout session (not saved to My Exercises).");
+    setShowSaveAiExercisePrompt(false);
+    setAiIdentifiedExercise(null);
+  }, []);
 
   async function onSubmit(values: z.infer<typeof exerciseSchema>) {
     if (!session) {
@@ -231,70 +293,88 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
   };
 
   return (
-    <Card ref={ref} className="w-full">
-      {!isExpandedInDialog && ( // Only show header if not in dialog
-        <CardHeader 
-          className="flex flex-row items-center justify-between cursor-pointer"
-          onClick={toggleExpand}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              toggleExpand();
-            }
-          }}
-        >
-          <CardTitle className="flex-1 text-base">
-            {editingExercise && editingExercise.user_id === session?.user.id && editingExercise.library_id === null ? "Edit Exercise" : "Add New Exercise"}
-          </CardTitle>
-          <span className="ml-2">
-            {isExpanded ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
-          </span>
-        </CardHeader>
-      )}
-      {(isExpanded || isExpandedInDialog) && ( // Render content if expanded or in dialog
-        <CardContent className="px-4 py-6">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* Removed: AnalyzeGymButton */}
+    <>
+      <Card ref={ref} className="w-full">
+        {!isExpandedInDialog && ( // Only show header if not in dialog
+          <CardHeader 
+            className="flex flex-row items-center justify-between cursor-pointer"
+            onClick={toggleExpand}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                toggleExpand();
+              }
+            }}
+          >
+            <CardTitle className="flex-1 text-base">
+              {editingExercise && editingExercise.user_id === session?.user.id && editingExercise.library_id === null ? "Edit Exercise" : "Add New Exercise"}
+            </CardTitle>
+            <span className="ml-2">
+              {isExpanded ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </span>
+          </CardHeader>
+        )}
+        {(isExpanded || isExpandedInDialog) && ( // Render content if expanded or in dialog
+          <CardContent className="px-4 py-6">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <AnalyzeGymButton onClick={() => setShowAnalyzeGymDialog(true)} />
 
-              <ExerciseNameInput form={form} />
-              
-              <MainMuscleSelect
-                form={form}
-                mainMuscleGroups={mainMuscleGroups}
-                selectedMuscles={selectedMuscles}
-                handleMuscleToggle={handleMuscleToggle}
-              />
-              
-              <ExerciseTypeSelector
-                form={form}
-                selectedTypes={selectedTypes}
-                handleTypeChange={handleTypeChange}
-              />
-              
-              <ExerciseCategorySelect
-                form={form}
-                categoryOptions={categoryOptions}
-              />
-              
-              <ExerciseDetailsTextareas form={form} />
-              
-              <ExerciseVideoUrlInput form={form} />
-              
-              <ExerciseFormActions
-                editingExercise={editingExercise}
-                onCancelEdit={onCancelEdit}
-                toggleExpand={toggleExpand} // This will now close the dialog if not in dialog mode
-              />
-            </form>
-          </Form>
-        </CardContent>
-      )}
-    </Card>
+                <ExerciseNameInput form={form} />
+                
+                <MainMuscleSelect
+                  form={form}
+                  mainMuscleGroups={mainMuscleGroups}
+                  selectedMuscles={selectedMuscles}
+                  handleMuscleToggle={handleMuscleToggle}
+                />
+                
+                <ExerciseTypeSelector
+                  form={form}
+                  selectedTypes={selectedTypes}
+                  handleTypeChange={handleTypeChange}
+                />
+                
+                <ExerciseCategorySelect
+                  form={form}
+                  categoryOptions={categoryOptions}
+                />
+                
+                <ExerciseDetailsTextareas form={form} />
+                
+                <ExerciseVideoUrlInput form={form} />
+                
+                <ExerciseFormActions
+                  editingExercise={editingExercise}
+                  onCancelEdit={onCancelEdit}
+                  toggleExpand={toggleExpand} // This will now close the dialog if not in dialog mode
+                />
+              </form>
+            </Form>
+          </CardContent>
+        )}
+      </Card>
+
+      <AnalyzeGymDialog
+        open={showAnalyzeGymDialog}
+        onOpenChange={setShowAnalyzeGymDialog}
+        onExerciseIdentified={handleExerciseIdentified}
+      />
+
+      <SaveAiExercisePrompt
+        open={showSaveAiExercisePrompt}
+        onOpenChange={setShowSaveAiExercisePrompt}
+        exercise={aiIdentifiedExercise}
+        onSaveToMyExercises={handleSaveAiExerciseToMyExercises}
+        onSkip={handleAddAiExerciseToWorkoutOnly}
+        isSaving={isAiSaving}
+        isDuplicate={isDuplicateAiExercise}
+      />
+    </>
   );
 });

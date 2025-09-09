@@ -37,7 +37,7 @@ export const PointsExplanationModal = ({ open, onOpenChange }: PointsExplanation
             <div className="flex items-start gap-3">
               <ListChecks className="h-5 w-5 text-primary flex-shrink-0 mt-1" />
               <div>
-                <h4 className="font-semibold">Unique Exercises:</h4>
+                <h4 className="font-semibold">Total Unique Exercises:</h4>
                 <p className="text-sm text-muted-foreground">
                   You earn points for completing new unique exercises, contributing to your "Total Exercises Completed" count. (Points for this are integrated into workout sessions).
                 </p>

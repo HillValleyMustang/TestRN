@@ -87,7 +87,7 @@ export const PersonalRecordsCard = () => {
 
         setPersonalRecords(records.slice(0, 5)); // Show top 5 records
       } catch (err: any) {
-        toast.error("Failed to load personal records: " + err.message);
+        toast.error("Failed to load personal bests: " + err.message);
       } finally {
         setLoading(false);
       }
@@ -102,7 +102,7 @@ export const PersonalRecordsCard = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Trophy className="h-5 w-5" />
-            Personal Records
+            Personal Bests
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -117,12 +117,12 @@ export const PersonalRecordsCard = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Trophy className="h-5 w-5" />
-          Personal Records
+          Personal Bests
         </CardTitle>
       </CardHeader>
       <CardContent>
         {personalRecords.length === 0 ? (
-          <p className="text-muted-foreground">No personal records yet. Complete workouts to set new PRs!</p>
+          <p className="text-muted-foreground">No personal bests yet. Complete workouts to set new PBs!</p>
         ) : (
           <Table>
             <TableHeader>

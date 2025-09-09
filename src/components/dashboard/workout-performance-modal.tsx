@@ -177,10 +177,10 @@ const RecentWorkoutSessionsList = ({ sessions, onDeleteSession, loading }: Recen
                     </div>
                     <Button
                       variant="destructive"
-                      size="sm"
+                      size="icon" // Changed to icon size
                       onClick={() => onDeleteSession(sessionItem.id, sessionItem.template_name)}
                     >
-                      <Trash2 className="h-4 w-4 mr-1" /> Delete
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </Card>

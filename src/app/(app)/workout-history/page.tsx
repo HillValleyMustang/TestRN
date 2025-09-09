@@ -263,7 +263,7 @@ export default function WorkoutHistoryPage() {
                       </div>
                       <div className="flex items-center gap-1">
                         <Trophy className={cn("h-4 w-4", sessionItem.has_prs ? "text-yellow-500 fill-yellow-500" : "text-muted-foreground")} />
-                        <span>{sessionItem.has_prs ? 'PRs Achieved!' : 'No PRs'}</span>
+                        <span>{sessionItem.has_prs ? 'PBs Achieved!' : 'No PBs'}</span>
                       </div>
                     </div>
                     <Button

@@ -56,11 +56,11 @@ export const WorkoutStatsCard = ({ workoutSession, totalVolume, prsAchieved, new
         <div className="col-span-2 flex items-start space-x-2">
           <Trophy className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-xs text-muted-foreground">PRs Achieved</p>
+            <p className="text-xs text-muted-foreground">PBs Achieved</p>
             <p className="text-base font-semibold">{prsAchieved}</p>
             {newPrExercises.length > 0 && (
               <div className="text-xs text-yellow-500 mt-1">
-                New PRs: {newPrExercises.join(', ')}
+                New PBs: {newPrExercises.join(', ')}
               </div>
             )}
           </div>

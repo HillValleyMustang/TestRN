@@ -62,7 +62,8 @@ export const AiSessionAnalysisCard = ({ sessionId }: AiSessionAnalysisCardProps)
     }
 
     setLoading(true);
-    setAnalysis("");
+    // Do NOT clear analysis here, so it persists if user closes and reopens
+    // setAnalysis(""); 
     try {
       const { data, error } = await supabase.functions.invoke('ai-coach', {
         body: { sessionId }, // Pass the current workout sessionId
