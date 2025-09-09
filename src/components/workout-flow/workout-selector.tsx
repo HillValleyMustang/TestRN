@@ -167,7 +167,7 @@ export const WorkoutSelector = ({
     }
     setIsAiSaving(true);
     try {
-      let finalExerciseId: string | null = exercise.id ?? null;
+      let finalExerciseToAdd: ExerciseDefinition | null = null;
 
       if (!isDuplicateAiExercise) { // Only insert if not a duplicate
         const { data: insertedExercise, error: insertError } = await supabase.from('exercise_definitions').insert([{
@@ -192,7 +192,7 @@ export const WorkoutSelector = ({
           }
         } else {
           toast.success(`'${exercise.name}' added to My Exercises!`);
-          finalExerciseId = insertedExercise.id;
+          finalExerciseToAdd = insertedExercise as ExerciseDefinition;
           // Immediately update allAvailableExercises with the new exercise
           setAllAvailableExercises((prev: FetchedExerciseDefinition[]) => [...prev, insertedExercise as FetchedExerciseDefinition]);
         }
@@ -202,24 +202,21 @@ export const WorkoutSelector = ({
           ex.name === exercise.name && ex.main_muscle === exercise.main_muscle && ex.type === exercise.type
         );
         if (existingExercise) {
-          finalExerciseId = existingExercise.id;
+          finalExerciseToAdd = existingExercise as ExerciseDefinition;
         } else {
           throw new Error("Duplicate exercise found but could not retrieve its ID.");
         }
       }
 
       // Now add to current workout session
-      if (finalExerciseId) {
-        const exerciseToAdd = allAvailableExercises.find(ex => ex.id === finalExerciseId);
-        if (exerciseToAdd) {
-          await addExerciseToSession(exerciseToAdd as ExerciseDefinition);
-          toast.success(`'${exerciseToAdd.name}' added to current workout!`);
-        } else {
-          throw new Error("Could not find the exercise to add to workout.");
-        }
+      if (finalExerciseToAdd) {
+        await addExerciseToSession(finalExerciseToAdd);
+        toast.success(`'${finalExerciseToAdd.name}' added to current workout!`);
+      } else {
+        throw new Error("Could not find the exercise to add to workout.");
       }
 
-      // refreshAllData(); // No longer strictly needed here as state is updated directly
+      refreshAllData(); // Trigger refresh of exercise lists
       setShowSaveAiExercisePrompt(false);
       setAiIdentifiedExercise(null);
 
@@ -238,7 +235,7 @@ export const WorkoutSelector = ({
     }
     setIsAiSaving(true);
     try {
-      let finalExerciseId: string | null = exercise.id ?? null;
+      let finalExerciseToAdd: ExerciseDefinition | null = null;
 
       // If it's a duplicate, we just need its ID to add to the workout
       if (isDuplicateAiExercise) {
@@ -246,7 +243,7 @@ export const WorkoutSelector = ({
           ex.name === exercise.name && ex.main_muscle === exercise.main_muscle && ex.type === exercise.type
         );
         if (existingExercise) {
-          finalExerciseId = existingExercise.id;
+          finalExerciseToAdd = existingExercise as ExerciseDefinition;
         } else {
           throw new Error("Duplicate exercise found but could not retrieve its ID.");
         }
@@ -270,22 +267,19 @@ export const WorkoutSelector = ({
         if (insertError) {
           throw insertError;
         }
-        finalExerciseId = insertedExercise.id;
+        finalExerciseToAdd = insertedExercise as ExerciseDefinition;
         // Immediately update allAvailableExercises with the new exercise
         setAllAvailableExercises((prev: FetchedExerciseDefinition[]) => [...prev, insertedExercise as FetchedExerciseDefinition]);
       }
 
-      if (finalExerciseId) {
-        const exerciseToAdd = allAvailableExercises.find(ex => ex.id === finalExerciseId);
-        if (exerciseToAdd) {
-          await addExerciseToSession(exerciseToAdd as ExerciseDefinition);
-          toast.success(`'${exerciseToAdd.name}' added to current workout!`);
-        } else {
-          throw new Error("Could not find the exercise to add to workout.");
-        }
+      if (finalExerciseToAdd) {
+        await addExerciseToSession(finalExerciseToAdd);
+        toast.success(`'${finalExerciseToAdd.name}' added to current workout!`);
+      } else {
+        throw new Error("Could not find the exercise to add to workout.");
       }
 
-      // refreshAllData(); // No longer strictly needed here as state is updated directly
+      refreshAllData(); // Trigger refresh of exercise lists
       setShowSaveAiExercisePrompt(false);
       setAiIdentifiedExercise(null);
 
