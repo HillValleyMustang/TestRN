@@ -275,23 +275,24 @@
   -webkit-backdrop-filter: blur(12px); /* For Safari compatibility */
 }
 
-/* Custom styles for react-day-picker to maximize width */
+/* More aggressive custom styles for react-day-picker to maximize width */
 .rdp {
   width: 100% !important;
   max-width: 100% !important;
+  box-sizing: border-box !important; /* Ensure padding is included in width */
 }
 
 .rdp-months {
   width: 100% !important;
   display: flex !important;
   flex-wrap: wrap !important;
-  justify-content: space-between !important; /* Changed to space-between */
+  justify-content: space-between !important;
 }
 
 .rdp-month {
-  flex: 1 0 0% !important; /* Force equal growth and no shrinking */
-  max-width: none !important; /* Remove any max-width constraints */
-  width: 100% !important; /* Ensure it takes full width if only one month */
+  flex: 1 1 0% !important; /* Use flex-basis 0% for equal distribution */
+  max-width: none !important;
+  width: 100% !important; /* Fallback for single month */
 }
 
 .rdp-caption_label {
@@ -307,7 +308,17 @@
 
 .rdp-head_cell,
 .rdp-cell {
-  flex: 1 0 0% !important; /* Force equal growth and no shrinking */
+  flex: 1 1 0% !important; /* Force equal growth and no shrinking */
   text-align: center !important;
   max-width: none !important; /* Remove any max-width constraints */
+  padding: 0 !important; /* Remove default cell padding to allow CustomDayContent to control it */
+}
+
+/* Ensure the day content itself fills the cell */
+.rdp-day_selection_span {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
