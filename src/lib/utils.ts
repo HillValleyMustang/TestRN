@@ -10,16 +10,20 @@ export function getWorkoutColorClass(workoutName: string, type: 'text' | 'border
   let colorKey: string;
   switch (workoutName) {
     case 'Upper Body A':
+    case 'Upper A': // Shortened name
     case '4-Day Upper/Lower': // Map main T-Path to its first workout's color
       colorKey = 'upper-body-a';
       break;
     case 'Lower Body A':
+    case 'Lower A': // Shortened name
       colorKey = 'lower-body-a'; // Distinct key for Lower Body A
       break;
     case 'Upper Body B':
+    case 'Upper B': // Shortened name
       colorKey = 'upper-body-b';
       break;
-    case 'Lower Body B': // Distinct key for Lower Body B
+    case 'Lower Body B':
+    case 'Lower B': // Shortened name
       colorKey = 'lower-body-b';
       break;
     case 'Push':
@@ -52,10 +56,14 @@ export function getWorkoutColorClass(workoutName: string, type: 'text' | 'border
 export function getWorkoutIcon(workoutName: string): LucideIcon | null {
   switch (workoutName) {
     case 'Upper Body A':
+    case 'Upper A':
     case 'Upper Body B':
+    case 'Upper B':
       return ArrowUp;
     case 'Lower Body A':
+    case 'Lower A':
     case 'Lower Body B':
+    case 'Lower B':
       return ArrowDown;
     case 'Push':
       return ArrowUpRight; // Swapped from ArrowDownLeft
@@ -157,24 +165,28 @@ export const getPillStyles = (workoutType: 'upper-lower' | 'push-pull-legs', cat
 // NEW: Utility function to get the CSS variable for calendar item colors
 export function getCalendarItemColorCssVar(name: string | null | undefined, type: 'workout' | 'activity' | 'ad-hoc'): string {
   let colorKey: string | undefined;
+  let colorCategory: 'workout' | 'activity' = 'workout';
 
   if (type === 'workout') {
+    colorCategory = 'workout';
     switch (name) {
       case 'Upper Body A':
-      case '4-Day Upper/Lower':
+      case 'Upper A':
         colorKey = 'upper-body-a';
         break;
       case 'Lower Body A':
+      case 'Lower A':
         colorKey = 'lower-body-a';
         break;
       case 'Upper Body B':
+      case 'Upper B':
         colorKey = 'upper-body-b';
         break;
       case 'Lower Body B':
+      case 'Lower B':
         colorKey = 'lower-body-b';
         break;
       case 'Push':
-      case '3-Day Push/Pull/Legs':
         colorKey = 'push';
         break;
       case 'Pull':
@@ -191,30 +203,45 @@ export function getCalendarItemColorCssVar(name: string | null | undefined, type
         break;
     }
   } else if (type === 'activity') {
+    colorCategory = 'activity';
     switch (name) {
       case 'Running':
+        colorKey = 'running';
+        break;
       case 'Cycling':
+        colorKey = 'cycling';
+        break;
       case 'Swimming':
+        colorKey = 'swimming';
+        break;
       case 'Tennis':
-        colorKey = 'activity';
+        colorKey = 'tennis';
         break;
       default:
         colorKey = 'activity'; // Fallback for unknown activity types
         break;
     }
   } else if (type === 'ad-hoc') {
+    colorCategory = 'workout'; // Ad-hoc uses workout colors
     colorKey = 'ad-hoc';
   }
 
-  // Corrected: Wrap the CSS variable in hsl()
-  return `hsl(var(--workout-${colorKey || 'ad-hoc'}))`;
+  return `hsl(var(--${colorCategory}-${colorKey || 'ad-hoc'}))`;
 }
 
 // NEW: Utility function to get the display name for calendar items
 export function getCalendarItemDisplayName(name: string | null | undefined, type: 'workout' | 'activity' | 'ad-hoc'): string {
   if (type === 'ad-hoc') return 'Ad Hoc Workout';
   if (!name) return 'Unknown';
-  return name;
+
+  // Shorten workout names
+  switch (name) {
+    case 'Upper Body A': return 'Upper A';
+    case 'Upper Body B': return 'Upper B';
+    case 'Lower Body A': return 'Lower A';
+    case 'Lower Body B': return 'Lower B';
+    default: return name;
+  }
 }
 
 // NEW: Utility function to get fitness level from points

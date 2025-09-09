@@ -81,12 +81,18 @@
     --workout-upper-body-b: 0 84% 60%; /* #ef4444 */
     --workout-lower-body-a: 190 86% 36%; /* #0891b2 */
     --workout-lower-body-b: 270 67% 40%; /* #6b21a8 */
-    --workout-push: 0 84% 60%; /* #ef4444 */
-    --workout-pull: 190 86% 36%; /* #0891b2 */
-    --workout-legs: 270 67% 40%; /* #6b21a8 - Now matches lower-body-b */
-    --workout-bonus: 43 74% 66%; /* chart-4 */
-    --workout-ad-hoc: var(--workout-bonus); /* Ad Hoc uses bonus color */
+    --workout-push: 120 60% 45%; /* NEW: classic Adidas forest green */
+    --workout-pull: 35 85% 55%; /* NEW: vintage orange */
+    --workout-legs: 280 55% 50%; /* NEW: brighter purple/magenta */
+    --workout-bonus: 50 75% 60%; /* NEW: golden yellow */
+    --workout-ad-hoc: 50 75% 60%; /* NEW: same as bonus - golden yellow */
     --workout-activity: var(--chart-2); /* Generic activity color */
+
+    /* NEW Activity Colors */
+    --activity-running: 25 80% 55%; /* coral/salmon */
+    --activity-swimming: 200 85% 45%; /* deeper aqua blue */
+    --activity-cycling: 160 70% 40%; /* sage green */
+    --activity-tennis: 300 70% 55%; /* bright magenta */
 
 
     /* New Aurora Colors (Light Mode) - Adjusted to retro palette */
@@ -173,20 +179,18 @@
     --workout-upper-body-b: 0 84% 60%; /* #ef4444 */
     --workout-lower-body-a: 190 86% 36%; /* #0891b2 */
     --workout-lower-body-b: 270 67% 40%; /* #6b21a8 */
-    --workout-push: 0 84% 60%; /* #ef4444 */
-    --workout-pull: 190 86% 36%; /* #0891b2 */
-    --workout-legs: 270 67% 40%; /* #6b21a8 - Now matches lower-body-b */
-    --workout-bonus: 43 74% 66%; /* chart-4 */
-    --workout-ad-hoc: var(--workout-bonus); /* Ad Hoc uses bonus color */
+    --workout-push: 120 60% 45%; /* NEW: classic Adidas forest green */
+    --workout-pull: 35 85% 55%; /* NEW: vintage orange */
+    --workout-legs: 280 55% 50%; /* NEW: brighter purple/magenta */
+    --workout-bonus: 50 75% 60%; /* NEW: golden yellow */
+    --workout-ad-hoc: 50 75% 60%; /* NEW: same as bonus - golden yellow */
     --workout-activity: var(--chart-2); /* Generic activity color */
 
-    /* Dark mode Aurora Colors - Adjusted to retro palette */
-    --aurora-blue: 200 100% 85%;
-    --aurora-purple: 270 50% 45%;
-    --aurora-orange: 58 98% 80%;
-    --aurora-green: 160 100% 55%;
-    --aurora-pink: 324 100% 55%;
-    --aurora-yellow: 58 98% 80%;
+    /* NEW Activity Colors */
+    --activity-running: 25 80% 55%; /* coral/salmon */
+    --activity-swimming: 200 85% 45%; /* deeper aqua blue */
+    --activity-cycling: 160 70% 40%; /* sage green */
+    --activity-tennis: 300 70% 55%; /* bright magenta */
   }
 }
 

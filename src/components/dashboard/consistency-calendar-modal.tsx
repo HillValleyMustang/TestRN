@@ -7,56 +7,93 @@ import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
 import { getCalendarItemColorCssVar, getCalendarItemDisplayName } from '@/lib/utils'; // Import new utilities
 import { DayContentProps, ActiveModifiers } from 'react-day-picker'; // Import DayContentProps and ActiveModifiers
+import { db } from '@/lib/db'; // Import db for fetching profile
+import { Tables } from '@/types/supabase'; // Import Tables for Profile type
+
+type Profile = Tables<'profiles'>;
 
 interface ConsistencyCalendarModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-interface ActivityEntry {
-  date: Date;
+// Define a new interface for events
+interface CalendarEvent {
   type: 'workout' | 'activity' | 'ad-hoc';
   name: string | null;
+  logged_at: Date; // Use Date object for easier sorting
+  date: Date; // ADDED: The actual date of the event
 }
 
 // Define a new interface for CustomDayContent's props
 interface CustomDayContentProps extends DayContentProps {
-  activityMap: Map<string, ActivityEntry>;
+  activityMap: Map<string, CalendarEvent[]>;
 }
 
 // Custom Day Content component
 const CustomDayContent = (props: CustomDayContentProps) => {
-  const { date, activeModifiers, displayMonth, activityMap } = props; // Destructure activityMap
+  const { date, activeModifiers, activityMap } = props;
   const isSelected = activeModifiers.selected;
   const isToday = activeModifiers.today;
 
-  // Find the corresponding activity entry for this date using local date string
+  // Use toLocaleDateString to get the local date string (YYYY-MM-DD) for map key
   const dateKey = date.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' });
-  const activityEntry = activityMap.get(dateKey);
+  const eventsForDay = activityMap.get(dateKey) || [];
+
+  const primaryEvent = eventsForDay[0];
+  const secondaryEvent = eventsForDay[1];
+  const tertiaryEvent = eventsForDay[2];
 
   let backgroundColor = 'transparent';
-  if (activityEntry) {
-    backgroundColor = getCalendarItemColorCssVar(activityEntry.name, activityEntry.type);
+  let borderColor = 'transparent';
+  let dotColor = 'transparent';
+  let textColor = 'hsl(var(--muted-foreground))'; // Default text color
+
+  if (primaryEvent) {
+    backgroundColor = getCalendarItemColorCssVar(primaryEvent.name, primaryEvent.type);
+    textColor = 'hsl(0 0% 100%)'; // White text for colored backgrounds
   } else if (isToday && !isSelected) {
-    // If it's today and not selected, use a subtle highlight
-    backgroundColor = 'hsl(var(--muted))';
+    backgroundColor = 'hsl(var(--muted))'; // Subtle highlight for today
+  }
+
+  if (secondaryEvent) {
+    borderColor = getCalendarItemColorCssVar(secondaryEvent.name, secondaryEvent.type);
+  }
+
+  if (tertiaryEvent) {
+    dotColor = getCalendarItemColorCssVar(tertiaryEvent.name, tertiaryEvent.type);
   }
 
   return (
     <span
       style={{
         backgroundColor: backgroundColor,
-        color: activityEntry ? 'hsl(0 0% 100%)' : (isToday ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))'),
+        color: textColor,
         borderRadius: '0.375rem', // rounded-md
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         width: '100%',
         height: '100%',
+        border: secondaryEvent ? `2px solid ${borderColor}` : 'none', // Apply border if secondary event exists
+        position: 'relative', // Needed for absolute positioning of the dot
       }}
-      className="relative z-10" // Ensure it's above any default button background
+      className="relative z-10"
     >
       {date.getDate()}
+      {tertiaryEvent && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '2px',
+            left: '2px',
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            backgroundColor: dotColor,
+          }}
+        ></div>
+      )}
     </span>
   );
 };
@@ -65,59 +102,85 @@ const CustomDayContent = (props: CustomDayContentProps) => {
 export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCalendarModalProps) => {
   const { session, supabase } = useSession();
   const [loading, setLoading] = useState(true);
-  const [activityMap, setActivityMap] = useState<Map<string, ActivityEntry>>(new Map()); // Map<YYYY-MM-DD, ActivityEntry>
+  const [activityMap, setActivityMap] = useState<Map<string, CalendarEvent[]>>(new Map()); // Map<YYYY-MM-DD, CalendarEvent[]>
   const [uniqueActivityTypes, setUniqueActivityTypes] = useState<Set<string>>(new Set());
+  const [currentStreak, setCurrentStreak] = useState<number>(0); // State for current streak
 
   useEffect(() => {
     if (open && session) {
       const fetchActivityDates = async () => {
         setLoading(true);
         try {
-          // Fetch workout sessions with template_name
+          // Fetch workout sessions with template_name and created_at
           const { data: workoutSessions, error: workoutError } = await supabase
             .from('workout_sessions')
-            .select('session_date, template_name')
+            .select('session_date, template_name, created_at')
             .eq('user_id', session.user.id)
             .not('completed_at', 'is', null); // Only completed workouts
           if (workoutError) throw workoutError;
 
-          // Fetch activity logs with activity_type
+          // Fetch activity logs with activity_type and log_date
           const { data: activityLogs, error: activityError } = await supabase
             .from('activity_logs')
-            .select('log_date, activity_type')
+            .select('log_date, activity_type, created_at')
             .eq('user_id', session.user.id);
           if (activityError) throw activityError;
 
-          const newActivityMap = new Map<string, ActivityEntry>();
+          // Fetch profile for current streak
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('current_streak')
+            .eq('id', session.user.id)
+            .single();
+          if (profileError && profileError.code !== 'PGRST116') {
+            console.error("Error fetching profile for streak:", profileError);
+          } else if (profileData) {
+            setCurrentStreak(profileData.current_streak || 0);
+          }
+
+          const newActivityMap = new Map<string, CalendarEvent[]>();
           const newUniqueActivityTypes = new Set<string>();
 
           // Process workout sessions
           (workoutSessions || []).forEach(ws => {
             const date = new Date(ws.session_date);
-            // Use toLocaleDateString to get the local date string (YYYY-MM-DD)
             const dateKey = date.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' });
             const workoutName = ws.template_name || 'Ad Hoc Workout';
             
-            // Prioritize workouts over activities if both exist on the same day
-            // Or if a workout is already there, keep it.
-            if (!newActivityMap.has(dateKey) || newActivityMap.get(dateKey)?.type === 'activity') {
-              newActivityMap.set(dateKey, { date, type: workoutName === 'Ad Hoc Workout' ? 'ad-hoc' : 'workout', name: workoutName });
+            if (!newActivityMap.has(dateKey)) {
+              newActivityMap.set(dateKey, []);
             }
+            newActivityMap.get(dateKey)?.push({ 
+              date, 
+              type: workoutName === 'Ad Hoc Workout' ? 'ad-hoc' : 'workout', 
+              name: workoutName,
+              logged_at: new Date(ws.created_at || ws.session_date) // Use created_at for sorting, fallback to session_date
+            });
             newUniqueActivityTypes.add(getCalendarItemDisplayName(workoutName, workoutName === 'Ad Hoc Workout' ? 'ad-hoc' : 'workout'));
           });
 
-          // Process activity logs (only if no workout is already logged for that day)
+          // Process activity logs
           (activityLogs || []).forEach(al => {
             const date = new Date(al.log_date);
-            // Use toLocaleDateString to get the local date string (YYYY-MM-DD)
             const dateKey = date.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' });
             const activityName = al.activity_type;
 
-            // Only add if no workout is present for this day, or if it's an activity and the existing entry is also an activity
-            if (!newActivityMap.has(dateKey) || newActivityMap.get(dateKey)?.type === 'activity') {
-              newActivityMap.set(dateKey, { date, type: 'activity', name: activityName });
+            if (!newActivityMap.has(dateKey)) {
+              newActivityMap.set(dateKey, []);
             }
+            newActivityMap.get(dateKey)?.push({ 
+              date, 
+              type: 'activity', 
+              name: activityName,
+              logged_at: new Date(al.created_at || al.log_date) // Use created_at for sorting, fallback to log_date
+            });
             newUniqueActivityTypes.add(getCalendarItemDisplayName(activityName, 'activity'));
+          });
+
+          // Sort events for each day by logged_at timestamp
+          newActivityMap.forEach((events, dateKey) => {
+            events.sort((a, b) => a.logged_at.getTime() - b.logged_at.getTime());
+            newActivityMap.set(dateKey, events);
           });
 
           setActivityMap(newActivityMap);
@@ -141,8 +204,17 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
   }, [activityMap]);
 
   const sortedUniqueActivityTypes = useMemo(() => {
-    return Array.from(uniqueActivityTypes).sort();
-  }, [uniqueActivityTypes]);
+    // Create a list of all unique event types (workout names + activity types)
+    const allEventTypes = new Set<string>();
+    activityMap.forEach(events => {
+      events.forEach(event => {
+        allEventTypes.add(getCalendarItemDisplayName(event.name, event.type));
+      });
+    });
+
+    // Sort them alphabetically
+    return Array.from(allEventTypes).sort();
+  }, [activityMap]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -155,9 +227,10 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
             <p>Loading calendar...</p>
           ) : (
             <>
+              <p className="text-lg font-semibold mb-4">Current Streak: {currentStreak} Days</p>
               <Calendar
                 mode="multiple"
-                selected={Array.from(activityMap.values()).map(entry => entry.date)}
+                selected={Array.from(activityMap.values()).flatMap(events => events.map(e => e.date))}
                 className="rounded-md border"
                 modifiers={calendarModifiers.modifiers}
                 modifiersStyles={calendarModifiers.styles}
@@ -167,20 +240,19 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
                 // Removed classNames as CustomDayContent handles styling
               />
               <div className="mt-6 w-full px-4">
-                <h3 className="text-md font-semibold mb-3">Key:</h3>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   {sortedUniqueActivityTypes.map(typeDisplayName => {
-                    // Find the original entry to get the correct name and type for color lookup
-                    const originalEntry = Array.from(activityMap.values()).find(entry => 
-                      getCalendarItemDisplayName(entry.name, entry.type) === typeDisplayName
+                    // Find the first event that matches this display name to get its original name and type for color lookup
+                    const originalEvent = Array.from(activityMap.values()).flatMap(events => events).find(event => 
+                      getCalendarItemDisplayName(event.name, event.type) === typeDisplayName
                     );
-                    if (!originalEntry) return null;
+                    if (!originalEvent) return null;
 
                     return (
                       <div key={typeDisplayName} className="flex items-center gap-2">
                         <div
                           className="h-4 w-4 rounded-sm flex-shrink-0"
-                          style={{ backgroundColor: getCalendarItemColorCssVar(originalEntry.name, originalEntry.type) }}
+                          style={{ backgroundColor: getCalendarItemColorCssVar(originalEvent.name, originalEvent.type) }}
                         ></div>
                         <span>{typeDisplayName}</span>
                       </div>
