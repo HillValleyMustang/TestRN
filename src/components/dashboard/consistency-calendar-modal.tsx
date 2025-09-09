@@ -30,8 +30,8 @@ const CustomDayContent = (props: CustomDayContentProps) => {
   const isSelected = activeModifiers.selected;
   const isToday = activeModifiers.today;
 
-  // Find the corresponding activity entry for this date
-  const dateKey = date.toISOString().split('T')[0];
+  // Find the corresponding activity entry for this date using local date string
+  const dateKey = date.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' });
   const activityEntry = activityMap.get(dateKey);
 
   let backgroundColor = 'transparent';
@@ -94,7 +94,8 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
           // Process workout sessions
           (workoutSessions || []).forEach(ws => {
             const date = new Date(ws.session_date);
-            const dateKey = date.toISOString().split('T')[0];
+            // Use toLocaleDateString to get the local date string (YYYY-MM-DD)
+            const dateKey = date.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' });
             const workoutName = ws.template_name || 'Ad Hoc Workout';
             
             // Prioritize workouts over activities if both exist on the same day
@@ -108,7 +109,8 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
           // Process activity logs (only if no workout is already logged for that day)
           (activityLogs || []).forEach(al => {
             const date = new Date(al.log_date);
-            const dateKey = date.toISOString().split('T')[0];
+            // Use toLocaleDateString to get the local date string (YYYY-MM-DD)
+            const dateKey = date.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' });
             const activityName = al.activity_type;
 
             // Only add if no workout is present for this day, or if it's an activity and the existing entry is also an activity
