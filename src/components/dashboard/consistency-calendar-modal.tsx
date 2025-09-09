@@ -129,6 +129,13 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
                 className="rounded-md border"
                 modifiers={calendarModifiers.modifiers}
                 modifiersStyles={calendarModifiers.styles}
+                classNames={{
+                  // Override the default selected day styling to be transparent
+                  // and ensure text is white, letting the inner div's background color show through.
+                  day_selected: "bg-transparent text-white",
+                  // Also ensure today's styling doesn't interfere if it's also selected
+                  day_today: "bg-transparent text-white",
+                }}
               />
               <div className="mt-6 w-full px-4">
                 <h3 className="text-md font-semibold mb-3">Key:</h3>
