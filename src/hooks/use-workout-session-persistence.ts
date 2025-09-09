@@ -172,7 +172,7 @@ export const useWorkoutSessionPersistence = ({
         toast.warning("Could not check for new achievements, but your workout was saved!");
       }
 
-      // Removed: toast.success("Workout session finished! Generating Summary.");
+      toast.success("Workout session finished! Generating Summary.");
       const finishedSessionId = currentSessionId;
       await resetWorkoutSession();
       return finishedSessionId;
@@ -285,7 +285,7 @@ export const useWorkoutSessionPersistence = ({
   // The setters (setIsCreatingSession, setCurrentSessionId, setSessionStartTime) are now dependencies of this useCallback.
   // This is because they are used within the callback, even if not directly in the useEffect's dependency array.
   // However, this useEffect is not meant to *set* these states directly, but rather to *read* them and *derive* initial state.
-  // The actual state updates are handled by the parent useWorkoutSessionState.
+  // The actual state updates are done by the parent useWorkoutSessionState.
 
   return {
     resetWorkoutSession,

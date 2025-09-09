@@ -19,8 +19,7 @@ export const useOnboardingForm = () => {
   const [sessionLength, setSessionLength] = useState<string>("");
   const [equipmentMethod, setEquipmentMethod] = useState<"photo" | "skip" | null>(null);
   const [consentGiven, setConsentGiven] = useState(false);
-  const [loading, setLoading] = useState(false); // For final submit button
-  const [isInitialSetupLoading, setIsInitialSetupLoading] = useState(false); // For transition from step 5 to 6
+  const [loading, setLoading] = useState(false);
 
   const tPathDescriptions = {
     ulul: {
@@ -61,20 +60,20 @@ export const useOnboardingForm = () => {
     setCurrentStep(prev => prev - 1);
   }, []);
 
-  const handleAdvanceToFinalStep = useCallback(async () => {
+  const handleSubmit = useCallback(async () => {
     if (!session) return;
     
-    setIsInitialSetupLoading(true);
+    setLoading(true);
     
     try {
-      // 1. Create both main T-Paths
+      // Define both T-Path types to be inserted
       const ululTPathData: TablesInsert<'t_paths'> = {
         user_id: session.user.id,
         template_name: '4-Day Upper/Lower',
         is_bonus: false,
         parent_t_path_id: null,
         settings: {
-          tPathType: 'ulul',
+          tPathType: 'ulul', // Store the type in settings for later retrieval
           experience,
           goalFocus,
           preferredMuscles,
@@ -89,7 +88,7 @@ export const useOnboardingForm = () => {
         is_bonus: false,
         parent_t_path_id: null,
         settings: {
-          tPathType: 'ppl',
+          tPathType: 'ppl', // Store the type in settings for later retrieval
           experience,
           goalFocus,
           preferredMuscles,
@@ -98,10 +97,11 @@ export const useOnboardingForm = () => {
         }
       };
 
+      // Insert both T-Paths
       const { data: insertedTPaths, error: insertTPathsError } = await supabase
         .from('t_paths')
         .insert([ululTPathData, pplTPathData])
-        .select('id, template_name');
+        .select('id, template_name'); // Select ID and template_name to find the active one
 
       if (insertTPathsError) throw insertTPathsError;
 
@@ -115,18 +115,18 @@ export const useOnboardingForm = () => {
         throw new Error("Could not find the selected T-Path after creation.");
       }
 
-      // 2. UPSERT user profile with initial preferences (excluding name, height, weight, body_fat_pct for now)
-      const profileData: ProfileInsert = {
+      // Save user profile data, including preferred_session_length and active_t_path_id
+      const profileData: ProfileInsert = { // Use ProfileInsert type
         id: session.user.id,
-        first_name: session.user.user_metadata?.first_name || '', // Use existing if available
-        last_name: session.user.user_metadata?.last_name || '', // Use existing if available
+        first_name: session.user.user_metadata?.first_name || '',
+        last_name: session.user.user_metadata?.last_name || '',
         preferred_muscles: preferredMuscles,
         primary_goal: goalFocus,
         health_notes: constraints,
-        default_rest_time_seconds: 60,
-        preferred_session_length: sessionLength,
-        active_t_path_id: activeTPath.id,
-        // Other fields like full_name, height_cm, weight_kg, body_fat_pct will be updated in handleSubmit
+        default_rest_time_seconds: 60, // Default to 60s as per requirements
+        body_fat_pct: null, // Will be updated when user adds this data
+        preferred_session_length: sessionLength, // Store session length in profile
+        active_t_path_id: activeTPath.id, // Set the initially selected T-Path as active
       };
 
       const { error: profileError } = await supabase
@@ -135,7 +135,7 @@ export const useOnboardingForm = () => {
 
       if (profileError) throw profileError;
 
-      // 3. Generate workouts for ALL newly created main T-Paths asynchronously
+      // Generate workouts for ALL newly created main T-Paths
       const generationPromises = insertedTPaths.map(async (tp) => {
         const response = await fetch(`/api/generate-t-path`, {
           method: 'POST',
@@ -152,57 +152,18 @@ export const useOnboardingForm = () => {
         }
       });
 
-      await Promise.all(generationPromises); // Use Promise.all to wait for all generations to start
+      await Promise.all(generationPromises);
 
-      // Removed toast.success("Initial setup complete! Please provide your personal details.");
-
-    } catch (error: any) {
-      toast.error("Failed to complete initial setup: " + error.message);
-      console.error("Initial setup error:", error);
-      // Re-throw to ensure loading state is handled correctly in page.tsx
-      throw error; 
-    } finally {
-      setIsInitialSetupLoading(false);
-    }
-  }, [session, supabase, tPathType, experience, goalFocus, preferredMuscles, constraints, sessionLength, equipmentMethod]);
-
-  const handleSubmit = useCallback(async (fullName: string, heightCm: number, weightKg: number, bodyFatPct: number | null) => {
-    if (!session) return;
-    
-    setLoading(true);
-    
-    try {
-      const nameParts = fullName.split(' ');
-      const firstName = nameParts.shift() || '';
-      const lastName = nameParts.join(' ');
-
-      // Only update the personal details here
-      const updateData: ProfileInsert = {
-        id: session.user.id,
-        first_name: firstName,
-        last_name: lastName,
-        height_cm: heightCm,
-        weight_kg: weightKg,
-        body_fat_pct: bodyFatPct,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { error: profileUpdateError } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('id', session.user.id);
-
-      if (profileUpdateError) throw profileUpdateError;
-
-      // toast.success("Onboarding completed! Welcome to your fitness journey."); // REMOVED
+      // Updated success message to reflect asynchronous generation
+      toast.success("Onboarding completed! Your workout plan is being generated in the background.");
       router.push('/dashboard');
     } catch (error: any) {
-      toast.error("Failed to save personal details: " + error.message);
-      console.error("Personal details save error:", error);
+      toast.error("Failed to complete onboarding: " + error.message);
+      console.error("Onboarding error:", error);
     } finally {
       setLoading(false);
     }
-  }, [session, supabase, router]);
+  }, [session, supabase, tPathType, experience, goalFocus, preferredMuscles, constraints, sessionLength, equipmentMethod, consentGiven, router]);
 
   return {
     currentStep,
@@ -223,11 +184,9 @@ export const useOnboardingForm = () => {
     consentGiven,
     setConsentGiven,
     loading,
-    isInitialSetupLoading, // Expose new loading state
     tPathDescriptions,
     handleNext,
     handleBack,
-    handleAdvanceToFinalStep, // Expose new function
     handleSubmit,
   };
 };

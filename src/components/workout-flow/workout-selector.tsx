@@ -44,12 +44,6 @@ interface WorkoutSelectorProps {
   isQuickStart?: boolean;
   expandedExerciseCards: Record<string, boolean>;
   toggleExerciseCardExpansion: (exerciseId: string) => void;
-  // Props from useWorkoutFlowManager for EditWorkoutExercisesDialog
-  isEditWorkoutDialogOpen: boolean;
-  selectedWorkoutToEdit: { id: string; name: string } | null;
-  handleOpenEditWorkoutDialog: (workoutId: string, workoutName: string) => void;
-  handleEditWorkoutSaveSuccess: () => void;
-  setIsEditWorkoutDialogOpen: (isOpen: boolean) => void;
 }
 
 const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName: string): Omit<WorkoutPillProps, 'isSelected' | 'onClick'> => {
@@ -109,18 +103,11 @@ export const WorkoutSelector = ({
   isQuickStart = false,
   expandedExerciseCards,
   toggleExerciseCardExpansion,
-  // Destructure new props for EditWorkoutExercisesDialog
-  isEditWorkoutDialogOpen,
-  selectedWorkoutToEdit,
-  handleOpenEditWorkoutDialog,
-  handleEditWorkoutSaveSuccess,
-  setIsEditWorkoutDialogOpen,
 }: WorkoutSelectorProps) => {
   const { supabase, session } = useSession();
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
-  // Removed local states for EditWorkoutExercisesDialog as they are now managed by useWorkoutFlowManager
-  // const [isEditWorkoutDialogOpen, setIsEditWorkoutDialogOpen] = useState(false);
-  // const [selectedWorkoutToEdit, setSelectedWorkoutToEdit] = useState<{ id: string; name: string } | null>(null);
+  const [isEditWorkoutDialogOpen, setIsEditWorkoutDialogOpen] = useState(false);
+  const [selectedWorkoutToEdit, setSelectedWorkoutToEdit] = useState<{ id: string; name: string } | null>(null);
   const [adHocExerciseSourceFilter, setAdHocExerciseSourceFilter] = useState<'my-exercises' | 'global-library'>('my-exercises');
 
   const mainMuscleGroups: string[] = useMemo(() => { // Explicitly type mainMuscleGroups
@@ -262,7 +249,7 @@ export const WorkoutSelector = ({
             {activeWorkout.id !== 'ad-hoc' && activeWorkout && (
               <Button 
                 variant="outline" 
-                onClick={() => handleOpenEditWorkoutDialog(activeWorkout.id, activeWorkout.template_name)} 
+                // Removed: onClick={() => handleOpenEditWorkoutDialog(activeWorkout.id, activeWorkout.template_name)} 
                 className="w-full mt-4 mb-6"
               >
                 <Settings className="h-4 w-4 mr-2" /> Manage Exercises for this Workout
@@ -296,15 +283,6 @@ export const WorkoutSelector = ({
         </Card>
         <LoadingOverlay isOpen={isCreatingSession} title="Starting Workout..." description="Please wait while your session is being prepared." />
       </div>
-      {selectedWorkoutToEdit && (
-        <EditWorkoutExercisesDialog
-          open={isEditWorkoutDialogOpen}
-          onOpenChange={setIsEditWorkoutDialogOpen}
-          workoutId={selectedWorkoutToEdit.id}
-          workoutName={selectedWorkoutToEdit.name}
-          onSaveSuccess={handleEditWorkoutSaveSuccess}
-        />
-      )}
     </>
   );
 };

@@ -29,9 +29,6 @@ export default function WorkoutPage() {
     if (finishedSessionId) {
       setSummarySessionId(finishedSessionId);
       setShowSummaryModal(true);
-      // Trigger refresh for profile and achievements after workout completion
-      workoutFlowManager.refreshProfile();
-      workoutFlowManager.refreshAchievements();
     }
     return finishedSessionId; // Return the session ID
   };
@@ -47,7 +44,7 @@ export default function WorkoutPage() {
       <WorkoutSelector 
         key={workoutFlowManager.activeWorkout?.id || 'no-workout'}
         {...workoutFlowManager} 
-        // Removed onWorkoutSelect as it's no longer a valid prop
+        onWorkoutSelect={() => {}}
         loadingWorkoutFlow={workoutFlowManager.loading}
         createWorkoutSessionInDb={workoutFlowManager.createWorkoutSessionInDb}
         finishWorkoutSession={handleFinishAndShowSummary} // Use the local handler

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { Tables, WorkoutExercise, WorkoutWithLastCompleted, GroupedTPath, LocalUserAchievement, Profile } from '@/types/supabase'; // Import centralized types, including Profile
+import { Tables, WorkoutExercise, WorkoutWithLastCompleted, GroupedTPath } from '@/types/supabase'; // Import centralized types
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
 import { db, LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
@@ -11,9 +11,7 @@ import { useSession } from '@/components/session-context-provider';
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
-// Define the workout orders
-const ULUL_ORDER = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
-const PPL_ORDER = ['Push', 'Pull', 'Legs'];
+// Removed local WorkoutWithLastCompleted and GroupedTPath definitions, now using centralized types
 
 interface UseWorkoutDataFetcherReturn {
   allAvailableExercises: ExerciseDefinition[];
@@ -22,9 +20,6 @@ interface UseWorkoutDataFetcherReturn {
   loadingData: boolean;
   dataError: string | null;
   refreshAllData: () => void;
-  profile: Profile | null; // Expose the user's profile
-  refreshProfile: () => void; // Expose refresh for profile
-  refreshAchievements: () => void; // Expose refresh for achievements
 }
 
 export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
@@ -94,28 +89,11 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     sessionUserId: session?.user.id ?? null,
   });
 
-  // NEW: Use the caching hook for User Achievements
-  const { data: cachedAchievements, loading: loadingAchievements, error: achievementsError, refresh: refreshAchievements } = useCacheAndRevalidate<LocalUserAchievement>({
-    cacheTable: 'user_achievements_cache',
-    supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!session?.user.id) return { data: [], error: null };
-      const { data, error } = await client
-        .from('user_achievements')
-        .select('id, user_id, achievement_id, unlocked_at')
-        .eq('user_id', session.user.id);
-      return { data: data as LocalUserAchievement[] || [], error }; // Explicitly cast data
-    }, [session?.user.id]),
-    queryKey: 'user_achievements',
-    supabase,
-    sessionUserId: session?.user.id ?? null,
-  });
-
-
   // Effect to process cached data and then trigger enrichment
   useEffect(() => {
     const processAndEnrichData = async () => {
-      const isLoading = loadingExercises || loadingTPaths || loadingProfile || loadingTPathExercises || loadingAchievements;
-      const anyError = exercisesError || tPathsError || profileError || tPathExercisesError || achievementsError;
+      const isLoading = loadingExercises || loadingTPaths || loadingProfile || loadingTPathExercises;
+      const anyError = exercisesError || tPathsError || profileError || tPathExercisesError;
 
       console.log(`[useWorkoutDataFetcher] processAndEnrichData: isLoading=${isLoading}, anyError=${anyError}`);
 
@@ -134,8 +112,6 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
 
       if (!session?.user.id || !cachedProfile || cachedProfile.length === 0) {
         console.log("[useWorkoutDataFetcher] No user session or profile, skipping data processing.");
-        setGroupedTPaths([]); // Ensure groupedTPaths is reset if no profile
-        setWorkoutExercisesCache({}); // Ensure cache is reset
         setLoadingData(false); // Not loading, just no user/profile yet
         return;
       }
@@ -165,7 +141,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
         return;
       }
 
-      let childWorkouts = (cachedTPaths || []).filter(tp => tp.parent_t_path_id === activeMainTPath.id && tp.is_bonus);
+      const childWorkouts = (cachedTPaths || []).filter(tp => tp.parent_t_path_id === activeMainTPath.id && tp.is_bonus);
 
       const exerciseDefMap = new Map<string, ExerciseDefinition>();
       (cachedExercises || []).forEach(def => exerciseDefMap.set(def.id, def as ExerciseDefinition));
@@ -200,28 +176,6 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
           })
         );
 
-        // Apply custom sorting for PPL and ULUL workouts
-        const tPathSettings = activeMainTPath.settings as { tPathType?: string };
-        if (tPathSettings?.tPathType === 'ppl') {
-          enrichedChildWorkouts.sort((a, b) => {
-            const indexA = PPL_ORDER.indexOf(a.template_name);
-            const indexB = PPL_ORDER.indexOf(b.template_name);
-            if (indexA === -1 && indexB === -1) return 0;
-            if (indexA === -1) return 1;
-            if (indexB === -1) return -1;
-            return indexA - indexB;
-          });
-        } else if (tPathSettings?.tPathType === 'ulul') {
-          enrichedChildWorkouts.sort((a, b) => {
-            const indexA = ULUL_ORDER.indexOf(a.template_name);
-            const indexB = ULUL_ORDER.indexOf(b.template_name);
-            if (indexA === -1 && indexB === -1) return 0;
-            if (indexA === -1) return 1;
-            if (indexB === -1) return -1;
-            return indexA - indexB;
-          });
-        }
-
         setGroupedTPaths([{
           mainTPath: activeMainTPath,
           childWorkouts: enrichedChildWorkouts,
@@ -248,8 +202,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     cachedExercises, loadingExercises, exercisesError,
     cachedTPaths, loadingTPaths, tPathsError,
     cachedProfile, loadingProfile, profileError,
-    cachedTPathExercises, loadingTPathExercises, tPathExercisesError,
-    cachedAchievements, loadingAchievements, achievementsError // Added achievements dependencies
+    cachedTPathExercises, loadingTPathExercises, tPathExercisesError
   ]);
 
   const refreshAllData = useCallback(() => {
@@ -258,8 +211,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     refreshTPaths();
     refreshProfile();
     refreshTPathExercises();
-    refreshAchievements(); // Refresh achievements
-  }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, refreshAchievements]);
+  }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises]);
 
   return {
     allAvailableExercises,
@@ -268,8 +220,5 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     loadingData,
     dataError,
     refreshAllData,
-    profile: cachedProfile?.[0] || null, // Expose the first profile from cache
-    refreshProfile, // Expose refreshProfile
-    refreshAchievements, // Expose refreshAchievements
   };
 };

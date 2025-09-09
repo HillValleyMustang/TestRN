@@ -3,8 +3,6 @@
 import Dexie, { Table } from 'dexie';
 import { TablesInsert, TablesUpdate, Tables } from '@/types/supabase'; // Import Tables
 import { Session } from '@supabase/supabase-js'; // Import Session type
-import { UserAchievementsRow } from '@/types/supabase-generated/tables/user_achievements'; // Import UserAchievementsRow
-import { Json } from '@/types/supabase-generated'; // Import Json type
 
 export interface SyncQueueItem {
   id?: number;
@@ -81,35 +79,12 @@ export interface LocalTPath extends Tables<'t_paths'> {
   is_bonus: boolean | null;
   parent_t_path_id: string | null;
   created_at: string; // Must be non-null for local cache
-  version: number | null; // Added missing property
-  settings: Json | null; // Added missing property
-  progression_settings: Json | null; // Added missing property
 }
 export interface LocalProfile extends Tables<'profiles'> {
   id: string;
   active_t_path_id: string | null;
   preferred_session_length: string | null;
   created_at: string; // Must be non-null for local cache
-  first_name: string | null; // Added missing property
-  last_name: string | null; // Added missing property
-  full_name: string | null; // Added missing property
-  height_cm: number | null; // Added missing property
-  weight_kg: number | null; // Added missing property
-  body_fat_pct: number | null; // Added missing property
-  primary_goal: string | null; // Added missing property
-  health_notes: string | null; // Added missing property
-  default_rest_time_seconds: number | null; // Added missing property
-  preferred_distance_unit: string | null; // Added missing property
-  preferred_muscles: string | null; // Added missing property
-  preferred_weight_unit: string | null; // Added missing property
-  target_date: string | null; // Added missing property
-  updated_at: string | null; // Added missing property
-  last_ai_coach_use_at: string | null; // Added missing property
-  total_points: number | null; // Added missing property
-  current_streak: number | null; // Added missing property
-  longest_streak: number | null; // Added missing property
-  last_workout_date: string | null; // Added missing property
-  rolling_workout_status: string | null; // Added missing property
 }
 export interface LocalTPathExercise extends Tables<'t_path_exercises'> {
   id: string;
@@ -119,14 +94,6 @@ export interface LocalTPathExercise extends Tables<'t_path_exercises'> {
   is_bonus_exercise: boolean | null;
   created_at: string; // Must be non-null for local cache
 }
-// NEW: LocalUserAchievement
-export interface LocalUserAchievement extends UserAchievementsRow {
-  id: string;
-  user_id: string;
-  achievement_id: string;
-  unlocked_at: string | null;
-}
-
 
 export class AppDatabase extends Dexie {
   workout_sessions!: Table<LocalWorkoutSession, string>;
@@ -138,7 +105,6 @@ export class AppDatabase extends Dexie {
   t_paths_cache!: Table<LocalTPath, string>; // New table for caching T-Paths
   profiles_cache!: Table<LocalProfile, string>; // New: Cache Profile
   t_path_exercises_cache!: Table<LocalTPathExercise, string>; // New: Cache TPathExercises
-  user_achievements_cache!: Table<LocalUserAchievement, string>; // NEW: Cache user achievements
 
   constructor() {
     super('WorkoutTrackerDB');
@@ -183,10 +149,6 @@ export class AppDatabase extends Dexie {
     // New version to add template_name index to workout_sessions
     this.version(8).stores({
       workout_sessions: '&id, user_id, session_date, t_path_id, template_name',
-    });
-    // NEW: Add user_achievements_cache
-    this.version(9).stores({
-      user_achievements_cache: '&id, user_id, achievement_id',
     });
   }
 }

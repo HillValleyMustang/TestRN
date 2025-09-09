@@ -55,7 +55,7 @@ export const WorkoutSummaryModal = ({ open, onOpenChange, sessionId }: WorkoutSu
       setWorkoutSession(null);
       setSetLogs([]);
       setLoading(true);
-      setHasShownAchievementToasts(false); // Reset this state when modal closes or session/ID changes
+      setHasShownAchievementToasts(false);
       if (!sessionId && open) {
         setError("No workout session ID provided for summary.");
         setLoading(false);
@@ -113,7 +113,6 @@ export const WorkoutSummaryModal = ({ open, onOpenChange, sessionId }: WorkoutSu
         setNewPrExercises(Array.from(newPrsThisSession));
         setSetLogs(processedSetLogs);
 
-        // Only show achievement toasts if they haven't been shown for this session yet
         if (!hasShownAchievementToasts && session.user.id) {
           const response = await fetch('/api/get-session-achievements', {
             method: 'POST',
@@ -129,7 +128,7 @@ export const WorkoutSummaryModal = ({ open, onOpenChange, sessionId }: WorkoutSu
               toast.success(`Congrats! Achievement Unlocked: ${displayInfo.name}! ${displayInfo.icon}`);
             }
           });
-          setHasShownAchievementToasts(true); // Mark as shown
+          setHasShownAchievementToasts(true);
         }
       } catch (err: any) {
         setError(err.message || "Failed to load workout summary. Please try again.");
@@ -140,7 +139,7 @@ export const WorkoutSummaryModal = ({ open, onOpenChange, sessionId }: WorkoutSu
     };
 
     fetchWorkoutSummary();
-  }, [session, sessionId, supabase, hasShownAchievementToasts, open]); // Added 'open' to dependencies to re-trigger on modal open
+  }, [session, sessionId, supabase, hasShownAchievementToasts, open]);
 
   const handleRatingChange = (rating: number) => {
     setCurrentRating(rating);
@@ -227,7 +226,7 @@ export const WorkoutSummaryModal = ({ open, onOpenChange, sessionId }: WorkoutSu
                             <TableHead>Exercise</TableHead>
                             <TableHead className="text-center">Sets</TableHead>
                             <TableHead>Best Set</TableHead>
-                            <TableHead className="text-center">PB</TableHead>
+                            <TableHead className="text-center">PR</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>

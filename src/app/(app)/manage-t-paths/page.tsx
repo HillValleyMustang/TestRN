@@ -16,9 +16,7 @@ import { EditWorkoutExercisesDialog } from "@/components/manage-t-paths/edit-wor
 type TPath = Tables<'t_paths'>;
 type Profile = Tables<'profiles'>;
 
-// Define the workout orders
-const ULUL_ORDER = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
-const PPL_ORDER = ['Push', 'Pull', 'Legs'];
+// Removed local WorkoutWithLastCompleted definition, now using centralized type
 
 export default function ManageTPathsPage() {
   const { session, supabase } = useSession();
@@ -90,28 +88,20 @@ export default function ManageTPathsPage() {
       // 4. Fetch last completed date for each child workout
       const workoutsWithLastDatePromises = (childWorkoutsData || []).map(async (workout) => {
         const { data: lastSessionDate } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
-        return { ...workout, last_completed_at: lastSessionDate?.[0]?.last_completed_at || null };
+        return { ...workout, last_completed_at: lastSessionDate?.[0]?.session_date || null };
       });
       let childWorkoutsWithLastDate = await Promise.all(workoutsWithLastDatePromises);
 
-      // 5. Apply custom sorting for PPL and ULUL workouts
+      // 5. Apply custom sorting for PPL workouts if active T-Path is PPL
       const tPathSettings = mainTPathData.settings as { tPathType?: string };
       if (tPathSettings?.tPathType === 'ppl') {
+        const customOrder = ['Pull', 'Push', 'Legs'];
         childWorkoutsWithLastDate.sort((a, b) => {
-          const indexA = PPL_ORDER.indexOf(a.template_name);
-          const indexB = PPL_ORDER.indexOf(b.template_name);
+          const indexA = customOrder.indexOf(a.template_name);
+          const indexB = customOrder.indexOf(b.template_name);
           if (indexA === -1 && indexB === -1) return 0; // Both not in custom order
           if (indexA === -1) return 1; // A not in custom order, B is
           if (indexB === -1) return -1; // B not in custom order, A is
-          return indexA - indexB;
-        });
-      } else if (tPathSettings?.tPathType === 'ulul') {
-        childWorkoutsWithLastDate.sort((a, b) => {
-          const indexA = ULUL_ORDER.indexOf(a.template_name);
-          const indexB = ULUL_ORDER.indexOf(b.template_name);
-          if (indexA === -1 && indexB === -1) return 0;
-          if (indexA === -1) return 1;
-          if (indexB === -1) return -1;
           return indexA - indexB;
         });
       }

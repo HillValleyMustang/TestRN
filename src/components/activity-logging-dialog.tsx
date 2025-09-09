@@ -52,7 +52,7 @@ const formatMinutesAndSecondsForStorage = (minutes: number, seconds: number): st
 
   if (totalMinutes === 0 && remainingSeconds === 0) return "";
   if (totalMinutes === 0) return `${remainingSeconds}s`;
-  if (totalMinutes === 0) return `${totalMinutes}m`; // Corrected from remainingMinutes
+  if (remainingSeconds === 0) return `${totalMinutes}m`; // Corrected from remainingMinutes
   return `${totalMinutes}m ${remainingSeconds}s`;
 };
 
@@ -119,7 +119,7 @@ export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
       return;
     }
 
-    // Convert input distance to KM for storage and PB comparison
+    // Convert input distance to KM for storage and PR comparison
     const distanceInKm = convertDistance(values.distance, preferredDistanceUnit as 'km' | 'miles', 'km');
     if (distanceInKm === null) {
       toast.error("Invalid distance value.");
@@ -134,7 +134,7 @@ export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
       avgTimePerKm = totalSeconds / distanceInKm;
     }
 
-    let isPB = false;
+    let isPR = false;
     try {
       const { data: previousLogs, error: fetchError } = await supabase
         .from('activity_logs')
@@ -147,10 +147,10 @@ export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
 
       if (avgTimePerKm !== null) {
         // For average time, lower is better (faster)
-        isPB = previousLogs.every(log => log.avg_time === null || avgTimePerKm! < log.avg_time);
+        isPR = previousLogs.every(log => log.avg_time === null || avgTimePerKm! < log.avg_time);
       }
     } catch (err) {
-      console.error("Error checking cycling PB:", err);
+      console.error("Error checking cycling PR:", err);
     }
 
     const newLog: TablesInsert<'activity_logs'> = {
@@ -159,7 +159,7 @@ export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
       distance: `${distanceInKm} km`, // Store in KM
       time: timeStringForStorage,
       avg_time: avgTimePerKm,
-      is_pb: isPB,
+      is_pb: isPR,
       log_date: values.log_date,
     };
 
@@ -242,7 +242,7 @@ export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
       avgTimePerKm = totalSeconds / distanceInKm;
     }
 
-    let isPB = false;
+    let isPR = false;
     try {
       const { data: previousLogs, error: fetchError } = await supabase
         .from('activity_logs')
@@ -254,10 +254,10 @@ export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
       if (fetchError) throw fetchError;
 
       if (avgTimePerKm !== null) {
-        isPB = previousLogs.every(log => log.avg_time === null || avgTimePerKm! < log.avg_time);
+        isPR = previousLogs.every(log => log.avg_time === null || avgTimePerKm! < log.avg_time);
       }
     } catch (err) {
-      console.error("Error checking running PB:", err);
+      console.error("Error checking running PR:", err);
     }
 
     const newLog: TablesInsert<'activity_logs'> = {
@@ -266,7 +266,7 @@ export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
       distance: `${distanceInKm} km`, // Store in KM
       time: timeStringForStorage,
       avg_time: avgTimePerKm,
-      is_pb: isPB,
+      is_pb: isPR,
       log_date: values.log_date,
     };
 
@@ -315,7 +315,7 @@ export const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) 
     }
 
     const totalLengths = values.lengths;
-    let isPB = false;
+    let isPR = false;
     try {
       const { data: previousLogs, error: fetchError } = await supabase
         .from('activity_logs')
@@ -331,9 +331,9 @@ export const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) 
         return match ? parseInt(match[1]) : 0;
       });
 
-      isPB = previousLengths.every(prevLen => totalLengths > prevLen);
+      isPR = previousLengths.every(prevLen => totalLengths > prevLen);
     } catch (err) {
-      console.error("Error checking swimming PB:", err);
+      console.error("Error checking swimming PR:", err);
     }
 
     const newLog: TablesInsert<'activity_logs'> = {
@@ -342,7 +342,7 @@ export const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) 
       distance: `${values.lengths} lengths (${values.pool_size}m pool)`,
       time: null,
       avg_time: null,
-      is_pb: isPB,
+      is_pb: isPR,
       log_date: values.log_date,
     };
 
@@ -385,8 +385,8 @@ export const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =>
       return;
     }
 
-    const durationMinutes = timeStringToSeconds(values.duration) / 60; // Convert to minutes for PB check
-    let isPB = false;
+    const durationMinutes = timeStringToSeconds(values.duration) / 60; // Convert to minutes for PR check
+    let isPR = false;
     try {
       const { data: previousLogs, error: fetchError } = await supabase
         .from('activity_logs')
@@ -398,9 +398,9 @@ export const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =>
       if (fetchError) throw fetchError;
 
       const previousDurations = previousLogs.map(log => timeStringToSeconds(log.time || '0m') / 60);
-      isPB = previousDurations.every(prevDur => durationMinutes > prevDur);
+      isPR = previousDurations.every(prevDur => durationMinutes > prevDur);
     } catch (err) {
-      console.error("Error checking tennis PB:", err);
+      console.error("Error checking tennis PR:", err);
     }
 
     const newLog: TablesInsert<'activity_logs'> = {
@@ -409,7 +409,7 @@ export const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =>
       distance: null,
       time: values.duration,
       avg_time: null,
-      is_pb: isPB,
+      is_pb: isPR,
       log_date: values.log_date,
     };
 
