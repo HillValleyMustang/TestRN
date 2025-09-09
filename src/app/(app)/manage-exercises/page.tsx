@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useSession } from "@/components/session-context-provider";
-import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
+import { Tables, FetchedExerciseDefinition } from "@/types/supabase";
 import {
   Sheet,
   SheetContent,
@@ -20,15 +20,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 // Import modular components
 import { GlobalExerciseList } from "@/components/manage-exercises/global-exercise-list";
 import { UserExerciseList } from "@/components/manage-exercises/user-exercise-list";
-import { useManageExercisesData } from '@/hooks/use-manage-exercises-data'; // Import the new hook
+import { useManageExercisesData } from '@/hooks/use-manage-exercises-data';
 
 // AI-related imports
-import { AnalyzeGymButton } from "@/components/manage-exercises/exercise-form/analyze-gym-button";
-import { AnalyzeGymDialog } from "@/components/manage-exercises/exercise-form/analyze-gym-dialog";
+import { AnalyseGymButton } from "@/components/manage-exercises/exercise-form/analyze-gym-button";
+import { AnalyseGymDialog } from "@/components/manage-exercises/exercise-form/analyze-gym-dialog";
 import { SaveAiExercisePrompt } from "@/components/workout-flow/save-ai-exercise-prompt";
-import { toast } from "sonner"; // Import toast
-
-// Removed local FetchedExerciseDefinition definition
+import { toast } from "sonner";
+import { EditExerciseDialog } from "@/components/manage-exercises/edit-exercise-dialog";
 
 export default function ManageExercisesPage() {
   const { session, supabase } = useSession();
@@ -59,7 +58,7 @@ export default function ManageExercisesPage() {
   } = useManageExercisesData({ sessionUserId: session?.user.id ?? null, supabase });
 
   // AI-related states
-  const [showAnalyzeGymDialog, setShowAnalyzeGymDialog] = useState(false);
+  const [showAnalyseGymDialog, setShowAnalyseGymDialog] = useState(false);
   const [showSaveAiExercisePrompt, setShowSaveAiExercisePrompt] = useState(false);
   const [aiIdentifiedExercise, setAiIdentifiedExercise] = useState<Partial<Tables<'exercise_definitions'>> | null>(null);
   const [isAiSaving, setIsAiSaving] = useState(false);
@@ -82,7 +81,7 @@ export default function ManageExercisesPage() {
     };
 
     emblaApi.on("select", onSelect);
-    onSelect(); // Set initial tab based on carousel position
+    onSelect();
 
     return () => {
       emblaApi.off("select", onSelect);
@@ -120,20 +119,20 @@ export default function ManageExercisesPage() {
         pro_tip: exercise.pro_tip,
         video_url: exercise.video_url,
         user_id: session.user.id,
-        library_id: null, // User-created, not from global library
+        library_id: null,
         is_favorite: false,
         created_at: new Date().toISOString(),
       }]).select('id').single();
 
       if (error) {
-        if (error.code === '23505') { // Unique violation code
+        if (error.code === '23505') {
           toast.error("This exercise already exists in your custom exercises.");
         } else {
           throw error;
         }
       } else {
         toast.success(`'${exercise.name}' added to My Exercises!`);
-        refreshExercises(); // Trigger refresh of exercise lists
+        refreshExercises();
         setShowSaveAiExercisePrompt(false);
         setAiIdentifiedExercise(null);
       }
@@ -144,6 +143,29 @@ export default function ManageExercisesPage() {
       setIsAiSaving(false);
     }
   }, [session, supabase, refreshExercises]);
+
+  const handleEditIdentifiedExercise = useCallback((exercise: Partial<Tables<'exercise_definitions'>>) => {
+    const exerciseToEdit: FetchedExerciseDefinition = {
+      ...exercise,
+      id: exercise.id || null,
+      user_id: session?.user.id || null,
+      is_favorite: false,
+      library_id: exercise.library_id || null,
+      // Ensure description and pro_tip are explicitly string | null
+      description: exercise.description === undefined ? null : exercise.description,
+      pro_tip: exercise.pro_tip === undefined ? null : exercise.pro_tip,
+      // Ensure category and video_url are explicitly string | null
+      category: exercise.category === undefined ? null : exercise.category,
+      video_url: exercise.video_url === undefined ? null : exercise.video_url,
+      // Ensure name, main_muscle, type are explicitly string
+      name: exercise.name || '',
+      main_muscle: exercise.main_muscle || '',
+      type: exercise.type || 'weight', // Default to 'weight' if undefined
+    };
+    handleEditClick(exerciseToEdit);
+    setShowSaveAiExercisePrompt(false);
+    setAiIdentifiedExercise(null);
+  }, [handleEditClick, session?.user.id]);
 
 
   return (
@@ -196,9 +218,9 @@ export default function ManageExercisesPage() {
                 <div className="flex">
                   <div className="embla__slide flex-[0_0_100%] min-w-0 pt-0">
                     <TabsContent value="my-exercises" className="mt-0 border-none p-0">
-                      <div className="p-3"> {/* Added padding here */}
+                      <div className="p-3">
                         <div className="mb-6">
-                          <AnalyzeGymButton onClick={() => setShowAnalyzeGymDialog(true)} />
+                          <AnalyseGymButton onClick={() => setShowAnalyseGymDialog(true)} />
                         </div>
                         <UserExerciseList
                           exercises={userExercises}
@@ -220,7 +242,7 @@ export default function ManageExercisesPage() {
                   </div>
                   <div className="embla__slide flex-[0_0_100%] min-w-0 pt-0">
                     <TabsContent value="global-library" className="mt-0 border-none p-0">
-                      <div className="p-3"> {/* Added padding here */}
+                      <div className="p-3">
                         <GlobalExerciseList
                           exercises={globalExercises}
                           loading={loading}
@@ -238,7 +260,6 @@ export default function ManageExercisesPage() {
                 </div>
               </div>
               
-              {/* Navigation Buttons for Carousel */}
               <Button
                 variant="ghost"
                 size="icon"
@@ -262,9 +283,9 @@ export default function ManageExercisesPage() {
         </Card>
       </div>
 
-      <AnalyzeGymDialog
-        open={showAnalyzeGymDialog}
-        onOpenChange={setShowAnalyzeGymDialog}
+      <AnalyseGymDialog
+        open={showAnalyseGymDialog}
+        onOpenChange={setShowAnalyseGymDialog}
         onExerciseIdentified={handleExerciseIdentified}
       />
       <SaveAiExercisePrompt
@@ -272,10 +293,19 @@ export default function ManageExercisesPage() {
         onOpenChange={setShowSaveAiExercisePrompt}
         exercise={aiIdentifiedExercise}
         onSaveToMyExercises={handleSaveAiExerciseToMyExercises}
-        // onAddOnlyToCurrentWorkout is intentionally omitted here as there's no active workout session
+        context="manage-exercises"
+        onEditExercise={handleEditIdentifiedExercise}
         isSaving={isAiSaving}
         isDuplicate={isDuplicateAiExercise}
       />
+      {editingExercise && (
+        <EditExerciseDialog
+          open={!!editingExercise}
+          onOpenChange={handleCancelEdit}
+          exercise={editingExercise}
+          onSaveSuccess={handleSaveSuccess}
+        />
+      )}
     </>
   );
 }

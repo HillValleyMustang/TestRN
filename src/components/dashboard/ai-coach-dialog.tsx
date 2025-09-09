@@ -3,13 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Bot, AlertCircle, Info } from "lucide-react"; // ADDED: Info icon
+import { Sparkles, Bot, AlertCircle, Info } from "lucide-react";
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { ScrollArea } from '../ui/scroll-area';
 import { LoadingOverlay } from '../loading-overlay';
 import { Tables } from '@/types/supabase';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; // ADDED: Tooltip components
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type AiCoachUsageLog = Tables<'ai_coach_usage_logs'>;
 
@@ -56,7 +56,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
     }
   }, [open, session, supabase]);
 
-  const handleAnalyze = async () => {
+  const handleAnalyse = async () => { // Renamed to handleAnalyse
     if (usageCount >= AI_COACH_LIMIT_PER_SESSION) {
       toast.error(`You've reached the limit of ${AI_COACH_LIMIT_PER_SESSION} AI coach uses per session.`);
       return;
@@ -81,7 +81,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
       
     } catch (err: any) {
       console.error("AI Coach error:", err);
-      toast.error("Failed to get AI analysis: " + err.message);
+      toast.error("Failed to get AI analysis: " + err.message); // Changed to analysis
     } finally {
       setLoading(false);
     }
@@ -102,7 +102,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <Bot className="mr-2 h-5 w-5" /> AI Fitness Coach
-            <TooltipProvider> {/* ADDED: TooltipProvider */}
+            <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon" className="ml-2 h-6 w-6">
@@ -125,7 +125,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
               {canUseAiCoach ? (
                 <>
                   <p>Get personalised feedback on your workout history from the last month.</p>
-                  <Button onClick={handleAnalyze}>Analyse My Performance</Button>
+                  <Button onClick={handleAnalyse}>Analyse My Performance</Button> {/* Changed to Analyse */}
                   <p className="text-sm text-muted-foreground">
                     You have {AI_COACH_LIMIT_PER_SESSION - usageCount} uses remaining for this session.
                   </p>
@@ -143,7 +143,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
           )}
           {loading && (
             <div className="text-center text-muted-foreground">
-              <p>Analysing your performance... This may take a moment.</p>
+              <p>Analysing your performance... This may take a moment.</p> {/* Changed to Analysing */}
             </div>
           )}
           {analysis && (

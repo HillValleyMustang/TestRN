@@ -3,7 +3,7 @@
 import React, { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Camera, Upload, Loader2, ImageOff, Sparkles } from "lucide-react"; // Added Sparkles
+import { Camera, Upload, Loader2, ImageOff, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/components/session-context-provider";
 import { Tables } from "@/types/supabase";
@@ -11,13 +11,13 @@ import { LoadingOverlay } from "@/components/loading-overlay";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
-interface AnalyzeGymDialogProps {
+interface AnalyseGymDialogProps { // Renamed to AnalyseGymDialogProps
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onExerciseIdentified: (exercise: Partial<ExerciseDefinition>, isDuplicate: boolean) => void;
 }
 
-export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: AnalyzeGymDialogProps) => {
+export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: AnalyseGymDialogProps) => { // Renamed to AnalyseGymDialog
   const { session } = useSession();
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [base64Image, setBase64Image] = useState<string | null>(null);
@@ -49,7 +49,7 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
     }
   };
 
-  const handleAnalyzeImage = async () => {
+  const handleAnalyseImage = async () => { // Renamed to handleAnalyseImage
     if (!base64Image) {
       toast.error("Please upload an image first.");
       return;
@@ -73,15 +73,15 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to analyze image.');
+        throw new Error(data.error || 'Failed to analyse image.'); // Changed to analyse
       }
 
       onExerciseIdentified(data.identifiedExercise, data.isDuplicate);
       onOpenChange(false); // Close this dialog
       resetForm();
     } catch (err: any) {
-      console.error("Error analyzing image:", err);
-      toast.error("Image analysis failed: " + err.message);
+      console.error("Error analysing image:", err); // Changed to analysing
+      toast.error("Image analysis failed: " + err.message); // Changed to analysis
     } finally {
       setLoading(false);
     }
@@ -108,7 +108,7 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
         <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Camera className="h-5 w-5" /> Analyze Gym Photo
+              <Camera className="h-5 w-5" /> Analyse Gym Photo
             </DialogTitle>
             <DialogDescription>
               Upload a photo of your gym equipment, and our AI will try to identify an exercise.
@@ -149,20 +149,20 @@ export const AnalyzeGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancel
             </Button>
-            <Button onClick={handleAnalyzeImage} disabled={!base64Image || loading}>
+            <Button onClick={handleAnalyseImage} disabled={!base64Image || loading}>
               {loading ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <Sparkles className="h-4 w-4 mr-2" />
               )}
-              {loading ? "Analyzing..." : "Analyze Image"}
+              {loading ? "Analysing..." : "Analyse Image"}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
       <LoadingOverlay
         isOpen={loading}
-        title="Analyzing Image"
+        title="Analysing Image"
         description="Please wait while the AI identifies equipment in your photo."
       />
     </>

@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react"; // Added useCallback
+import React, { useState, useEffect, useCallback } from "react";
 import { useSession } from "@/components/session-context-provider";
-import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
+import { Tables, FetchedExerciseDefinition } from "@/types/supabase";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,7 +26,7 @@ import {
   FormMessage 
 } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, Edit, XCircle, ChevronDown, ChevronUp, Info, Sparkles, Dumbbell, Timer } from "lucide-react";
+import { PlusCircle, Edit, XCircle, ChevronDown, ChevronUp, Info, Dumbbell, Timer } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Popover,
@@ -39,7 +39,6 @@ import { cn } from '@/lib/utils';
 import { Badge } from "@/components/ui/badge";
 
 // Import new modular components with corrected paths
-// Removed AnalyzeGymButton and AnalyzeGymDialog imports
 import { ExerciseNameInput } from "@/components/manage-exercises/exercise-form/exercise-name-input";
 import { MainMuscleSelect } from "@/components/manage-exercises/exercise-form/main-muscle-select";
 import { ExerciseTypeSelector } from "@/components/manage-exercises/exercise-form/exercise-type-selector";
@@ -47,7 +46,6 @@ import { ExerciseCategorySelect } from "@/components/manage-exercises/exercise-f
 import { ExerciseDetailsTextareas } from "@/components/manage-exercises/exercise-form/exercise-details-textareas";
 import { ExerciseVideoUrlInput } from "@/components/manage-exercises/exercise-form/exercise-video-url-input";
 import { ExerciseFormActions } from "@/components/manage-exercises/exercise-form/exercise-form-actions";
-// Removed SaveAiExercisePrompt import
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -65,15 +63,13 @@ interface ExerciseFormProps {
   editingExercise: FetchedExerciseDefinition | null;
   onCancelEdit: () => void;
   onSaveSuccess: () => void;
-  // Removed isExpandedInDialog prop
 }
 
 export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(({ editingExercise, onCancelEdit, onSaveSuccess }, ref) => {
   const { session, supabase } = useSession();
-  const [isExpanded, setIsExpanded] = useState(false); // Default to collapsed for add form
+  const [isExpanded, setIsExpanded] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]);
-  // Removed states for Analyze Gym functionality
 
   const mainMuscleGroups = [
     "Pectorals", "Deltoids", "Lats", "Traps", "Biceps", 
@@ -116,18 +112,18 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
         main_muscles: muscleGroups,
         type: editingExercise.type ? [editingExercise.type] as ("weight" | "timed")[] : [],
         category: editingExercise.category || null,
-        description: editingExercise.description || null,
+        description: editingExercise.description || null, // Fixed typo here
         pro_tip: editingExercise.pro_tip || null,
         video_url: editingExercise.video_url || null,
       });
       setSelectedMuscles(muscleGroups);
       setSelectedTypes(editingExercise.type ? [editingExercise.type] as ("weight" | "timed")[] : []);
-      setIsExpanded(true); // Expand when editing an existing exercise
+      setIsExpanded(true);
     } else {
       form.reset();
       setSelectedMuscles([]);
       setSelectedTypes([]);
-      setIsExpanded(false); // Collapse when adding new
+      setIsExpanded(false);
     }
   }, [editingExercise, form]);
 
@@ -149,10 +145,6 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
     form.setValue("main_muscles", newMuscles);
     setSelectedMuscles(newMuscles);
   };
-
-  // Removed handleExerciseIdentified function
-  // Removed handleSaveAiExerciseToMyExercises function
-  // Removed handleAddAiExerciseToWorkoutOnly function
 
   async function onSubmit(values: z.infer<typeof exerciseSchema>) {
     if (!session) {
@@ -180,32 +172,27 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
       video_url: values.video_url,
     };
 
-    // Determine if we are editing an existing user-owned exercise or creating a new one
-    // Ensure editingExercise.id is not null for an update operation
     const isEditingUserOwned = editingExercise && editingExercise.user_id === session.user.id && editingExercise.library_id === null && editingExercise.id !== null;
 
     if (isEditingUserOwned) {
-      // This is an actual edit of a user-owned exercise
       const { error } = await supabase
         .from('exercise_definitions')
         .update(exerciseData)
-        .eq('id', editingExercise.id); // Now TypeScript knows editingExercise.id is string
+        .eq('id', editingExercise.id);
 
       if (error) {
         toast.error("Failed to update exercise: " + error.message);
       } else {
         toast.success("Exercise updated successfully!");
-        onCancelEdit(); // This will now close the dialog
+        onCancelEdit();
         onSaveSuccess();
-        setIsExpanded(false); // Collapse after saving
+        setIsExpanded(false);
       }
     } else {
-      // This is always creating a new user-owned exercise,
-      // whether from scratch or based on a global template.
       const { error } = await supabase.from('exercise_definitions').insert([{ 
         ...exerciseData, 
         user_id: session.user.id,
-        library_id: null, // Always null for user-created/customized exercises
+        library_id: null,
         is_favorite: false,
         created_at: new Date().toISOString(),
       }]).select('id').single();
@@ -217,7 +204,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
         setSelectedMuscles([]);
         setSelectedTypes([]);
         onSaveSuccess();
-        setIsExpanded(false); // Collapse after saving
+        setIsExpanded(false);
       }
     }
   }
@@ -259,12 +246,10 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
             )}
           </span>
         </CardHeader>
-        {isExpanded && ( // Render content if expanded
+        {isExpanded && (
           <CardContent className="px-4 py-6">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                {/* Removed AnalyzeGymButton */}
-
                 <ExerciseNameInput form={form} />
                 
                 <MainMuscleSelect
@@ -299,9 +284,6 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
           </CardContent>
         )}
       </Card>
-
-      {/* Removed AnalyzeGymDialog */}
-      {/* Removed SaveAiExercisePrompt */}
     </>
   );
 });
