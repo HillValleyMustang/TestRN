@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
 import { getCalendarItemColorCssVar, getCalendarItemDisplayName } from '@/lib/utils'; // Import new utilities
+import { DayContentProps, ActiveModifiers } from 'react-day-picker'; // Import DayContentProps and ActiveModifiers
 
 interface ConsistencyCalendarModalProps {
   open: boolean;
@@ -17,6 +18,49 @@ interface ActivityEntry {
   type: 'workout' | 'activity' | 'ad-hoc';
   name: string | null;
 }
+
+// Define a new interface for CustomDayContent's props
+interface CustomDayContentProps extends DayContentProps {
+  activityMap: Map<string, ActivityEntry>;
+}
+
+// Custom Day Content component
+const CustomDayContent = (props: CustomDayContentProps) => {
+  const { date, activeModifiers, displayMonth, activityMap } = props; // Destructure activityMap
+  const isSelected = activeModifiers.selected;
+  const isToday = activeModifiers.today;
+
+  // Find the corresponding activity entry for this date
+  const dateKey = date.toISOString().split('T')[0];
+  const activityEntry = activityMap.get(dateKey);
+
+  let backgroundColor = 'transparent';
+  if (activityEntry) {
+    backgroundColor = getCalendarItemColorCssVar(activityEntry.name, activityEntry.type);
+  } else if (isToday && !isSelected) {
+    // If it's today and not selected, use a subtle highlight
+    backgroundColor = 'hsl(var(--muted))';
+  }
+
+  return (
+    <span
+      style={{
+        backgroundColor: backgroundColor,
+        color: activityEntry ? 'hsl(0 0% 100%)' : (isToday ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))'),
+        borderRadius: '0.375rem', // rounded-md
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        height: '100%',
+      }}
+      className="relative z-10" // Ensure it's above any default button background
+    >
+      {date.getDate()}
+    </span>
+  );
+};
+
 
 export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCalendarModalProps) => {
   const { session, supabase } = useSession();
@@ -90,22 +134,8 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
 
   const calendarModifiers = useMemo(() => {
     const modifiers: Record<string, Date[]> = {};
-    const styles: Record<string, React.CSSProperties> = {};
-
-    activityMap.forEach((entry, dateKey) => {
-      const modifierName = `${entry.name || 'Unknown'}-${entry.type}`;
-      if (!modifiers[modifierName]) {
-        modifiers[modifierName] = [];
-        styles[modifierName] = {
-          backgroundColor: getCalendarItemColorCssVar(entry.name, entry.type),
-          color: 'hsl(0 0% 100%)', // Force white text
-          borderRadius: '0.375rem', // Apply rounded-md
-        };
-      }
-      modifiers[modifierName].push(entry.date);
-    });
-
-    return { modifiers, styles };
+    // No styles needed here, as CustomDayContent will handle it
+    return { modifiers, styles: {} };
   }, [activityMap]);
 
   const sortedUniqueActivityTypes = useMemo(() => {
@@ -129,11 +159,10 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
                 className="rounded-md border"
                 modifiers={calendarModifiers.modifiers}
                 modifiersStyles={calendarModifiers.styles}
-                classNames={{
-                  // The background is now handled by global CSS, only set text color here
-                  day_selected: "text-white",
-                  day_today: "text-white",
+                components={{
+                  DayContent: (props) => <CustomDayContent {...props} activityMap={activityMap} />,
                 }}
+                // Removed classNames as CustomDayContent handles styling
               />
               <div className="mt-6 w-full px-4">
                 <h3 className="text-md font-semibold mb-3">Key:</h3>

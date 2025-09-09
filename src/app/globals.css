@@ -270,15 +270,3 @@
   backdrop-filter: blur(12px); /* Updated blur to 12px */
   -webkit-backdrop-filter: blur(12px); /* For Safari compatibility */
 }
-
-/* NEW: Force selected calendar day background to transparent */
-.rdp-day_selected {
-  background-color: transparent !important;
-  background-image: none !important;
-}
-
-/* Ensure today's selected day also respects transparency */
-.rdp-day_today.rdp-day_selected {
-  background-color: transparent !important;
-  background-image: none !important;
-}
