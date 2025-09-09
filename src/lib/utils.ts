@@ -161,3 +161,72 @@ export function getLevelFromPoints(totalPoints: number): { level: string; color:
   if (totalPoints < 600) return { level: 'Champion', color: 'bg-purple-500' };
   return { level: 'Legend', color: 'bg-yellow-500' };
 }
+
+// NEW: Utility function to get the CSS variable for calendar item colors
+export function getCalendarItemColorCssVar(name: string | null | undefined, type: 'workout' | 'activity' | 'ad-hoc'): string {
+  if (!name) {
+    if (type === 'ad-hoc') {
+      return 'var(--workout-ad-hoc)';
+    }
+    return '';
+  }
+
+  let colorKey: string;
+  if (type === 'workout') {
+    switch (name) {
+      case 'Upper Body A':
+      case '4-Day Upper/Lower':
+        colorKey = 'upper-body-a';
+        break;
+      case 'Lower Body A':
+        colorKey = 'lower-body-a';
+        break;
+      case 'Upper Body B':
+        colorKey = 'upper-body-b';
+        break;
+      case 'Lower Body B':
+        colorKey = 'lower-body-b';
+        break;
+      case 'Push':
+      case '3-Day Push/Pull/Legs':
+        colorKey = 'push';
+        break;
+      case 'Pull':
+        colorKey = 'pull';
+        break;
+      case 'Legs':
+        colorKey = 'legs';
+        break;
+      case 'Bonus':
+        colorKey = 'bonus';
+        break;
+      default: // For 'Ad Hoc Workout' or other unknown workout names
+        colorKey = 'ad-hoc';
+        break;
+    }
+  } else if (type === 'activity') {
+    switch (name) {
+      case 'Running':
+      case 'Cycling':
+      case 'Swimming':
+      case 'Tennis':
+        colorKey = 'activity';
+        break;
+      default:
+        return '';
+    }
+  } else if (type === 'ad-hoc') {
+    colorKey = 'ad-hoc';
+  } else {
+    return '';
+  }
+
+  return `var(--workout-${colorKey})`;
+}
+
+// NEW: Utility function to get the display name for calendar items
+export function getCalendarItemDisplayName(name: string | null | undefined, type: 'workout' | 'activity' | 'ad-hoc'): string {
+  if (type === 'ad-hoc') return 'Ad Hoc Workout';
+  if (!name) return 'Unknown';
+  return name;
+}

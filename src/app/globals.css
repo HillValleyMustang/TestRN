@@ -85,6 +85,8 @@
     --workout-pull: 190 86% 36%; /* #0891b2 */
     --workout-legs: 270 67% 40%; /* #6b21a8 - Now matches lower-body-b */
     --workout-bonus: 43 74% 66%; /* chart-4 */
+    --workout-ad-hoc: var(--workout-bonus); /* Ad Hoc uses bonus color */
+    --workout-activity: var(--chart-2); /* Generic activity color */
 
 
     /* New Aurora Colors (Light Mode) - Adjusted to retro palette */
@@ -175,6 +177,8 @@
     --workout-pull: 190 86% 36%; /* #0891b2 */
     --workout-legs: 270 67% 40%; /* #6b21a8 - Now matches lower-body-b */
     --workout-bonus: 43 74% 66%; /* chart-4 */
+    --workout-ad-hoc: var(--workout-bonus); /* Ad Hoc uses bonus color */
+    --workout-activity: var(--chart-2); /* Generic activity color */
 
     /* Dark mode Aurora Colors - Adjusted to retro palette */
     --aurora-blue: 200 100% 85%;
