@@ -264,21 +264,21 @@
   }
 }
 
-/* Existing fade-in-slide-up animation */
-@keyframes fade-in-slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 /* Apply transparency and backdrop blur to cards */
 .card {
   background-color: hsl(var(--card) / 0.7); /* Updated opacity to 0.7 */
   backdrop-filter: blur(12px); /* Updated blur to 12px */
   -webkit-backdrop-filter: blur(12px); /* For Safari compatibility */
+}
+
+/* NEW: Force selected calendar day background to transparent */
+.rdp-day_selected {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+/* Ensure today's selected day also respects transparency */
+.rdp-day_today.rdp-day_selected {
+  background-color: transparent !important;
+  background-image: none !important;
 }
