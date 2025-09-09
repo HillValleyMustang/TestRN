@@ -22,6 +22,12 @@ import { GlobalExerciseList } from "@/components/manage-exercises/global-exercis
 import { UserExerciseList } from "@/components/manage-exercises/user-exercise-list";
 import { useManageExercisesData } from '@/hooks/use-manage-exercises-data'; // Import the new hook
 
+// AI-related imports
+import { AnalyzeGymButton } from "@/components/manage-exercises/exercise-form/analyze-gym-button";
+import { AnalyzeGymDialog } from "@/components/manage-exercises/exercise-form/analyze-gym-dialog";
+import { SaveAiExercisePrompt } from "@/components/workout-flow/save-ai-exercise-prompt";
+import { toast } from "sonner"; // Import toast
+
 // Removed local FetchedExerciseDefinition definition
 
 export default function ManageExercisesPage() {
@@ -51,6 +57,13 @@ export default function ManageExercisesPage() {
     refreshExercises,
     refreshTPaths,
   } = useManageExercisesData({ sessionUserId: session?.user.id ?? null, supabase });
+
+  // AI-related states
+  const [showAnalyzeGymDialog, setShowAnalyzeGymDialog] = useState(false);
+  const [showSaveAiExercisePrompt, setShowSaveAiExercisePrompt] = useState(false);
+  const [aiIdentifiedExercise, setAiIdentifiedExercise] = useState<Partial<Tables<'exercise_definitions'>> | null>(null);
+  const [isAiSaving, setIsAiSaving] = useState(false);
+  const [isDuplicateAiExercise, setIsDuplicateAiExercise] = useState(false);
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
@@ -84,112 +97,185 @@ export default function ManageExercisesPage() {
     emblaApi && emblaApi.scrollNext();
   }, [emblaApi]);
 
+  // AI Gym Analysis Handlers for Manage Exercises page
+  const handleExerciseIdentified = useCallback((exercise: Partial<Tables<'exercise_definitions'>>, isDuplicate: boolean) => {
+    setAiIdentifiedExercise(exercise);
+    setIsDuplicateAiExercise(isDuplicate);
+    setShowSaveAiExercisePrompt(true);
+  }, []);
+
+  const handleSaveAiExerciseToMyExercises = useCallback(async (exercise: Partial<Tables<'exercise_definitions'>>) => {
+    if (!session) {
+      toast.error("You must be logged in to save exercises.");
+      return;
+    }
+    setIsAiSaving(true);
+    try {
+      const { error } = await supabase.from('exercise_definitions').insert([{
+        name: exercise.name!,
+        main_muscle: exercise.main_muscle!,
+        type: exercise.type!,
+        category: exercise.category,
+        description: exercise.description,
+        pro_tip: exercise.pro_tip,
+        video_url: exercise.video_url,
+        user_id: session.user.id,
+        library_id: null, // User-created, not from global library
+        is_favorite: false,
+        created_at: new Date().toISOString(),
+      }]).select('id').single();
+
+      if (error) {
+        if (error.code === '23505') { // Unique violation code
+          toast.error("This exercise already exists in your custom exercises.");
+        } else {
+          throw error;
+        }
+      } else {
+        toast.success(`'${exercise.name}' added to My Exercises!`);
+        refreshExercises(); // Trigger refresh of exercise lists
+        setShowSaveAiExercisePrompt(false);
+        setAiIdentifiedExercise(null);
+      }
+    } catch (err: any) {
+      console.error("Failed to save AI identified exercise:", err);
+      toast.error("Failed to save exercise: " + err.message);
+    } finally {
+      setIsAiSaving(false);
+    }
+  }, [session, supabase, refreshExercises]);
+
+
   return (
-    <div className="flex flex-col gap-4 p-2 sm:p-4">
-      <header className="mb-4 text-center">
-        <h1 className="text-3xl font-bold">Manage Exercises</h1>
-      </header>
-      
-      <Card>
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <div className="flex items-center justify-between p-4 border-b">
-            <TabsList className="grid grid-cols-2 h-9 flex-grow max-w-[calc(100%-60px)]">
-              <TabsTrigger value="my-exercises">My Exercises</TabsTrigger>
-              <TabsTrigger value="global-library">Global Library</TabsTrigger>
-            </TabsList>
-            <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
-              <SheetTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 gap-1 ml-2">
-                  <Filter className="h-4 w-4" />
-                  <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Filter</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="bottom" className="h-fit max-h-[80vh]">
-                <SheetHeader>
-                  <SheetTitle>Filter Exercises by Muscle Group</SheetTitle>
-                </SheetHeader>
-                <div className="py-4">
-                  <Select onValueChange={setSelectedMuscleFilter} value={selectedMuscleFilter}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Filter by Muscle" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Muscle Groups</SelectItem>
-                      <SelectItem value="favorites">Favourites</SelectItem>
-                      {availableMuscleGroups.map(muscle => (
-                        <SelectItem key={muscle} value={muscle}>
-                          {muscle}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </SheetContent>
-            </Sheet>
-          </div>
-          
-          <div className="relative">
-            <div className="overflow-hidden" ref={emblaRef}>
-              <div className="flex">
-                <div className="embla__slide flex-[0_0_100%] min-w-0 pt-0">
-                  <TabsContent value="my-exercises" className="mt-0 border-none p-0">
-                    <UserExerciseList
-                      exercises={userExercises}
-                      loading={loading}
-                      onEdit={handleEditClick}
-                      onDelete={handleDeleteExercise}
-                      editingExercise={editingExercise}
-                      onCancelEdit={handleCancelEdit}
-                      onSaveSuccess={handleSaveSuccess}
-                      exerciseWorkoutsMap={exerciseWorkoutsMap}
-                      onRemoveFromWorkout={handleRemoveFromWorkout}
-                      onToggleFavorite={handleToggleFavorite}
-                      onAddSuccess={refreshExercises}
-                      onOptimisticAdd={handleOptimisticAdd}
-                      onAddFailure={handleAddFailure}
-                    />
-                  </TabsContent>
-                </div>
-                <div className="embla__slide flex-[0_0_100%] min-w-0 pt-0">
-                  <TabsContent value="global-library" className="mt-0 border-none p-0">
-                    <GlobalExerciseList
-                      exercises={globalExercises}
-                      loading={loading}
-                      onEdit={handleEditClick}
-                      exerciseWorkoutsMap={exerciseWorkoutsMap}
-                      onRemoveFromWorkout={handleRemoveFromWorkout}
-                      onToggleFavorite={handleToggleFavorite}
-                      onAddSuccess={refreshExercises}
-                      onOptimisticAdd={handleOptimisticAdd}
-                      onAddFailure={handleAddFailure}
-                    />
-                  </TabsContent>
-                </div>
-              </div>
+    <>
+      <div className="flex flex-col gap-4 p-2 sm:p-4">
+        <header className="mb-4 text-center">
+          <h1 className="text-3xl font-bold">Manage Exercises</h1>
+        </header>
+        
+        <Card>
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+            <div className="flex items-center justify-between p-4 border-b">
+              <TabsList className="grid grid-cols-2 h-9 flex-grow max-w-[calc(100%-60px)]">
+                <TabsTrigger value="my-exercises">My Exercises</TabsTrigger>
+                <TabsTrigger value="global-library">Global Library</TabsTrigger>
+              </TabsList>
+              <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 gap-1 ml-2">
+                    <Filter className="h-4 w-4" />
+                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Filter</span>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="bottom" className="h-fit max-h-[80vh]">
+                  <SheetHeader>
+                    <SheetTitle>Filter Exercises by Muscle Group</SheetTitle>
+                  </SheetHeader>
+                  <div className="py-4">
+                    <Select onValueChange={setSelectedMuscleFilter} value={selectedMuscleFilter}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Filter by Muscle" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Muscle Groups</SelectItem>
+                        <SelectItem value="favorites">Favourites</SelectItem>
+                        {availableMuscleGroups.map(muscle => (
+                          <SelectItem key={muscle} value={muscle}>
+                            {muscle}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </SheetContent>
+              </Sheet>
             </div>
             
-            {/* Navigation Buttons for Carousel */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={scrollPrev}
-              className="absolute left-2 top-1/2 -translate-y-1/2 z-10 hidden sm:flex"
-              disabled={activeTab === "my-exercises"}
-            >
-              <ChevronLeft className="h-6 w-6" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={scrollNext}
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 hidden sm:flex"
-              disabled={activeTab === "global-library"}
-            >
-              <ChevronRight className="h-6 w-6" />
-            </Button>
-          </div>
-        </Tabs>
-      </Card>
-    </div>
+            <div className="relative">
+              <div className="overflow-hidden" ref={emblaRef}>
+                <div className="flex">
+                  <div className="embla__slide flex-[0_0_100%] min-w-0 pt-0">
+                    <TabsContent value="my-exercises" className="mt-0 border-none p-0">
+                      <div className="p-3"> {/* Added padding here */}
+                        <div className="mb-6">
+                          <AnalyzeGymButton onClick={() => setShowAnalyzeGymDialog(true)} />
+                        </div>
+                        <UserExerciseList
+                          exercises={userExercises}
+                          loading={loading}
+                          onEdit={handleEditClick}
+                          onDelete={handleDeleteExercise}
+                          editingExercise={editingExercise}
+                          onCancelEdit={handleCancelEdit}
+                          onSaveSuccess={handleSaveSuccess}
+                          exerciseWorkoutsMap={exerciseWorkoutsMap}
+                          onRemoveFromWorkout={handleRemoveFromWorkout}
+                          onToggleFavorite={handleToggleFavorite}
+                          onAddSuccess={refreshExercises}
+                          onOptimisticAdd={handleOptimisticAdd}
+                          onAddFailure={handleAddFailure}
+                        />
+                      </div>
+                    </TabsContent>
+                  </div>
+                  <div className="embla__slide flex-[0_0_100%] min-w-0 pt-0">
+                    <TabsContent value="global-library" className="mt-0 border-none p-0">
+                      <div className="p-3"> {/* Added padding here */}
+                        <GlobalExerciseList
+                          exercises={globalExercises}
+                          loading={loading}
+                          onEdit={handleEditClick}
+                          exerciseWorkoutsMap={exerciseWorkoutsMap}
+                          onRemoveFromWorkout={handleRemoveFromWorkout}
+                          onToggleFavorite={handleToggleFavorite}
+                          onAddSuccess={refreshExercises}
+                          onOptimisticAdd={handleOptimisticAdd}
+                          onAddFailure={handleAddFailure}
+                        />
+                      </div>
+                    </TabsContent>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Navigation Buttons for Carousel */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={scrollPrev}
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 hidden sm:flex"
+                disabled={activeTab === "my-exercises"}
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={scrollNext}
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 hidden sm:flex"
+                disabled={activeTab === "global-library"}
+              >
+                <ChevronRight className="h-6 w-6" />
+              </Button>
+            </div>
+          </Tabs>
+        </Card>
+      </div>
+
+      <AnalyzeGymDialog
+        open={showAnalyzeGymDialog}
+        onOpenChange={setShowAnalyzeGymDialog}
+        onExerciseIdentified={handleExerciseIdentified}
+      />
+      <SaveAiExercisePrompt
+        open={showSaveAiExercisePrompt}
+        onOpenChange={setShowSaveAiExercisePrompt}
+        exercise={aiIdentifiedExercise}
+        onSaveToMyExercises={handleSaveAiExerciseToMyExercises}
+        // onAddOnlyToCurrentWorkout is intentionally omitted here as there's no active workout session
+        isSaving={isAiSaving}
+        isDuplicate={isDuplicateAiExercise}
+      />
+    </>
   );
 }

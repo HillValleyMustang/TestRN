@@ -15,7 +15,7 @@ interface SaveAiExercisePromptProps {
   onOpenChange: (open: boolean) => void;
   exercise: Partial<ExerciseDefinition> | null;
   onSaveToMyExercises: (exercise: Partial<ExerciseDefinition>) => Promise<void>;
-  onAddOnlyToCurrentWorkout: (exercise: Partial<ExerciseDefinition>) => Promise<void>; // New prop
+  onAddOnlyToCurrentWorkout?: (exercise: Partial<ExerciseDefinition>) => Promise<void>; // Made optional
   isSaving: boolean;
   isDuplicate: boolean;
 }
@@ -30,6 +30,8 @@ export const SaveAiExercisePrompt = ({
   isDuplicate,
 }: SaveAiExercisePromptProps) => {
   if (!exercise) return null;
+
+  const showAddOnlyToWorkoutButton = typeof onAddOnlyToCurrentWorkout === 'function';
 
   return (
     <>
@@ -96,9 +98,11 @@ export const SaveAiExercisePrompt = ({
             >
               <Save className="h-4 w-4 mr-2" /> {isSaving ? "Saving..." : "Add and Save to My Exercises"}
             </Button>
-            <Button variant="outline" onClick={() => onAddOnlyToCurrentWorkout(exercise)} disabled={isSaving}>
-              <PlusCircle className="h-4 w-4 mr-2" /> Add just to this workout
-            </Button>
+            {showAddOnlyToWorkoutButton && (
+              <Button variant="outline" onClick={() => onAddOnlyToCurrentWorkout!(exercise)} disabled={isSaving}>
+                <PlusCircle className="h-4 w-4 mr-2" /> Add just to this workout
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
