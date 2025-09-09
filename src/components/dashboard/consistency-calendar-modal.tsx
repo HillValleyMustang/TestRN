@@ -98,7 +98,8 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
         modifiers[modifierName] = [];
         styles[modifierName] = {
           backgroundColor: getCalendarItemColorCssVar(entry.name, entry.type),
-          color: 'hsl(var(--primary-foreground))', // Ensure text is readable on colored background
+          color: 'hsl(0 0% 100%)', // Force white text
+          borderRadius: '0.375rem', // Apply rounded-md
         };
       }
       modifiers[modifierName].push(entry.date);

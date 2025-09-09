@@ -164,14 +164,8 @@ export function getLevelFromPoints(totalPoints: number): { level: string; color:
 
 // NEW: Utility function to get the CSS variable for calendar item colors
 export function getCalendarItemColorCssVar(name: string | null | undefined, type: 'workout' | 'activity' | 'ad-hoc'): string {
-  if (!name) {
-    if (type === 'ad-hoc') {
-      return 'var(--workout-ad-hoc)';
-    }
-    return '';
-  }
+  let colorKey: string | undefined;
 
-  let colorKey: string;
   if (type === 'workout') {
     switch (name) {
       case 'Upper Body A':
@@ -200,8 +194,8 @@ export function getCalendarItemColorCssVar(name: string | null | undefined, type
       case 'Bonus':
         colorKey = 'bonus';
         break;
-      default: // For 'Ad Hoc Workout' or other unknown workout names
-        colorKey = 'ad-hoc';
+      default:
+        colorKey = 'ad-hoc'; // Fallback for unknown workout names
         break;
     }
   } else if (type === 'activity') {
@@ -213,15 +207,14 @@ export function getCalendarItemColorCssVar(name: string | null | undefined, type
         colorKey = 'activity';
         break;
       default:
-        return '';
+        colorKey = 'activity'; // Fallback for unknown activity types
+        break;
     }
   } else if (type === 'ad-hoc') {
     colorKey = 'ad-hoc';
-  } else {
-    return '';
   }
 
-  return `var(--workout-${colorKey})`;
+  return `var(--workout-${colorKey || 'ad-hoc'})`; // Ensure a fallback if colorKey is still undefined
 }
 
 // NEW: Utility function to get the display name for calendar items
