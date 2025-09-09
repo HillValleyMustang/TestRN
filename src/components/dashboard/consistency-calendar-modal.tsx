@@ -77,7 +77,7 @@ const CustomDayContent = (props: CustomDayContentProps) => {
         height: '100%',
         border: secondaryEvent ? `2px solid ${borderColor}` : 'none', // Apply border if secondary event exists
         position: 'relative', // Needed for absolute positioning of the dot
-        padding: '4px', // Added padding here
+        padding: '6px', // Increased padding here
       }}
       className="relative z-10"
     >

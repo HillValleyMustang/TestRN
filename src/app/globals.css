@@ -276,16 +276,21 @@
 }
 
 /* Custom styles for react-day-picker to maximize width */
+.rdp {
+  width: 100%;
+  max-width: 100%;
+}
+
 .rdp-months {
   width: 100%;
   display: flex;
-  flex-wrap: wrap; /* Allow months to wrap if multiple are displayed */
-  justify-content: space-around; /* Distribute space if multiple months */
+  flex-wrap: wrap;
+  justify-content: space-around;
 }
 
 .rdp-month {
-  flex-grow: 1; /* Allow each month to grow */
-  max-width: none; /* Remove any max-width constraints */
+  flex-grow: 1;
+  max-width: 100%; /* Ensure it doesn't get constrained */
   width: 100%; /* Ensure it takes full width if only one month */
 }
 
@@ -294,12 +299,21 @@
   text-align: center;
 }
 
-.rdp-head_cell {
-  flex-grow: 1;
-  text-align: center;
-}
-
+.rdp-head_cell,
 .rdp-cell {
   flex-grow: 1;
   text-align: center;
+  /* Ensure cells also take up equal space */
+  width: calc(100% / 7); /* Distribute evenly across 7 days */
+}
+
+/* Ensure the days grid itself expands */
+.rdp-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr); /* Force 7 equal columns */
+  width: 100%;
+}
+
+.rdp-row {
+  display: contents; /* Make children participate directly in the grid */
 }
