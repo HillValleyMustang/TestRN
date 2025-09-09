@@ -221,10 +221,10 @@ export default function OnboardingPage() {
         </Card>
       </div>
       <LoadingOverlay 
-        isOpen={loading} // Only show loading for the final submit
-        title="Completing Setup..."
-        description="Finalizing your profile details."
+        isOpen={loading || isInitialSetupLoading} // Use both loading states
+        title={isInitialSetupLoading ? "Setting up your workout plan..." : "Completing Setup..."}
+        description={isInitialSetupLoading ? "Please wait while we generate your initial workout programs." : "Finalizing your profile details."}
       />
-    </div>
+    </div >
   );
 }

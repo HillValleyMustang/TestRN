@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Tables, GroupedTPath } from '@/types/supabase'; // Import GroupedTPath
+import { Tables, GroupedTPath, FetchedExerciseDefinition } from '@/types/supabase'; // Import GroupedTPath, FetchedExerciseDefinition
 import { db } from '@/lib/db';
 import { useWorkoutDataFetcher } from './use-workout-data-fetcher';
 import { useCoreWorkoutSessionState } from './use-core-workout-session-state';
@@ -277,7 +277,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     setCompletedExercises,
     resetWorkoutSession,
     markExerciseAsCompleted,
-    addExerciseToSession,
+    addExerciseToSession, // Expose addExerciseToSession
     removeExerciseFromSession,
     substituteExercise,
     updateExerciseSets,
@@ -291,7 +291,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     handleConfirmLeave,
     handleCancelLeave,
     promptBeforeNavigation,
-    allAvailableExercises,
+    allAvailableExercises: allAvailableExercises as FetchedExerciseDefinition[], // Expose allAvailableExercises
     updateSessionStartTime,
     isEditWorkoutDialogOpen,
     selectedWorkoutToEdit,

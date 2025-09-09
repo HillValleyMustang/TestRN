@@ -3,11 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from '@/components/session-context-provider';
 import { Badge } from "@/components/ui/badge";
-import { Flame, Dumbbell, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { Flame, Dumbbell, CheckCircle, Clock, AlertCircle, WifiOff } from "lucide-react"; // Added WifiOff
 import { cn } from '@/lib/utils';
+import { useSyncManager } from '@/hooks/use-sync-manager'; // Import useSyncManager
 
 export function RollingStatusBadge() {
   const { session, supabase } = useSession();
+  const { isOnline } = useSyncManager(); // Get isOnline status
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -40,14 +42,29 @@ export function RollingStatusBadge() {
       }
     };
 
-    fetchStatusData();
-  }, [session, supabase]);
+    // Only fetch status if online, otherwise immediately show offline
+    if (isOnline) {
+      fetchStatusData();
+    } else {
+      setStatus('Offline');
+      setLoading(false);
+    }
+  }, [session, supabase, isOnline]); // Added isOnline to dependencies
 
   if (loading) {
     return (
       <Badge variant="secondary" className="flex items-center gap-1">
         <Clock className="h-4 w-4 text-muted-foreground" />
         <span className="font-semibold text-muted-foreground">Loading Status...</span>
+      </Badge>
+    );
+  }
+
+  if (!isOnline) {
+    return (
+      <Badge variant="destructive" className="flex items-center gap-1 px-3 py-1 text-sm font-semibold bg-red-100 text-red-700 border-red-300 dark:bg-red-800 dark:text-red-300 dark:border-red-700">
+        <WifiOff className="h-4 w-4 text-red-500" />
+        <span>Offline</span>
       </Badge>
     );
   }

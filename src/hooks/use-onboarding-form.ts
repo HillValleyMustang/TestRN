@@ -20,7 +20,7 @@ export const useOnboardingForm = () => {
   const [equipmentMethod, setEquipmentMethod] = useState<"photo" | "skip" | null>(null);
   const [consentGiven, setConsentGiven] = useState(false);
   const [loading, setLoading] = useState(false); // For final submit button
-  const [isInitialSetupLoading, setIsInitialSetupLoading] = useState(false); // For transition from step 5 to 6
+  const [isInitialSetupLoading, setIsInitialSetupLoading] = useState(false); // New loading state for step 5 -> 6 transition
 
   const tPathDescriptions = {
     ulul: {

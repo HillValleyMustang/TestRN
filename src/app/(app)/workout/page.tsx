@@ -52,7 +52,7 @@ export default function WorkoutPage() {
         createWorkoutSessionInDb={workoutFlowManager.createWorkoutSessionInDb}
         finishWorkoutSession={handleFinishAndShowSummary} // Use the local handler
         isQuickStart={isQuickStart}
-        allAvailableExercises={workoutFlowManager.allAvailableExercises}
+        allAvailableExercises={workoutFlowManager.allAvailableExercises} // Corrected type is now handled by WorkoutSelectorProps
         updateSessionStartTime={workoutFlowManager.updateSessionStartTime}
       />
       <WorkoutProgressBar

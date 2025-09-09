@@ -42,8 +42,7 @@ export const EditExerciseDialog = ({
             editingExercise={exercise}
             onCancelEdit={handleCancelEdit}
             onSaveSuccess={handleSaveSuccessAndClose}
-            // The form is always "expanded" when in a dialog
-            isExpandedInDialog={true} 
+            // Removed isExpandedInDialog prop
           />
         </div>
       </DialogContent>

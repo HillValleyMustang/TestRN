@@ -4,13 +4,13 @@ import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Tables } from "@/types/supabase";
+import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
 import { useSession } from "@/components/session-context-provider";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 interface ExerciseSelectionDropdownProps {
-  allAvailableExercises: ExerciseDefinition[];
+  allAvailableExercises: FetchedExerciseDefinition[]; // Changed to FetchedExerciseDefinition[]
   exercisesInCurrentContext: ExerciseDefinition[]; // Exercises already in the current workout/session
   selectedExerciseId: string;
   setSelectedExerciseId: (id: string) => void;
@@ -88,7 +88,7 @@ export const ExerciseSelectionDropdown = ({
               <div className="text-center text-muted-foreground py-4 text-sm">No exercises found.</div>
             ) : (
               filteredExercises.map(e => (
-                <SelectItem key={e.id} value={e.id}>
+                <SelectItem key={e.id} value={e.id as string}> {/* Cast e.id to string here */}
                   {e.name}
                 </SelectItem>
               ))

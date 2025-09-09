@@ -15,9 +15,9 @@ interface SaveAiExercisePromptProps {
   onOpenChange: (open: boolean) => void;
   exercise: Partial<ExerciseDefinition> | null;
   onSaveToMyExercises: (exercise: Partial<ExerciseDefinition>) => Promise<void>;
-  onSkip: () => void; // Now means "Add just to this workout"
+  onAddOnlyToCurrentWorkout: (exercise: Partial<ExerciseDefinition>) => Promise<void>; // New prop
   isSaving: boolean;
-  isDuplicate: boolean; // New prop to indicate if the exercise is a duplicate
+  isDuplicate: boolean;
 }
 
 export const SaveAiExercisePrompt = ({
@@ -25,17 +25,17 @@ export const SaveAiExercisePrompt = ({
   onOpenChange,
   exercise,
   onSaveToMyExercises,
-  onSkip, // Now means "Add just to this workout"
+  onAddOnlyToCurrentWorkout, // Destructure new prop
   isSaving,
-  isDuplicate, // Destructure new prop
+  isDuplicate,
 }: SaveAiExercisePromptProps) => {
   if (!exercise) return null;
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[500px] max-h-[90vh] grid grid-rows-[auto_1fr_auto] p-4"> {/* Apply consistent padding here */}
-          <DialogHeader className="row-start-1 pb-4"> {/* Only bottom padding needed, top/side from DialogContent */}
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] grid grid-rows-[auto_1fr_auto] p-4">
+          <DialogHeader className="row-start-1 pb-4">
             <DialogTitle className="flex items-center">
               <Sparkles className="h-5 w-5 mr-2" /> AI Identified Exercise
             </DialogTitle>
@@ -47,8 +47,8 @@ export const SaveAiExercisePrompt = ({
               )}
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className="row-start-2 overflow-y-auto"> {/* Removed py-4 and px-4 from inner div */}
-            <div className="space-y-4"> {/* This div now inherits padding from DialogContent */}
+          <ScrollArea className="row-start-2 overflow-y-auto">
+            <div className="space-y-4">
               <div>
                 <h4 className="font-semibold text-sm mb-1">Name:</h4>
                 <p className="text-base font-medium">{exercise.name || 'N/A'}</p>
@@ -89,14 +89,14 @@ export const SaveAiExercisePrompt = ({
                 )}
             </div>
           </ScrollArea>
-          <div className="row-start-3 flex flex-col gap-2 pt-4 border-t"> {/* This div also inherits padding from DialogContent */}
+          <div className="row-start-3 flex flex-col gap-2 pt-4 border-t">
             <Button 
               onClick={() => onSaveToMyExercises(exercise)} 
               disabled={isSaving || isDuplicate}
             >
               <Save className="h-4 w-4 mr-2" /> {isSaving ? "Saving..." : "Add and Save to My Exercises"}
             </Button>
-            <Button variant="outline" onClick={onSkip} disabled={isSaving}>
+            <Button variant="outline" onClick={() => onAddOnlyToCurrentWorkout(exercise)} disabled={isSaving}>
               <PlusCircle className="h-4 w-4 mr-2" /> Add just to this workout
             </Button>
           </div>

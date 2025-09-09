@@ -121,6 +121,7 @@ export const UserExerciseList = ({
             editingExercise={null} // Always null for adding new
             onCancelEdit={() => {}} // No specific cancel logic needed here for add form
             onSaveSuccess={onAddSuccess} // Use onAddSuccess for new exercises
+            // Removed onAddOnlyToCurrentWorkout prop
           />
         </div>
 
