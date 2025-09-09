@@ -154,14 +154,6 @@ export const getPillStyles = (workoutType: 'upper-lower' | 'push-pull-legs', cat
   };
 };
 
-// New utility function to get fitness level from total points
-export function getLevelFromPoints(totalPoints: number): { level: string; color: string; } {
-  if (totalPoints < 100) return { level: 'Rookie', color: 'bg-gray-500' };
-  if (totalPoints < 300) return { level: 'Warrior', color: 'bg-blue-500' };
-  if (totalPoints < 600) return { level: 'Champion', color: 'bg-purple-500' };
-  return { level: 'Legend', color: 'bg-yellow-500' };
-}
-
 // NEW: Utility function to get the CSS variable for calendar item colors
 export function getCalendarItemColorCssVar(name: string | null | undefined, type: 'workout' | 'activity' | 'ad-hoc'): string {
   let colorKey: string | undefined;
@@ -214,7 +206,8 @@ export function getCalendarItemColorCssVar(name: string | null | undefined, type
     colorKey = 'ad-hoc';
   }
 
-  return `var(--workout-${colorKey || 'ad-hoc'})`; // Ensure a fallback if colorKey is still undefined
+  // Corrected: Wrap the CSS variable in hsl()
+  return `hsl(var(--workout-${colorKey || 'ad-hoc'}))`;
 }
 
 // NEW: Utility function to get the display name for calendar items
@@ -222,4 +215,17 @@ export function getCalendarItemDisplayName(name: string | null | undefined, type
   if (type === 'ad-hoc') return 'Ad Hoc Workout';
   if (!name) return 'Unknown';
   return name;
+}
+
+// NEW: Utility function to get fitness level from points
+export function getLevelFromPoints(totalPoints: number): { level: string; color: string } {
+  if (totalPoints < 100) {
+    return { level: 'Rookie', color: 'bg-gray-500' };
+  } else if (totalPoints < 300) {
+    return { level: 'Warrior', color: 'bg-blue-500' };
+  } else if (totalPoints < 600) {
+    return { level: 'Champion', color: 'bg-purple-500' };
+  } else {
+    return { level: 'Legend', color: 'bg-yellow-500' };
+  }
 }
