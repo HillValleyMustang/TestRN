@@ -31,14 +31,14 @@ function Calendar({
         ),
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
-        table: "w-full border-collapse space-y-1", // Ensure table takes full width
-        head_row: "flex w-full", // Use flex for head row
-        head_cell: "text-muted-foreground rounded-md w-full font-normal text-[0.8rem] flex justify-center items-center", // Ensure cells are centered and take full width
-        row: "flex w-full mt-2", // Use flex for rows
-        cell: "h-9 w-full text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-range-start)]:rounded-l-md [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+        table: "w-full border-collapse space-y-1",
+        head_row: "flex w-full gap-1", // Added gap-1 here
+        head_cell: "text-muted-foreground rounded-md w-full font-normal text-[0.8rem] flex justify-center items-center",
+        row: "flex w-full mt-1 gap-1", // Added gap-1 here and reduced mt-2 to mt-1
+        cell: "h-8 w-full text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-range-start)]:rounded-l-md [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20", // Reduced h-9 to h-8
         day: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-9 w-full p-0 font-normal aria-selected:opacity-100"
+          "h-8 w-full p-0 font-normal aria-selected:opacity-100" // Reduced h-9 to h-8
         ),
         day_range_start: "day-range-start",
         day_range_end: "day-range-end",

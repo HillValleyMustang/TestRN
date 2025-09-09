@@ -219,16 +219,17 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="p-2 sm:p-4"> {/* Removed sm:max-w-4xl */}
+      <DialogContent className="p-2 sm:p-4">
         <DialogHeader>
-          <DialogTitle>Consistency Calendar</DialogTitle>
+          {/* Removed DialogTitle from here */}
         </DialogHeader>
         <div className="py-4 flex flex-col items-center">
           {loading ? (
             <p>Loading calendar...</p>
           ) : (
             <>
-              <p className="text-lg font-semibold mb-4">Current Streak: {currentStreak} Days</p>
+              {/* Moved and updated title */}
+              <p className="text-lg font-semibold mb-4">Consistency Calendar</p>
               <Calendar
                 mode="multiple"
                 selected={Array.from(activityMap.values()).flatMap(events => events.map(e => e.date))}
