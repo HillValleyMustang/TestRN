@@ -274,3 +274,32 @@
   backdrop-filter: blur(12px); /* Updated blur to 12px */
   -webkit-backdrop-filter: blur(12px); /* For Safari compatibility */
 }
+
+/* Custom styles for react-day-picker to maximize width */
+.rdp-months {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap; /* Allow months to wrap if multiple are displayed */
+  justify-content: space-around; /* Distribute space if multiple months */
+}
+
+.rdp-month {
+  flex-grow: 1; /* Allow each month to grow */
+  max-width: none; /* Remove any max-width constraints */
+  width: 100%; /* Ensure it takes full width if only one month */
+}
+
+.rdp-caption_label {
+  flex-grow: 1;
+  text-align: center;
+}
+
+.rdp-head_cell {
+  flex-grow: 1;
+  text-align: center;
+}
+
+.rdp-cell {
+  flex-grow: 1;
+  text-align: center;
+}

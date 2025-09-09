@@ -77,6 +77,7 @@ const CustomDayContent = (props: CustomDayContentProps) => {
         height: '100%',
         border: secondaryEvent ? `2px solid ${borderColor}` : 'none', // Apply border if secondary event exists
         position: 'relative', // Needed for absolute positioning of the dot
+        padding: '4px', // Added padding here
       }}
       className="relative z-10"
     >
@@ -218,7 +219,7 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl p-2 sm:p-4"> {/* Changed max-w-2xl to max-w-4xl and added p-2 sm:p-4 */}
+      <DialogContent className="sm:max-w-4xl p-2 sm:p-4">
         <DialogHeader>
           <DialogTitle>Consistency Calendar</DialogTitle>
         </DialogHeader>
