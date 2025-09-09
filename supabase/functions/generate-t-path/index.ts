@@ -495,6 +495,38 @@ serve(async (req: Request) => {
     (async () => {
       try {
         console.log('[Background] Starting asynchronous T-Path generation...');
+
+        // Check and synchronize source data if needed
+        const SYNC_INTERVAL_HOURS = 24; // Define how often to sync source data
+        const { data: appMetadata, error: fetchMetadataError } = await supabaseServiceRoleClient
+          .from('app_metadata')
+          .select('last_source_sync_at')
+          .eq('id', 'app_settings')
+          .single();
+
+        if (fetchMetadataError && fetchMetadataError.code !== 'PGRST116') {
+          console.error('[Background] Error fetching app_metadata:', fetchMetadataError);
+          // Continue without sync, but log the error
+        }
+
+        const lastSyncTime = appMetadata?.last_source_sync_at ? new Date(appMetadata.last_source_sync_at) : null;
+        const now = new Date();
+        const shouldSync = !lastSyncTime || (now.getTime() - lastSyncTime.getTime()) > (SYNC_INTERVAL_HOURS * 60 * 60 * 1000);
+
+        if (shouldSync) {
+          console.log('[Background] Source data sync needed. Initiating synchronizeSourceData...');
+          await synchronizeSourceData(supabaseServiceRoleClient);
+          const { error: updateSyncTimeError } = await supabaseServiceRoleClient
+            .from('app_metadata')
+            .upsert({ id: 'app_settings', last_source_sync_at: now.toISOString() }, { onConflict: 'id' });
+          if (updateSyncTimeError) {
+            console.error('[Background] Error updating last_source_sync_at:', updateSyncTimeError);
+          }
+          console.log('[Background] Source data synchronization complete.');
+        } else {
+          console.log('[Background] Source data is up-to-date. Skipping synchronization.');
+        }
+
         // Step 1: Fetch T-Path details and user's preferred session length
         console.log(`[Background] Fetching T-Path details for ID: ${tPathId} and user profile for preferred session length.`);
         const { data: tPathData, error: tPathError } = await supabaseServiceRoleClient

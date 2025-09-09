@@ -7,6 +7,7 @@ import { useSession } from '@/components/session-context-provider';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { Trophy } from 'lucide-react';
+import { formatTime } from '@/lib/unit-conversions'; // Import formatTime
 
 type SetLog = Tables<'set_logs'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -31,63 +32,25 @@ export const PersonalRecordsCard = () => {
       
       setLoading(true);
       try {
-        // Fetch all set logs for the user that are marked as PRs
-        // We need to join with workout_sessions to filter by user_id
-        const { data: prSets, error } = await supabase
-          .from('set_logs')
-          .select(`
-            id, created_at, weight_kg, reps, time_seconds, is_pb,
-            exercise_definitions (name, type),
-            workout_sessions (user_id)
-          `)
-          .eq('is_pb', true)
-          .order('created_at', { ascending: false });
+        const { data: prs, error } = await supabase.rpc('get_user_personal_records', {
+          p_user_id: session.user.id,
+          p_limit: 5 // Fetch top 5 PRs
+        });
 
         if (error) throw error;
 
-        // Filter the results on the client side to ensure they belong to the current user
-        // This is necessary because RLS on set_logs only allows access to sets linked to user's sessions,
-        // but the initial select doesn't directly filter by user_id on set_logs.
-        const userPrSets = (prSets || []).filter((set: any) => set.workout_sessions?.user_id === session.user.id);
-
-        // Process the records
-        const records: PersonalRecord[] = [];
-        userPrSets.forEach((set: any) => {
-          const exercise = set.exercise_definitions;
-          if (!exercise) return;
-
-          if (exercise.type === 'weight' && set.weight_kg && set.reps) {
-            records.push({
-              exerciseName: exercise.name,
-              exerciseType: exercise.type,
-              value: set.weight_kg * set.reps,
-              date: new Date(set.created_at).toLocaleDateString(),
-              unit: 'kg'
-            });
-          } else if (exercise.type === 'timed' && set.time_seconds) {
-            records.push({
-              exerciseName: exercise.name,
-              exerciseType: exercise.type,
-              value: set.time_seconds,
-              date: new Date(set.created_at).toLocaleDateString(),
-              unit: 'seconds'
-            });
-          }
-        });
-
-        // Sort by value (highest first for weight, lowest for timed)
-        records.sort((a, b) => {
-          if (a.exerciseType === 'weight' && b.exerciseType === 'weight') {
-            return b.value - a.value;
-          } else if (a.exerciseType === 'timed' && b.exerciseType === 'timed') {
-            return a.value - b.value;
-          }
-          return 0;
-        });
-
-        setPersonalRecords(records.slice(0, 5)); // Show top 5 records
+        const formattedRecords: PersonalRecord[] = (prs || []).map(pr => ({
+          exerciseName: pr.exercise_name,
+          exerciseType: pr.exercise_type,
+          value: pr.best_value || 0,
+          date: new Date(pr.last_achieved_date).toLocaleDateString(),
+          unit: pr.unit || '',
+        }));
+        
+        setPersonalRecords(formattedRecords);
       } catch (err: any) {
         toast.error("Failed to load personal bests: " + err.message);
+        console.error("Error fetching personal records:", err);
       } finally {
         setLoading(false);
       }
@@ -138,8 +101,8 @@ export const PersonalRecordsCard = () => {
                   <TableCell className="font-medium">{record.exerciseName}</TableCell>
                   <TableCell>
                     {record.exerciseType === 'weight' 
-                      ? `${record.value} kg` 
-                      : `${record.value} seconds`}
+                      ? `${record.value.toLocaleString()} kg` 
+                      : `${formatTime(record.value)}`}
                   </TableCell>
                   <TableCell>{record.date}</TableCell>
                 </TableRow>

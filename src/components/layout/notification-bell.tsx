@@ -4,10 +4,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from '@/components/session-context-provider';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Bell, CheckCheck } from "lucide-react";
+import { Bell, CheckCheck, AlertCircle } from "lucide-react"; // Added AlertCircle
 import { toast } from "sonner";
 import { ScrollArea } from '../ui/scroll-area';
 import { Badge } from '../ui/badge';
+import { Tables } from '@/types/supabase'; // Import Tables
 
 interface Notification {
   id: string;
@@ -15,11 +16,22 @@ interface Notification {
   message: string;
   created_at: string;
   is_read: boolean;
+  type: string; // Added type
+}
+
+interface UserAlert {
+  id: string;
+  title: string;
+  message: string;
+  created_at: string;
+  is_read: boolean;
+  type: string;
 }
 
 export function NotificationBell() {
   const { session, supabase } = useSession();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [userAlerts, setUserAlerts] = useState<UserAlert[]>([]); // New state for user alerts
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -28,17 +40,31 @@ export function NotificationBell() {
     if (!session) return;
     setLoading(true);
     try {
-      // RPC call already selects specific columns, no change needed here.
-      const { data, error } = await supabase.rpc('get_notifications_with_read_status');
+      // Fetch global notifications
+      const { data: globalNotifications, error: globalError } = await supabase.rpc('get_notifications_with_read_status');
+      if (globalError) throw globalError;
 
-      if (error) {
-        throw error;
-      }
+      // Fetch user-specific alerts
+      const { data: fetchedUserAlerts, error: userAlertsError } = await supabase
+        .from('user_alerts')
+        .select('id, title, message, created_at, is_read, type')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false });
+      if (userAlertsError) throw userAlertsError;
 
-      setNotifications(data as Notification[]);
-      setUnreadCount(data.filter((n: Notification) => !n.is_read).length);
+      const allNotifications: (Notification | UserAlert)[] = [
+        ...(globalNotifications as Notification[] || []),
+        ...(fetchedUserAlerts as UserAlert[] || []),
+      ];
+
+      // Sort all notifications by creation date descending
+      allNotifications.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      setNotifications(allNotifications as Notification[]); // Cast back to Notification[] for combined list
+      setUnreadCount(allNotifications.filter(n => !n.is_read).length);
     } catch (error: any) {
       toast.error("Failed to fetch notifications: " + error.message);
+      console.error("Error fetching notifications:", error);
     } finally {
       setLoading(false);
     }
@@ -53,22 +79,42 @@ export function NotificationBell() {
   const handleMarkAllAsRead = async () => {
     if (!session) return;
 
-    const unreadNotifications = notifications.filter(n => !n.is_read);
-    if (unreadNotifications.length === 0) {
+    const unreadGlobalNotifications = notifications.filter(n => !n.is_read && n.type !== 'system_error' && n.type !== 'achievement_error');
+    const unreadUserAlerts = notifications.filter(n => !n.is_read && (n.type === 'system_error' || n.type === 'achievement_error'));
+
+    if (unreadGlobalNotifications.length === 0 && unreadUserAlerts.length === 0) {
       toast.info("No unread notifications.");
       return;
     }
 
-    const recordsToInsert = unreadNotifications.map(n => ({
-      user_id: session.user.id,
-      notification_id: n.id,
-      read_at: new Date().toISOString(),
-    }));
+    let hasError = false;
 
-    const { error } = await supabase.from('user_notifications').insert(recordsToInsert);
+    // Mark global notifications as read
+    if (unreadGlobalNotifications.length > 0) {
+      const recordsToInsert = unreadGlobalNotifications.map(n => ({
+        user_id: session.user.id,
+        notification_id: n.id,
+        read_at: new Date().toISOString(),
+      }));
+      const { error } = await supabase.from('user_notifications').insert(recordsToInsert);
+      if (error) {
+        console.error("Error marking global notifications as read:", error);
+        hasError = true;
+      }
+    }
 
-    if (error) {
-      toast.error("Failed to mark notifications as read: " + error.message);
+    // Mark user alerts as read
+    if (unreadUserAlerts.length > 0) {
+      const alertIdsToUpdate = unreadUserAlerts.map(a => a.id);
+      const { error } = await supabase.from('user_alerts').update({ is_read: true }).in('id', alertIdsToUpdate);
+      if (error) {
+        console.error("Error marking user alerts as read:", error);
+        hasError = true;
+      }
+    }
+
+    if (hasError) {
+      toast.error("Failed to mark some notifications as read.");
     } else {
       toast.success("All notifications marked as read.");
       fetchNotifications(); // Refresh the list
@@ -80,7 +126,6 @@ export function NotificationBell() {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" size="icon" className="relative">
-          {/* Re-added span wrapper for content */}
           <span>
             <Bell className="h-4 w-4" />
             {unreadCount > 0 && (
@@ -109,7 +154,12 @@ export function NotificationBell() {
             <div className="space-y-2">
               {notifications.map(n => (
                 <div key={n.id} className={`p-2 rounded-md ${!n.is_read ? 'bg-accent' : ''}`}>
-                  <p className="font-semibold text-sm">{n.title}</p>
+                  <p className="font-semibold text-sm flex items-center gap-2">
+                    {n.type === 'system_error' || n.type === 'achievement_error' ? (
+                      <AlertCircle className="h-4 w-4 text-destructive" />
+                    ) : null}
+                    {n.title}
+                  </p>
                   <p className="text-xs text-muted-foreground">{n.message}</p>
                   <p className="text-xs text-muted-foreground mt-1">{new Date(n.created_at).toLocaleString()}</p>
                 </div>

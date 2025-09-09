@@ -127,6 +127,17 @@ export interface LocalUserAchievement extends UserAchievementsRow {
   unlocked_at: string | null;
 }
 
+// NEW: LocalUserAlert
+export interface LocalUserAlert extends Tables<'user_alerts'> {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  type: string | null;
+  created_at: string;
+  is_read: boolean | null;
+}
+
 
 export class AppDatabase extends Dexie {
   workout_sessions!: Table<LocalWorkoutSession, string>;
@@ -139,6 +150,7 @@ export class AppDatabase extends Dexie {
   profiles_cache!: Table<LocalProfile, string>; // New: Cache Profile
   t_path_exercises_cache!: Table<LocalTPathExercise, string>; // New: Cache TPathExercises
   user_achievements_cache!: Table<LocalUserAchievement, string>; // NEW: Cache user achievements
+  user_alerts!: Table<LocalUserAlert, string>; // NEW: User Alerts table
 
   constructor() {
     super('WorkoutTrackerDB');
@@ -187,6 +199,10 @@ export class AppDatabase extends Dexie {
     // NEW: Add user_achievements_cache
     this.version(9).stores({
       user_achievements_cache: '&id, user_id, achievement_id',
+    });
+    // NEW: Add user_alerts table
+    this.version(10).stores({
+      user_alerts: '&id, user_id, created_at',
     });
   }
 }

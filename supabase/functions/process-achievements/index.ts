@@ -2,6 +2,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+// @ts-ignore
+import { v4 as uuidv4 } from 'https://esm.sh/uuid@9.0.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -56,6 +58,23 @@ const getSupabaseServiceRoleClient = () => {
   return createClient(supabaseUrl, supabaseServiceRoleKey);
 };
 
+// Helper to log user-specific errors
+const logUserAlert = async (supabase: any, userId: string, title: string, message: string, type: string = 'system_error') => {
+  const { error: insertAlertError } = await supabase.from('user_alerts').insert({
+    id: uuidv4(),
+    user_id: userId,
+    title: title,
+    message: message,
+    type: type,
+    created_at: new Date().toISOString(),
+    is_read: false,
+  });
+  if (insertAlertError) {
+    console.error(`Failed to log user alert for user ${userId}:`, insertAlertError.message);
+  }
+};
+
+
 // Achievement Checkers
 const checkAchievement = async (
   supabase: any,
@@ -70,6 +89,7 @@ const checkAchievement = async (
   const { error: insertError } = await supabase.from('user_achievements').insert({ user_id: userId, achievement_id: achievementId });
   if (insertError) {
     console.error(`Error unlocking achievement ${achievementId} for user ${userId}:`, insertError.message);
+    await logUserAlert(supabase, userId, "Achievement Processing Error", `Failed to unlock achievement '${achievementId}'. Please contact support if this persists.`, "achievement_error");
     return null;
   }
   return achievementId;
@@ -147,6 +167,7 @@ const checkPerfectWeek = async (
   const { data: tpathData, error: tpathError } = await supabase.from('t_paths').select('settings').eq('id', activeTPathId).single();
   if (tpathError || !tpathData?.settings) {
     console.error("Error fetching active T-Path settings for Perfect Week:", tpathError);
+    await logUserAlert(supabase, userId, "Achievement Processing Error", "Failed to check 'Perfect Week' achievement due to T-Path data issues.", "achievement_error");
     return null;
   }
   const activeTPathType = (tpathData.settings as { tPathType: string }).tPathType;
@@ -263,6 +284,7 @@ const checkAIApprentice = async (
 
   if (fetchUsageError) {
     console.error("Error fetching AI coach usage logs for AI Apprentice:", fetchUsageError.message);
+    await logUserAlert(supabase, userId, "Achievement Processing Error", "Failed to check 'AI Apprentice' achievement due to AI usage data issues.", "achievement_error");
     return null;
   }
 
@@ -313,12 +335,14 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const supabaseServiceRoleClient = getSupabaseServiceRoleClient();
+  let userId: string | null = null; // Declare userId here to be accessible in catch block
+
   try {
-    const supabaseServiceRoleClient = getSupabaseServiceRoleClient();
-
     const { user_id, session_id } = await req.json();
+    userId = user_id; // Assign to outer scope userId
 
-    if (!user_id) {
+    if (!userId) {
       return new Response(JSON.stringify({ error: 'user_id is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
@@ -326,7 +350,7 @@ serve(async (req: Request) => {
     const { data: existingUserAchievements, error: fetchAchievementsError } = await supabaseServiceRoleClient
       .from('user_achievements')
       .select('achievement_id')
-      .eq('user_id', user_id);
+      .eq('user_id', userId);
 
     if (fetchAchievementsError) throw fetchAchievementsError;
     const existingAchievementIds = new Set((existingUserAchievements as UserAchievement[] || []).map(a => a.achievement_id));
@@ -335,13 +359,13 @@ serve(async (req: Request) => {
     const { data: allWorkoutSessions, error: allSessionsError } = await supabaseServiceRoleClient
       .from('workout_sessions')
       .select('id, session_date, template_name, user_id')
-      .eq('user_id', user_id);
+      .eq('user_id', userId);
     if (allSessionsError) throw allSessionsError;
 
     const { data: profileData, error: profileError } = await supabaseServiceRoleClient
       .from('profiles')
       .select('total_points, current_streak, longest_streak, active_t_path_id')
-      .eq('id', user_id)
+      .eq('id', userId)
       .single();
     if (profileError) throw profileError;
 
@@ -349,7 +373,7 @@ serve(async (req: Request) => {
     const { data: allSetLogs, error: allSetLogsError } = await supabaseServiceRoleClient
       .from('set_logs')
       .select('id, workout_sessions!inner(user_id)') // Join with workout_sessions to filter by user_id
-      .eq('workout_sessions.user_id', user_id);
+      .eq('workout_sessions.user_id', userId);
     if (allSetLogsError) throw allSetLogsError;
     const totalSets = allSetLogs?.length || 0;
 
@@ -360,18 +384,18 @@ serve(async (req: Request) => {
 
     // Run all achievement checks
     const achievementChecks = [
-      checkFirstWorkout(supabaseServiceRoleClient, user_id, totalWorkouts, existingAchievementIds),
-      check10DayStreak(supabaseServiceRoleClient, user_id, currentStreak, existingAchievementIds),
-      check30DayStreak(supabaseServiceRoleClient, user_id, currentStreak, existingAchievementIds),
-      check25Workouts(supabaseServiceRoleClient, user_id, totalWorkouts, existingAchievementIds),
-      check50Workouts(supabaseServiceRoleClient, user_id, totalWorkouts, existingAchievementIds),
-      checkBeastMode(supabaseServiceRoleClient, user_id, allWorkoutSessions as WorkoutSession[] || [], existingAchievementIds),
-      checkPerfectWeek(supabaseServiceRoleClient, user_id, allWorkoutSessions as WorkoutSession[] || [], activeTPathId, existingAchievementIds),
-      checkWeekendWarrior(supabaseServiceRoleClient, user_id, allWorkoutSessions as WorkoutSession[] || [], existingAchievementIds),
-      checkEarlyBird(supabaseServiceRoleClient, user_id, allWorkoutSessions as WorkoutSession[] || [], existingAchievementIds),
-      checkVolumeMaster(supabaseServiceRoleClient, user_id, totalSets, existingAchievementIds),
-      checkCenturyClub(supabaseServiceRoleClient, user_id, totalPoints, existingAchievementIds), // New check
-      checkAIApprentice(supabaseServiceRoleClient, user_id, existingAchievementIds), // New check
+      checkFirstWorkout(supabaseServiceRoleClient, userId, totalWorkouts, existingAchievementIds),
+      check10DayStreak(supabaseServiceRoleClient, userId, currentStreak, existingAchievementIds),
+      check30DayStreak(supabaseServiceRoleClient, userId, currentStreak, existingAchievementIds),
+      check25Workouts(supabaseServiceRoleClient, userId, totalWorkouts, existingAchievementIds),
+      check50Workouts(supabaseServiceRoleClient, userId, totalWorkouts, existingAchievementIds),
+      checkBeastMode(supabaseServiceRoleClient, userId, allWorkoutSessions as WorkoutSession[] || [], existingAchievementIds),
+      checkPerfectWeek(supabaseServiceRoleClient, userId, allWorkoutSessions as WorkoutSession[] || [], activeTPathId, existingAchievementIds),
+      checkWeekendWarrior(supabaseServiceRoleClient, userId, allWorkoutSessions as WorkoutSession[] || [], existingAchievementIds),
+      checkEarlyBird(supabaseServiceRoleClient, userId, allWorkoutSessions as WorkoutSession[] || [], existingAchievementIds),
+      checkVolumeMaster(supabaseServiceRoleClient, userId, totalSets, existingAchievementIds),
+      checkCenturyClub(supabaseServiceRoleClient, userId, totalPoints, existingAchievementIds), // New check
+      checkAIApprentice(supabaseServiceRoleClient, userId, existingAchievementIds), // New check
     ];
 
     const results = await Promise.all(achievementChecks);
@@ -379,7 +403,7 @@ serve(async (req: Request) => {
 
     // --- NEW: Invoke calculate-rolling-status Edge Function ---
     const { error: rollingStatusInvokeError } = await supabaseServiceRoleClient.functions.invoke('calculate-rolling-status', {
-      body: { user_id },
+      body: { user_id: userId },
       headers: {
         'Content-Type': 'application/json',
       },
@@ -387,6 +411,7 @@ serve(async (req: Request) => {
 
     if (rollingStatusInvokeError) {
       console.error('Error invoking calculate-rolling-status Edge Function:', rollingStatusInvokeError.message);
+      await logUserAlert(supabaseServiceRoleClient, userId, "System Update Error", "Failed to update your rolling workout status. Your achievements might be affected.", "system_error");
       // Do not throw, as achievement processing should still complete
     }
     // --- END NEW ---
@@ -398,7 +423,7 @@ serve(async (req: Request) => {
       const { data: sessionAchievements, error: sessionAchError } = await supabaseServiceRoleClient
         .from('user_achievements')
         .select('achievement_id, unlocked_at')
-        .eq('user_id', user_id)
+        .eq('user_id', userId)
         .in('achievement_id', newlyUnlockedAchievementIds)
         .order('unlocked_at', { ascending: true });
 
@@ -431,6 +456,9 @@ serve(async (req: Request) => {
   } catch (error) {
     console.error("Error in process-achievements edge function:", error);
     const message = error instanceof Error ? error.message : "An unknown error occurred";
+    if (userId) {
+      await logUserAlert(supabaseServiceRoleClient, userId, "Achievement Processing Error", `An error occurred while processing your achievements: ${message}`, "system_error");
+    }
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
