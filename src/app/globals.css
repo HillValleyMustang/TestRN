@@ -277,43 +277,37 @@
 
 /* Custom styles for react-day-picker to maximize width */
 .rdp {
-  width: 100%;
-  max-width: 100%;
+  width: 100% !important;
+  max-width: 100% !important;
 }
 
 .rdp-months {
-  width: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-around;
+  width: 100% !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: space-between !important; /* Changed to space-between */
 }
 
 .rdp-month {
-  flex-grow: 1;
-  max-width: 100%; /* Ensure it doesn't get constrained */
-  width: 100%; /* Ensure it takes full width if only one month */
+  flex: 1 0 0% !important; /* Force equal growth and no shrinking */
+  max-width: none !important; /* Remove any max-width constraints */
+  width: 100% !important; /* Ensure it takes full width if only one month */
 }
 
 .rdp-caption_label {
-  flex-grow: 1;
-  text-align: center;
+  flex-grow: 1 !important;
+  text-align: center !important;
+}
+
+.rdp-head_row,
+.rdp-row {
+  display: flex !important;
+  width: 100% !important;
 }
 
 .rdp-head_cell,
 .rdp-cell {
-  flex-grow: 1;
-  text-align: center;
-  /* Ensure cells also take up equal space */
-  width: calc(100% / 7); /* Distribute evenly across 7 days */
-}
-
-/* Ensure the days grid itself expands */
-.rdp-days {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr); /* Force 7 equal columns */
-  width: 100%;
-}
-
-.rdp-row {
-  display: contents; /* Make children participate directly in the grid */
+  flex: 1 0 0% !important; /* Force equal growth and no shrinking */
+  text-align: center !important;
+  max-width: none !important; /* Remove any max-width constraints */
 }
