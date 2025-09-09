@@ -44,7 +44,6 @@ export default function WorkoutPage() {
       <WorkoutSelector 
         key={workoutFlowManager.activeWorkout?.id || 'no-workout'}
         {...workoutFlowManager} 
-        onWorkoutSelect={() => {}}
         loadingWorkoutFlow={workoutFlowManager.loading}
         createWorkoutSessionInDb={workoutFlowManager.createWorkoutSessionInDb}
         finishWorkoutSession={handleFinishAndShowSummary} // Use the local handler
