@@ -295,23 +295,55 @@
   width: 100% !important; /* Fallback for single month */
 }
 
+.rdp-caption {
+  width: 100% !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+}
+
 .rdp-caption_label {
   flex-grow: 1 !important;
   text-align: center !important;
 }
 
-.rdp-head_row,
-.rdp-row {
+.rdp-head {
+  width: 100% !important;
+  display: flex !important;
+}
+
+.rdp-head_row {
   display: flex !important;
   width: 100% !important;
 }
 
-.rdp-head_cell,
-.rdp-cell {
-  flex: 1 1 0% !important; /* Force equal growth and no shrinking */
+.rdp-head_cell {
+  flex: 1 1 0% !important; /* Distribute evenly */
   text-align: center !important;
-  max-width: none !important; /* Remove any max-width constraints */
-  padding: 0 !important; /* Remove default cell padding to allow CustomDayContent to control it */
+  max-width: none !important;
+  padding: 0 !important; /* Remove default padding */
+}
+
+.rdp-body {
+  width: 100% !important;
+  display: flex !important;
+  flex-wrap: wrap !important; /* Allow days to wrap */
+}
+
+.rdp-row {
+  display: flex !important;
+  width: 100% !important; /* Each row takes full width */
+}
+
+.rdp-cell {
+  flex: 1 1 0% !important; /* Distribute evenly */
+  text-align: center !important;
+  max-width: none !important;
+  padding: 0 !important; /* Remove default cell padding */
+  height: 40px !important; /* Give cells a fixed height for better visual */
+  display: flex !important; /* Make cell a flex container for its content */
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 /* Ensure the day content itself fills the cell */
