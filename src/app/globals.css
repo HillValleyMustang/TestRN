@@ -275,13 +275,13 @@
   -webkit-backdrop-filter: blur(12px); /* For Safari compatibility */
 }
 
-/* More aggressive custom styles for react-day-picker to maximize width */
+/* Aggressive custom styles for react-day-picker to maximize width */
 .rdp {
   width: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
-  display: flex !important; /* Ensure it's a flex container */
-  flex-direction: column !important; /* Stack children vertically */
+  display: flex !important;
+  flex-direction: column !important;
 }
 
 .rdp-months {
@@ -289,15 +289,15 @@
   display: flex !important;
   flex-wrap: wrap !important;
   justify-content: space-between !important;
-  flex-grow: 1 !important; /* Allow months to grow */
+  flex-grow: 1 !important;
 }
 
 .rdp-month {
-  flex: 1 1 0% !important; /* Use flex-basis 0% for equal distribution */
+  flex: 1 1 0% !important;
   max-width: none !important;
-  width: 100% !important; /* Fallback for single month */
-  display: flex !important; /* Make month a flex container */
-  flex-direction: column !important; /* Stack month children vertically */
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
 }
 
 .rdp-caption {
@@ -314,44 +314,44 @@
 
 .rdp-head {
   width: 100% !important;
-  display: flex !important;
-  flex-direction: column !important; /* Stack head children vertically */
+  display: flex !important; /* Keep flex for the head container */
+  flex-direction: column !important;
 }
 
 .rdp-head_row {
-  display: flex !important;
+  display: grid !important; /* Use grid for the day names row */
+  grid-template-columns: repeat(7, 1fr) !important; /* 7 equal columns */
   width: 100% !important;
 }
 
 .rdp-head_cell {
-  flex: 1 1 0% !important; /* Distribute evenly */
   text-align: center !important;
-  max-width: none !important;
   padding: 0 !important; /* Remove default padding */
+  /* Flex properties are no longer needed here due to grid */
 }
 
 .rdp-body {
   width: 100% !important;
-  display: flex !important;
-  flex-direction: column !important; /* Stack body children vertically */
-  flex-grow: 1 !important; /* Allow body to grow */
+  display: flex !important; /* Keep flex for the body container */
+  flex-direction: column !important;
+  flex-grow: 1 !important;
 }
 
 .rdp-row {
-  display: flex !important;
-  width: 100% !important; /* Each row takes full width */
-  flex-grow: 1 !important; /* Allow rows to grow */
+  display: grid !important; /* Use grid for each week row */
+  grid-template-columns: repeat(7, 1fr) !important; /* 7 equal columns */
+  width: 100% !important;
+  flex-grow: 1 !important;
 }
 
 .rdp-cell {
-  flex: 1 1 0% !important; /* Distribute evenly */
   text-align: center !important;
-  max-width: none !important;
   padding: 0 !important; /* Remove default cell padding */
   height: 40px !important; /* Give cells a fixed height for better visual */
   display: flex !important; /* Make cell a flex container for its content */
   align-items: center !important;
   justify-content: center !important;
+  /* Flex properties are no longer needed here due to grid */
 }
 
 /* Ensure the day content itself fills the cell */
