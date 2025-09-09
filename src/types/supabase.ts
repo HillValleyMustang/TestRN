@@ -8,7 +8,7 @@
  */
 
 // Import generated Supabase types to be used and re-exported
-import type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums, UserAchievementsRow, AiCoachUsageLogsRow, GetLastExerciseSetsForExerciseReturns, GetTotalCompletedExerciseInstancesArgs, GetTotalCompletedExerciseInstancesReturns } from "./supabase-generated";
+import type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums, UserAchievementsRow, AiCoachUsageLogsRow, GetLastExerciseSetsForExerciseReturns, GetTotalCompletedExerciseInstancesArgs, GetTotalCompletedExerciseInstancesReturns, BodyFatReferenceImagesRow } from "./supabase-generated";
 export type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums, GetLastExerciseSetsForExerciseReturns, GetTotalCompletedExerciseInstancesArgs, GetTotalCompletedExerciseInstancesReturns }; // Export new RPC types
 
 // --- Custom Types ---
@@ -58,6 +58,12 @@ export type UserExercisePRUpdate = TablesUpdate<'user_exercise_prs'>;
 
 // Re-export UserAchievementRow for direct use
 export type UserAchievement = UserAchievementsRow;
+// NEW: LocalUserAchievement type
+export type LocalUserAchievement = UserAchievementsRow;
+
+// NEW: BodyFatReferenceImage type
+export type BodyFatReferenceImage = BodyFatReferenceImagesRow;
+
 
 // New type for ai_coach_usage_logs table
 export type AiCoachUsageLog = AiCoachUsageLogsRow;

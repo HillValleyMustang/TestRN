@@ -10,6 +10,8 @@ import { OnboardingStep5_EquipmentSetup } from "@/components/onboarding/onboardi
 import { OnboardingStep6_Consent } from "@/components/onboarding/onboarding-step-6-consent";
 import { useSession } from "@/components/session-context-provider";
 import { LoadingOverlay } from "@/components/loading-overlay"; // Import LoadingOverlay
+import { useCallback, useState } from "react"; // Import useCallback and useState
+import { toast } from "sonner"; // NEW: Import toast
 
 export default function OnboardingPage() {
   const { session } = useSession(); // Use session to check if user is logged in
@@ -31,12 +33,46 @@ export default function OnboardingPage() {
     setEquipmentMethod,
     consentGiven,
     setConsentGiven,
-    loading,
+    loading, // For final submit button
+    isInitialSetupLoading, // New loading state for step 5 -> 6 transition
     tPathDescriptions,
-    handleNext,
+    handleNext: originalHandleNext, // Rename original handleNext
     handleBack,
-    handleSubmit,
+    handleAdvanceToFinalStep, // New function for step 5 -> 6 transition
+    handleSubmit: originalHandleSubmit, // Rename original handleSubmit
   } = useOnboardingForm();
+
+  // Local state for Step 6 inputs
+  const [fullName, setFullName] = useState('');
+  const [heightCm, setHeightCm] = useState<number | null>(null);
+  const [weightKg, setWeightKg] = useState<number | null>(null);
+  const [bodyFatPct, setBodyFatPct] = useState<number | null>(null);
+
+  const handleNext = useCallback(async () => {
+    if (currentStep === 5) {
+      try {
+        await handleAdvanceToFinalStep(); // Trigger background setup
+        originalHandleNext(); // Then advance step
+      } catch (error) {
+        // Error handled in hook, just prevent step advance
+        console.error("Failed to advance to final step:", error);
+      }
+    } else {
+      originalHandleNext();
+    }
+  }, [currentStep, originalHandleNext, handleAdvanceToFinalStep]);
+
+  const handleSubmit = useCallback(async () => {
+    // Ensure heightCm and weightKg are not null before passing, as they are now required
+    if (fullName && heightCm !== null && weightKg !== null) {
+      await originalHandleSubmit(fullName, heightCm, weightKg, bodyFatPct);
+    } else {
+      // This case should ideally be prevented by the disabled state of the button
+      // but adding a toast for robustness.
+      toast.error("Please fill in all required personal details.");
+    }
+  }, [originalHandleSubmit, fullName, heightCm, weightKg, bodyFatPct]);
+
 
   if (!session) {
     return <div>Loading...</div>; // Or redirect to login if session is null
@@ -101,6 +137,15 @@ export default function OnboardingPage() {
             handleSubmit={handleSubmit}
             handleBack={handleBack}
             loading={loading}
+            // Pass Step 6 specific inputs
+            fullName={fullName}
+            setFullName={setFullName}
+            heightCm={heightCm}
+            setHeightCm={setHeightCm}
+            weightKg={weightKg}
+            setWeightKg={setWeightKg}
+            bodyFatPct={bodyFatPct}
+            setBodyFatPct={setBodyFatPct}
           />
         );
       default:
@@ -115,7 +160,7 @@ export default function OnboardingPage() {
       case 3: return "Goal Focus";
       case 4: return "Session Preferences";
       case 5: return "Equipment Setup";
-      case 6: return "Consent";
+      case 6: return "Final Details & Consent"; // Updated title
       default: return "";
     }
   };
@@ -127,7 +172,7 @@ export default function OnboardingPage() {
       case 3: return "What are you primarily trying to achieve?";
       case 4: return "How long do you prefer your workout sessions to be?";
       case 5: return "Let's set up your gym equipment";
-      case 6: return "We need your permission to store your data";
+      case 6: return "Just a few more details to personalise your experience."; // Updated description
       default: return "";
     }
   };
@@ -176,9 +221,9 @@ export default function OnboardingPage() {
         </Card>
       </div>
       <LoadingOverlay 
-        isOpen={loading} 
-        title="Generating Your Transformation Path" 
-        description="Please wait while the AI creates your personalised workout plan." 
+        isOpen={loading} // Only show loading for the final submit
+        title="Completing Setup..."
+        description="Finalizing your profile details."
       />
     </div>
   );

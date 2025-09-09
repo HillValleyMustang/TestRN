@@ -8,13 +8,16 @@ import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from 'sonner';
-import { Profile as ProfileType, ProfileUpdate, Tables } from '@/types/supabase';
+import { Profile as ProfileType, ProfileUpdate, Tables, LocalUserAchievement } from '@/types/supabase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BarChart2, User, Settings, ChevronLeft, ChevronRight, Flame, Dumbbell, Trophy, Star, Footprints, ListChecks } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, getLevelFromPoints } from '@/lib/utils';
 import { AchievementDetailDialog } from '@/components/profile/achievement-detail-dialog';
 import useEmblaCarousel from 'embla-carousel-react';
+import { useLiveQuery } from 'dexie-react-hooks'; // Import useLiveQuery
+import { db } from '@/lib/db'; // Import db
+import { useCacheAndRevalidate } from '@/hooks/use-cache-and-revalidate'; // Import useCacheAndRevalidate
 
 import { ProfileHeader } from '@/components/profile/profile-header';
 import { ProfileOverviewTab } from '@/components/profile/profile-overview-tab';
@@ -35,9 +38,19 @@ const mainMuscleGroups = [
 
 const profileSchema = z.object({
   full_name: z.string().min(1, "Your name is required."),
-  height_cm: z.coerce.number().positive("Height must be positive.").optional().nullable(),
-  weight_kg: z.coerce.number().positive("Weight must be positive.").optional().nullable(),
-  body_fat_pct: z.coerce.number().min(0, "Cannot be negative.").max(100, "Cannot exceed 100.").optional().nullable(),
+  height_cm: z.coerce.number()
+    .int("Height must be a whole number.")
+    .positive("Height must be positive.")
+    .optional().nullable(),
+  weight_kg: z.coerce.number()
+    .int("Weight must be a whole number.")
+    .positive("Weight must be positive.")
+    .optional().nullable(),
+  body_fat_pct: z.coerce.number()
+    .int("Body Fat % must be a whole number.")
+    .min(0, "Cannot be negative.")
+    .max(100, "Cannot exceed 100.")
+    .optional().nullable(),
   primary_goal: z.string().optional().nullable(),
   health_notes: z.string().optional().nullable(),
   preferred_session_length: z.string().optional().nullable(),
@@ -51,13 +64,10 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  // Profile and activeTPath will now come from cache
   const [activeTPath, setActiveTPath] = useState<TPath | null>(null);
   const [aiCoachUsageToday, setAiCoachUsageToday] = useState(0);
-  const [unlockedAchievements, setUnlockedAchievements] = useState<Set<string>>(new Set());
-  const [totalWorkoutsCount, setTotalWorkoutsCount] = useState(0);
-  const [totalExercisesCount, setTotalExercisesCount] = useState(0);
-
+  
   const [isAchievementDetailOpen, setIsAchievementDetailOpen] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<{ id: string; name: string; icon: string } | null>(null);
   const [isPointsExplanationOpen, setIsPointsExplanationOpen] = useState(false);
@@ -81,111 +91,134 @@ export default function ProfilePage() {
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
 
-  const fetchData = useCallback(async () => {
-    console.log("[ProfilePage Debug] fetchData: Starting fetch operation.");
+  // Use useCacheAndRevalidate for profile data
+  const { data: cachedProfile, loading: loadingProfile, error: profileError, refresh: refreshProfileCache } = useCacheAndRevalidate<Profile>({
+    cacheTable: 'profiles_cache',
+    supabaseQuery: useCallback(async (client) => {
+      if (!session?.user.id) return { data: [], error: null };
+      const { data, error } = await client.from('profiles').select('*').eq('id', session.user.id);
+      return { data: data || [], error };
+    }, [session?.user.id]),
+    queryKey: 'user_profile_page',
+    supabase,
+    sessionUserId: session?.user.id ?? null,
+  });
+  const profile = cachedProfile?.[0] || null;
+
+  // Use useCacheAndRevalidate for user achievements
+  const { data: cachedAchievements, loading: loadingAchievements, error: achievementsError, refresh: refreshAchievementsCache } = useCacheAndRevalidate<LocalUserAchievement>({
+    cacheTable: 'user_achievements_cache',
+    supabaseQuery: useCallback(async (client) => {
+      if (!session?.user.id) return { data: [], error: null };
+      const { data, error } = await client.from('user_achievements').select('id, user_id, achievement_id, unlocked_at').eq('user_id', session.user.id);
+      return { data: data as LocalUserAchievement[] || [], error }; // Explicitly cast data
+    }, [session?.user.id]),
+    queryKey: 'user_achievements_page',
+    supabase,
+    sessionUserId: session?.user.id ?? null,
+  });
+  const unlockedAchievements = useMemo(() => new Set((cachedAchievements || []).map(a => a.achievement_id)), [cachedAchievements]);
+
+  // Use useLiveQuery for totalWorkoutsCount from local IndexedDB
+  const totalWorkoutsCount = useLiveQuery(async () => {
+    if (!session?.user.id) return 0;
+    const count = await db.workout_sessions
+      .where('user_id').equals(session.user.id)
+      .and(s => s.completed_at !== null)
+      .count();
+    return count;
+  }, [session?.user.id]) || 0;
+
+  // Use useLiveQuery for totalExercisesCount from local IndexedDB
+  const totalExercisesCount = useLiveQuery(async () => {
+    if (!session?.user.id) return 0;
+    const uniqueExerciseInstances = new Set<string>();
+    const setLogs = await db.set_logs.toArray();
+    const workoutSessions = await db.workout_sessions.toArray();
+    const userSessionIds = new Set(workoutSessions.filter(ws => ws.user_id === session.user.id && ws.completed_at !== null).map(ws => ws.id));
+
+    setLogs.forEach(sl => {
+      if (sl.session_id && userSessionIds.has(sl.session_id) && sl.exercise_id) {
+        uniqueExerciseInstances.add(`${sl.session_id}-${sl.exercise_id}`);
+      }
+    });
+    return uniqueExerciseInstances.size;
+  }, [session?.user.id]) || 0;
+
+
+  const refreshProfileData = useCallback(async () => {
+    console.log("[ProfilePage Debug] refreshProfileData: Starting refresh operation.");
     if (!session) {
-      console.log("[ProfilePage Debug] fetchData: No session, returning.");
+      console.log("[ProfilePage Debug] refreshProfileData: No session, returning.");
       return;
     }
     setLoading(true);
     try {
-      console.log("[ProfilePage Debug] fetchData: Fetching profile data from Supabase.");
-      const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error("[ProfilePage Debug] fetchData: Profile fetch error:", profileError);
-        throw profileError;
-      }
-      if (profileData) {
-        setProfile(profileData as Profile);
-        form.reset({
-          full_name: [profileData.first_name, profileData.last_name].filter(Boolean).join(' '),
-          height_cm: profileData.height_cm,
-          weight_kg: profileData.weight_kg,
-          body_fat_pct: profileData.body_fat_pct,
-          primary_goal: profileData.primary_goal,
-          health_notes: profileData.health_notes,
-          preferred_session_length: profileData.preferred_session_length,
-          preferred_muscles: profileData.preferred_muscles ? profileData.preferred_muscles.split(',').map((m: string) => m.trim()) : [],
-        });
-        console.log("[ProfilePage Debug] fetchData: Profile data loaded and form reset.");
+      await refreshProfileCache(); // This updates the IndexedDB cache.
+      await refreshAchievementsCache(); // This updates the IndexedDB cache.
 
-        if (profileData.active_t_path_id) {
-          console.log("[ProfilePage Debug] fetchData: Fetching active T-Path.");
-          const { data: tpathData, error: tpathError } = await supabase.from('t_paths').select('*, settings').eq('id', profileData.active_t_path_id).single();
-          if (tpathError) console.error("[ProfilePage Debug] fetchData: Failed to load active T-Path:", tpathError);
+      // Now, explicitly fetch the *latest* profile from the cache after it's been refreshed.
+      // This avoids relying on the 'profile' variable from the outer scope's closure.
+      const latestCachedProfile = await db.profiles_cache.get(session.user.id);
+      const currentProfile = latestCachedProfile || null; // Use a local variable for the current profile data
+
+      if (currentProfile) {
+        form.reset({
+          full_name: [currentProfile.first_name, currentProfile.last_name].filter(Boolean).join(' '),
+          height_cm: currentProfile.height_cm,
+          weight_kg: currentProfile.weight_kg,
+          body_fat_pct: currentProfile.body_fat_pct,
+          primary_goal: currentProfile.primary_goal,
+          health_notes: currentProfile.health_notes,
+          preferred_session_length: currentProfile.preferred_session_length,
+          preferred_muscles: currentProfile.preferred_muscles ? currentProfile.preferred_muscles.split(',').map((m: string) => m.trim()) : [],
+        });
+        console.log("[ProfilePage Debug] refreshProfileData: Profile data loaded and form reset.");
+
+        if (currentProfile.active_t_path_id) {
+          console.log("[ProfilePage Debug] refreshProfileData: Fetching active T-Path.");
+          const { data: tpathData, error: tpathError } = await supabase.from('t_paths').select('*, settings').eq('id', currentProfile.active_t_path_id).single();
+          if (tpathError) console.error("[ProfilePage Debug] refreshProfileData: Failed to load active T-Path:", tpathError);
           else {
             setActiveTPath(tpathData as TPath);
-            console.log("[ProfilePage Debug] fetchData: Active T-Path loaded.");
+            console.log("[ProfilePage Debug] refreshProfileData: Active T-Path loaded.");
           }
+        } else {
+          setActiveTPath(null); // Clear active T-Path if none in profile
         }
 
         // AI Coach Usage
-        console.log("[ProfilePage Debug] fetchData: Checking AI Coach usage.");
-        if (profileData.last_ai_coach_use_at) {
-          const lastUsedDate = new Date(profileData.last_ai_coach_use_at).toDateString();
+        console.log("[ProfilePage Debug] refreshProfileData: Checking AI Coach usage.");
+        if (currentProfile.last_ai_coach_use_at) {
+          const lastUsedDate = new Date(currentProfile.last_ai_coach_use_at).toDateString();
           const today = new Date().toDateString();
           setAiCoachUsageToday(lastUsedDate === today ? 1 : 0);
         } else {
           setAiCoachUsageToday(0);
         }
-        console.log("[ProfilePage Debug] fetchData: AI Coach usage checked.");
-
-        // Fetch unlocked achievements
-        console.log("[ProfilePage Debug] fetchData: Fetching unlocked achievements.");
-        const { data: userAchievements, error: achievementsError } = await supabase
-          .from('user_achievements')
-          .select('achievement_id')
-          .eq('user_id', session.user.id);
-
-        if (achievementsError) {
-          console.error("[ProfilePage Debug] fetchData: Achievements fetch error:", achievementsError);
-          throw achievementsError;
-        }
-        setUnlockedAchievements(new Set((userAchievements || []).map(a => a.achievement_id)));
-        console.log("[ProfilePage Debug] fetchData: Unlocked achievements fetched.");
-
-        // Fetch total completed workouts
-        console.log("[ProfilePage Debug] fetchData: Fetching total completed workouts.");
-        const { count: workoutsCount, error: workoutsCountError } = await supabase
-          .from('workout_sessions')
-          .select('id', { count: 'exact' })
-          .eq('user_id', session.user.id)
-          .not('completed_at', 'is', null);
-        if (workoutsCountError) {
-          console.error("[ProfilePage Debug] fetchData: Workouts count error:", workoutsCountError);
-          throw workoutsCountError;
-        }
-        setTotalWorkoutsCount(workoutsCount || 0);
-        console.log(`[ProfilePage Debug] fetchData: Total workouts count: ${workoutsCount}`);
-
-        // Fetch total exercise instances completed via RPC
-        console.log("[ProfilePage Debug] fetchData: Fetching total exercise instances completed via RPC.");
-        const { data: totalExerciseInstances, error: totalExerciseInstancesError } = await supabase
-          .rpc('get_total_completed_exercise_instances', { p_user_id: session.user.id });
-
-        if (totalExerciseInstancesError) {
-          console.error("[ProfilePage Debug] fetchData: RPC error fetching total exercise instances count:", totalExerciseInstancesError);
-          throw totalExerciseInstancesError;
-        }
-        setTotalExercisesCount(totalExerciseInstances || 0);
-        console.log(`[ProfilePage Debug] fetchData: Total exercise instances from RPC: ${totalExerciseInstances}`);
-
+        console.log("[ProfilePage Debug] refreshProfileData: AI Coach usage checked.");
+      } else {
+        // If no profile found after refresh, reset form and states
+        form.reset();
+        setActiveTPath(null);
+        setAiCoachUsageToday(0);
       }
     } catch (err: any) {
       toast.error("Failed to load profile data: " + err.message);
-      console.error("[ProfilePage Debug] fetchData: Caught error during fetch:", err);
+      console.error("[ProfilePage Debug] refreshProfileData: Caught error during fetch:", err);
     } finally {
       setLoading(false);
-      console.log("[ProfilePage Debug] fetchData: Fetch operation finished.");
+      console.log("[ProfilePage Debug] refreshProfileData: Fetch operation finished.");
     }
-  }, [session, supabase, form]);
+  }, [session, supabase, form, refreshProfileCache, refreshAchievementsCache, setActiveTPath, setAiCoachUsageToday]); // Removed 'profile' from dependencies.
+
 
   useEffect(() => {
     if (!session) {
       router.push('/login');
       return;
     }
-    fetchData();
+    refreshProfileData();
 
     const tabParam = searchParams.get('tab');
     const editParam = searchParams.get('edit');
@@ -196,7 +229,7 @@ export default function ProfilePage() {
         setIsEditing(true);
       }
     }
-  }, [session, router, fetchData, searchParams]);
+  }, [session, router, refreshProfileData, searchParams]);
 
   const { bmi, dailyCalories } = useMemo(() => {
     const weight = profile?.weight_kg;
@@ -307,9 +340,9 @@ export default function ProfilePage() {
         console.error("[ProfilePage Debug] onSubmit: T-Path regeneration initiation error:", err);
       }
     }
-    console.log("[ProfilePage Debug] onSubmit: Calling fetchData to refresh profile.");
-    await fetchData();
-    console.log("[ProfilePage Debug] onSubmit: fetchData completed.");
+    console.log("[ProfilePage Debug] onSubmit: Calling refreshProfileData to refresh profile.");
+    await refreshProfileData();
+    console.log("[ProfilePage Debug] onSubmit: refreshProfileData completed.");
     setIsEditing(false);
     setIsSaving(false);
     console.log("[ProfilePage Debug] onSubmit: isEditing and isSaving set to false. Save operation finished.");
@@ -360,7 +393,7 @@ export default function ProfilePage() {
     emblaApi && emblaApi.scrollNext();
   }, [emblaApi]);
 
-  if (loading) return <div className="p-4"><Skeleton className="h-screen w-full" /></div>;
+  if (loadingProfile || loadingAchievements || loading) return <div className="p-4"><Skeleton className="h-screen w-full" /></div>;
   if (!profile) return <div className="p-4">Could not load profile.</div>;
 
   const userInitial = profile.first_name ? profile.first_name[0].toUpperCase() : (session?.user.email ? session.user.email[0].toUpperCase() : '?');
@@ -427,9 +460,9 @@ export default function ProfilePage() {
                       activeTPath={activeTPath}
                       aiCoachUsageToday={aiCoachUsageToday}
                       AI_COACH_LIMIT_PER_SESSION={AI_COACH_LIMIT_PER_SESSION}
-                      onTPathChange={fetchData}
+                      onTPathChange={refreshProfileData} // Pass the refresh function
                       onSignOut={handleSignOut}
-                      onSubmit={onSubmit}
+                      onSubmit={onSubmit} // Pass the raw onSubmit function
                     />
                   </FormProvider>
                 </div>

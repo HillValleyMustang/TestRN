@@ -189,7 +189,7 @@ const rawCsvData = [
     { name: 'Incline Dumbbell Press', main_muscle: 'Pectorals', type: 'weight', category: 'Bilateral', description: 'Lie on a bench set at a 30-45 degree incline. Hold a dumbbell in each hand at chest level and press them upwards until your arms are fully extended.', pro_tip: 'Don\'t let the dumbbells touch at the top. Keep them slightly apart to maintain constant tension on your upper chest muscles.', video_url: 'https://www.youtube.com/embed/8iPEnn-ltC8', workout_name: 'FALSE', min_session_minutes: '', bonus_for_time_group: '', icon_url: 'https://i.imgur.com/2Y4Y4Y4.png' },
     { name: 'Jumping Jacks', main_muscle: 'Full Body', type: 'timed', category: 'Bilateral', description: 'Stand with your feet together and arms at your sides. Simultaneously jump your feet out to the sides while raising your arms overhead. Jump back to the starting position.', pro_tip: 'Stay light on the balls of your feet to make the movement more efficient and reduce impact on your joints.', video_url: 'https://www.youtube.com/embed/1b98vrFRiMA', workout_name: 'FALSE', min_session_minutes: '', bonus_for_time_group: '', icon_url: 'https://i.imgur.com/2Y4Y4Y4.png' },
     { name: 'Kettlebell Swings', main_muscle: 'Glutes', type: 'weight', 'category': 'Bilateral', description: 'Stand with feet shoulder-width apart, holding a kettlebell with both hands. Hinge at your hips, swing the kettlebell between your legs, then explosively drive your hips forward to swing the weight up to chest level.', pro_tip: 'The power comes from a powerful hip thrust, not from lifting with your arms. Your arms are just there to guide the kettlebell.', video_url: 'https://www.youtube.com/embed/sSESeQoM_1o', workout_name: 'FALSE', min_session_minutes: '', bonus_for_time_group: '', icon_url: 'https://i.imgur.com/2Y4Y4Y4.png' },
-    { name: 'Lateral Raise', main_muscle: 'Deltoids', type: 'weight', category: 'Bilateral', description: 'Stand holding a light dumbbell in each hand at your sides. With a slight bend in your elbows, raise your arms out to the sides until they are parallel with the floor.', pro_tip: 'Pour the dumbbells out slightly at the top of the movement, as if you\'re pouring a jug of water. This helps to better isolate the medial deltoid.', video_url: 'https://www.youtube.com/embed/3GFZpOYu0pQ', workout_name: 'FALSE', min_session_minutes: '', bonus_for_time_group: '', icon_url: 'https://i.imgur.com/2Y4Y4Y4.png' },
+    { name: 'Lateral Raise', main_muscle: 'Deltoids', type: 'weight', category: 'Bilateral', description: 'Stand holding a light dumbbell in each hand at your sides. With a slight bend in your elbows, raise your arms out to the sides until they are parallel with the floor. ', pro_tip: 'Pour the dumbbells out slightly at the top of the movement, as if you\'re pouring a jug of water. This helps to better isolate the medial deltoid.', video_url: 'https://www.youtube.com/embed/3GFZpOYu0pQ', workout_name: 'FALSE', min_session_minutes: '', bonus_for_time_group: '', icon_url: 'https://i.imgur.com/2Y4Y4Y4.png' },
     { name: 'Leg Extension', main_muscle: 'Quadriceps', type: 'weight', category: 'Bilateral', description: 'Sit on the machine with your shins behind the pad. Extend your legs to lift the weight until they are straight out in front of you. Squeeze your quads at the top.', pro_tip: 'Point your toes slightly outwards to target the vastus medialis (teardrop muscle) near your knee, or slightly inwards to focus more on the outer quad sweep.', video_url: 'https://www.youtube.com/embed/YyvSfVjQeL0', workout_name: 'FALSE', min_session_minutes: '', bonus_for_time_group: '', icon_url: 'https://i.imgur.com/2Y4Y4Y4.png' },
     { name: 'Leg Press', main_muscle: 'Quadriceps', type: 'weight', category: 'Bilateral', description: 'Sit in the leg press machine with your feet shoulder-width apart on the platform. Lower the platform by bending your knees until they form a 90-degree angle, then press the weight back up.', pro_tip: 'Placing your feet higher on the platform will target your glutes and hamstrings more; placing them lower will target your quads more.', video_url: 'https://www.youtube.com/embed/IZ_9sZt31iA', workout_name: 'FALSE', min_session_minutes: '', bonus_for_time_group: '', icon_url: 'https://i.imgur.com/2Y4Y4Y4.png' },
     { name: 'Lunges', main_muscle: 'Quadriceps', type: 'weight', category: 'Unilateral', description: 'Step forward with one leg and lower your hips until both knees are bent at a 90-degree angle. Your front knee should be directly above your ankle, and your back knee should hover just above the ground. Push off your front foot to return to the start.', pro_tip: 'Keep your torso upright and your core engaged to maintain balance throughout the movement.', video_url: 'https://www.youtube.com/embed/QOVaHwm-Q6U', workout_name: 'FALSE', min_session_minutes: '', bonus_for_time_group: '', icon_url: 'https://i.imgur.com/2Y4Y4Y4.png' },
@@ -338,40 +338,14 @@ const processSingleChildWorkout = async (
       finalExerciseId = userCustomExerciseMap.get(globalLibraryId)!;
       console.log(`[Background] REUSING existing user exercise for global ${globalLibraryId}. User Exercise ID: ${finalExerciseId}`);
     } else {
-      // User does not have a custom version, create one
-      const globalDef = globalExerciseDefMap.get(globalLibraryId);
-      if (!globalDef) {
-        console.warn(`[Background] Global exercise definition not found for library_id: ${globalLibraryId}. Skipping.`);
+      // User does not have a custom version, so link directly to the global exercise.
+      const globalExercise = allUserAndGlobalExercises.find(ex => ex.library_id === globalLibraryId && ex.user_id === null);
+      if (!globalExercise) {
+        console.warn(`[Background] Global exercise definition not found in DB for library_id: ${globalLibraryId}. Skipping.`);
         continue;
       }
-
-      const newCustomExercise: ExerciseDefinitionInsert = { // Use the new local interface
-        user_id: user.id,
-        name: globalDef.name,
-        main_muscle: globalDef.main_muscle,
-        type: globalDef.type,
-        category: globalDef.category,
-        description: globalDef.description,
-        pro_tip: globalDef.pro_tip,
-        video_url: globalDef.video_url,
-        library_id: globalLibraryId, // Link back to the global library ID
-        is_favorite: false,
-        icon_url: globalDef.icon_url,
-      };
-
-      const { data: insertedCustomExercise, error: insertCustomError } = await supabaseServiceRoleClient
-        .from('exercise_definitions')
-        .insert(newCustomExercise)
-        .select('id')
-        .single();
-
-      if (insertCustomError) {
-        console.error(`[Background] Error creating custom exercise for ${globalLibraryId}:`, insertCustomError);
-        continue;
-      }
-      finalExerciseId = insertedCustomExercise.id;
-      userCustomExerciseMap.set(globalLibraryId, finalExerciseId); // Add to map for future lookups in this session
-      console.log(`[Background] CREATED new custom exercise for global ${globalLibraryId}. User Exercise ID: ${finalExerciseId}`);
+      finalExerciseId = globalExercise.id;
+      console.log(`[Background] LINKING to global exercise for ${globalLibraryId}. Global Exercise ID: ${finalExerciseId}`);
     }
     
     // Log the final exercise ID that will be used for t_path_exercises

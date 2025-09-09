@@ -276,7 +276,7 @@ export const ExerciseCard = ({
                       <div className="flex items-center gap-2">
                         {set.isSaved && set.isPR && (
                           <span className="text-yellow-500 flex items-center text-xs font-semibold">
-                            <Trophy className="h-3 w-3" /> PR!
+                            <Trophy className="h-3 w-3" /> PB!
                           </span>
                         )}
                         {!set.isSaved && (

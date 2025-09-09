@@ -55,7 +55,7 @@ export const ProfileOverviewTab = ({
         </Card>
         <Card className="bg-gradient-to-br from-purple-400 to-purple-500 text-primary-foreground shadow-lg flex flex-col justify-between p-4">
           <CardHeader className="flex-row items-center justify-between pb-2 p-0">
-            <CardTitle className="text-sm font-medium">Total Exercises</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Unique Exercises</CardTitle>
             <ListChecks className="h-4 w-4" />
           </CardHeader>
           <CardContent className="p-0 pt-2">

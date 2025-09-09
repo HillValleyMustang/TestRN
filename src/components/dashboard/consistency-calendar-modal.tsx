@@ -222,12 +222,12 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
         <DialogHeader>
           <DialogTitle>Consistency Calendar</DialogTitle>
         </DialogHeader>
-        <div className="py-2 flex flex-col items-center"> {/* Reduced vertical padding here */}
+        <div className="py-4 flex flex-col items-center">
           {loading ? (
             <p>Loading calendar...</p>
           ) : (
             <>
-              {/* Removed: <p className="text-lg font-semibold mb-4">Current Streak: {currentStreak} Days</p> */}
+              <p className="text-lg font-semibold mb-4">Current Streak: {currentStreak} Days</p>
               <Calendar
                 mode="multiple"
                 selected={Array.from(activityMap.values()).flatMap(events => events.map(e => e.date))}
@@ -237,9 +237,7 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
                 components={{
                   DayContent: (props) => <CustomDayContent {...props} activityMap={activityMap} />,
                 }}
-                classNames={{
-                  day: "h-8 w-8", // Make day cells slightly smaller
-                }}
+                // Removed classNames as CustomDayContent handles styling
               />
               <div className="mt-6 w-full px-4">
                 <div className="grid grid-cols-2 gap-3 text-sm">

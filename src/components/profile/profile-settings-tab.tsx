@@ -10,7 +10,7 @@ import { ActiveTPathSection } from './active-t-path-section';
 import { AICoachUsageSection } from './ai-coach-usage-section';
 import { DataExportSection } from './data-export-section'; // Import the new component
 import { UseFormReturn } from 'react-hook-form';
-import * as z from 'zod';
+import *as z from 'zod';
 import { Tables } from '@/types/supabase';
 
 type TPath = Tables<'t_paths'>;
@@ -33,7 +33,7 @@ interface ProfileSettingsTabProps {
   activeTPath: TPath | null;
   aiCoachUsageToday: number;
   AI_COACH_LIMIT_PER_SESSION: number;
-  onTPathChange: () => void;
+  onTPathChange: () => Promise<void>; // Changed to Promise<void>
   onSignOut: () => void;
   onSubmit: (values: z.infer<typeof profileSchema>) => Promise<void>;
 }
