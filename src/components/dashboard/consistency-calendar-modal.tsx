@@ -132,9 +132,9 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
                 classNames={{
                   // Override the default selected day styling to be transparent
                   // and ensure text is white, letting the inner div's background color show through.
-                  day_selected: "bg-transparent text-white",
+                  day_selected: "bg-none text-white", // Changed from bg-transparent to bg-none
                   // Also ensure today's styling doesn't interfere if it's also selected
-                  day_today: "bg-transparent text-white",
+                  day_today: "bg-none text-white", // Changed from bg-transparent to bg-none
                 }}
               />
               <div className="mt-6 w-full px-4">
