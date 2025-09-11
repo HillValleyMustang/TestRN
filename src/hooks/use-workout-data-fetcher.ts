@@ -43,7 +43,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
       return client
         .from('exercise_definitions')
-        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url')
+        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url, location_tags')
         .order('name', { ascending: true });
     }, []),
     queryKey: 'all_exercises',

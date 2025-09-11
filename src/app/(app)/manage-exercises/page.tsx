@@ -158,6 +158,7 @@ export default function ManageExercisesPage() {
       category: exercise.category ?? null,
       video_url: exercise.video_url ?? null,
       icon_url: exercise.icon_url ?? null, // Fix for icon_url
+      location_tags: exercise.location_tags ?? null, // Fix for location_tags
       // Ensure name, main_muscle, type are explicitly string
       name: exercise.name || '',
       main_muscle: exercise.main_muscle || '',

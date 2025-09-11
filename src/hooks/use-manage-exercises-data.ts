@@ -31,7 +31,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
     // Fetch all exercises (user-owned and global)
     return client
       .from('exercise_definitions')
-      .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url')
+      .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url, location_tags')
       .order('name', { ascending: true });
   }, []); // Removed sessionUserId from dependencies as we fetch all and filter client-side
 
