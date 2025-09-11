@@ -33,27 +33,25 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const { base64Image } = await req.json();
+    const { base64Image, locationTag } = await req.json();
 
     if (!base64Image) {
       return new Response(JSON.stringify({ error: 'No image provided.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const prompt = `
-      Analyze the gym equipment in this image. Identify the specific equipment.
-      Use English UK spelling for all text fields (e.g., 'analyse' instead of 'analyze', 'colour' instead of 'color').
-      Provide its name, primary muscle group(s) (comma-separated if multiple, e.g., "Pectorals, Deltoids"),
-      its type ('weight' or 'timed'), its category ('Bilateral', 'Unilateral', or null if not applicable),
-      a brief description of how to use it, a practical pro tip for performing the exercise,
-      and a relevant YouTube embed URL for a tutorial video (can be an empty string if none found).
+      Analyze the gym equipment in this image. Identify a single, primary exercise that can be performed with it.
+      Provide its name, primary muscle group(s) (comma-separated),
+      its type ('weight', 'timed', or 'body_weight'), its category ('Bilateral', 'Unilateral', or null),
+      a brief description, a practical pro tip, and a relevant YouTube embed URL.
 
-      IMPORTANT: Respond ONLY with a JSON object. Do NOT include any other text, markdown formatting (like \`\`\`json), or conversational phrases. The response must be a pure JSON string.
+      IMPORTANT: Respond ONLY with a JSON object. Do NOT include any other text or markdown.
       Example:
       {
         "name": "Exercise Name",
         "main_muscle": "Main Muscle Group(s)",
-        "type": "weight" | "timed",
-        "category": "Bilateral" | "Unilateral" | null,
+        "type": "weight",
+        "category": "Bilateral",
         "description": "A brief description.",
         "pro_tip": "A short, actionable pro tip.",
         "video_url": "https://www.youtube.com/embed/..."
@@ -68,7 +66,7 @@ serve(async (req: Request) => {
           {
             parts: [
               { text: prompt },
-              { inlineData: { mimeType: 'image/jpeg', data: base64Image } } // Assuming JPEG, adjust if needed
+              { inlineData: { mimeType: 'image/jpeg', data: base64Image } }
             ]
           }
         ],
@@ -77,7 +75,6 @@ serve(async (req: Request) => {
 
     if (!geminiResponse.ok) {
       const errorBody = await geminiResponse.text();
-      console.error("Gemini API error response:", errorBody);
       throw new Error(`Gemini API error: ${geminiResponse.status} - ${errorBody}`);
     }
 
@@ -88,65 +85,78 @@ serve(async (req: Request) => {
       throw new Error("AI did not return a valid response.");
     }
 
-    // Use a regex to extract the JSON object from the generated text
     const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
-    let jsonString = jsonMatch ? jsonMatch[0] : generatedText; // Fallback to full text if no match
+    let jsonString = jsonMatch ? jsonMatch[0] : generatedText;
 
     let identifiedExercise;
     try {
       identifiedExercise = JSON.parse(jsonString);
     } catch (parseError) {
-      console.error("Failed to parse Gemini response as JSON:", jsonString);
-      throw new Error("AI returned an invalid format. Please try again or use manual entry.");
+      throw new Error("AI returned an invalid format. Please try again.");
     }
 
-    // Validate essential fields
     if (!identifiedExercise.name || !identifiedExercise.main_muscle || !identifiedExercise.type) {
-      throw new Error("AI could not extract essential exercise details. Please try a different photo or use manual entry.");
+      throw new Error("AI could not extract essential exercise details.");
     }
 
-    // --- DUPLICATE CHECK ---
-    let isDuplicate = false;
-
-    // 1. Check for exact name/muscle/type match in user's OWN exercises
-    const { data: userOwnedDuplicates, error: userOwnedDuplicateError } = await supabaseClient
+    // --- DUPLICATE CHECK & HANDLING (REVISED LOGIC) ---
+    // Check for an existing exercise (user-owned OR global) with the same name.
+    const { data: existingExercises, error: duplicateCheckError } = await supabaseClient
       .from('exercise_definitions')
-      .select('id')
-      .eq('user_id', user.id)
+      .select('id, user_id, location_tags')
       .ilike('name', identifiedExercise.name.trim())
-      .ilike('main_muscle', identifiedExercise.main_muscle.trim())
-      .eq('type', identifiedExercise.type);
+      .or(`user_id.eq.${user.id},user_id.is.null`);
 
-    if (userOwnedDuplicateError) {
-      console.error("Error checking for user-owned duplicate exercises:", userOwnedDuplicateError.message);
-    } else if (userOwnedDuplicates && userOwnedDuplicates.length > 0) {
-      isDuplicate = true;
-    }
+    if (duplicateCheckError) throw duplicateCheckError;
 
-    // 2. If not already a duplicate, check if it's a global exercise that the user has already adopted
-    // This check is only relevant if the identified exercise is originally a global one (has a library_id)
-    // and the user has a custom copy of it.
-    if (!isDuplicate && identifiedExercise.library_id) {
-        const { data: adoptedDuplicates, error: adoptedDuplicateError } = await supabaseClient
+    let finalExercise = { ...identifiedExercise, id: null, isDuplicate: false };
+
+    if (existingExercises && existingExercises.length > 0) {
+      // Prioritize user-owned exercise if both exist
+      const userOwnedMatch = existingExercises.find((ex: { user_id: string | null }) => ex.user_id === user.id);
+      const existingMatch = userOwnedMatch || existingExercises[0];
+      
+      finalExercise = { ...finalExercise, id: existingMatch.id, isDuplicate: true };
+
+      // If it's a user-owned exercise and a locationTag was provided, update its tags.
+      if (existingMatch.user_id === user.id && locationTag) {
+        const currentTags = existingMatch.location_tags || [];
+        if (!currentTags.includes(locationTag)) {
+          const newTags = [...currentTags, locationTag];
+          const { error: updateError } = await supabaseClient
             .from('exercise_definitions')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('library_id', identifiedExercise.library_id); // Check if user has adopted this specific global exercise
-
-        if (adoptedDuplicateError) {
-            console.error("Error checking for adopted global duplicate exercises:", adoptedDuplicateError.message);
-        } else if (adoptedDuplicates && adoptedDuplicates.length > 0) {
-            isDuplicate = true;
+            .update({ location_tags: newTags })
+            .eq('id', existingMatch.id);
+          if (updateError) throw updateError;
         }
+      }
+    } else {
+      // It's a new exercise, so we insert it as a user-owned exercise.
+      const { data: newExercise, error: insertError } = await supabaseClient
+        .from('exercise_definitions')
+        .insert({
+          name: identifiedExercise.name,
+          main_muscle: identifiedExercise.main_muscle,
+          type: identifiedExercise.type,
+          category: identifiedExercise.category,
+          description: identifiedExercise.description,
+          pro_tip: identifiedExercise.pro_tip,
+          video_url: identifiedExercise.video_url,
+          user_id: user.id,
+          location_tags: locationTag ? [locationTag] : [],
+        })
+        .select('id')
+        .single();
+      
+      if (insertError) throw insertError;
+      finalExercise.id = newExercise.id;
     }
 
-    // Return the identified exercise data AND the duplicate flag to the client
-    return new Response(JSON.stringify({ identifiedExercise, isDuplicate }), {
+    return new Response(JSON.stringify({ identifiedExercise: finalExercise, isDuplicate: finalExercise.isDuplicate }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error("Error in identify-equipment edge function:", error);
     const message = error instanceof Error ? error.message : "An unknown error occurred";
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
