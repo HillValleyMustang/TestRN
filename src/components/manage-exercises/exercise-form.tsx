@@ -46,6 +46,7 @@ import { ExerciseCategorySelect } from "@/components/manage-exercises/exercise-f
 import { ExerciseDetailsTextareas } from "@/components/manage-exercises/exercise-form/exercise-details-textareas";
 import { ExerciseVideoUrlInput } from "@/components/manage-exercises/exercise-form/exercise-video-url-input";
 import { ExerciseFormActions } from "@/components/manage-exercises/exercise-form/exercise-form-actions";
+import { ExerciseLocationTagSelect } from "@/components/manage-exercises/exercise-form/exercise-location-tag-select"; // Import the new component
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -57,15 +58,17 @@ const exerciseSchema = z.object({
   description: z.string().optional().nullable(),
   pro_tip: z.string().optional().nullable(),
   video_url: z.string().url("Must be a valid URL.").optional().or(z.literal('')).nullable(),
+  location_tags: z.array(z.string()).optional().nullable(),
 });
 
 interface ExerciseFormProps {
   editingExercise: FetchedExerciseDefinition | null;
   onCancelEdit: () => void;
   onSaveSuccess: () => void;
+  availableLocationTags: string[];
 }
 
-export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(({ editingExercise, onCancelEdit, onSaveSuccess }, ref) => {
+export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(({ editingExercise, onCancelEdit, onSaveSuccess, availableLocationTags }, ref) => {
   const { session, supabase } = useSession();
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
@@ -100,6 +103,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
       description: null,
       pro_tip: null,
       video_url: null,
+      location_tags: [],
     },
   });
 
@@ -115,6 +119,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
         description: editingExercise.description || null, // Fixed typo here
         pro_tip: editingExercise.pro_tip || null,
         video_url: editingExercise.video_url || null,
+        location_tags: editingExercise.location_tags || [],
       });
       setSelectedMuscles(muscleGroups);
       setSelectedTypes(editingExercise.type ? [editingExercise.type] as ("weight" | "timed")[] : []);
@@ -170,6 +175,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
       description: values.description,
       pro_tip: values.pro_tip,
       video_url: values.video_url,
+      location_tags: values.location_tags,
     };
 
     const isEditingUserOwned = editingExercise && editingExercise.user_id === session.user.id && editingExercise.library_id === null && editingExercise.id !== null;
@@ -268,6 +274,11 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
                 <ExerciseCategorySelect
                   form={form}
                   categoryOptions={categoryOptions}
+                />
+
+                <ExerciseLocationTagSelect
+                  form={form}
+                  availableLocationTags={availableLocationTags}
                 />
                 
                 <ExerciseDetailsTextareas form={form} />

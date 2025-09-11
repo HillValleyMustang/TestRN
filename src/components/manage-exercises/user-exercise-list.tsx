@@ -46,6 +46,7 @@ interface UserExerciseListProps {
   onAddSuccess: () => void;
   onOptimisticAdd: (exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => void; // Added
   onAddFailure: (exerciseId: string, workoutId: string) => void; // Added
+  availableLocationTags: string[]; // New prop
 }
 
 export const UserExerciseList = ({
@@ -62,6 +63,7 @@ export const UserExerciseList = ({
   onAddSuccess,
   onOptimisticAdd, // Destructured
   onAddFailure, // Destructured
+  availableLocationTags, // Destructured
 }: UserExerciseListProps) => {
   const [isAddTPathDialogOpen, setIsAddTPathDialogOpen] = useState(false);
   const [selectedExerciseForTPath, setSelectedExerciseForTPath] = useState<FetchedExerciseDefinition | null>(null);
@@ -121,6 +123,7 @@ export const UserExerciseList = ({
             editingExercise={null} // Always null for adding new
             onCancelEdit={() => {}} // No specific cancel logic needed here for add form
             onSaveSuccess={onAddSuccess} // Use onAddSuccess for new exercises
+            availableLocationTags={availableLocationTags} // Pass down the tags
             // Removed onAddOnlyToCurrentWorkout prop
           />
         </div>
@@ -229,6 +232,7 @@ export const UserExerciseList = ({
         onOpenChange={handleEditDialogClose}
         exercise={exerciseToEdit}
         onSaveSuccess={handleEditDialogSaveSuccess}
+        availableLocationTags={availableLocationTags}
       />
     </Card>
   );

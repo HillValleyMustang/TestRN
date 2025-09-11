@@ -12,6 +12,7 @@ interface EditExerciseDialogProps {
   onOpenChange: (open: boolean) => void;
   exercise: FetchedExerciseDefinition | null;
   onSaveSuccess: () => void;
+  availableLocationTags: string[]; // New prop
 }
 
 export const EditExerciseDialog = ({
@@ -19,6 +20,7 @@ export const EditExerciseDialog = ({
   onOpenChange,
   exercise,
   onSaveSuccess,
+  availableLocationTags, // Destructure new prop
 }: EditExerciseDialogProps) => {
   const handleCancelEdit = () => {
     onOpenChange(false); // Close the dialog
@@ -42,6 +44,7 @@ export const EditExerciseDialog = ({
             editingExercise={exercise}
             onCancelEdit={handleCancelEdit}
             onSaveSuccess={handleSaveSuccessAndClose}
+            availableLocationTags={availableLocationTags} // Pass down the tags
             // Removed isExpandedInDialog prop
           />
         </div>

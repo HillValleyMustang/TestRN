@@ -257,6 +257,7 @@ export default function ManageExercisesPage() {
                           onAddSuccess={refreshExercises}
                           onOptimisticAdd={handleOptimisticAdd}
                           onAddFailure={handleAddFailure}
+                          availableLocationTags={availableLocationTags}
                         />
                       </div>
                     </TabsContent>
@@ -326,6 +327,7 @@ export default function ManageExercisesPage() {
           onOpenChange={handleCancelEdit}
           exercise={editingExercise}
           onSaveSuccess={handleSaveSuccess}
+          availableLocationTags={availableLocationTags}
         />
       )}
     </>
