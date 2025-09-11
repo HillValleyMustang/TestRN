@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const { base64Image } = await request.json();
+    const { base64Image, locationTag } = await request.json();
     
     // Extract the Authorization header from the incoming request
     const authHeader = request.headers.get('Authorization');
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
         'Content-Type': 'application/json',
         'Authorization': authHeader, // Forward the user's JWT
       },
-      body: JSON.stringify({ base64Image }),
+      body: JSON.stringify({ base64Image, locationTag }),
     });
 
     const data = await edgeFunctionResponse.json();

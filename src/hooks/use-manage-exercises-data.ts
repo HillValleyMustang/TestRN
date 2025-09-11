@@ -25,6 +25,8 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
   const [selectedMuscleFilter, setSelectedMuscleFilter] = useState<string>('all');
   const [availableMuscleGroups, setAvailableMuscleGroups] = useState<string[]>([]);
   const [exerciseWorkoutsMap, setExerciseWorkoutsMap] = useState<Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>>({});
+  const [selectedLocationTag, setSelectedLocationTag] = useState<string>('all'); // New state
+  const [availableLocationTags, setAvailableLocationTags] = useState<string[]>([]); // New state
 
   // Define Supabase query functions for caching hook
   const fetchExercisesSupabase = useCallback(async (client: SupabaseClient) => {
@@ -67,10 +69,10 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       if (exercisesError) throw new Error(exercisesError);
       if (tPathsError) throw new Error(tPathsError);
 
-      // 1. Fetch user's profile to get active_t_path_id AND preferred_session_length
+      // 1. Fetch user's profile to get active_t_path_id, session length, AND active_location_tag
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('active_t_path_id, preferred_session_length') // Added preferred_session_length
+        .select('active_t_path_id, preferred_session_length, active_location_tag')
         .eq('id', sessionUserId)
         .single();
 
@@ -81,8 +83,10 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       const activeTPathId = profileData?.active_t_path_id;
       const preferredSessionLength = profileData?.preferred_session_length;
       const maxAllowedMinutes = getMaxMinutes(preferredSessionLength);
-      console.log("ManageExercises: Active T-Path ID:", activeTPathId, "Preferred Session Length:", preferredSessionLength, "Max Allowed Minutes:", maxAllowedMinutes);
+      const activeLocationTag = profileData?.active_location_tag;
 
+      // Set the initial filter to the user's active gym, or 'all' if none is set
+      setSelectedLocationTag(activeLocationTag || 'all');
 
       const { data: userGlobalFavorites, error: favoritesError } = await supabase
         .from('user_global_favorites')
@@ -107,47 +111,37 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
           activeWorkoutNames = childWorkouts.map(cw => cw.template_name);
         }
       }
-      console.log("ManageExercises: Active Child Workout IDs:", activeChildWorkoutIds);
-      console.log("ManageExercises: Active Workout Names (from T-Paths):", activeWorkoutNames);
-
 
       const allWorkoutIds = allTPaths.map(tp => tp.id);
 
       const { data: tPathExercisesData, error: tPathExercisesError } = await supabase
         .from('t_path_exercises')
         .select('exercise_id, template_id, is_bonus_exercise')
-        .in('template_id', allWorkoutIds); // Keep fetching all, but filter later
+        .in('template_id', allWorkoutIds);
 
       if (tPathExercisesError) {
         throw new Error(tPathExercisesError.message);
       }
 
-      // NEW: Fetch workout structure for global badge info
       const { data: structureData, error: structureError } = await supabase
         .from('workout_exercise_structure')
-        .select('exercise_library_id, workout_name, min_session_minutes, bonus_for_time_group'); // Added session length fields
+        .select('exercise_library_id, workout_name, min_session_minutes, bonus_for_time_group');
 
       if (structureError) {
         throw new Error(structureError.message);
       }
-      console.log("ManageExercises: Raw Workout Structure Data:", structureData);
 
-
-      // Create a map from library_id to the actual exercise UUID
       const libraryIdToUuidMap = new Map<string, string>();
       (cachedExercises || []).forEach(ex => {
         if (ex.library_id) {
           libraryIdToUuidMap.set(ex.library_id, ex.id);
         }
       });
-      console.log("ManageExercises: Library ID to UUID Map:", libraryIdToUuidMap);
-
 
       const newExerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]> = {};
 
-      // 1. Populate from user's t_path_exercises, BUT ONLY FOR ACTIVE WORKOUTS
       tPathExercisesData.forEach(tpe => {
-        if (activeChildWorkoutIds.includes(tpe.template_id)) { // Filter here
+        if (activeChildWorkoutIds.includes(tpe.template_id)) {
           const workout = allTPaths.find(tp => tp.id === tpe.template_id);
           if (workout) {
             if (!newExerciseWorkoutsMap[tpe.exercise_id]) {
@@ -165,72 +159,54 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
         }
       });
 
-      // 2. Populate from global workout_exercise_structure, BUT ONLY FOR ACTIVE WORKOUT NAMES AND SESSION LENGTH
       (structureData || []).forEach(structure => {
-        // Check if the workout_name from structureData is one of the active workout names
         if (activeWorkoutNames.includes(structure.workout_name)) {
           const isIncludedAsMain = structure.min_session_minutes !== null && maxAllowedMinutes >= structure.min_session_minutes;
           const isIncludedAsBonus = structure.bonus_for_time_group !== null && maxAllowedMinutes >= structure.bonus_for_time_group;
 
-          console.log(`ManageExercises: Processing structure for ${structure.workout_name} - ${structure.exercise_library_id}`);
-          console.log(`  isIncludedAsMain: ${isIncludedAsMain} (min_session_minutes: ${structure.min_session_minutes})`);
-          console.log(`  isIncludedAsBonus: ${isIncludedAsBonus} (bonus_for_time_group: ${structure.bonus_for_time_group})`);
-          console.log(`  maxAllowedMinutes: ${maxAllowedMinutes}`);
-
-
-          if (isIncludedAsMain || isIncludedAsBonus) { // Only add badge if it would be included in the workout
+          if (isIncludedAsMain || isIncludedAsBonus) {
             const exerciseUuid = libraryIdToUuidMap.get(structure.exercise_library_id);
-            console.log(`  Resolved exerciseUuid for ${structure.exercise_library_id}: ${exerciseUuid}`);
-
             if (exerciseUuid) {
               if (!newExerciseWorkoutsMap[exerciseUuid]) {
                 newExerciseWorkoutsMap[exerciseUuid] = [];
               }
-              // Ensure we don't add duplicate badges for the same workout name
               if (!newExerciseWorkoutsMap[exerciseUuid].some(item => item.name === structure.workout_name)) {
                 newExerciseWorkoutsMap[exerciseUuid].push({
-                  id: `global_${structure.workout_name}`, // Unique ID for this badge instance
+                  id: `global_${structure.workout_name}`,
                   name: structure.workout_name,
                   isUserOwned: false,
-                  isBonus: false, // Global structure doesn't define bonus status, assume false
+                  isBonus: false,
                 });
-                console.log(`  Added badge for ${structure.workout_name} to exercise ${exerciseUuid}`);
-              } else {
-                console.log(`  Badge for ${structure.workout_name} already exists for exercise ${exerciseUuid}, skipping.`);
               }
-            } else {
-              console.warn(`  Could not find UUID for library_id: ${structure.exercise_library_id} in libraryIdToUuidMap.`);
             }
-          } else {
-            console.log(`  Exercise ${structure.exercise_library_id} for workout ${structure.workout_name} not included due to session length.`);
           }
-        } else {
-          console.log(`ManageExercises: Skipping structure for ${structure.workout_name} as it's not in activeWorkoutNames.`);
         }
       });
 
       setExerciseWorkoutsMap(newExerciseWorkoutsMap);
-      console.log("ManageExercises: Final Exercise Workouts Map:", newExerciseWorkoutsMap);
 
-
-      // Separate user-owned and global exercises based on strict criteria
       const userOwnedExercisesList: FetchedExerciseDefinition[] = [];
       const globalExercisesList: FetchedExerciseDefinition[] = [];
 
       (cachedExercises || []).forEach(ex => {
-        // User-owned exercises must have user_id matching session and library_id must be null
         if (ex.user_id === sessionUserId && ex.library_id === null) {
           userOwnedExercisesList.push({ ...ex, id: ex.id, is_favorite: !!ex.is_favorite });
-        } else if (ex.user_id === null) { // Global exercises must have user_id === null
+        } else if (ex.user_id === null) {
           globalExercisesList.push({
             ...ex,
             id: ex.id,
             is_favorited_by_current_user: favoritedGlobalExerciseIds.has(ex.id)
           });
         }
-        // Any other combination (e.g., user_id === sessionUserId && library_id !== null)
-        // is considered an "adopted" duplicate and will not be displayed in either list.
       });
+
+      const allTags = new Set<string>();
+      userOwnedExercisesList.forEach(ex => {
+        if (ex.location_tags) {
+          ex.location_tags.forEach(tag => allTags.add(tag));
+        }
+      });
+      setAvailableLocationTags(Array.from(allTags).sort());
 
       const allUniqueMuscles = Array.from(new Set((cachedExercises || []).map(ex => ex.main_muscle))).sort();
       setAvailableMuscleGroups(allUniqueMuscles);
@@ -246,6 +222,12 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
         finalGlobalExercises = finalGlobalExercises.filter(ex => ex.main_muscle === selectedMuscleFilter);
       }
 
+      if (selectedLocationTag !== 'all') {
+        finalUserExercises = finalUserExercises.filter(ex => 
+          ex.location_tags && ex.location_tags.includes(selectedLocationTag)
+        );
+      }
+
       finalUserExercises.sort((a, b) => a.name.localeCompare(b.name));
       finalGlobalExercises.sort((a, b) => a.name.localeCompare(b.name));
 
@@ -258,7 +240,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
     } finally {
       setLoading(false);
     }
-  }, [sessionUserId, supabase, selectedMuscleFilter, cachedExercises, cachedTPaths, exercisesError, tPathsError, loadingExercises, loadingTPaths]);
+  }, [sessionUserId, supabase, selectedMuscleFilter, selectedLocationTag, cachedExercises, cachedTPaths, exercisesError, tPathsError, loadingExercises, loadingTPaths]);
 
   useEffect(() => {
     if (!loadingExercises && !loadingTPaths) {
@@ -267,8 +249,6 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
   }, [fetchPageData, loadingExercises, loadingTPaths]);
 
   const handleEditClick = useCallback((exercise: FetchedExerciseDefinition) => {
-    // When editing a global exercise, pre-fill the "Add New Exercise" form
-    // The user will then create a new custom exercise based on the global one.
     setEditingExercise(exercise.user_id === sessionUserId ? exercise : { ...exercise, id: null, user_id: sessionUserId, is_favorite: false, library_id: null });
   }, [sessionUserId]);
 
@@ -282,133 +262,78 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
   }, [refreshExercises]);
 
   const handleDeleteExercise = useCallback(async (exercise: FetchedExerciseDefinition) => {
-    if (!sessionUserId) {
-      toast.error("You must be logged in to delete exercises.");
+    if (!sessionUserId || !exercise.id || exercise.user_id !== sessionUserId) {
+      toast.error("Invalid operation.");
       return;
     }
-    if (!exercise.id) {
-      toast.error("Cannot delete an exercise without an ID.");
-      return;
-    }
-    if (exercise.user_id !== sessionUserId) {
-      toast.error("You can only delete your own custom exercises.");
-      return;
-    }
-
     const toastId = toast.loading(`Deleting '${exercise.name}'...`);
-
     try {
       const { error } = await supabase.from('exercise_definitions').delete().eq('id', exercise.id);
-      if (error) {
-        throw new Error(error.message);
-      }
+      if (error) throw new Error(error.message);
       toast.success("Exercise deleted successfully!", { id: toastId });
-      refreshExercises(); // Trigger revalidation after delete
+      refreshExercises();
     } catch (err: any) {
-      console.error("Failed to delete exercise:", err);
       toast.error("Failed to delete exercise: " + err.message, { id: toastId });
     }
   }, [sessionUserId, supabase, refreshExercises]);
 
   const handleToggleFavorite = useCallback(async (exercise: FetchedExerciseDefinition) => {
-    if (!sessionUserId) {
-      toast.error("You must be logged in to favourite exercises.");
-      return;
-    }
-
+    if (!sessionUserId || !exercise.id) return;
     const isUserOwned = exercise.user_id === sessionUserId;
     const isCurrentlyFavorited = isUserOwned ? exercise.is_favorite : exercise.is_favorited_by_current_user;
     const newFavoriteStatus = !isCurrentlyFavorited;
-
     const toastId = toast.loading(newFavoriteStatus ? "Adding to favourites..." : "Removing from favourites...");
-
     try {
       if (isUserOwned) {
-        const { error } = await supabase
-          .from('exercise_definitions')
-          .update({ is_favorite: newFavoriteStatus })
-          .eq('id', exercise.id as string) // Cast to string as id can be null
-          .eq('user_id', sessionUserId);
-
+        const { error } = await supabase.from('exercise_definitions').update({ is_favorite: newFavoriteStatus }).eq('id', exercise.id).eq('user_id', sessionUserId);
         if (error) throw error;
-        toast.success(newFavoriteStatus ? "Added to favourites!" : "Removed from favourites.", { id: toastId });
-      } else { // Global exercise
+      } else {
         if (newFavoriteStatus) {
-          const { error } = await supabase
-            .from('user_global_favorites')
-            .insert({ user_id: sessionUserId, exercise_id: exercise.id as string }); // Cast to string
+          const { error } = await supabase.from('user_global_favorites').insert({ user_id: sessionUserId, exercise_id: exercise.id });
           if (error) throw error;
-          toast.success("Added to favourites!", { id: toastId });
         } else {
-          const { error } = await supabase
-            .from('user_global_favorites')
-            .delete()
-            .eq('user_id', sessionUserId)
-            .eq('exercise_id', exercise.id as string); // Cast to string
+          const { error } = await supabase.from('user_global_favorites').delete().eq('user_id', sessionUserId).eq('exercise_id', exercise.id);
           if (error) throw error;
-          toast.success("Removed from favourites.", { id: toastId });
         }
       }
-      refreshExercises(); // Trigger revalidation after favorite change
+      toast.success(newFavoriteStatus ? "Added to favourites!" : "Removed from favourites.", { id: toastId });
+      refreshExercises();
     } catch (err: any) {
-      console.error("Failed to toggle favourite status:", err);
       toast.error("Failed to update favourite status: " + err.message, { id: toastId });
     }
   }, [sessionUserId, supabase, refreshExercises]);
 
   const handleOptimisticAdd = useCallback((exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => {
     setExerciseWorkoutsMap(prev => {
-        const newMap = { ...prev };
-        if (!newMap[exerciseId]) {
-            newMap[exerciseId] = [];
-        }
-        // Check if already exists to prevent duplicate optimistic adds
-        if (!newMap[exerciseId].some(item => item.id === workoutId)) {
-            newMap[exerciseId].push({ id: workoutId, name: workoutName, isUserOwned: true, isBonus });
-        }
-        return newMap;
+      const newMap = { ...prev };
+      if (!newMap[exerciseId]) newMap[exerciseId] = [];
+      if (!newMap[exerciseId].some(item => item.id === workoutId)) {
+        newMap[exerciseId].push({ id: workoutId, name: workoutName, isUserOwned: true, isBonus });
+      }
+      return newMap;
     });
   }, []);
 
   const handleAddFailure = useCallback((exerciseId: string, workoutId: string) => {
-      setExerciseWorkoutsMap(prev => {
-          const newMap = { ...prev };
-          if (newMap[exerciseId]) {
-              newMap[exerciseId] = newMap[exerciseId].filter(item => item.id !== workoutId);
-              if (newMap[exerciseId].length === 0) {
-                  delete newMap[exerciseId];
-              }
-          }
-          return newMap;
-      });
+    setExerciseWorkoutsMap(prev => {
+      const newMap = { ...prev };
+      if (newMap[exerciseId]) {
+        newMap[exerciseId] = newMap[exerciseId].filter(item => item.id !== workoutId);
+        if (newMap[exerciseId].length === 0) delete newMap[exerciseId];
+      }
+      return newMap;
+    });
   }, []);
 
   const handleRemoveFromWorkout = useCallback(async (workoutId: string, exerciseId: string) => {
-    if (!sessionUserId) {
-      toast.error("You must be logged in to remove exercises from workouts.");
-      return;
-    }
-
-    if (!confirm("Are you sure you want to remove this exercise from the workout? This action cannot be undone.")) {
-      return;
-    }
-
+    if (!sessionUserId || !confirm("Are you sure you want to remove this exercise from the workout? This action cannot be undone.")) return;
     const toastId = toast.loading("Removing exercise from workout...");
-
     try {
-      const { error } = await supabase
-        .from('t_path_exercises')
-        .delete()
-        .eq('template_id', workoutId)
-        .eq('exercise_id', exerciseId);
-
-      if (error) {
-        throw new Error(error.message);
-      }
+      const { error } = await supabase.from('t_path_exercises').delete().eq('template_id', workoutId).eq('exercise_id', exerciseId);
+      if (error) throw new Error(error.message);
       toast.success("Exercise removed from workout successfully!", { id: toastId });
-      refreshTPaths(); // Trigger revalidation of T-Paths after removal
+      refreshTPaths();
     } catch (err: any) {
-      console.error("Failed to remove exercise from workout:", err);
       toast.error("Failed to remove exercise from workout: " + err.message, { id: toastId });
     }
   }, [sessionUserId, supabase, refreshTPaths]);
@@ -431,7 +356,10 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
     handleOptimisticAdd,
     handleAddFailure,
     handleRemoveFromWorkout,
-    refreshExercises, // Expose refresh functions
+    refreshExercises,
     refreshTPaths,
+    selectedLocationTag,
+    setSelectedLocationTag,
+    availableLocationTags,
   };
 };

@@ -4,7 +4,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Dumbbell, Settings, Sparkles } from 'lucide-react';
-import { Tables, WorkoutWithLastCompleted, GroupedTPath, SetLogState, WorkoutExercise, FetchedExerciseDefinition } from '@/types/supabase';
+import { Tables, WorkoutWithLastCompleted, GroupedTPath, SetLogState, WorkoutExercise, FetchedExerciseDefinition, Profile } from '@/types/supabase';
 import { cn, formatTimeAgo, getPillStyles } from '@/lib/utils';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { WorkoutBadge } from '../workout-badge';
@@ -53,6 +53,7 @@ interface WorkoutSelectorProps {
   handleOpenEditWorkoutDialog: (workoutId: string, workoutName: string) => void;
   handleEditWorkoutSaveSuccess: () => void;
   setIsEditWorkoutDialogOpen: (isOpen: boolean) => void;
+  profile: Profile | null;
 }
 
 const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName: string): Omit<WorkoutPillProps, 'isSelected' | 'onClick'> => {
@@ -117,6 +118,7 @@ export const WorkoutSelector = ({
   handleOpenEditWorkoutDialog,
   handleEditWorkoutSaveSuccess,
   setIsEditWorkoutDialogOpen,
+  profile,
 }: WorkoutSelectorProps) => {
   const { supabase, session } = useSession();
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
@@ -452,6 +454,7 @@ export const WorkoutSelector = ({
         open={showAnalyseGymDialog}
         onOpenChange={setShowAnalyseGymDialog}
         onExerciseIdentified={handleExerciseIdentified}
+        locationTag={profile?.active_location_tag || null}
       />
       <SaveAiExercisePrompt
         open={showSaveAiExercisePrompt}

@@ -15,9 +15,10 @@ interface AnalyseGymDialogProps { // Renamed to AnalyseGymDialogProps
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onExerciseIdentified: (exercise: Partial<ExerciseDefinition>, isDuplicate: boolean) => void;
+  locationTag: string | null;
 }
 
-export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: AnalyseGymDialogProps) => { // Renamed to AnalyseGymDialog
+export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified, locationTag }: AnalyseGymDialogProps) => { // Renamed to AnalyseGymDialog
   const { session } = useSession();
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [base64Image, setBase64Image] = useState<string | null>(null);
@@ -67,7 +68,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ base64Image }),
+        body: JSON.stringify({ base64Image, locationTag }),
       });
 
       const data = await response.json();

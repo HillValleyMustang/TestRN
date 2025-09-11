@@ -55,6 +55,9 @@ export default function ManageExercisesPage() {
     handleRemoveFromWorkout,
     refreshExercises,
     refreshTPaths,
+    selectedLocationTag,
+    setSelectedLocationTag,
+    availableLocationTags,
   } = useManageExercisesData({ sessionUserId: session?.user.id ?? null, supabase });
 
   // AI-related states
@@ -215,6 +218,22 @@ export default function ManageExercisesPage() {
               </Sheet>
             </div>
             
+            <div className="p-4 border-b">
+              <Select onValueChange={setSelectedLocationTag} value={selectedLocationTag}>
+                <SelectTrigger className="w-full sm:w-[280px]">
+                  <SelectValue placeholder="Select a Virtual Gym" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All My Exercises</SelectItem>
+                  {availableLocationTags.map(tag => (
+                    <SelectItem key={tag} value={tag}>
+                      {tag}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
             <div className="relative">
               <div className="overflow-hidden" ref={emblaRef}>
                 <div className="flex">
@@ -289,6 +308,7 @@ export default function ManageExercisesPage() {
         open={showAnalyseGymDialog}
         onOpenChange={setShowAnalyseGymDialog}
         onExerciseIdentified={handleExerciseIdentified}
+        locationTag={selectedLocationTag === 'all' ? null : selectedLocationTag}
       />
       <SaveAiExercisePrompt
         open={showSaveAiExercisePrompt}
