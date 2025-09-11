@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Tables, GroupedTPath, FetchedExerciseDefinition } from '@/types/supabase'; // Import GroupedTPath, FetchedExerciseDefinition
+import { Tables, GroupedTPath, FetchedExerciseDefinition, WorkoutExercise, SetLogState } from '@/types/supabase'; // Import GroupedTPath, FetchedExerciseDefinition
 import { db } from '@/lib/db';
 import { useWorkoutDataFetcher } from './use-workout-data-fetcher';
 import { useCoreWorkoutSessionState } from './use-core-workout-session-state';
@@ -19,7 +19,7 @@ interface UseWorkoutFlowManagerProps {
 }
 
 export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFlowManagerProps) => {
-  const { supabase } = useSession();
+  const { supabase, session } = useSession();
 
   const {
     activeWorkout,
@@ -98,6 +98,26 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
 
   const [isEditWorkoutDialogOpen, setIsEditWorkoutDialogOpen] = useState(false);
   const [selectedWorkoutToEdit, setSelectedWorkoutToEdit] = useState<{ id: string; name: string } | null>(null);
+
+  const adHocAvailableExercises = useMemo(() => {
+    if (!profile || !profile.active_location_tag) {
+      return allAvailableExercises; // Return all if no active tag
+    }
+
+    const activeTag = profile.active_location_tag;
+
+    return allAvailableExercises.filter(ex => {
+      // Always include global exercises
+      if (ex.user_id === null) {
+        return true;
+      }
+      // For user exercises, check the tag
+      if (ex.user_id === session?.user.id) {
+        return !ex.location_tags || ex.location_tags.length === 0 || ex.location_tags.includes(activeTag);
+      }
+      return false;
+    });
+  }, [allAvailableExercises, profile, session?.user.id]);
 
   const handleOpenEditWorkoutDialog = useCallback((workoutId: string, workoutName: string) => {
     setSelectedWorkoutToEdit({ id: workoutId, name: workoutName });
@@ -294,6 +314,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     handleCancelLeave,
     promptBeforeNavigation,
     allAvailableExercises: allAvailableExercises, // Expose allAvailableExercises directly
+    adHocAvailableExercises, // Expose the new filtered list
     setAllAvailableExercises, // Expose setAllAvailableExercises
     updateSessionStartTime,
     isEditWorkoutDialogOpen,
