@@ -24,6 +24,8 @@ interface OnboardingStep6Props {
   setWeightKg: (value: number | null) => void;
   bodyFatPct: number | null;
   setBodyFatPct: (value: number | null) => void;
+  firstGymName: string; // New prop for gym name
+  setFirstGymName: (value: string) => void; // New prop for gym name
 }
 
 export const OnboardingStep6_Consent = ({
@@ -40,6 +42,8 @@ export const OnboardingStep6_Consent = ({
   setWeightKg,
   bodyFatPct,
   setBodyFatPct,
+  firstGymName, // Destructure new prop
+  setFirstGymName, // Destructure new prop
 }: OnboardingStep6Props) => {
   const [isBodyFatInfoModalOpen, setIsBodyFatInfoModalOpen] = useState(false);
 
@@ -110,6 +114,22 @@ export const OnboardingStep6_Consent = ({
             />
           </div>
 
+          {/* New First Gym Name Input */}
+          <div>
+            <Label htmlFor="firstGymName">My First Gym Name</Label>
+            <Input 
+              id="firstGymName" 
+              placeholder="e.g., Home Gym, University Gym" 
+              value={firstGymName}
+              onChange={(e) => setFirstGymName(e.target.value)}
+              required
+              className="text-sm"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              This will be your first 'virtual gym'. You can add more later.
+            </p>
+          </div>
+
           {/* Consent Section */}
           <div className="flex items-start space-x-2">
             <Checkbox 
@@ -141,7 +161,7 @@ export const OnboardingStep6_Consent = ({
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={!consentGiven || loading || !fullName || heightCm === null || weightKg === null} // Disable if height or weight are null
+            disabled={!consentGiven || loading || !fullName || heightCm === null || weightKg === null || !firstGymName} // Disable if gym name is empty
           >
             {loading ? "Completing Setup..." : "Complete Onboarding"}
           </Button>

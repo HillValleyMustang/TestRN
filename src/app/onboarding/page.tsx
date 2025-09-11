@@ -40,6 +40,8 @@ export default function OnboardingPage() {
     handleBack,
     handleAdvanceToFinalStep, // New function for step 5 -> 6 transition
     handleSubmit: originalHandleSubmit, // Rename original handleSubmit
+    firstGymName, // Destructure new state
+    setFirstGymName, // Destructure new state setter
   } = useOnboardingForm();
 
   // Local state for Step 6 inputs
@@ -64,14 +66,14 @@ export default function OnboardingPage() {
 
   const handleSubmit = useCallback(async () => {
     // Ensure heightCm and weightKg are not null before passing, as they are now required
-    if (fullName && heightCm !== null && weightKg !== null) {
-      await originalHandleSubmit(fullName, heightCm, weightKg, bodyFatPct);
+    if (fullName && heightCm !== null && weightKg !== null && firstGymName) {
+      await originalHandleSubmit(fullName, heightCm, weightKg, bodyFatPct, firstGymName);
     } else {
       // This case should ideally be prevented by the disabled state of the button
       // but adding a toast for robustness.
       toast.error("Please fill in all required personal details.");
     }
-  }, [originalHandleSubmit, fullName, heightCm, weightKg, bodyFatPct]);
+  }, [originalHandleSubmit, fullName, heightCm, weightKg, bodyFatPct, firstGymName]);
 
 
   if (!session) {
@@ -146,6 +148,8 @@ export default function OnboardingPage() {
             setWeightKg={setWeightKg}
             bodyFatPct={bodyFatPct}
             setBodyFatPct={setBodyFatPct}
+            firstGymName={firstGymName}
+            setFirstGymName={setFirstGymName}
           />
         );
       default:

@@ -21,6 +21,7 @@ export const useOnboardingForm = () => {
   const [consentGiven, setConsentGiven] = useState(false);
   const [loading, setLoading] = useState(false); // For final submit button
   const [isInitialSetupLoading, setIsInitialSetupLoading] = useState(false); // New loading state for step 5 -> 6 transition
+  const [firstGymName, setFirstGymName] = useState<string>(""); // New state for gym name
 
   const tPathDescriptions = {
     ulul: {
@@ -166,7 +167,7 @@ export const useOnboardingForm = () => {
     }
   }, [session, supabase, tPathType, experience, goalFocus, preferredMuscles, constraints, sessionLength, equipmentMethod]);
 
-  const handleSubmit = useCallback(async (fullName: string, heightCm: number, weightKg: number, bodyFatPct: number | null) => {
+  const handleSubmit = useCallback(async (fullName: string, heightCm: number, weightKg: number, bodyFatPct: number | null, gymName: string) => {
     if (!session) return;
     
     setLoading(true);
@@ -176,7 +177,7 @@ export const useOnboardingForm = () => {
       const firstName = nameParts.shift() || '';
       const lastName = nameParts.join(' ');
 
-      // Only update the personal details here
+      // Update personal details AND the new active_location_tag
       const updateData: ProfileInsert = {
         id: session.user.id,
         first_name: firstName,
@@ -184,6 +185,7 @@ export const useOnboardingForm = () => {
         height_cm: heightCm,
         weight_kg: weightKg,
         body_fat_pct: bodyFatPct,
+        active_location_tag: gymName, // Set the active gym
         updated_at: new Date().toISOString(),
       };
 
@@ -229,5 +231,7 @@ export const useOnboardingForm = () => {
     handleBack,
     handleAdvanceToFinalStep, // Expose new function
     handleSubmit,
+    firstGymName, // Expose new state
+    setFirstGymName, // Expose new state setter
   };
 };
