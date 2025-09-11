@@ -67,6 +67,7 @@ export default function ProfilePage() {
   // Profile and activeTPath will now come from cache
   const [activeTPath, setActiveTPath] = useState<TPath | null>(null);
   const [aiCoachUsageToday, setAiCoachUsageToday] = useState(0);
+  const [availableLocationTags, setAvailableLocationTags] = useState<string[]>([]); // New state for gym tags
   
   const [isAchievementDetailOpen, setIsAchievementDetailOpen] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<{ id: string; name: string; icon: string } | null>(null);
@@ -197,11 +198,28 @@ export default function ProfilePage() {
           setAiCoachUsageToday(0);
         }
         console.log("[ProfilePage Debug] refreshProfileData: AI Coach usage checked.");
+
+        // Fetch available location tags
+        const { data: exercisesWithTags, error: tagsError } = await supabase
+          .from('exercise_definitions')
+          .select('location_tags')
+          .eq('user_id', session.user.id)
+          .not('location_tags', 'is', null);
+        
+        if (tagsError) throw tagsError;
+
+        const allTags = new Set<string>();
+        (exercisesWithTags || []).forEach(ex => {
+          ex.location_tags?.forEach((tag: string) => allTags.add(tag));
+        });
+        setAvailableLocationTags(Array.from(allTags).sort());
+
       } else {
         // If no profile found after refresh, reset form and states
         form.reset();
         setActiveTPath(null);
         setAiCoachUsageToday(0);
+        setAvailableLocationTags([]);
       }
     } catch (err: any) {
       toast.error("Failed to load profile data: " + err.message);
@@ -393,6 +411,23 @@ export default function ProfilePage() {
     emblaApi && emblaApi.scrollNext();
   }, [emblaApi]);
 
+  const handleActiveTagChange = useCallback(async (newTag: string | null) => {
+    if (!session) return;
+    setIsSaving(true);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ active_location_tag: newTag })
+      .eq('id', session.user.id);
+    
+    if (error) {
+      toast.error("Failed to update active gym: " + error.message);
+    } else {
+      toast.success("Active gym updated!");
+      await refreshProfileData(); // Refresh to get new tag list and active tag
+    }
+    setIsSaving(false);
+  }, [session, supabase, refreshProfileData]);
+
   if (loadingProfile || loadingAchievements || loading) return <div className="p-4"><Skeleton className="h-screen w-full" /></div>;
   if (!profile) return <div className="p-4">Could not load profile.</div>;
 
@@ -463,6 +498,9 @@ export default function ProfilePage() {
                       onTPathChange={refreshProfileData} // Pass the refresh function
                       onSignOut={handleSignOut}
                       onSubmit={onSubmit} // Pass the raw onSubmit function
+                      activeLocationTag={profile.active_location_tag}
+                      availableLocationTags={availableLocationTags}
+                      onActiveTagChange={handleActiveTagChange}
                     />
                   </FormProvider>
                 </div>

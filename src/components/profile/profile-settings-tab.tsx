@@ -12,6 +12,7 @@ import { DataExportSection } from './data-export-section'; // Import the new com
 import { UseFormReturn } from 'react-hook-form';
 import *as z from 'zod';
 import { Tables } from '@/types/supabase';
+import { VirtualGymManager } from './virtual-gym-manager'; // Import the new component
 
 type TPath = Tables<'t_paths'>;
 
@@ -36,6 +37,10 @@ interface ProfileSettingsTabProps {
   onTPathChange: () => Promise<void>; // Changed to Promise<void>
   onSignOut: () => void;
   onSubmit: (values: z.infer<typeof profileSchema>) => Promise<void>;
+  // New props for VirtualGymManager
+  activeLocationTag: string | null;
+  availableLocationTags: string[];
+  onActiveTagChange: (newTag: string | null) => Promise<void>;
 }
 
 export const ProfileSettingsTab = ({
@@ -48,6 +53,9 @@ export const ProfileSettingsTab = ({
   onTPathChange,
   onSignOut,
   onSubmit,
+  activeLocationTag,
+  availableLocationTags,
+  onActiveTagChange,
 }: ProfileSettingsTabProps) => {
   return (
     <div className="mt-6 space-y-6 border-none p-0">
@@ -56,6 +64,12 @@ export const ProfileSettingsTab = ({
           <PersonalInfoForm form={form} isEditing={isEditing} mainMuscleGroups={mainMuscleGroups} />
           <WorkoutPreferencesForm form={form} isEditing={isEditing} />
           <ActiveTPathSection activeTPath={activeTPath} isEditing={isEditing} onTPathChange={onTPathChange} />
+          <VirtualGymManager
+            isEditing={isEditing}
+            activeLocationTag={activeLocationTag}
+            availableLocationTags={availableLocationTags}
+            onActiveTagChange={onActiveTagChange}
+          />
           <AICoachUsageSection aiCoachUsageToday={aiCoachUsageToday} AI_COACH_LIMIT_PER_SESSION={AI_COACH_LIMIT_PER_SESSION} />
           <DataExportSection /> {/* Add the new DataExportSection here */}
         </form>
