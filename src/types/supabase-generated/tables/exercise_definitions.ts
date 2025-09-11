@@ -14,6 +14,7 @@ export type ExerciseDefinitionsRow = {
   library_id: string | null;
   is_favorite: boolean | null;
   icon_url: string | null;
+  location_tags: string[] | null;
 };
 export type ExerciseDefinitionsInsert = {
   category?: string | null;
@@ -29,6 +30,7 @@ export type ExerciseDefinitionsInsert = {
   library_id?: string | null;
   is_favorite?: boolean | null;
   icon_url?: string | null;
+  location_tags?: string[] | null;
 };
 export type ExerciseDefinitionsUpdate = {
   category?: string | null;
@@ -44,4 +46,5 @@ export type ExerciseDefinitionsUpdate = {
   library_id?: string | null;
   is_favorite?: boolean | null;
   icon_url?: string | null;
+  location_tags?: string[] | null;
 };
