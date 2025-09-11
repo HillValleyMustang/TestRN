@@ -3,23 +3,20 @@
 import { useCallback, useEffect, Dispatch, SetStateAction } from 'react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
-import { TablesInsert, TablesUpdate, SetLogState, Tables, WorkoutExercise, WorkoutWithLastCompleted } from '@/types/supabase'; // Import WorkoutWithLastCompleted
+import { TablesInsert, TablesUpdate, SetLogState, Tables, WorkoutExercise, WorkoutWithLastCompleted } from '@/types/supabase';
 import { convertWeight } from '@/lib/unit-conversions';
 import { db, addToSyncQueue, LocalWorkoutSession, LocalDraftSetLog } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
-// Removed: import { useCoreWorkoutSessionState } from './use-core-workout-session-state'; // No longer needed to import coreState directly here
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 const DEFAULT_INITIAL_SETS = 3;
 
-// Helper function to validate if an ID is a non-empty string
 const isValidId = (id: string | null | undefined): id is string => {
   return typeof id === 'string' && id.length > 0;
 };
 
-// Helper function to validate a composite key for draft_set_logs
 const isValidDraftKey = (exerciseId: string | null | undefined, setIndex: number | null | undefined): boolean => {
   return isValidId(exerciseId) && typeof setIndex === 'number' && setIndex >= 0;
 };
@@ -27,7 +24,6 @@ const isValidDraftKey = (exerciseId: string | null | undefined, setIndex: number
 interface UseWorkoutSessionPersistenceProps {
   allAvailableExercises: ExerciseDefinition[];
   workoutExercisesCache: Record<string, WorkoutExercise[]>;
-  // Directly pass the state and setters this hook needs
   activeWorkout: TPath | null;
   currentSessionId: string | null;
   sessionStartTime: Date | null;
@@ -141,14 +137,14 @@ export const useWorkoutSessionPersistence = ({
       
       await db.workout_sessions.update(currentSessionId, updatePayload);
       
-      const fullSyncPayload: LocalWorkoutSession = { // Explicitly type fullSyncPayload
+      const fullSyncPayload: LocalWorkoutSession = {
         id: currentSessionId,
         user_id: session.user.id,
         session_date: sessionStartTime.toISOString(),
         template_name: activeWorkout.template_name,
         t_path_id: activeWorkout.id === 'ad-hoc' ? null : activeWorkout.id,
-        created_at: sessionStartTime.toISOString(), // Ensure created_at is present
-        rating: null, // Ensure rating is present
+        created_at: sessionStartTime.toISOString(),
+        rating: null,
         ...updatePayload
       };
       await addToSyncQueue('update', 'workout_sessions', fullSyncPayload);
@@ -172,7 +168,6 @@ export const useWorkoutSessionPersistence = ({
         toast.warning("Could not check for new achievements, but your workout was saved!");
       }
 
-      // Removed: toast.success("Workout session finished! Generating Summary.");
       const finishedSessionId = currentSessionId;
       await resetWorkoutSession();
       return finishedSessionId;
@@ -182,110 +177,6 @@ export const useWorkoutSessionPersistence = ({
       return null;
     }
   }, [currentSessionId, sessionStartTime, session, supabase, resetWorkoutSession, activeWorkout, setIsCreatingSession, setCurrentSessionId, setSessionStartTime]);
-
-  // Effect to load drafts when activeWorkout or currentSessionId changes
-  useEffect(() => {
-    const loadDraftsForActiveWorkout = async () => {
-      if (!session?.user.id) {
-        _resetLocalState();
-        return;
-      }
-
-      if (!activeWorkout) {
-        _resetLocalState();
-        return;
-      }
-
-      const targetSessionId = activeWorkout.id === 'ad-hoc' ? null : currentSessionId;
-
-      let drafts: LocalDraftSetLog[] = [];
-      if (targetSessionId === null) {
-        drafts = await db.draft_set_logs.filter((draft: LocalDraftSetLog) => draft.session_id === null).toArray();
-      } else {
-        drafts = await db.draft_set_logs.where('session_id').equals(targetSessionId).toArray();
-      }
-
-      const newExercisesForSession: WorkoutExercise[] = [];
-      const newExercisesWithSets: Record<string, SetLogState[]> = {};
-      const newCompletedExercises = new Set<string>();
-      let loadedSessionId: string | null = null;
-      let loadedSessionStartTime: Date | null = null;
-
-      if (drafts.length > 0) {
-        const groupedDrafts = drafts.reduce((acc, draft) => {
-          if (!acc[draft.exercise_id]) {
-            acc[draft.exercise_id] = [];
-          }
-          acc[draft.exercise_id].push(draft);
-          return acc;
-        }, {} as Record<string, LocalDraftSetLog[]>);
-
-        for (const exerciseId in groupedDrafts) {
-          const sortedDrafts = groupedDrafts[exerciseId].sort((a, b) => a.set_index - b.set_index);
-          const exerciseDef = allAvailableExercises.find(ex => ex.id === exerciseId);
-
-          if (exerciseDef) {
-            newExercisesForSession.push({ ...exerciseDef, is_bonus_exercise: false });
-            
-            const setsForExercise: SetLogState[] = sortedDrafts.map(draft => ({
-              id: draft.set_log_id || null,
-              created_at: null,
-              session_id: draft.session_id,
-              exercise_id: draft.exercise_id,
-              weight_kg: draft.weight_kg,
-              reps: draft.reps,
-              reps_l: draft.reps_l,
-              reps_r: draft.reps_r,
-              time_seconds: draft.time_seconds,
-              is_pb: draft.is_pb || false,
-              isSaved: draft.isSaved || false,
-              isPR: draft.is_pb || false,
-              lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
-            }));
-            newExercisesWithSets[exerciseId] = setsForExercise;
-
-            if (setsForExercise.every(set => set.isSaved)) {
-              newCompletedExercises.add(exerciseId);
-            }
-
-            if (drafts[0].session_id && !loadedSessionId) {
-              loadedSessionId = drafts[0].session_id;
-            }
-          }
-        }
-        if (loadedSessionId) {
-          const sessionRecord = await db.workout_sessions.get(loadedSessionId);
-          if (sessionRecord?.session_date) {
-            loadedSessionStartTime = new Date(sessionRecord.session_date);
-          }
-        }
-      } else {
-        if (activeWorkout.id !== 'ad-hoc') {
-          const cachedExercises = workoutExercisesCache[activeWorkout.id] || [];
-          newExercisesForSession.push(...cachedExercises);
-          cachedExercises.forEach(ex => {
-            newExercisesWithSets[ex.id] = Array.from({ length: DEFAULT_INITIAL_SETS }).map(() => ({
-              id: null, created_at: null, session_id: null, exercise_id: ex.id,
-              weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null,
-              is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
-            }));
-          });
-        }
-      }
-
-      // These setters are from the coreState, so they are not directly available here.
-      // This useEffect should not be setting coreState directly.
-      // The coreState is updated by the useWorkoutSessionState hook, which wraps this.
-      // This useEffect is primarily for loading drafts and deriving initial state.
-      // The actual state updates are handled by the parent useWorkoutSessionState.
-    };
-
-    loadDraftsForActiveWorkout();
-  }, [session?.user.id, activeWorkout, currentSessionId, allAvailableExercises, workoutExercisesCache, _resetLocalState, setIsCreatingSession, setCurrentSessionId, setSessionStartTime]); // Added setters to dependencies
-  // The setters (setIsCreatingSession, setCurrentSessionId, setSessionStartTime) are now dependencies of this useCallback.
-  // This is because they are used within the callback, even if not directly in the useEffect's dependency array.
-  // However, this useEffect is not meant to *set* these states directly, but rather to *read* them and *derive* initial state.
-  // The actual state updates are handled by the parent useWorkoutSessionState.
 
   return {
     resetWorkoutSession,

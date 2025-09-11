@@ -23,7 +23,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
   const [analysis, setAnalysis] = useState("");
   const [loading, setLoading] = useState(false);
   const [usageCount, setUsageCount] = useState(0);
-  const AI_COACH_LIMIT_PER_SESSION = 2;
+  const AI_COACH_LIMIT_PER_DAY = 2; // Renamed constant
 
   useEffect(() => {
     const fetchUsageData = async () => {
@@ -56,9 +56,9 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
     }
   }, [open, session, supabase]);
 
-  const handleAnalyse = async () => { // Renamed to handleAnalyse
-    if (usageCount >= AI_COACH_LIMIT_PER_SESSION) {
-      toast.error(`You've reached the limit of ${AI_COACH_LIMIT_PER_SESSION} AI coach uses per session.`);
+  const handleAnalyse = async () => {
+    if (usageCount >= AI_COACH_LIMIT_PER_DAY) {
+      toast.error(`You've reached the limit of ${AI_COACH_LIMIT_PER_DAY} AI coach uses per day.`);
       return;
     }
 
@@ -81,7 +81,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
       
     } catch (err: any) {
       console.error("AI Coach error:", err);
-      toast.error("Failed to get AI analysis: " + err.message); // Changed to analysis
+      toast.error("Failed to get AI analysis: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -94,7 +94,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
     }
   }, [open]);
 
-  const canUseAiCoach = usageCount < AI_COACH_LIMIT_PER_SESSION;
+  const canUseAiCoach = usageCount < AI_COACH_LIMIT_PER_DAY;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -125,16 +125,16 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
               {canUseAiCoach ? (
                 <>
                   <p>Get personalised feedback on your workout history from the last month.</p>
-                  <Button onClick={handleAnalyse}>Analyse My Performance</Button> {/* Changed to Analyse */}
+                  <Button onClick={handleAnalyse}>Analyse My Performance</Button>
                   <p className="text-sm text-muted-foreground">
-                    You have {AI_COACH_LIMIT_PER_SESSION - usageCount} uses remaining for this session.
+                    You have {AI_COACH_LIMIT_PER_DAY - usageCount} uses remaining today.
                   </p>
                 </>
               ) : (
                 <div className="space-y-4">
                   <AlertCircle className="h-12 w-12 text-yellow-500 mx-auto" />
                   <p className="text-muted-foreground">
-                    You've reached the limit of {AI_COACH_LIMIT_PER_SESSION} AI coach uses per session. 
+                    You've reached the limit of {AI_COACH_LIMIT_PER_DAY} AI coach uses per day. 
                     The AI Coach needs at least 3 workouts in the last 30 days to provide advice.
                   </p>
                 </div>
@@ -143,7 +143,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
           )}
           {loading && (
             <div className="text-center text-muted-foreground">
-              <p>Analysing your performance... This may take a moment.</p> {/* Changed to Analysing */}
+              <p>Analysing your performance... This may take a moment.</p>
             </div>
           )}
           {analysis && (

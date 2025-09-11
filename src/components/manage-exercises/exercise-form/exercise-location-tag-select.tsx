@@ -60,7 +60,7 @@ export const ExerciseLocationTagSelect = ({ form, availableLocationTags }: Exerc
             <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
               <Command>
                 <CommandInput placeholder="Search gyms..." />
-                <CommandEmpty>No gyms found. Add one in your profile settings.</CommandEmpty>
+                <CommandEmpty>No gyms found. Add one in your profile.</CommandEmpty>
                 <CommandGroup>
                   {availableLocationTags.map((tag) => (
                     <CommandItem

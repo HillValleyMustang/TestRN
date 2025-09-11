@@ -9,12 +9,12 @@ import { OnboardingStep4_SessionPreferences } from "@/components/onboarding/onbo
 import { OnboardingStep5_EquipmentSetup } from "@/components/onboarding/onboarding-step-5-equipment-setup";
 import { OnboardingStep6_Consent } from "@/components/onboarding/onboarding-step-6-consent";
 import { useSession } from "@/components/session-context-provider";
-import { LoadingOverlay } from "@/components/loading-overlay"; // Import LoadingOverlay
-import { useCallback, useState } from "react"; // Import useCallback and useState
-import { toast } from "sonner"; // NEW: Import toast
+import { LoadingOverlay } from "@/components/loading-overlay";
+import { useCallback, useState } from "react";
+import { toast } from "sonner";
 
 export default function OnboardingPage() {
-  const { session } = useSession(); // Use session to check if user is logged in
+  const { session } = useSession();
   const {
     currentStep,
     tPathType,
@@ -33,30 +33,29 @@ export default function OnboardingPage() {
     setEquipmentMethod,
     consentGiven,
     setConsentGiven,
-    loading, // For final submit button
-    isInitialSetupLoading, // New loading state for step 5 -> 6 transition
+    loading,
+    isInitialSetupLoading,
     tPathDescriptions,
-    handleNext: originalHandleNext, // Rename original handleNext
+    handleNext: originalHandleNext,
     handleBack,
-    handleAdvanceToFinalStep, // New function for step 5 -> 6 transition
-    handleSubmit: originalHandleSubmit, // Rename original handleSubmit
-    firstGymName, // Destructure new state
-    setFirstGymName, // Destructure new state setter
+    handleAdvanceToFinalStep,
+    handleSubmit: originalHandleSubmit,
+    firstGymName,
+    setFirstGymName,
   } = useOnboardingForm();
 
-  // Local state for Step 6 inputs
   const [fullName, setFullName] = useState('');
   const [heightCm, setHeightCm] = useState<number | null>(null);
   const [weightKg, setWeightKg] = useState<number | null>(null);
   const [bodyFatPct, setBodyFatPct] = useState<number | null>(null);
 
   const handleNext = useCallback(async () => {
+    // The new step 5 (Session Preferences) is the trigger to generate the initial T-Paths
     if (currentStep === 5) {
       try {
-        await handleAdvanceToFinalStep(); // Trigger background setup
-        originalHandleNext(); // Then advance step
+        await handleAdvanceToFinalStep();
+        originalHandleNext();
       } catch (error) {
-        // Error handled in hook, just prevent step advance
         console.error("Failed to advance to final step:", error);
       }
     } else {
@@ -65,19 +64,15 @@ export default function OnboardingPage() {
   }, [currentStep, originalHandleNext, handleAdvanceToFinalStep]);
 
   const handleSubmit = useCallback(async () => {
-    // Ensure heightCm and weightKg are not null before passing, as they are now required
     if (fullName && heightCm !== null && weightKg !== null && firstGymName) {
       await originalHandleSubmit(fullName, heightCm, weightKg, bodyFatPct, firstGymName);
     } else {
-      // This case should ideally be prevented by the disabled state of the button
-      // but adding a toast for robustness.
       toast.error("Please fill in all required personal details.");
     }
   }, [originalHandleSubmit, fullName, heightCm, weightKg, bodyFatPct, firstGymName]);
 
-
   if (!session) {
-    return <div>Loading...</div>; // Or redirect to login if session is null
+    return <div>Loading...</div>;
   }
 
   const renderStepContent = () => {
@@ -87,7 +82,7 @@ export default function OnboardingPage() {
           <OnboardingStep1_TPathSelection
             tPathType={tPathType}
             setTPathType={setTPathType}
-            handleNext={handleNext}
+            handleNext={originalHandleNext} // Use original handleNext for steps 1-4
             tPathDescriptions={tPathDescriptions}
           />
         );
@@ -96,7 +91,7 @@ export default function OnboardingPage() {
           <OnboardingStep2_ExperienceLevel
             experience={experience}
             setExperience={setExperience}
-            handleNext={handleNext}
+            handleNext={originalHandleNext}
             handleBack={handleBack}
           />
         );
@@ -109,25 +104,25 @@ export default function OnboardingPage() {
             setPreferredMuscles={setPreferredMuscles}
             constraints={constraints}
             setConstraints={setConstraints}
-            handleNext={handleNext}
+            handleNext={originalHandleNext}
             handleBack={handleBack}
           />
         );
-      case 4:
-        return (
-          <OnboardingStep4_SessionPreferences
-            sessionLength={sessionLength}
-            setSessionLength={setSessionLength}
-            handleNext={handleNext}
-            handleBack={handleBack}
-          />
-        );
-      case 5:
+      case 4: // NEW STEP 4: Equipment Setup
         return (
           <OnboardingStep5_EquipmentSetup
             equipmentMethod={equipmentMethod}
             setEquipmentMethod={setEquipmentMethod}
-            handleNext={handleNext}
+            handleNext={originalHandleNext}
+            handleBack={handleBack}
+          />
+        );
+      case 5: // NEW STEP 5: Session Preferences
+        return (
+          <OnboardingStep4_SessionPreferences
+            sessionLength={sessionLength}
+            setSessionLength={setSessionLength}
+            handleNext={handleNext} // Use the new handleNext that triggers generation
             handleBack={handleBack}
           />
         );
@@ -139,7 +134,6 @@ export default function OnboardingPage() {
             handleSubmit={handleSubmit}
             handleBack={handleBack}
             loading={loading}
-            // Pass Step 6 specific inputs
             fullName={fullName}
             setFullName={setFullName}
             heightCm={heightCm}
@@ -162,9 +156,9 @@ export default function OnboardingPage() {
       case 1: return "Choose Your Transformation Path";
       case 2: return "Your Experience Level";
       case 3: return "Goal Focus";
-      case 4: return "Session Preferences";
-      case 5: return "Equipment Setup";
-      case 6: return "Final Details & Consent"; // Updated title
+      case 4: return "Equipment Setup"; // Updated title
+      case 5: return "Session Preferences"; // Updated title
+      case 6: return "Final Details & Consent";
       default: return "";
     }
   };
@@ -174,9 +168,9 @@ export default function OnboardingPage() {
       case 1: return "Select the workout structure that best fits your goals";
       case 2: return "Help us tailor your program to your experience level";
       case 3: return "What are you primarily trying to achieve?";
-      case 4: return "How long do you prefer your workout sessions to be?";
-      case 5: return "Let's set up your gym equipment";
-      case 6: return "Just a few more details to personalise your experience."; // Updated description
+      case 4: return "Let's set up your gym equipment"; // Updated description
+      case 5: return "How long do you prefer your workout sessions to be?"; // Updated description
+      case 6: return "Just a few more details to personalise your experience.";
       default: return "";
     }
   };
@@ -225,7 +219,7 @@ export default function OnboardingPage() {
         </Card>
       </div>
       <LoadingOverlay 
-        isOpen={loading || isInitialSetupLoading} // Use both loading states
+        isOpen={loading || isInitialSetupLoading}
         title={isInitialSetupLoading ? "Setting up your workout plan..." : "Completing Setup..."}
         description={isInitialSetupLoading ? "Please wait while we generate your initial workout programs." : "Finalizing your profile details."}
       />

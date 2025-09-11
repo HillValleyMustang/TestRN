@@ -38,7 +38,6 @@ import { Label } from "@/components/ui/label";
 import { cn } from '@/lib/utils';
 import { Badge } from "@/components/ui/badge";
 
-// Import new modular components with corrected paths
 import { ExerciseNameInput } from "@/components/manage-exercises/exercise-form/exercise-name-input";
 import { MainMuscleSelect } from "@/components/manage-exercises/exercise-form/main-muscle-select";
 import { ExerciseTypeSelector } from "@/components/manage-exercises/exercise-form/exercise-type-selector";
@@ -46,7 +45,7 @@ import { ExerciseCategorySelect } from "@/components/manage-exercises/exercise-f
 import { ExerciseDetailsTextareas } from "@/components/manage-exercises/exercise-form/exercise-details-textareas";
 import { ExerciseVideoUrlInput } from "@/components/manage-exercises/exercise-form/exercise-video-url-input";
 import { ExerciseFormActions } from "@/components/manage-exercises/exercise-form/exercise-form-actions";
-import { ExerciseLocationTagSelect } from "@/components/manage-exercises/exercise-form/exercise-location-tag-select"; // Import the new component
+import { ExerciseLocationTagSelect } from "@/components/manage-exercises/exercise-form/exercise-location-tag-select";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -116,7 +115,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
         main_muscles: muscleGroups,
         type: editingExercise.type ? [editingExercise.type] as ("weight" | "timed")[] : [],
         category: editingExercise.category || null,
-        description: editingExercise.description || null, // Fixed typo here
+        description: editingExercise.description || null,
         pro_tip: editingExercise.pro_tip || null,
         video_url: editingExercise.video_url || null,
         location_tags: editingExercise.location_tags || [],
@@ -201,6 +200,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
         library_id: null,
         is_favorite: false,
         created_at: new Date().toISOString(),
+        icon_url: 'https://i.imgur.com/2Y4Y4Y4.png', // Add default icon URL
       }]).select('id').single();
       if (error) {
         toast.error("Failed to add exercise: " + error.message);
