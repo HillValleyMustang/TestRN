@@ -42,6 +42,8 @@ export default function OnboardingPage() {
     handleSubmit: originalHandleSubmit,
     firstGymName,
     setFirstGymName,
+    identifiedExercises,
+    setIdentifiedExercises,
   } = useOnboardingForm();
 
   const [fullName, setFullName] = useState('');
@@ -115,6 +117,10 @@ export default function OnboardingPage() {
             setEquipmentMethod={setEquipmentMethod}
             handleNext={originalHandleNext}
             handleBack={handleBack}
+            firstGymName={firstGymName}
+            setFirstGymName={setFirstGymName}
+            identifiedExercises={identifiedExercises}
+            setIdentifiedExercises={setIdentifiedExercises}
           />
         );
       case 5: // NEW STEP 5: Session Preferences

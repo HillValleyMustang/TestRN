@@ -4,7 +4,9 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/components/session-context-provider";
 import { toast } from "sonner";
-import { TablesInsert, ProfileInsert } from "@/types/supabase";
+import { TablesInsert, ProfileInsert, Tables } from "@/types/supabase";
+
+type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 export const useOnboardingForm = () => {
   const router = useRouter();
@@ -22,6 +24,7 @@ export const useOnboardingForm = () => {
   const [loading, setLoading] = useState(false);
   const [isInitialSetupLoading, setIsInitialSetupLoading] = useState(false);
   const [firstGymName, setFirstGymName] = useState<string>("");
+  const [identifiedExercises, setIdentifiedExercises] = useState<(Partial<ExerciseDefinition> & { isDuplicate?: boolean; locationTag: string })[]>([]);
 
   const tPathDescriptions = {
     ulul: {
@@ -124,6 +127,7 @@ export const useOnboardingForm = () => {
         default_rest_time_seconds: 60,
         preferred_session_length: sessionLength,
         active_t_path_id: activeTPath.id,
+        // active_location_tag will be set in handleSubmit
       };
 
       const { error: profileError } = await supabase
@@ -176,7 +180,7 @@ export const useOnboardingForm = () => {
         height_cm: heightCm,
         weight_kg: weightKg,
         body_fat_pct: bodyFatPct,
-        active_location_tag: gymName,
+        active_location_tag: gymName, // Set active_location_tag here
         updated_at: new Date().toISOString(),
       };
 
@@ -223,5 +227,7 @@ export const useOnboardingForm = () => {
     handleSubmit,
     firstGymName,
     setFirstGymName,
+    identifiedExercises,
+    setIdentifiedExercises,
   };
 };

@@ -36,6 +36,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: data.error || 'Edge function error' }, { status: edgeFunctionResponse.status });
     }
 
+    // The Edge Function now returns an array of identified exercises
     return NextResponse.json(data);
   } catch (error: any) {
     console.error('Error in /api/identify-equipment route:', error);

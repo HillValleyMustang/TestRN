@@ -156,10 +156,16 @@ export const WorkoutSelector = ({
   };
 
   // AI Gym Analysis Handlers for Workout Page
-  const handleExerciseIdentified = useCallback((exercise: Partial<Tables<'exercise_definitions'>>, isDuplicate: boolean) => {
-    setAiIdentifiedExercise(exercise);
-    setIsDuplicateAiExercise(isDuplicate);
-    setShowSaveAiExercisePrompt(true);
+  const handleExercisesIdentified = useCallback((exercises: (Partial<Tables<'exercise_definitions'>> & { isDuplicate: boolean })[]) => {
+    if (exercises.length > 0) {
+      // For now, we'll just take the first identified exercise for the prompt,
+      // but the dialog is designed to handle multiple if needed in the future.
+      setAiIdentifiedExercise(exercises[0]);
+      setIsDuplicateAiExercise(exercises[0].isDuplicate || false);
+      setShowSaveAiExercisePrompt(true);
+    } else {
+      toast.info("AI couldn't identify any equipment in the photo. Try another angle or a different photo!");
+    }
   }, []);
 
   const handleSaveAiExerciseToMyExercises = useCallback(async (exercise: Partial<Tables<'exercise_definitions'>>) => {
@@ -453,7 +459,7 @@ export const WorkoutSelector = ({
       <AnalyseGymDialog
         open={showAnalyseGymDialog}
         onOpenChange={setShowAnalyseGymDialog}
-        onExerciseIdentified={handleExerciseIdentified}
+        onExercisesIdentified={handleExercisesIdentified}
         locationTag={profile?.active_location_tag || null}
       />
       <SaveAiExercisePrompt

@@ -14,11 +14,11 @@ type ExerciseDefinition = Tables<'exercise_definitions'>;
 interface AnalyseGymDialogProps { // Renamed to AnalyseGymDialogProps
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onExerciseIdentified: (exercise: Partial<ExerciseDefinition>, isDuplicate: boolean) => void;
+  onExercisesIdentified: (exercises: (Partial<ExerciseDefinition> & { isDuplicate: boolean })[]) => void; // Updated callback to accept an array
   locationTag: string | null;
 }
 
-export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified, locationTag }: AnalyseGymDialogProps) => { // Renamed to AnalyseGymDialog
+export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, locationTag }: AnalyseGymDialogProps) => { // Renamed to AnalyseGymDialog
   const { session } = useSession();
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [base64Image, setBase64Image] = useState<string | null>(null);
@@ -77,7 +77,13 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified, loc
         throw new Error(data.error || 'Failed to analyse image.'); // Changed to analyse
       }
 
-      onExerciseIdentified(data.identifiedExercise, data.isDuplicate);
+      // The Edge Function now returns an object with an array: { identifiedExercises: [...] }
+      if (data.identifiedExercises && Array.isArray(data.identifiedExercises)) {
+        onExercisesIdentified(data.identifiedExercises);
+      } else {
+        toast.error("AI did not return a valid list of exercises.");
+      }
+      
       onOpenChange(false); // Close this dialog
       resetForm();
     } catch (err: any) {
