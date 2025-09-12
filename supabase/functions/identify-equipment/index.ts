@@ -79,20 +79,29 @@ serve(async (req: Request) => {
     }
 
     const geminiData = await geminiResponse.json();
-    const generatedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+    let generatedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!generatedText) {
       throw new Error("AI did not return a valid response.");
     }
 
+    // Robust JSON extraction: Remove markdown code block wrappers if present
+    if (generatedText.startsWith('```json')) {
+      generatedText = generatedText.substring(7, generatedText.lastIndexOf('```')).trim();
+    } else if (generatedText.startsWith('```')) { // Also handle generic code blocks
+      generatedText = generatedText.substring(3, generatedText.lastIndexOf('```')).trim();
+    }
+    console.log("Cleaned Gemini response text:", generatedText); // Log cleaned text for debugging
+
     let identifiedExercises: any[];
     try {
       identifiedExercises = JSON.parse(generatedText);
       if (!Array.isArray(identifiedExercises)) {
+        console.error("AI returned a non-array format after cleaning:", identifiedExercises);
         throw new Error("AI returned a non-array format.");
       }
     } catch (parseError) {
-      console.error("Failed to parse Gemini response as JSON array:", generatedText);
+      console.error("Failed to parse Gemini response as JSON array after cleaning:", generatedText);
       throw new Error("AI returned an invalid format. Please try again.");
     }
 
