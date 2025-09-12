@@ -25,7 +25,7 @@ export const ExerciseLocationTagSelect = ({ form, availableLocationTags }: Exerc
       name="location_tags"
       render={({ field }) => (
         <FormItem>
-          <FormLabel className="font-bold">Virtual Gyms (Optional)</FormLabel>
+          <FormLabel className="font-bold">Active Gyms (Optional)</FormLabel>
           <Popover>
             <PopoverTrigger asChild>
               <Button

@@ -42,44 +42,46 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, lo
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
 
-    const newSelectedFiles: SelectedFile[] = [];
-    for (const file of files) {
-      if (!file.type.startsWith('image/')) {
-        toast.error(`File '${file.name}' is not an image.`);
-        continue;
-      }
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        toast.error(`File '${file.name}' exceeds 5MB limit.`);
-        continue;
-      }
+    const newFilesPromises = files.map(file => {
+      return new Promise<SelectedFile | null>((resolve) => {
+        if (!file.type.startsWith('image/')) {
+          toast.error(`File '${file.name}' is not an image.`);
+          resolve(null);
+          return;
+        }
+        if (file.size > 5 * 1024 * 1024) { // 5MB limit
+          toast.error(`File '${file.name}' exceeds 5MB limit.`);
+          resolve(null);
+          return;
+        }
 
-      const id = uuidv4();
-      const previewUrl = URL.createObjectURL(file);
-      newSelectedFiles.push({
-        id,
-        file,
-        previewUrl,
-        base64: null, // Will be populated asynchronously
-        status: 'pending',
-        identifiedExercises: null,
-        errorMessage: null,
+        const id = uuidv4();
+        const previewUrl = URL.createObjectURL(file);
+        const reader = new FileReader();
+
+        reader.onloadend = () => {
+          resolve({
+            id,
+            file,
+            previewUrl,
+            base64: (reader.result as string).split(',')[1],
+            status: 'pending',
+            identifiedExercises: null,
+            errorMessage: null,
+          });
+        };
+        reader.onerror = () => {
+          toast.error(`Failed to read file '${file.name}'.`);
+          URL.revokeObjectURL(previewUrl);
+          resolve(null);
+        };
+        reader.readAsDataURL(file);
       });
-    }
+    });
 
-    setSelectedFiles(prev => [...prev, ...newSelectedFiles]);
+    const resolvedNewFiles = (await Promise.all(newFilesPromises)).filter(Boolean) as SelectedFile[];
+    setSelectedFiles(prev => [...prev, ...resolvedNewFiles]);
 
-    // Asynchronously read base64 for all new files
-    for (const newFile of newSelectedFiles) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setSelectedFiles(prev =>
-          prev.map(f =>
-            f.id === newFile.id ? { ...f, base64: (reader.result as string).split(',')[1] } : f
-          )
-        );
-      };
-      reader.readAsDataURL(newFile.file);
-    }
     // Clear the input value to allow selecting the same file(s) again
     if (fileInputRef.current) {
       fileInputRef.current.value = '';

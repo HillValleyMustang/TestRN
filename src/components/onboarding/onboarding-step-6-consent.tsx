@@ -116,7 +116,7 @@ export const OnboardingStep6_Consent = ({
 
           {/* New First Gym Name Input */}
           <div>
-            <Label htmlFor="firstGymName">My Active Virtual Gym Name</Label> {/* Updated label */}
+            <Label htmlFor="firstGymName">My Active Gym Name</Label> {/* Updated label */}
             <Input 
               id="firstGymName" 
               placeholder="e.g., Home Gym, University Gym" 

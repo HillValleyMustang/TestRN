@@ -51,7 +51,7 @@ export const VirtualGymManager = ({
     <Card className="bg-card">
       <CardHeader className="border-b border-border/50 pb-4">
         <CardTitle className="flex items-center gap-2">
-          <Building2 className="h-5 w-5 text-primary" /> Virtual Gyms
+          <Building2 className="h-5 w-5 text-primary" /> Active Gyms
         </CardTitle>
         <CardDescription>
           Manage your gym locations. Your active gym determines which exercises are suggested in ad-hoc workouts.
@@ -84,7 +84,7 @@ export const VirtualGymManager = ({
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Add New Virtual Gym</AlertDialogTitle>
+                  <AlertDialogTitle>Add New Active Gym</AlertDialogTitle>
                   <AlertDialogDescription>
                     Enter a name for your new gym location. This will become your new active gym.
                   </AlertDialogDescription>

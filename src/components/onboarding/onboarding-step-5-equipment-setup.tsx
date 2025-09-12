@@ -38,7 +38,7 @@ interface OnboardingStep5Props {
   setEquipmentMethod: (value: "photo" | "skip") => void;
   handleNext: () => void;
   handleBack: () => void;
-  // NEW: Props for managing virtual gyms
+  // NEW: Props for managing active gyms
   virtualGymNames: string[];
   setVirtualGymNames: React.Dispatch<React.SetStateAction<string[]>>;
   activeLocationTag: string | null;
@@ -63,8 +63,8 @@ export const OnboardingStep5_EquipmentSetup = ({
   const [showAnalyseGymDialog, setShowAnalyseGymDialog] = useState(false);
   const [newGymNameInput, setNewGymNameInput] = useState(""); // State for new gym name input
   
-  // Removed SaveAiExercisePrompt related states as it's not directly used here for saving,
-  // the Edge Function handles the initial persistence.
+  const hasActiveGym = activeLocationTag !== null && activeLocationTag.trim() !== '';
+  const hasIdentifiedExercises = identifiedExercises.length > 0;
 
   useEffect(() => {
     // If no gym names exist, and the user hasn't skipped, prompt to add one.
@@ -82,7 +82,7 @@ export const OnboardingStep5_EquipmentSetup = ({
       setVirtualGymNames(newGyms);
       setActiveLocationTag(newGymNameInput.trim());
       setNewGymNameInput("");
-      toast.success(`Virtual gym '${newGymNameInput.trim()}' added!`);
+      toast.success(`Active gym '${newGymNameInput.trim()}' added!`);
     } else if (virtualGymNames.includes(newGymNameInput.trim())) {
       toast.info(`'${newGymNameInput.trim()}' already exists.`);
       setActiveLocationTag(newGymNameInput.trim()); // Set it as active if it exists
@@ -112,140 +112,146 @@ export const OnboardingStep5_EquipmentSetup = ({
     toast.info("Exercise removed from identified list.");
   }, [setIdentifiedExercises]);
 
-  const isNextButtonDisabled = equipmentMethod === 'photo' && identifiedExercises.length === 0;
-  const canUploadPhoto = activeLocationTag !== null && activeLocationTag.trim() !== '';
+  const isNextButtonDisabled = equipmentMethod === 'photo' && !hasIdentifiedExercises;
 
   return (
     <>
       <div className="space-y-6">
-        <div className="space-y-4">
-          {/* Virtual Gym Management */}
-          <div>
-            <Label htmlFor="activeGymSelect">Active Virtual Gym</Label>
-            <div className="flex gap-2">
-              <Select
-                value={activeLocationTag || ''}
-                onValueChange={(value) => setActiveLocationTag(value === 'none' ? null : value)}
-                disabled={equipmentMethod === 'skip'}
-              >
-                <SelectTrigger id="activeGymSelect">
-                  <SelectValue placeholder="Select or add a gym" />
-                </SelectTrigger>
-                <SelectContent>
-                  {virtualGymNames.map(gym => (
-                    <SelectItem key={gym} value={gym}>{gym}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="icon" disabled={equipmentMethod === 'skip'}>
-                    <PlusCircle className="h-4 w-4" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Add New Virtual Gym</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Enter a name for your new gym location. This will become your new active gym.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <div className="py-4">
-                    <Input
-                      placeholder="e.g., Office Gym"
-                      value={newGymNameInput}
-                      onChange={(e) => setNewGymNameInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddGym();
-                        }
-                      }}
-                    />
-                  </div>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setNewGymNameInput("")}>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleAddGym} disabled={!newGymNameInput.trim()}>
-                      Add and Set Active
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Equipment identified from photos will be tagged with the active gym.
+        {/* Step 1: Setup First Active Gym */}
+        {!hasActiveGym && virtualGymNames.length === 0 && equipmentMethod !== 'skip' && (
+          <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" /> 1. Setup Your First Active Gym
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Give a name to your primary gym location. You can set up additional gyms in your profile later.
             </p>
+            <div className="flex gap-2">
+              <Input
+                placeholder="e.g., Home Gym, Local Fitness, Work Gym"
+                value={newGymNameInput}
+                onChange={(e) => setNewGymNameInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddGym();
+                  }
+                }}
+                className="flex-1"
+              />
+              <Button onClick={handleAddGym} disabled={!newGymNameInput.trim()}>
+                <PlusCircle className="h-4 w-4 mr-2" /> Add Gym
+              </Button>
+            </div>
           </div>
+        )}
 
-          {/* Upload Photo Button */}
-          <div className="flex flex-col space-y-2">
+        {/* Display Active Gym if set */}
+        {hasActiveGym && (
+          <div className="space-y-2 p-4 border rounded-lg bg-muted/50">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" /> Active Gym: <span className="text-primary">{activeLocationTag}</span>
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Equipment identified from photos will be tagged with this gym. You can change or add more gyms in your profile.
+            </p>
+            {virtualGymNames.length > 1 && (
+              <div>
+                <Label htmlFor="activeGymSelect" className="sr-only">Change Active Gym</Label>
+                <Select
+                  value={activeLocationTag || ''}
+                  onValueChange={(value) => setActiveLocationTag(value === 'none' ? null : value)}
+                  disabled={equipmentMethod === 'skip'}
+                >
+                  <SelectTrigger id="activeGymSelect" className="w-full">
+                    <SelectValue placeholder="Change active gym" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {virtualGymNames.map(gym => (
+                      <SelectItem key={gym} value={gym}>{gym}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 2: Photo Upload Button */}
+        {hasActiveGym && equipmentMethod !== 'skip' && (
+          <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Camera className="h-5 w-5 text-primary" /> 2. Upload Gym Photo(s)
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Take photos of your gym to help us identify available equipment. You can upload multiple photos.
+            </p>
             <Button 
               variant="outline" 
               onClick={() => {
-                if (!canUploadPhoto) {
-                  toast.error("Please select or add a virtual gym before uploading a photo.");
-                  return;
-                }
                 setEquipmentMethod('photo');
                 setShowAnalyseGymDialog(true);
               }}
-              disabled={!canUploadPhoto || equipmentMethod === 'skip'}
+              disabled={!hasActiveGym}
+              className="w-full"
             >
               <Camera className="h-4 w-4 mr-2" /> Upload Gym Photo(s)
             </Button>
-            <p className="text-sm text-muted-foreground ml-6">
-              Take photos of your gym to help us identify available equipment. You can upload multiple photos.
-            </p>
           </div>
+        )}
           
-          {/* Identified Exercises List */}
-          {identifiedExercises.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm">Identified Equipment:</h4>
-              <ScrollArea className="h-40 border rounded-md p-2">
-                <ul className="space-y-1">
-                  {identifiedExercises.map((ex, index) => (
-                    <li key={index} className="flex items-center justify-between text-sm bg-muted p-2 rounded-sm">
-                      <div className="flex items-center gap-2">
-                        <Dumbbell className="h-4 w-4 text-primary" />
-                        <span>{ex.name}</span>
-                        {ex.locationTag && (
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Building2 className="h-3 w-3" /> {ex.locationTag}
-                          </span>
-                        )}
-                        {ex.isDuplicate && <span className="text-xs text-muted-foreground">(Existing)</span>}
-                      </div>
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveIdentifiedExercise(index)}>
-                        <XCircle className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              </ScrollArea>
-            </div>
-          )}
-
-          {/* Skip for Now Option */}
-          <div className="flex items-center space-x-2">
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setEquipmentMethod('skip');
-                setIdentifiedExercises([]); // Clear identified exercises if skipping
-                setActiveLocationTag(null); // Clear active location tag
-              }}
-              className={cn(
-                "flex-1",
-                equipmentMethod === 'skip' ? "border-primary ring-2 ring-primary" : ""
-              )}
-            >
-              <CheckCircle2 className="h-4 w-4 mr-2" /> Skip for Now
-            </Button>
-            <p className="text-sm text-muted-foreground flex-1">
-              Use default "Common Gym" equipment set.
-            </p>
+        {/* Identified Exercises List */}
+        {hasIdentifiedExercises && (
+          <div className="space-y-2 p-4 border rounded-lg bg-muted/50">
+            <h4 className="font-semibold text-lg flex items-center gap-2">
+              <Dumbbell className="h-5 w-5 text-primary" /> Identified Equipment:
+            </h4>
+            <ScrollArea className="h-40 border rounded-md p-2">
+              <ul className="space-y-1">
+                {identifiedExercises.map((ex, index) => (
+                  <li key={index} className="flex items-center justify-between text-sm bg-card p-2 rounded-sm">
+                    <div className="flex items-center gap-2">
+                      <Dumbbell className="h-4 w-4 text-primary" />
+                      <span>{ex.name}</span>
+                      {ex.locationTag && (
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Building2 className="h-3 w-3" /> {ex.locationTag}
+                        </span>
+                      )}
+                      {ex.isDuplicate && <span className="text-xs text-muted-foreground">(Existing)</span>}
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveIdentifiedExercise(index)}>
+                      <XCircle className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </ScrollArea>
           </div>
+        )}
+
+        {/* Step 3: Skip for Now Option */}
+        <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-primary" /> 3. Or, Skip Equipment Setup
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Use our carefully crafted "Common Gym" equipment set. You can always add your specific gym equipment later in your profile.
+          </p>
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              setEquipmentMethod('skip');
+              setIdentifiedExercises([]); // Clear identified exercises if skipping
+              setActiveLocationTag(null); // Clear active location tag
+            }}
+            className={cn(
+              "w-full",
+              equipmentMethod === 'skip' ? "border-primary ring-2 ring-primary" : ""
+            )}
+          >
+            Skip for Now
+          </Button>
         </div>
         
         {/* Navigation Buttons */}
@@ -255,7 +261,7 @@ export const OnboardingStep5_EquipmentSetup = ({
           </Button>
           <Button 
             onClick={handleNext} 
-            disabled={!equipmentMethod || (equipmentMethod === 'photo' && identifiedExercises.length === 0)}
+            disabled={!equipmentMethod || isNextButtonDisabled}
           >
             Next
           </Button>
@@ -268,7 +274,6 @@ export const OnboardingStep5_EquipmentSetup = ({
         onExercisesIdentified={handleExercisesIdentified}
         locationTag={activeLocationTag} // Pass the active location tag
       />
-      {/* Removed SaveAiExercisePrompt as it's not used in this flow */}
     </>
   );
 };

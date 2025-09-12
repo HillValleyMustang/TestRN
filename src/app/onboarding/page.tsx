@@ -168,7 +168,7 @@ export default function OnboardingPage() {
       case 1: return "Choose Your Transformation Path";
       case 2: return "Your Experience Level";
       case 3: return "Goal Focus";
-      case 4: return "Equipment Setup"; // Updated title
+      case 4: return "Active Gym Setup"; // Updated title
       case 5: return "Session Preferences"; // Updated title
       case 6: return "Final Details & Consent";
       default: return "";
@@ -180,7 +180,7 @@ export default function OnboardingPage() {
       case 1: return "Select the workout structure that best fits your goals";
       case 2: return "Help us tailor your program to your experience level";
       case 3: return "What are you primarily trying to achieve?";
-      case 4: return "Let's set up your gym equipment"; // Updated description
+      case 4: return "Let's set up your active gym and identify equipment."; // Updated description
       case 5: return "How long do you prefer your workout sessions to be?"; // Updated description
       case 6: return "Just a few more details to personalise your experience.";
       default: return "";
