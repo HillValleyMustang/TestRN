@@ -20,6 +20,7 @@ import { db } from '@/lib/db'; // Import db
 import { useCacheAndRevalidate } from '@/hooks/use-cache-and-revalidate'; // Import useCacheAndRevalidate
 
 import { ProfileHeader } from '@/components/profile/profile-header';
+import { ProfileOverviewHeader } from '@/components/profile/profile-overview-header'; // NEW IMPORT
 import { ProfileOverviewTab } from '@/components/profile/profile-overview-tab';
 import { ProfileStatsTab } from '@/components/profile/profile-stats-tab';
 import { ProfileSettingsTab } from '@/components/profile/profile-settings-tab';
@@ -431,8 +432,6 @@ export default function ProfilePage() {
   if (loadingProfile || loadingAchievements || loading) return <div className="p-4"><Skeleton className="h-screen w-full" /></div>;
   if (!profile) return <div className="p-4">Could not load profile.</div>;
 
-  const userInitial = profile.first_name ? profile.first_name[0].toUpperCase() : (session?.user.email ? session.user.email[0].toUpperCase() : '?');
-
   return (
     <>
       <div className="p-2 sm:p-4 max-w-4xl mx-auto">
@@ -443,17 +442,7 @@ export default function ProfilePage() {
           isSaving={isSaving}
         />
 
-        <div className="text-center mb-8">
-          <Avatar className="w-24 h-24 mx-auto mb-4 ring-4 ring-primary/20">
-            <AvatarFallback className="text-4xl font-bold">{userInitial}</AvatarFallback>
-          </Avatar>
-          <h1 className="text-3xl font-bold">{profile.first_name} {profile.last_name}</h1>
-          <div className="flex items-center justify-center space-x-2 mt-2">
-            <span className={cn("px-3 py-1 rounded-full text-xs font-bold !text-white", fitnessLevel.color)}>{fitnessLevel.level}</span>
-            <span className="text-muted-foreground text-sm">•</span>
-            <span className="text-muted-foreground text-sm">Member since {new Date(profile.created_at!).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
-          </div>
-        </div>
+        <ProfileOverviewHeader profile={profile} session={session} /> {/* NEW COMPONENT */}
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid w-full grid-cols-3 bg-muted">
