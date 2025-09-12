@@ -35,6 +35,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, lo
   const { session } = useSession();
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [isProcessingAll, setIsProcessingAll] = useState(false);
+  const [currentProcessingIndex, setCurrentProcessingIndex] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -155,13 +156,16 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, lo
   };
 
   const resetForm = useCallback(() => {
-    selectedFiles.forEach(file => URL.revokeObjectURL(file.previewUrl));
-    setSelectedFiles([]);
+    setSelectedFiles(prevFiles => {
+      prevFiles.forEach(file => URL.revokeObjectURL(file.previewUrl));
+      return [];
+    });
     setIsProcessingAll(false);
+    setCurrentProcessingIndex(0);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  }, [selectedFiles]);
+  }, []);
 
   useEffect(() => {
     if (!open) {
