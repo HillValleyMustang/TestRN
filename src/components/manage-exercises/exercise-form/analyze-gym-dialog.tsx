@@ -115,16 +115,19 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, lo
     setIsProcessingAll(true);
     setCurrentProcessingIndex(0);
     const allIdentifiedExercises: (Partial<ExerciseDefinition> & { isDuplicate: boolean; locationTag: string })[] = [];
+    
+    // Create a mutable copy of selectedFiles to update within the loop
+    const updatedFilesState = [...selectedFiles];
 
-    for (let i = 0; i < selectedFiles.length; i++) {
-      const fileToProcess = selectedFiles[i];
+    for (let i = 0; i < updatedFilesState.length; i++) {
+      const fileToProcess = updatedFilesState[i];
       setCurrentProcessingIndex(i + 1);
 
-      setSelectedFiles(prev =>
-        prev.map(f =>
-          f.id === fileToProcess.id ? { ...f, status: 'processing', errorMessage: null } : f
-        )
-      );
+      // Update the status in the mutable copy
+      updatedFilesState[i] = { ...fileToProcess, status: 'processing', errorMessage: null };
+      // Optionally, call setSelectedFiles here if you want to see intermediate 'processing' status
+      // However, for performance and to avoid the "Maximum update depth exceeded" error,
+      // it's better to update the state once after the loop.
 
       try {
         const response = await fetch('/api/identify-equipment', {
@@ -148,27 +151,18 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, lo
             locationTag: locationTag || 'Unknown Gym', // Ensure locationTag is always present
           }));
           allIdentifiedExercises.push(...exercisesWithLocationTag);
-          setSelectedFiles(prev =>
-            prev.map(f =>
-              f.id === fileToProcess.id ? { ...f, status: 'success', identifiedExercises: exercisesWithLocationTag } : f
-            )
-          );
+          updatedFilesState[i] = { ...fileToProcess, status: 'success', identifiedExercises: exercisesWithLocationTag };
         } else {
-          setSelectedFiles(prev =>
-            prev.map(f =>
-              f.id === fileToProcess.id ? { ...f, status: 'success', identifiedExercises: [] } : f
-            )
-          );
+          updatedFilesState[i] = { ...fileToProcess, status: 'success', identifiedExercises: [] };
         }
       } catch (err: any) {
         console.error(`Error analyzing image ${fileToProcess.file.name}:`, err);
-        setSelectedFiles(prev =>
-          prev.map(f =>
-            f.id === fileToProcess.id ? { ...f, status: 'error', errorMessage: err.message || 'Analysis failed.' } : f
-          )
-        );
+        updatedFilesState[i] = { ...fileToProcess, status: 'error', errorMessage: err.message || 'Analysis failed.' };
       }
     }
+
+    // After the loop, update the state once with the final array
+    setSelectedFiles(updatedFilesState);
 
     onExercisesIdentified(allIdentifiedExercises);
     onOpenChange(false); // Close this dialog after processing all
