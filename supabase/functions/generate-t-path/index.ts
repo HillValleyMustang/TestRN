@@ -2,6 +2,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+// @ts-ignore
+import { v4 as uuidv4 } from 'https://esm.sh/uuid@9.0.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,6 +28,14 @@ interface ExerciseDefinition {
   user_id: string | null;
   library_id: string | null;
   location_tags: string[] | null;
+  name: string;
+  main_muscle: string;
+  type: string;
+  category: string | null;
+  description: string | null;
+  pro_tip: string | null;
+  video_url: string | null;
+  icon_url: string | null;
 }
 
 interface WorkoutStructureEntry {
@@ -33,6 +43,11 @@ interface WorkoutStructureEntry {
   min_session_minutes: number | null;
   bonus_for_time_group: number | null;
 }
+
+// --- Constants ---
+const MIN_EXERCISES_PER_WORKOUT = 3; // Minimum number of exercises to aim for
+const BONUS_EXERCISES_TO_ADD = 2; // Number of bonus exercises to add if space allows
+const DEFAULT_EXERCISE_DURATION_MINUTES = 5; // Estimated duration per exercise for calculation
 
 // --- Utility Functions ---
 const getSupabaseServiceRoleClient = () => {
@@ -58,6 +73,22 @@ function getWorkoutNamesForSplit(workoutSplit: string): string[] {
   if (workoutSplit === 'ppl') return ['Push', 'Pull', 'Legs'];
   throw new Error('Unknown workout split type.');
 }
+
+// Helper to log user-specific alerts
+const logUserAlert = async (supabase: ReturnType<typeof createClient>, userId: string, title: string, message: string, type: string = 'system_error') => {
+  const { error: insertAlertError } = await supabase.from('user_alerts').insert({
+    id: uuidv4(),
+    user_id: userId,
+    title: title,
+    message: message,
+    type: type,
+    created_at: new Date().toISOString(),
+    is_read: false,
+  });
+  if (insertAlertError) {
+    console.error(`Failed to log user alert for user ${userId}:`, insertAlertError.message);
+  }
+};
 
 // --- Main Workout Processing Logic ---
 const processSingleChildWorkout = async (
@@ -107,53 +138,148 @@ const processSingleChildWorkout = async (
   const { error: deleteError } = await supabase.from('t_path_exercises').delete().eq('template_id', childWorkoutId);
   if (deleteError) throw deleteError;
 
-  // 3. Determine available exercises based on location tag
-  const availableExerciseLibraryIds = new Set<string>();
+  // 3. Prepare exercise lookup maps
+  const globalExerciseMap = new Map<string, ExerciseDefinition>(); // library_id -> global_exercise
+  const userOwnedCopiesMap = new Map<string, ExerciseDefinition>(); // library_id -> user_owned_copy_of_global_exercise
+  const userCustomExercises = new Map<string, ExerciseDefinition[]>(); // main_muscle_type_key -> [user_custom_exercise]
+
   allExercises.forEach(ex => {
-    const isAvailable = !activeLocationTag || !ex.location_tags || ex.location_tags.length === 0 || ex.location_tags.includes(activeLocationTag);
-    if (isAvailable && ex.library_id) {
-      availableExerciseLibraryIds.add(ex.library_id);
+    if (ex.user_id === null && ex.library_id) {
+      globalExerciseMap.set(ex.library_id, ex);
+    } else if (ex.user_id === user.id) {
+      if (ex.library_id) {
+        userOwnedCopiesMap.set(ex.library_id, ex);
+      } else { // Purely custom user exercise (AI-identified new, or manually created)
+        const key = `${ex.main_muscle}-${ex.type}`;
+        if (!userCustomExercises.has(key)) {
+          userCustomExercises.set(key, []);
+        }
+        userCustomExercises.get(key)?.push(ex);
+      }
     }
   });
 
-  // 4. Fetch workout structure and filter by available equipment
+  // 4. Fetch workout structure entries
   const { data: structureEntries, error: structureError } = await supabase
     .from('workout_exercise_structure')
     .select('exercise_library_id, min_session_minutes, bonus_for_time_group')
     .eq('workout_split', workoutSplit)
     .eq('workout_name', workoutName)
-    .in('exercise_library_id', Array.from(availableExerciseLibraryIds))
     .order('min_session_minutes', { ascending: true, nullsFirst: true });
   if (structureError) throw structureError;
 
-  // 5. Select exercises based on duration
+  // 5. Select exercises based on duration and user preferences
   const exercisesToInsertPayload: { template_id: string; exercise_id: string; order_index: number; is_bonus_exercise: boolean }[] = [];
-  const userCustomExerciseMap = new Map<string, string>();
-  allExercises.filter(ex => ex.user_id === user.id && ex.library_id).forEach(ex => userCustomExerciseMap.set(ex.library_id!, ex.id));
+  const selectedExerciseIds = new Set<string>(); // To prevent duplicates in the workout
+
+  let currentEstimatedMinutes = 0;
+  const potentialBonusExercises: { exercise: ExerciseDefinition; order_index: number }[] = [];
+  const omittedExercisesForUserLibrary: ExerciseDefinition[] = [];
 
   for (const entry of structureEntries || []) {
-    const isIncludedAsMain = entry.min_session_minutes !== null && maxAllowedMinutes >= entry.min_session_minutes;
-    const isIncludedAsBonus = entry.bonus_for_time_group !== null && maxAllowedMinutes >= entry.bonus_for_time_group;
+    const globalLibraryId = entry.exercise_library_id;
+    const globalExercise = globalExerciseMap.get(globalLibraryId);
+    if (!globalExercise) continue;
 
-    if (isIncludedAsMain || isIncludedAsBonus) {
-      const globalLibraryId = entry.exercise_library_id;
-      let finalExerciseId: string;
+    // Check if user has a custom copy of this global exercise
+    let finalExercise: ExerciseDefinition | null = userOwnedCopiesMap.get(globalLibraryId) || globalExercise;
 
-      if (userCustomExerciseMap.has(globalLibraryId)) {
-        finalExerciseId = userCustomExerciseMap.get(globalLibraryId)!;
-      } else {
-        const globalExercise = allExercises.find(ex => ex.library_id === globalLibraryId && ex.user_id === null);
-        if (!globalExercise) continue;
-        finalExerciseId = globalExercise.id;
+    // Check for purely custom user exercises that could substitute
+    if (finalExercise === globalExercise) { // Only try to substitute if we're currently using the global one
+      const customKey = `${globalExercise.main_muscle}-${globalExercise.type}`;
+      const matchingCustomExercises = userCustomExercises.get(customKey);
+      if (matchingCustomExercises && matchingCustomExercises.length > 0) {
+        // Prioritize custom exercises with matching location tag, then any custom
+        const taggedCustom = matchingCustomExercises.find(ex => activeLocationTag && ex.location_tags?.includes(activeLocationTag));
+        if (taggedCustom) {
+          finalExercise = taggedCustom;
+        } else {
+          finalExercise = matchingCustomExercises[0]; // Take the first available custom exercise
+        }
       }
+    }
 
-      const isBonus = isIncludedAsBonus && !isIncludedAsMain;
+    // Filter by active location tag
+    const isAvailableAtLocation = !activeLocationTag || !finalExercise.location_tags || finalExercise.location_tags.length === 0 || finalExercise.location_tags.includes(activeLocationTag);
+    if (!isAvailableAtLocation) {
+      // If the exercise is not available at the active location, and it's a user-owned exercise,
+      // ensure it's in the user's library but don't add to this workout.
+      if (finalExercise.user_id === user.id) {
+        omittedExercisesForUserLibrary.push(finalExercise);
+      }
+      continue; // Skip this exercise for the current workout
+    }
+
+    const isCoreExercise = entry.min_session_minutes !== null && maxAllowedMinutes >= entry.min_session_minutes;
+    const isPotentialBonus = entry.bonus_for_time_group !== null && maxAllowedMinutes >= entry.bonus_for_time_group;
+
+    if (isCoreExercise && !selectedExerciseIds.has(finalExercise.id)) {
       exercisesToInsertPayload.push({
         template_id: childWorkoutId,
-        exercise_id: finalExerciseId,
-        order_index: isBonus ? (entry.bonus_for_time_group || 0) : (entry.min_session_minutes || 0),
-        is_bonus_exercise: isBonus,
+        exercise_id: finalExercise.id,
+        order_index: entry.min_session_minutes || 0, // Use min_session_minutes for core order
+        is_bonus_exercise: false,
       });
+      selectedExerciseIds.add(finalExercise.id);
+      currentEstimatedMinutes += DEFAULT_EXERCISE_DURATION_MINUTES;
+    } else if (isPotentialBonus && !selectedExerciseIds.has(finalExercise.id)) {
+      potentialBonusExercises.push({ exercise: finalExercise, order_index: entry.bonus_for_time_group || 0 });
+    }
+  }
+
+  // Add bonus exercises if there's room and we haven't hit min exercises
+  let addedBonusCount = 0;
+  potentialBonusExercises.sort((a, b) => a.order_index - b.order_index); // Sort bonuses by their suggested order
+  for (const bonus of potentialBonusExercises) {
+    if (exercisesToInsertPayload.length < MIN_EXERCISES_PER_WORKOUT || addedBonusCount < BONUS_EXERCISES_TO_ADD) {
+      if (!selectedExerciseIds.has(bonus.exercise.id) && (currentEstimatedMinutes + DEFAULT_EXERCISE_DURATION_MINUTES) <= maxAllowedMinutes) {
+        exercisesToInsertPayload.push({
+          template_id: childWorkoutId,
+          exercise_id: bonus.exercise.id,
+          order_index: bonus.order_index,
+          is_bonus_exercise: true,
+        });
+        selectedExerciseIds.add(bonus.exercise.id);
+        currentEstimatedMinutes += DEFAULT_EXERCISE_DURATION_MINUTES;
+        addedBonusCount++;
+      }
+    }
+  }
+
+  // If still below minimum exercises, add more non-bonus global exercises if available and fit
+  if (exercisesToInsertPayload.length < MIN_EXERCISES_PER_WORKOUT) {
+    const remainingSlots = MIN_EXERCISES_PER_WORKOUT - exercisesToInsertPayload.length;
+    const additionalExercises = structureEntries
+      .filter((entry: WorkoutStructureEntry) => { // Explicitly type 'entry' here
+        const globalExercise = globalExerciseMap.get(entry.exercise_library_id);
+        return globalExercise && !selectedExerciseIds.has(globalExercise.id);
+      })
+      .slice(0, remainingSlots);
+
+    for (const entry of additionalExercises) {
+      const globalExercise = globalExerciseMap.get(entry.exercise_library_id);
+      if (globalExercise && (currentEstimatedMinutes + DEFAULT_EXERCISE_DURATION_MINUTES) <= maxAllowedMinutes) {
+        // Check if user has a custom copy or purely custom exercise for this global one
+        let finalExercise: ExerciseDefinition | null = userOwnedCopiesMap.get(globalExercise.library_id!) || globalExercise;
+        const customKey = `${globalExercise.main_muscle}-${globalExercise.type}`;
+        const matchingCustomExercises = userCustomExercises.get(customKey);
+        if (finalExercise === globalExercise && matchingCustomExercises && matchingCustomExercises.length > 0) {
+          const taggedCustom = matchingCustomExercises.find(ex => activeLocationTag && ex.location_tags?.includes(activeLocationTag));
+          finalExercise = taggedCustom || matchingCustomExercises[0];
+        }
+
+        const isAvailableAtLocation = !activeLocationTag || !finalExercise.location_tags || finalExercise.location_tags.length === 0 || finalExercise.location_tags.includes(activeLocationTag);
+        if (isAvailableAtLocation && !selectedExerciseIds.has(finalExercise.id)) {
+          exercisesToInsertPayload.push({
+            template_id: childWorkoutId,
+            exercise_id: finalExercise.id,
+            order_index: exercisesToInsertPayload.length, // Add to end
+            is_bonus_exercise: false,
+          });
+          selectedExerciseIds.add(finalExercise.id);
+          currentEstimatedMinutes += DEFAULT_EXERCISE_DURATION_MINUTES;
+        }
+      }
     }
   }
 
@@ -164,6 +290,38 @@ const processSingleChildWorkout = async (
   if (exercisesToInsertPayload.length > 0) {
     const { error: insertError } = await supabase.from('t_path_exercises').insert(exercisesToInsertPayload);
     if (insertError) throw insertError;
+  }
+
+  // 7. Add omitted user-owned exercises to user's library if they aren't already there
+  for (const omittedEx of omittedExercisesForUserLibrary) {
+    const { data: existingUserExercise, error: fetchExistingError } = await supabase
+      .from('exercise_definitions')
+      .select('id')
+      .eq('user_id', user.id)
+      .ilike('name', omittedEx.name)
+      .single();
+
+    if (fetchExistingError && fetchExistingError.code !== 'PGRST116') throw fetchExistingError;
+
+    if (!existingUserExercise) {
+      // If it's a global exercise that was omitted, create a user-owned copy
+      const { error: insertOmittedError } = await supabase
+        .from('exercise_definitions')
+        .insert({
+          name: omittedEx.name,
+          main_muscle: omittedEx.main_muscle,
+          type: omittedEx.type,
+          category: omittedEx.category,
+          description: omittedEx.description,
+          pro_tip: omittedEx.pro_tip,
+          video_url: omittedEx.video_url,
+          user_id: user.id,
+          library_id: omittedEx.library_id, // Keep the library_id if it was a global exercise
+          location_tags: omittedEx.location_tags,
+          icon_url: omittedEx.icon_url,
+        });
+      if (insertOmittedError) console.error(`Failed to add omitted exercise ${omittedEx.name} to user library:`, insertOmittedError.message);
+    }
   }
 };
 
@@ -214,7 +372,7 @@ serve(async (req: Request) => {
         if (!tPathSettings?.tPathType) throw new Error('Invalid T-Path settings.');
 
         const { data: allExercises, error: fetchAllExercisesError } = await supabaseServiceRoleClient
-          .from('exercise_definitions').select('id, library_id, user_id, location_tags');
+          .from('exercise_definitions').select('id, library_id, user_id, location_tags, name, main_muscle, type, category, description, pro_tip, video_url, icon_url');
         if (fetchAllExercisesError) throw fetchAllExercisesError;
 
         const workoutSplit = tPathSettings.tPathType;
@@ -235,8 +393,11 @@ serve(async (req: Request) => {
           );
         }
         console.log(`[Background] Successfully generated all workouts for T-Path ${tPathId}`);
+        await logUserAlert(supabaseServiceRoleClient, userId, "Workout Plan Updated", `Your workout plan for '${tPathData.template_name ?? 'Unknown T-Path'}' has been successfully updated!`, "info");
+
       } catch (backgroundError: any) {
         console.error(`[Background] T-Path generation failed for user ${userId}:`, backgroundError);
+        await logUserAlert(supabaseServiceRoleClient, userId, "Workout Plan Update Failed", `Failed to fully update your workout plan. Some exercises might be missing. Error: ${backgroundError.message}`, "system_error");
       }
     })();
 
@@ -244,6 +405,9 @@ serve(async (req: Request) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : "An unknown error occurred.";
     console.error('Error in generate-t-path edge function:', message);
+    if (userId) {
+      await logUserAlert(supabaseServiceRoleClient, userId, "Workout Plan Update Failed", `An error occurred while initiating your workout plan update: ${message}`, "system_error");
+    }
     return new Response(
       JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

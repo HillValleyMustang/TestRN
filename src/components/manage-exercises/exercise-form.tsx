@@ -118,7 +118,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
         description: editingExercise.description || null,
         pro_tip: editingExercise.pro_tip || null,
         video_url: editingExercise.video_url || null,
-        location_tags: editingExercise.location_tags || [],
+        location_tags: editingExercise.location_tags || [], // Ensure location_tags are set
       });
       setSelectedMuscles(muscleGroups);
       setSelectedTypes(editingExercise.type ? [editingExercise.type] as ("weight" | "timed")[] : []);
@@ -174,7 +174,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
       description: values.description,
       pro_tip: values.pro_tip,
       video_url: values.video_url,
-      location_tags: values.location_tags,
+      location_tags: values.location_tags, // Include location_tags
     };
 
     const isEditingUserOwned = editingExercise && editingExercise.user_id === session.user.id && editingExercise.library_id === null && editingExercise.id !== null;

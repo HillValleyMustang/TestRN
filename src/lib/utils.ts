@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { ArrowUp, ArrowDown, ArrowRight, ArrowLeft, Footprints, LucideIcon, Star, Dumbbell, ChevronUp, ChevronDown, ArrowUpRight, ArrowDownLeft, Zap } from "lucide-react";
+import { ArrowUp, ArrowDown, ArrowRight, ArrowLeft, Footprints, LucideIcon, Star, Dumbbell, ChevronUp, ChevronDown, ArrowUpRight, ArrowDownLeft, Zap, Sparkles, Building2 } from "lucide-react"; // Added Sparkles and Building2
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -39,6 +39,12 @@ export function getWorkoutColorClass(workoutName: string, type: 'text' | 'border
     case 'Bonus': // New case for bonus exercises
       colorKey = 'bonus';
       break;
+    case 'AI': // NEW: For AI-identified exercises
+      colorKey = 'bonus'; // Use bonus color for AI tag
+      break;
+    case 'Gym': // NEW: For gym location tags
+      colorKey = 'activity'; // Use generic activity color for gym tag
+      break;
     default: return ''; // No specific color for other workouts or 'Ad Hoc Workout'
   }
 
@@ -73,6 +79,10 @@ export function getWorkoutIcon(workoutName: string): LucideIcon | null {
       return Footprints;
     case 'Bonus':
       return Star;
+    case 'AI': // NEW: Icon for AI-identified exercises
+      return Sparkles;
+    case 'Gym': // NEW: Icon for gym location tags
+      return Building2;
     case '4-Day Upper/Lower':
     case '3-Day Push/Pull/Legs':
       return Dumbbell; // Generic icon for main T-Paths

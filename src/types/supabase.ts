@@ -65,7 +65,7 @@ export type LocalUserAchievement = UserAchievementsRow;
 export type BodyFatReferenceImage = BodyFatReferenceImagesRow;
 
 // NEW: UserAlert type
-export type UserAlert = UserAlertsRow;
+export type UserAlert = Omit<UserAlertsRow, 'created_at'> & { created_at: string | null }; // Allow null for created_at
 
 
 // New type for ai_coach_usage_logs table

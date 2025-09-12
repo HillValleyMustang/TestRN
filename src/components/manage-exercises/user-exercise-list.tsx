@@ -5,7 +5,7 @@ import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Edit, Trash2, Heart, Info, PlusCircle, Menu } from "lucide-react";
+import { Edit, Trash2, Heart, Info, PlusCircle, Menu, Sparkles, Building2 } from "lucide-react"; // Added Sparkles and Building2
 import {
   AlertDialog,
   AlertDialogAction,
@@ -141,13 +141,24 @@ export const UserExerciseList = ({
           <ScrollArea>
             <ul className="space-y-2">
               {exercises.map((ex) => (
-                <li key={ex.id} className="flex items-center justify-between py-1 px-2 border rounded-md">
-                  <div className="flex-1 py-1 px-0">
-                    <p className="font-medium">{ex.name}</p> {/* Exercise name */}
+                <li key={ex.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-2 px-3 border rounded-md">
+                  <div className="flex-grow min-w-0 py-1 px-0">
+                    <p className="font-medium text-base leading-tight whitespace-normal">{ex.name}</p> {/* Exercise name */}
                     <p className="text-sm text-muted-foreground">{ex.main_muscle}</p> {/* Muscle group on new line */}
-                    {exerciseWorkoutsMap[ex.id as string]?.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {exerciseWorkoutsMap[ex.id as string].map(workout => (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {ex.library_id?.startsWith('ai_gen_') && ( // Check for AI-generated
+                        <WorkoutBadge workoutName="AI" className="text-xs px-2 py-0.5 flex items-center gap-1">
+                          <Sparkles className="h-3 w-3" /> AI
+                        </WorkoutBadge>
+                      )}
+                      {ex.location_tags && ex.location_tags.length > 0 && ex.location_tags.map(tag => (
+                        <WorkoutBadge key={tag} workoutName="Gym" className="text-xs px-2 py-0.5 flex items-center gap-1">
+                          <Building2 className="h-3 w-3" /> {tag}
+                        </WorkoutBadge>
+                      ))}
+                      {/* Existing workout badges for t-paths */}
+                      {exerciseWorkoutsMap[ex.id as string]?.length > 0 && (
+                        exerciseWorkoutsMap[ex.id as string].map(workout => (
                           <div key={workout.id} className="flex items-center gap-1 p-1 rounded-md"> {/* Removed bg-muted */}
                             <WorkoutBadge 
                               workoutName={workout.name}
@@ -160,12 +171,12 @@ export const UserExerciseList = ({
                               </WorkoutBadge>
                             )}
                           </div>
-                        ))}
-                      </div>
-                    )}
+                        ))
+                      )}
+                    </div>
                   </div>
                   {/* Action buttons group */}
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 flex-shrink-0 mt-2 sm:mt-0">
                     <Button variant="ghost" size="icon" title="More Info" onClick={(e) => handleOpenInfoDialog(ex, e)}>
                       <Info className="h-4 w-4" />
                     </Button>
