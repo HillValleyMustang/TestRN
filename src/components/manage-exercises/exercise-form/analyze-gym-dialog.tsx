@@ -35,7 +35,6 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, lo
   const { session } = useSession();
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [isProcessingAll, setIsProcessingAll] = useState(false);
-  const [currentProcessingIndex, setCurrentProcessingIndex] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,7 +81,6 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, lo
     const resolvedNewFiles = (await Promise.all(newFilesPromises)).filter(Boolean) as SelectedFile[];
     setSelectedFiles(prev => [...prev, ...resolvedNewFiles]);
 
-    // Clear the input value to allow selecting the same file(s) again
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -92,7 +90,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, lo
     setSelectedFiles(prev => {
       const fileToRemove = prev.find(f => f.id === idToRemove);
       if (fileToRemove) {
-        URL.revokeObjectURL(fileToRemove.previewUrl); // Clean up object URL
+        URL.revokeObjectURL(fileToRemove.previewUrl);
       }
       return prev.filter(file => file.id !== idToRemove);
     });
@@ -113,15 +111,11 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, lo
     }
 
     setIsProcessingAll(true);
-    setCurrentProcessingIndex(0);
     const allIdentifiedExercises: (Partial<ExerciseDefinition> & { isDuplicate: boolean; locationTag: string })[] = [];
-    
     const updatedFilesState = [...selectedFiles];
 
     for (let i = 0; i < updatedFilesState.length; i++) {
       const fileToProcess = updatedFilesState[i];
-      setCurrentProcessingIndex(i + 1);
-
       try {
         const response = await fetch('/api/identify-equipment', {
           method: 'POST',
@@ -133,10 +127,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, lo
         });
 
         const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to analyze image.');
-        }
+        if (!response.ok) throw new Error(data.error || 'Failed to analyze image.');
 
         if (data.identifiedExercises && Array.isArray(data.identifiedExercises)) {
           const exercisesWithLocationTag = data.identifiedExercises.map((ex: any) => ({
@@ -154,10 +145,8 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, lo
       }
     }
 
-    // Update the state ONCE with the final results
     setSelectedFiles(updatedFilesState);
 
-    // Give the user a moment to see the results before closing
     setTimeout(() => {
       onExercisesIdentified(allIdentifiedExercises);
       onOpenChange(false);
@@ -169,7 +158,6 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, lo
     selectedFiles.forEach(file => URL.revokeObjectURL(file.previewUrl));
     setSelectedFiles([]);
     setIsProcessingAll(false);
-    setCurrentProcessingIndex(0);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -260,7 +248,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, lo
               {isProcessingAll ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Analysing {currentProcessingIndex} of {selectedFiles.length}...
+                  Analysing...
                 </>
               ) : (
                 <>
@@ -275,7 +263,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, lo
       <LoadingOverlay
         isOpen={isProcessingAll}
         title="Analysing Image(s)"
-        description={`Processing ${currentProcessingIndex} of ${selectedFiles.length} photos. Please wait.`}
+        description={`Processing ${selectedFiles.length} photos. Please wait.`}
       />
     </>
   );
