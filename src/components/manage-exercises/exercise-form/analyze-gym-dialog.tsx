@@ -116,19 +116,11 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, lo
     setCurrentProcessingIndex(0);
     const allIdentifiedExercises: (Partial<ExerciseDefinition> & { isDuplicate: boolean; locationTag: string })[] = [];
     
-    // Create a mutable copy of selectedFiles to update within the loop
-    const updatedFilesState: SelectedFile[] = selectedFiles.map(file => ({ ...file }));
+    const updatedFilesState = [...selectedFiles];
 
     for (let i = 0; i < updatedFilesState.length; i++) {
       const fileToProcess = updatedFilesState[i];
       setCurrentProcessingIndex(i + 1);
-
-      // Update the status in the mutable copy
-      updatedFilesState[i].status = 'processing';
-      updatedFilesState[i].errorMessage = null;
-      // Trigger a re-render here to show the 'processing' status for the current file.
-      // This is the only place setSelectedFiles is called inside the loop.
-      setSelectedFiles([...updatedFilesState]); // Create a new array instance to trigger re-render
 
       try {
         const response = await fetch('/api/identify-equipment', {
@@ -149,32 +141,32 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, lo
         if (data.identifiedExercises && Array.isArray(data.identifiedExercises)) {
           const exercisesWithLocationTag = data.identifiedExercises.map((ex: any) => ({
             ...ex,
-            locationTag: locationTag || 'Unknown Gym', // Ensure locationTag is always present
+            locationTag: locationTag || 'Unknown Gym',
           }));
           allIdentifiedExercises.push(...exercisesWithLocationTag);
-          updatedFilesState[i].status = 'success';
-          updatedFilesState[i].identifiedExercises = exercisesWithLocationTag;
+          updatedFilesState[i] = { ...fileToProcess, status: 'success', identifiedExercises: exercisesWithLocationTag };
         } else {
-          updatedFilesState[i].status = 'success';
-          updatedFilesState[i].identifiedExercises = [];
+          updatedFilesState[i] = { ...fileToProcess, status: 'success', identifiedExercises: [] };
         }
       } catch (err: any) {
         console.error(`Error analyzing image ${fileToProcess.file.name}:`, err);
-        updatedFilesState[i].status = 'error';
-        updatedFilesState[i].errorMessage = err.message || 'Analysis failed.';
+        updatedFilesState[i] = { ...fileToProcess, status: 'error', errorMessage: err.message || 'Analysis failed.' };
       }
     }
 
-    // After the loop, ensure the final state is set (though individual updates should have covered it)
+    // Update the state ONCE with the final results
     setSelectedFiles(updatedFilesState);
 
-    onExercisesIdentified(allIdentifiedExercises);
-    onOpenChange(false); // Close this dialog after processing all
-    resetForm();
+    // Give the user a moment to see the results before closing
+    setTimeout(() => {
+      onExercisesIdentified(allIdentifiedExercises);
+      onOpenChange(false);
+      resetForm();
+    }, 1500);
   };
 
   const resetForm = useCallback(() => {
-    selectedFiles.forEach(file => URL.revokeObjectURL(file.previewUrl)); // Clean up object URLs
+    selectedFiles.forEach(file => URL.revokeObjectURL(file.previewUrl));
     setSelectedFiles([]);
     setIsProcessingAll(false);
     setCurrentProcessingIndex(0);
@@ -183,7 +175,6 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, lo
     }
   }, [selectedFiles]);
 
-  // Reset form when dialog closes
   useEffect(() => {
     if (!open) {
       resetForm();
@@ -208,7 +199,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, lo
             <input
               type="file"
               accept="image/*"
-              multiple // Allow multiple file selection
+              multiple
               ref={fileInputRef}
               onChange={handleFileChange}
               className="hidden"
