@@ -1,113 +1,196 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Camera, Upload, Loader2, ImageOff, Sparkles } from "lucide-react";
+import { Camera, Upload, Loader2, ImageOff, Sparkles, Check, XCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/components/session-context-provider";
 import { Tables } from "@/types/supabase";
 import { LoadingOverlay } from "@/components/loading-overlay";
+import { v4 as uuidv4 } from 'uuid';
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
-interface AnalyseGymDialogProps { // Renamed to AnalyseGymDialogProps
+interface SelectedFile {
+  id: string;
+  file: File;
+  previewUrl: string;
+  base64: string | null;
+  status: 'pending' | 'processing' | 'success' | 'error';
+  identifiedExercises: (Partial<ExerciseDefinition> & { isDuplicate: boolean; locationTag: string })[] | null;
+  errorMessage: string | null;
+}
+
+interface AnalyseGymDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onExercisesIdentified: (exercises: (Partial<ExerciseDefinition> & { isDuplicate: boolean })[]) => void; // Updated callback to accept an array
+  onExercisesIdentified: (exercises: (Partial<ExerciseDefinition> & { isDuplicate: boolean; locationTag: string })[]) => void;
   locationTag: string | null;
 }
 
-export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, locationTag }: AnalyseGymDialogProps) => { // Renamed to AnalyseGymDialog
+export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, locationTag }: AnalyseGymDialogProps) => {
   const { session } = useSession();
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [base64Image, setBase64Image] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
+  const [isProcessingAll, setIsProcessingAll] = useState(false);
+  const [currentProcessingIndex, setCurrentProcessingIndex] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    const newSelectedFiles: SelectedFile[] = [];
+    for (const file of files) {
       if (!file.type.startsWith('image/')) {
-        toast.error("Please upload an image file.");
-        return;
+        toast.error(`File '${file.name}' is not an image.`);
+        continue;
       }
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        toast.error("Image size should not exceed 5MB.");
-        return;
+        toast.error(`File '${file.name}' exceeds 5MB limit.`);
+        continue;
       }
 
+      const id = uuidv4();
+      const previewUrl = URL.createObjectURL(file);
+      newSelectedFiles.push({
+        id,
+        file,
+        previewUrl,
+        base64: null, // Will be populated asynchronously
+        status: 'pending',
+        identifiedExercises: null,
+        errorMessage: null,
+      });
+    }
+
+    setSelectedFiles(prev => [...prev, ...newSelectedFiles]);
+
+    // Asynchronously read base64 for all new files
+    for (const newFile of newSelectedFiles) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        const base64 = (reader.result as string).split(',')[1];
-        setImagePreview(reader.result as string);
-        setBase64Image(base64);
+        setSelectedFiles(prev =>
+          prev.map(f =>
+            f.id === newFile.id ? { ...f, base64: (reader.result as string).split(',')[1] } : f
+          )
+        );
       };
-      reader.readAsDataURL(file);
-    } else {
-      setImagePreview(null);
-      setBase64Image(null);
+      reader.readAsDataURL(newFile.file);
     }
-  };
-
-  const handleAnalyseImage = async () => { // Renamed to handleAnalyseImage
-    if (!base64Image) {
-      toast.error("Please upload an image first.");
-      return;
-    }
-    if (!session) {
-      toast.error("You must be logged in to use this feature.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch('/api/identify-equipment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ base64Image, locationTag }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to analyse image.'); // Changed to analyse
-      }
-
-      // The Edge Function now returns an object with an array: { identifiedExercises: [...] }
-      if (data.identifiedExercises && Array.isArray(data.identifiedExercises)) {
-        onExercisesIdentified(data.identifiedExercises);
-      } else {
-        toast.error("AI did not return a valid list of exercises.");
-      }
-      
-      onOpenChange(false); // Close this dialog
-      resetForm();
-    } catch (err: any) {
-      console.error("Error analysing image:", err); // Changed to analysing
-      toast.error("Image analysis failed: " + err.message); // Changed to analysis
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const resetForm = () => {
-    setImagePreview(null);
-    setBase64Image(null);
+    // Clear the input value to allow selecting the same file(s) again
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
+  const handleRemoveFile = (idToRemove: string) => {
+    setSelectedFiles(prev => {
+      const fileToRemove = prev.find(f => f.id === idToRemove);
+      if (fileToRemove) {
+        URL.revokeObjectURL(fileToRemove.previewUrl); // Clean up object URL
+      }
+      return prev.filter(file => file.id !== idToRemove);
+    });
+  };
+
+  const handleProcessAllImages = async () => {
+    if (!session) {
+      toast.error("You must be logged in to use this feature.");
+      return;
+    }
+    if (selectedFiles.length === 0) {
+      toast.error("Please upload at least one image first.");
+      return;
+    }
+    if (selectedFiles.some(f => f.base64 === null)) {
+      toast.error("Some images are still loading. Please wait or remove them.");
+      return;
+    }
+
+    setIsProcessingAll(true);
+    setCurrentProcessingIndex(0);
+    const allIdentifiedExercises: (Partial<ExerciseDefinition> & { isDuplicate: boolean; locationTag: string })[] = [];
+
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const fileToProcess = selectedFiles[i];
+      setCurrentProcessingIndex(i + 1);
+
+      setSelectedFiles(prev =>
+        prev.map(f =>
+          f.id === fileToProcess.id ? { ...f, status: 'processing', errorMessage: null } : f
+        )
+      );
+
+      try {
+        const response = await fetch('/api/identify-equipment', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ base64Image: fileToProcess.base64, locationTag }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to analyze image.');
+        }
+
+        if (data.identifiedExercises && Array.isArray(data.identifiedExercises)) {
+          const exercisesWithLocationTag = data.identifiedExercises.map((ex: any) => ({
+            ...ex,
+            locationTag: locationTag || 'Unknown Gym', // Ensure locationTag is always present
+          }));
+          allIdentifiedExercises.push(...exercisesWithLocationTag);
+          setSelectedFiles(prev =>
+            prev.map(f =>
+              f.id === fileToProcess.id ? { ...f, status: 'success', identifiedExercises: exercisesWithLocationTag } : f
+            )
+          );
+        } else {
+          setSelectedFiles(prev =>
+            prev.map(f =>
+              f.id === fileToProcess.id ? { ...f, status: 'success', identifiedExercises: [] } : f
+            )
+          );
+        }
+      } catch (err: any) {
+        console.error(`Error analyzing image ${fileToProcess.file.name}:`, err);
+        setSelectedFiles(prev =>
+          prev.map(f =>
+            f.id === fileToProcess.id ? { ...f, status: 'error', errorMessage: err.message || 'Analysis failed.' } : f
+          )
+        );
+      }
+    }
+
+    onExercisesIdentified(allIdentifiedExercises);
+    onOpenChange(false); // Close this dialog after processing all
+    resetForm();
+  };
+
+  const resetForm = useCallback(() => {
+    selectedFiles.forEach(file => URL.revokeObjectURL(file.previewUrl)); // Clean up object URLs
+    setSelectedFiles([]);
+    setIsProcessingAll(false);
+    setCurrentProcessingIndex(0);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, [selectedFiles]);
+
   // Reset form when dialog closes
-  React.useEffect(() => {
+  useEffect(() => {
     if (!open) {
       resetForm();
     }
-  }, [open]);
+  }, [open, resetForm]);
+
+  const canProcess = selectedFiles.length > 0 && !isProcessingAll && !selectedFiles.some(f => f.base64 === null);
 
   return (
     <>
@@ -115,16 +198,17 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, lo
         <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Camera className="h-5 w-5" /> Analyse Gym Photo
+              <Camera className="h-5 w-5" /> Analyse Gym Photo(s)
             </DialogTitle>
             <DialogDescription>
-              Upload a photo of your gym equipment, and our AI will try to identify an exercise.
+              Upload photos of your gym equipment, and our AI will try to identify exercises.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex-grow overflow-y-auto py-4 space-y-4">
+          <div className="flex-grow overflow-hidden py-4 space-y-4">
             <input
               type="file"
               accept="image/*"
+              multiple // Allow multiple file selection
               ref={fileInputRef}
               onChange={handleFileChange}
               className="hidden"
@@ -132,45 +216,75 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExercisesIdentified, lo
             />
             <label
               htmlFor="image-upload"
-              className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80 transition-colors"
+              className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80 transition-colors"
             >
-              {imagePreview ? (
-                <img src={imagePreview} alt="Preview" className="max-h-full max-w-full object-contain rounded-lg" />
-              ) : (
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                  <Upload className="w-8 h-8 mb-3 text-muted-foreground" />
-                  <p className="mb-2 text-sm text-muted-foreground">
-                    <span className="font-semibold">Click to upload</span> or drag and drop
-                  </p>
-                  <p className="text-xs text-muted-foreground">JPEG, PNG, GIF (MAX. 5MB)</p>
-                </div>
-              )}
+              <Upload className="w-6 h-6 mb-1 text-muted-foreground" />
+              <p className="mb-1 text-sm text-muted-foreground">
+                <span className="font-semibold">Click to upload</span> or drag and drop
+              </p>
+              <p className="text-xs text-muted-foreground">JPEG, PNG, GIF (MAX. 5MB per image)</p>
             </label>
-            {imagePreview && (
-              <Button variant="outline" onClick={resetForm} className="w-full">
-                <ImageOff className="h-4 w-4 mr-2" /> Remove Image
-              </Button>
+
+            {selectedFiles.length > 0 && (
+              <ScrollArea className="h-48 w-full rounded-md border p-2">
+                <div className="grid grid-cols-3 gap-2">
+                  {selectedFiles.map(file => (
+                    <div key={file.id} className="relative group">
+                      <img src={file.previewUrl} alt="Preview" className="w-full h-24 object-cover rounded-md" />
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-1 right-1 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => handleRemoveFile(file.id)}
+                        title="Remove image"
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </Button>
+                      {file.status === 'processing' && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-white rounded-md">
+                          <Loader2 className="h-6 w-6 animate-spin" />
+                        </div>
+                      )}
+                      {file.status === 'success' && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-green-500/50 text-white rounded-md">
+                          <Check className="h-6 w-6" />
+                        </div>
+                      )}
+                      {file.status === 'error' && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-red-500/50 text-white rounded-md">
+                          <AlertCircle className="h-6 w-6" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
             )}
           </div>
           <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isProcessingAll}>
               Cancel
             </Button>
-            <Button onClick={handleAnalyseImage} disabled={!base64Image || loading}>
-              {loading ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            <Button onClick={handleProcessAllImages} disabled={!canProcess}>
+              {isProcessingAll ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Analysing {currentProcessingIndex} of {selectedFiles.length}...
+                </>
               ) : (
-                <Sparkles className="h-4 w-4 mr-2" />
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Analyse Image{selectedFiles.length > 1 ? 's' : ''}
+                </>
               )}
-              {loading ? "Analysing..." : "Analyse Image"}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
       <LoadingOverlay
-        isOpen={loading}
-        title="Analysing Image"
-        description="Please wait while the AI identifies equipment in your photo."
+        isOpen={isProcessingAll}
+        title="Analysing Image(s)"
+        description={`Processing ${currentProcessingIndex} of ${selectedFiles.length} photos. Please wait.`}
       />
     </>
   );

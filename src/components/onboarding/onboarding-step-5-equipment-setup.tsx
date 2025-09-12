@@ -92,7 +92,7 @@ export const OnboardingStep5_EquipmentSetup = ({
 
   const handleExercisesIdentified = useCallback((exercises: (Partial<ExerciseDefinition> & { isDuplicate: boolean; location_tags?: string[] | null })[]) => {
     if (exercises.length === 0) {
-      toast.info("AI couldn't identify any equipment in the photo. Try another angle or a different photo!");
+      toast.info("AI couldn't identify any gym equipment in the photo(s). Try another angle or different photos!");
       return;
     }
     // The Edge Function has already handled the persistence and updated location_tags.
@@ -191,7 +191,7 @@ export const OnboardingStep5_EquipmentSetup = ({
               }}
               disabled={!canUploadPhoto || equipmentMethod === 'skip'}
             >
-              <Camera className="h-4 w-4 mr-2" /> Upload Gym Photo
+              <Camera className="h-4 w-4 mr-2" /> Upload Gym Photo(s)
             </Button>
             <p className="text-sm text-muted-foreground ml-6">
               Take photos of your gym to help us identify available equipment. You can upload multiple photos.
