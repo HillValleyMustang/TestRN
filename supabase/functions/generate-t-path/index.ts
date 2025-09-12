@@ -100,7 +100,7 @@ const processSingleChildWorkout = async (
   maxAllowedMinutes: number,
   allExercises: ExerciseDefinition[],
   activeLocationTag: string | null
-) => {
+): Promise<{ omittedCount: number; addedToUserLibraryCount: number }> => { // Return type updated
   console.log(`[Background] Processing workout: ${workoutName} for user ${user.id}`);
 
   // 1. Find or Create the child t_path
@@ -175,6 +175,7 @@ const processSingleChildWorkout = async (
   let currentEstimatedMinutes = 0;
   const potentialBonusExercises: { exercise: ExerciseDefinition; order_index: number }[] = [];
   const omittedExercisesForUserLibrary: ExerciseDefinition[] = [];
+  let omittedCount = 0;
 
   for (const entry of structureEntries || []) {
     const globalLibraryId = entry.exercise_library_id;
@@ -207,6 +208,7 @@ const processSingleChildWorkout = async (
       if (finalExercise.user_id === user.id) {
         omittedExercisesForUserLibrary.push(finalExercise);
       }
+      omittedCount++;
       continue; // Skip this exercise for the current workout
     }
 
@@ -250,7 +252,7 @@ const processSingleChildWorkout = async (
   if (exercisesToInsertPayload.length < MIN_EXERCISES_PER_WORKOUT) {
     const remainingSlots = MIN_EXERCISES_PER_WORKOUT - exercisesToInsertPayload.length;
     const additionalExercises = structureEntries
-      .filter((entry: WorkoutStructureEntry) => { // Explicitly type 'entry' here
+      .filter((entry: WorkoutStructureEntry) => {
         const globalExercise = globalExerciseMap.get(entry.exercise_library_id);
         return globalExercise && !selectedExerciseIds.has(globalExercise.id);
       })
@@ -293,6 +295,7 @@ const processSingleChildWorkout = async (
   }
 
   // 7. Add omitted user-owned exercises to user's library if they aren't already there
+  let addedToUserLibraryCount = 0;
   for (const omittedEx of omittedExercisesForUserLibrary) {
     const { data: existingUserExercise, error: fetchExistingError } = await supabase
       .from('exercise_definitions')
@@ -321,8 +324,10 @@ const processSingleChildWorkout = async (
           icon_url: omittedEx.icon_url,
         });
       if (insertOmittedError) console.error(`Failed to add omitted exercise ${omittedEx.name} to user library:`, insertOmittedError.message);
+      else addedToUserLibraryCount++;
     }
   }
+  return { omittedCount, addedToUserLibraryCount };
 };
 
 // --- Main Serve Function ---
@@ -359,6 +364,8 @@ serve(async (req: Request) => {
 
     // --- ASYNCHRONOUS BACKGROUND WORK ---
     (async () => {
+      let totalOmittedCount = 0;
+      let totalAddedToUserLibraryCount = 0;
       try {
         const { data: tPathData, error: tPathError } = await supabaseServiceRoleClient
           .from('t_paths').select('id, template_name, settings, user_id').eq('id', tPathId).eq('user_id', userId).single();
@@ -381,7 +388,7 @@ serve(async (req: Request) => {
         const workoutNames = getWorkoutNamesForSplit(workoutSplit);
 
         for (const workoutName of workoutNames) {
-          await processSingleChildWorkout(
+          const { omittedCount, addedToUserLibraryCount } = await processSingleChildWorkout(
             supabaseServiceRoleClient,
             user,
             tPathData,
@@ -391,13 +398,24 @@ serve(async (req: Request) => {
             allExercises as ExerciseDefinition[],
             activeLocationTag
           );
+          totalOmittedCount += omittedCount;
+          totalAddedToUserLibraryCount += addedToUserLibraryCount;
         }
         console.log(`[Background] Successfully generated all workouts for T-Path ${tPathId}`);
-        await logUserAlert(supabaseServiceRoleClient, userId, "Workout Plan Updated", `Your workout plan for '${tPathData.template_name ?? 'Unknown T-Path'}' has been successfully updated!`, "info");
+        
+        let feedbackMessage = `Your workout plan for '${tPathData.template_name ?? 'Unknown T-Path'}' has been successfully updated!`;
+        if (totalOmittedCount > 0) {
+          feedbackMessage += ` ${totalOmittedCount} exercises were omitted due to gym availability or session length.`;
+        }
+        if (totalAddedToUserLibraryCount > 0) {
+          feedbackMessage += ` ${totalAddedToUserLibraryCount} exercises were added to 'My Exercises' for future use.`;
+        }
+
+        await logUserAlert(supabaseServiceRoleClient, userId!, "Workout Plan Updated", feedbackMessage, "info");
 
       } catch (backgroundError: any) {
         console.error(`[Background] T-Path generation failed for user ${userId}:`, backgroundError);
-        await logUserAlert(supabaseServiceRoleClient, userId, "Workout Plan Update Failed", `Failed to fully update your workout plan. Some exercises might be missing. Error: ${backgroundError.message}`, "system_error");
+        await logUserAlert(supabaseServiceRoleClient, userId!, "Workout Plan Update Failed", `Failed to fully update your workout plan. Some exercises might be missing. Error: ${backgroundError.message}`, "system_error");
       }
     })();
 

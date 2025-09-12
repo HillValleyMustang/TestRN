@@ -43,7 +43,7 @@ export function getWorkoutColorClass(workoutName: string, type: 'text' | 'border
       colorKey = 'bonus'; // Use bonus color for AI tag
       break;
     case 'Gym': // NEW: For gym location tags
-      colorKey = 'activity'; // Use generic activity color for gym tag
+      colorKey = 'gym'; // Use specific gym color
       break;
     default: return ''; // No specific color for other workouts or 'Ad Hoc Workout'
   }

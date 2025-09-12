@@ -145,7 +145,7 @@ export const UserExerciseList = ({
                   <div className="flex-grow min-w-0 py-1 px-0">
                     <p className="font-medium text-base leading-tight whitespace-normal">{ex.name}</p> {/* Exercise name */}
                     <p className="text-sm text-muted-foreground">{ex.main_muscle}</p> {/* Muscle group on new line */}
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="mt-2 flex flex-wrap gap-2 items-center"> {/* Added items-center for vertical alignment */}
                       {ex.library_id?.startsWith('ai_gen_') && ( // Check for AI-generated
                         <WorkoutBadge workoutName="AI" className="text-xs px-2 py-0.5 flex items-center gap-1">
                           <Sparkles className="h-3 w-3" /> AI

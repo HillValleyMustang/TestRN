@@ -258,7 +258,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
 
   const handleSaveSuccess = useCallback(() => {
     setEditingExercise(null);
-    refreshExercises();
+    refreshExercises(); // Refresh exercises to reflect changes
   }, [refreshExercises]);
 
   const handleDeleteExercise = useCallback(async (exercise: FetchedExerciseDefinition) => {

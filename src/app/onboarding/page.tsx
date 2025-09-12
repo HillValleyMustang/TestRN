@@ -71,6 +71,8 @@ export default function OnboardingPage() {
   const handleSubmit = useCallback(async () => {
     if (fullName && heightCm !== null && weightKg !== null && activeLocationTag) { // Use activeLocationTag here
       await originalHandleSubmit(fullName, heightCm, weightKg, bodyFatPct); // Removed firstGymName prop
+      // Redirect to the new welcome page after profile submission
+      window.location.href = '/onboarding/welcome'; // Use window.location.href for full page reload
     } else {
       toast.error("Please fill in all required personal details.");
     }

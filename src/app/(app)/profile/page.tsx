@@ -348,9 +348,9 @@ export default function ProfilePage() {
         console.log("[ProfilePage Debug] onSubmit: Fetch call to /api/generate-t-path completed.");
 
         if (!response.ok) {
-          const errorText = await response.text();
+          const errorText = await response.json();
           console.error("[ProfilePage Debug] onSubmit: API Error during T-Path regeneration initiation:", errorText);
-          throw new Error(`Failed to initiate T-Path workout regeneration: ${errorText}`);
+          throw new Error(`Failed to initiate T-Path workout regeneration: ${errorText.error}`);
         }
         console.log("[ProfilePage Debug] onSubmit: T-Path regeneration initiated successfully via API.");
       } catch (err: any) {

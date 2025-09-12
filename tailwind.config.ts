@@ -78,7 +78,7 @@ export default {
           'legs': 'hsl(var(--workout-legs))',
           'bonus': 'hsl(var(--workout-bonus))',
           'ai': 'hsl(var(--workout-bonus))', // NEW: AI badge color
-          'gym': 'hsl(var(--workout-activity))', // NEW: Gym badge color
+          'gym': 'hsl(var(--workout-gym))', // NEW: Gym badge color
         },
   		},
   		borderRadius: {
