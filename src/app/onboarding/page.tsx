@@ -40,8 +40,11 @@ export default function OnboardingPage() {
     handleBack,
     handleAdvanceToFinalStep,
     handleSubmit: originalHandleSubmit,
-    firstGymName,
-    setFirstGymName,
+    // NEW: Virtual gym management props
+    virtualGymNames,
+    setVirtualGymNames,
+    activeLocationTag,
+    setActiveLocationTag,
     identifiedExercises,
     setIdentifiedExercises,
   } = useOnboardingForm();
@@ -66,12 +69,12 @@ export default function OnboardingPage() {
   }, [currentStep, originalHandleNext, handleAdvanceToFinalStep]);
 
   const handleSubmit = useCallback(async () => {
-    if (fullName && heightCm !== null && weightKg !== null && firstGymName) {
-      await originalHandleSubmit(fullName, heightCm, weightKg, bodyFatPct, firstGymName);
+    if (fullName && heightCm !== null && weightKg !== null && activeLocationTag) { // Use activeLocationTag here
+      await originalHandleSubmit(fullName, heightCm, weightKg, bodyFatPct); // Removed firstGymName prop
     } else {
       toast.error("Please fill in all required personal details.");
     }
-  }, [originalHandleSubmit, fullName, heightCm, weightKg, bodyFatPct, firstGymName]);
+  }, [originalHandleSubmit, fullName, heightCm, weightKg, bodyFatPct, activeLocationTag]);
 
   if (!session) {
     return <div>Loading...</div>;
@@ -117,8 +120,11 @@ export default function OnboardingPage() {
             setEquipmentMethod={setEquipmentMethod}
             handleNext={originalHandleNext}
             handleBack={handleBack}
-            firstGymName={firstGymName}
-            setFirstGymName={setFirstGymName}
+            // NEW: Pass virtual gym management props
+            virtualGymNames={virtualGymNames}
+            setVirtualGymNames={setVirtualGymNames}
+            activeLocationTag={activeLocationTag}
+            setActiveLocationTag={setActiveLocationTag}
             identifiedExercises={identifiedExercises}
             setIdentifiedExercises={setIdentifiedExercises}
           />
@@ -148,8 +154,8 @@ export default function OnboardingPage() {
             setWeightKg={setWeightKg}
             bodyFatPct={bodyFatPct}
             setBodyFatPct={setBodyFatPct}
-            firstGymName={firstGymName}
-            setFirstGymName={setFirstGymName}
+            firstGymName={activeLocationTag || ''} // Pass activeLocationTag as firstGymName for display
+            setFirstGymName={setActiveLocationTag} // Allow setting activeLocationTag from here
           />
         );
       default:

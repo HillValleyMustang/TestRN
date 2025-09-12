@@ -1,17 +1,35 @@
 "use client";
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { AnalyseGymDialog } from "@/components/manage-exercises/exercise-form/analyze-gym-dialog";
 import { SaveAiExercisePrompt } from "@/components/workout-flow/save-ai-exercise-prompt";
 import { Tables } from "@/types/supabase";
-import { Camera, Dumbbell, CheckCircle2, XCircle } from "lucide-react";
+import { Camera, Dumbbell, CheckCircle2, XCircle, PlusCircle, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/components/session-context-provider";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from '@/lib/utils';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -20,10 +38,13 @@ interface OnboardingStep5Props {
   setEquipmentMethod: (value: "photo" | "skip") => void;
   handleNext: () => void;
   handleBack: () => void;
-  firstGymName: string; // Prop from useOnboardingForm
-  setFirstGymName: (name: string) => void; // Setter for firstGymName
-  identifiedExercises: (Partial<ExerciseDefinition> & { isDuplicate?: boolean; locationTag: string })[]; // New prop
-  setIdentifiedExercises: React.Dispatch<React.SetStateAction<(Partial<ExerciseDefinition> & { isDuplicate?: boolean; locationTag: string })[]>>; // New prop
+  // NEW: Props for managing virtual gyms
+  virtualGymNames: string[];
+  setVirtualGymNames: React.Dispatch<React.SetStateAction<string[]>>;
+  activeLocationTag: string | null;
+  setActiveLocationTag: React.Dispatch<React.SetStateAction<string | null>>;
+  identifiedExercises: (Partial<ExerciseDefinition> & { isDuplicate?: boolean; locationTag: string })[];
+  setIdentifiedExercises: React.Dispatch<React.SetStateAction<(Partial<ExerciseDefinition> & { isDuplicate?: boolean; locationTag: string })[]>>;
 }
 
 export const OnboardingStep5_EquipmentSetup = ({
@@ -31,94 +52,144 @@ export const OnboardingStep5_EquipmentSetup = ({
   setEquipmentMethod,
   handleNext,
   handleBack,
-  firstGymName,
-  setFirstGymName,
+  virtualGymNames,
+  setVirtualGymNames,
+  activeLocationTag,
+  setActiveLocationTag,
   identifiedExercises,
   setIdentifiedExercises,
 }: OnboardingStep5Props) => {
   const { session, supabase } = useSession();
   const [showAnalyseGymDialog, setShowAnalyseGymDialog] = useState(false);
-  const [showSaveAiExercisePrompt, setShowSaveAiExercisePrompt] = useState(false);
-  const [aiIdentifiedExerciseForPrompt, setAiIdentifiedExerciseForPrompt] = useState<Partial<ExerciseDefinition> & { isDuplicate?: boolean; locationTag: string } | null>(null);
-  const [isAiSaving, setIsAiSaving] = useState(false);
+  const [newGymNameInput, setNewGymNameInput] = useState(""); // State for new gym name input
+  
+  // Removed SaveAiExercisePrompt related states as it's not directly used here for saving,
+  // the Edge Function handles the initial persistence.
 
-  const handleExercisesIdentified = useCallback((exercises: (Partial<ExerciseDefinition> & { isDuplicate: boolean })[]) => {
+  useEffect(() => {
+    // If no gym names exist, and the user hasn't skipped, prompt to add one.
+    if (virtualGymNames.length === 0 && equipmentMethod !== 'skip') {
+      setActiveLocationTag(null);
+    } else if (virtualGymNames.length > 0 && !activeLocationTag) {
+      // If gyms exist but none is active, set the first one as active
+      setActiveLocationTag(virtualGymNames[0]);
+    }
+  }, [virtualGymNames, activeLocationTag, setActiveLocationTag, equipmentMethod]);
+
+  const handleAddGym = () => {
+    if (newGymNameInput.trim() && !virtualGymNames.includes(newGymNameInput.trim())) {
+      const newGyms = [...virtualGymNames, newGymNameInput.trim()];
+      setVirtualGymNames(newGyms);
+      setActiveLocationTag(newGymNameInput.trim());
+      setNewGymNameInput("");
+      toast.success(`Virtual gym '${newGymNameInput.trim()}' added!`);
+    } else if (virtualGymNames.includes(newGymNameInput.trim())) {
+      toast.info(`'${newGymNameInput.trim()}' already exists.`);
+      setActiveLocationTag(newGymNameInput.trim()); // Set it as active if it exists
+      setNewGymNameInput("");
+    }
+  };
+
+  const handleExercisesIdentified = useCallback((exercises: (Partial<ExerciseDefinition> & { isDuplicate: boolean; location_tags?: string[] | null })[]) => {
     if (exercises.length === 0) {
       toast.info("AI couldn't identify any equipment in the photo. Try another angle or a different photo!");
       return;
     }
-    // For onboarding, we assume the Edge Function has already handled persistence.
+    // The Edge Function has already handled the persistence and updated location_tags.
     // We just need to update our local state to display them.
-    const exercisesWithTag = exercises.map(ex => ({ ...ex, locationTag: firstGymName }));
+    const exercisesWithTag = exercises.map(ex => ({ 
+      ...ex, 
+      locationTag: activeLocationTag || 'Unknown Gym', // Ensure locationTag is present
+      // Ensure location_tags array is correctly passed if it exists from the Edge Function
+      location_tags: ex.location_tags || [], 
+    }));
     setIdentifiedExercises(prev => [...prev, ...exercisesWithTag]);
     toast.success(`${exercises.length} exercise(s) identified!`);
-  }, [firstGymName, setIdentifiedExercises]);
+  }, [activeLocationTag, setIdentifiedExercises]);
 
   const handleRemoveIdentifiedExercise = useCallback((indexToRemove: number) => {
     setIdentifiedExercises(prev => prev.filter((_, index) => index !== indexToRemove));
     toast.info("Exercise removed from identified list.");
   }, [setIdentifiedExercises]);
 
-  const handleSaveAiExerciseToMyExercises = useCallback(async (exercise: Partial<Tables<'exercise_definitions'>>) => {
-    // This function is primarily for the 'Manage Exercises' page.
-    // In onboarding, the Edge Function already handles the persistence.
-    // We just need to close the prompt.
-    setShowSaveAiExercisePrompt(false);
-    setAiIdentifiedExerciseForPrompt(null);
-    toast.info("Exercise details noted for your profile.");
-  }, []);
-
-  const handleAddOnlyToCurrentWorkout = useCallback(async (exercise: Partial<Tables<'exercise_definitions'>>) => {
-    // This function is primarily for the 'Workout' page.
-    // In onboarding, the Edge Function already handles the persistence.
-    // We just need to close the prompt.
-    setShowSaveAiExercisePrompt(false);
-    setAiIdentifiedExerciseForPrompt(null);
-    toast.info("Exercise details noted for your profile.");
-  }, []);
-
-  const handleEditIdentifiedExercise = useCallback((exercise: Partial<Tables<'exercise_definitions'>>) => {
-    // This is not directly supported in the onboarding flow for identified exercises.
-    // The user can edit them later in 'Manage Exercises'.
-    toast.info("You can edit this exercise later in 'Manage Exercises'.");
-    setShowSaveAiExercisePrompt(false);
-    setAiIdentifiedExerciseForPrompt(null);
-  }, []);
-
   const isNextButtonDisabled = equipmentMethod === 'photo' && identifiedExercises.length === 0;
+  const canUploadPhoto = activeLocationTag !== null && activeLocationTag.trim() !== '';
 
   return (
     <>
       <div className="space-y-6">
         <div className="space-y-4">
+          {/* Virtual Gym Management */}
           <div>
-            <Label htmlFor="firstGymName">My First Virtual Gym Name</Label>
-            <Input 
-              id="firstGymName" 
-              placeholder="e.g., Home Gym, University Gym" 
-              value={firstGymName}
-              onChange={(e) => setFirstGymName(e.target.value)}
-              required
-              disabled={equipmentMethod === 'skip'}
-              className="text-sm"
-            />
+            <Label htmlFor="activeGymSelect">Active Virtual Gym</Label>
+            <div className="flex gap-2">
+              <Select
+                value={activeLocationTag || ''}
+                onValueChange={(value) => setActiveLocationTag(value === 'none' ? null : value)}
+                disabled={equipmentMethod === 'skip'}
+              >
+                <SelectTrigger id="activeGymSelect">
+                  <SelectValue placeholder="Select or add a gym" />
+                </SelectTrigger>
+                <SelectContent>
+                  {virtualGymNames.map(gym => (
+                    <SelectItem key={gym} value={gym}>{gym}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="icon" disabled={equipmentMethod === 'skip'}>
+                    <PlusCircle className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Add New Virtual Gym</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Enter a name for your new gym location. This will become your new active gym.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <div className="py-4">
+                    <Input
+                      placeholder="e.g., Office Gym"
+                      value={newGymNameInput}
+                      onChange={(e) => setNewGymNameInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddGym();
+                        }
+                      }}
+                    />
+                  </div>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setNewGymNameInput("")}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleAddGym} disabled={!newGymNameInput.trim()}>
+                      Add and Set Active
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
             <p className="text-xs text-muted-foreground mt-1">
-              This name will be used to tag equipment identified from your photos.
+              Equipment identified from photos will be tagged with the active gym.
             </p>
           </div>
 
+          {/* Upload Photo Button */}
           <div className="flex flex-col space-y-2">
             <Button 
               variant="outline" 
               onClick={() => {
-                if (!firstGymName.trim()) {
-                  toast.error("Please enter a gym name before uploading a photo.");
+                if (!canUploadPhoto) {
+                  toast.error("Please select or add a virtual gym before uploading a photo.");
                   return;
                 }
                 setEquipmentMethod('photo');
                 setShowAnalyseGymDialog(true);
               }}
-              disabled={!firstGymName.trim()}
+              disabled={!canUploadPhoto || equipmentMethod === 'skip'}
             >
               <Camera className="h-4 w-4 mr-2" /> Upload Gym Photo
             </Button>
@@ -127,9 +198,10 @@ export const OnboardingStep5_EquipmentSetup = ({
             </p>
           </div>
           
+          {/* Identified Exercises List */}
           {identifiedExercises.length > 0 && (
             <div className="space-y-2">
-              <h4 className="font-semibold text-sm">Identified Equipment for "{firstGymName}":</h4>
+              <h4 className="font-semibold text-sm">Identified Equipment:</h4>
               <ScrollArea className="h-40 border rounded-md p-2">
                 <ul className="space-y-1">
                   {identifiedExercises.map((ex, index) => (
@@ -137,6 +209,11 @@ export const OnboardingStep5_EquipmentSetup = ({
                       <div className="flex items-center gap-2">
                         <Dumbbell className="h-4 w-4 text-primary" />
                         <span>{ex.name}</span>
+                        {ex.locationTag && (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Building2 className="h-3 w-3" /> {ex.locationTag}
+                          </span>
+                        )}
                         {ex.isDuplicate && <span className="text-xs text-muted-foreground">(Existing)</span>}
                       </div>
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveIdentifiedExercise(index)}>
@@ -149,12 +226,14 @@ export const OnboardingStep5_EquipmentSetup = ({
             </div>
           )}
 
+          {/* Skip for Now Option */}
           <div className="flex items-center space-x-2">
             <Button 
               variant="outline" 
               onClick={() => {
                 setEquipmentMethod('skip');
                 setIdentifiedExercises([]); // Clear identified exercises if skipping
+                setActiveLocationTag(null); // Clear active location tag
               }}
               className={cn(
                 "flex-1",
@@ -169,13 +248,14 @@ export const OnboardingStep5_EquipmentSetup = ({
           </div>
         </div>
         
+        {/* Navigation Buttons */}
         <div className="flex justify-between">
           <Button variant="outline" onClick={handleBack}>
             Back
           </Button>
           <Button 
             onClick={handleNext} 
-            disabled={!equipmentMethod || !firstGymName.trim() || isNextButtonDisabled}
+            disabled={!equipmentMethod || (equipmentMethod === 'photo' && identifiedExercises.length === 0)}
           >
             Next
           </Button>
@@ -186,21 +266,9 @@ export const OnboardingStep5_EquipmentSetup = ({
         open={showAnalyseGymDialog}
         onOpenChange={setShowAnalyseGymDialog}
         onExercisesIdentified={handleExercisesIdentified}
-        locationTag={firstGymName.trim() || null}
+        locationTag={activeLocationTag} // Pass the active location tag
       />
-      {aiIdentifiedExerciseForPrompt && (
-        <SaveAiExercisePrompt
-          open={showSaveAiExercisePrompt}
-          onOpenChange={setShowSaveAiExercisePrompt}
-          exercise={aiIdentifiedExerciseForPrompt}
-          onSaveToMyExercises={handleSaveAiExerciseToMyExercises}
-          onAddOnlyToCurrentWorkout={handleAddOnlyToCurrentWorkout}
-          context="workout-flow" // Context is onboarding, but behavior is similar to workout-flow for saving
-          onEditExercise={handleEditIdentifiedExercise}
-          isSaving={isAiSaving}
-          isDuplicate={aiIdentifiedExerciseForPrompt.isDuplicate || false}
-        />
-      )}
+      {/* Removed SaveAiExercisePrompt as it's not used in this flow */}
     </>
   );
 };

@@ -24,8 +24,8 @@ interface OnboardingStep6Props {
   setWeightKg: (value: number | null) => void;
   bodyFatPct: number | null;
   setBodyFatPct: (value: number | null) => void;
-  firstGymName: string; // New prop for gym name
-  setFirstGymName: (value: string) => void; // New prop for gym name
+  firstGymName: string; // Now represents the activeLocationTag
+  setFirstGymName: (name: string) => void; // Setter for activeLocationTag
 }
 
 export const OnboardingStep6_Consent = ({
@@ -116,7 +116,7 @@ export const OnboardingStep6_Consent = ({
 
           {/* New First Gym Name Input */}
           <div>
-            <Label htmlFor="firstGymName">My First Gym Name</Label>
+            <Label htmlFor="firstGymName">My Active Virtual Gym Name</Label> {/* Updated label */}
             <Input 
               id="firstGymName" 
               placeholder="e.g., Home Gym, University Gym" 
@@ -124,9 +124,10 @@ export const OnboardingStep6_Consent = ({
               onChange={(e) => setFirstGymName(e.target.value)}
               required
               className="text-sm"
+              disabled // Disable as it's set in previous step
             />
             <p className="text-xs text-muted-foreground mt-1">
-              This will be your first 'virtual gym'. You can add more later.
+              This is the gym you selected in the previous step.
             </p>
           </div>
 

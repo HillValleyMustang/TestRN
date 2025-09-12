@@ -23,7 +23,11 @@ export const useOnboardingForm = () => {
   const [consentGiven, setConsentGiven] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isInitialSetupLoading, setIsInitialSetupLoading] = useState(false);
-  const [firstGymName, setFirstGymName] = useState<string>("");
+  
+  // NEW: State for managing multiple virtual gym names and the active one
+  const [virtualGymNames, setVirtualGymNames] = useState<string[]>([]);
+  const [activeLocationTag, setActiveLocationTag] = useState<string | null>(null);
+
   const [identifiedExercises, setIdentifiedExercises] = useState<(Partial<ExerciseDefinition> & { isDuplicate?: boolean; locationTag: string })[]>([]);
 
   const tPathDescriptions = {
@@ -163,7 +167,7 @@ export const useOnboardingForm = () => {
     }
   }, [session, supabase, tPathType, experience, goalFocus, preferredMuscles, constraints, sessionLength, equipmentMethod]);
 
-  const handleSubmit = useCallback(async (fullName: string, heightCm: number, weightKg: number, bodyFatPct: number | null, gymName: string) => {
+  const handleSubmit = useCallback(async (fullName: string, heightCm: number, weightKg: number, bodyFatPct: number | null) => {
     if (!session) return;
     
     setLoading(true);
@@ -180,7 +184,7 @@ export const useOnboardingForm = () => {
         height_cm: heightCm,
         weight_kg: weightKg,
         body_fat_pct: bodyFatPct,
-        active_location_tag: gymName, // Set active_location_tag here
+        active_location_tag: activeLocationTag, // Use activeLocationTag from state
         updated_at: new Date().toISOString(),
       };
 
@@ -198,7 +202,7 @@ export const useOnboardingForm = () => {
     } finally {
       setLoading(false);
     }
-  }, [session, supabase, router]);
+  }, [session, supabase, router, activeLocationTag]); // Add activeLocationTag to dependencies
 
   return {
     currentStep,
@@ -225,8 +229,11 @@ export const useOnboardingForm = () => {
     handleBack,
     handleAdvanceToFinalStep,
     handleSubmit,
-    firstGymName,
-    setFirstGymName,
+    // NEW: Expose virtualGymNames and activeLocationTag
+    virtualGymNames,
+    setVirtualGymNames,
+    activeLocationTag,
+    setActiveLocationTag,
     identifiedExercises,
     setIdentifiedExercises,
   };
