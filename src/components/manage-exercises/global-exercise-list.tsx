@@ -101,7 +101,7 @@ export const GlobalExerciseList = ({
                     )}
                   </div>
                   {/* Action buttons group */}
-                  <div className="flex gap-1 flex-shrink-0 mt-2 sm:mt-0 justify-center sm:justify-end">
+                  <div className="flex gap-1 flex-shrink-0 mt-2 sm:mt-0">
                     <Button variant="ghost" size="icon" title="More Info" onClick={(e) => handleOpenInfoDialog(ex, e)}>
                       <Info className="h-4 w-4" />
                     </Button>
