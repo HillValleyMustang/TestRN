@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { EditExerciseDialog } from "./edit-exercise-dialog"; // Import the new dialog
 
-// Removed local FetchedExerciseDefinition definition
+type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 interface UserExerciseListProps {
   exercises: FetchedExerciseDefinition[];
@@ -39,7 +39,7 @@ interface UserExerciseListProps {
   onDelete: (exercise: FetchedExerciseDefinition) => void;
   editingExercise: FetchedExerciseDefinition | null;
   onCancelEdit: () => void;
-  onSaveSuccess: () => void;
+  onSaveSuccess: (savedExercise?: ExerciseDefinition) => void;
   exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>;
   onRemoveFromWorkout: (workoutId: string, exerciseId: string) => void;
   onToggleFavorite: (exercise: FetchedExerciseDefinition) => void;
@@ -106,8 +106,8 @@ export const UserExerciseList = ({
     onCancelEdit(); // Ensure parent state is reset
   };
 
-  const handleEditDialogSaveSuccess = () => {
-    onSaveSuccess(); // Trigger parent refresh
+  const handleEditDialogSaveSuccess = (savedExercise?: ExerciseDefinition) => {
+    onSaveSuccess(savedExercise); // Trigger parent refresh
     handleEditDialogClose(); // Close dialog and reset state
   };
 
@@ -122,7 +122,7 @@ export const UserExerciseList = ({
           <ExerciseForm
             editingExercise={null} // Always null for adding new
             onCancelEdit={() => {}} // No specific cancel logic needed here for add form
-            onSaveSuccess={onAddSuccess} // Use onAddSuccess for new exercises
+            onSaveSuccess={onSaveSuccess} // Use onSaveSuccess for new exercises
             availableLocationTags={availableLocationTags} // Pass down the tags
             // Removed onAddOnlyToCurrentWorkout prop
           />

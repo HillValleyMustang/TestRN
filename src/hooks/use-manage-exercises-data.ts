@@ -8,8 +8,7 @@ import { getMaxMinutes } from '@/lib/utils';
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
 import { LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise } from '@/lib/db';
 
-// Removed local FetchedExerciseDefinition definition
-
+type ExerciseDefinition = Tables<'exercise_definitions'>;
 type TPath = Tables<'t_paths'>;
 
 interface UseManageExercisesDataProps {
@@ -257,12 +256,18 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
     setEditingExercise(null);
   }, []);
 
-  const handleSaveSuccess = useCallback(() => {
+  const handleSaveSuccess = useCallback((savedExercise?: ExerciseDefinition) => {
     setEditingExercise(null);
-    refreshExercises(); // This updates the cache and triggers useLiveQuery
-    // Explicitly call fetchPageData to re-process and display the updated list
-    fetchPageData(); 
-  }, [refreshExercises, fetchPageData]);
+    if (savedExercise) {
+      const exerciseExists = userExercises.some(ex => ex.id === savedExercise.id);
+      if (exerciseExists) {
+        setUserExercises(prev => prev.map(ex => ex.id === savedExercise.id ? { ...savedExercise, type: savedExercise.type as FetchedExerciseDefinition['type'] } : ex));
+      } else {
+        setUserExercises(prev => [...prev, { ...savedExercise, type: savedExercise.type as FetchedExerciseDefinition['type'] }].sort((a, b) => a.name.localeCompare(b.name)));
+      }
+    }
+    refreshExercises();
+  }, [userExercises, refreshExercises]);
 
   const handleDeleteExercise = useCallback(async (exercise: FetchedExerciseDefinition) => {
     if (!sessionUserId || !exercise.id || exercise.user_id !== sessionUserId) {
@@ -275,11 +280,10 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       if (error) throw new Error(error.message);
       toast.success("Exercise deleted successfully!", { id: toastId });
       refreshExercises();
-      fetchPageData(); // Also refresh after delete
     } catch (err: any) {
       toast.error("Failed to delete exercise: " + err.message, { id: toastId });
     }
-  }, [sessionUserId, supabase, refreshExercises, fetchPageData]);
+  }, [sessionUserId, supabase, refreshExercises]);
 
   const handleToggleFavorite = useCallback(async (exercise: FetchedExerciseDefinition) => {
     if (!sessionUserId || !exercise.id) return;
@@ -302,11 +306,10 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       }
       toast.success(newFavoriteStatus ? "Added to favourites!" : "Removed from favourites.", { id: toastId });
       refreshExercises();
-      fetchPageData(); // Also refresh after favorite toggle
     } catch (err: any) {
       toast.error("Failed to update favourite status: " + err.message, { id: toastId });
     }
-  }, [sessionUserId, supabase, refreshExercises, fetchPageData]);
+  }, [sessionUserId, supabase, refreshExercises]);
 
   const handleOptimisticAdd = useCallback((exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => {
     setExerciseWorkoutsMap(prev => {
@@ -338,12 +341,10 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       if (error) throw new Error(error.message);
       toast.success("Exercise removed from workout successfully!", { id: toastId });
       refreshTPaths();
-      refreshExercises(); // Refresh exercises to update workout badges
-      fetchPageData(); // Also refresh after remove from workout
     } catch (err: any) {
       toast.error("Failed to remove exercise from workout: " + err.message, { id: toastId });
     }
-  }, [sessionUserId, supabase, refreshTPaths, refreshExercises, fetchPageData]);
+  }, [sessionUserId, supabase, refreshTPaths]);
 
   return {
     globalExercises,

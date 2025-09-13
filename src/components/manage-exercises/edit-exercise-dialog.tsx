@@ -5,13 +5,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ExerciseForm } from "@/components/manage-exercises/exercise-form";
 import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
 
-// Removed local ExerciseDefinition definition
+type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 interface EditExerciseDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   exercise: FetchedExerciseDefinition | null;
-  onSaveSuccess: () => void;
+  onSaveSuccess: (savedExercise?: ExerciseDefinition) => void;
   availableLocationTags: string[]; // New prop
 }
 
@@ -26,8 +26,8 @@ export const EditExerciseDialog = ({
     onOpenChange(false); // Close the dialog
   };
 
-  const handleSaveSuccessAndClose = () => {
-    onSaveSuccess(); // Trigger parent refresh
+  const handleSaveSuccessAndClose = (savedExercise?: ExerciseDefinition) => {
+    onSaveSuccess(savedExercise); // Trigger parent refresh
     onOpenChange(false); // Close the dialog
   };
 

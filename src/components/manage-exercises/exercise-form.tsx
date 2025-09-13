@@ -63,7 +63,7 @@ const exerciseSchema = z.object({
 interface ExerciseFormProps {
   editingExercise: FetchedExerciseDefinition | null;
   onCancelEdit: () => void;
-  onSaveSuccess: () => void;
+  onSaveSuccess: (savedExercise?: ExerciseDefinition) => void;
   availableLocationTags: string[];
 }
 
@@ -180,28 +180,30 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
     const isEditingUserOwned = editingExercise && editingExercise.user_id === session.user.id && editingExercise.library_id === null && editingExercise.id !== null;
 
     if (isEditingUserOwned) {
-      const { error } = await supabase
+      const { data: updatedExercise, error } = await supabase
         .from('exercise_definitions')
         .update(exerciseData)
-        .eq('id', editingExercise.id);
+        .eq('id', editingExercise.id)
+        .select()
+        .single();
 
       if (error) {
         toast.error("Failed to update exercise: " + error.message);
       } else {
         toast.success("Exercise updated successfully!");
         onCancelEdit();
-        onSaveSuccess();
+        onSaveSuccess(updatedExercise as ExerciseDefinition);
         setIsExpanded(false);
       }
     } else {
-      const { error } = await supabase.from('exercise_definitions').insert([{ 
+      const { data: newExercise, error } = await supabase.from('exercise_definitions').insert([{ 
         ...exerciseData, 
         user_id: session.user.id,
         library_id: null,
         is_favorite: false,
         created_at: new Date().toISOString(),
         icon_url: 'https://i.imgur.com/2Y4Y4Y4.png', // Add default icon URL
-      }]).select('id').single();
+      }]).select().single();
       if (error) {
         toast.error("Failed to add exercise: " + error.message);
       } else {
@@ -209,7 +211,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
         form.reset();
         setSelectedMuscles([]);
         setSelectedTypes([]);
-        onSaveSuccess();
+        onSaveSuccess(newExercise as ExerciseDefinition);
         setIsExpanded(false);
       }
     }
