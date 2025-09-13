@@ -259,8 +259,10 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
 
   const handleSaveSuccess = useCallback(() => {
     setEditingExercise(null);
-    refreshExercises(); // Refresh exercises to reflect changes
-  }, [refreshExercises]);
+    refreshExercises(); // This updates the cache and triggers useLiveQuery
+    // Explicitly call fetchPageData to re-process and display the updated list
+    fetchPageData(); 
+  }, [refreshExercises, fetchPageData]);
 
   const handleDeleteExercise = useCallback(async (exercise: FetchedExerciseDefinition) => {
     if (!sessionUserId || !exercise.id || exercise.user_id !== sessionUserId) {
@@ -273,10 +275,11 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       if (error) throw new Error(error.message);
       toast.success("Exercise deleted successfully!", { id: toastId });
       refreshExercises();
+      fetchPageData(); // Also refresh after delete
     } catch (err: any) {
       toast.error("Failed to delete exercise: " + err.message, { id: toastId });
     }
-  }, [sessionUserId, supabase, refreshExercises]);
+  }, [sessionUserId, supabase, refreshExercises, fetchPageData]);
 
   const handleToggleFavorite = useCallback(async (exercise: FetchedExerciseDefinition) => {
     if (!sessionUserId || !exercise.id) return;
@@ -299,10 +302,11 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       }
       toast.success(newFavoriteStatus ? "Added to favourites!" : "Removed from favourites.", { id: toastId });
       refreshExercises();
+      fetchPageData(); // Also refresh after favorite toggle
     } catch (err: any) {
       toast.error("Failed to update favourite status: " + err.message, { id: toastId });
     }
-  }, [sessionUserId, supabase, refreshExercises]);
+  }, [sessionUserId, supabase, refreshExercises, fetchPageData]);
 
   const handleOptimisticAdd = useCallback((exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => {
     setExerciseWorkoutsMap(prev => {
@@ -334,10 +338,12 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       if (error) throw new Error(error.message);
       toast.success("Exercise removed from workout successfully!", { id: toastId });
       refreshTPaths();
+      refreshExercises(); // Refresh exercises to update workout badges
+      fetchPageData(); // Also refresh after remove from workout
     } catch (err: any) {
       toast.error("Failed to remove exercise from workout: " + err.message, { id: toastId });
     }
-  }, [sessionUserId, supabase, refreshTPaths]);
+  }, [sessionUserId, supabase, refreshTPaths, refreshExercises, fetchPageData]);
 
   return {
     globalExercises,

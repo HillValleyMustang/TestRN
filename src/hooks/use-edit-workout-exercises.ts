@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "@/components/session-context-provider";
-import { Tables } from "@/types/supabase";
+import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
 import { toast } from "sonner";
 import { LocalExerciseDefinition } from '@/lib/db'; // Import LocalExerciseDefinition
 
@@ -27,7 +27,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
   const { session, supabase } = useSession();
 
   const [exercises, setExercises] = useState<WorkoutExerciseWithDetails[]>([]);
-  const [allAvailableExercises, setAllAvailableExercises] = useState<ExerciseDefinition[]>([]);
+  const [allAvailableExercises, setAllAvailableExercises] = useState<FetchedExerciseDefinition[]>([]);
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -61,7 +61,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       // 2. Fetch all exercise definitions that are either user-owned or global
       const { data: allExercisesData, error: allExercisesError } = await supabase
         .from('exercise_definitions')
-        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url')
+        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url, location_tags')
         .or(`user_id.eq.${session.user.id},user_id.is.null`) // Fetch all user's and global exercises
         .order('name', { ascending: true });
 
@@ -98,7 +98,10 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       // Filter available exercises for the "Add Exercise" dropdown
       // This list should include all global exercises and all user-created exercises.
       // No "adoption" filtering here, as the dropdown should show everything available to link.
-      setAllAvailableExercises(allExercisesData as ExerciseDefinition[]);
+      setAllAvailableExercises((allExercisesData || []).map(ex => ({
+        ...ex,
+        type: ex.type as FetchedExerciseDefinition['type'], // Explicitly cast type
+      })));
 
     } catch (err: any) {
       toast.error("Failed to load workout exercises: " + err.message);
@@ -216,7 +219,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     }
     const exercise = allAvailableExercises.find(e => e.id === selectedExerciseToAdd);
     if (exercise) {
-      setExerciseToAddDetails(exercise);
+      setExerciseToAddDetails(exercise as ExerciseDefinition); // Cast to ExerciseDefinition
       setShowAddAsBonusDialog(true);
     }
   }, [selectedExerciseToAdd, allAvailableExercises]);
