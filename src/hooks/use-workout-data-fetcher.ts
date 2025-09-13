@@ -174,6 +174,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
         ...ex,
         id: ex.id, // LocalExerciseDefinition.id is string, compatible with FetchedExerciseDefinition.id: string | null
         is_favorited_by_current_user: false, // Default, will be updated later if needed
+        type: ex.type as FetchedExerciseDefinition['type'], // Explicitly cast type
       })));
       
       const userProfile = cachedProfile[0];
@@ -210,7 +211,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
           .map(tpe => {
             const exerciseDef = exerciseDefMap.get(tpe.exercise_id);
             if (!exerciseDef) return null;
-            return { ...exerciseDef, is_bonus_exercise: tpe.is_bonus_exercise || false };
+            return { ...exerciseDef, is_bonus_exercise: tpe.is_bonus_exercise || false, type: exerciseDef.type as WorkoutExercise['type'] };
           })
           .filter(Boolean) as WorkoutExercise[];
         newWorkoutExercisesCache[workout.id] = exercisesForWorkout;

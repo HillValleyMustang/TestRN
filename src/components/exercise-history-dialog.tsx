@@ -117,9 +117,9 @@ export const ExerciseHistoryDialog = ({ open, onOpenChange, exerciseId, exercise
                   <TableRow>
                     <TableHead>Date</TableHead>
                     {exerciseType === 'weight' && <TableHead>Weight ({preferredWeightUnit})</TableHead>}
-                    {exerciseType === 'weight' && <TableHead>Reps</TableHead>}
+                    {(exerciseType === 'weight' || exerciseType === 'body_weight') && <TableHead>Reps</TableHead>} {/* Added body_weight */}
                     {exerciseType === 'timed' && <TableHead>Time (s)</TableHead>}
-                    {exerciseCategory === 'Unilateral' && (
+                    {exerciseCategory === 'Unilateral' && (exerciseType === 'weight' || exerciseType === 'body_weight') && ( // Added body_weight
                       <>
                         <TableHead>Reps (L)</TableHead>
                         <TableHead>Reps (R)</TableHead>
@@ -140,9 +140,9 @@ export const ExerciseHistoryDialog = ({ open, onOpenChange, exerciseId, exercise
                           {formatWeight(convertWeight(log.weight_kg, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs')}
                         </TableCell>
                       )}
-                      {exerciseType === 'weight' && <TableCell>{log.reps ?? '-'}</TableCell>}
+                      {(exerciseType === 'weight' || exerciseType === 'body_weight') && exerciseCategory !== 'Unilateral' && <TableCell>{log.reps ?? '-'}</TableCell>} {/* Added body_weight */}
                       {exerciseType === 'timed' && <TableCell>{log.time_seconds ?? '-'}</TableCell>}
-                      {exerciseCategory === 'Unilateral' && (
+                      {exerciseCategory === 'Unilateral' && (exerciseType === 'weight' || exerciseType === 'body_weight') && ( // Added body_weight
                         <>
                           <TableCell>{log.reps_l ?? '-'}</TableCell>
                           <TableCell>{log.reps_r ?? '-'}</TableCell>

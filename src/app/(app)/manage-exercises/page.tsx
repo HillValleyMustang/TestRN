@@ -122,7 +122,7 @@ export default function ManageExercisesPage() {
       const { error } = await supabase.from('exercise_definitions').insert([{
         name: exercise.name!,
         main_muscle: exercise.main_muscle!,
-        type: exercise.type!,
+        type: exercise.type! as Tables<'exercise_definitions'>['type'], // Explicitly cast
         category: exercise.category,
         description: exercise.description,
         pro_tip: exercise.pro_tip,
@@ -171,7 +171,7 @@ export default function ManageExercisesPage() {
       // Ensure name, main_muscle, type are explicitly string
       name: exercise.name || '',
       main_muscle: exercise.main_muscle || '',
-      type: exercise.type || 'weight', // Default to 'weight' if undefined
+      type: (exercise.type || 'weight') as FetchedExerciseDefinition['type'], // Default to 'weight' if undefined // <-- TypeScript compiler error here
     };
     handleEditClick(exerciseToEdit);
     setShowSaveAiExercisePrompt(false);

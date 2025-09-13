@@ -190,12 +190,13 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
 
       (cachedExercises || []).forEach(ex => {
         if (ex.user_id === sessionUserId && ex.library_id === null) {
-          userOwnedExercisesList.push({ ...ex, id: ex.id, is_favorite: !!ex.is_favorite });
+          userOwnedExercisesList.push({ ...ex, id: ex.id, is_favorite: !!ex.is_favorite, type: ex.type as FetchedExerciseDefinition['type'] });
         } else if (ex.user_id === null) {
           globalExercisesList.push({
             ...ex,
             id: ex.id,
-            is_favorited_by_current_user: favoritedGlobalExerciseIds.has(ex.id)
+            is_favorited_by_current_user: favoritedGlobalExerciseIds.has(ex.id),
+            type: ex.type as FetchedExerciseDefinition['type'],
           });
         }
       });

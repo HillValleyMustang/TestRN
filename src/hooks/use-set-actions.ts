@@ -58,12 +58,16 @@ export const useSetActions = ({
 
     const newSet: SetLogState = {
       id: null, created_at: null, session_id: currentSessionId, exercise_id: exerciseId,
-      weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null,
+      weight_kg: exerciseType === 'weight' ? (lastSet?.weight_kg || null) : null, // Only carry over weight for weight type
+      reps: (exerciseType === 'weight' || exerciseType === 'body_weight') && exerciseCategory !== 'Unilateral' ? (lastSet?.reps || null) : null,
+      reps_l: (exerciseType === 'weight' || exerciseType === 'body_weight') && exerciseCategory === 'Unilateral' ? (lastSet?.reps_l || null) : null,
+      reps_r: (exerciseType === 'weight' || exerciseType === 'body_weight') && exerciseCategory === 'Unilateral' ? (lastSet?.reps_r || null) : null,
+      time_seconds: exerciseType === 'timed' ? (lastSet?.time_seconds || null) : null,
       is_pb: false, isSaved: false, isPR: false,
       lastWeight: lastSet?.weight_kg, lastReps: lastSet?.reps, lastRepsL: lastSet?.reps_l, lastRepsR: lastSet?.reps_r, lastTimeSeconds: lastSet?.time_seconds,
     };
     await addDraft(newSet);
-  }, [exerciseId, currentSessionId, sets, addDraft]);
+  }, [exerciseId, currentSessionId, sets, addDraft, exerciseType, exerciseCategory]);
 
   const handleInputChange = useCallback(async (setIndex: number, field: NumericSetLogFields, value: string) => {
     if (!isValidId(exerciseId)) {

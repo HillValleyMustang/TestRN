@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { LoadingOverlay } from "@/components/loading-overlay";
 import { ExerciseInfoDialog } from "@/components/exercise-info-dialog";
 import { WorkoutBadge } from "@/components/workout-badge";
+import { FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
 
 // Import new modular components and hook
 import { useEditWorkoutExercises } from "@/hooks/use-edit-workout-exercises";
@@ -124,7 +125,7 @@ export const EditWorkoutExercisesDialog = ({
         <ExerciseInfoDialog
           open={isInfoDialogOpen}
           onOpenChange={setIsInfoDialogOpen}
-          exercise={selectedExerciseForInfo}
+          exercise={selectedExerciseForInfo as FetchedExerciseDefinition} // <-- TypeScript compiler error here
         />
       )}
 

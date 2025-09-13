@@ -93,7 +93,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
     createWorkoutSessionInDb,
     finishWorkoutSession,
   } = useWorkoutSessionPersistence({
-    allAvailableExercises,
+    allAvailableExercises: allAvailableExercises as Tables<'exercise_definitions'>[], // Cast to ExerciseDefinition[] for this hook's internal use
     workoutExercisesCache,
     activeWorkout,
     currentSessionId,
@@ -112,7 +112,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
     substituteExercise,
     updateExerciseSets,
   } = useSessionExerciseManagement({
-    allAvailableExercises,
+    allAvailableExercises: allAvailableExercises as Tables<'exercise_definitions'>[], // Cast to ExerciseDefinition[] for this hook's internal use
     coreState: {
       activeWorkout, exercisesForSession, exercisesWithSets, currentSessionId, sessionStartTime,
       completedExercises, isCreatingSession, isWorkoutActive, hasUnsavedChanges,
@@ -166,7 +166,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
           const exerciseDef = allAvailableExercises.find(ex => ex.id === exerciseId);
 
           if (exerciseDef) {
-            newExercisesForSession.push({ ...exerciseDef, is_bonus_exercise: false });
+            newExercisesForSession.push({ ...exerciseDef, is_bonus_exercise: false, type: exerciseDef.type as WorkoutExercise['type'] });
             
             const setsForExercise: SetLogState[] = sortedDrafts.map(draft => ({
               id: draft.set_log_id || null,

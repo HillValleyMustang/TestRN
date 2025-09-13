@@ -3,14 +3,14 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
-import { Tables } from "@/types/supabase";
+import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Updated import
 import { WorkoutExerciseWithDetails } from "@/hooks/use-edit-workout-exercises";
 import { ExerciseSelectionDropdown } from '@/components/shared/exercise-selection-dropdown'; // Updated import path
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 interface AddExerciseSectionProps {
-  allAvailableExercises: ExerciseDefinition[];
+  allAvailableExercises: FetchedExerciseDefinition[]; // <-- TypeScript compiler error here
   exercisesInWorkout: WorkoutExerciseWithDetails[];
   selectedExerciseToAdd: string;
   setSelectedExerciseToAdd: (id: string) => void;

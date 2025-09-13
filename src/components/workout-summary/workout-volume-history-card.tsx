@@ -61,6 +61,7 @@ export const WorkoutVolumeHistoryCard = ({ workoutTemplateName, currentSessionId
 
         (setLogsData || []).forEach(log => {
           const exerciseDef = log.exercise_id ? exerciseDefMap.get(log.exercise_id) : null;
+          // Only include 'weight' type exercises in volume calculation
           if (exerciseDef?.type === 'weight' && log.weight_kg && log.reps) {
             sessionVolumes[log.session_id!].volume += (log.weight_kg * log.reps);
           }

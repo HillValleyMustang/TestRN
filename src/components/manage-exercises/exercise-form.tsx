@@ -52,7 +52,7 @@ type ExerciseDefinition = Tables<'exercise_definitions'>;
 const exerciseSchema = z.object({
   name: z.string().min(1, "Exercise name is required."),
   main_muscles: z.array(z.string()).min(1, "At least one main muscle group is required."),
-  type: z.array(z.enum(["weight", "timed"])).min(1, "At least one exercise type is required."),
+  type: z.array(z.enum(["weight", "timed", "body_weight"])).min(1, "At least one exercise type is required."), // Added 'body_weight'
   category: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
   pro_tip: z.string().optional().nullable(),
@@ -113,7 +113,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
       form.reset({
         name: editingExercise.name,
         main_muscles: muscleGroups,
-        type: editingExercise.type ? [editingExercise.type] as ("weight" | "timed")[] : [],
+        type: editingExercise.type ? [editingExercise.type] as ("weight" | "timed" | "body_weight")[] : [], // Updated type
         category: editingExercise.category || null,
         description: editingExercise.description || null,
         pro_tip: editingExercise.pro_tip || null,
@@ -121,7 +121,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
         location_tags: editingExercise.location_tags || [], // Ensure location_tags are set
       });
       setSelectedMuscles(muscleGroups);
-      setSelectedTypes(editingExercise.type ? [editingExercise.type] as ("weight" | "timed")[] : []);
+      setSelectedTypes(editingExercise.type ? [editingExercise.type] as ("weight" | "timed" | "body_weight")[] : []); // Updated type
       setIsExpanded(true);
     } else {
       form.reset();
@@ -131,7 +131,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
     }
   }, [editingExercise, form]);
 
-  const handleTypeChange = (type: "weight" | "timed") => {
+  const handleTypeChange = (type: "weight" | "timed" | "body_weight") => { // Updated type
     form.setValue("type", [type]);
     setSelectedTypes([type]);
   };

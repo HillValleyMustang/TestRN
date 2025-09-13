@@ -104,6 +104,47 @@ export const useProgressionSuggestion = ({
               suggestionMessage += ` You're consistent! Consider adding a set.`;
             }
           }
+        } else if (exerciseType === 'body_weight') { // NEW: Body Weight logic
+          const lastReps = lastSet.reps || 0;
+          const lastRepsL = lastSet.reps_l || 0;
+          const lastRepsR = lastSet.reps_r || 0;
+
+          if (exerciseCategory === 'Unilateral') {
+            if (lastRepsL >= 10 && lastRepsR >= 10) {
+              suggestedRepsL = lastRepsL + 1;
+              suggestedRepsR = lastRepsR + 1;
+              suggestionMessage = `Great work! Try increasing reps to ${suggestedRepsL} L / ${suggestedRepsR} R.`;
+            } else if (lastRepsL > 0 || lastRepsR > 0) {
+              suggestedRepsL = lastRepsL + 1;
+              suggestedRepsR = lastRepsR + 1;
+              suggestionMessage = `Good effort! Try to hit ${suggestedRepsL} L / ${suggestedRepsR} R next time.`;
+            } else {
+              suggestedRepsL = 8;
+              suggestedRepsR = 8;
+              suggestionMessage = "Let's aim for 8 reps per side and focus on form!";
+            }
+          } else { // Bilateral or no category
+            if (lastReps >= 12) {
+              suggestedReps = lastReps + 1;
+              suggestionMessage = `Great work! Try increasing reps to ${suggestedReps}.`;
+            } else if (lastReps > 0) {
+              suggestedReps = lastReps + 1;
+              suggestionMessage = `Good effort! Try to hit ${suggestedReps} reps next time.`;
+            } else {
+              suggestedReps = 10;
+              suggestionMessage = "Let's aim for 10 reps and focus on form!";
+            }
+          }
+
+          if (currentSetsLength < MAX_SETS && previousSets.length >= 3) {
+            const allPreviousSetsHitTarget = previousSets.slice(0, 3).every(s => 
+              exerciseCategory === 'Unilateral' ? ((s.reps_l || 0) >= (suggestedRepsL || 0) - 1 && (s.reps_r || 0) >= (suggestedRepsR || 0) - 1) : ((s.reps || 0) >= (suggestedReps || 0) - 1)
+            );
+            if (allPreviousSetsHitTarget) {
+              suggestedNumSets = Math.min(currentSetsLength + 1, MAX_SETS);
+              suggestionMessage += ` You're consistent! Consider adding a set.`;
+            }
+          }
         }
       } else {
         if (exerciseType === 'weight') {
@@ -118,6 +159,15 @@ export const useProgressionSuggestion = ({
         } else if (exerciseType === 'timed') {
           suggestedTime = 30;
           suggestionMessage = "No previous sets found. Let's aim for 30 seconds and focus on form!";
+        } else if (exerciseType === 'body_weight') { // NEW: Body Weight initial suggestion
+          if (exerciseCategory === 'Unilateral') {
+            suggestedRepsL = 8;
+            suggestedRepsR = 8;
+            suggestionMessage = "No previous sets found. Let's aim for 8 reps per side and focus on form!";
+          } else {
+            suggestedReps = 10;
+            suggestionMessage = "No previous sets found. Let's aim for 10 reps and focus on form!";
+          }
         }
       }
 

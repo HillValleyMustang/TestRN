@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Check, Trophy, Edit, Trash2, Timer, RefreshCcw, Info, History, Menu, Play, Pause, RotateCcw, Save, ChevronDown, ChevronUp, Lightbulb } from 'lucide-react';
+import { Plus, Check, Trophy, Edit, Trash2, Timer, RefreshCcw, Info, History, Menu, Play, Pause, RotateCcw, Save, ChevronDown, ChevronUp, Lightbulb, User } from 'lucide-react'; // Import User icon
 import { ExerciseHistoryDialog } from '@/components/exercise-history-dialog';
 import { ExerciseInfoDialog } from '@/components/exercise-info-dialog';
 import { Tables, SetLogState, WorkoutExercise, UserExercisePR } from '@/types/supabase';
@@ -269,6 +269,8 @@ export const ExerciseCard = ({
                           <span className="text-muted-foreground text-xs">
                             (Last: {exercise.type === 'weight' ?
                               `${set.lastWeight != null ? formatWeight(convertWeight(set.lastWeight, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') : '-'} x ${exercise.category === 'Unilateral' ? `${set.lastRepsL != null ? set.lastRepsL : '-'} L / ${set.lastRepsR != null ? set.lastRepsR : '-'} R` : (set.lastReps != null ? set.lastReps : '-')}` :
+                              exercise.type === 'body_weight' ?
+                              `${exercise.category === 'Unilateral' ? `${set.lastRepsL != null ? set.lastRepsL : '-'} L / ${set.lastRepsR != null ? set.lastRepsR : '-'} R` : (set.lastReps != null ? set.lastReps : '-')}` :
                               `${set.lastTimeSeconds != null ? `${set.lastTimeSeconds}s` : '-'}`})
                           </span>
                         )}
@@ -354,6 +356,40 @@ export const ExerciseCard = ({
                           className="flex-1 h-8 text-xs"
                         />
                       )}
+                      {exercise.type === 'body_weight' && (
+                        exercise.category === 'Unilateral' ? (
+                          <>
+                            <Input
+                              id={`reps-l-${setIndex}`}
+                              type="number"
+                              placeholder="L"
+                              value={set.reps_l ?? ''}
+                              onChange={(e) => handleInputChange(setIndex, 'reps_l', e.target.value)}
+                              disabled={set.isSaved}
+                              className="w-20 h-8 text-xs"
+                            />
+                            <Input
+                              id={`reps-r-${setIndex}`}
+                              type="number"
+                              placeholder="R"
+                              value={set.reps_r ?? ''}
+                              onChange={(e) => handleInputChange(setIndex, 'reps_r', e.target.value)}
+                              disabled={set.isSaved}
+                              className="w-20 h-8 text-xs"
+                            />
+                          </>
+                        ) : (
+                          <Input
+                            id={`reps-${setIndex}`}
+                            type="number"
+                            placeholder="reps"
+                            value={set.reps ?? ''}
+                            onChange={(e) => handleInputChange(setIndex, 'reps', e.target.value)}
+                            disabled={set.isSaved}
+                            className="w-20 text-center h-8 text-xs"
+                          />
+                        )
+                      )}
                     </div>
                   </div>
                   {setIndex < sets.length - 1 && <Separator className="my-4" />}
@@ -435,7 +471,7 @@ export const ExerciseCard = ({
         currentExercise={exercise}
         onSwap={(newExercise) => {
           if (onSubstituteExercise) {
-            onSubstituteExercise(exercise.id, { ...newExercise, is_bonus_exercise: exercise.is_bonus_exercise });
+            onSubstituteExercise(exercise.id, { ...newExercise, is_bonus_exercise: exercise.is_bonus_exercise, type: newExercise.type as WorkoutExercise['type'] });
           }
           setShowSwapDialog(false);
         }}
@@ -452,7 +488,7 @@ export const ExerciseCard = ({
         }}
         onSubstitute={(newExercise) => {
           if (onSubstituteExercise) {
-            onSubstituteExercise(exercise.id, { ...newExercise, is_bonus_exercise: exercise.is_bonus_exercise });
+            onSubstituteExercise(exercise.id, { ...newExercise, is_bonus_exercise: exercise.is_bonus_exercise, type: newExercise.type as WorkoutExercise['type'] });
           }
           setShowCantDoDialog(false);
         }}
