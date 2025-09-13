@@ -42,10 +42,12 @@ export function getWorkoutColorClass(workoutName: string, type: 'text' | 'border
     case 'AI': // NEW: For AI-identified exercises
       colorKey = 'bonus'; // Use bonus color for AI tag
       break;
-    case 'Gym': // NEW: For gym location tags
-      colorKey = 'gym'; // Use specific gym color
-      break;
-    default: return ''; // No specific color for other workouts or 'Ad Hoc Workout'
+    default: 
+      // For dynamic gym names, use the 'gym' color key
+      if (type === 'bg' && workoutName && workoutName !== 'Gym') { // Check if it's a dynamic gym name
+        return `bg-workout-gym`;
+      }
+      return ''; // No specific color for other workouts or 'Ad Hoc Workout'
   }
 
   // Use the single color variable for all types

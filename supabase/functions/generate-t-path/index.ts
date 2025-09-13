@@ -405,7 +405,7 @@ serve(async (req: Request) => {
         
         let feedbackMessage = `Your workout plan for '${tPathData.template_name ?? 'Unknown T-Path'}' has been successfully updated!`;
         if (totalOmittedCount > 0) {
-          feedbackMessage += ` ${totalOmittedCount} exercises were omitted due to gym availability or session length.`;
+          feedbackMessage += ` ${totalOmittedCount} exercises were omitted due to gym availability or session length (${maxAllowedMinutes} mins).`;
         }
         if (totalAddedToUserLibraryCount > 0) {
           feedbackMessage += ` ${totalAddedToUserLibraryCount} exercises were added to 'My Exercises' for future use.`;

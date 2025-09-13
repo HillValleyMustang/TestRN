@@ -152,7 +152,7 @@ export const UserExerciseList = ({
                         </WorkoutBadge>
                       )}
                       {ex.location_tags && ex.location_tags.length > 0 && ex.location_tags.map(tag => (
-                        <WorkoutBadge key={tag} workoutName="Gym" className="text-xs px-2 py-0.5 flex items-center gap-1">
+                        <WorkoutBadge key={tag} workoutName={tag} className="text-xs px-2 py-0.5 flex items-center gap-1">
                           <Building2 className="h-3 w-3" /> {tag}
                         </WorkoutBadge>
                       ))}

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, Dumbbell, Sparkles, BarChart2, CalendarCheck, LayoutTemplate, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button'; // Import Button
 
 const features = [
   {
@@ -37,11 +38,12 @@ const features = [
 export default function OnboardingWelcomePage() {
   const router = useRouter();
   const [progress, setProgress] = useState(0);
-  const [redirecting, setRedirecting] = useState(false);
+  const [generationComplete, setGenerationComplete] = useState(false); // New state for generation completion
 
   useEffect(() => {
-    const totalDuration = 5000; // 5 seconds
-    const intervalTime = 100; // Update every 100ms
+    // Simulate background generation progress
+    const totalDuration = 3000; // 3 seconds for simulation
+    const intervalTime = 100;
     let currentProgress = 0;
 
     const progressInterval = setInterval(() => {
@@ -50,13 +52,16 @@ export default function OnboardingWelcomePage() {
 
       if (currentProgress >= 100) {
         clearInterval(progressInterval);
-        setRedirecting(true);
-        router.push('/dashboard');
+        setGenerationComplete(true); // Mark generation as complete
       }
     }, intervalTime);
 
     return () => clearInterval(progressInterval);
-  }, [router]);
+  }, []);
+
+  const handleContinueToDashboard = () => {
+    router.push('/dashboard');
+  };
 
   return (
     <div className="min-h-screen bg-background p-4 flex flex-col items-center justify-center text-center">
@@ -90,16 +95,28 @@ export default function OnboardingWelcomePage() {
         </Card>
 
         <div className="mt-8 flex flex-col items-center space-y-3 animate-fade-in-slide-up" style={{ animationDelay: '0.8s' }}>
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">
-            {redirecting ? "Redirecting to dashboard..." : `Generating your first workouts... ${Math.round(progress)}%`}
-          </p>
-          <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-            <div 
-              className="bg-primary h-2.5 rounded-full transition-all duration-100 ease-linear" 
-              style={{ width: `${progress}%` }}
-            ></div>
-          </div>
+          {!generationComplete ? (
+            <>
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-muted-foreground">
+                Generating your first workouts... {Math.round(progress)}%
+              </p>
+              <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                <div 
+                  className="bg-primary h-2.5 rounded-full transition-all duration-100 ease-linear" 
+                  style={{ width: `${progress}%` }}
+                ></div>
+              </div>
+            </>
+          ) : (
+            <>
+              <CheckCircle2 className="h-8 w-8 text-green-500" />
+              <p className="text-muted-foreground">Your workouts are ready!</p>
+              <Button onClick={handleContinueToDashboard} className="w-full">
+                Continue to Dashboard
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </div>
