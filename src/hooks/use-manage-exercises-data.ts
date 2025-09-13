@@ -256,8 +256,9 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
     setEditingExercise(null);
   }, []);
 
-  const handleSaveSuccess = useCallback((savedExercise?: ExerciseDefinition) => {
+  const handleSaveSuccess = useCallback(async (savedExercise?: ExerciseDefinition) => {
     setEditingExercise(null);
+    // Optimistically update the UI first
     if (savedExercise) {
       const exerciseExists = userExercises.some(ex => ex.id === savedExercise.id);
       if (exerciseExists) {
@@ -266,7 +267,8 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
         setUserExercises(prev => [...prev, { ...savedExercise, type: savedExercise.type as FetchedExerciseDefinition['type'] }].sort((a, b) => a.name.localeCompare(b.name)));
       }
     }
-    refreshExercises();
+    // Then, trigger a full revalidation from the source
+    await refreshExercises();
   }, [userExercises, refreshExercises]);
 
   const handleDeleteExercise = useCallback(async (exercise: FetchedExerciseDefinition) => {
@@ -276,14 +278,18 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
     }
     const toastId = toast.loading(`Deleting '${exercise.name}'...`);
     try {
+      // Optimistic UI update
+      setUserExercises(prev => prev.filter(ex => ex.id !== exercise.id));
       const { error } = await supabase.from('exercise_definitions').delete().eq('id', exercise.id);
       if (error) throw new Error(error.message);
       toast.success("Exercise deleted successfully!", { id: toastId });
-      refreshExercises();
+      await refreshExercises();
     } catch (err: any) {
       toast.error("Failed to delete exercise: " + err.message, { id: toastId });
+      // Rollback UI if error
+      fetchPageData();
     }
-  }, [sessionUserId, supabase, refreshExercises]);
+  }, [sessionUserId, supabase, refreshExercises, fetchPageData]);
 
   const handleToggleFavorite = useCallback(async (exercise: FetchedExerciseDefinition) => {
     if (!sessionUserId || !exercise.id) return;
@@ -305,7 +311,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
         }
       }
       toast.success(newFavoriteStatus ? "Added to favourites!" : "Removed from favourites.", { id: toastId });
-      refreshExercises();
+      await refreshExercises();
     } catch (err: any) {
       toast.error("Failed to update favourite status: " + err.message, { id: toastId });
     }
@@ -340,7 +346,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       const { error } = await supabase.from('t_path_exercises').delete().eq('template_id', workoutId).eq('exercise_id', exerciseId);
       if (error) throw new Error(error.message);
       toast.success("Exercise removed from workout successfully!", { id: toastId });
-      refreshTPaths();
+      await refreshTPaths();
     } catch (err: any) {
       toast.error("Failed to remove exercise from workout: " + err.message, { id: toastId });
     }

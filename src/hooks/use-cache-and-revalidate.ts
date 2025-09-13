@@ -119,8 +119,8 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
     }
   }, [fetchDataAndRevalidate, sessionUserId, refetchTrigger]); // Added refetchTrigger to dependencies
 
-  const refresh = useCallback(() => {
-    fetchDataAndRevalidate();
+  const refresh = useCallback(async () => {
+    await fetchDataAndRevalidate();
   }, [fetchDataAndRevalidate]);
 
   return { data: data as T[] | null, loading: loading || data === undefined, error, refresh };
