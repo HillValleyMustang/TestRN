@@ -260,16 +260,15 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
     setEditingExercise(null);
     if (savedExercise) {
       try {
-        // Optimistically update the local cache. This will trigger the useLiveQuery to update the UI.
+        // The savedExercise is the source of truth from the DB.
+        // Update the local cache. This will trigger useLiveQuery to update the UI.
         await db.exercise_definitions_cache.put(savedExercise as LocalExerciseDefinition);
       } catch (cacheError) {
-        console.error("Failed to update local cache optimistically:", cacheError);
-        // If cache update fails, fall back to a full refresh.
-        await refreshExercises();
+        console.error("Failed to update local cache after save:", cacheError);
+        toast.error("Failed to update local list, forcing a refresh from server.");
+        await refreshExercises(); // Fallback to a full refresh if cache fails.
       }
     }
-    // Optionally trigger a background revalidation to ensure everything is in sync.
-    setTimeout(() => refreshExercises(), 500);
   }, [refreshExercises]);
 
   const handleDeleteExercise = useCallback(async (exercise: FetchedExerciseDefinition) => {
@@ -278,20 +277,21 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       return;
     }
     const toastId = toast.loading(`Deleting '${exercise.name}'...`);
+    
     try {
-      // Optimistically delete from the local cache, which will update the UI.
-      await db.exercise_definitions_cache.delete(exercise.id);
-
-      // Then, perform the database operation.
+      // Perform the database operation first.
       const { error } = await supabase.from('exercise_definitions').delete().eq('id', exercise.id);
       if (error) throw new Error(error.message);
 
+      // On successful deletion from DB, delete from the local cache.
+      await db.exercise_definitions_cache.delete(exercise.id);
+      
       toast.success("Exercise deleted successfully!", { id: toastId });
-      // Trigger a background revalidation to ensure consistency.
-      setTimeout(() => refreshExercises(), 500);
+      // The UI will update reactively from the cache deletion.
     } catch (err: any) {
       toast.error("Failed to delete exercise: " + err.message, { id: toastId });
-      // If the API call fails, the cache is now out of sync. A refresh will fix it.
+      // If it fails, we don't touch the cache, so no UI change happens.
+      // We can trigger a refresh to ensure consistency if needed.
       await refreshExercises();
     }
   }, [sessionUserId, supabase, refreshExercises]);
