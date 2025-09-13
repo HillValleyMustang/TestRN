@@ -11,13 +11,13 @@ import { LoadingOverlay } from "@/components/loading-overlay";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
-interface AnalyseGymDialogProps { // Renamed to AnalyseGymDialogProps
+interface AnalyseGymDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onExerciseIdentified: (exercise: Partial<ExerciseDefinition>, isDuplicate: boolean) => void;
 }
 
-export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: AnalyseGymDialogProps) => { // Renamed to AnalyseGymDialog
+export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: AnalyseGymDialogProps) => {
   const { session } = useSession();
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [base64Image, setBase64Image] = useState<string | null>(null);
@@ -49,7 +49,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
     }
   };
 
-  const handleAnalyseImage = async () => { // Renamed to handleAnalyseImage
+  const handleAnalyseImage = async () => {
     if (!base64Image) {
       toast.error("Please upload an image first.");
       return;
@@ -73,15 +73,21 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to analyse image.'); // Changed to analyse
+        throw new Error(data.error || 'Failed to analyse image.');
       }
 
-      onExerciseIdentified(data.identifiedExercise, data.isDuplicate);
-      onOpenChange(false); // Close this dialog
+      const firstExercise = data.identifiedExercises?.[0];
+      if (firstExercise) {
+        onExerciseIdentified(firstExercise, firstExercise.is_duplicate);
+      } else {
+        toast.info("The AI couldn't identify a specific exercise from that image. Please try another angle or add it manually.");
+      }
+
+      onOpenChange(false);
       resetForm();
     } catch (err: any) {
-      console.error("Error analysing image:", err); // Changed to analysing
-      toast.error("Image analysis failed: " + err.message); // Changed to analysis
+      console.error("Error analysing image:", err);
+      toast.error("Image analysis failed: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -95,7 +101,6 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
     }
   };
 
-  // Reset form when dialog closes
   React.useEffect(() => {
     if (!open) {
       resetForm();

@@ -19,45 +19,49 @@ serve(async (req: Request) => {
   }
 
   try {
-    // @ts-ignore
-    const supabaseClient = createClient(
+    // Use the service role client for all database operations within the function
+    const supabaseServiceRoleClient = createClient(
       // @ts-ignore
       Deno.env.get('SUPABASE_URL') ?? '',
       // @ts-ignore
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) {
+    // Authenticate the user using the JWT from the client's Authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authorization header missing' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const { data: { user }, error: userError } = await supabaseServiceRoleClient.auth.getUser(authHeader.split(' ')[1]);
+    if (userError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const { base64Image } = await req.json();
-
     if (!base64Image) {
       return new Response(JSON.stringify({ error: 'No image provided.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const prompt = `
-      Analyze the gym equipment in this image. Identify the specific equipment.
-      Use English UK spelling for all text fields (e.g., 'analyse' instead of 'analyze', 'colour' instead of 'color').
-      Provide its name, primary muscle group(s) (comma-separated if multiple, e.g., "Pectorals, Deltoids"),
-      its type ('weight' or 'timed'), its category ('Bilateral', 'Unilateral', or null if not applicable),
-      a brief description of how to use it, a practical pro tip for performing the exercise,
-      and a relevant YouTube embed URL for a tutorial video (can be an empty string if none found).
+      You are an expert fitness coach. Analyze the gym equipment in this image.
+      Your task is to suggest exercises that can be performed with it.
 
-      IMPORTANT: Respond ONLY with a JSON object. Do NOT include any other text, markdown formatting (like \`\`\`json), or conversational phrases. The response must be a pure JSON string.
-      Example:
-      {
-        "name": "Exercise Name",
-        "main_muscle": "Main Muscle Group(s)",
-        "type": "weight" | "timed",
-        "category": "Bilateral" | "Unilateral" | null,
-        "description": "A brief description.",
-        "pro_tip": "A short, actionable pro tip.",
-        "video_url": "https://www.youtube.com/embed/..."
-      }
+      Instructions:
+      1. If the equipment is versatile and can be used for many exercises (e.g., dumbbells, cable machine, squat rack), suggest the top 5-7 most common and effective exercises.
+      2. If the equipment is simple and designed for only one or two primary movements (e.g., leg extension machine, pec deck, pull-up bar), suggest only those 1-2 primary exercises.
+      3. For each exercise, provide its name, primary muscle group(s) (comma-separated), type ('weight' or 'timed'), category ('Bilateral', 'Unilateral', or null), a brief description, a pro tip, and an optional YouTube embed URL.
+      4. IMPORTANT: Your entire response MUST be a single JSON array of objects, with no other text or markdown formatting.
+
+      Example response for versatile equipment:
+      [
+        { "name": "Bench Press", "main_muscle": "Pectorals", "type": "weight", "category": "Bilateral", "description": "...", "pro_tip": "...", "video_url": "..." },
+        { "name": "Dumbbell Row", "main_muscle": "Back, Biceps", "type": "weight", "category": "Unilateral", "description": "...", "pro_tip": "...", "video_url": "..." }
+      ]
+
+      Example response for simple equipment:
+      [
+        { "name": "Leg Extension", "main_muscle": "Quadriceps", "type": "weight", "category": "Bilateral", "description": "...", "pro_tip": "...", "video_url": "..." }
+      ]
     `;
 
     const geminiResponse = await fetch(GEMINI_API_URL, {
@@ -68,7 +72,7 @@ serve(async (req: Request) => {
           {
             parts: [
               { text: prompt },
-              { inlineData: { mimeType: 'image/jpeg', data: base64Image } } // Assuming JPEG, adjust if needed
+              { inlineData: { mimeType: 'image/jpeg', data: base64Image } }
             ]
           }
         ],
@@ -77,77 +81,57 @@ serve(async (req: Request) => {
 
     if (!geminiResponse.ok) {
       const errorBody = await geminiResponse.text();
-      console.error("Gemini API error response:", errorBody);
       throw new Error(`Gemini API error: ${geminiResponse.status} - ${errorBody}`);
     }
 
     const geminiData = await geminiResponse.json();
     const generatedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!generatedText) throw new Error("AI did not return a valid response.");
 
-    if (!generatedText) {
-      throw new Error("AI did not return a valid response.");
-    }
+    const jsonMatch = generatedText.match(/\[[\s\S]*\]/);
+    let jsonString = jsonMatch ? jsonMatch[0] : generatedText;
 
-    // Use a regex to extract the JSON object from the generated text
-    const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
-    let jsonString = jsonMatch ? jsonMatch[0] : generatedText; // Fallback to full text if no match
-
-    let identifiedExercise;
+    let identifiedExercises;
     try {
-      identifiedExercise = JSON.parse(jsonString);
+      identifiedExercises = JSON.parse(jsonString);
+      if (!Array.isArray(identifiedExercises)) {
+        identifiedExercises = [identifiedExercises]; // Wrap single object in an array
+      }
     } catch (parseError) {
-      console.error("Failed to parse Gemini response as JSON:", jsonString);
-      throw new Error("AI returned an invalid format. Please try again or use manual entry.");
+      throw new Error("AI returned an invalid format. Please try again.");
     }
 
-    // Validate essential fields
-    if (!identifiedExercise.name || !identifiedExercise.main_muscle || !identifiedExercise.type) {
-      throw new Error("AI could not extract essential exercise details. Please try a different photo or use manual entry.");
+    if (identifiedExercises.length === 0) {
+      return new Response(JSON.stringify({ identifiedExercises: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     // --- DUPLICATE CHECK ---
-    let isDuplicate = false;
-
-    // 1. Check for exact name/muscle/type match in user's OWN exercises
-    const { data: userOwnedDuplicates, error: userOwnedDuplicateError } = await supabaseClient
+    const exerciseNames = identifiedExercises.map((ex: any) => ex.name.trim());
+    const { data: existingGlobalExercises, error: duplicateCheckError } = await supabaseServiceRoleClient
       .from('exercise_definitions')
-      .select('id')
-      .eq('user_id', user.id)
-      .ilike('name', identifiedExercise.name.trim())
-      .ilike('main_muscle', identifiedExercise.main_muscle.trim())
-      .eq('type', identifiedExercise.type);
+      .select('name')
+      .is('user_id', null) // Check only against global library
+      .in('name', exerciseNames);
 
-    if (userOwnedDuplicateError) {
-      console.error("Error checking for user-owned duplicate exercises:", userOwnedDuplicateError.message);
-    } else if (userOwnedDuplicates && userOwnedDuplicates.length > 0) {
-      isDuplicate = true;
+    if (duplicateCheckError) {
+      console.error("Error checking for duplicate global exercises:", duplicateCheckError.message);
+      throw duplicateCheckError;
     }
 
-    // 2. If not already a duplicate, check if it's a global exercise that the user has already adopted
-    // This check is only relevant if the identified exercise is originally a global one (has a library_id)
-    // and the user has a custom copy of it.
-    if (!isDuplicate && identifiedExercise.library_id) {
-        const { data: adoptedDuplicates, error: adoptedDuplicateError } = await supabaseClient
-            .from('exercise_definitions')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('library_id', identifiedExercise.library_id); // Check if user has adopted this specific global exercise
+    const existingNamesSet = new Set((existingGlobalExercises || []).map((ex: { name: string }) => ex.name));
 
-        if (adoptedDuplicateError) {
-            console.error("Error checking for adopted global duplicate exercises:", adoptedDuplicateError.message);
-        } else if (adoptedDuplicates && adoptedDuplicates.length > 0) {
-            isDuplicate = true;
-        }
-    }
+    const exercisesWithDuplicateFlag = identifiedExercises.map((ex: any) => ({
+      ...ex,
+      is_duplicate: existingNamesSet.has(ex.name.trim()),
+    }));
 
-    // Return the identified exercise data AND the duplicate flag to the client
-    return new Response(JSON.stringify({ identifiedExercise, isDuplicate }), {
+    return new Response(JSON.stringify({ identifiedExercises: exercisesWithDuplicateFlag }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error("Error in identify-equipment edge function:", error);
     const message = error instanceof Error ? error.message : "An unknown error occurred";
+    console.error("Error in identify-equipment edge function:", message);
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
