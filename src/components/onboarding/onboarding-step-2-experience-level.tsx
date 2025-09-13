@@ -2,8 +2,8 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from '@/lib/utils';
 
 interface OnboardingStep2Props {
   experience: "beginner" | "intermediate" | null;
@@ -20,29 +20,45 @@ export const OnboardingStep2_ExperienceLevel = ({
 }: OnboardingStep2Props) => {
   return (
     <div className="space-y-6">
-      <RadioGroup 
-        value={experience || undefined} 
-        onValueChange={(value: "beginner" | "intermediate") => setExperience(value)}
-      >
-        <div className="flex flex-col space-y-2">
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="beginner" id="beginner" />
-            <Label htmlFor="beginner">Beginner</Label>
-          </div>
-          <p className="text-sm text-muted-foreground ml-6">
-            New to structured training or returning after a long break
-          </p>
-        </div>
-        <div className="flex flex-col space-y-2">
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="intermediate" id="intermediate" />
-            <Label htmlFor="intermediate">Intermediate</Label>
-          </div>
-          <p className="text-sm text-muted-foreground ml-6">
-            Some experience with structured training programs
-          </p>
-        </div>
-      </RadioGroup>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all",
+            experience === 'beginner' 
+              ? 'border-primary ring-2 ring-primary' 
+              : 'hover:border-primary/50'
+          )}
+          onClick={() => setExperience('beginner')}
+        >
+          <CardHeader>
+            <CardTitle>Beginner</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              New to structured training or returning after a long break.
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all",
+            experience === 'intermediate' 
+              ? 'border-primary ring-2 ring-primary' 
+              : 'hover:border-primary/50'
+          )}
+          onClick={() => setExperience('intermediate')}
+        >
+          <CardHeader>
+            <CardTitle>Intermediate</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Some experience with structured training programs.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
       
       <div className="flex justify-between">
         <Button variant="outline" onClick={handleBack}>

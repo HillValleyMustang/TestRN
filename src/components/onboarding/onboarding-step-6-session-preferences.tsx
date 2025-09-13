@@ -5,19 +5,19 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-interface OnboardingStep4Props {
+interface OnboardingStep6Props {
   sessionLength: string;
   setSessionLength: (value: string) => void;
   handleNext: () => void;
   handleBack: () => void;
 }
 
-export const OnboardingStep4_SessionPreferences = ({
+export const OnboardingStep6_SessionPreferences = ({
   sessionLength,
   setSessionLength,
   handleNext,
   handleBack,
-}: OnboardingStep4Props) => {
+}: OnboardingStep6Props) => {
   return (
     <div className="space-y-6">
       <RadioGroup 

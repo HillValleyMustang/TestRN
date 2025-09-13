@@ -1,21 +1,19 @@
 "use client";
 
-import React, { useState, useEffect } from 'react'; // Import useState and useEffect
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Info } from 'lucide-react'; // Import Info icon
-import { BodyFatInfoModal } from './body-fat-info-modal'; // Import the new modal
+import { Info } from 'lucide-react';
+import { BodyFatInfoModal } from './body-fat-info-modal';
 
-interface OnboardingStep6Props {
+interface OnboardingStep7Props {
   consentGiven: boolean;
   setConsentGiven: (checked: boolean) => void;
   handleSubmit: () => Promise<void>;
   handleBack: () => void;
   loading: boolean;
-  // New props for personal details
   fullName: string;
   setFullName: (value: string) => void;
   heightCm: number | null;
@@ -26,7 +24,7 @@ interface OnboardingStep6Props {
   setBodyFatPct: (value: number | null) => void;
 }
 
-export const OnboardingStep6_Consent = ({
+export const OnboardingStep7_FinalDetails = ({
   consentGiven,
   setConsentGiven,
   handleSubmit,
@@ -40,28 +38,27 @@ export const OnboardingStep6_Consent = ({
   setWeightKg,
   bodyFatPct,
   setBodyFatPct,
-}: OnboardingStep6Props) => {
+}: OnboardingStep7Props) => {
   const [isBodyFatInfoModalOpen, setIsBodyFatInfoModalOpen] = useState(false);
 
   return (
     <>
       <div className="space-y-6">
         <div className="space-y-4">
-          {/* Personal Details Inputs */}
           <div>
-            <Label htmlFor="fullName">Preferred Name</Label> {/* Changed label */}
+            <Label htmlFor="fullName">Preferred Name</Label>
             <Input 
               id="fullName" 
               placeholder="e.g., John Doe" 
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               required
-              className="text-sm" // Reduced font size
+              className="text-sm"
             />
           </div>
           <div className="flex gap-4">
             <div className="flex-1">
-              <Label htmlFor="heightCm">Height (cm)</Label> {/* Made required */}
+              <Label htmlFor="heightCm">Height (cm)</Label>
               <Input 
                 id="heightCm" 
                 type="number" 
@@ -69,13 +66,13 @@ export const OnboardingStep6_Consent = ({
                 step="1" 
                 placeholder="e.g., 175" 
                 value={heightCm ?? ''}
-                onChange={(e) => setHeightCm(parseInt(e.target.value) || null)} // Parse directly, handle empty string as null
-                required // Made required
-                className="text-sm" // Reduced font size
+                onChange={(e) => setHeightCm(parseInt(e.target.value) || null)}
+                required
+                className="text-sm"
               />
             </div>
             <div className="flex-1">
-              <Label htmlFor="weightKg">Weight (kg)</Label> {/* Made required */}
+              <Label htmlFor="weightKg">Weight (kg)</Label>
               <Input 
                 id="weightKg" 
                 type="number" 
@@ -83,9 +80,9 @@ export const OnboardingStep6_Consent = ({
                 step="1" 
                 placeholder="e.g., 70" 
                 value={weightKg ?? ''}
-                onChange={(e) => setWeightKg(parseInt(e.target.value) || null)} // Parse directly, handle empty string as null
-                required // Made required
-                className="text-sm" // Reduced font size
+                onChange={(e) => setWeightKg(parseInt(e.target.value) || null)}
+                required
+                className="text-sm"
               />
             </div>
           </div>
@@ -106,12 +103,11 @@ export const OnboardingStep6_Consent = ({
               placeholder="e.g., 15" 
               value={bodyFatPct ?? ''}
               onChange={(e) => setBodyFatPct(e.target.value === '' ? null : parseInt(e.target.value))}
-              className="max-w-[120px] text-sm" // Reduced width and font size
+              className="max-w-[120px] text-sm"
             />
           </div>
 
-          {/* Consent Section */}
-          <div className="flex items-start space-x-2">
+          <div className="flex items-start space-x-2 pt-4">
             <Checkbox 
               id="consent" 
               checked={consentGiven}
@@ -123,16 +119,6 @@ export const OnboardingStep6_Consent = ({
               at any time through my profile settings.
             </Label>
           </div>
-          
-          <div className="text-sm text-muted-foreground p-4 bg-muted rounded-lg">
-            <h4 className="font-semibold mb-2">Data Privacy Information:</h4>
-            <ul className="space-y-1">
-              <li>• Photos are processed for equipment detection only</li>
-              <li>• Not used for identity or shared publicly</li>
-              <li>• Stored until you delete or replace them</li>
-              <li>• You can export or delete your data anytime</li>
-            </ul>
-          </div>
         </div>
         
         <div className="flex justify-between">
@@ -141,7 +127,7 @@ export const OnboardingStep6_Consent = ({
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={!consentGiven || loading || !fullName || heightCm === null || weightKg === null} // Disable if height or weight are null
+            disabled={!consentGiven || loading || !fullName || heightCm === null || weightKg === null}
           >
             {loading ? "Completing Setup..." : "Complete Onboarding"}
           </Button>
