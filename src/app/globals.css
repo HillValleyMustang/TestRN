@@ -87,7 +87,6 @@
     --workout-bonus: 50 75% 60%; /* NEW: golden yellow */
     --workout-ad-hoc: 50 75% 60%; /* NEW: same as bonus - golden yellow */
     --workout-activity: var(--chart-2); /* Generic activity color */
-    --workout-gym: 210 40% 30%; /* NEW: Darker blue-gray for gym tags */
 
     /* NEW Activity Colors */
     --activity-running: 25 80% 55%; /* coral/salmon */
@@ -186,7 +185,6 @@
     --workout-bonus: 50 75% 60%; /* NEW: golden yellow */
     --workout-ad-hoc: 50 75% 60%; /* NEW: same as bonus - golden yellow */
     --workout-activity: var(--chart-2); /* Generic activity color */
-    --workout-gym: 210 40% 30%; /* NEW: Darker blue-gray for gym tags */
 
     /* NEW Activity Colors */
     --activity-running: 25 80% 55%; /* coral/salmon */

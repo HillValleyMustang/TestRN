@@ -5,14 +5,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ExerciseForm } from "@/components/manage-exercises/exercise-form";
 import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
 
-type ExerciseDefinition = Tables<'exercise_definitions'>;
+// Removed local ExerciseDefinition definition
 
 interface EditExerciseDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   exercise: FetchedExerciseDefinition | null;
-  onSaveSuccess: (savedExercise?: ExerciseDefinition) => void;
-  availableLocationTags: string[]; // New prop
+  onSaveSuccess: () => void;
 }
 
 export const EditExerciseDialog = ({
@@ -20,14 +19,13 @@ export const EditExerciseDialog = ({
   onOpenChange,
   exercise,
   onSaveSuccess,
-  availableLocationTags, // Destructure new prop
 }: EditExerciseDialogProps) => {
   const handleCancelEdit = () => {
     onOpenChange(false); // Close the dialog
   };
 
-  const handleSaveSuccessAndClose = (savedExercise?: ExerciseDefinition) => {
-    onSaveSuccess(savedExercise); // Trigger parent refresh
+  const handleSaveSuccessAndClose = () => {
+    onSaveSuccess(); // Trigger parent refresh
     onOpenChange(false); // Close the dialog
   };
 
@@ -44,7 +42,6 @@ export const EditExerciseDialog = ({
             editingExercise={exercise}
             onCancelEdit={handleCancelEdit}
             onSaveSuccess={handleSaveSuccessAndClose}
-            availableLocationTags={availableLocationTags} // Pass down the tags
             // Removed isExpandedInDialog prop
           />
         </div>

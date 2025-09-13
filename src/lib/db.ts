@@ -9,7 +9,7 @@ import { Json } from '@/types/supabase-generated'; // Import Json type
 export interface SyncQueueItem {
   id?: number;
   operation: 'create' | 'update' | 'delete';
-  table: 'workout_sessions' | 'set_logs' | 'user_alerts'; // NEW: Added user_alerts
+  table: 'workout_sessions' | 'set_logs';
   payload: { id: string; [key: string]: any }; // The data to sync, must have an ID
   timestamp: number;
   attempts: number;
@@ -204,10 +204,6 @@ export class AppDatabase extends Dexie {
     this.version(10).stores({
       user_alerts: '&id, user_id, created_at',
     });
-    // NEW: Increment version for sync_queue table index
-    this.version(11).stores({
-      sync_queue: '++id, timestamp, table', // Added 'table' index
-    });
   }
 }
 
@@ -216,7 +212,7 @@ export const db = new AppDatabase();
 // Helper function to add an operation to the sync queue
 export const addToSyncQueue = async (
   operation: 'create' | 'update' | 'delete',
-  table: 'workout_sessions' | 'set_logs' | 'user_alerts', // NEW: Added user_alerts
+  table: 'workout_sessions' | 'set_logs',
   payload: { id: string; [key: string]: any }
 ) => {
   await db.sync_queue.add({

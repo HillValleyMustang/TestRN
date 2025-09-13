@@ -77,12 +77,12 @@ export const GlobalExerciseList = ({
           <ScrollArea>
             <ul className="space-y-2">
               {exercises.map((ex) => (
-                <li key={ex.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-2 px-3 border rounded-md">
-                  <div className="flex-grow min-w-0 py-1 px-0">
-                    <p className="font-medium text-base leading-tight whitespace-normal">{ex.name}</p> {/* Exercise name */}
+                <li key={ex.id} className="flex items-center justify-between py-1 px-2 border rounded-md">
+                  <div className="flex-1 py-1 px-0">
+                    <p className="font-medium">{ex.name}</p> {/* Exercise name */}
                     <p className="text-sm text-muted-foreground">{ex.main_muscle}</p> {/* Muscle group on new line */}
                     {exerciseWorkoutsMap[ex.id as string]?.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-2 items-center"> {/* Added items-center for vertical alignment */}
+                      <div className="mt-2 flex flex-wrap gap-2">
                         {exerciseWorkoutsMap[ex.id as string].map(workout => (
                           <div key={workout.id} className="flex items-center gap-1 p-1 rounded-md"> {/* Removed bg-muted */}
                             <WorkoutBadge 
@@ -101,7 +101,7 @@ export const GlobalExerciseList = ({
                     )}
                   </div>
                   {/* Action buttons group */}
-                  <div className="flex gap-1 flex-shrink-0 mt-2 sm:mt-0">
+                  <div className="flex gap-1">
                     <Button variant="ghost" size="icon" title="More Info" onClick={(e) => handleOpenInfoDialog(ex, e)}>
                       <Info className="h-4 w-4" />
                     </Button>

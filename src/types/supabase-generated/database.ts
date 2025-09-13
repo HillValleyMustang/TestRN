@@ -117,7 +117,6 @@ export type Database = {
           library_id: string | null;
           is_favorite: boolean | null;
           icon_url: string | null;
-          location_tags: string[] | null; // Added
         };
         Insert: {
           category?: string | null;
@@ -133,7 +132,6 @@ export type Database = {
           library_id?: string | null;
           is_favorite?: boolean | null;
           icon_url?: string | null;
-          location_tags?: string[] | null; // Added
         };
         Update: {
           category?: string | null;
@@ -149,7 +147,6 @@ export type Database = {
           library_id?: string | null;
           is_favorite?: boolean | null;
           icon_url?: string | null;
-          location_tags?: string[] | null; // Added
         };
         Relationships: [
           {
@@ -187,7 +184,6 @@ export type Database = {
           longest_streak: number | null;
           last_workout_date: string | null;
           rolling_workout_status: string | null;
-          active_location_tag: string | null; // Added
         };
         Insert: {
           body_fat_pct?: number | null;
@@ -214,7 +210,6 @@ export type Database = {
           longest_streak?: number | null;
           last_workout_date?: string | null;
           rolling_workout_status?: string | null;
-          active_location_tag?: string | null; // Added
         };
         Update: {
           body_fat_pct?: number | null;
@@ -241,7 +236,6 @@ export type Database = {
           longest_streak?: number | null;
           last_workout_date?: string | null;
           rolling_workout_status?: string | null;
-          active_location_tag?: string | null; // Added
         };
         Relationships: [
           {
@@ -582,77 +576,6 @@ export type Database = {
           },
           {
             foreignKeyName: "user_exercise_prs_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          }
-        ];
-      };
-      user_global_favorites: { // Added
-        Row: {
-          user_id: string;
-          exercise_id: string;
-          created_at: string | null;
-        };
-        Insert: {
-          user_id: string;
-          exercise_id: string;
-          created_at?: string | null;
-        };
-        Update: {
-          user_id?: string;
-          exercise_id?: string;
-          created_at?: string | null;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "user_global_favorites_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "user_global_favorites_exercise_id_fkey";
-            columns: ["exercise_id"];
-            isOneToOne: false;
-            referencedRelation: "exercise_definitions";
-            referencedColumns: ["id"];
-          }
-        ];
-      };
-      user_alerts: { // Added
-        Row: {
-          created_at: string | null;
-          id: string;
-          is_read: boolean | null;
-          message: string;
-          title: string;
-          type: string | null;
-          user_id: string;
-        };
-        Insert: {
-          created_at?: string | null;
-          id?: string;
-          is_read?: boolean | null;
-          message: string;
-          title: string;
-          type?: string | null;
-          user_id: string;
-        };
-        Update: {
-          created_at?: string | null;
-          id?: string;
-          is_read?: boolean | null;
-          message?: string;
-          title?: string;
-          type?: string | null;
-          user_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "user_alerts_user_id_fkey";
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";

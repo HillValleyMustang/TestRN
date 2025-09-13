@@ -20,7 +20,6 @@ import { db } from '@/lib/db'; // Import db
 import { useCacheAndRevalidate } from '@/hooks/use-cache-and-revalidate'; // Import useCacheAndRevalidate
 
 import { ProfileHeader } from '@/components/profile/profile-header';
-import { ProfileOverviewHeader } from '@/components/profile/profile-overview-header'; // NEW IMPORT
 import { ProfileOverviewTab } from '@/components/profile/profile-overview-tab';
 import { ProfileStatsTab } from '@/components/profile/profile-stats-tab';
 import { ProfileSettingsTab } from '@/components/profile/profile-settings-tab';
@@ -68,7 +67,6 @@ export default function ProfilePage() {
   // Profile and activeTPath will now come from cache
   const [activeTPath, setActiveTPath] = useState<TPath | null>(null);
   const [aiCoachUsageToday, setAiCoachUsageToday] = useState(0);
-  const [availableLocationTags, setAvailableLocationTags] = useState<string[]>([]); // New state for gym tags
   
   const [isAchievementDetailOpen, setIsAchievementDetailOpen] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<{ id: string; name: string; icon: string } | null>(null);
@@ -199,28 +197,11 @@ export default function ProfilePage() {
           setAiCoachUsageToday(0);
         }
         console.log("[ProfilePage Debug] refreshProfileData: AI Coach usage checked.");
-
-        // Fetch available location tags
-        const { data: exercisesWithTags, error: tagsError } = await supabase
-          .from('exercise_definitions')
-          .select('location_tags')
-          .eq('user_id', session.user.id)
-          .not('location_tags', 'is', null);
-        
-        if (tagsError) throw tagsError;
-
-        const allTags = new Set<string>();
-        (exercisesWithTags || []).forEach(ex => {
-          ex.location_tags?.forEach((tag: string) => allTags.add(tag));
-        });
-        setAvailableLocationTags(Array.from(allTags).sort());
-
       } else {
         // If no profile found after refresh, reset form and states
         form.reset();
         setActiveTPath(null);
         setAiCoachUsageToday(0);
-        setAvailableLocationTags([]);
       }
     } catch (err: any) {
       toast.error("Failed to load profile data: " + err.message);
@@ -349,9 +330,9 @@ export default function ProfilePage() {
         console.log("[ProfilePage Debug] onSubmit: Fetch call to /api/generate-t-path completed.");
 
         if (!response.ok) {
-          const errorText = await response.json();
+          const errorText = await response.text();
           console.error("[ProfilePage Debug] onSubmit: API Error during T-Path regeneration initiation:", errorText);
-          throw new Error(`Failed to initiate T-Path workout regeneration: ${errorText.error}`);
+          throw new Error(`Failed to initiate T-Path workout regeneration: ${errorText}`);
         }
         console.log("[ProfilePage Debug] onSubmit: T-Path regeneration initiated successfully via API.");
       } catch (err: any) {
@@ -412,25 +393,10 @@ export default function ProfilePage() {
     emblaApi && emblaApi.scrollNext();
   }, [emblaApi]);
 
-  const handleActiveTagChange = useCallback(async (newTag: string | null) => {
-    if (!session) return;
-    setIsSaving(true);
-    const { error } = await supabase
-      .from('profiles')
-      .update({ active_location_tag: newTag })
-      .eq('id', session.user.id);
-    
-    if (error) {
-      toast.error("Failed to update active gym: " + error.message);
-    } else {
-      toast.success("Active gym updated!");
-      await refreshProfileData(); // Refresh to get new tag list and active tag
-    }
-    setIsSaving(false);
-  }, [session, supabase, refreshProfileData]);
-
   if (loadingProfile || loadingAchievements || loading) return <div className="p-4"><Skeleton className="h-screen w-full" /></div>;
   if (!profile) return <div className="p-4">Could not load profile.</div>;
+
+  const userInitial = profile.first_name ? profile.first_name[0].toUpperCase() : (session?.user.email ? session.user.email[0].toUpperCase() : '?');
 
   return (
     <>
@@ -442,7 +408,17 @@ export default function ProfilePage() {
           isSaving={isSaving}
         />
 
-        <ProfileOverviewHeader profile={profile} session={session} /> {/* NEW COMPONENT */}
+        <div className="text-center mb-8">
+          <Avatar className="w-24 h-24 mx-auto mb-4 ring-4 ring-primary/20">
+            <AvatarFallback className="text-4xl font-bold">{userInitial}</AvatarFallback>
+          </Avatar>
+          <h1 className="text-3xl font-bold">{profile.first_name} {profile.last_name}</h1>
+          <div className="flex items-center justify-center space-x-2 mt-2">
+            <span className={cn("px-3 py-1 rounded-full text-xs font-bold !text-white", fitnessLevel.color)}>{fitnessLevel.level}</span>
+            <span className="text-muted-foreground text-sm">•</span>
+            <span className="text-muted-foreground text-sm">Member since {new Date(profile.created_at!).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+          </div>
+        </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid w-full grid-cols-3 bg-muted">
@@ -487,9 +463,6 @@ export default function ProfilePage() {
                       onTPathChange={refreshProfileData} // Pass the refresh function
                       onSignOut={handleSignOut}
                       onSubmit={onSubmit} // Pass the raw onSubmit function
-                      activeLocationTag={profile.active_location_tag}
-                      availableLocationTags={availableLocationTags}
-                      onActiveTagChange={handleActiveTagChange}
                     />
                   </FormProvider>
                 </div>

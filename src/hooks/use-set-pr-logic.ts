@@ -62,12 +62,6 @@ export const useSetPRLogic = ({ exerciseId, exerciseType, supabase }: UseSetPRLo
       currentSetPerformance = (set.weight_kg || 0) * (set.reps || 0);
     } else if (exerciseType === 'timed') {
       currentSetPerformance = set.time_seconds || 0;
-    } else if (exerciseType === 'body_weight') { // NEW: Body Weight PR logic
-      if (set.reps_l !== null && set.reps_r !== null) {
-        currentSetPerformance = (set.reps_l || 0) + (set.reps_r || 0); // Sum reps for unilateral bodyweight
-      } else {
-        currentSetPerformance = set.reps || 0; // Use total reps for bilateral bodyweight
-      }
     }
 
     console.log(`[useSetPRLogic] checkAndSaveSetPB for ${exerciseId}, set performance: ${currentSetPerformance}, currentPRState:`, currentPRState);
@@ -87,9 +81,6 @@ export const useSetPRLogic = ({ exerciseId, exerciseType, supabase }: UseSetPRLo
     } else if (exerciseType === 'timed' && currentPRState.best_time_seconds !== null) {
       isNewPR = currentSetPerformance > currentPRState.best_time_seconds;
       console.log(`[useSetPRLogic] Timed PB check: current ${currentSetPerformance} vs previous ${currentPRState.best_time_seconds}. New PB: ${isNewPR}`);
-    } else if (exerciseType === 'body_weight' && currentPRState.best_volume_kg !== null) { // Using best_volume_kg for body_weight reps
-      isNewPR = currentSetPerformance > currentPRState.best_volume_kg;
-      console.log(`[useSetPRLogic] Body Weight PB check: current ${currentSetPerformance} vs previous ${currentPRState.best_volume_kg}. New PB: ${isNewPR}`);
     } else {
       // This case handles when there's a PB record but the relevant field is null (e.g., first time doing a timed exercise)
       isNewPR = true;
@@ -102,7 +93,7 @@ export const useSetPRLogic = ({ exerciseId, exerciseType, supabase }: UseSetPRLo
         user_id: userId,
         exercise_id: exerciseId,
         last_achieved_date: new Date().toISOString(),
-        best_volume_kg: exerciseType === 'weight' || exerciseType === 'body_weight' ? currentSetPerformance : (currentPRState?.best_volume_kg || null), // Store body_weight reps in best_volume_kg
+        best_volume_kg: exerciseType === 'weight' ? currentSetPerformance : (currentPRState?.best_volume_kg || null),
         best_time_seconds: exerciseType === 'timed' ? currentSetPerformance : (currentPRState?.best_time_seconds || null),
       };
 

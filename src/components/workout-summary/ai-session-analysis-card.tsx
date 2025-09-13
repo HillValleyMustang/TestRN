@@ -18,7 +18,7 @@ export const AiSessionAnalysisCard = ({ sessionId }: AiSessionAnalysisCardProps)
   const [analysis, setAnalysis] = useState("");
   const [loading, setLoading] = useState(false);
   const [usageCount, setUsageCount] = useState(0);
-  const AI_COACH_LIMIT_PER_DAY = 2; // Renamed constant
+  const AI_COACH_LIMIT_PER_SESSION = 2; // This limit is per *user session*, not per workout session
 
   useEffect(() => {
     const fetchUsageData = async () => {
@@ -46,25 +46,27 @@ export const AiSessionAnalysisCard = ({ sessionId }: AiSessionAnalysisCardProps)
       }
     };
 
-    if (session) {
+    if (session) { // Fetch usage data when component mounts or session changes
       fetchUsageData();
     }
   }, [session, supabase]);
 
-  const handleAnalyse = async () => {
+  const handleAnalyse = async () => { // Renamed to handleAnalyse
     if (!session) {
       toast.error("You must be logged in to use the AI coach.");
       return;
     }
-    if (usageCount >= AI_COACH_LIMIT_PER_DAY) {
-      toast.error(`You've reached the limit of ${AI_COACH_LIMIT_PER_DAY} AI coach uses per day.`);
+    if (usageCount >= AI_COACH_LIMIT_PER_SESSION) {
+      toast.error(`You've reached the limit of ${AI_COACH_LIMIT_PER_SESSION} AI coach uses per day.`);
       return;
     }
 
     setLoading(true);
+    // Do NOT clear analysis here, so it persists if user closes and reopens
+    // setAnalysis(""); 
     try {
       const { data, error } = await supabase.functions.invoke('ai-coach', {
-        body: { sessionId },
+        body: { sessionId }, // Pass the current workout sessionId
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
@@ -79,17 +81,17 @@ export const AiSessionAnalysisCard = ({ sessionId }: AiSessionAnalysisCardProps)
       }
 
       setAnalysis(data.analysis);
-      setUsageCount(prev => prev + 1);
+      setUsageCount(prev => prev + 1); // Increment usage count after successful call
       
     } catch (err: any) {
       console.error("AI Coach error:", err);
-      toast.error("Failed to get AI analysis: " + err.message);
+      toast.error("Failed to get AI analysis: " + err.message); // Changed to analysis
     } finally {
       setLoading(false);
     }
   };
 
-  const canUseAiCoach = usageCount < AI_COACH_LIMIT_PER_DAY;
+  const canUseAiCoach = usageCount < AI_COACH_LIMIT_PER_SESSION;
 
   return (
     <Card className="mb-6">
@@ -104,18 +106,18 @@ export const AiSessionAnalysisCard = ({ sessionId }: AiSessionAnalysisCardProps)
             {canUseAiCoach ? (
               <>
                 <p className="text-muted-foreground">Get personalised feedback on this specific workout session.</p>
-                <Button onClick={handleAnalyse} disabled={!canUseAiCoach}>
-                  <Sparkles className="h-4 w-4 mr-2" /> Analyse This Workout
+                <Button onClick={handleAnalyse} disabled={!canUseAiCoach}> {/* Changed to Analyse */}
+                  <Sparkles className="h-4 w-4 mr-2" /> Analyse This Workout {/* Changed to Analyse */}
                 </Button>
                 <p className="text-sm text-muted-foreground">
-                  You have {AI_COACH_LIMIT_PER_DAY - usageCount} uses remaining today.
+                  You have {AI_COACH_LIMIT_PER_SESSION - usageCount} uses remaining today.
                 </p>
               </>
             ) : (
               <div className="space-y-4">
                 <AlertCircle className="h-12 w-12 text-yellow-500 mx-auto" />
                 <p className="text-muted-foreground">
-                  You've reached the limit of {AI_COACH_LIMIT_PER_DAY} AI coach uses per day.
+                  You've reached the limit of {AI_COACH_LIMIT_PER_SESSION} AI coach uses per day.
                 </p>
               </div>
             )}

@@ -89,7 +89,6 @@ export const WeeklyVolumeChart = () => {
           console.log(`[WeeklyVolumeChart] Full Workout Session Object:`, workoutSession);
           console.log(`[WeeklyVolumeChart] Extracted: type=${exerciseType}, date=${sessionDate}, weight=${log.weight_kg}, reps=${log.reps}`);
 
-          // Only include 'weight' type exercises in volume calculation
           if (exerciseType === 'weight' && log.weight_kg && log.reps && sessionDate) {
             const date = new Date(sessionDate);
             const startOfWeek = getStartOfWeek(date);

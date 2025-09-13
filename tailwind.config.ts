@@ -77,8 +77,6 @@ export default {
           'pull': 'hsl(var(--workout-pull))',
           'legs': 'hsl(var(--workout-legs))',
           'bonus': 'hsl(var(--workout-bonus))',
-          'ai': 'hsl(var(--workout-bonus))', // NEW: AI badge color
-          'gym': 'hsl(var(--workout-gym))', // NEW: Gym badge color
         },
   		},
   		borderRadius: {
@@ -121,7 +119,7 @@ export default {
   plugins: [require("tailwindcss-animate")],
   safelist: [
     {
-      pattern: /(bg|text|border)-workout-(upper-body-a|lower-body-a|upper-body-b|lower-body-b|push|pull|legs|bonus|ai|gym)/, // NEW: Added ai and gym
+      pattern: /(bg|text|border)-workout-(upper-body-a|lower-body-a|upper-body-b|lower-body-b|push|pull|legs|bonus)/,
     },
     // Add the specific background colors for the fitness level badge to the safelist
     'bg-gray-500',

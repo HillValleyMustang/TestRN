@@ -26,8 +26,8 @@ export const useSetPersistence = ({
 
   const saveSetToDb = useCallback(async (set: SetLogState, setIndex: number, sessionIdToUse: string): Promise<{ savedSet: SetLogState | null }> => {
     // Validation logic remains the same
-    if (exerciseType === 'weight' || exerciseType === 'body_weight') { // Added body_weight
-      if (exerciseType === 'weight' && (set.weight_kg === null || set.weight_kg <= 0)) {
+    if (exerciseType === 'weight') {
+      if (set.weight_kg === null || set.weight_kg <= 0) {
         toast.error(`Set ${setIndex + 1}: Please enter a valid positive weight.`);
         return { savedSet: null };
       }

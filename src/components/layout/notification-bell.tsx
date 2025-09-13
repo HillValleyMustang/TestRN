@@ -8,22 +8,30 @@ import { Bell, CheckCheck, AlertCircle } from "lucide-react"; // Added AlertCirc
 import { toast } from "sonner";
 import { ScrollArea } from '../ui/scroll-area';
 import { Badge } from '../ui/badge';
-import { Tables, UserAlert } from '@/types/supabase'; // Import Tables and UserAlert
-import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher'; // Import useWorkoutDataFetcher
+import { Tables } from '@/types/supabase'; // Import Tables
 
 interface Notification {
   id: string;
   title: string;
   message: string;
-  created_at: string | null; // Changed to allow null
+  created_at: string;
   is_read: boolean;
   type: string; // Added type
 }
 
+interface UserAlert {
+  id: string;
+  title: string;
+  message: string;
+  created_at: string;
+  is_read: boolean;
+  type: string;
+}
+
 export function NotificationBell() {
   const { session, supabase } = useSession();
-  const { userAlerts, refreshUserAlerts } = useWorkoutDataFetcher(); // NEW: Get userAlerts and refresh function
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [userAlerts, setUserAlerts] = useState<UserAlert[]>([]); // New state for user alerts
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -36,14 +44,21 @@ export function NotificationBell() {
       const { data: globalNotifications, error: globalError } = await supabase.rpc('get_notifications_with_read_status');
       if (globalError) throw globalError;
 
-      // Combine global notifications and user alerts
+      // Fetch user-specific alerts
+      const { data: fetchedUserAlerts, error: userAlertsError } = await supabase
+        .from('user_alerts')
+        .select('id, title, message, created_at, is_read, type')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false });
+      if (userAlertsError) throw userAlertsError;
+
       const allNotifications: (Notification | UserAlert)[] = [
         ...(globalNotifications as Notification[] || []),
-        ...(userAlerts || []), // Use userAlerts from the hook
+        ...(fetchedUserAlerts as UserAlert[] || []),
       ];
 
       // Sort all notifications by creation date descending
-      allNotifications.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+      allNotifications.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
       setNotifications(allNotifications as Notification[]); // Cast back to Notification[] for combined list
       setUnreadCount(allNotifications.filter(n => !n.is_read).length);
@@ -53,7 +68,7 @@ export function NotificationBell() {
     } finally {
       setLoading(false);
     }
-  }, [session, supabase, userAlerts]); // Added userAlerts to dependencies
+  }, [session, supabase]);
 
   useEffect(() => {
     if (session) {
@@ -102,7 +117,6 @@ export function NotificationBell() {
       toast.error("Failed to mark some notifications as read.");
     } else {
       toast.success("All notifications marked as read.");
-      refreshUserAlerts(); // NEW: Refresh user alerts cache
       fetchNotifications(); // Refresh the list
       setOpen(false);
     }
@@ -147,7 +161,7 @@ export function NotificationBell() {
                     {n.title}
                   </p>
                   <p className="text-xs text-muted-foreground">{n.message}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{new Date(n.created_at || 0).toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{new Date(n.created_at).toLocaleString()}</p>
                 </div>
               ))}
             </div>

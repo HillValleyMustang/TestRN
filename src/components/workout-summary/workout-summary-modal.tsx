@@ -170,25 +170,14 @@ export const WorkoutSummaryModal = ({ open, onOpenChange, sessionId }: WorkoutSu
     if (exerciseGroup.type === 'timed') {
       const bestSet = Math.max(...exerciseGroup.sets.map(s => s.time_seconds || 0));
       return formatTime(bestSet);
-    } else if (exerciseGroup.type === 'weight') {
+    } else {
       const bestSet = exerciseGroup.sets.reduce((best, current) => {
         const currentVolume = (current.weight_kg || 0) * (current.reps || 0);
         const bestVolume = (best.weight_kg || 0) * (best.reps || 0);
         return currentVolume > bestVolume ? current : best;
       });
       return `${formatWeight(bestSet.weight_kg, 'kg')} x ${bestSet.reps}`;
-    } else if (exerciseGroup.type === 'body_weight') { // NEW: Body Weight best set string
-      const bestSet = exerciseGroup.sets.reduce((best, current) => {
-        const currentReps = (current.reps_l || 0) + (current.reps_r || 0) + (current.reps || 0);
-        const bestReps = (best.reps_l || 0) + (best.reps_r || 0) + (best.reps || 0);
-        return currentReps > bestReps ? current : best;
-      });
-      if (bestSet.reps_l !== null && bestSet.reps_r !== null) {
-        return `${bestSet.reps_l} L / ${bestSet.reps_r} R`;
-      }
-      return `${bestSet.reps}`;
     }
-    return '-';
   };
 
   return (

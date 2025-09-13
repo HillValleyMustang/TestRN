@@ -47,7 +47,7 @@ serve(async (req: Request) => {
       {
         "name": "Exercise Name",
         "main_muscle": "Main Muscle Group (e.g., Pectorals, Quadriceps)",
-        "type": "weight" | "timed" | "body_weight",
+        "type": "weight" | "timed",
         "category": "Bilateral" | "Unilateral" | null,
         "description": "A brief description of the exercise.",
         "pro_tip": "A short, actionable pro tip for performing the exercise.",

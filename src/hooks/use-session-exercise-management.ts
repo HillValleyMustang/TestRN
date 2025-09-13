@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 import { toast } from 'sonner';
-import { Tables, SetLogState, WorkoutExercise } from '@/types/supabase'; // Import WorkoutExercise
+import { Tables, SetLogState, WorkoutExercise } from '@/types/supabase';
 import { db, LocalDraftSetLog } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
 import { useCoreWorkoutSessionState } from './use-core-workout-session-state';
@@ -82,7 +82,7 @@ export const useSessionExerciseManagement = ({
       lastTimeSeconds = firstLastSet.time_seconds;
     }
 
-    setExercisesForSession((prev: WorkoutExercise[]) => [{ ...exercise, is_bonus_exercise: false, type: exercise.type as WorkoutExercise['type'] }, ...prev]);
+    setExercisesForSession((prev: WorkoutExercise[]) => [{ ...exercise, is_bonus_exercise: false }, ...prev]);
     
     const newSetsForExercise: SetLogState[] = Array.from({ length: DEFAULT_INITIAL_SETS }).map((_, setIndex) => {
       const newSet: SetLogState = { 
@@ -143,7 +143,7 @@ export const useSessionExerciseManagement = ({
       return;
     }
 
-    setExercisesForSession((prev: WorkoutExercise[]) => prev.map((ex: WorkoutExercise) => ex.id === oldExerciseId ? { ...newExercise, type: newExercise.type as WorkoutExercise['type'] } : ex));
+    setExercisesForSession((prev: WorkoutExercise[]) => prev.map((ex: WorkoutExercise) => ex.id === oldExerciseId ? newExercise : ex));
     setExercisesWithSets((prev: Record<string, SetLogState[]>) => {
       const newSets = { ...prev };
       const newSetsForExercise: SetLogState[] = Array.from({ length: DEFAULT_INITIAL_SETS }).map((_, setIndex) => {

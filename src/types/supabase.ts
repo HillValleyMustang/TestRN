@@ -49,7 +49,6 @@ export type SetLogWithExercise = Pick<Tables<'set_logs'>, 'id' | 'weight_kg' | '
 export type WorkoutExercise = Tables<'exercise_definitions'> & {
   is_bonus_exercise: boolean;
   icon_url: string | null; // Added icon_url
-  type: "weight" | "timed" | "body_weight"; // Explicitly define type to include body_weight
 };
 
 // New type for user_exercise_prs table
@@ -66,7 +65,7 @@ export type LocalUserAchievement = UserAchievementsRow;
 export type BodyFatReferenceImage = BodyFatReferenceImagesRow;
 
 // NEW: UserAlert type
-export type UserAlert = Omit<UserAlertsRow, 'created_at'> & { created_at: string | null }; // Allow null for created_at
+export type UserAlert = UserAlertsRow;
 
 
 // New type for ai_coach_usage_logs table
@@ -76,7 +75,6 @@ export type AiCoachUsageLog = AiCoachUsageLogsRow;
 export interface FetchedExerciseDefinition extends Omit<Tables<'exercise_definitions'>, 'id'> {
   id: string | null; // Allow null for new exercises (e.g., when creating from global)
   is_favorited_by_current_user?: boolean; // For global exercises favorited by user
-  type: "weight" | "timed" | "body_weight"; // Explicitly define type to include body_weight
 }
 
 // Centralized type for workouts with last completed date

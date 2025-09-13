@@ -5,7 +5,7 @@ import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Edit, Trash2, Heart, Info, PlusCircle, Menu, Sparkles, Building2 } from "lucide-react"; // Added Sparkles and Building2
+import { Edit, Trash2, Heart, Info, PlusCircle, Menu } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { EditExerciseDialog } from "./edit-exercise-dialog"; // Import the new dialog
 
-type ExerciseDefinition = Tables<'exercise_definitions'>;
+// Removed local FetchedExerciseDefinition definition
 
 interface UserExerciseListProps {
   exercises: FetchedExerciseDefinition[];
@@ -39,14 +39,13 @@ interface UserExerciseListProps {
   onDelete: (exercise: FetchedExerciseDefinition) => void;
   editingExercise: FetchedExerciseDefinition | null;
   onCancelEdit: () => void;
-  onSaveSuccess: (savedExercise?: ExerciseDefinition) => void;
+  onSaveSuccess: () => void;
   exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>;
   onRemoveFromWorkout: (workoutId: string, exerciseId: string) => void;
   onToggleFavorite: (exercise: FetchedExerciseDefinition) => void;
   onAddSuccess: () => void;
   onOptimisticAdd: (exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => void; // Added
   onAddFailure: (exerciseId: string, workoutId: string) => void; // Added
-  availableLocationTags: string[]; // New prop
 }
 
 export const UserExerciseList = ({
@@ -63,7 +62,6 @@ export const UserExerciseList = ({
   onAddSuccess,
   onOptimisticAdd, // Destructured
   onAddFailure, // Destructured
-  availableLocationTags, // Destructured
 }: UserExerciseListProps) => {
   const [isAddTPathDialogOpen, setIsAddTPathDialogOpen] = useState(false);
   const [selectedExerciseForTPath, setSelectedExerciseForTPath] = useState<FetchedExerciseDefinition | null>(null);
@@ -106,8 +104,8 @@ export const UserExerciseList = ({
     onCancelEdit(); // Ensure parent state is reset
   };
 
-  const handleEditDialogSaveSuccess = (savedExercise?: ExerciseDefinition) => {
-    onSaveSuccess(savedExercise); // Trigger parent refresh
+  const handleEditDialogSaveSuccess = () => {
+    onSaveSuccess(); // Trigger parent refresh
     handleEditDialogClose(); // Close dialog and reset state
   };
 
@@ -122,8 +120,7 @@ export const UserExerciseList = ({
           <ExerciseForm
             editingExercise={null} // Always null for adding new
             onCancelEdit={() => {}} // No specific cancel logic needed here for add form
-            onSaveSuccess={onSaveSuccess} // Use onSaveSuccess for new exercises
-            availableLocationTags={availableLocationTags} // Pass down the tags
+            onSaveSuccess={onAddSuccess} // Use onAddSuccess for new exercises
             // Removed onAddOnlyToCurrentWorkout prop
           />
         </div>
@@ -141,24 +138,13 @@ export const UserExerciseList = ({
           <ScrollArea>
             <ul className="space-y-2">
               {exercises.map((ex) => (
-                <li key={ex.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-2 px-3 border rounded-md">
-                  <div className="flex-grow min-w-0 py-1 px-0">
-                    <p className="font-medium text-base leading-tight whitespace-normal">{ex.name}</p> {/* Exercise name */}
+                <li key={ex.id} className="flex items-center justify-between py-1 px-2 border rounded-md">
+                  <div className="flex-1 py-1 px-0">
+                    <p className="font-medium">{ex.name}</p> {/* Exercise name */}
                     <p className="text-sm text-muted-foreground">{ex.main_muscle}</p> {/* Muscle group on new line */}
-                    <div className="mt-2 flex flex-wrap gap-2 items-center"> {/* Added items-center for vertical alignment */}
-                      {ex.library_id?.startsWith('ai_gen_') && ( // Check for AI-generated
-                        <WorkoutBadge workoutName="AI" className="text-xs px-2 py-0.5 flex items-center gap-1">
-                          <Sparkles className="h-3 w-3" /> AI
-                        </WorkoutBadge>
-                      )}
-                      {ex.location_tags && ex.location_tags.length > 0 && ex.location_tags.map(tag => (
-                        <WorkoutBadge key={tag} workoutName={tag} className="text-xs px-2 py-0.5 flex items-center gap-1">
-                          <Building2 className="h-3 w-3" /> {tag}
-                        </WorkoutBadge>
-                      ))}
-                      {/* Existing workout badges for t-paths */}
-                      {exerciseWorkoutsMap[ex.id as string]?.length > 0 && (
-                        exerciseWorkoutsMap[ex.id as string].map(workout => (
+                    {exerciseWorkoutsMap[ex.id as string]?.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {exerciseWorkoutsMap[ex.id as string].map(workout => (
                           <div key={workout.id} className="flex items-center gap-1 p-1 rounded-md"> {/* Removed bg-muted */}
                             <WorkoutBadge 
                               workoutName={workout.name}
@@ -171,12 +157,12 @@ export const UserExerciseList = ({
                               </WorkoutBadge>
                             )}
                           </div>
-                        ))
-                      )}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   {/* Action buttons group */}
-                  <div className="flex gap-1 flex-shrink-0 mt-2 sm:mt-0">
+                  <div className="flex gap-1">
                     <Button variant="ghost" size="icon" title="More Info" onClick={(e) => handleOpenInfoDialog(ex, e)}>
                       <Info className="h-4 w-4" />
                     </Button>
@@ -243,7 +229,6 @@ export const UserExerciseList = ({
         onOpenChange={handleEditDialogClose}
         exercise={exerciseToEdit}
         onSaveSuccess={handleEditDialogSaveSuccess}
-        availableLocationTags={availableLocationTags}
       />
     </Card>
   );

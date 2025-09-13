@@ -38,7 +38,7 @@ export const ExerciseMiniChart = ({ exerciseId, exerciseType, currentSessionId }
         const { data: setLogs, error: fetchError } = await supabase
           .from('set_logs')
           .select(`
-            weight_kg, reps, reps_l, reps_r, time_seconds,
+            weight_kg, reps, time_seconds,
             workout_sessions (
               session_date,
               id
@@ -69,8 +69,6 @@ export const ExerciseMiniChart = ({ exerciseId, exerciseType, currentSessionId }
             performanceValue = weight * reps; // Total volume for the set
           } else if (exerciseType === 'timed') {
             performanceValue = log.time_seconds || 0;
-          } else if (exerciseType === 'body_weight') { // NEW: Body Weight performance
-            performanceValue = (log.reps_l || 0) + (log.reps_r || 0) + (log.reps || 0); // Sum of reps
           }
 
           if (performanceValue !== null) {
@@ -81,8 +79,8 @@ export const ExerciseMiniChart = ({ exerciseId, exerciseType, currentSessionId }
                 sessionId
               };
             }
-            // For weight: sum volume. For timed: take max time. For body_weight: sum reps.
-            if (exerciseType === 'weight' || exerciseType === 'body_weight') {
+            // For weight: sum volume. For timed: take max time (or average, depending on desired metric)
+            if (exerciseType === 'weight') {
               sessionPerformance[sessionId].value += performanceValue;
             } else if (exerciseType === 'timed') {
               sessionPerformance[sessionId].value = Math.max(sessionPerformance[sessionId].value, performanceValue);
@@ -127,8 +125,6 @@ export const ExerciseMiniChart = ({ exerciseId, exerciseType, currentSessionId }
       return `${formatWeight(value, 'kg')}`;
     } else if (exerciseType === 'timed') {
       return `${formatTime(value)}`;
-    } else if (exerciseType === 'body_weight') { // NEW: Body Weight tooltip
-      return `${value} reps`;
     }
     return value.toString();
   };

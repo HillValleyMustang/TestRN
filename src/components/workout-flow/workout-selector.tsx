@@ -4,7 +4,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Dumbbell, Settings, Sparkles } from 'lucide-react';
-import { Tables, WorkoutWithLastCompleted, GroupedTPath, SetLogState, WorkoutExercise, FetchedExerciseDefinition, Profile } from '@/types/supabase';
+import { Tables, WorkoutWithLastCompleted, GroupedTPath, SetLogState, WorkoutExercise, FetchedExerciseDefinition } from '@/types/supabase';
 import { cn, formatTimeAgo, getPillStyles } from '@/lib/utils';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { WorkoutBadge } from '../workout-badge';
@@ -53,7 +53,6 @@ interface WorkoutSelectorProps {
   handleOpenEditWorkoutDialog: (workoutId: string, workoutName: string) => void;
   handleEditWorkoutSaveSuccess: () => void;
   setIsEditWorkoutDialogOpen: (isOpen: boolean) => void;
-  profile: Profile | null;
 }
 
 const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName: string): Omit<WorkoutPillProps, 'isSelected' | 'onClick'> => {
@@ -118,7 +117,6 @@ export const WorkoutSelector = ({
   handleOpenEditWorkoutDialog,
   handleEditWorkoutSaveSuccess,
   setIsEditWorkoutDialogOpen,
-  profile,
 }: WorkoutSelectorProps) => {
   const { supabase, session } = useSession();
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
@@ -156,16 +154,10 @@ export const WorkoutSelector = ({
   };
 
   // AI Gym Analysis Handlers for Workout Page
-  const handleExercisesIdentified = useCallback((exercises: (Partial<Tables<'exercise_definitions'>> & { isDuplicate: boolean })[]) => {
-    if (exercises.length > 0) {
-      // For now, we'll just take the first identified exercise for the prompt,
-      // but the dialog is designed to handle multiple if needed in the future.
-      setAiIdentifiedExercise(exercises[0]);
-      setIsDuplicateAiExercise(exercises[0].isDuplicate || false);
-      setShowSaveAiExercisePrompt(true);
-    } else {
-      toast.info("AI couldn't identify any equipment in the photo. Try another angle or a different photo!");
-    }
+  const handleExerciseIdentified = useCallback((exercise: Partial<Tables<'exercise_definitions'>>, isDuplicate: boolean) => {
+    setAiIdentifiedExercise(exercise);
+    setIsDuplicateAiExercise(isDuplicate);
+    setShowSaveAiExercisePrompt(true);
   }, []);
 
   const handleSaveAiExerciseToMyExercises = useCallback(async (exercise: Partial<Tables<'exercise_definitions'>>) => {
@@ -459,8 +451,7 @@ export const WorkoutSelector = ({
       <AnalyseGymDialog
         open={showAnalyseGymDialog}
         onOpenChange={setShowAnalyseGymDialog}
-        onExercisesIdentified={handleExercisesIdentified}
-        locationTag={profile?.active_location_tag || null}
+        onExerciseIdentified={handleExerciseIdentified}
       />
       <SaveAiExercisePrompt
         open={showSaveAiExercisePrompt}

@@ -39,7 +39,7 @@ export const PersonalRecordsCard = () => {
 
         if (error) throw error;
 
-        const formattedRecords: PersonalRecord[] = (prs || []).map((pr: { exercise_name: string; exercise_type: string; best_value: number; unit: string; last_achieved_date: string }) => ({
+        const formattedRecords: PersonalRecord[] = (prs || []).map(pr => ({
           exerciseName: pr.exercise_name,
           exerciseType: pr.exercise_type,
           value: pr.best_value || 0,

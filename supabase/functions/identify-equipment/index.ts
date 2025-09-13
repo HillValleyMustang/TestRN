@@ -2,8 +2,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-// @ts-ignore
-import { v4 as uuidv4 } from 'https://esm.sh/uuid@9.0.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,6 +19,7 @@ serve(async (req: Request) => {
   }
 
   try {
+    // @ts-ignore
     const supabaseClient = createClient(
       // @ts-ignore
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -34,28 +33,31 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const { base64Image, locationTag } = await req.json();
+    const { base64Image } = await req.json();
 
     if (!base64Image) {
       return new Response(JSON.stringify({ error: 'No image provided.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const prompt = `
-      Analyze the gym equipment in this image. Identify ALL distinct pieces of equipment that can be used for exercises.
-      For each piece of equipment, suggest a primary exercise.
-      Provide the response in a strict JSON array format. Each object in the array should have the following fields:
+      Analyze the gym equipment in this image. Identify the specific equipment.
+      Use English UK spelling for all text fields (e.g., 'analyse' instead of 'analyze', 'colour' instead of 'color').
+      Provide its name, primary muscle group(s) (comma-separated if multiple, e.g., "Pectorals, Deltoids"),
+      its type ('weight' or 'timed'), its category ('Bilateral', 'Unilateral', or null if not applicable),
+      a brief description of how to use it, a practical pro tip for performing the exercise,
+      and a relevant YouTube embed URL for a tutorial video (can be an empty string if none found).
+
+      IMPORTANT: Respond ONLY with a JSON object. Do NOT include any other text, markdown formatting (like \`\`\`json), or conversational phrases. The response must be a pure JSON string.
+      Example:
       {
         "name": "Exercise Name",
-        "main_muscle": "Main Muscle Group(s) (comma-separated, e.g., Pectorals, Deltoids)",
-        "type": "weight" | "timed" | "body_weight",
+        "main_muscle": "Main Muscle Group(s)",
+        "type": "weight" | "timed",
         "category": "Bilateral" | "Unilateral" | null,
-        "description": "A brief description of the exercise.",
-        "pro_tip": "A short, actionable pro tip for performing the exercise.",
-        "video_url": "Optional YouTube or instructional video URL (can be empty string if none)"
+        "description": "A brief description.",
+        "pro_tip": "A short, actionable pro tip.",
+        "video_url": "https://www.youtube.com/embed/..."
       }
-      
-      Ensure 'name', 'main_muscle', and 'type' are always present. If no equipment is identifiable, return an empty array.
-      Do not include any other text or markdown outside the JSON array.
     `;
 
     const geminiResponse = await fetch(GEMINI_API_URL, {
@@ -66,7 +68,7 @@ serve(async (req: Request) => {
           {
             parts: [
               { text: prompt },
-              { inlineData: { mimeType: 'image/jpeg', data: base64Image } }
+              { inlineData: { mimeType: 'image/jpeg', data: base64Image } } // Assuming JPEG, adjust if needed
             ]
           }
         ],
@@ -75,115 +77,77 @@ serve(async (req: Request) => {
 
     if (!geminiResponse.ok) {
       const errorBody = await geminiResponse.text();
+      console.error("Gemini API error response:", errorBody);
       throw new Error(`Gemini API error: ${geminiResponse.status} - ${errorBody}`);
     }
 
     const geminiData = await geminiResponse.json();
-    let generatedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+    const generatedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!generatedText) {
       throw new Error("AI did not return a valid response.");
     }
 
-    // Robust JSON extraction: Remove markdown code block wrappers if present
-    if (generatedText.startsWith('```json')) {
-      generatedText = generatedText.substring(7, generatedText.lastIndexOf('```')).trim();
-    } else if (generatedText.startsWith('```')) { // Also handle generic code blocks
-      generatedText = generatedText.substring(3, generatedText.lastIndexOf('```')).trim();
-    }
-    console.log("Cleaned Gemini response text:", generatedText); // Log cleaned text for debugging
+    // Use a regex to extract the JSON object from the generated text
+    const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
+    let jsonString = jsonMatch ? jsonMatch[0] : generatedText; // Fallback to full text if no match
 
-    let identifiedExercises: any[];
+    let identifiedExercise;
     try {
-      identifiedExercises = JSON.parse(generatedText);
-      if (!Array.isArray(identifiedExercises)) {
-        console.error("AI returned a non-array format after cleaning:", identifiedExercises);
-        throw new Error("AI returned a non-array format.");
-      }
+      identifiedExercise = JSON.parse(jsonString);
     } catch (parseError) {
-      console.error("Failed to parse Gemini response as JSON array after cleaning:", generatedText);
-      throw new Error("AI returned an invalid format. Please try again.");
+      console.error("Failed to parse Gemini response as JSON:", jsonString);
+      throw new Error("AI returned an invalid format. Please try again or use manual entry.");
     }
 
-    const processedExercises = [];
-    for (const exercise of identifiedExercises) {
-      if (!exercise.name || !exercise.main_muscle || !exercise.type) {
-        console.warn("Skipping AI-identified exercise due to missing essential details:", exercise);
-        continue; // Skip exercises with missing essential details
-      }
+    // Validate essential fields
+    if (!identifiedExercise.name || !identifiedExercise.main_muscle || !identifiedExercise.type) {
+      throw new Error("AI could not extract essential exercise details. Please try a different photo or use manual entry.");
+    }
 
-      // --- DUPLICATE CHECK & HANDLING ---
-      const { data: existingExercises, error: duplicateCheckError } = await supabaseClient
-        .from('exercise_definitions')
-        .select('id, user_id, library_id, location_tags')
-        .ilike('name', exercise.name.trim())
-        .or(`user_id.eq.${user.id},user_id.is.null`);
+    // --- DUPLICATE CHECK ---
+    let isDuplicate = false;
 
-      if (duplicateCheckError) throw duplicateCheckError;
+    // 1. Check for exact name/muscle/type match in user's OWN exercises
+    const { data: userOwnedDuplicates, error: userOwnedDuplicateError } = await supabaseClient
+      .from('exercise_definitions')
+      .select('id')
+      .eq('user_id', user.id)
+      .ilike('name', identifiedExercise.name.trim())
+      .ilike('main_muscle', identifiedExercise.main_muscle.trim())
+      .eq('type', identifiedExercise.type);
 
-      let finalExerciseId: string | null = null;
-      let isDuplicate = false;
-      let existingLocationTags: string[] = [];
+    if (userOwnedDuplicateError) {
+      console.error("Error checking for user-owned duplicate exercises:", userOwnedDuplicateError.message);
+    } else if (userOwnedDuplicates && userOwnedDuplicates.length > 0) {
+      isDuplicate = true;
+    }
 
-      if (existingExercises && existingExercises.length > 0) {
-        // Prioritize user-owned exercise if both exist
-        const userOwnedMatch = existingExercises.find((ex: { user_id: string | null }) => ex.user_id === user.id);
-        const existingMatch = userOwnedMatch || existingExercises[0];
-        
-        finalExerciseId = existingMatch.id;
-        isDuplicate = true;
-        existingLocationTags = existingMatch.location_tags || [];
-
-        // If it's a user-owned exercise and a locationTag was provided, update its tags.
-        if (existingMatch.user_id === user.id && locationTag && !existingLocationTags.includes(locationTag)) {
-          const newTags = [...existingLocationTags, locationTag];
-          const { error: updateError } = await supabaseClient
+    // 2. If not already a duplicate, check if it's a global exercise that the user has already adopted
+    // This check is only relevant if the identified exercise is originally a global one (has a library_id)
+    // and the user has a custom copy of it.
+    if (!isDuplicate && identifiedExercise.library_id) {
+        const { data: adoptedDuplicates, error: adoptedDuplicateError } = await supabaseClient
             .from('exercise_definitions')
-            .update({ location_tags: newTags })
-            .eq('id', existingMatch.id);
-          if (updateError) throw updateError;
-          existingLocationTags = newTags; // Update for the response
-        }
-      } else {
-        // It's a new exercise, so we insert it as a user-owned exercise.
-        const { data: newExercise, error: insertError } = await supabaseClient
-          .from('exercise_definitions')
-          .insert({
-            name: exercise.name,
-            main_muscle: exercise.main_muscle,
-            type: exercise.type,
-            category: exercise.category,
-            description: exercise.description,
-            pro_tip: exercise.pro_tip,
-            video_url: exercise.video_url,
-            user_id: user.id,
-            library_id: null, // User-created, not from global library
-            location_tags: locationTag ? [locationTag] : [],
-            icon_url: 'https://i.imgur.com/2Y4Y4Y4.png', // Default icon
-          })
-          .select('id, location_tags')
-          .single();
-        
-        if (insertError) throw insertError;
-        finalExerciseId = newExercise.id;
-        existingLocationTags = newExercise.location_tags || [];
-      }
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('library_id', identifiedExercise.library_id); // Check if user has adopted this specific global exercise
 
-      processedExercises.push({
-        ...exercise, // Include all AI-identified details
-        id: finalExerciseId,
-        isDuplicate: isDuplicate,
-        location_tags: existingLocationTags, // Return the updated tags
-      });
+        if (adoptedDuplicateError) {
+            console.error("Error checking for adopted global duplicate exercises:", adoptedDuplicateError.message);
+        } else if (adoptedDuplicates && adoptedDuplicates.length > 0) {
+            isDuplicate = true;
+        }
     }
 
-    return new Response(JSON.stringify({ identifiedExercises: processedExercises }), {
+    // Return the identified exercise data AND the duplicate flag to the client
+    return new Response(JSON.stringify({ identifiedExercise, isDuplicate }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
+    console.error("Error in identify-equipment edge function:", error);
     const message = error instanceof Error ? error.message : "An unknown error occurred";
-    console.error('Error in /identify-equipment edge function:', error);
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

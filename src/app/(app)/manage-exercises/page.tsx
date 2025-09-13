@@ -55,9 +55,6 @@ export default function ManageExercisesPage() {
     handleRemoveFromWorkout,
     refreshExercises,
     refreshTPaths,
-    selectedLocationTag,
-    setSelectedLocationTag,
-    availableLocationTags,
   } = useManageExercisesData({ sessionUserId: session?.user.id ?? null, supabase });
 
   // AI-related states
@@ -100,16 +97,10 @@ export default function ManageExercisesPage() {
   }, [emblaApi]);
 
   // AI Gym Analysis Handlers for Manage Exercises page
-  const handleExercisesIdentified = useCallback((exercises: (Partial<Tables<'exercise_definitions'>> & { isDuplicate: boolean })[]) => {
-    if (exercises.length > 0) {
-      // For now, we'll just take the first identified exercise for the prompt,
-      // but the dialog is designed to handle multiple if needed in the future.
-      setAiIdentifiedExercise(exercises[0]);
-      setIsDuplicateAiExercise(exercises[0].isDuplicate || false);
-      setShowSaveAiExercisePrompt(true);
-    } else {
-      toast.info("AI couldn't identify any equipment in the photo. Try another angle or a different photo!");
-    }
+  const handleExerciseIdentified = useCallback((exercise: Partial<Tables<'exercise_definitions'>>, isDuplicate: boolean) => {
+    setAiIdentifiedExercise(exercise);
+    setIsDuplicateAiExercise(isDuplicate);
+    setShowSaveAiExercisePrompt(true);
   }, []);
 
   const handleSaveAiExerciseToMyExercises = useCallback(async (exercise: Partial<Tables<'exercise_definitions'>>) => {
@@ -122,7 +113,7 @@ export default function ManageExercisesPage() {
       const { error } = await supabase.from('exercise_definitions').insert([{
         name: exercise.name!,
         main_muscle: exercise.main_muscle!,
-        type: exercise.type! as Tables<'exercise_definitions'>['type'], // Explicitly cast
+        type: exercise.type!,
         category: exercise.category,
         description: exercise.description,
         pro_tip: exercise.pro_tip,
@@ -167,11 +158,10 @@ export default function ManageExercisesPage() {
       category: exercise.category ?? null,
       video_url: exercise.video_url ?? null,
       icon_url: exercise.icon_url ?? null, // Fix for icon_url
-      location_tags: exercise.location_tags ?? null, // Fix for location_tags
       // Ensure name, main_muscle, type are explicitly string
       name: exercise.name || '',
       main_muscle: exercise.main_muscle || '',
-      type: (exercise.type || 'weight') as FetchedExerciseDefinition['type'], // Default to 'weight' if undefined // <-- TypeScript compiler error here
+      type: exercise.type || 'weight', // Default to 'weight' if undefined
     };
     handleEditClick(exerciseToEdit);
     setShowSaveAiExercisePrompt(false);
@@ -224,22 +214,6 @@ export default function ManageExercisesPage() {
               </Sheet>
             </div>
             
-            <div className="p-4 border-b">
-              <Select onValueChange={setSelectedLocationTag} value={selectedLocationTag}>
-                <SelectTrigger className="w-full sm:w-[280px]">
-                  <SelectValue placeholder="Select a Virtual Gym" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All My Exercises</SelectItem>
-                  {availableLocationTags.map(tag => (
-                    <SelectItem key={tag} value={tag}>
-                      {tag}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
             <div className="relative">
               <div className="overflow-hidden" ref={emblaRef}>
                 <div className="flex">
@@ -263,7 +237,6 @@ export default function ManageExercisesPage() {
                           onAddSuccess={refreshExercises}
                           onOptimisticAdd={handleOptimisticAdd}
                           onAddFailure={handleAddFailure}
-                          availableLocationTags={availableLocationTags}
                         />
                       </div>
                     </TabsContent>
@@ -314,8 +287,7 @@ export default function ManageExercisesPage() {
       <AnalyseGymDialog
         open={showAnalyseGymDialog}
         onOpenChange={setShowAnalyseGymDialog}
-        onExercisesIdentified={handleExercisesIdentified}
-        locationTag={selectedLocationTag === 'all' ? null : selectedLocationTag}
+        onExerciseIdentified={handleExerciseIdentified}
       />
       <SaveAiExercisePrompt
         open={showSaveAiExercisePrompt}
@@ -333,7 +305,6 @@ export default function ManageExercisesPage() {
           onOpenChange={handleCancelEdit}
           exercise={editingExercise}
           onSaveSuccess={handleSaveSuccess}
-          availableLocationTags={availableLocationTags}
         />
       )}
     </>

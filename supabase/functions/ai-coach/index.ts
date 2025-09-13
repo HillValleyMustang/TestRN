@@ -13,17 +13,14 @@ const corsHeaders = {
 interface ExerciseDef {
   name: string;
   main_muscle: string;
-  type: string; // Added type
 }
 
 interface SetLog {
   session_id: string;
   weight_kg: number | null;
   reps: number | null;
-  reps_l: number | null; // Added
-  reps_r: number | null; // Added
   time_seconds: number | null;
-  exercise_definitions: Pick<ExerciseDef, 'name' | 'main_muscle' | 'type'> | null; // Pick 'type'
+  exercise_definitions: Pick<ExerciseDef, 'name' | 'main_muscle'> | null; // Pick only 'name' and 'main_muscle'
 }
 
 interface WorkoutSession {
@@ -91,7 +88,7 @@ serve(async (req: Request) => {
 
       const { data: specificSetLogs, error: specificSetLogsError } = await supabaseClient
         .from('set_logs')
-        .select('session_id, weight_kg, reps, reps_l, reps_r, time_seconds, exercise_definitions(name, main_muscle, type)') // Select type
+        .select('session_id, weight_kg, reps, time_seconds, exercise_definitions(name, main_muscle)')
         .eq('session_id', sessionId)
         .returns<SetLog[]>();
 
@@ -107,11 +104,8 @@ serve(async (req: Request) => {
           exercises: logsForSession?.map((log: SetLog) => ({
             name: log.exercise_definitions?.name,
             muscle: log.exercise_definitions?.main_muscle,
-            type: log.exercise_definitions?.type, // Include type
             weight: log.weight_kg,
             reps: log.reps,
-            reps_l: log.reps_l, // Include unilateral reps
-            reps_r: log.reps_r, // Include unilateral reps
             time: log.time_seconds,
           }))
         };
@@ -120,10 +114,6 @@ serve(async (req: Request) => {
       prompt = `
         You are an expert AI fitness coach. Analyze the following single workout session.
         The workout session includes a 'rating' from 1 to 5, where 5 is excellent and 1 is very poor.
-        Exercises can be of type 'weight', 'timed', or 'body_weight'.
-        For 'weight' exercises, consider 'weight' and 'reps'.
-        For 'timed' exercises, consider 'time'.
-        For 'body_weight' exercises, consider 'reps' (or 'reps_l' and 'reps_r' for unilateral).
         Provide a concise, encouraging, and actionable analysis specific to this workout.
         
         Your analysis should include:
@@ -160,7 +150,7 @@ serve(async (req: Request) => {
       const sessionIds = sessions.map((s: WorkoutSession) => s.id);
       const { data: recentSetLogs, error: recentSetLogsError } = await supabaseClient
         .from('set_logs')
-        .select('session_id, weight_kg, reps, reps_l, reps_r, time_seconds, exercise_definitions(name, main_muscle, type)') // Select type
+        .select('session_id, weight_kg, reps, time_seconds, exercise_definitions(name, main_muscle)')
         .in('session_id', sessionIds)
         .returns<SetLog[]>();
 
@@ -176,11 +166,8 @@ serve(async (req: Request) => {
           exercises: logsForSession?.map((log: SetLog) => ({
             name: log.exercise_definitions?.name,
             muscle: log.exercise_definitions?.main_muscle,
-            type: log.exercise_definitions?.type, // Include type
             weight: log.weight_kg,
             reps: log.reps,
-            reps_l: log.reps_l, // Include unilateral reps
-            reps_r: log.reps_r, // Include unilateral reps
             time: log.time_seconds,
           }))
         };
@@ -189,10 +176,6 @@ serve(async (req: Request) => {
       prompt = `
         You are an expert AI fitness coach. Analyze the following workout history from the last 30 days for a user.
         Each workout session includes a 'rating' from 1 to 5, where 5 is excellent and 1 is very poor.
-        Exercises can be of type 'weight', 'timed', or 'body_weight'.
-        For 'weight' exercises, consider 'weight' and 'reps'.
-        For 'timed' exercises, consider 'time'.
-        For 'body_weight' exercises, consider 'reps' (or 'reps_l' and 'reps_r' for unilateral).
         Provide a concise, encouraging, and actionable analysis.
         
         Your analysis should include:

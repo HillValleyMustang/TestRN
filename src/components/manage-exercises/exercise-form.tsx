@@ -38,6 +38,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from '@/lib/utils';
 import { Badge } from "@/components/ui/badge";
 
+// Import new modular components with corrected paths
 import { ExerciseNameInput } from "@/components/manage-exercises/exercise-form/exercise-name-input";
 import { MainMuscleSelect } from "@/components/manage-exercises/exercise-form/main-muscle-select";
 import { ExerciseTypeSelector } from "@/components/manage-exercises/exercise-form/exercise-type-selector";
@@ -45,29 +46,26 @@ import { ExerciseCategorySelect } from "@/components/manage-exercises/exercise-f
 import { ExerciseDetailsTextareas } from "@/components/manage-exercises/exercise-form/exercise-details-textareas";
 import { ExerciseVideoUrlInput } from "@/components/manage-exercises/exercise-form/exercise-video-url-input";
 import { ExerciseFormActions } from "@/components/manage-exercises/exercise-form/exercise-form-actions";
-import { ExerciseLocationTagSelect } from "@/components/manage-exercises/exercise-form/exercise-location-tag-select";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 const exerciseSchema = z.object({
   name: z.string().min(1, "Exercise name is required."),
   main_muscles: z.array(z.string()).min(1, "At least one main muscle group is required."),
-  type: z.array(z.enum(["weight", "timed", "body_weight"])).min(1, "At least one exercise type is required."), // Added 'body_weight'
+  type: z.array(z.enum(["weight", "timed"])).min(1, "At least one exercise type is required."),
   category: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
   pro_tip: z.string().optional().nullable(),
   video_url: z.string().url("Must be a valid URL.").optional().or(z.literal('')).nullable(),
-  location_tags: z.array(z.string()).optional().nullable(),
 });
 
 interface ExerciseFormProps {
   editingExercise: FetchedExerciseDefinition | null;
   onCancelEdit: () => void;
-  onSaveSuccess: (savedExercise?: ExerciseDefinition) => void;
-  availableLocationTags: string[];
+  onSaveSuccess: () => void;
 }
 
-export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(({ editingExercise, onCancelEdit, onSaveSuccess, availableLocationTags }, ref) => {
+export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(({ editingExercise, onCancelEdit, onSaveSuccess }, ref) => {
   const { session, supabase } = useSession();
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
@@ -102,7 +100,6 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
       description: null,
       pro_tip: null,
       video_url: null,
-      location_tags: [],
     },
   });
 
@@ -113,15 +110,14 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
       form.reset({
         name: editingExercise.name,
         main_muscles: muscleGroups,
-        type: editingExercise.type ? [editingExercise.type] as ("weight" | "timed" | "body_weight")[] : [], // Updated type
+        type: editingExercise.type ? [editingExercise.type] as ("weight" | "timed")[] : [],
         category: editingExercise.category || null,
-        description: editingExercise.description || null,
+        description: editingExercise.description || null, // Fixed typo here
         pro_tip: editingExercise.pro_tip || null,
         video_url: editingExercise.video_url || null,
-        location_tags: editingExercise.location_tags || [], // Ensure location_tags are set
       });
       setSelectedMuscles(muscleGroups);
-      setSelectedTypes(editingExercise.type ? [editingExercise.type] as ("weight" | "timed" | "body_weight")[] : []); // Updated type
+      setSelectedTypes(editingExercise.type ? [editingExercise.type] as ("weight" | "timed")[] : []);
       setIsExpanded(true);
     } else {
       form.reset();
@@ -131,7 +127,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
     }
   }, [editingExercise, form]);
 
-  const handleTypeChange = (type: "weight" | "timed" | "body_weight") => { // Updated type
+  const handleTypeChange = (type: "weight" | "timed") => {
     form.setValue("type", [type]);
     setSelectedTypes([type]);
   };
@@ -174,36 +170,32 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
       description: values.description,
       pro_tip: values.pro_tip,
       video_url: values.video_url,
-      location_tags: values.location_tags, // Include location_tags
     };
 
     const isEditingUserOwned = editingExercise && editingExercise.user_id === session.user.id && editingExercise.library_id === null && editingExercise.id !== null;
 
     if (isEditingUserOwned) {
-      const { data: updatedExercise, error } = await supabase
+      const { error } = await supabase
         .from('exercise_definitions')
         .update(exerciseData)
-        .eq('id', editingExercise.id)
-        .select()
-        .single();
+        .eq('id', editingExercise.id);
 
       if (error) {
         toast.error("Failed to update exercise: " + error.message);
       } else {
         toast.success("Exercise updated successfully!");
         onCancelEdit();
-        onSaveSuccess(updatedExercise as ExerciseDefinition);
+        onSaveSuccess();
         setIsExpanded(false);
       }
     } else {
-      const { data: newExercise, error } = await supabase.from('exercise_definitions').insert([{ 
+      const { error } = await supabase.from('exercise_definitions').insert([{ 
         ...exerciseData, 
         user_id: session.user.id,
         library_id: null,
         is_favorite: false,
         created_at: new Date().toISOString(),
-        icon_url: 'https://i.imgur.com/2Y4Y4Y4.png', // Add default icon URL
-      }]).select().single();
+      }]).select('id').single();
       if (error) {
         toast.error("Failed to add exercise: " + error.message);
       } else {
@@ -211,7 +203,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
         form.reset();
         setSelectedMuscles([]);
         setSelectedTypes([]);
-        onSaveSuccess(newExercise as ExerciseDefinition);
+        onSaveSuccess();
         setIsExpanded(false);
       }
     }
@@ -276,11 +268,6 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
                 <ExerciseCategorySelect
                   form={form}
                   categoryOptions={categoryOptions}
-                />
-
-                <ExerciseLocationTagSelect
-                  form={form}
-                  availableLocationTags={availableLocationTags}
                 />
                 
                 <ExerciseDetailsTextareas form={form} />
