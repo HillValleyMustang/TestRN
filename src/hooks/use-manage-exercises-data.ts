@@ -258,17 +258,9 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
 
   const handleSaveSuccess = useCallback(async (savedExercise?: ExerciseDefinition) => {
     setEditingExercise(null);
-    if (savedExercise) {
-      try {
-        // The savedExercise is the source of truth from the DB.
-        // Update the local cache. This will trigger useLiveQuery to update the UI.
-        await db.exercise_definitions_cache.put(savedExercise as LocalExerciseDefinition);
-      } catch (cacheError) {
-        console.error("Failed to update local cache after save:", cacheError);
-        toast.error("Failed to update local list, forcing a refresh from server.");
-        await refreshExercises(); // Fallback to a full refresh if cache fails.
-      }
-    }
+    // No more optimistic updates. Just trigger a full, clean refetch from the database.
+    // The useCacheAndRevalidate hook will handle updating the cache with the fresh data.
+    await refreshExercises();
   }, [refreshExercises]);
 
   const handleDeleteExercise = useCallback(async (exercise: FetchedExerciseDefinition) => {
@@ -277,22 +269,18 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       return;
     }
     const toastId = toast.loading(`Deleting '${exercise.name}'...`);
-    
     try {
-      // Perform the database operation first.
+      // Perform the database operation FIRST.
       const { error } = await supabase.from('exercise_definitions').delete().eq('id', exercise.id);
       if (error) throw new Error(error.message);
 
-      // On successful deletion from DB, delete from the local cache.
-      await db.exercise_definitions_cache.delete(exercise.id);
+      // AFTER successful deletion from DB, trigger a full refresh.
+      await refreshExercises();
       
       toast.success("Exercise deleted successfully!", { id: toastId });
-      // The UI will update reactively from the cache deletion.
     } catch (err: any) {
       toast.error("Failed to delete exercise: " + err.message, { id: toastId });
-      // If it fails, we don't touch the cache, so no UI change happens.
-      // We can trigger a refresh to ensure consistency if needed.
-      await refreshExercises();
+      // No need to refresh on error, as the state hasn't changed.
     }
   }, [sessionUserId, supabase, refreshExercises]);
 
@@ -303,12 +291,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
     const toastId = toast.loading(newFavoriteStatus ? "Adding to favourites..." : "Removing from favourites...");
 
     try {
-      // Optimistic UI update for user-owned exercises by updating the cache
-      if (isUserOwned) {
-        await db.exercise_definitions_cache.update(exercise.id, { is_favorite: newFavoriteStatus });
-      }
-
-      // API call
+      // API call FIRST
       if (isUserOwned) {
         const { error } = await supabase.from('exercise_definitions').update({ is_favorite: newFavoriteStatus }).eq('id', exercise.id).eq('user_id', sessionUserId);
         if (error) throw error;
@@ -321,14 +304,12 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
           if (error) throw error;
         }
       }
-      toast.success(newFavoriteStatus ? "Added to favourites!" : "Removed from favourites.", { id: toastId });
       
-      // Refresh the data to ensure consistency, especially for global exercises
-      setTimeout(() => refreshExercises(), 500);
+      // AFTER successful API call, refresh the data.
+      await refreshExercises();
+      toast.success(newFavoriteStatus ? "Added to favourites!" : "Removed from favourites.", { id: toastId });
     } catch (err: any) {
       toast.error("Failed to update favourite status: " + err.message, { id: toastId });
-      // Rollback by refreshing
-      await refreshExercises();
     }
   }, [sessionUserId, supabase, refreshExercises]);
 
