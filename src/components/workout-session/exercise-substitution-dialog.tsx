@@ -9,7 +9,6 @@ import { Tables } from '@/types/supabase';
 import { toast } from "sonner";
 import { Info, Check, Sparkles } from "lucide-react";
 import { LoadingOverlay } from '../loading-overlay';
-import { Badge } from "@/components/ui/badge"; // Import Badge component
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -38,8 +37,6 @@ export const ExerciseSubstitutionDialog = ({
   const [substitutions, setSubstitutions] = useState<ExerciseDefinition[]>([]);
   const [loading, setLoading] = useState(true);
   const [generatingAi, setGeneratingAi] = useState(false);
-  const [generationCount, setGenerationCount] = useState(0);
-  const [newlyGeneratedExerciseIds, setNewlyGeneratedExerciseIds] = useState<Set<string>>(new Set());
 
   const fetchSubstitutions = async () => {
     if (!session || !open) return;
@@ -82,8 +79,6 @@ export const ExerciseSubstitutionDialog = ({
   useEffect(() => {
     if (open) {
       fetchSubstitutions();
-      setGenerationCount(0); // Reset count on open
-      setNewlyGeneratedExerciseIds(new Set()); // Reset new tags on open
     }
   }, [open, session, supabase, currentExercise]);
 
@@ -116,22 +111,23 @@ export const ExerciseSubstitutionDialog = ({
         },
       });
 
+      // The 'error' object should now only be populated for network errors or actual 500s from Supabase gateway, not our function logic.
       if (error) {
-        throw error;
+        throw error; // Re-throw network/gateway errors
       }
 
+      // All logic errors from the function will be in data.error
       if (data.error) {
-        toast.info(data.error);
+        toast.info(data.error); // Show as info, as it's a controlled "error" like a duplicate.
         return;
       }
 
       const newAiExercise = data.newExercise;
       if (newAiExercise) {
         setSubstitutions(prev => [...prev, newAiExercise]);
-        setNewlyGeneratedExerciseIds(prev => new Set(prev).add(newAiExercise.id)); // Add new ID
-        setGenerationCount(prev => prev + 1); // Increment count
         toast.success("AI generated a new exercise suggestion!");
       } else {
+        // This case should be rare now, but good to have a fallback.
         toast.error("AI did not return a valid exercise.");
       }
     } catch (err: any) {
@@ -160,7 +156,7 @@ export const ExerciseSubstitutionDialog = ({
               <p className="text-muted-foreground">
                 No suitable alternative exercises found in your library or global defaults.
               </p>
-              <Button onClick={handleGenerateAiSuggestion} disabled={generatingAi || generationCount >= 2}>
+              <Button onClick={handleGenerateAiSuggestion} disabled={generatingAi}>
                 <Sparkles className="h-4 w-4 mr-2" />
                 {generatingAi ? "Generating..." : "Generate AI Suggestion"}
               </Button>
@@ -177,18 +173,10 @@ export const ExerciseSubstitutionDialog = ({
                     >
                       <div className="flex justify-between items-start gap-2">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold flex items-center gap-2">
-                            {exercise.name}
-                            {newlyGeneratedExerciseIds.has(exercise.id) && (
-                              <Badge variant="secondary">New</Badge>
-                            )}
-                          </h3>
+                          <h3 className="font-semibold">{exercise.name}</h3>
                           <p className="text-sm text-muted-foreground">
                             {exercise.main_muscle} • {exercise.type}
                           </p>
-                          {exercise.description && (
-                            <p className="text-sm mt-1">{exercise.description}</p>
-                          )}
                         </div>
                         <Button
                           size="sm"
@@ -198,6 +186,9 @@ export const ExerciseSubstitutionDialog = ({
                           Select
                         </Button>
                       </div>
+                      {exercise.description && (
+                        <p className="text-sm mt-2">{exercise.description}</p>
+                      )}
                       {embedVideoUrl ? (
                         <div className="mt-2">
                           <div className="relative w-full rounded-md overflow-hidden" style={{ paddingBottom: '56.25%' }}>
@@ -236,7 +227,7 @@ export const ExerciseSubstitutionDialog = ({
               <Button
                 variant="secondary"
                 onClick={handleGenerateAiSuggestion}
-                disabled={generatingAi || generationCount >= 2}
+                disabled={generatingAi}
               >
                 <Sparkles className="h-4 w-4 mr-2" />
                 {generatingAi ? "Generating..." : "Generate More"}
