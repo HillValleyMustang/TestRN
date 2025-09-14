@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown, X, Bot } from "lucide-react"; // Added Bot icon
 
 interface OnboardingStep3Props {
   goalFocus: string;
@@ -62,16 +62,19 @@ export const OnboardingStep3_GoalFocus = ({
           <Card 
             key={goal.id}
             className={cn(
-              "cursor-pointer transition-all",
+              "cursor-pointer transition-all min-h-[100px] flex flex-col justify-center", // Reduced min-height
               goalFocus === goal.id 
                 ? 'border-primary ring-2 ring-primary' 
                 : 'hover:border-primary/50'
             )}
             onClick={() => setGoalFocus(goal.id)}
           >
-            <CardHeader>
-              <CardTitle>{goal.title}</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base text-center">{goal.title}</CardTitle> {/* Reduced font size */}
             </CardHeader>
+            <CardContent className="pt-0">
+              {/* Optional: Add a short description here if needed, with text-xs */}
+            </CardContent>
           </Card>
         ))}
       </div>
@@ -84,15 +87,15 @@ export const OnboardingStep3_GoalFocus = ({
               variant="outline"
               role="combobox"
               className={cn(
-                "w-full justify-between mt-1",
+                "w-full justify-between mt-1 h-auto min-h-[40px] py-2", // Adjusted height and padding
                 selectedMuscles.length === 0 && "text-muted-foreground"
               )}
             >
               <span className="flex items-center justify-between w-full">
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1"> {/* Allow badges to wrap */}
                   {selectedMuscles.length > 0 ? (
                     selectedMuscles.map((muscle) => (
-                      <Badge key={muscle} variant="secondary" className="flex items-center gap-1">
+                      <Badge key={muscle} variant="secondary" className="flex items-center gap-1 text-xs"> {/* Reduced badge text size */}
                         {muscle}
                         <X className="h-3 w-3 cursor-pointer" onClick={(e) => {
                           e.stopPropagation();
@@ -101,7 +104,7 @@ export const OnboardingStep3_GoalFocus = ({
                       </Badge>
                     ))
                   ) : (
-                    <span>Select muscles...</span>
+                    <span className="text-sm">Select muscles...</span>
                   )}
                 </div>
                 <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -117,7 +120,7 @@ export const OnboardingStep3_GoalFocus = ({
                   variant={selectedMuscles.includes(muscle) ? "default" : "outline"}
                   onClick={() => handleMuscleToggle(muscle)}
                   className={cn(
-                    "flex-1",
+                    "flex-1 text-sm", // Reduced button text size
                     selectedMuscles.includes(muscle) ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent"
                   )}
                 >
@@ -127,8 +130,9 @@ export const OnboardingStep3_GoalFocus = ({
             </div>
           </PopoverContent>
         </Popover>
-        <p className="text-sm text-muted-foreground mt-1">
-          Let us know if there are specific muscle groups you want to focus on.
+        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"> {/* Reduced text size, added AI icon */}
+          <Bot className="h-3 w-3 flex-shrink-0" />
+          This helps our AI tailor exercise suggestions and coaching feedback.
         </p>
       </div>
       
@@ -139,8 +143,12 @@ export const OnboardingStep3_GoalFocus = ({
           placeholder="Any injuries, health conditions, or limitations..." 
           value={constraints}
           onChange={(e) => setConstraints(e.target.value)}
-          className="mt-1"
+          className="mt-1 text-sm" // Reduced text size
         />
+        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"> {/* Reduced text size, added AI icon */}
+          <Bot className="h-3 w-3 flex-shrink-0" />
+          Our AI will consider these when generating workout plans and advice.
+        </p>
       </div>
       
       <div className="flex justify-between">
