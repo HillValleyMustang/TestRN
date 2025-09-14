@@ -94,71 +94,82 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const { base64Image } = await req.json();
-    if (!base64Image) {
-      return new Response(JSON.stringify({ error: 'No image provided.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const { base64Images } = await req.json(); // Expect an array of base64 images
+    if (!base64Images || !Array.isArray(base64Images) || base64Images.length === 0) {
+      return new Response(JSON.stringify({ error: 'No images provided.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const prompt = `
-      You are an expert fitness coach. Analyze the gym equipment in this image.
-      Your task is to suggest exercises that can be performed with it.
+    const allIdentifiedExercises: any[] = [];
 
-      Instructions:
-      1. If the equipment is versatile and can be used for many exercises (e.g., dumbbells, cable machine, squat rack), suggest the top 5-7 most common and effective exercises.
-      2. If the equipment is simple and designed for only one or two primary movements (e.g., leg extension machine, pec deck, pull-up bar), suggest only those 1-2 primary exercises.
-      3. For each exercise, provide its name, primary muscle group(s) (comma-separated), type ('weight' or 'timed'), category ('Bilateral', 'Unilateral', or null), a brief description, a pro tip, and an an optional YouTube embed URL.
-      4. IMPORTANT: Your entire response MUST be a single JSON array of objects, with no other text or markdown formatting.
+    for (const base64Image of base64Images) {
+      const prompt = `
+        You are an expert fitness coach. Analyze the gym equipment in this image.
+        Your task is to suggest exercises that can be performed with it.
 
-      Example response for versatile equipment:
-      [
-        { "name": "Bench Press", "main_muscle": "Pectorals", "type": "weight", "category": "Bilateral", "description": "...", "pro_tip": "...", "video_url": "..." },
-        { "name": "Dumbbell Row", "main_muscle": "Back, Biceps", "type": "weight", "category": "Unilateral", "description": "...", "pro_tip": "...", "video_url": "..." }
-      ]
+        Instructions:
+        1. If the equipment is versatile and can be used for many exercises (e.g., dumbbells, cable machine, squat rack), suggest the top 5-7 most common and effective exercises.
+        2. If the equipment is simple and designed for only one or two primary movements (e.g., leg extension machine, pec deck, pull-up bar), suggest only those 1-2 primary exercises.
+        3. For each exercise, provide its name, primary muscle group(s) (comma-separated), type ('weight' or 'timed'), category ('Bilateral', 'Unilateral', or null), a brief description, a pro tip, and an an optional YouTube embed URL.
+        4. IMPORTANT: Your entire response MUST be a single JSON array of objects, with no other text or markdown formatting.
 
-      Example response for simple equipment:
-      [
-        { "name": "Leg Extension", "main_muscle": "Quadriceps", "type": "weight", "category": "Bilateral", "description": "...", "pro_tip": "...", "video_url": "..." }
-      ]
-    `;
+        Example response for versatile equipment:
+        [
+          { "name": "Bench Press", "main_muscle": "Pectorals", "type": "weight", "category": "Bilateral", "description": "...", "pro_tip": "...", "video_url": "..." },
+          { "name": "Dumbbell Row", "main_muscle": "Back, Biceps", "type": "weight", "category": "Unilateral", "description": "...", "pro_tip": "...", "video_url": "..." }
+        ]
 
-    const geminiResponse = await fetch(GEMINI_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: prompt },
-              { inlineData: { mimeType: 'image/jpeg', data: base64Image } }
-            ]
-          }
-        ],
-      }),
-    });
+        Example response for simple equipment:
+        [
+          { "name": "Leg Extension", "main_muscle": "Quadriceps", "type": "weight", "category": "Bilateral", "description": "...", "pro_tip": "...", "video_url": "..." }
+        ]
+      `;
 
-    if (!geminiResponse.ok) {
-      const errorBody = await geminiResponse.text();
-      throw new Error(`Gemini API error: ${geminiResponse.status} - ${errorBody}`);
-    }
+      const geminiResponse = await fetch(GEMINI_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: prompt },
+                { inlineData: { mimeType: 'image/jpeg', data: base64Image } }
+              ]
+            }
+          ],
+        }),
+      });
 
-    const geminiData = await geminiResponse.json();
-    const generatedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!generatedText) throw new Error("AI did not return a valid response.");
-
-    const jsonMatch = generatedText.match(/\[[\s\S]*\]/);
-    let jsonString = jsonMatch ? jsonMatch[0] : generatedText;
-
-    let identifiedExercises;
-    try {
-      identifiedExercises = JSON.parse(jsonString);
-      if (!Array.isArray(identifiedExercises)) {
-        identifiedExercises = [identifiedExercises]; // Wrap single object in an array
+      if (!geminiResponse.ok) {
+        const errorBody = await geminiResponse.text();
+        console.error(`Gemini API error for one image: ${geminiResponse.status} - ${errorBody}`);
+        // Continue processing other images, but log the error
+        continue; 
       }
-    } catch (parseError) {
-      throw new Error("AI returned an invalid format. Please try again.");
+
+      const geminiData = await geminiResponse.json();
+      const generatedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!generatedText) {
+        console.warn("AI did not return a valid response for one image.");
+        continue;
+      }
+
+      const jsonMatch = generatedText.match(/\[[\s\S]*\]/);
+      let jsonString = jsonMatch ? jsonMatch[0] : generatedText;
+
+      let identifiedExercisesForImage;
+      try {
+        identifiedExercisesForImage = JSON.parse(jsonString);
+        if (!Array.isArray(identifiedExercisesForImage)) {
+          identifiedExercisesForImage = [identifiedExercisesForImage]; // Wrap single object in an array
+        }
+        allIdentifiedExercises.push(...identifiedExercisesForImage);
+      } catch (parseError) {
+        console.error("AI returned an invalid format for one image:", parseError);
+        continue;
+      }
     }
 
-    if (identifiedExercises.length === 0) {
+    if (allIdentifiedExercises.length === 0) {
       return new Response(JSON.stringify({ identifiedExercises: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
@@ -178,9 +189,17 @@ serve(async (req: Request) => {
     const normalizedGlobalNames = new Set(typedExistingExercises.filter((ex: ExistingExercise) => ex.user_id === null).map((ex: ExistingExercise) => normalizeName(ex.name)));
     const normalizedUserNames = new Set(typedExistingExercises.filter((ex: ExistingExercise) => ex.user_id === user.id).map((ex: ExistingExercise) => normalizeName(ex.name)));
 
-    const exercisesWithProcessedStatus = identifiedExercises.map((ex: any) => {
+    const finalUniqueExercises: any[] = [];
+    const seenNormalizedNames = new Set<string>(); // To track exercises identified in the current batch
+
+    for (const ex of allIdentifiedExercises) {
       const normalizedAiName = normalizeName(ex.name);
       let duplicate_status: 'none' | 'global' | 'my-exercises' = 'none';
+
+      // Check if already identified in this batch
+      if (seenNormalizedNames.has(normalizedAiName)) {
+        continue; // Skip if already processed in this batch
+      }
 
       // Check user's custom exercises first
       if (normalizedUserNames.has(normalizedAiName)) {
@@ -195,14 +214,15 @@ serve(async (req: Request) => {
       const embedVideoUrl = getYouTubeEmbedUrl(ex.video_url);
       console.log(`[identify-equipment] Converted video_url for ${ex.name}: ${embedVideoUrl}`); // DEBUG
 
-      return {
+      finalUniqueExercises.push({
         ...ex,
         video_url: embedVideoUrl, // Update to embed URL
         duplicate_status: duplicate_status,
-      };
-    });
+      });
+      seenNormalizedNames.add(normalizedAiName); // Mark as seen for this batch
+    }
 
-    return new Response(JSON.stringify({ identifiedExercises: exercisesWithProcessedStatus }), {
+    return new Response(JSON.stringify({ identifiedExercises: finalUniqueExercises }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
