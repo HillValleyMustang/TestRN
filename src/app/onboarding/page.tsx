@@ -44,6 +44,8 @@ export default function OnboardingPage() {
     identifiedExercises,
     addIdentifiedExercise,
     removeIdentifiedExercise,
+    gymName, // Destructure gymName
+    setGymName, // Destructure setGymName
   } = useOnboardingForm();
 
   const [fullName, setFullName] = useState('');
@@ -103,6 +105,8 @@ export default function OnboardingPage() {
             setEquipmentMethod={setEquipmentMethod}
             handleNext={handleNext}
             handleBack={handleBack}
+            gymName={gymName} // Pass gymName
+            setGymName={setGymName} // Pass setGymName
           />
         );
       case 5:

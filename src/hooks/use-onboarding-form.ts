@@ -22,6 +22,7 @@ export const useOnboardingForm = () => {
   const [consentGiven, setConsentGiven] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isInitialSetupLoading, setIsInitialSetupLoading] = useState(false);
+  const [gymName, setGymName] = useState<string>(""); // NEW: State for gym name
 
   const tPathDescriptions = {
     ulul: {
@@ -89,6 +90,31 @@ export const useOnboardingForm = () => {
     setLoading(true);
     
     try {
+      // NEW: Create the gym entry first
+      let newGymId: string | null = null;
+      if (equipmentMethod === 'photo' && gymName) {
+        const { data: insertedGym, error: insertGymError } = await supabase
+          .from('gyms')
+          .insert({ user_id: session.user.id, name: gymName })
+          .select('id')
+          .single();
+        if (insertGymError) throw insertGymError;
+        newGymId = insertedGym.id;
+      } else if (equipmentMethod === 'skip') {
+        // Create a default "Home Gym" if skipped
+        const { data: insertedGym, error: insertGymError } = await supabase
+          .from('gyms')
+          .insert({ user_id: session.user.id, name: "Home Gym" })
+          .select('id')
+          .single();
+        if (insertGymError) throw insertGymError;
+        newGymId = insertedGym.id;
+      }
+
+      if (!newGymId) {
+        throw new Error("Failed to create gym during onboarding.");
+      }
+
       const ululTPathData: TablesInsert<'t_paths'> = {
         user_id: session.user.id,
         template_name: '4-Day Upper/Lower',
@@ -146,12 +172,26 @@ export const useOnboardingForm = () => {
           is_favorite: false,
           created_at: new Date().toISOString(),
         }));
-        const { error: insertExercisesError } = await supabase
+        const { data: insertedExercises, error: insertExercisesError } = await supabase
           .from('exercise_definitions')
-          .insert(exercisesToInsert as TablesInsert<'exercise_definitions'>[]);
+          .insert(exercisesToInsert as TablesInsert<'exercise_definitions'>[])
+          .select('id'); // Select ID to link to gym_exercises
         if (insertExercisesError) {
           console.error("Failed to save identified exercises during onboarding:", insertExercisesError);
           toast.error("Could not save all identified exercises, but your profile is set up!");
+        } else if (insertedExercises && newGymId) {
+          // NEW: Link identified exercises to the new gym
+          const gymExerciseLinks = insertedExercises.map(ex => ({
+            gym_id: newGymId!,
+            exercise_id: ex.id,
+          }));
+          const { error: insertGymExerciseError } = await supabase
+            .from('gym_exercises')
+            .insert(gymExerciseLinks);
+          if (insertGymExerciseError) {
+            console.error("Failed to link identified exercises to gym:", insertGymExerciseError);
+            toast.error("Could not link all identified exercises to your gym.");
+          }
         }
       }
 
@@ -175,7 +215,7 @@ export const useOnboardingForm = () => {
     } finally {
       setLoading(false);
     }
-  }, [session, supabase, router, tPathType, experience, goalFocus, preferredMuscles, constraints, sessionLength, equipmentMethod, identifiedExercises]);
+  }, [session, supabase, router, tPathType, experience, goalFocus, preferredMuscles, constraints, sessionLength, equipmentMethod, identifiedExercises, gymName]); // Added gymName to dependencies
 
   return {
     currentStep,
@@ -204,5 +244,7 @@ export const useOnboardingForm = () => {
     identifiedExercises,
     addIdentifiedExercise,
     removeIdentifiedExercise,
+    gymName, // NEW: Expose gymName
+    setGymName, // NEW: Expose setGymName
   };
 };
