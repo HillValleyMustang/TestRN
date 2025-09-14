@@ -125,9 +125,9 @@ export const WorkoutSelector = ({
   // AI-related states for Workout Page
   const [showAnalyseGymDialog, setShowAnalyseGymDialog] = useState(false);
   const [showSaveAiExercisePrompt, setShowSaveAiExercisePrompt] = useState(false);
-  const [aiIdentifiedExercise, setAiIdentifiedExercise] = useState<Partial<Tables<'exercise_definitions'>> | null>(null);
+  const [aiIdentifiedExercise, setAiIdentifiedExercise] = useState<Partial<FetchedExerciseDefinition> | null>(null); // Use FetchedExerciseDefinition
   const [isAiSaving, setIsAiSaving] = useState(false);
-  const [aiDuplicateStatus, setAiDuplicateStatus] = useState<'none' | 'global' | 'my-exercises'>('none'); // Changed from isDuplicateAiExercise
+  // Removed aiDuplicateStatus state as it's now part of aiIdentifiedExercise
 
   const mainMuscleGroups: string[] = useMemo(() => {
     return Array.from(new Set(allAvailableExercises.map((ex: FetchedExerciseDefinition) => ex.main_muscle))).sort();
@@ -154,20 +154,20 @@ export const WorkoutSelector = ({
   };
 
   // AI Gym Analysis Handlers for Workout Page
-  const handleExerciseIdentified = useCallback((exercises: Partial<Tables<'exercise_definitions'>>[], duplicate_status: 'none' | 'global' | 'my-exercises') => {
+  const handleExerciseIdentified = useCallback((exercises: Partial<FetchedExerciseDefinition>[], duplicate_status: 'none' | 'global' | 'my-exercises') => {
     // For workout-flow, we typically want to process one by one or show a list.
     // For now, let's assume we only care about the first identified exercise for the prompt.
     // If multiple are identified, the user would need to go through them one by one.
     if (exercises.length > 0) {
-      setAiIdentifiedExercise(exercises[0]); // Take the first one
-      setAiDuplicateStatus(exercises[0].duplicate_status || 'none'); // Set the new duplicate status from the exercise itself
+      setAiIdentifiedExercise(exercises[0]); // Take the first one, which now includes duplicate_status
+      // No need to set aiDuplicateStatus separately
       setShowSaveAiExercisePrompt(true);
     } else {
       toast.info("No exercises were identified from the photos.");
     }
   }, []);
 
-  const handleSaveAiExerciseToMyExercises = useCallback(async (exercise: Partial<Tables<'exercise_definitions'>>) => {
+  const handleSaveAiExerciseToMyExercises = useCallback(async (exercise: Partial<FetchedExerciseDefinition>) => {
     if (!session) {
       toast.error("You must be logged in to save exercises.");
       return;
@@ -225,7 +225,7 @@ export const WorkoutSelector = ({
     }
   }, [session, supabase, setAllAvailableExercises, addExerciseToSession, refreshAllData]);
 
-  const handleAddAiExerciseToWorkoutOnly = useCallback(async (exercise: Partial<Tables<'exercise_definitions'>>) => {
+  const handleAddAiExerciseToWorkoutOnly = useCallback(async (exercise: Partial<FetchedExerciseDefinition>) => {
     if (!session) {
       toast.error("You must be logged in to add exercises.");
       return;
@@ -235,17 +235,17 @@ export const WorkoutSelector = ({
       let finalExerciseToAdd: ExerciseDefinition | null = null;
 
       // If it's a duplicate in 'my-exercises' or 'global', find it and add it.
-      if (aiDuplicateStatus !== 'none') {
-        const existingExercise = allAvailableExercises.find(ex => 
-          ex.name?.trim().toLowerCase() === exercise.name?.trim().toLowerCase() && 
-          (ex.user_id === session.user.id || ex.user_id === null) // Match either user's or global
-        );
-        if (existingExercise) {
-          finalExerciseToAdd = existingExercise as ExerciseDefinition;
-        } else {
-          console.warn("Could not find duplicate exercise in local cache. Attempting to insert as new user exercise.");
-          // Fall through to the insert logic below if not found in cache.
-        }
+      // We need to find the *actual* exercise definition from allAvailableExercises
+      // to get its full ID and other properties.
+      const existingExercise = allAvailableExercises.find(ex => 
+        ex.name?.trim().toLowerCase() === exercise.name?.trim().toLowerCase() && 
+        (ex.user_id === session.user.id || ex.user_id === null) // Match either user's or global
+      );
+      if (existingExercise) {
+        finalExerciseToAdd = existingExercise as ExerciseDefinition;
+      } else {
+        console.warn("Could not find duplicate exercise in local cache. Attempting to insert as new user exercise.");
+        // Fall through to the insert logic below if not found in cache.
       }
       
       // If not a duplicate OR if the duplicate wasn't found in the cache, we must insert it as a new user exercise.
@@ -299,7 +299,7 @@ export const WorkoutSelector = ({
     } finally {
       setIsAiSaving(false);
     }
-  }, [session, supabase, aiDuplicateStatus, allAvailableExercises, setAllAvailableExercises, addExerciseToSession, refreshAllData]);
+  }, [session, supabase, allAvailableExercises, setAllAvailableExercises, addExerciseToSession, refreshAllData]);
 
 
   const totalExercises = exercisesForSession.length;
@@ -367,7 +367,7 @@ export const WorkoutSelector = ({
                     selectedExerciseId={selectedExerciseToAdd}
                     setSelectedExerciseId={setSelectedExerciseToAdd}
                     exerciseSourceFilter={adHocExerciseSourceFilter}
-                    setExerciseSourceFilter={setAdHocExerciseSourceFilter} // Corrected prop name
+                    setExerciseSourceFilter={setAdHocExerciseSourceFilter}
                     mainMuscleGroups={mainMuscleGroups}
                     placeholder="Select exercise to add"
                   />
@@ -471,7 +471,6 @@ export const WorkoutSelector = ({
         onAddOnlyToCurrentWorkout={handleAddAiExerciseToWorkoutOnly}
         context="workout-flow"
         isSaving={isAiSaving}
-        duplicateStatus={aiDuplicateStatus} // Pass the new duplicate status
       />
     </>
   );

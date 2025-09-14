@@ -4,7 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { AnalyseGymDialog } from "@/components/manage-exercises/exercise-form/analyze-gym-dialog";
 import { SaveAiExercisePrompt } from "@/components/workout-flow/save-ai-exercise-prompt";
-import { Tables } from '@/types/supabase';
+import { Tables, FetchedExerciseDefinition } from '@/types/supabase'; // Import FetchedExerciseDefinition
 import { toast } from 'sonner';
 import { Camera, CheckCircle, Trash2 } from 'lucide-react';
 
@@ -28,14 +28,15 @@ export const OnboardingStep5_GymPhotoUpload = ({
   const [aiIdentifiedExercise, setAiIdentifiedExercise] = useState<Partial<Tables<'exercise_definitions'>> | null>(null);
   const [aiDuplicateStatus, setAiDuplicateStatus] = useState<'none' | 'global' | 'my-exercises'>('none'); // Changed from isDuplicateAiExercise
 
-  const handleExerciseIdentified = useCallback((exercises: Partial<Tables<'exercise_definitions'>>[], duplicate_status: 'none' | 'global' | 'my-exercises') => {
+  const handleExerciseIdentified = useCallback((exercises: Partial<FetchedExerciseDefinition>[], duplicate_status: 'none' | 'global' | 'my-exercises') => {
     if (exercises.length === 0) {
       toast.info("No exercises were identified from the photos.");
       return;
     }
     // For onboarding, we directly add all identified exercises to the list
     exercises.forEach(ex => {
-      addIdentifiedExercise(ex);
+      // Cast to Partial<Tables<'exercise_definitions'>> as addIdentifiedExercise expects this
+      addIdentifiedExercise(ex as Partial<Tables<'exercise_definitions'>>);
     });
     toast.success(`${exercises.length} exercise(s) identified and added to your setup!`);
     // No need to show SaveAiExercisePrompt for each one individually in onboarding context
