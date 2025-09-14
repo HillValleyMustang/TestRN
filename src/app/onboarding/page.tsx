@@ -95,6 +95,8 @@ export default function OnboardingPage() {
       case 4:
         return (
           <OnboardingStep4_GymSetup
+            equipmentMethod={equipmentMethod}
+            setEquipmentMethod={setEquipmentMethod}
             handleNext={handleNext}
             handleBack={handleBack}
           />
