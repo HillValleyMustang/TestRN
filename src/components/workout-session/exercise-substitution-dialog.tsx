@@ -111,11 +111,14 @@ export const ExerciseSubstitutionDialog = ({
         },
       });
 
+      // The 'error' object should now only be populated for network errors or actual 500s from Supabase gateway, not our function logic.
       if (error) {
-        throw new Error(error.message);
+        throw error; // Re-throw network/gateway errors
       }
+
+      // All logic errors from the function will be in data.error
       if (data.error) {
-        toast.info(data.error); // Show user-friendly message for duplicates
+        toast.info(data.error); // Show as info, as it's a controlled "error" like a duplicate.
         return;
       }
 
@@ -124,6 +127,7 @@ export const ExerciseSubstitutionDialog = ({
         setSubstitutions(prev => [...prev, newAiExercise]);
         toast.success("AI generated a new exercise suggestion!");
       } else {
+        // This case should be rare now, but good to have a fallback.
         toast.error("AI did not return a valid exercise.");
       }
     } catch (err: any) {
@@ -173,9 +177,6 @@ export const ExerciseSubstitutionDialog = ({
                           <p className="text-sm text-muted-foreground">
                             {exercise.main_muscle} • {exercise.type}
                           </p>
-                          {exercise.description && (
-                            <p className="text-sm mt-1">{exercise.description}</p>
-                          )}
                         </div>
                         <Button
                           size="sm"
@@ -185,6 +186,9 @@ export const ExerciseSubstitutionDialog = ({
                           Select
                         </Button>
                       </div>
+                      {exercise.description && (
+                        <p className="text-sm mt-2">{exercise.description}</p>
+                      )}
                       {embedVideoUrl ? (
                         <div className="mt-2">
                           <div className="relative w-full rounded-md overflow-hidden" style={{ paddingBottom: '56.25%' }}>

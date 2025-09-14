@@ -88,17 +88,17 @@ serve(async (req: Request) => {
     // Authenticate the user using the JWT from the client's Authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Authorization header missing' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } } );
+      return new Response(JSON.stringify({ error: 'Authorization header missing' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } } );
     }
     const { data: { user }, error: userError } = await supabaseServiceRoleClient.auth.getUser(authHeader.split(' ')[1]);
     if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const { main_muscle, type, category } = await req.json();
 
     if (!main_muscle || !type) {
-      return new Response(JSON.stringify({ error: 'Missing main_muscle or type parameters.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'Missing main_muscle or type parameters.' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const prompt = `
@@ -206,9 +206,9 @@ serve(async (req: Request) => {
 
   } catch (error) {
     const message = error instanceof Error ? error.message : "An unknown error occurred";
-    console.error("Error in identify-equipment edge function:", message);
+    console.error("Error in generate-exercise-suggestion edge function:", message);
     return new Response(JSON.stringify({ error: message }), {
-      status: 500,
+      status: 200, // Always return 200, even for internal errors
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
