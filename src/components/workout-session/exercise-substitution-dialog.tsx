@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -18,6 +18,14 @@ interface ExerciseSubstitutionDialogProps {
   currentExercise: ExerciseDefinition;
   onSubstitute: (newExercise: ExerciseDefinition) => void;
 }
+
+// Helper function to get YouTube embed URL
+const getYouTubeEmbedUrl = (url: string | null | undefined): string | null => {
+  if (!url) return null;
+  const regExp = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([\w-]{11})(?:\S+)?/;
+  const match = url.match(regExp);
+  return match && match[1] ? `https://www.youtube.com/embed/${match[1]}` : null;
+};
 
 export const ExerciseSubstitutionDialog = ({
   open,
@@ -74,11 +82,8 @@ export const ExerciseSubstitutionDialog = ({
     }
   }, [open, session, supabase, currentExercise]);
 
-  // Removed adoptExercise function as per new requirements
-
   const handleSelectSubstitution = async (exercise: ExerciseDefinition) => {
     try {
-      // Directly use the selected exercise, no adoption needed.
       onSubstitute(exercise);
       onOpenChange(false);
       toast.success(`Substituted with ${exercise.name}`);
@@ -107,7 +112,12 @@ export const ExerciseSubstitutionDialog = ({
       });
 
       if (error) {
-        throw new Error(error.message);
+        // Check for specific error message from Edge Function (duplicate suggestion)
+        if (error.message.includes('AI suggested an exercise similar to one that already exists')) {
+          toast.info(error.message); // Show as info, not error
+        } else {
+          throw new Error(error.message);
+        }
       }
       if (data.error) {
         throw new Error(data.error);
@@ -154,36 +164,52 @@ export const ExerciseSubstitutionDialog = ({
           ) : (
             <ScrollArea className="h-64 pr-4">
               <div className="space-y-3">
-                {substitutions.map((exercise) => (
-                  <div
-                    key={exercise.id}
-                    className="p-4 border rounded-lg hover:bg-accent transition-colors"
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-semibold">{exercise.name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {exercise.main_muscle} • {exercise.type}
-                        </p>
-                        {exercise.description && (
-                          <p className="text-sm mt-1">{exercise.description}</p>
-                        )}
+                {substitutions.map((exercise) => {
+                  const embedVideoUrl = getYouTubeEmbedUrl(exercise.video_url);
+                  return (
+                    <div
+                      key={exercise.id}
+                      className="p-4 border rounded-lg hover:bg-accent transition-colors"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-semibold">{exercise.name}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {exercise.main_muscle} • {exercise.type}
+                          </p>
+                          {exercise.description && (
+                            <p className="text-sm mt-1">{exercise.description}</p>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => handleSelectSubstitution(exercise)}
+                        >
+                          Select
+                        </Button>
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handleSelectSubstitution(exercise)}
-                      >
-                        Select
-                      </Button>
+                      {embedVideoUrl ? (
+                        <div className="mt-2">
+                          <div className="relative w-full rounded-md overflow-hidden" style={{ paddingBottom: '56.25%' }}>
+                            <iframe
+                              className="absolute top-0 left-0 w-full h-full"
+                              src={embedVideoUrl}
+                              title={`${exercise.name} video`}
+                              frameBorder="0"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            ></iframe>
+                          </div>
+                        </div>
+                      ) : exercise.pro_tip && (
+                        <div className="mt-2 flex items-start">
+                          <Info className="h-4 w-4 text-blue-500 mr-2 mt-0.5" />
+                          <span className="text-sm text-blue-500">{exercise.pro_tip}</span>
+                        </div>
+                      )}
                     </div>
-                    {exercise.pro_tip && (
-                      <div className="mt-2 flex items-start">
-                        <Info className="h-4 w-4 text-blue-500 mr-2 mt-0.5" />
-                        <span className="text-sm text-blue-500">{exercise.pro_tip}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </ScrollArea>
           )}

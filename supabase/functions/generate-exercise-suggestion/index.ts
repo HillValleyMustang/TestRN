@@ -15,6 +15,63 @@ const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 // @ts-ignore
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
 
+// Define an interface for the structure of existing exercise data fetched from Supabase
+interface ExistingExercise {
+  name: string;
+  user_id: string | null;
+}
+
+// Helper function to normalize exercise names for comparison
+const normalizeName = (name: string): string => {
+  if (!name) return '';
+  let normalized = name.toLowerCase();
+
+  // 1. Remove common equipment/position prefixes/suffixes (allowing for optional spaces/hyphens)
+  // This list is carefully curated to avoid removing core exercise action words.
+  const equipmentAndPositionWords = [
+    'cable', 'dumbbell', 'barbell', 'smith machine', 'machine',
+    'seated', 'standing', 'incline', 'flat', 'decline',
+    'assisted', 'single arm', 'single leg', 'unilateral', 'bilateral',
+    'upper body', 'lower body', 'full body',
+  ];
+
+  equipmentAndPositionWords.forEach(word => {
+    // Match as a whole word, optionally followed by space/hyphen
+    normalized = normalized.replace(new RegExp(`\\b${word}\\b[\\s-]*`, 'g'), ' ');
+  });
+
+  // 2. Normalize spaces (multiple to single, then trim)
+  normalized = normalized.replace(/\s+/g, ' ').trim();
+
+  // 3. Remove plural 's' from the end of the entire string
+  if (normalized.endsWith('s')) {
+    normalized = normalized.slice(0, -1);
+  }
+
+  // 4. Remove all remaining non-alphanumeric characters and spaces
+  normalized = normalized.replace(/[^a-z0-9]/g, '');
+
+  return normalized;
+};
+
+// Helper function to get YouTube embed URL
+const getYouTubeEmbedUrl = (url: string | null | undefined): string | null => {
+  if (!url) {
+    console.log("[getYouTubeEmbedUrl] Input URL is null or undefined.");
+    return null;
+  }
+  console.log(`[getYouTubeEmbedUrl] Processing URL: ${url}`);
+  const regExp = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([\w-]{11})(?:\S+)?/;
+  const match = url.match(regExp);
+  if (match && match[1]) {
+    const embedUrl = `https://www.youtube.com/embed/${match[1]}`;
+    console.log(`[getYouTubeEmbedUrl] Extracted video ID: ${match[1]}, Embed URL: ${embedUrl}`);
+    return embedUrl;
+  }
+  console.log(`[getYouTubeEmbedUrl] No YouTube video ID found in URL: ${url}`);
+  return null;
+};
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -27,6 +84,16 @@ serve(async (req: Request) => {
       // @ts-ignore
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // Authenticate the user using the JWT from the client's Authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authorization header missing' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } } );
+    }
+    const { data: { user }, error: userError } = await supabaseServiceRoleClient.auth.getUser(authHeader.split(' ')[1]);
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     const { main_muscle, type, category } = await req.json();
 
@@ -81,6 +148,33 @@ serve(async (req: Request) => {
       throw new Error("AI generated an invalid response format.");
     }
 
+    // --- Start Duplicate Check (after parsing Gemini response) ---
+    const { data: allExistingExercises, error: fetchAllExistingError } = await supabaseServiceRoleClient
+      .from('exercise_definitions')
+      .select('name, user_id');
+
+    if (fetchAllExistingError) {
+      console.error("Error fetching all existing exercises for duplicate check:", fetchAllExistingError.message);
+      throw fetchAllExistingError;
+    }
+
+    const typedExistingExercises: ExistingExercise[] = allExistingExercises || [];
+    const normalizedAiName = normalizeName(newExerciseData.name);
+
+    const isDuplicate = typedExistingExercises.some(existingEx => {
+      const normalizedExistingName = normalizeName(existingEx.name);
+      // Check for global duplicate OR user-specific duplicate
+      return normalizedExistingName === normalizedAiName && (existingEx.user_id === null || existingEx.user_id === user.id);
+    });
+
+    if (isDuplicate) {
+      return new Response(JSON.stringify({ error: `AI suggested an exercise similar to one that already exists: "${newExerciseData.name}". Please try generating another.` }), {
+        status: 409, // Conflict status code
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    // --- End Duplicate Check ---
+
     // Generate a unique library_id for this AI-generated exercise
     const newLibraryId = `ai_gen_${uuidv4()}`;
 
@@ -111,8 +205,8 @@ serve(async (req: Request) => {
     });
 
   } catch (error) {
-    console.error(error);
     const message = error instanceof Error ? error.message : "An unknown error occurred";
+    console.error("Error in identify-equipment edge function:", message);
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
