@@ -7,7 +7,7 @@ import { OnboardingStep1_TPathSelection } from "@/components/onboarding/onboardi
 import { OnboardingStep2_ExperienceLevel } from "@/components/onboarding/onboarding-step-2-experience-level";
 import { OnboardingStep3_GoalFocus } from "@/components/onboarding/onboarding-step-3-goal-focus";
 import { OnboardingStep4_GymSetup } from "@/components/onboarding/onboarding-step-4-gym-setup";
-import { OnboardingStep5_ExerciseReview } from "@/components/onboarding/onboarding-step-5-exercise-review";
+import { OnboardingStep5_GymPhotoUpload } from "@/components/onboarding/onboarding-step-5-gym-photo-upload";
 import { OnboardingStep6_SessionPreferences } from "@/components/onboarding/onboarding-step-6-session-preferences";
 import { OnboardingStep7_AppFeatures } from "@/components/onboarding/onboarding-step-7-app-features";
 import { OnboardingStep8_FinalDetails } from "@/components/onboarding/onboarding-step-8-final-details";
@@ -41,6 +41,9 @@ export default function OnboardingPage() {
     handleNext,
     handleBack,
     handleSubmit: originalHandleSubmit,
+    identifiedExercises,
+    addIdentifiedExercise,
+    removeIdentifiedExercise,
   } = useOnboardingForm();
 
   const [fullName, setFullName] = useState('');
@@ -104,7 +107,10 @@ export default function OnboardingPage() {
         );
       case 5:
         return (
-          <OnboardingStep5_ExerciseReview
+          <OnboardingStep5_GymPhotoUpload
+            identifiedExercises={identifiedExercises}
+            addIdentifiedExercise={addIdentifiedExercise}
+            removeIdentifiedExercise={removeIdentifiedExercise}
             handleNext={handleNext}
             handleBack={handleBack}
           />
@@ -154,7 +160,7 @@ export default function OnboardingPage() {
       case 2: return "Your Experience Level";
       case 3: return "Goal Focus";
       case 4: return "Gym Setup";
-      case 5: return "Exercise Review";
+      case 5: return "Analyse Your Gym";
       case 6: return "Session Preferences";
       case 7: return "App Features";
       case 8: return "Final Details & Consent";
@@ -168,7 +174,7 @@ export default function OnboardingPage() {
       case 2: return "Help us tailor your program to your experience level";
       case 3: return "What are you primarily trying to achieve?";
       case 4: return "Let's set up your gym equipment";
-      case 5: return "Review the exercises identified by the AI";
+      case 5: return "Upload photos of your gym equipment for the AI to analyse";
       case 6: return "How long do you prefer your workout sessions to be?";
       case 7: return "Here's a quick look at what you can do with the app.";
       case 8: return "Just a few more details to personalise your experience.";

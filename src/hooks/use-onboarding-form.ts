@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/components/session-context-provider";
 import { toast } from "sonner";
-import { TablesInsert, ProfileInsert } from "@/types/supabase";
+import { Tables, TablesInsert, ProfileInsert } from "@/types/supabase";
 
 export const useOnboardingForm = () => {
   const router = useRouter();
@@ -17,7 +17,8 @@ export const useOnboardingForm = () => {
   const [preferredMuscles, setPreferredMuscles] = useState<string>("");
   const [constraints, setConstraints] = useState<string>("");
   const [sessionLength, setSessionLength] = useState<string>("");
-  const [equipmentMethod, setEquipmentMethod] = useState<"photo" | "skip" | null>("skip"); // Default to skip for now
+  const [equipmentMethod, setEquipmentMethod] = useState<"photo" | "skip" | null>("skip");
+  const [identifiedExercises, setIdentifiedExercises] = useState<Partial<Tables<'exercise_definitions'>>[]>([]);
   const [consentGiven, setConsentGiven] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isInitialSetupLoading, setIsInitialSetupLoading] = useState(false);
@@ -51,19 +52,36 @@ export const useOnboardingForm = () => {
     }
   };
 
-  const handleNext = useCallback(() => {
-    if (currentStep < 8) { // Now 8 steps in the form
-      setCurrentStep(prev => prev + 1);
-    }
-  }, [currentStep]);
-
-  const handleBack = useCallback(() => {
-    setCurrentStep(prev => prev - 1);
+  const addIdentifiedExercise = useCallback((exercise: Partial<Tables<'exercise_definitions'>>) => {
+    setIdentifiedExercises(prev => {
+      if (prev.some(e => e.name === exercise.name)) {
+        return prev;
+      }
+      return [...prev, exercise];
+    });
   }, []);
 
-  // This function is now deprecated as we do a single submit at the end.
-  // Kept for potential future refactoring if needed.
-  const handleAdvanceToFinalStep = useCallback(async () => {}, []);
+  const removeIdentifiedExercise = useCallback((exerciseName: string) => {
+    setIdentifiedExercises(prev => prev.filter(e => e.name !== exerciseName));
+  }, []);
+
+  const handleNext = useCallback(() => {
+    if (currentStep === 4 && equipmentMethod === 'skip') {
+      setCurrentStep(6);
+      return;
+    }
+    if (currentStep < 8) {
+      setCurrentStep(prev => prev + 1);
+    }
+  }, [currentStep, equipmentMethod]);
+
+  const handleBack = useCallback(() => {
+    if (currentStep === 6 && equipmentMethod === 'skip') {
+      setCurrentStep(4);
+      return;
+    }
+    setCurrentStep(prev => prev - 1);
+  }, [currentStep, equipmentMethod]);
 
   const handleSubmit = useCallback(async (fullName: string, heightCm: number, weightKg: number, bodyFatPct: number | null) => {
     if (!session) return;
@@ -71,7 +89,6 @@ export const useOnboardingForm = () => {
     setLoading(true);
     
     try {
-      // 1. Create both main T-Paths
       const ululTPathData: TablesInsert<'t_paths'> = {
         user_id: session.user.id,
         template_name: '4-Day Upper/Lower',
@@ -98,7 +115,6 @@ export const useOnboardingForm = () => {
       );
       if (!activeTPath) throw new Error("Could not find the selected T-Path after creation.");
 
-      // 2. Create user profile with all details
       const nameParts = fullName.split(' ');
       const firstName = nameParts.shift() || '';
       const lastName = nameParts.join(' ');
@@ -122,7 +138,23 @@ export const useOnboardingForm = () => {
         .upsert(profileData, { onConflict: 'id' });
       if (profileError) throw profileError;
 
-      // 3. Generate workouts for ALL newly created main T-Paths asynchronously
+      if (identifiedExercises.length > 0) {
+        const exercisesToInsert = identifiedExercises.map(ex => ({
+          ...ex,
+          user_id: session.user.id,
+          library_id: null,
+          is_favorite: false,
+          created_at: new Date().toISOString(),
+        }));
+        const { error: insertExercisesError } = await supabase
+          .from('exercise_definitions')
+          .insert(exercisesToInsert as TablesInsert<'exercise_definitions'>[]);
+        if (insertExercisesError) {
+          console.error("Failed to save identified exercises during onboarding:", insertExercisesError);
+          toast.error("Could not save all identified exercises, but your profile is set up!");
+        }
+      }
+
       const generationPromises = insertedTPaths.map(async (tp) => {
         const response = await fetch(`/api/generate-t-path`, {
           method: 'POST',
@@ -143,7 +175,7 @@ export const useOnboardingForm = () => {
     } finally {
       setLoading(false);
     }
-  }, [session, supabase, router, tPathType, experience, goalFocus, preferredMuscles, constraints, sessionLength, equipmentMethod]);
+  }, [session, supabase, router, tPathType, experience, goalFocus, preferredMuscles, constraints, sessionLength, equipmentMethod, identifiedExercises]);
 
   return {
     currentStep,
@@ -168,7 +200,9 @@ export const useOnboardingForm = () => {
     tPathDescriptions,
     handleNext,
     handleBack,
-    handleAdvanceToFinalStep,
     handleSubmit,
+    identifiedExercises,
+    addIdentifiedExercise,
+    removeIdentifiedExercise,
   };
 };
