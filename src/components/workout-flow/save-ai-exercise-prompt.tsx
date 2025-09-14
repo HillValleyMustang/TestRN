@@ -136,13 +136,13 @@ export const SaveAiExercisePrompt = ({
               )
             ) : ( // context === 'workout-flow'
               <>
-                {/* Always show "Add to Current Workout" in workout-flow context if onAddOnlyToCurrentWorkout is provided */}
+                {/* Primary action: Add to Current Workout */}
                 {showAddOnlyToWorkoutButton && (
                   <Button variant="default" onClick={() => onAddOnlyToCurrentWorkout!(exercise)} disabled={isSaving}>
                     <PlusCircle className="h-4 w-4 mr-2" /> Add to Current Workout
                   </Button>
                 )}
-                {/* Only show "Save to My Exercises" if there is NO duplicate (duplicateStatus === 'none') */}
+                {/* Secondary action: Save to My Exercises (only if not a duplicate) */}
                 {duplicateStatus === 'none' && (
                   <Button
                     variant="outline"

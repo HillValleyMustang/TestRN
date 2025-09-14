@@ -54,10 +54,20 @@ const normalizeName = (name: string): string => {
 
 // Helper function to get YouTube embed URL
 const getYouTubeEmbedUrl = (url: string | null | undefined): string | null => {
-  if (!url) return null;
+  if (!url) {
+    console.log("[getYouTubeEmbedUrl] Input URL is null or undefined.");
+    return null;
+  }
+  console.log(`[getYouTubeEmbedUrl] Processing URL: ${url}`);
   const regExp = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([\w-]{11})(?:\S+)?/;
   const match = url.match(regExp);
-  return match && match[1] ? `https://www.youtube.com/embed/${match[1]}` : null;
+  if (match && match[1]) {
+    const embedUrl = `https://www.youtube.com/embed/${match[1]}`;
+    console.log(`[getYouTubeEmbedUrl] Extracted video ID: ${match[1]}, Embed URL: ${embedUrl}`);
+    return embedUrl;
+  }
+  console.log(`[getYouTubeEmbedUrl] No YouTube video ID found in URL: ${url}`);
+  return null;
 };
 
 serve(async (req: Request) => {
@@ -96,7 +106,7 @@ serve(async (req: Request) => {
       Instructions:
       1. If the equipment is versatile and can be used for many exercises (e.g., dumbbells, cable machine, squat rack), suggest the top 5-7 most common and effective exercises.
       2. If the equipment is simple and designed for only one or two primary movements (e.g., leg extension machine, pec deck, pull-up bar), suggest only those 1-2 primary exercises.
-      3. For each exercise, provide its name, primary muscle group(s) (comma-separated), type ('weight' or 'timed'), category ('Bilateral', 'Unilateral', or null), a brief description, a pro tip, and an optional YouTube embed URL.
+      3. For each exercise, provide its name, primary muscle group(s) (comma-separated), type ('weight' or 'timed'), category ('Bilateral', 'Unilateral', or null), a brief description, a pro tip, and an an optional YouTube embed URL.
       4. IMPORTANT: Your entire response MUST be a single JSON array of objects, with no other text or markdown formatting.
 
       Example response for versatile equipment:
