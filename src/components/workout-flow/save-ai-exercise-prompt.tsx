@@ -135,11 +135,11 @@ export const SaveAiExercisePrompt = ({
                 </Button>
               )
             ) : ( // context === 'workout-flow'
-              duplicateStatus === 'my-exercises' ? (
+              duplicateStatus === 'my-exercises' || duplicateStatus === 'global' ? ( // If duplicate in either, only allow adding to workout
                 <Button variant="default" onClick={() => onAddOnlyToCurrentWorkout!(exercise)} disabled={isSaving}>
                   <PlusCircle className="h-4 w-4 mr-2" /> Add to Current Workout
                 </Button>
-              ) : ( // duplicateStatus === 'none' or 'global'
+              ) : ( // duplicateStatus === 'none'
                 <>
                   <Button
                     onClick={() => onSaveToMyExercises(exercise)}

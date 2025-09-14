@@ -24,28 +24,31 @@ const normalizeName = (name: string): string => {
   if (!name) return '';
   let normalized = name.toLowerCase();
 
-  // 1. Remove common prefixes/equipment types (allowing for optional spaces/hyphens)
-  const prefixesAndEquipment = [
+  // Remove common equipment prefixes and modifiers, but be careful not to remove core action words
+  const prefixesAndModifiers = [
     'cable', 'dumbbell', 'barbell', 'smith machine', 'machine',
     'seated', 'standing', 'incline', 'flat', 'decline',
     'assisted', 'single arm', 'single leg', 'unilateral', 'bilateral',
-    'upper body', 'lower body', 'full body', // These are more descriptive than core names
+    'upper body', 'lower body', 'full body',
   ];
-  prefixesAndEquipment.forEach(mod => {
+  prefixesAndModifiers.forEach(mod => {
     // Use word boundaries to match whole words, and handle optional separators
     normalized = normalized.replace(new RegExp(`\\b${mod}\\b[\\s-]*`, 'g'), ' ');
   });
 
-  // 2. Normalize spaces (multiple to single, then trim)
+  // Normalize spaces (multiple to single, then trim)
   normalized = normalized.replace(/\s+/g, ' ').trim();
 
-  // 3. Remove plural 's' from the end of the entire string
+  // Remove plural 's' from the end of the entire string
   if (normalized.endsWith('s')) {
     normalized = normalized.slice(0, -1);
   }
 
-  // 4. Remove all remaining non-alphanumeric characters and spaces
-  normalized = normalized.replace(/[^a-z0-9]/g, '');
+  // Remove all remaining non-alphanumeric characters (keep spaces for now to distinguish words)
+  normalized = normalized.replace(/[^a-z0-9\s]/g, '');
+
+  // Finally, remove all spaces to create a compact string for comparison
+  normalized = normalized.replace(/\s/g, '');
 
   return normalized;
 };
