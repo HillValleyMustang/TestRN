@@ -60,7 +60,7 @@ export const OnboardingStep5_GymPhotoUpload = ({
           </p>
           <Button onClick={() => setShowAnalyseGymDialog(true)} size="sm"> {/* Smaller button */}
             <Camera className="h-4 w-4 mr-2" />
-            Upload and Analyse Photo
+            Upload & Analyse
           </Button>
         </div>
 

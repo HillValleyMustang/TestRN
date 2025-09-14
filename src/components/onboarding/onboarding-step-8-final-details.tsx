@@ -55,19 +55,19 @@ export const OnboardingStep8_FinalDetails = ({
         <CardContent className="space-y-6">
           <div className="space-y-4">
             <div>
-              <Label htmlFor="fullName">Preferred Name</Label>
+              <Label htmlFor="fullName" className="text-sm font-medium">Preferred Name</Label>
               <Input 
                 id="fullName" 
                 placeholder="e.g., John Doe" 
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 required
-                className="text-sm"
+                className="mt-1 text-sm"
               />
             </div>
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-4"> {/* Changed to flex-col on small screens */}
               <div className="flex-1">
-                <Label htmlFor="heightCm">Height (cm)</Label>
+                <Label htmlFor="heightCm" className="text-sm font-medium">Height (cm)</Label>
                 <Input 
                   id="heightCm" 
                   type="number" 
@@ -77,11 +77,11 @@ export const OnboardingStep8_FinalDetails = ({
                   value={heightCm ?? ''}
                   onChange={(e) => setHeightCm(parseInt(e.target.value) || null)}
                   required
-                  className="text-sm"
+                  className="mt-1 text-sm"
                 />
               </div>
               <div className="flex-1">
-                <Label htmlFor="weightKg">Weight (kg)</Label>
+                <Label htmlFor="weightKg" className="text-sm font-medium">Weight (kg)</Label>
                 <Input 
                   id="weightKg" 
                   type="number" 
@@ -91,13 +91,13 @@ export const OnboardingStep8_FinalDetails = ({
                   value={weightKg ?? ''}
                   onChange={(e) => setWeightKg(parseInt(e.target.value) || null)}
                   required
-                  className="text-sm"
+                  className="mt-1 text-sm"
                 />
               </div>
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <Label htmlFor="bodyFatPct">Body Fat (%) (Optional)</Label>
+                <Label htmlFor="bodyFatPct" className="text-sm font-medium">Body Fat (%) (Optional)</Label>
                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsBodyFatInfoModalOpen(true)}>
                   <Info className="h-4 w-4 text-muted-foreground" />
                 </Button>
@@ -112,7 +112,7 @@ export const OnboardingStep8_FinalDetails = ({
                 placeholder="e.g., 15" 
                 value={bodyFatPct ?? ''}
                 onChange={(e) => setBodyFatPct(e.target.value === '' ? null : parseInt(e.target.value))}
-                className="max-w-[120px] text-sm"
+                className="max-w-[120px] mt-1 text-sm"
               />
             </div>
 

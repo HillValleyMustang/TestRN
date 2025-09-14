@@ -39,16 +39,16 @@ export const OnboardingStep6_SessionPreferences = ({
           <Card
             key={option.value}
             className={cn(
-              "cursor-pointer transition-all min-h-[80px] flex flex-col justify-center text-center p-3", // Reduced min-height and adjusted padding
+              "cursor-pointer transition-all min-h-[60px] flex flex-col justify-center text-center p-2", // Reduced min-height and adjusted padding
               sessionLength === option.value
                 ? 'border-primary ring-2 ring-primary'
                 : 'hover:border-primary/50'
             )}
             onClick={() => setSessionLength(option.value)}
           >
-            <CardHeader className="pb-1"> {/* Adjusted padding */}
-              <Clock className="h-6 w-6 mx-auto mb-1 text-primary" /> {/* Smaller icon */}
-              <CardTitle className="text-base">{option.label}</CardTitle> {/* Reduced font size */}
+            <CardHeader className="pb-0"> {/* Adjusted padding */}
+              <Clock className="h-5 w-5 mx-auto mb-1 text-primary" /> {/* Smaller icon */}
+              <CardTitle className="text-sm">{option.label}</CardTitle> {/* Reduced font size */}
             </CardHeader>
             <CardContent className="pt-0">
               {/* Hidden RadioGroupItem for actual form value */}
