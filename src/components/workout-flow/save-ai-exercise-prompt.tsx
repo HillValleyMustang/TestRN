@@ -41,19 +41,19 @@ export const SaveAiExercisePrompt = ({
     if (context === 'manage-exercises') {
       if (duplicateStatus === 'my-exercises') {
         return (
-          <>AI has identified the exercise and it looks like you already have this in "**My Exercises**". Exercise name - "<span className="font-semibold">{exercise.name}</span>". Select Edit to change the exercise details or click Close to go back.</>
+          <>AI has identified the exercise and it looks like you already have this in <strong className="font-semibold">My Exercises</strong>. Exercise name - "<span className="font-semibold">{exercise.name}</span>". Select Edit to change the exercise details or click Close to go back.</>
         );
       } else if (duplicateStatus === 'global') {
         return (
-          <>AI has identified the exercise and it looks like this already exists in the "**Global Library**". Exercise name - "<span className="font-semibold">{exercise.name}</span>". You can add it to "My Exercises" to customize it.</>
+          <>AI has identified the exercise and it looks like this already exists in the <strong className="font-semibold">Global Library</strong>. Exercise name - "<span className="font-semibold">{exercise.name}</span>". You can add it to "My Exercises" to customize it.</>
         );
       }
       return <>AI has identified the exercise. Save it to "My Exercises" for future use.</>;
     } else { // context === 'workout-flow'
       if (duplicateStatus === 'my-exercises') {
-        return <>AI has identified the exercise and it looks like you already have this in "**My Exercises**". You can still add it to your current ad-hoc workout from here.</>;
+        return <>AI has identified the exercise and it looks like you already have this in <strong className="font-semibold">My Exercises</strong>. You can still add it to your current ad-hoc workout from here.</>;
       } else if (duplicateStatus === 'global') {
-        return <>AI has identified the exercise and it looks like this already exists in the "**Global Library**". You can still add it to your current ad-hoc workout from here.</>;
+        return <>AI has identified the exercise and it looks like this already exists in the <strong className="font-semibold">Global Library</strong>. You can still add it to your current ad-hoc workout from here.</>;
       }
       return <>The AI has identified an exercise. You can add it to your current ad-hoc workout, and optionally save it to "My Exercises" for future use.</>;
     }
