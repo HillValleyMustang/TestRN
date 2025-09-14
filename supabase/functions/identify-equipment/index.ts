@@ -15,75 +15,39 @@ const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/
 
 // Define an interface for the structure of existing exercise data fetched from Supabase
 interface ExistingExercise {
-  id: string; // Added ID for potential future use or more complex matching
   name: string;
   user_id: string | null;
-  library_id: string | null; // Added library_id for more robust matching
 }
 
 // Helper function to normalize exercise names for comparison
 const normalizeName = (name: string): string => {
   if (!name) return '';
-  return name
-    .toLowerCase()
-    .replace(/cable /g, '') // Remove common prefixes
-    .replace(/dumbbell /g, '')
-    .replace(/machine /g, '')
-    .replace(/smith machine /g, '')
-    .replace(/barbell /g, '')
-    .replace(/seated /g, '')
-    .replace(/standing /g, '')
-    .replace(/incline /g, '')
-    .replace(/flat /g, '')
-    .replace(/press /g, '') // Remove common suffixes/words
-    .replace(/row /g, '')
-    .replace(/curl /g, '')
-    .replace(/raise /g, '')
-    .replace(/fly /g, '')
-    .replace(/pushdown /g, '')
-    .replace(/extension /g, '')
-    .replace(/lunge /g, '')
-    .replace(/kickback /g, '')
-    .replace(/crunch /g, '')
-    .replace(/plank /g, '')
-    .replace(/pull /g, '')
-    .replace(/dip /g, '')
-    .replace(/squat /g, '')
-    .replace(/deadlift /g, '')
-    .replace(/twist /g, '')
-    .replace(/bridge /g, '')
-    .replace(/jump /g, '')
-    .replace(/burpee /g, '')
-    .replace(/swing /g, '')
-    .replace(/raise /g, '')
-    .replace(/extension /g, '')
-    .replace(/sit /g, '')
-    .replace(/leg /g, '')
-    .replace(/body /g, '')
-    .replace(/upper /g, '')
-    .replace(/lower /g, '')
-    .replace(/push /g, '')
-    .replace(/pull /g, '')
-    .replace(/legs /g, '')
-    .replace(/abs /g, '')
-    .replace(/core /g, '')
-    .replace(/glutes /g, '')
-    .replace(/quads /g, '')
-    .replace(/hamstrings /g, '')
-    .replace(/calves /g, '')
-    .replace(/pectorals /g, '')
-    .replace(/deltoids /g, '')
-    .replace(/lats /g, '')
-    .replace(/traps /g, '')
-    .replace(/biceps /g, '')
-    .replace(/triceps /g, '')
-    .replace(/forearms /g, '')
-    .replace(/inner thighs /g, '')
-    .replace(/outer glutes /g, '')
-    .replace(/rear delts /g, '')
-    .replace(/full body /g, '')
-    .replace(/ /g, '') // Remove remaining spaces
-    .replace(/[^a-z0-9]/g, ''); // Remove all non-alphanumeric characters
+  let normalized = name.toLowerCase();
+
+  // 1. Remove common prefixes/equipment types (allowing for optional spaces/hyphens)
+  const prefixesAndEquipment = [
+    'cable', 'dumbbell', 'barbell', 'smith machine', 'machine',
+    'seated', 'standing', 'incline', 'flat', 'decline',
+    'assisted', 'single arm', 'single leg', 'unilateral', 'bilateral',
+    'upper body', 'lower body', 'full body', // These are more descriptive than core names
+  ];
+  prefixesAndEquipment.forEach(mod => {
+    // Use word boundaries to match whole words, and handle optional separators
+    normalized = normalized.replace(new RegExp(`\\b${mod}\\b[\\s-]*`, 'g'), ' ');
+  });
+
+  // 2. Normalize spaces (multiple to single, then trim)
+  normalized = normalized.replace(/\s+/g, ' ').trim();
+
+  // 3. Remove plural 's' from the end of the entire string
+  if (normalized.endsWith('s')) {
+    normalized = normalized.slice(0, -1);
+  }
+
+  // 4. Remove all remaining non-alphanumeric characters and spaces
+  normalized = normalized.replace(/[^a-z0-9]/g, '');
+
+  return normalized;
 };
 
 // Helper function to get YouTube embed URL
@@ -190,24 +154,17 @@ serve(async (req: Request) => {
     // Fetch all existing exercises (global and user-owned) for robust duplicate checking
     const { data: allExistingExercises, error: fetchAllExistingError } = await supabaseServiceRoleClient
       .from('exercise_definitions')
-      .select('id, name, user_id, library_id');
+      .select('name, user_id');
 
     if (fetchAllExistingError) {
       console.error("Error fetching all existing exercises for duplicate check:", fetchAllExistingError.message);
       throw fetchAllExistingError;
     }
 
-    const normalizedGlobalNames = new Map<string, ExistingExercise>();
-    const normalizedUserNames = new Map<string, ExistingExercise>();
+    const typedExistingExercises: ExistingExercise[] = allExistingExercises || [];
 
-    (allExistingExercises || []).forEach((ex: ExistingExercise) => {
-      const normalized = normalizeName(ex.name);
-      if (ex.user_id === null) {
-        normalizedGlobalNames.set(normalized, ex);
-      } else if (ex.user_id === user.id) {
-        normalizedUserNames.set(normalized, ex);
-      }
-    });
+    const normalizedGlobalNames = new Set(typedExistingExercises.filter((ex: ExistingExercise) => ex.user_id === null).map((ex: ExistingExercise) => normalizeName(ex.name)));
+    const normalizedUserNames = new Set(typedExistingExercises.filter((ex: ExistingExercise) => ex.user_id === user.id).map((ex: ExistingExercise) => normalizeName(ex.name)));
 
     const exercisesWithProcessedStatus = identifiedExercises.map((ex: any) => {
       const normalizedAiName = normalizeName(ex.name);
