@@ -20,7 +20,8 @@ interface AnalyseGymDialogProps {
 
 export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: AnalyseGymDialogProps) => {
   const { session } = useSession();
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]
+);
   const [base64Images, setBase64Images] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -177,7 +178,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
                   </div>
                 </ScrollArea>
               ) : (
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center"> {/* Added text-center */}
                   <Upload className="w-8 h-8 mb-3 text-muted-foreground" />
                   <p className="mb-2 text-sm text-muted-foreground">
                     <span className="font-semibold">Click to upload</span> or drag and drop
@@ -192,11 +193,11 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
               </Button>
             )}
           </div>
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading} size="sm">
+          <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t"> {/* Made buttons responsive */}
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading} size="sm" className="flex-1">
               Cancel
             </Button>
-            <Button onClick={handleAnalyseImage} disabled={base64Images.length === 0 || loading} size="sm">
+            <Button onClick={handleAnalyseImage} disabled={base64Images.length === 0 || loading} size="sm" className="flex-1">
               {loading ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
