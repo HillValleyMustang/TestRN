@@ -17,7 +17,7 @@ export const useOnboardingForm = () => {
   const [preferredMuscles, setPreferredMuscles] = useState<string>("");
   const [constraints, setConstraints] = useState<string>("");
   const [sessionLength, setSessionLength] = useState<string>("");
-  const [equipmentMethod, setEquipmentMethod] = useState<"photo" | "skip" | null>("skip");
+  const [equipmentMethod, setEquipmentMethod] = useState<"photo" | "skip" | null>(null); // Changed from "skip" to null
   const [identifiedExercises, setIdentifiedExercises] = useState<Partial<Tables<'exercise_definitions'>>[]>([]);
   const [consentGiven, setConsentGiven] = useState(false);
   const [loading, setLoading] = useState(false);

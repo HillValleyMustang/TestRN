@@ -3,16 +3,18 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Input } from "@/components/ui/input"; // NEW: Import Input
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Import Card components
+import { Camera, SkipForward } from 'lucide-react'; // Import icons
+import { cn } from '@/lib/utils'; // Import cn for conditional classes
 
 interface OnboardingStep4Props {
   equipmentMethod: "photo" | "skip" | null;
   setEquipmentMethod: (value: "photo" | "skip") => void;
   handleNext: () => void;
   handleBack: () => void;
-  gymName: string; // NEW: Add gymName prop
-  setGymName: (value: string) => void; // NEW: Add setGymName prop
+  gymName: string;
+  setGymName: (value: string) => void;
 }
 
 export const OnboardingStep4_GymSetup = ({
@@ -20,8 +22,8 @@ export const OnboardingStep4_GymSetup = ({
   setEquipmentMethod,
   handleNext,
   handleBack,
-  gymName, // NEW: Destructure gymName
-  setGymName, // NEW: Destructure setGymName
+  gymName,
+  setGymName,
 }: OnboardingStep4Props) => {
   return (
     <div className="space-y-6">
@@ -33,35 +35,54 @@ export const OnboardingStep4_GymSetup = ({
           value={gymName}
           onChange={(e) => setGymName(e.target.value)}
           required
-          className="mt-1"
+          className="mt-1 text-sm" // Reduced text size
         />
         <p className="text-sm text-muted-foreground mt-1">
           Give your primary gym a name.
         </p>
       </div>
 
-      <RadioGroup 
-        value={equipmentMethod || undefined} 
-        onValueChange={(value: "photo" | "skip") => setEquipmentMethod(value)} 
-      >
-        <div className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="photo" id="photo" />
-            <Label htmlFor="photo">Upload Gym Photos</Label> {/* UPDATED TEXT */}
-          </div>
-          <p className="text-sm text-muted-foreground ml-6">
-            Take photos of your gym to help us identify available equipment (multiple photos recommended).
-          </p>
-          
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="skip" id="skip" />
-            <Label htmlFor="skip">Skip for Now</Label>
-          </div>
-          <p className="text-sm text-muted-foreground ml-6">
-            Use a default "Common Gym" equipment set.
-          </p>
-        </div>
-      </RadioGroup>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> {/* Use grid for cards */}
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all min-h-[120px] flex flex-col justify-center text-center",
+            equipmentMethod === 'photo' 
+              ? 'border-primary ring-2 ring-primary' 
+              : 'hover:border-primary/50'
+          )}
+          onClick={() => setEquipmentMethod('photo')}
+        >
+          <CardHeader className="pb-2">
+            <Camera className="h-8 w-8 mx-auto mb-2 text-primary" /> {/* Icon */}
+            <CardTitle className="text-lg">Upload Gym Photos</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <p className="text-sm text-muted-foreground">
+              Take photos of your gym to help us identify available equipment.
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all min-h-[120px] flex flex-col justify-center text-center",
+            equipmentMethod === 'skip' 
+              ? 'border-primary ring-2 ring-primary' 
+              : 'hover:border-primary/50'
+          )}
+          onClick={() => setEquipmentMethod('skip')}
+        >
+          <CardHeader className="pb-2">
+            <SkipForward className="h-8 w-8 mx-auto mb-2 text-primary" /> {/* Icon */}
+            <CardTitle className="text-lg">Skip for Now</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <p className="text-sm text-muted-foreground">
+              Use a default "Common Gym" equipment set.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
       
       <div className="flex justify-between">
         <Button variant="outline" onClick={handleBack}>
@@ -69,7 +90,7 @@ export const OnboardingStep4_GymSetup = ({
         </Button>
         <Button 
           onClick={handleNext} 
-          disabled={!equipmentMethod || !gymName} // NEW: Disable if gymName is empty
+          disabled={!equipmentMethod || !gymName}
         >
           Next
         </Button>
