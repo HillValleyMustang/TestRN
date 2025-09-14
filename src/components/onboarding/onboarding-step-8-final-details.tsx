@@ -122,12 +122,13 @@ export const OnboardingStep8_FinalDetails = ({
         </div>
         
         <div className="flex justify-between">
-          <Button variant="outline" onClick={handleBack}>
+          <Button variant="outline" onClick={handleBack} size="sm">
             Back
           </Button>
           <Button 
             onClick={handleSubmit} 
             disabled={!consentGiven || loading || !fullName || heightCm === null || weightKg === null}
+            size="sm"
           >
             {loading ? "Completing Setup..." : "Complete Onboarding"}
           </Button>
