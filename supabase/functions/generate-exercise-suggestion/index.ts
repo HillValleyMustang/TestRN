@@ -142,7 +142,13 @@ serve(async (req: Request) => {
 
     let newExerciseData;
     try {
-      newExerciseData = JSON.parse(generatedText);
+      // More robust JSON parsing: find the JSON object within the response text
+      const jsonMatch = generatedText.match(/{[\s\S]*}/);
+      if (!jsonMatch) {
+        throw new Error("No valid JSON object found in AI response.");
+      }
+      const jsonString = jsonMatch[0];
+      newExerciseData = JSON.parse(jsonString);
     } catch (parseError) {
       console.error("Failed to parse Gemini response as JSON:", generatedText);
       throw new Error("AI generated an invalid response format.");
