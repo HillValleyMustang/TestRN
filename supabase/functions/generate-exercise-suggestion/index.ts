@@ -169,7 +169,7 @@ serve(async (req: Request) => {
 
     if (isDuplicate) {
       return new Response(JSON.stringify({ error: `AI suggested an exercise similar to one that already exists: "${newExerciseData.name}". Please try generating another.` }), {
-        status: 409, // Conflict status code
+        status: 200, // Return 200 OK with an error message in the body
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

@@ -112,15 +112,11 @@ export const ExerciseSubstitutionDialog = ({
       });
 
       if (error) {
-        // Check for specific error message from Edge Function (duplicate suggestion)
-        if (error.message.includes('AI suggested an exercise similar to one that already exists')) {
-          toast.info(error.message); // Show as info, not error
-        } else {
-          throw new Error(error.message);
-        }
+        throw new Error(error.message);
       }
       if (data.error) {
-        throw new Error(data.error);
+        toast.info(data.error); // Show user-friendly message for duplicates
+        return;
       }
 
       const newAiExercise = data.newExercise;
@@ -171,8 +167,8 @@ export const ExerciseSubstitutionDialog = ({
                       key={exercise.id}
                       className="p-4 border rounded-lg hover:bg-accent transition-colors"
                     >
-                      <div className="flex justify-between items-start">
-                        <div>
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex-1 min-w-0">
                           <h3 className="font-semibold">{exercise.name}</h3>
                           <p className="text-sm text-muted-foreground">
                             {exercise.main_muscle} • {exercise.type}
@@ -184,6 +180,7 @@ export const ExerciseSubstitutionDialog = ({
                         <Button
                           size="sm"
                           onClick={() => handleSelectSubstitution(exercise)}
+                          className="flex-shrink-0"
                         >
                           Select
                         </Button>
