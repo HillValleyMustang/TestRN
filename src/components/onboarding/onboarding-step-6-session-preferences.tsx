@@ -3,7 +3,10 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"; // Keep RadioGroup for functionality
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Import Card components
+import { cn } from '@/lib/utils'; // Import cn for conditional classes
+import { Clock } from 'lucide-react'; // Icon for session length
 
 interface OnboardingStep6Props {
   sessionLength: string;
@@ -11,6 +14,13 @@ interface OnboardingStep6Props {
   handleNext: () => void;
   handleBack: () => void;
 }
+
+const sessionLengthOptions = [
+  { value: "15-30", label: "15-30 minutes" },
+  { value: "30-45", label: "30-45 minutes" },
+  { value: "45-60", label: "45-60 minutes" },
+  { value: "60-90", label: "60-90 minutes" },
+];
 
 export const OnboardingStep6_SessionPreferences = ({
   sessionLength,
@@ -23,35 +33,39 @@ export const OnboardingStep6_SessionPreferences = ({
       <RadioGroup 
         value={sessionLength} 
         onValueChange={setSessionLength}
+        className="grid grid-cols-1 md:grid-cols-2 gap-4" // Use grid for cards
       >
-        <div className="space-y-2">
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="15-30" id="15-30" className="h-4 w-4" /> {/* Smaller radio item */}
-            <Label htmlFor="15-30" className="text-sm">15-30 minutes</Label> {/* Smaller label */}
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="30-45" id="30-45" className="h-4 w-4" /> {/* Smaller radio item */}
-            <Label htmlFor="30-45" className="text-sm">30-45 minutes</Label> {/* Smaller label */}
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="45-60" id="45-60" className="h-4 w-4" /> {/* Smaller radio item */}
-            <Label htmlFor="45-60" className="text-sm">45-60 minutes</Label> {/* Smaller label */}
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="60-90" id="60-90" className="h-4 w-4" /> {/* Smaller radio item */}
-            <Label htmlFor="60-90" className="text-sm">60-90 minutes</Label> {/* Smaller label */}
-          </div>
-        </div>
+        {sessionLengthOptions.map(option => (
+          <Card
+            key={option.value}
+            className={cn(
+              "cursor-pointer transition-all min-h-[100px] flex flex-col justify-center text-center",
+              sessionLength === option.value
+                ? 'border-primary ring-2 ring-primary'
+                : 'hover:border-primary/50'
+            )}
+            onClick={() => setSessionLength(option.value)}
+          >
+            <CardHeader className="pb-2">
+              <Clock className="h-8 w-8 mx-auto mb-2 text-primary" /> {/* Icon */}
+              <CardTitle className="text-lg">{option.label}</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {/* Hidden RadioGroupItem for actual form value */}
+              <RadioGroupItem value={option.value} id={option.value} className="sr-only" />
+            </CardContent>
+          </Card>
+        ))}
       </RadioGroup>
       
       <div className="flex justify-between">
-        <Button variant="outline" onClick={handleBack} size="sm"> {/* Smaller button */}
+        <Button variant="outline" onClick={handleBack} size="sm">
           Back
         </Button>
         <Button 
           onClick={handleNext} 
           disabled={!sessionLength}
-          size="sm" // Smaller button
+          size="sm"
         >
           Next
         </Button>

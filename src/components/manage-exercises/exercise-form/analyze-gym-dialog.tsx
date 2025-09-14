@@ -3,26 +3,25 @@
 import React, { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Camera, Upload, Loader2, ImageOff, Sparkles, XCircle } from "lucide-react"; // Added XCircle for individual image removal
+import { Camera, Upload, Loader2, ImageOff, Sparkles, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/components/session-context-provider";
-import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
+import { Tables, FetchedExerciseDefinition } from "@/types/supabase";
 import { LoadingOverlay } from "@/components/loading-overlay";
-import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 interface AnalyseGymDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  // UPDATED: onExerciseIdentified now expects an array of FetchedExerciseDefinition
   onExerciseIdentified: (exercises: Partial<FetchedExerciseDefinition>[], duplicate_status: 'none' | 'global' | 'my-exercises') => void;
 }
 
 export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: AnalyseGymDialogProps) => {
   const { session } = useSession();
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]); // Array for multiple previews
-  const [base64Images, setBase64Images] = useState<string[]>([]); // Array for multiple base64 images
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [base64Images, setBase64Images] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -92,7 +91,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ base64Images }), // Send array of images
+        body: JSON.stringify({ base64Images }),
       });
 
       const data = await response.json();
@@ -103,9 +102,6 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
 
       const identifiedExercises = data.identifiedExercises;
       if (identifiedExercises && identifiedExercises.length > 0) {
-        // Pass the entire array of identified exercises to the parent
-        // The parent (OnboardingStep5_GymPhotoUpload) will handle the review list
-        // Pass the duplicate status of the first exercise, as that's what the prompt expects
         const firstExerciseDuplicateStatus = identifiedExercises[0].duplicate_status || 'none';
         onExerciseIdentified(identifiedExercises, firstExerciseDuplicateStatus);
       } else {
@@ -144,7 +140,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
             <DialogTitle className="flex items-center gap-2">
               <Camera className="h-5 w-5" /> Analyse Gym Photos
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-sm">
               Upload photos of your gym equipment, and our AI will try to identify exercises.
             </DialogDescription>
           </DialogHeader>
@@ -152,7 +148,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
             <input
               type="file"
               accept="image/*"
-              multiple // Allow multiple file selection
+              multiple
               ref={fileInputRef}
               onChange={handleFileChange}
               className="hidden"
@@ -191,16 +187,16 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
               )}
             </label>
             {imagePreviews.length > 0 && (
-              <Button variant="outline" onClick={resetForm} className="w-full h-8 text-sm"> {/* Smaller button */}
+              <Button variant="outline" onClick={resetForm} className="w-full h-8 text-sm">
                 <ImageOff className="h-4 w-4 mr-2" /> Remove All Images
               </Button>
             )}
           </div>
           <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading} size="sm"> {/* Smaller button */}
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading} size="sm">
               Cancel
             </Button>
-            <Button onClick={handleAnalyseImage} disabled={base64Images.length === 0 || loading} size="sm"> {/* Smaller button */}
+            <Button onClick={handleAnalyseImage} disabled={base64Images.length === 0 || loading} size="sm">
               {loading ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (

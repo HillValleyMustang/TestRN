@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Info } from 'lucide-react';
 import { BodyFatInfoModal } from './body-fat-info-modal';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Import Card components
+import { cn } from '@/lib/utils'; // Import cn for conditional classes
 
 interface OnboardingStep8Props {
   consentGiven: boolean;
@@ -128,7 +130,8 @@ export const OnboardingStep8_FinalDetails = ({
           <Button 
             onClick={handleSubmit} 
             disabled={!consentGiven || loading || !fullName || heightCm === null || weightKg === null}
-            size="sm"
+            size="lg" // Made larger
+            variant="default" // Use default variant for primary action color
           >
             {loading ? "Completing Setup..." : "Complete Onboarding"}
           </Button>
