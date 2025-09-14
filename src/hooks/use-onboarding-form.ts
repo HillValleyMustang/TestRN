@@ -52,7 +52,7 @@ export const useOnboardingForm = () => {
   };
 
   const handleNext = useCallback(() => {
-    if (currentStep < 7) { // Now 7 steps in the form
+    if (currentStep < 8) { // Now 8 steps in the form
       setCurrentStep(prev => prev + 1);
     }
   }, [currentStep]);

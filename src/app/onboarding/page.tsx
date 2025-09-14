@@ -9,7 +9,8 @@ import { OnboardingStep3_GoalFocus } from "@/components/onboarding/onboarding-st
 import { OnboardingStep4_GymSetup } from "@/components/onboarding/onboarding-step-4-gym-setup";
 import { OnboardingStep5_ExerciseReview } from "@/components/onboarding/onboarding-step-5-exercise-review";
 import { OnboardingStep6_SessionPreferences } from "@/components/onboarding/onboarding-step-6-session-preferences";
-import { OnboardingStep7_FinalDetails } from "@/components/onboarding/onboarding-step-7-final-details";
+import { OnboardingStep7_AppFeatures } from "@/components/onboarding/onboarding-step-7-app-features";
+import { OnboardingStep8_FinalDetails } from "@/components/onboarding/onboarding-step-8-final-details";
 import { useSession } from "@/components/session-context-provider";
 import { LoadingOverlay } from "@/components/loading-overlay";
 import { toast } from "sonner";
@@ -119,7 +120,14 @@ export default function OnboardingPage() {
         );
       case 7:
         return (
-          <OnboardingStep7_FinalDetails
+          <OnboardingStep7_AppFeatures
+            handleNext={handleNext}
+            handleBack={handleBack}
+          />
+        );
+      case 8:
+        return (
+          <OnboardingStep8_FinalDetails
             consentGiven={consentGiven}
             setConsentGiven={setConsentGiven}
             handleSubmit={handleSubmit}
@@ -148,7 +156,8 @@ export default function OnboardingPage() {
       case 4: return "Gym Setup";
       case 5: return "Exercise Review";
       case 6: return "Session Preferences";
-      case 7: return "Final Details & Consent";
+      case 7: return "App Features";
+      case 8: return "Final Details & Consent";
       default: return "";
     }
   };
@@ -161,7 +170,8 @@ export default function OnboardingPage() {
       case 4: return "Let's set up your gym equipment";
       case 5: return "Review the exercises identified by the AI";
       case 6: return "How long do you prefer your workout sessions to be?";
-      case 7: return "Just a few more details to personalise your experience.";
+      case 7: return "Here's a quick look at what you can do with the app.";
+      case 8: return "Just a few more details to personalise your experience.";
       default: return "";
     }
   };
@@ -178,7 +188,7 @@ export default function OnboardingPage() {
 
         <div className="mb-6">
           <div className="flex justify-between items-start">
-            {[1, 2, 3, 4, 5, 6, 7].map((step) => (
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((step) => (
               <React.Fragment key={step}>
                 <div className="flex-shrink-0 text-center">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto ${
@@ -189,7 +199,7 @@ export default function OnboardingPage() {
                     {step}
                   </div>
                 </div>
-                {step < 7 && (
+                {step < 8 && (
                   <div className={`flex-grow h-1 mt-4 ${
                     currentStep > step 
                       ? "bg-primary" 

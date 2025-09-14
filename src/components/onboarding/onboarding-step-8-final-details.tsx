@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Info } from 'lucide-react';
 import { BodyFatInfoModal } from './body-fat-info-modal';
 
-interface OnboardingStep7Props {
+interface OnboardingStep8Props {
   consentGiven: boolean;
   setConsentGiven: (checked: boolean) => void;
   handleSubmit: () => Promise<void>;
@@ -24,7 +24,7 @@ interface OnboardingStep7Props {
   setBodyFatPct: (value: number | null) => void;
 }
 
-export const OnboardingStep7_FinalDetails = ({
+export const OnboardingStep8_FinalDetails = ({
   consentGiven,
   setConsentGiven,
   handleSubmit,
@@ -38,7 +38,7 @@ export const OnboardingStep7_FinalDetails = ({
   setWeightKg,
   bodyFatPct,
   setBodyFatPct,
-}: OnboardingStep7Props) => {
+}: OnboardingStep8Props) => {
   const [isBodyFatInfoModalOpen, setIsBodyFatInfoModalOpen] = useState(false);
 
   return (
