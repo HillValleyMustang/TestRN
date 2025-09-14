@@ -167,66 +167,50 @@ export const WorkoutSelector = ({
     }
     setIsAiSaving(true);
     try {
-      let finalExerciseToAdd: ExerciseDefinition | null = null;
+      // Always insert a new user-owned exercise, regardless of the duplicate flag.
+      // The flag is for the UI prompt only.
+      const { data: insertedExercise, error: insertError } = await supabase.from('exercise_definitions').insert([{
+        name: exercise.name!,
+        main_muscle: exercise.main_muscle!,
+        type: exercise.type!,
+        category: exercise.category,
+        description: exercise.description,
+        pro_tip: exercise.pro_tip,
+        video_url: exercise.video_url,
+        user_id: session.user.id,
+        library_id: null, // User-created, not from global library
+        is_favorite: false,
+        created_at: new Date().toISOString(),
+      }]).select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url').single();
 
-      if (!isDuplicateAiExercise) { // Only insert if not a duplicate
-        const { data: insertedExercise, error: insertError } = await supabase.from('exercise_definitions').insert([{
-          name: exercise.name!,
-          main_muscle: exercise.main_muscle!,
-          type: exercise.type!,
-          category: exercise.category,
-          description: exercise.description,
-          pro_tip: exercise.pro_tip,
-          video_url: exercise.video_url,
-          user_id: session.user.id,
-          library_id: null, // User-created, not from global library
-          is_favorite: false,
-          created_at: new Date().toISOString(),
-        }]).select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url').single(); // Select all fields for FetchedExerciseDefinition
-
-        if (insertError) {
-          if (insertError.code === '23505') { // Unique violation code
-            toast.error("This exercise already exists in your custom exercises.");
-          } else {
-            throw insertError;
-          }
+      if (insertError) {
+        if (insertError.code === '23505') { // Unique violation code
+          toast.error(`You already have a custom exercise named "${exercise.name}".`);
         } else {
-          toast.success(`'${exercise.name}' added to My Exercises!`);
-          finalExerciseToAdd = insertedExercise as ExerciseDefinition;
-          // Immediately update allAvailableExercises with the new exercise
-          setAllAvailableExercises((prev: FetchedExerciseDefinition[]) => [...prev, insertedExercise as FetchedExerciseDefinition]);
+          throw insertError;
         }
       } else {
-        // If it's a duplicate, we just need its ID to add to the workout
-        const existingExercise = allAvailableExercises.find(ex => 
-          ex.name === exercise.name && ex.main_muscle === exercise.main_muscle && ex.type === exercise.type
-        );
-        if (existingExercise) {
-          finalExerciseToAdd = existingExercise as ExerciseDefinition;
-        } else {
-          throw new Error("Duplicate exercise found but could not retrieve its ID.");
-        }
-      }
-
-      // Now add to current workout session
-      if (finalExerciseToAdd) {
+        toast.success(`'${exercise.name}' added to My Exercises!`);
+        const finalExerciseToAdd = insertedExercise as ExerciseDefinition;
+        
+        // Immediately update allAvailableExercises with the new exercise
+        setAllAvailableExercises((prev: FetchedExerciseDefinition[]) => [...prev, insertedExercise as FetchedExerciseDefinition]);
+        
+        // Add the NEWLY CREATED exercise to the current workout session
         await addExerciseToSession(finalExerciseToAdd);
         toast.success(`'${finalExerciseToAdd.name}' added to current workout!`);
-      } else {
-        throw new Error("Could not find the exercise to add to workout.");
+        
+        refreshAllData(); // Trigger refresh of exercise lists
+        setShowSaveAiExercisePrompt(false);
+        setAiIdentifiedExercise(null);
       }
-
-      refreshAllData(); // Trigger refresh of exercise lists
-      setShowSaveAiExercisePrompt(false);
-      setAiIdentifiedExercise(null);
-
     } catch (err: any) {
       console.error("Failed to save AI identified exercise and add to workout:", err);
       toast.error("Failed to save exercise: " + err.message);
     } finally {
       setIsAiSaving(false);
     }
-  }, [session, supabase, isDuplicateAiExercise, allAvailableExercises, setAllAvailableExercises, addExerciseToSession, refreshAllData]);
+  }, [session, supabase, setAllAvailableExercises, addExerciseToSession, refreshAllData]);
 
   const handleAddAiExerciseToWorkoutOnly = useCallback(async (exercise: Partial<Tables<'exercise_definitions'>>) => {
     if (!session) {
@@ -237,19 +221,21 @@ export const WorkoutSelector = ({
     try {
       let finalExerciseToAdd: ExerciseDefinition | null = null;
 
-      // If it's a duplicate, we just need its ID to add to the workout
       if (isDuplicateAiExercise) {
+        // It's a known global exercise. Find it by name and add it.
         const existingExercise = allAvailableExercises.find(ex => 
-          ex.name === exercise.name && ex.main_muscle === exercise.main_muscle && ex.type === exercise.type
+          ex.name.trim().toLowerCase() === exercise.name?.trim().toLowerCase() && ex.user_id === null
         );
         if (existingExercise) {
           finalExerciseToAdd = existingExercise as ExerciseDefinition;
         } else {
-          throw new Error("Duplicate exercise found but could not retrieve its ID.");
+          console.warn("Could not find duplicate global exercise in local cache. Inserting as new user exercise.");
+          // Fall through to the insert logic below.
         }
-      } else {
-        // If not a duplicate, but only adding to workout, we still need to create it in the DB
-        // as a user-owned exercise, but without explicitly saving to "My Exercises" list.
+      }
+      
+      // If it's not a duplicate OR if the duplicate wasn't found in the cache, we must insert it as a new user exercise.
+      if (!finalExerciseToAdd) {
         const { data: insertedExercise, error: insertError } = await supabase.from('exercise_definitions').insert([{
           name: exercise.name!,
           main_muscle: exercise.main_muscle!,
@@ -259,27 +245,37 @@ export const WorkoutSelector = ({
           pro_tip: exercise.pro_tip,
           video_url: exercise.video_url,
           user_id: session.user.id,
-          library_id: null, // User-created, not from global library
+          library_id: null,
           is_favorite: false,
           created_at: new Date().toISOString(),
-        }]).select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url').single(); // Select all fields for FetchedExerciseDefinition
+        }]).select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url').single();
 
         if (insertError) {
-          throw insertError;
+          if (insertError.code === '23505') {
+            toast.error(`You already have a custom exercise named "${exercise.name}".`);
+            const existingUserExercise = allAvailableExercises.find(ex => ex.name.trim().toLowerCase() === exercise.name?.trim().toLowerCase() && ex.user_id === session.user.id);
+            if (existingUserExercise) {
+              finalExerciseToAdd = existingUserExercise as ExerciseDefinition;
+            } else {
+               throw insertError;
+            }
+          } else {
+            throw insertError;
+          }
+        } else {
+          finalExerciseToAdd = insertedExercise as ExerciseDefinition;
+          setAllAvailableExercises((prev: FetchedExerciseDefinition[]) => [...prev, insertedExercise as FetchedExerciseDefinition]);
         }
-        finalExerciseToAdd = insertedExercise as ExerciseDefinition;
-        // Immediately update allAvailableExercises with the new exercise
-        setAllAvailableExercises((prev: FetchedExerciseDefinition[]) => [...prev, insertedExercise as FetchedExerciseDefinition]);
       }
 
       if (finalExerciseToAdd) {
         await addExerciseToSession(finalExerciseToAdd);
         toast.success(`'${finalExerciseToAdd.name}' added to current workout!`);
       } else {
-        throw new Error("Could not find the exercise to add to workout.");
+        throw new Error("Could not find or create the exercise to add to workout.");
       }
 
-      refreshAllData(); // Trigger refresh of exercise lists
+      refreshAllData();
       setShowSaveAiExercisePrompt(false);
       setAiIdentifiedExercise(null);
 
