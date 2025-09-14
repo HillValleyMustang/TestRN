@@ -15,9 +15,84 @@ const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/
 
 // Define an interface for the structure of existing exercise data fetched from Supabase
 interface ExistingExercise {
+  id: string; // Added ID for potential future use or more complex matching
   name: string;
   user_id: string | null;
+  library_id: string | null; // Added library_id for more robust matching
 }
+
+// Helper function to normalize exercise names for comparison
+const normalizeName = (name: string): string => {
+  if (!name) return '';
+  return name
+    .toLowerCase()
+    .replace(/cable /g, '') // Remove common prefixes
+    .replace(/dumbbell /g, '')
+    .replace(/machine /g, '')
+    .replace(/smith machine /g, '')
+    .replace(/barbell /g, '')
+    .replace(/seated /g, '')
+    .replace(/standing /g, '')
+    .replace(/incline /g, '')
+    .replace(/flat /g, '')
+    .replace(/press /g, '') // Remove common suffixes/words
+    .replace(/row /g, '')
+    .replace(/curl /g, '')
+    .replace(/raise /g, '')
+    .replace(/fly /g, '')
+    .replace(/pushdown /g, '')
+    .replace(/extension /g, '')
+    .replace(/lunge /g, '')
+    .replace(/kickback /g, '')
+    .replace(/crunch /g, '')
+    .replace(/plank /g, '')
+    .replace(/pull /g, '')
+    .replace(/dip /g, '')
+    .replace(/squat /g, '')
+    .replace(/deadlift /g, '')
+    .replace(/twist /g, '')
+    .replace(/bridge /g, '')
+    .replace(/jump /g, '')
+    .replace(/burpee /g, '')
+    .replace(/swing /g, '')
+    .replace(/raise /g, '')
+    .replace(/extension /g, '')
+    .replace(/sit /g, '')
+    .replace(/leg /g, '')
+    .replace(/body /g, '')
+    .replace(/upper /g, '')
+    .replace(/lower /g, '')
+    .replace(/push /g, '')
+    .replace(/pull /g, '')
+    .replace(/legs /g, '')
+    .replace(/abs /g, '')
+    .replace(/core /g, '')
+    .replace(/glutes /g, '')
+    .replace(/quads /g, '')
+    .replace(/hamstrings /g, '')
+    .replace(/calves /g, '')
+    .replace(/pectorals /g, '')
+    .replace(/deltoids /g, '')
+    .replace(/lats /g, '')
+    .replace(/traps /g, '')
+    .replace(/biceps /g, '')
+    .replace(/triceps /g, '')
+    .replace(/forearms /g, '')
+    .replace(/inner thighs /g, '')
+    .replace(/outer glutes /g, '')
+    .replace(/rear delts /g, '')
+    .replace(/full body /g, '')
+    .replace(/ /g, '') // Remove remaining spaces
+    .replace(/[^a-z0-9]/g, ''); // Remove all non-alphanumeric characters
+};
+
+// Helper function to get YouTube embed URL
+const getYouTubeEmbedUrl = (url: string | null | undefined): string | null => {
+  if (!url) return null;
+  const regExp = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([\w-]{11})(?:\S+)?/;
+  const match = url.match(regExp);
+  return match && match[1] ? `https://www.youtube.com/embed/${match[1]}` : null;
+};
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -111,39 +186,52 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ identifiedExercises: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // --- DUPLICATE CHECK ---
-    const exerciseNames = identifiedExercises.map((ex: any) => ex.name.trim());
-    
-    const { data: existingExercises, error: duplicateCheckError } = await supabaseServiceRoleClient
+    // --- DUPLICATE CHECK & URL CONVERSION ---
+    // Fetch all existing exercises (global and user-owned) for robust duplicate checking
+    const { data: allExistingExercises, error: fetchAllExistingError } = await supabaseServiceRoleClient
       .from('exercise_definitions')
-      .select('name, user_id')
-      .in('name', exerciseNames);
+      .select('id, name, user_id, library_id');
 
-    if (duplicateCheckError) {
-      console.error("Error checking for duplicate exercises:", duplicateCheckError.message);
-      throw duplicateCheckError;
+    if (fetchAllExistingError) {
+      console.error("Error fetching all existing exercises for duplicate check:", fetchAllExistingError.message);
+      throw fetchAllExistingError;
     }
 
-    const typedExistingExercises: ExistingExercise[] = existingExercises || [];
+    const normalizedGlobalNames = new Map<string, ExistingExercise>();
+    const normalizedUserNames = new Map<string, ExistingExercise>();
 
-    const existingGlobalNames = new Set(typedExistingExercises.filter((ex: ExistingExercise) => ex.user_id === null).map((ex: ExistingExercise) => ex.name));
-    const existingUserNames = new Set(typedExistingExercises.filter((ex: ExistingExercise) => ex.user_id === user.id).map((ex: ExistingExercise) => ex.name));
+    (allExistingExercises || []).forEach((ex: ExistingExercise) => {
+      const normalized = normalizeName(ex.name);
+      if (ex.user_id === null) {
+        normalizedGlobalNames.set(normalized, ex);
+      } else if (ex.user_id === user.id) {
+        normalizedUserNames.set(normalized, ex);
+      }
+    });
 
-    const exercisesWithDuplicateStatus = identifiedExercises.map((ex: any) => {
-      const trimmedName = ex.name.trim();
+    const exercisesWithProcessedStatus = identifiedExercises.map((ex: any) => {
+      const normalizedAiName = normalizeName(ex.name);
       let duplicate_status: 'none' | 'global' | 'my-exercises' = 'none';
-      if (existingUserNames.has(trimmedName)) {
+
+      // Check user's custom exercises first
+      if (normalizedUserNames.has(normalizedAiName)) {
         duplicate_status = 'my-exercises';
-      } else if (existingGlobalNames.has(trimmedName)) {
+      } else if (normalizedGlobalNames.has(normalizedAiName)) {
+        // If not in user's, check global library
         duplicate_status = 'global';
       }
+
+      // Convert YouTube URL to embed format
+      const embedVideoUrl = getYouTubeEmbedUrl(ex.video_url);
+
       return {
         ...ex,
+        video_url: embedVideoUrl, // Update to embed URL
         duplicate_status: duplicate_status,
       };
     });
 
-    return new Response(JSON.stringify({ identifiedExercises: exercisesWithDuplicateStatus }), {
+    return new Response(JSON.stringify({ identifiedExercises: exercisesWithProcessedStatus }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
