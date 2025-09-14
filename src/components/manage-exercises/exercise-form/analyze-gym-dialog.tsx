@@ -14,7 +14,7 @@ type ExerciseDefinition = Tables<'exercise_definitions'>;
 interface AnalyseGymDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onExerciseIdentified: (exercise: Partial<ExerciseDefinition>, isDuplicate: boolean) => void;
+  onExerciseIdentified: (exercise: Partial<ExerciseDefinition>, duplicate_status: 'none' | 'global' | 'my-exercises') => void; // Updated signature
 }
 
 export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: AnalyseGymDialogProps) => {
@@ -78,7 +78,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
 
       const firstExercise = data.identifiedExercises?.[0];
       if (firstExercise) {
-        onExerciseIdentified(firstExercise, firstExercise.is_duplicate);
+        onExerciseIdentified(firstExercise, firstExercise.duplicate_status); // Pass duplicate_status
       } else {
         toast.info("The AI couldn't identify a specific exercise from that image. Please try another angle or add it manually.");
       }

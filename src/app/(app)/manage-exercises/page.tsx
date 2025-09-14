@@ -62,7 +62,7 @@ export default function ManageExercisesPage() {
   const [showSaveAiExercisePrompt, setShowSaveAiExercisePrompt] = useState(false);
   const [aiIdentifiedExercise, setAiIdentifiedExercise] = useState<Partial<Tables<'exercise_definitions'>> | null>(null);
   const [isAiSaving, setIsAiSaving] = useState(false);
-  const [isDuplicateAiExercise, setIsDuplicateAiExercise] = useState(false);
+  const [aiDuplicateStatus, setAiDuplicateStatus] = useState<'none' | 'global' | 'my-exercises'>('none'); // Changed from isDuplicateAiExercise
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
@@ -97,9 +97,9 @@ export default function ManageExercisesPage() {
   }, [emblaApi]);
 
   // AI Gym Analysis Handlers for Manage Exercises page
-  const handleExerciseIdentified = useCallback((exercise: Partial<Tables<'exercise_definitions'>>, isDuplicate: boolean) => {
+  const handleExerciseIdentified = useCallback((exercise: Partial<Tables<'exercise_definitions'>>, duplicate_status: 'none' | 'global' | 'my-exercises') => {
     setAiIdentifiedExercise(exercise);
-    setIsDuplicateAiExercise(isDuplicate);
+    setAiDuplicateStatus(duplicate_status); // Set the new duplicate status
     setShowSaveAiExercisePrompt(true);
   }, []);
 
@@ -291,13 +291,13 @@ export default function ManageExercisesPage() {
       />
       <SaveAiExercisePrompt
         open={showSaveAiExercisePrompt}
-        onOpenChange={setShowSaveAiExercisePrompt}
+        onOpenChange={setShowSaveAiExercisePrompt} // Corrected typo here
         exercise={aiIdentifiedExercise}
         onSaveToMyExercises={handleSaveAiExerciseToMyExercises}
         context="manage-exercises"
         onEditExercise={handleEditIdentifiedExercise}
         isSaving={isAiSaving}
-        isDuplicate={isDuplicateAiExercise}
+        duplicateStatus={aiDuplicateStatus}
       />
       {editingExercise && (
         <EditExerciseDialog

@@ -85,6 +85,7 @@ export type AiCoachUsageLog = AiCoachUsageLogsRow;
 export interface FetchedExerciseDefinition extends Omit<Tables<'exercise_definitions'>, 'id'> {
   id: string | null; // Allow null for new exercises (e.g., when creating from global)
   is_favorited_by_current_user?: boolean; // For global exercises favorited by user
+  duplicate_status?: 'none' | 'global' | 'my-exercises'; // NEW: Add duplicate status
 }
 
 // Centralized type for workouts with last completed date

@@ -13,6 +13,12 @@ const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 // @ts-ignore
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
 
+// Define an interface for the structure of existing exercise data fetched from Supabase
+interface ExistingExercise {
+  name: string;
+  user_id: string | null;
+}
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -107,25 +113,37 @@ serve(async (req: Request) => {
 
     // --- DUPLICATE CHECK ---
     const exerciseNames = identifiedExercises.map((ex: any) => ex.name.trim());
-    const { data: existingGlobalExercises, error: duplicateCheckError } = await supabaseServiceRoleClient
+    
+    const { data: existingExercises, error: duplicateCheckError } = await supabaseServiceRoleClient
       .from('exercise_definitions')
-      .select('name')
-      .is('user_id', null) // Check only against global library
+      .select('name, user_id')
       .in('name', exerciseNames);
 
     if (duplicateCheckError) {
-      console.error("Error checking for duplicate global exercises:", duplicateCheckError.message);
+      console.error("Error checking for duplicate exercises:", duplicateCheckError.message);
       throw duplicateCheckError;
     }
 
-    const existingNamesSet = new Set((existingGlobalExercises || []).map((ex: { name: string }) => ex.name));
+    const typedExistingExercises: ExistingExercise[] = existingExercises || [];
 
-    const exercisesWithDuplicateFlag = identifiedExercises.map((ex: any) => ({
-      ...ex,
-      is_duplicate: existingNamesSet.has(ex.name.trim()),
-    }));
+    const existingGlobalNames = new Set(typedExistingExercises.filter((ex: ExistingExercise) => ex.user_id === null).map((ex: ExistingExercise) => ex.name));
+    const existingUserNames = new Set(typedExistingExercises.filter((ex: ExistingExercise) => ex.user_id === user.id).map((ex: ExistingExercise) => ex.name));
 
-    return new Response(JSON.stringify({ identifiedExercises: exercisesWithDuplicateFlag }), {
+    const exercisesWithDuplicateStatus = identifiedExercises.map((ex: any) => {
+      const trimmedName = ex.name.trim();
+      let duplicate_status: 'none' | 'global' | 'my-exercises' = 'none';
+      if (existingUserNames.has(trimmedName)) {
+        duplicate_status = 'my-exercises';
+      } else if (existingGlobalNames.has(trimmedName)) {
+        duplicate_status = 'global';
+      }
+      return {
+        ...ex,
+        duplicate_status: duplicate_status,
+      };
+    });
+
+    return new Response(JSON.stringify({ identifiedExercises: exercisesWithDuplicateStatus }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 

@@ -26,11 +26,11 @@ export const OnboardingStep5_GymPhotoUpload = ({
   const [showAnalyseGymDialog, setShowAnalyseGymDialog] = useState(false);
   const [showSaveAiExercisePrompt, setShowSaveAiExercisePrompt] = useState(false);
   const [aiIdentifiedExercise, setAiIdentifiedExercise] = useState<Partial<Tables<'exercise_definitions'>> | null>(null);
-  const [isDuplicateAiExercise, setIsDuplicateAiExercise] = useState(false);
+  const [aiDuplicateStatus, setAiDuplicateStatus] = useState<'none' | 'global' | 'my-exercises'>('none'); // Changed from isDuplicateAiExercise
 
-  const handleExerciseIdentified = useCallback((exercise: Partial<Tables<'exercise_definitions'>>, isDuplicate: boolean) => {
+  const handleExerciseIdentified = useCallback((exercise: Partial<Tables<'exercise_definitions'>>, duplicate_status: 'none' | 'global' | 'my-exercises') => {
     setAiIdentifiedExercise(exercise);
-    setIsDuplicateAiExercise(isDuplicate);
+    setAiDuplicateStatus(duplicate_status); // Set the new duplicate status
     setShowSaveAiExercisePrompt(true);
   }, []);
 
@@ -94,7 +94,7 @@ export const OnboardingStep5_GymPhotoUpload = ({
         exercise={aiIdentifiedExercise}
         onSaveToMyExercises={handleSaveToOnboardingState}
         isSaving={false}
-        isDuplicate={isDuplicateAiExercise}
+        duplicateStatus={aiDuplicateStatus} // Pass the new duplicate status
         context="manage-exercises"
       />
     </>
