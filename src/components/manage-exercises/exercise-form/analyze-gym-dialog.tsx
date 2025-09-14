@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Camera, Upload, Loader2, ImageOff, Sparkles, XCircle } from "lucide-react"; // Added XCircle for individual image removal
 import { toast } from "sonner";
 import { useSession } from "@/components/session-context-provider";
-import { Tables } from "@/types/supabase";
+import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
 import { LoadingOverlay } from "@/components/loading-overlay";
 import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
 
@@ -15,8 +15,8 @@ type ExerciseDefinition = Tables<'exercise_definitions'>;
 interface AnalyseGymDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  // UPDATED: onExerciseIdentified now expects an array of exercises
-  onExerciseIdentified: (exercises: Partial<ExerciseDefinition>[], duplicate_status: 'none' | 'global' | 'my-exercises') => void;
+  // UPDATED: onExerciseIdentified now expects an array of FetchedExerciseDefinition
+  onExerciseIdentified: (exercises: Partial<FetchedExerciseDefinition>[], duplicate_status: 'none' | 'global' | 'my-exercises') => void;
 }
 
 export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: AnalyseGymDialogProps) => {
@@ -105,7 +105,9 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
       if (identifiedExercises && identifiedExercises.length > 0) {
         // Pass the entire array of identified exercises to the parent
         // The parent (OnboardingStep5_GymPhotoUpload) will handle the review list
-        onExerciseIdentified(identifiedExercises, 'none'); // 'none' as duplicate status is now per-exercise in the array
+        // Pass the duplicate status of the first exercise, as that's what the prompt expects
+        const firstExerciseDuplicateStatus = identifiedExercises[0].duplicate_status || 'none';
+        onExerciseIdentified(identifiedExercises, firstExerciseDuplicateStatus);
       } else {
         toast.info("The AI couldn't identify any specific exercises from the uploaded images. Please try different angles or add them manually.");
       }
