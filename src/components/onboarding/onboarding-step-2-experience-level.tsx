@@ -23,18 +23,18 @@ export const OnboardingStep2_ExperienceLevel = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card 
           className={cn(
-            "cursor-pointer transition-all",
+            "cursor-pointer transition-all min-h-[120px] flex flex-col justify-center", // Reduced min-height and added flex for centering
             experience === 'beginner' 
               ? 'border-primary ring-2 ring-primary' 
               : 'hover:border-primary/50'
           )}
           onClick={() => setExperience('beginner')}
         >
-          <CardHeader>
-            <CardTitle>Beginner</CardTitle>
+          <CardHeader className="pb-2"> {/* Adjusted padding */}
+            <CardTitle className="text-lg text-center">Beginner</CardTitle> {/* Reduced font size and centered */}
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
+          <CardContent className="pt-0"> {/* Adjusted padding */}
+            <p className="text-sm text-muted-foreground text-center"> {/* Centered text */}
               New to structured training or returning after a long break.
             </p>
           </CardContent>
@@ -42,18 +42,18 @@ export const OnboardingStep2_ExperienceLevel = ({
         
         <Card 
           className={cn(
-            "cursor-pointer transition-all",
+            "cursor-pointer transition-all min-h-[120px] flex flex-col justify-center", // Reduced min-height and added flex for centering
             experience === 'intermediate' 
               ? 'border-primary ring-2 ring-primary' 
               : 'hover:border-primary/50'
           )}
           onClick={() => setExperience('intermediate')}
         >
-          <CardHeader>
-            <CardTitle>Intermediate</CardTitle>
+          <CardHeader className="pb-2"> {/* Adjusted padding */}
+            <CardTitle className="text-lg text-center">Intermediate</CardTitle> {/* Reduced font size and centered */}
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
+          <CardContent className="pt-0"> {/* Adjusted padding */}
+            <p className="text-sm text-muted-foreground text-center"> {/* Centered text */}
               Some experience with structured training programs.
             </p>
           </CardContent>
