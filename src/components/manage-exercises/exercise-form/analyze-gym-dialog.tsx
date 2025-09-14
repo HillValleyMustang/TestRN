@@ -191,16 +191,16 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
               )}
             </label>
             {imagePreviews.length > 0 && (
-              <Button variant="outline" onClick={resetForm} className="w-full">
+              <Button variant="outline" onClick={resetForm} className="w-full h-8 text-sm"> {/* Smaller button */}
                 <ImageOff className="h-4 w-4 mr-2" /> Remove All Images
               </Button>
             )}
           </div>
           <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading} size="sm"> {/* Smaller button */}
               Cancel
             </Button>
-            <Button onClick={handleAnalyseImage} disabled={base64Images.length === 0 || loading}>
+            <Button onClick={handleAnalyseImage} disabled={base64Images.length === 0 || loading} size="sm"> {/* Smaller button */}
               {loading ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (

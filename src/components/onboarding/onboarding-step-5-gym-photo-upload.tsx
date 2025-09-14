@@ -55,10 +55,10 @@ export const OnboardingStep5_GymPhotoUpload = ({
     <>
       <div className="space-y-6">
         <div className="p-4 border-2 border-dashed rounded-lg text-center">
-          <p className="text-muted-foreground mb-4">
+          <p className="text-muted-foreground mb-4 text-sm"> {/* Reduced text size */}
             Upload photos of your gym equipment. Our AI will identify exercises you can do. You can upload multiple photos.
           </p>
-          <Button onClick={() => setShowAnalyseGymDialog(true)}>
+          <Button onClick={() => setShowAnalyseGymDialog(true)} size="sm"> {/* Smaller button */}
             <Camera className="h-4 w-4 mr-2" />
             Upload and Analyse Photo
           </Button>
@@ -70,11 +70,11 @@ export const OnboardingStep5_GymPhotoUpload = ({
             <ul className="space-y-2">
               {identifiedExercises.map((ex, index) => (
                 <li key={index} className="flex items-center justify-between p-2 border rounded-md bg-muted/50">
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center gap-2 text-sm"> {/* Reduced text size */}
                     <CheckCircle className="h-4 w-4 text-green-500" />
                     {ex.name}
                   </span>
-                  <Button variant="ghost" size="icon" onClick={() => removeIdentifiedExercise(ex.name!)}>
+                  <Button variant="ghost" size="icon" onClick={() => removeIdentifiedExercise(ex.name!)} className="h-7 w-7"> {/* Smaller button */}
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </li>
