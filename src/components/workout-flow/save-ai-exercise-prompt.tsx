@@ -126,7 +126,7 @@ export const SaveAiExercisePrompt = ({
                     </Button>
                   )}
                 </>
-              ) : ( // duplicateStatus === 'none' or 'global'
+              ) : ( // duplicateStatus === 'none' or 'global' in manage-exercises context
                 <Button
                   onClick={() => onSaveToMyExercises(exercise)}
                   disabled={isSaving}
@@ -135,25 +135,24 @@ export const SaveAiExercisePrompt = ({
                 </Button>
               )
             ) : ( // context === 'workout-flow'
-              duplicateStatus === 'my-exercises' || duplicateStatus === 'global' ? ( // If duplicate in either, only allow adding to workout
-                <Button variant="default" onClick={() => onAddOnlyToCurrentWorkout!(exercise)} disabled={isSaving}>
-                  <PlusCircle className="h-4 w-4 mr-2" /> Add to Current Workout
-                </Button>
-              ) : ( // duplicateStatus === 'none'
-                <>
+              <>
+                {/* Always show "Add to Current Workout" in workout-flow context if onAddOnlyToCurrentWorkout is provided */}
+                {showAddOnlyToWorkoutButton && (
+                  <Button variant="default" onClick={() => onAddOnlyToCurrentWorkout!(exercise)} disabled={isSaving}>
+                    <PlusCircle className="h-4 w-4 mr-2" /> Add to Current Workout
+                  </Button>
+                )}
+                {/* Only show "Save to My Exercises" if there is NO duplicate (duplicateStatus === 'none') */}
+                {duplicateStatus === 'none' && (
                   <Button
+                    variant="outline"
                     onClick={() => onSaveToMyExercises(exercise)}
                     disabled={isSaving}
                   >
-                    <Save className="h-4 w-4 mr-2" /> {isSaving ? "Saving..." : "Add and Save to My Exercises"}
+                    <Save className="h-4 w-4 mr-2" /> {isSaving ? "Saving..." : "Save to My Exercises"}
                   </Button>
-                  {showAddOnlyToWorkoutButton && (
-                    <Button variant="outline" onClick={() => onAddOnlyToCurrentWorkout!(exercise)} disabled={isSaving}>
-                      <PlusCircle className="h-4 w-4 mr-2" /> Add just to this workout
-                    </Button>
-                  )}
-                </>
-              )
+                )}
+              </>
             )}
           </div>
         </DialogContent>

@@ -24,31 +24,30 @@ const normalizeName = (name: string): string => {
   if (!name) return '';
   let normalized = name.toLowerCase();
 
-  // Remove common equipment prefixes and modifiers, but be careful not to remove core action words
-  const prefixesAndModifiers = [
+  // 1. Remove common equipment/position prefixes/suffixes (allowing for optional spaces/hyphens)
+  // This list is carefully curated to avoid removing core exercise action words.
+  const equipmentAndPositionWords = [
     'cable', 'dumbbell', 'barbell', 'smith machine', 'machine',
     'seated', 'standing', 'incline', 'flat', 'decline',
     'assisted', 'single arm', 'single leg', 'unilateral', 'bilateral',
     'upper body', 'lower body', 'full body',
   ];
-  prefixesAndModifiers.forEach(mod => {
-    // Use word boundaries to match whole words, and handle optional separators
-    normalized = normalized.replace(new RegExp(`\\b${mod}\\b[\\s-]*`, 'g'), ' ');
+
+  equipmentAndPositionWords.forEach(word => {
+    // Match as a whole word, optionally followed by space/hyphen
+    normalized = normalized.replace(new RegExp(`\\b${word}\\b[\\s-]*`, 'g'), ' ');
   });
 
-  // Normalize spaces (multiple to single, then trim)
+  // 2. Normalize spaces (multiple to single, then trim)
   normalized = normalized.replace(/\s+/g, ' ').trim();
 
-  // Remove plural 's' from the end of the entire string
+  // 3. Remove plural 's' from the end of the entire string
   if (normalized.endsWith('s')) {
     normalized = normalized.slice(0, -1);
   }
 
-  // Remove all remaining non-alphanumeric characters (keep spaces for now to distinguish words)
-  normalized = normalized.replace(/[^a-z0-9\s]/g, '');
-
-  // Finally, remove all spaces to create a compact string for comparison
-  normalized = normalized.replace(/\s/g, '');
+  // 4. Remove all remaining non-alphanumeric characters and spaces
+  normalized = normalized.replace(/[^a-z0-9]/g, '');
 
   return normalized;
 };
@@ -78,7 +77,7 @@ serve(async (req: Request) => {
     // Authenticate the user using the JWT from the client's Authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Authorization header missing' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'Authorization header missing' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } } );
     }
     const { data: { user }, error: userError } = await supabaseServiceRoleClient.auth.getUser(authHeader.split(' ')[1]);
     if (userError || !user) {
@@ -182,7 +181,9 @@ serve(async (req: Request) => {
       }
 
       // Convert YouTube URL to embed format
+      console.log(`[identify-equipment] Original video_url for ${ex.name}: ${ex.video_url}`); // DEBUG
       const embedVideoUrl = getYouTubeEmbedUrl(ex.video_url);
+      console.log(`[identify-equipment] Converted video_url for ${ex.name}: ${embedVideoUrl}`); // DEBUG
 
       return {
         ...ex,
