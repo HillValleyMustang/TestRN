@@ -28,11 +28,20 @@ export const OnboardingStep5_GymPhotoUpload = ({
   const [aiIdentifiedExercise, setAiIdentifiedExercise] = useState<Partial<Tables<'exercise_definitions'>> | null>(null);
   const [aiDuplicateStatus, setAiDuplicateStatus] = useState<'none' | 'global' | 'my-exercises'>('none'); // Changed from isDuplicateAiExercise
 
-  const handleExerciseIdentified = useCallback((exercise: Partial<Tables<'exercise_definitions'>>, duplicate_status: 'none' | 'global' | 'my-exercises') => {
-    setAiIdentifiedExercise(exercise);
-    setAiDuplicateStatus(duplicate_status); // Set the new duplicate status
-    setShowSaveAiExercisePrompt(true);
-  }, []);
+  const handleExerciseIdentified = useCallback((exercises: Partial<Tables<'exercise_definitions'>>[], duplicate_status: 'none' | 'global' | 'my-exercises') => {
+    if (exercises.length === 0) {
+      toast.info("No exercises were identified from the photos.");
+      return;
+    }
+    // For onboarding, we directly add all identified exercises to the list
+    exercises.forEach(ex => {
+      addIdentifiedExercise(ex);
+    });
+    toast.success(`${exercises.length} exercise(s) identified and added to your setup!`);
+    // No need to show SaveAiExercisePrompt for each one individually in onboarding context
+    // If we wanted to allow review/edit of each, we'd loop and open the prompt for each.
+    // For now, we assume direct addition.
+  }, [addIdentifiedExercise]);
 
   const handleSaveToOnboardingState = useCallback(async (exercise: Partial<Tables<'exercise_definitions'>>) => {
     addIdentifiedExercise(exercise);
@@ -88,15 +97,18 @@ export const OnboardingStep5_GymPhotoUpload = ({
         onOpenChange={setShowAnalyseGymDialog}
         onExerciseIdentified={handleExerciseIdentified}
       />
+      {/* The SaveAiExercisePrompt is no longer directly used here for individual exercises, 
+          as handleExerciseIdentified now adds all at once. 
+          Keeping it commented out in case future requirements change.
       <SaveAiExercisePrompt
         open={showSaveAiExercisePrompt}
         onOpenChange={setShowSaveAiExercisePrompt}
         exercise={aiIdentifiedExercise}
         onSaveToMyExercises={handleSaveToOnboardingState}
         isSaving={false}
-        duplicateStatus={aiDuplicateStatus} // Pass the new duplicate status
+        duplicateStatus={aiDuplicateStatus}
         context="manage-exercises"
-      />
+      /> */}
     </>
   );
 };

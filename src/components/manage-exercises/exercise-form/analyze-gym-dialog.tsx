@@ -15,7 +15,8 @@ type ExerciseDefinition = Tables<'exercise_definitions'>;
 interface AnalyseGymDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onExerciseIdentified: (exercise: Partial<ExerciseDefinition>, duplicate_status: 'none' | 'global' | 'my-exercises') => void;
+  // UPDATED: onExerciseIdentified now expects an array of exercises
+  onExerciseIdentified: (exercises: Partial<ExerciseDefinition>[], duplicate_status: 'none' | 'global' | 'my-exercises') => void;
 }
 
 export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: AnalyseGymDialogProps) => {

@@ -154,10 +154,17 @@ export const WorkoutSelector = ({
   };
 
   // AI Gym Analysis Handlers for Workout Page
-  const handleExerciseIdentified = useCallback((exercise: Partial<Tables<'exercise_definitions'>>, duplicate_status: 'none' | 'global' | 'my-exercises') => {
-    setAiIdentifiedExercise(exercise);
-    setAiDuplicateStatus(duplicate_status); // Set the new duplicate status
-    setShowSaveAiExercisePrompt(true);
+  const handleExerciseIdentified = useCallback((exercises: Partial<Tables<'exercise_definitions'>>[], duplicate_status: 'none' | 'global' | 'my-exercises') => {
+    // For workout-flow, we typically want to process one by one or show a list.
+    // For now, let's assume we only care about the first identified exercise for the prompt.
+    // If multiple are identified, the user would need to go through them one by one.
+    if (exercises.length > 0) {
+      setAiIdentifiedExercise(exercises[0]); // Take the first one
+      setAiDuplicateStatus(duplicate_status); // Set the new duplicate status
+      setShowSaveAiExercisePrompt(true);
+    } else {
+      toast.info("No exercises were identified from the photos.");
+    }
   }, []);
 
   const handleSaveAiExerciseToMyExercises = useCallback(async (exercise: Partial<Tables<'exercise_definitions'>>) => {
@@ -360,7 +367,7 @@ export const WorkoutSelector = ({
                     selectedExerciseId={selectedExerciseToAdd}
                     setSelectedExerciseId={setSelectedExerciseToAdd}
                     exerciseSourceFilter={adHocExerciseSourceFilter}
-                    setExerciseSourceFilter={setAdHocExerciseSourceFilter}
+                    setAdHocExerciseSourceFilter={setAdHocExerciseSourceFilter}
                     mainMuscleGroups={mainMuscleGroups}
                     placeholder="Select exercise to add"
                   />
