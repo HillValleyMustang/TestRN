@@ -9,6 +9,7 @@ import { Tables } from '@/types/supabase';
 import { toast } from "sonner";
 import { Info, Check, Sparkles } from "lucide-react";
 import { LoadingOverlay } from '../loading-overlay';
+import { Badge } from "@/components/ui/badge";
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -37,6 +38,8 @@ export const ExerciseSubstitutionDialog = ({
   const [substitutions, setSubstitutions] = useState<ExerciseDefinition[]>([]);
   const [loading, setLoading] = useState(true);
   const [generatingAi, setGeneratingAi] = useState(false);
+  const [aiGenerationCount, setAiGenerationCount] = useState(0);
+  const [newlyGeneratedExerciseIds, setNewlyGeneratedExerciseIds] = useState<Set<string>>(new Set());
 
   const fetchSubstitutions = async () => {
     if (!session || !open) return;
@@ -79,6 +82,8 @@ export const ExerciseSubstitutionDialog = ({
   useEffect(() => {
     if (open) {
       fetchSubstitutions();
+      setAiGenerationCount(0);
+      setNewlyGeneratedExerciseIds(new Set());
     }
   }, [open, session, supabase, currentExercise]);
 
@@ -98,6 +103,11 @@ export const ExerciseSubstitutionDialog = ({
       toast.error("You must be logged in to generate AI suggestions.");
       return;
     }
+    if (aiGenerationCount >= 2) {
+      toast.info("You have reached the maximum number of AI suggestions for this substitution.");
+      return;
+    }
+
     setGeneratingAi(true);
     try {
       const { data, error } = await supabase.functions.invoke('generate-exercise-suggestion', {
@@ -111,14 +121,12 @@ export const ExerciseSubstitutionDialog = ({
         },
       });
 
-      // The 'error' object should now only be populated for network errors or actual 500s from Supabase gateway, not our function logic.
       if (error) {
-        throw error; // Re-throw network/gateway errors
+        throw error;
       }
 
-      // All logic errors from the function will be in data.error
       if (data.error) {
-        toast.info(data.error); // Show as info, as it's a controlled "error" like a duplicate.
+        toast.info(data.error);
         return;
       }
 
@@ -126,8 +134,9 @@ export const ExerciseSubstitutionDialog = ({
       if (newAiExercise) {
         setSubstitutions(prev => [...prev, newAiExercise]);
         toast.success("AI generated a new exercise suggestion!");
+        setNewlyGeneratedExerciseIds(prev => new Set(prev).add(newAiExercise.id));
+        setAiGenerationCount(prev => prev + 1);
       } else {
-        // This case should be rare now, but good to have a fallback.
         toast.error("AI did not return a valid exercise.");
       }
     } catch (err: any) {
@@ -173,7 +182,12 @@ export const ExerciseSubstitutionDialog = ({
                     >
                       <div className="flex justify-between items-start gap-2">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold">{exercise.name}</h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold">{exercise.name}</h3>
+                            {newlyGeneratedExerciseIds.has(exercise.id) && (
+                              <Badge variant="secondary">New</Badge>
+                            )}
+                          </div>
                           <p className="text-sm text-muted-foreground">
                             {exercise.main_muscle} • {exercise.type}
                           </p>
@@ -227,7 +241,7 @@ export const ExerciseSubstitutionDialog = ({
               <Button
                 variant="secondary"
                 onClick={handleGenerateAiSuggestion}
-                disabled={generatingAi}
+                disabled={generatingAi || aiGenerationCount >= 2}
               >
                 <Sparkles className="h-4 w-4 mr-2" />
                 {generatingAi ? "Generating..." : "Generate More"}
