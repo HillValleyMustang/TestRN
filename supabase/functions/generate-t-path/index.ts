@@ -482,7 +482,10 @@ serve(async (req: Request) => {
     }
     userId = user.id;
 
-    const { tPathId, preferred_session_length: sessionLengthFromBody } = await req.json();
+    const body = await req.json();
+    const tPathId = body.tPathId;
+    const sessionLengthFromBody = body.preferred_session_length;
+
     if (!tPathId) {
       return new Response(JSON.stringify({ error: 'tPathId is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -555,7 +558,7 @@ serve(async (req: Request) => {
         console.log('[Background] Fetched T-Path data:', tPath);
 
         let preferredSessionLength: string | null;
-        if (sessionLengthFromBody) {
+        if (sessionLengthFromBody !== undefined) {
           preferredSessionLength = sessionLengthFromBody;
           console.log('[Background] Using preferred_session_length from request body:', preferredSessionLength);
         } else {
@@ -625,7 +628,14 @@ serve(async (req: Request) => {
       } catch (backgroundError: any) {
         console.error('Edge Function: generate-t-path background process failed:', backgroundError);
         // --- Set status to 'failed' on error ---
-        const errorMessage = backgroundError instanceof Error ? backgroundError.message : "An unknown error occurred during T-Path generation.";
+        let errorMessage = "An unknown error occurred during T-Path generation.";
+        if (backgroundError instanceof Error) {
+            errorMessage = backgroundError.message;
+        } else if (typeof backgroundError === 'object' && backgroundError !== null) {
+            errorMessage = JSON.stringify(backgroundError);
+        } else if (typeof backgroundError === 'string') {
+            errorMessage = backgroundError;
+        }
         console.log(`[Background] Setting t_path_generation_status to 'failed' for user ${userId}. Error: ${errorMessage}`);
         const { error: updateFailError } = await supabaseServiceRoleClient
           .from('profiles')
