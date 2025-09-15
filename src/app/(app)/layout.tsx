@@ -11,11 +11,8 @@ import { EditWorkoutExercisesDialog } from "@/components/manage-t-paths/edit-wor
 import { useRouter } from "next/navigation";
 import { GymContextProvider } from "@/components/gym-context-provider";
 
-export default function AppLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+// This new component contains all the logic that depends on the GymContext
+function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const workoutFlowManager = useWorkoutFlowManager({ router });
 
@@ -39,33 +36,44 @@ export default function AppLayout({
 
   return (
     <WorkoutNavigationProvider promptBeforeNavigation={workoutFlowManager.promptBeforeNavigation}>
-      <GymContextProvider>
-        <div className="flex min-h-screen w-full flex-col bg-muted/40">
-          <Sidebar />
-          <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
-            <Header />
-            <main className="flex-1 p-2 sm:px-4 sm:py-0 pb-20 sm:pb-2">{children}</main>
-          </div>
-          <MobileFooterNav />
+      <div className="flex min-h-screen w-full flex-col bg-muted/40">
+        <Sidebar />
+        <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
+          <Header />
+          <main className="flex-1 p-2 sm:px-4 sm:py-0 pb-20 sm:pb-2">{children}</main>
         </div>
-        <UnsavedChangesDialog
-          open={workoutFlowManager.showUnsavedChangesDialog}
-          onOpenChange={workoutFlowManager.handleCancelLeave}
-          onConfirmLeave={workoutFlowManager.handleConfirmLeave}
-          onCancelLeave={workoutFlowManager.handleCancelLeave}
-          activeWorkout={workoutFlowManager.activeWorkout}
-          onOpenEditWorkoutDialog={workoutFlowManager.handleOpenEditWorkoutDialog}
+        <MobileFooterNav />
+      </div>
+      <UnsavedChangesDialog
+        open={workoutFlowManager.showUnsavedChangesDialog}
+        onOpenChange={workoutFlowManager.handleCancelLeave}
+        onConfirmLeave={workoutFlowManager.handleConfirmLeave}
+        onCancelLeave={workoutFlowManager.handleCancelLeave}
+        activeWorkout={workoutFlowManager.activeWorkout}
+        onOpenEditWorkoutDialog={workoutFlowManager.handleOpenEditWorkoutDialog}
+      />
+      {workoutFlowManager.selectedWorkoutToEdit && (
+        <EditWorkoutExercisesDialog
+          open={workoutFlowManager.isEditWorkoutDialogOpen}
+          onOpenChange={workoutFlowManager.setIsEditWorkoutDialogOpen}
+          workoutId={workoutFlowManager.selectedWorkoutToEdit.id}
+          workoutName={workoutFlowManager.selectedWorkoutToEdit.name}
+          onSaveSuccess={workoutFlowManager.handleEditWorkoutSaveSuccess}
         />
-        {workoutFlowManager.selectedWorkoutToEdit && (
-          <EditWorkoutExercisesDialog
-            open={workoutFlowManager.isEditWorkoutDialogOpen}
-            onOpenChange={workoutFlowManager.setIsEditWorkoutDialogOpen}
-            workoutId={workoutFlowManager.selectedWorkoutToEdit.id}
-            workoutName={workoutFlowManager.selectedWorkoutToEdit.name}
-            onSaveSuccess={workoutFlowManager.handleEditWorkoutSaveSuccess}
-          />
-        )}
-      </GymContextProvider>
+      )}
     </WorkoutNavigationProvider>
+  );
+}
+
+// The main export now wraps the content with the GymContextProvider
+export default function AppLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <GymContextProvider>
+      <AppLayoutContent>{children}</AppLayoutContent>
+    </GymContextProvider>
   );
 }
