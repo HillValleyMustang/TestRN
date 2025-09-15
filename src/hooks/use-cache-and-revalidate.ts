@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -22,13 +22,15 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
 ) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isRevalidating, setIsRevalidating] = useState(false);
+  const isRevalidatingRef = useRef(false); // Use ref for isRevalidating
 
   const data = useLiveQuery(
     () => {
       const table = db[cacheTable] as any;
 
-      if (sessionUserId === undefined) {
+      // If no user, return empty array immediately.
+      // This prevents trying to read from a potentially closed/deleted DB.
+      if (sessionUserId === undefined || sessionUserId === null) {
         return [];
       }
 
@@ -52,10 +54,16 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
   );
 
   const fetchDataAndRevalidate = useCallback(async () => {
-    // isRevalidating is used here to prevent re-entry, but should not be a dependency of useCallback
-    if (!supabase || isRevalidating) return; 
+    if (isRevalidatingRef.current) return;
 
-    setIsRevalidating(true);
+    // Crucial check: If no user, do not proceed with fetching from Supabase or writing to IndexedDB.
+    // The `useLiveQuery` above already handles returning an empty array for the UI.
+    if (sessionUserId === null || sessionUserId === undefined) {
+      setLoading(false); // Ensure loading state is cleared if we bail out
+      return;
+    }
+
+    isRevalidatingRef.current = true; // Set ref
     setError(null);
 
     try {
@@ -83,17 +91,15 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
       toast.info(`Failed to refresh data for ${queryKey}.`); // Replaced toast.error
     } finally {
       setLoading(false);
-      setIsRevalidating(false);
+      isRevalidatingRef.current = false; // Reset ref
     }
-  }, [supabase, supabaseQuery, queryKey, cacheTable]); // Removed isRevalidating from dependencies
+  }, [supabase, supabaseQuery, queryKey, cacheTable, sessionUserId]); // sessionUserId is a dependency here.
 
   useEffect(() => {
-    if (sessionUserId !== undefined) {
-      fetchDataAndRevalidate();
-    } else {
-      setLoading(false);
-    }
-  }, [fetchDataAndRevalidate, sessionUserId]);
+    // This useEffect will trigger fetchDataAndRevalidate when sessionUserId changes.
+    // The fetchDataAndRevalidate itself now handles the null/undefined sessionUserId case.
+    fetchDataAndRevalidate();
+  }, [fetchDataAndRevalidate]);
 
   const refresh = useCallback(() => {
     fetchDataAndRevalidate();
