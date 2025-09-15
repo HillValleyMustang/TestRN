@@ -14,6 +14,7 @@ import { OnboardingStep8_FinalDetails } from "@/components/onboarding/onboarding
 import { useSession } from "@/components/session-context-provider";
 import { LoadingOverlay } from "@/components/loading-overlay";
 import { toast } from "sonner";
+import { cn } from '@/lib/utils'; // Import cn
 
 export default function OnboardingPage() {
   const { session } = useSession();
@@ -44,8 +45,8 @@ export default function OnboardingPage() {
     identifiedExercises,
     addIdentifiedExercise,
     removeIdentifiedExercise,
-    gymName, // Destructure gymName
-    setGymName, // Destructure setGymName
+    gymName,
+    setGymName,
   } = useOnboardingForm();
 
   const [fullName, setFullName] = useState('');
@@ -105,8 +106,8 @@ export default function OnboardingPage() {
             setEquipmentMethod={setEquipmentMethod}
             handleNext={handleNext}
             handleBack={handleBack}
-            gymName={gymName} // Pass gymName
-            setGymName={setGymName} // Pass setGymName
+            gymName={gymName}
+            setGymName={setGymName}
           />
         );
       case 5:
@@ -203,28 +204,27 @@ export default function OnboardingPage() {
                 <div className="flex-shrink-0 text-center">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto ${
                     currentStep >= step 
-                      ? "bg-primary text-primary-foreground" 
-                      : "bg-muted text-muted-foreground"
+                      ? "bg-onboarding-primary text-white" 
+                      : "bg-onboarding-background-light-gray text-muted-foreground border border-onboarding-border-light-gray"
                   }`}>
                     {step}
                   </div>
                 </div>
                 {step < 8 && (
-                  <div className={`flex-grow h-1 mt-4 ${
-                    currentStep > step 
-                      ? "bg-primary" 
-                      : "bg-muted"
-                  }`}></div>
+                  <div className={cn(
+                    "flex-grow h-1 mt-4",
+                    currentStep > step ? "onboarding-header-gradient" : "bg-onboarding-border-light-gray"
+                  )}></div>
                 )}
               </React.Fragment>
             ))}
           </div>
         </div>
 
-        <Card>
+        <Card className="bg-white shadow-lg p-6 border-onboarding-border-light-gray rounded-[var(--radius)]">
           <CardHeader>
-            <CardTitle>{getStepTitle()}</CardTitle>
-            <CardDescription>{getStepDescription()}</CardDescription>
+            <CardTitle className="text-2xl font-bold text-onboarding-primary">{getStepTitle()}</CardTitle>
+            <CardDescription className="text-muted-foreground">{getStepDescription()}</CardDescription>
           </CardHeader>
           <CardContent>
             {renderStepContent()}

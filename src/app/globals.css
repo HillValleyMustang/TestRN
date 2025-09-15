@@ -37,7 +37,7 @@
 
     --destructive-foreground: 0 0% 98%;
 
-    --action-primary: 217 91% 60%; /* New premium blue for primary actions */
+    --action-primary: 224 76% 48%; /* Deep blue for primary actions, adjusted from original to fit theme */
     --action-primary-light: 217 91% 70%; /* Lighter shade for gradient */
     --action-primary-foreground: 0 0% 100%;
 
@@ -77,10 +77,10 @@
     --sidebar-ring: 217.2 91.2% 59.8%;
 
     /* New Workout Pill Colors (from user's specific hex codes) */
-    --workout-upper-body-a: 220 68% 32%; /* #1e3a8a */
-    --workout-upper-body-b: 0 84% 60%; /* #ef4444 */
-    --workout-lower-body-a: 190 86% 36%; /* #0891b2 */
-    --workout-lower-body-b: 270 67% 40%; /* #6b21a8 */
+    --workout-upper-body-a: 220 68% 32%; /* #1e3a8a - Deep Blue */
+    --workout-upper-body-b: 0 84% 60%; /* #ef4444 - Red */
+    --workout-lower-body-a: 190 86% 36%; /* #0891b2 - Cyan */
+    --workout-lower-body-b: 270 67% 40%; /* #6b21a8 - Purple */
     --workout-push: 120 60% 45%; /* NEW: classic Adidas forest green */
     --workout-pull: 35 85% 55%; /* NEW: vintage orange */
     --workout-legs: 280 55% 50%; /* NEW: brighter purple/magenta */
@@ -94,7 +94,6 @@
     --activity-cycling: 160 70% 40%; /* sage green */
     --activity-tennis: 300 70% 55%; /* bright magenta */
 
-
     /* New Aurora Colors (Light Mode) - Adjusted to retro palette */
     --aurora-blue: 200 100% 78%; /* Sky Blue */
     --aurora-purple: 270 50% 32%; /* Deep Purple */
@@ -102,6 +101,13 @@
     --aurora-green: 160 100% 43%; /* Vibrant Mint */
     --aurora-pink: 324 100% 44%; /* Hot Magenta */
     --aurora-yellow: 58 98% 73%; /* Pale Yellow */
+
+    /* NEW: Custom colors for onboarding page */
+    --onboarding-primary: 220 68% 32%; /* --workout-upper-body-a (deep blue) */
+    --onboarding-secondary: 120 60% 45%; /* --workout-push (forest green) */
+    --onboarding-accent: 25 80% 55%; /* --activity-running (coral/salmon) */
+    --onboarding-background-light-gray: 0 0% 97%; /* #F8F9FA */
+    --onboarding-border-light-gray: 0 0% 90%; /* #E5E5E7 */
   }
   .dark {
 
@@ -191,6 +197,13 @@
     --activity-swimming: 200 85% 45%; /* deeper aqua blue */
     --activity-cycling: 160 70% 40%; /* sage green */
     --activity-tennis: 300 70% 55%; /* bright magenta */
+
+    /* NEW: Custom colors for onboarding page */
+    --onboarding-primary: 220 68% 32%; /* --workout-upper-body-a (deep blue) */
+    --onboarding-secondary: 120 60% 45%; /* --workout-push (forest green) */
+    --onboarding-accent: 25 80% 55%; /* --activity-running (coral/salmon) */
+    --onboarding-background-light-gray: 0 0% 97%; /* #F8F9FA */
+    --onboarding-border-light-gray: 0 0% 90%; /* #E5E5E7 */
   }
 }
 
@@ -273,4 +286,34 @@
   background-color: hsl(var(--card) / 0.7); /* Updated opacity to 0.7 */
   backdrop-filter: blur(12px); /* Updated blur to 12px */
   -webkit-backdrop-filter: blur(12px); /* For Safari compatibility */
+}
+
+/* NEW: Custom styles for onboarding */
+.onboarding-header-gradient {
+  background: linear-gradient(to right, 
+    hsl(var(--onboarding-primary)), 
+    hsl(var(--onboarding-secondary)), 
+    hsl(var(--workout-bonus))
+  );
+}
+
+.onboarding-button-gradient {
+  background: linear-gradient(to right, 
+    hsl(var(--onboarding-accent)), 
+    hsl(var(--onboarding-primary))
+  );
+  color: hsl(var(--onboarding-primary-foreground)); /* Ensure text is white */
+}
+
+.onboarding-checkbox-gradient {
+  background: linear-gradient(to bottom right, 
+    hsl(var(--onboarding-primary)), 
+    hsl(var(--onboarding-secondary))
+  );
+}
+
+/* Input focus glow effect */
+.input-focus-glow:focus-within {
+  box-shadow: 0 0 0 3px hsl(var(--onboarding-primary) / 0.3);
+  border-color: hsl(var(--onboarding-primary));
 }
