@@ -16,6 +16,7 @@ import { Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import useEmblaCarousel from 'embla-carousel-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
 
 // Import modular components
 import { GlobalExerciseList } from "@/components/manage-exercises/global-exercise-list";
@@ -50,6 +51,9 @@ export default function ManageExercisesPage() {
     availableMuscleGroups,
     exerciseWorkoutsMap,
     exerciseGymsMap,
+    userGyms,
+    selectedGymFilter,
+    setSelectedGymFilter,
     handleToggleFavorite,
     handleOptimisticAdd,
     handleAddFailure,
@@ -200,23 +204,42 @@ export default function ManageExercisesPage() {
                 </SheetTrigger>
                 <SheetContent side="bottom" className="h-fit max-h-[80vh]">
                   <SheetHeader>
-                    <SheetTitle>Filter Exercises by Muscle Group</SheetTitle>
+                    <SheetTitle>Filter Exercises</SheetTitle>
                   </SheetHeader>
-                  <div className="py-4">
-                    <Select onValueChange={setSelectedMuscleFilter} value={selectedMuscleFilter}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Filter by Muscle" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Muscle Groups</SelectItem>
-                        <SelectItem value="favorites">Favourites</SelectItem>
-                        {availableMuscleGroups.map(muscle => (
-                          <SelectItem key={muscle} value={muscle}>
-                            {muscle}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="py-4 space-y-4">
+                    <div>
+                      <Label>Filter by Muscle Group</Label>
+                      <Select onValueChange={setSelectedMuscleFilter} value={selectedMuscleFilter}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Filter by Muscle" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Muscle Groups</SelectItem>
+                          <SelectItem value="favorites">Favourites</SelectItem>
+                          {availableMuscleGroups.map(muscle => (
+                            <SelectItem key={muscle} value={muscle}>
+                              {muscle}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Filter by Gym</Label>
+                      <Select onValueChange={setSelectedGymFilter} value={selectedGymFilter}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Filter by Gym" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Gyms</SelectItem>
+                          {userGyms.map(gym => (
+                            <SelectItem key={gym.id} value={gym.id}>
+                              {gym.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </SheetContent>
               </Sheet>

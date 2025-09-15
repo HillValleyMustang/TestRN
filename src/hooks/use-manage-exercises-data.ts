@@ -24,6 +24,8 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
   const [availableMuscleGroups, setAvailableMuscleGroups] = useState<string[]>([]);
   const [exerciseWorkoutsMap, setExerciseWorkoutsMap] = useState<Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>>({});
   const [exerciseGymsMap, setExerciseGymsMap] = useState<Record<string, string[]>>({});
+  const [userGyms, setUserGyms] = useState<Tables<'gyms'>[]>([]);
+  const [selectedGymFilter, setSelectedGymFilter] = useState<string>('all');
 
   // Define Supabase query functions for caching hook
   const fetchExercisesSupabase = useCallback(async (client: SupabaseClient) => {
@@ -69,13 +71,16 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       // Fetch gyms and gym_exercises
       const { data: gymsData, error: gymsError } = await supabase
         .from('gyms')
-        .select('id, name')
+        .select('*')
         .eq('user_id', sessionUserId);
       if (gymsError) throw new Error(gymsError.message);
+      setUserGyms(gymsData || []);
 
+      const gymIds = (gymsData || []).map(g => g.id);
       const { data: gymExercisesData, error: gymExercisesError } = await supabase
         .from('gym_exercises')
-        .select('exercise_id, gym_id');
+        .select('exercise_id, gym_id')
+        .in('gym_id', gymIds);
       if (gymExercisesError) throw new Error(gymExercisesError.message);
 
       const gymIdToNameMap = new Map<string, string>();
@@ -272,6 +277,17 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
         finalGlobalExercises = finalGlobalExercises.filter(ex => ex.main_muscle === selectedMuscleFilter);
       }
 
+      // Apply gym filter
+      if (selectedGymFilter !== 'all') {
+        const exerciseIdsInSelectedGym = new Set(
+          (gymExercisesData || [])
+            .filter(link => link.gym_id === selectedGymFilter)
+            .map(link => link.exercise_id)
+        );
+        finalUserExercises = finalUserExercises.filter(ex => ex.id && exerciseIdsInSelectedGym.has(ex.id));
+        finalGlobalExercises = finalGlobalExercises.filter(ex => ex.id && exerciseIdsInSelectedGym.has(ex.id));
+      }
+
       finalUserExercises.sort((a, b) => a.name.localeCompare(b.name));
       finalGlobalExercises.sort((a, b) => a.name.localeCompare(b.name));
 
@@ -284,7 +300,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
     } finally {
       setLoading(false);
     }
-  }, [sessionUserId, supabase, selectedMuscleFilter, cachedExercises, cachedTPaths, exercisesError, tPathsError, loadingExercises, loadingTPaths]);
+  }, [sessionUserId, supabase, selectedMuscleFilter, selectedGymFilter, cachedExercises, cachedTPaths, exercisesError, tPathsError, loadingExercises, loadingTPaths]);
 
   useEffect(() => {
     if (!loadingExercises && !loadingTPaths) {
@@ -450,6 +466,9 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
     availableMuscleGroups,
     exerciseWorkoutsMap,
     exerciseGymsMap,
+    userGyms,
+    selectedGymFilter,
+    setSelectedGymFilter,
     handleEditClick,
     handleCancelEdit,
     handleSaveSuccess,
