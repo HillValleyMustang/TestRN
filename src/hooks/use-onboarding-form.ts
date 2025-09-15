@@ -194,8 +194,11 @@ export const useOnboardingForm = () => {
         .upsert(profileData, { onConflict: 'id' });
       if (profileError) throw profileError;
 
-      if (identifiedExercises.length > 0) {
-        const exercisesToInsert = identifiedExercises.map(ex => ({
+      const confirmedExercisesToInsert = identifiedExercises
+        .filter(ex => confirmedExercises.has(ex.name!));
+
+      if (confirmedExercisesToInsert.length > 0) {
+        const exercisesToInsert = confirmedExercisesToInsert.map(ex => ({
           ...ex,
           user_id: session.user.id,
           library_id: null,
@@ -244,7 +247,7 @@ export const useOnboardingForm = () => {
     } finally {
       setLoading(false);
     }
-  }, [session, supabase, router, tPathType, experience, goalFocus, preferredMuscles, constraints, sessionLength, equipmentMethod, identifiedExercises, gymName]);
+  }, [session, supabase, router, tPathType, experience, goalFocus, preferredMuscles, constraints, sessionLength, equipmentMethod, identifiedExercises, confirmedExercises, gymName]);
 
   return {
     currentStep,
