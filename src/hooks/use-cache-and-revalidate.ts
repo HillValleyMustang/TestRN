@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise, LocalUserAchievement } from '@/lib/db'; // Import specific local types
+import { useSession } from '@/components/session-context-provider'; // Import useSession to get access_token
 
 type CacheTableName = 'exercise_definitions_cache' | 't_paths_cache' | 'profiles_cache' | 't_path_exercises_cache' | 'user_achievements_cache';
 
@@ -20,6 +21,7 @@ interface UseCacheAndRevalidateProps<T> {
 export function useCacheAndRevalidate<T extends { id: string; user_id?: string | null; template_id?: string; exercise_id?: string; created_at?: string | null }>( // Updated generic constraint
   { cacheTable, supabaseQuery, queryKey, supabase, sessionUserId }: UseCacheAndRevalidateProps<T>
 ) {
+  const { session } = useSession(); // Get the session from context
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRevalidating, setIsRevalidating] = useState(false);
@@ -59,6 +61,7 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
     setError(null);
 
     try {
+      console.log(`[useCacheAndRevalidate] Fetching for ${queryKey}. User ID: ${sessionUserId}, Access Token present: ${!!session?.access_token}`); // ADDED LOG
       const { data: remoteData, error: remoteError } = await supabaseQuery(supabase);
       if (remoteError) throw remoteError;
 
@@ -85,7 +88,7 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
       setLoading(false);
       setIsRevalidating(false);
     }
-  }, [supabase, supabaseQuery, queryKey, cacheTable]); // Removed isRevalidating from dependencies
+  }, [supabase, supabaseQuery, queryKey, cacheTable, sessionUserId, session?.access_token]); // Added session?.access_token to dependencies
 
   useEffect(() => {
     if (sessionUserId !== undefined) {
