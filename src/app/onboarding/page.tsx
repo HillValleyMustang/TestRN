@@ -1,23 +1,20 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useOnboardingForm } from "@/hooks/use-onboarding-form";
 import { OnboardingStep1_TPathSelection } from "@/components/onboarding/onboarding-step-1-tpath-selection";
 import { OnboardingStep2_ExperienceLevel } from "@/components/onboarding/onboarding-step-2-experience-level";
 import { OnboardingStep3_GoalFocus } from "@/components/onboarding/onboarding-step-3-goal-focus";
-import { OnboardingStep4_GymSetup } from "@/components/onboarding/onboarding-step-4-gym-setup";
-import { OnboardingStep5_GymPhotoUpload } from "@/components/onboarding/onboarding-step-5-gym-photo-upload";
-import { OnboardingStep6_SessionPreferences } from "@/components/onboarding/onboarding-step-6-session-preferences";
-import { OnboardingStep7_AppFeatures } from "@/components/onboarding/onboarding-step-7-app-features";
-import { OnboardingStep8_FinalDetails } from "@/components/onboarding/onboarding-step-8-final-details";
+import { OnboardingStep4_SessionPreferences } from "@/components/onboarding/onboarding-step-4-session-preferences";
+import { OnboardingStep5_EquipmentSetup } from "@/components/onboarding/onboarding-step-5-equipment-setup";
+import { OnboardingStep6_Consent } from "@/components/onboarding/onboarding-step-6-consent";
 import { useSession } from "@/components/session-context-provider";
-import { LoadingOverlay } from "@/components/loading-overlay";
-import { toast } from "sonner";
-import { cn } from '@/lib/utils'; // Import cn
+import { LoadingOverlay } from "@/components/loading-overlay"; // Import LoadingOverlay
+import { useCallback, useState } from "react"; // Import useCallback and useState
+import { toast } from "sonner"; // NEW: Import toast
 
 export default function OnboardingPage() {
-  const { session } = useSession();
+  const { session } = useSession(); // Use session to check if user is logged in
   const {
     currentStep,
     tPathType,
@@ -36,34 +33,49 @@ export default function OnboardingPage() {
     setEquipmentMethod,
     consentGiven,
     setConsentGiven,
-    loading,
-    isInitialSetupLoading,
+    loading, // For final submit button
+    isInitialSetupLoading, // New loading state for step 5 -> 6 transition
     tPathDescriptions,
-    handleNext,
+    handleNext: originalHandleNext, // Rename original handleNext
     handleBack,
-    handleSubmit: originalHandleSubmit,
-    identifiedExercises,
-    addIdentifiedExercise,
-    removeIdentifiedExercise,
-    gymName,
-    setGymName,
+    handleAdvanceToFinalStep, // New function for step 5 -> 6 transition
+    handleSubmit: originalHandleSubmit, // Rename original handleSubmit
   } = useOnboardingForm();
 
+  // Local state for Step 6 inputs
   const [fullName, setFullName] = useState('');
   const [heightCm, setHeightCm] = useState<number | null>(null);
   const [weightKg, setWeightKg] = useState<number | null>(null);
   const [bodyFatPct, setBodyFatPct] = useState<number | null>(null);
 
+  const handleNext = useCallback(async () => {
+    if (currentStep === 5) {
+      try {
+        await handleAdvanceToFinalStep(); // Trigger background setup
+        originalHandleNext(); // Then advance step
+      } catch (error) {
+        // Error handled in hook, just prevent step advance
+        console.error("Failed to advance to final step:", error);
+      }
+    } else {
+      originalHandleNext();
+    }
+  }, [currentStep, originalHandleNext, handleAdvanceToFinalStep]);
+
   const handleSubmit = useCallback(async () => {
+    // Ensure heightCm and weightKg are not null before passing, as they are now required
     if (fullName && heightCm !== null && weightKg !== null) {
       await originalHandleSubmit(fullName, heightCm, weightKg, bodyFatPct);
     } else {
+      // This case should ideally be prevented by the disabled state of the button
+      // but adding a toast for robustness.
       toast.error("Please fill in all required personal details.");
     }
   }, [originalHandleSubmit, fullName, heightCm, weightKg, bodyFatPct]);
 
+
   if (!session) {
-    return <div>Loading...</div>;
+    return <div>Loading...</div>; // Or redirect to login if session is null
   }
 
   const renderStepContent = () => {
@@ -101,49 +113,31 @@ export default function OnboardingPage() {
         );
       case 4:
         return (
-          <OnboardingStep4_GymSetup
-            equipmentMethod={equipmentMethod}
-            setEquipmentMethod={setEquipmentMethod}
-            handleNext={handleNext}
-            handleBack={handleBack}
-            gymName={gymName}
-            setGymName={setGymName}
-          />
-        );
-      case 5:
-        return (
-          <OnboardingStep5_GymPhotoUpload
-            identifiedExercises={identifiedExercises}
-            addIdentifiedExercise={addIdentifiedExercise}
-            removeIdentifiedExercise={removeIdentifiedExercise}
-            handleNext={handleNext}
-            handleBack={handleBack}
-          />
-        );
-      case 6:
-        return (
-          <OnboardingStep6_SessionPreferences
+          <OnboardingStep4_SessionPreferences
             sessionLength={sessionLength}
             setSessionLength={setSessionLength}
             handleNext={handleNext}
             handleBack={handleBack}
           />
         );
-      case 7:
+      case 5:
         return (
-          <OnboardingStep7_AppFeatures
+          <OnboardingStep5_EquipmentSetup
+            equipmentMethod={equipmentMethod}
+            setEquipmentMethod={setEquipmentMethod}
             handleNext={handleNext}
             handleBack={handleBack}
           />
         );
-      case 8:
+      case 6:
         return (
-          <OnboardingStep8_FinalDetails
+          <OnboardingStep6_Consent
             consentGiven={consentGiven}
             setConsentGiven={setConsentGiven}
             handleSubmit={handleSubmit}
             handleBack={handleBack}
             loading={loading}
+            // Pass Step 6 specific inputs
             fullName={fullName}
             setFullName={setFullName}
             heightCm={heightCm}
@@ -164,11 +158,9 @@ export default function OnboardingPage() {
       case 1: return "Choose Your Transformation Path";
       case 2: return "Your Experience Level";
       case 3: return "Goal Focus";
-      case 4: return "Gym Setup";
-      case 5: return "Analyse Your Gym";
-      case 6: return "Session Preferences";
-      case 7: return "App Features";
-      case 8: return "Final Details & Consent";
+      case 4: return "Session Preferences";
+      case 5: return "Equipment Setup";
+      case 6: return "Final Details & Consent"; // Updated title
       default: return "";
     }
   };
@@ -178,11 +170,9 @@ export default function OnboardingPage() {
       case 1: return "Select the workout structure that best fits your goals";
       case 2: return "Help us tailor your program to your experience level";
       case 3: return "What are you primarily trying to achieve?";
-      case 4: return "Let's set up your gym equipment";
-      case 5: return "Upload photos of your gym equipment for the AI to analyse";
-      case 6: return "How long do you prefer your workout sessions to be?";
-      case 7: return "Here's a quick look at what you can do with the app.";
-      case 8: return "Just a few more details to personalise your experience.";
+      case 4: return "How long do you prefer your workout sessions to be?";
+      case 5: return "Let's set up your gym equipment";
+      case 6: return "Just a few more details to personalise your experience."; // Updated description
       default: return "";
     }
   };
@@ -198,33 +188,32 @@ export default function OnboardingPage() {
         </header>
 
         <div className="mb-6">
-          <div className="flex justify-between items-start">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((step) => (
-              <React.Fragment key={step}>
-                <div className="flex-shrink-0 text-center">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto ${
-                    currentStep >= step 
-                      ? "bg-onboarding-primary text-white" 
-                      : "bg-onboarding-background-light-gray text-muted-foreground border border-onboarding-border-light-gray"
-                  }`}>
-                    {step}
-                  </div>
+          <div className="flex justify-between">
+            {[1, 2, 3, 4, 5, 6].map((step) => (
+              <div key={step} className="flex-1 text-center">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto ${
+                  currentStep >= step 
+                    ? "bg-primary text-primary-foreground" 
+                    : "bg-muted text-muted-foreground"
+                }`}>
+                  {step}
                 </div>
-                {step < 8 && (
-                  <div className={cn(
-                    "flex-grow h-1 mt-4",
-                    currentStep > step ? "onboarding-header-gradient" : "bg-onboarding-border-light-gray"
-                  )}></div>
+                {step < 6 && (
+                  <div className={`h-1 w-full mt-2 ${
+                    currentStep > step 
+                      ? "bg-primary" 
+                      : "bg-muted"
+                  }`}></div>
                 )}
-              </React.Fragment>
+              </div>
             ))}
           </div>
         </div>
 
-        <Card className="bg-white shadow-lg p-6 border-onboarding-border-light-gray rounded-[var(--radius)]">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-onboarding-primary">{getStepTitle()}</CardTitle>
-            <CardDescription className="text-muted-foreground">{getStepDescription()}</CardDescription>
+            <CardTitle>{getStepTitle()}</CardTitle>
+            <CardDescription>{getStepDescription()}</CardDescription>
           </CardHeader>
           <CardContent>
             {renderStepContent()}
@@ -232,9 +221,9 @@ export default function OnboardingPage() {
         </Card>
       </div>
       <LoadingOverlay 
-        isOpen={loading || isInitialSetupLoading}
-        title={loading ? "Completing Setup..." : "Setting up your workout plan..."}
-        description={loading ? "Finalizing your profile details." : "Please wait while we generate your initial workout programs."}
+        isOpen={loading || isInitialSetupLoading} // Use both loading states
+        title={isInitialSetupLoading ? "Setting up your workout plan..." : "Completing Setup..."}
+        description={isInitialSetupLoading ? "Please wait while we generate your initial workout programs." : "Finalizing your profile details."}
       />
     </div >
   );

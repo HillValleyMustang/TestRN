@@ -5,41 +5,40 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-interface OnboardingStep2Props {
-  experience: "beginner" | "intermediate" | null;
-  setExperience: (value: "beginner" | "intermediate") => void;
+interface OnboardingStep5Props {
+  equipmentMethod: "photo" | "skip" | null;
+  setEquipmentMethod: (value: "photo" | "skip") => void;
   handleNext: () => void;
   handleBack: () => void;
 }
 
-export const OnboardingStep2_ExperienceLevel = ({
-  experience,
-  setExperience,
+export const OnboardingStep5_EquipmentSetup = ({
+  equipmentMethod,
+  setEquipmentMethod,
   handleNext,
   handleBack,
-}: OnboardingStep2Props) => {
+}: OnboardingStep5Props) => {
   return (
     <div className="space-y-6">
       <RadioGroup 
-        value={experience || undefined} 
-        onValueChange={(value: "beginner" | "intermediate") => setExperience(value)}
+        value={equipmentMethod || undefined} 
+        onValueChange={(value: "photo" | "skip") => setEquipmentMethod(value)} 
       >
-        <div className="flex flex-col space-y-2">
+        <div className="space-y-4">
           <div className="flex items-center space-x-2">
-            <RadioGroupItem value="beginner" id="beginner" />
-            <Label htmlFor="beginner">Beginner</Label>
+            <RadioGroupItem value="photo" id="photo" />
+            <Label htmlFor="photo">Upload Gym Photo</Label>
           </div>
           <p className="text-sm text-muted-foreground ml-6">
-            New to structured training or returning after a long break
+            Take a photo of your gym to help us identify available equipment
           </p>
-        </div>
-        <div className="flex flex-col space-y-2">
+          
           <div className="flex items-center space-x-2">
-            <RadioGroupItem value="intermediate" id="intermediate" />
-            <Label htmlFor="intermediate">Intermediate</Label>
+            <RadioGroupItem value="skip" id="skip" />
+            <Label htmlFor="skip">Skip for Now</Label>
           </div>
           <p className="text-sm text-muted-foreground ml-6">
-            Some experience with structured training programs
+            Use default "Common Gym" equipment set
           </p>
         </div>
       </RadioGroup>
@@ -50,7 +49,7 @@ export const OnboardingStep2_ExperienceLevel = ({
         </Button>
         <Button 
           onClick={handleNext} 
-          disabled={!experience}
+          disabled={!equipmentMethod}
         >
           Next
         </Button>

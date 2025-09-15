@@ -158,68 +158,6 @@ export type Database = {
           },
         ];
       };
-      gym_exercises: {
-        Row: {
-          created_at: string;
-          exercise_id: string;
-          gym_id: string;
-        };
-        Insert: {
-          created_at?: string;
-          exercise_id: string;
-          gym_id: string;
-        };
-        Update: {
-          created_at?: string;
-          exercise_id?: string;
-          gym_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "gym_exercises_exercise_id_fkey";
-            columns: ["exercise_id"];
-            isOneToOne: false;
-            referencedRelation: "exercise_definitions";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "gym_exercises_gym_id_fkey";
-            columns: ["gym_id"];
-            isOneToOne: false;
-            referencedRelation: "gyms";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      gyms: {
-        Row: {
-          created_at: string;
-          id: string;
-          name: string;
-          user_id: string;
-        };
-        Insert: {
-          created_at?: string;
-          id?: string;
-          name: string;
-          user_id: string;
-        };
-        Update: {
-          created_at?: string;
-          id?: string;
-          name?: string;
-          user_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "gyms_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "users";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
       profiles: {
         Row: {
           body_fat_pct: number | null;
@@ -645,44 +583,6 @@ export type Database = {
           }
         ];
       };
-      user_alerts: {
-        Row: {
-          created_at: string | null;
-          id: string;
-          is_read: boolean | null;
-          message: string;
-          title: string;
-          type: string | null;
-          user_id: string;
-        };
-        Insert: {
-          created_at?: string | null;
-          id?: string;
-          is_read?: boolean | null;
-          message: string;
-          title: string;
-          type?: string | null;
-          user_id: string;
-        };
-        Update: {
-          created_at?: string | null;
-          id?: string;
-          is_read?: boolean | null;
-          message?: string;
-          title?: string;
-          type?: string | null;
-          user_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "user_alerts_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "users";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
     };
     Views: {
       [_ in never]: never;
@@ -697,19 +597,6 @@ export type Database = {
           message: string;
           title: string;
           type: string;
-        }[];
-      };
-      get_user_personal_records: {
-        Args: {
-          p_user_id: string;
-          p_limit?: number;
-        };
-        Returns: {
-          exercise_name: string;
-          exercise_type: string;
-          best_value: number;
-          unit: string;
-          last_achieved_date: string;
         }[];
       };
       handle_new_user: {

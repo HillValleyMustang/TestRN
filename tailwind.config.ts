@@ -78,13 +78,6 @@ export default {
           'legs': 'hsl(var(--workout-legs))',
           'bonus': 'hsl(var(--workout-bonus))',
         },
-        onboarding: {
-          primary: 'hsl(var(--onboarding-primary))',
-          secondary: 'hsl(var(--onboarding-secondary))',
-          accent: 'hsl(var(--onboarding-accent))',
-          'background-light-gray': 'hsl(var(--onboarding-background-light-gray))',
-          'border-light-gray': 'hsl(var(--onboarding-border-light-gray))',
-        }
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
@@ -139,17 +132,5 @@ export default {
     'bg-green-200',
     'bg-green-400',
     'bg-green-600',
-    // NEW: Onboarding colors
-    'bg-onboarding-primary',
-    'text-onboarding-primary',
-    'border-onboarding-primary',
-    'bg-onboarding-secondary',
-    'text-onboarding-secondary',
-    'border-onboarding-secondary',
-    'bg-onboarding-accent',
-    'text-onboarding-accent',
-    'border-onboarding-accent',
-    'bg-onboarding-background-light-gray',
-    'border-onboarding-border-light-gray',
   ],
 } satisfies Config;

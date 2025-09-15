@@ -4,7 +4,7 @@ import Dexie, { Table } from 'dexie';
 import { TablesInsert, TablesUpdate, Tables } from '@/types/supabase'; // Import Tables
 import { Session } from '@supabase/supabase-js'; // Import Session type
 import { UserAchievementsRow } from '@/types/supabase-generated/tables/user_achievements'; // Import UserAchievementsRow
-import { Json } from '@/types/supabase-generated/json'; // Import Json type
+import { Json } from '@/types/supabase-generated'; // Import Json type
 
 export interface SyncQueueItem {
   id?: number;
