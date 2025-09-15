@@ -38,7 +38,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen w-full flex-col bg-muted/40">
         <Sidebar />
         <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
-          <Header />
+          <Header isGeneratingPlan={workoutFlowManager.isGeneratingPlan} />
           <main className="flex-1 p-2 sm:px-4 sm:py-0 pb-20 sm:pb-2">{children}</main>
         </div>
         <MobileFooterNav />

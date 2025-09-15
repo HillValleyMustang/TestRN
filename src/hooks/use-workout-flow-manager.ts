@@ -55,6 +55,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     refreshProfile,
     refreshAchievements,
     setAllAvailableExercises, // Destructure setAllAvailableExercises
+    isGeneratingPlan, // Get the new state
   } = useWorkoutDataFetcher();
 
   const {
@@ -84,7 +85,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     coreState: {
       activeWorkout, exercisesForSession, exercisesWithSets, currentSessionId, sessionStartTime,
       completedExercises, isCreatingSession, isWorkoutActive, hasUnsavedChanges,
-      expandedExerciseCards,
+      expandedExerciseCards, // Include here
       setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId,
       setSessionStartTime, setCompletedExercises, setIsCreatingSession, setExpandedExerciseCards, _resetLocalState,
     },
@@ -336,5 +337,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     toggleExerciseCardExpansion,
     refreshProfile,
     refreshAchievements,
+    isGeneratingPlan, // Return the new state
   };
 };

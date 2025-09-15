@@ -24,7 +24,7 @@ const mobileNavLinks = [
   { href: "/workout", label: "Workout", icon: Dumbbell }, // Moved workout here for consistent styling
 ];
 
-export function Header() {
+export function Header({ isGeneratingPlan }: { isGeneratingPlan: boolean }) {
   const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
   const isScrolled = useScrollPosition();
   const pathname = usePathname(); // Get current pathname
@@ -79,7 +79,7 @@ export function Header() {
           </SheetContent>
         </Sheet>
         <div className="relative ml-auto flex flex-1 items-center justify-end gap-2 md:grow-0">
-          <RollingStatusBadge />
+          <RollingStatusBadge isGeneratingPlan={isGeneratingPlan} />
           <NotificationBell />
           <UserNav />
         </div>

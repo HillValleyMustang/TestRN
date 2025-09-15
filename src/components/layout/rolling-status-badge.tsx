@@ -3,11 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from '@/components/session-context-provider';
 import { Badge } from "@/components/ui/badge";
-import { Flame, Dumbbell, CheckCircle, Clock, AlertCircle, WifiOff } from "lucide-react"; // Added WifiOff
+import { Flame, Dumbbell, CheckCircle, Clock, AlertCircle, WifiOff, Loader2 } from "lucide-react"; // Added WifiOff and Loader2
 import { cn } from '@/lib/utils';
 import { useSyncManager } from '@/hooks/use-sync-manager'; // Import useSyncManager
 
-export function RollingStatusBadge() {
+export function RollingStatusBadge({ isGeneratingPlan }: { isGeneratingPlan: boolean }) {
   const { session, supabase } = useSession();
   const { isOnline } = useSyncManager(); // Get isOnline status
   const [status, setStatus] = useState<string | null>(null);
@@ -50,6 +50,15 @@ export function RollingStatusBadge() {
       setLoading(false);
     }
   }, [session, supabase, isOnline]); // Added isOnline to dependencies
+
+  if (isGeneratingPlan) {
+    return (
+      <Badge variant="secondary" className="flex items-center gap-1 px-3 py-1 text-sm font-semibold bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-800 dark:text-blue-300 dark:border-blue-700">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <span>Updating Plan...</span>
+      </Badge>
+    );
+  }
 
   if (loading) {
     return (

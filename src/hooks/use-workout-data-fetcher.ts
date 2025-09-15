@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { Tables, WorkoutExercise, WorkoutWithLastCompleted, GroupedTPath, LocalUserAchievement, Profile, FetchedExerciseDefinition } from '@/types/supabase'; // Import centralized types, including Profile and FetchedExerciseDefinition
@@ -26,6 +26,7 @@ interface UseWorkoutDataFetcherReturn {
   profile: Profile | null; // Expose the user's profile
   refreshProfile: () => void; // Expose refresh for profile
   refreshAchievements: () => void; // Expose refresh for achievements
+  isGeneratingPlan: boolean; // Expose the new state
 }
 
 export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
@@ -36,6 +37,9 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, WorkoutExercise[]>>({});
   const [loadingData, setLoadingData] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
+  const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const prevStatusRef = useRef<string | null>(null);
 
   // Use the caching hook for exercises
   const { data: cachedExercises, loading: loadingExercises, error: exercisesError, refresh: refreshExercises } = useCacheAndRevalidate<LocalExerciseDefinition>({
@@ -111,6 +115,14 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     sessionUserId: session?.user.id ?? null,
   });
 
+  const refreshAllData = useCallback(() => {
+    console.log("[useWorkoutDataFetcher] refreshAllData triggered.");
+    refreshExercises();
+    refreshTPaths();
+    refreshProfile();
+    refreshTPathExercises();
+    refreshAchievements(); // Refresh achievements
+  }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, refreshAchievements]);
 
   // Effect to process cached data and then trigger enrichment
   useEffect(() => {
@@ -258,14 +270,54 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     cachedAchievements, loadingAchievements, achievementsError // Added achievements dependencies
   ]);
 
-  const refreshAllData = useCallback(() => {
-    console.log("[useWorkoutDataFetcher] refreshAllData triggered.");
-    refreshExercises();
-    refreshTPaths();
-    refreshProfile();
-    refreshTPathExercises();
-    refreshAchievements(); // Refresh achievements
-  }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, refreshAchievements]);
+  // New useEffect for polling based on profile status
+  useEffect(() => {
+    const profileData = cachedProfile?.[0];
+    const status = profileData?.t_path_generation_status;
+
+    const stopPolling = (finalStatus?: 'completed' | 'failed') => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+      setIsGeneratingPlan(false);
+      console.log(`[Polling] Stopped polling. Final status: ${finalStatus}`);
+      
+      if (finalStatus === 'completed') {
+        toast.success("Your new workout plan is ready!");
+        console.log("[Polling] Generation completed. Refreshing all workout data.");
+        refreshAllData();
+      } else if (finalStatus === 'failed') {
+        toast.error("Workout plan generation failed.", {
+          description: profileData?.t_path_generation_error || "An unknown error occurred.",
+        });
+        console.error("[Polling] Generation failed:", profileData?.t_path_generation_error);
+      }
+    };
+
+    if (status === 'in_progress') {
+      if (!pollingRef.current) {
+        setIsGeneratingPlan(true);
+        console.log("[Polling] T-Path generation in progress. Starting to poll profile status.");
+        pollingRef.current = setInterval(() => {
+          console.log("[Polling] Refreshing profile to check status...");
+          refreshProfile();
+        }, 3000);
+      }
+    } else if (prevStatusRef.current === 'in_progress' && (status === 'completed' || status === 'failed')) {
+      stopPolling(status);
+    } else {
+      stopPolling();
+    }
+
+    prevStatusRef.current = status || null;
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
+  }, [cachedProfile, refreshProfile, refreshAllData]);
 
   return {
     allAvailableExercises,
@@ -278,5 +330,6 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     profile: cachedProfile?.[0] || null, // Expose the first profile from cache
     refreshProfile, // Expose refreshProfile
     refreshAchievements, // Expose refreshAchievements
+    isGeneratingPlan,
   };
 };
