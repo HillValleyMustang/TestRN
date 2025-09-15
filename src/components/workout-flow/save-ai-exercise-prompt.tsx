@@ -4,7 +4,7 @@ import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Save, PlusCircle, Edit } from "lucide-react"; // Added Edit icon
-import { Tables } from "@/types/supabase";
+import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { LoadingOverlay } from "../loading-overlay";
 
@@ -13,13 +13,12 @@ type ExerciseDefinition = Tables<'exercise_definitions'>;
 interface SaveAiExercisePromptProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  exercise: Partial<ExerciseDefinition> | null;
-  onSaveToMyExercises: (exercise: Partial<ExerciseDefinition>) => Promise<void>;
-  onAddOnlyToCurrentWorkout?: (exercise: Partial<ExerciseDefinition>) => Promise<void>; // Made optional
+  exercise: Partial<FetchedExerciseDefinition> | null; // Use FetchedExerciseDefinition
+  onSaveToMyExercises: (exercise: Partial<FetchedExerciseDefinition>) => Promise<void>; // Updated type
+  onAddOnlyToCurrentWorkout?: (exercise: Partial<FetchedExerciseDefinition>) => Promise<void>; // Updated type
   isSaving: boolean;
-  isDuplicate: boolean;
   context: 'manage-exercises' | 'workout-flow'; // New prop to differentiate context
-  onEditExercise?: (exercise: Partial<ExerciseDefinition>) => void; // New prop for editing identified exercise
+  onEditExercise?: (exercise: Partial<FetchedExerciseDefinition>) => void; // Updated type
 }
 
 export const SaveAiExercisePrompt = ({
@@ -29,25 +28,31 @@ export const SaveAiExercisePrompt = ({
   onSaveToMyExercises,
   onAddOnlyToCurrentWorkout,
   isSaving,
-  isDuplicate,
   context, // Destructure new prop
   onEditExercise, // Destructure new prop
 }: SaveAiExercisePromptProps) => {
   if (!exercise) return null;
 
+  const currentDuplicateStatus = exercise.duplicate_status || 'none'; // Access directly from exercise
   const showAddOnlyToWorkoutButton = typeof onAddOnlyToCurrentWorkout === 'function';
 
   const renderDescription = () => {
     if (context === 'manage-exercises') {
-      if (isDuplicate) {
+      if (currentDuplicateStatus === 'my-exercises') {
         return (
-          <>AI has identified the exercise and it looks like you already have this in either your My Exercise library or Global library. Exercise name - "<span className="font-semibold">{exercise.name}</span>". Select Edit to change the exercise details and Save to My Library or click Close to go back.</>
+          <>AI has identified the exercise and it looks like you already have this in <strong className="font-semibold">My Exercises</strong>. Exercise name - "<span className="font-semibold">{exercise.name}</span>". Select Edit to change the exercise details or click Close to go back.</>
+        );
+      } else if (currentDuplicateStatus === 'global') {
+        return (
+          <>AI has identified the exercise and it looks like this already exists in the <strong className="font-semibold">Global Library</strong>. Exercise name - "<span className="font-semibold">{exercise.name}</span>". You can add it to "My Exercises" to customize it.</>
         );
       }
       return <>AI has identified the exercise. Save it to "My Exercises" for future use.</>;
     } else { // context === 'workout-flow'
-      if (isDuplicate) {
-        return <>AI has identified the exercise and it looks like you already have this in either your My Exercise library or Global library. You can add it to your current ad-hoc workout.</>;
+      if (currentDuplicateStatus === 'my-exercises') {
+        return <>AI has identified the exercise and it looks like you already have this in <strong className="font-semibold">My Exercises</strong>. You can still add it to your current ad-hoc workout from here.</>;
+      } else if (currentDuplicateStatus === 'global') {
+        return <>AI has identified the exercise and it looks like this already exists in the <strong className="font-semibold">Global Library</strong>. You can still add it to your current ad-hoc workout from here.</>;
       }
       return <>The AI has identified an exercise. You can add it to your current ad-hoc workout, and optionally save it to "My Exercises" for future use.</>;
     }
@@ -109,7 +114,7 @@ export const SaveAiExercisePrompt = ({
           </ScrollArea>
           <div className="row-start-3 flex flex-col gap-2 pt-4 border-t">
             {context === 'manage-exercises' ? (
-              isDuplicate ? (
+              currentDuplicateStatus === 'my-exercises' ? (
                 <>
                   <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
                     Close
@@ -120,7 +125,7 @@ export const SaveAiExercisePrompt = ({
                     </Button>
                   )}
                 </>
-              ) : (
+              ) : ( // currentDuplicateStatus === 'none' or 'global' in manage-exercises context
                 <Button
                   onClick={() => onSaveToMyExercises(exercise)}
                   disabled={isSaving}
@@ -129,25 +134,24 @@ export const SaveAiExercisePrompt = ({
                 </Button>
               )
             ) : ( // context === 'workout-flow'
-              isDuplicate ? (
-                <Button variant="default" onClick={() => onAddOnlyToCurrentWorkout!(exercise)} disabled={isSaving}>
-                  <PlusCircle className="h-4 w-4 mr-2" /> Add to Current Workout
-                </Button>
-              ) : (
-                <>
+              <>
+                {/* Primary action: Add to Current Workout */}
+                {showAddOnlyToWorkoutButton && (
+                  <Button variant="default" onClick={() => onAddOnlyToCurrentWorkout!(exercise)} disabled={isSaving}>
+                    <PlusCircle className="h-4 w-4 mr-2" /> Add to Current Workout
+                  </Button>
+                )}
+                {/* Secondary action: Save to My Exercises (only if not a duplicate) */}
+                {currentDuplicateStatus === 'none' && (
                   <Button
+                    variant="outline"
                     onClick={() => onSaveToMyExercises(exercise)}
                     disabled={isSaving}
                   >
-                    <Save className="h-4 w-4 mr-2" /> {isSaving ? "Saving..." : "Add and Save to My Exercises"}
+                    <Save className="h-4 w-4 mr-2" /> {isSaving ? "Saving..." : "Save to My Exercises"}
                   </Button>
-                  {showAddOnlyToWorkoutButton && (
-                    <Button variant="outline" onClick={() => onAddOnlyToCurrentWorkout!(exercise)} disabled={isSaving}>
-                      <PlusCircle className="h-4 w-4 mr-2" /> Add just to this workout
-                    </Button>
-                  )}
-                </>
-              )
+                )}
+              </>
             )}
           </div>
         </DialogContent>

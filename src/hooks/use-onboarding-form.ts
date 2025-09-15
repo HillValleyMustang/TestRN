@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/components/session-context-provider";
 import { toast } from "sonner";
-import { TablesInsert, ProfileInsert } from "@/types/supabase";
+import { Tables, TablesInsert, ProfileInsert } from "@/types/supabase";
 
 export const useOnboardingForm = () => {
   const router = useRouter();
@@ -17,10 +17,12 @@ export const useOnboardingForm = () => {
   const [preferredMuscles, setPreferredMuscles] = useState<string>("");
   const [constraints, setConstraints] = useState<string>("");
   const [sessionLength, setSessionLength] = useState<string>("");
-  const [equipmentMethod, setEquipmentMethod] = useState<"photo" | "skip" | null>(null);
+  const [equipmentMethod, setEquipmentMethod] = useState<"photo" | "skip" | null>(null); // Changed from "skip" to null
+  const [identifiedExercises, setIdentifiedExercises] = useState<Partial<Tables<'exercise_definitions'>>[]>([]);
   const [consentGiven, setConsentGiven] = useState(false);
-  const [loading, setLoading] = useState(false); // For final submit button
-  const [isInitialSetupLoading, setIsInitialSetupLoading] = useState(false); // New loading state for step 5 -> 6 transition
+  const [loading, setLoading] = useState(false);
+  const [isInitialSetupLoading, setIsInitialSetupLoading] = useState(false);
+  const [gymName, setGymName] = useState<string>(""); // NEW: State for gym name
 
   const tPathDescriptions = {
     ulul: {
@@ -34,6 +36,11 @@ export const useOnboardingForm = () => {
         "Sessions can be longer",
         "Potential for upper body fatigue",
         "Less focus on single 'big lift' days"
+      ],
+      research: [ // Added research points
+        "Studies show that training muscle groups twice a week can lead to greater muscle growth than once a week.",
+        "Allows for more recovery time for individual muscle groups compared to full-body splits.",
+        "Provides a balanced approach to training, hitting all major muscle groups effectively."
       ]
     },
     ppl: {
@@ -47,124 +54,45 @@ export const useOnboardingForm = () => {
         "Lower frequency per muscle group (once every 5-7 days)",
         "Missing a day can unbalance the week",
         "Can be demanding for beginners"
+      ],
+      research: [ // Added research points
+        "PPL is effective for building strength and muscle mass by allowing high volume for specific movement patterns.",
+        "Grouping exercises by push, pull, and legs can optimize recovery and performance for each session.",
+        "This split is popular among intermediate to advanced lifters for its structured approach to progressive overload."
       ]
     }
   };
 
-  const handleNext = useCallback(() => {
-    if (currentStep < 6) {
-      setCurrentStep(prev => prev + 1);
-    }
-  }, [currentStep]);
-
-  const handleBack = useCallback(() => {
-    setCurrentStep(prev => prev - 1);
+  const addIdentifiedExercise = useCallback((exercise: Partial<Tables<'exercise_definitions'>>) => {
+    setIdentifiedExercises(prev => {
+      if (prev.some(e => e.name === exercise.name)) {
+        return prev;
+      }
+      return [...prev, exercise];
+    });
   }, []);
 
-  const handleAdvanceToFinalStep = useCallback(async () => {
-    if (!session) return;
-    
-    setIsInitialSetupLoading(true);
-    
-    try {
-      // 1. Create both main T-Paths
-      const ululTPathData: TablesInsert<'t_paths'> = {
-        user_id: session.user.id,
-        template_name: '4-Day Upper/Lower',
-        is_bonus: false,
-        parent_t_path_id: null,
-        settings: {
-          tPathType: 'ulul',
-          experience,
-          goalFocus,
-          preferredMuscles,
-          constraints,
-          equipmentMethod
-        }
-      };
+  const removeIdentifiedExercise = useCallback((exerciseName: string) => {
+    setIdentifiedExercises(prev => prev.filter(e => e.name !== exerciseName));
+  }, []);
 
-      const pplTPathData: TablesInsert<'t_paths'> = {
-        user_id: session.user.id,
-        template_name: '3-Day Push/Pull/Legs',
-        is_bonus: false,
-        parent_t_path_id: null,
-        settings: {
-          tPathType: 'ppl',
-          experience,
-          goalFocus,
-          preferredMuscles,
-          constraints,
-          equipmentMethod
-        }
-      };
-
-      const { data: insertedTPaths, error: insertTPathsError } = await supabase
-        .from('t_paths')
-        .insert([ululTPathData, pplTPathData])
-        .select('id, template_name');
-
-      if (insertTPathsError) throw insertTPathsError;
-
-      // Determine the active T-Path ID based on user's selection
-      const activeTPath = insertedTPaths.find(tp =>
-        (tPathType === 'ulul' && tp.template_name === '4-Day Upper/Lower') ||
-        (tPathType === 'ppl' && tp.template_name === '3-Day Push/Pull/Legs')
-      );
-
-      if (!activeTPath) {
-        throw new Error("Could not find the selected T-Path after creation.");
-      }
-
-      // 2. UPSERT user profile with initial preferences (excluding name, height, weight, body_fat_pct for now)
-      const profileData: ProfileInsert = {
-        id: session.user.id,
-        first_name: session.user.user_metadata?.first_name || '', // Use existing if available
-        last_name: session.user.user_metadata?.last_name || '', // Use existing if available
-        preferred_muscles: preferredMuscles,
-        primary_goal: goalFocus,
-        health_notes: constraints,
-        default_rest_time_seconds: 60,
-        preferred_session_length: sessionLength,
-        active_t_path_id: activeTPath.id,
-        // Other fields like full_name, height_cm, weight_kg, body_fat_pct will be updated in handleSubmit
-      };
-
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert(profileData, { onConflict: 'id' });
-
-      if (profileError) throw profileError;
-
-      // 3. Generate workouts for ALL newly created main T-Paths asynchronously
-      const generationPromises = insertedTPaths.map(async (tp) => {
-        const response = await fetch(`/api/generate-t-path`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({ tPathId: tp.id })
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Failed to initiate T-Path workout generation for ${tp.template_name}: ${errorText}`);
-        }
-      });
-
-      await Promise.all(generationPromises); // Use Promise.all to wait for all generations to start
-
-      // Removed toast.success("Initial setup complete! Please provide your personal details.");
-
-    } catch (error: any) {
-      toast.error("Failed to complete initial setup: " + error.message);
-      console.error("Initial setup error:", error);
-      // Re-throw to ensure loading state is handled correctly in page.tsx
-      throw error; 
-    } finally {
-      setIsInitialSetupLoading(false);
+  const handleNext = useCallback(() => {
+    if (currentStep === 4 && equipmentMethod === 'skip') {
+      setCurrentStep(6);
+      return;
     }
-  }, [session, supabase, tPathType, experience, goalFocus, preferredMuscles, constraints, sessionLength, equipmentMethod]);
+    if (currentStep < 8) {
+      setCurrentStep(prev => prev + 1);
+    }
+  }, [currentStep, equipmentMethod]);
+
+  const handleBack = useCallback(() => {
+    if (currentStep === 6 && equipmentMethod === 'skip') {
+      setCurrentStep(4);
+      return;
+    }
+    setCurrentStep(prev => prev - 1);
+  }, [currentStep, equipmentMethod]);
 
   const handleSubmit = useCallback(async (fullName: string, heightCm: number, weightKg: number, bodyFatPct: number | null) => {
     if (!session) return;
@@ -172,37 +100,132 @@ export const useOnboardingForm = () => {
     setLoading(true);
     
     try {
+      // NEW: Create the gym entry first
+      let newGymId: string | null = null;
+      if (equipmentMethod === 'photo' && gymName) {
+        const { data: insertedGym, error: insertGymError } = await supabase
+          .from('gyms')
+          .insert({ user_id: session.user.id, name: gymName })
+          .select('id')
+          .single();
+        if (insertGymError) throw insertGymError;
+        newGymId = insertedGym.id;
+      } else if (equipmentMethod === 'skip') {
+        // Create a default "Home Gym" if skipped
+        const { data: insertedGym, error: insertGymError } = await supabase
+          .from('gyms')
+          .insert({ user_id: session.user.id, name: "Home Gym" })
+          .select('id')
+          .single();
+        if (insertGymError) throw insertGymError;
+        newGymId = insertedGym.id;
+      }
+
+      if (!newGymId) {
+        throw new Error("Failed to create gym during onboarding.");
+      }
+
+      const ululTPathData: TablesInsert<'t_paths'> = {
+        user_id: session.user.id,
+        template_name: '4-Day Upper/Lower',
+        is_bonus: false,
+        parent_t_path_id: null,
+        settings: { tPathType: 'ulul', experience, goalFocus, preferredMuscles, constraints, equipmentMethod }
+      };
+      const pplTPathData: TablesInsert<'t_paths'> = {
+        user_id: session.user.id,
+        template_name: '3-Day Push/Pull/Legs',
+        is_bonus: false,
+        parent_t_path_id: null,
+        settings: { tPathType: 'ppl', experience, goalFocus, preferredMuscles, constraints, equipmentMethod }
+      };
+      const { data: insertedTPaths, error: insertTPathsError } = await supabase
+        .from('t_paths')
+        .insert([ululTPathData, pplTPathData])
+        .select('id, template_name');
+      if (insertTPathsError) throw insertTPathsError;
+
+      const activeTPath = insertedTPaths.find(tp =>
+        (tPathType === 'ulul' && tp.template_name === '4-Day Upper/Lower') ||
+        (tPathType === 'ppl' && tp.template_name === '3-Day Push/Pull/Legs')
+      );
+      if (!activeTPath) throw new Error("Could not find the selected T-Path after creation.");
+
       const nameParts = fullName.split(' ');
       const firstName = nameParts.shift() || '';
       const lastName = nameParts.join(' ');
-
-      // Only update the personal details here
-      const updateData: ProfileInsert = {
+      const profileData: ProfileInsert = {
         id: session.user.id,
         first_name: firstName,
         last_name: lastName,
+        full_name: fullName,
         height_cm: heightCm,
         weight_kg: weightKg,
         body_fat_pct: bodyFatPct,
-        updated_at: new Date().toISOString(),
+        preferred_muscles: preferredMuscles,
+        primary_goal: goalFocus,
+        health_notes: constraints,
+        default_rest_time_seconds: 60,
+        preferred_session_length: sessionLength,
+        active_t_path_id: activeTPath.id,
       };
-
-      const { error: profileUpdateError } = await supabase
+      const { error: profileError } = await supabase
         .from('profiles')
-        .update(updateData)
-        .eq('id', session.user.id);
+        .upsert(profileData, { onConflict: 'id' });
+      if (profileError) throw profileError;
 
-      if (profileUpdateError) throw profileUpdateError;
+      if (identifiedExercises.length > 0) {
+        const exercisesToInsert = identifiedExercises.map(ex => ({
+          ...ex,
+          user_id: session.user.id,
+          library_id: null,
+          is_favorite: false,
+          created_at: new Date().toISOString(),
+        }));
+        const { data: insertedExercises, error: insertExercisesError } = await supabase
+          .from('exercise_definitions')
+          .insert(exercisesToInsert as TablesInsert<'exercise_definitions'>[])
+          .select('id'); // Select ID to link to gym_exercises
+        if (insertExercisesError) {
+          console.error("Failed to save identified exercises during onboarding:", insertExercisesError);
+          toast.error("Could not save all identified exercises, but your profile is set up!");
+        } else if (insertedExercises && newGymId) {
+          // NEW: Link identified exercises to the new gym
+          const gymExerciseLinks = insertedExercises.map(ex => ({
+            gym_id: newGymId!,
+            exercise_id: ex.id,
+          }));
+          const { error: insertGymExerciseError } = await supabase
+            .from('gym_exercises')
+            .insert(gymExerciseLinks);
+          if (insertGymExerciseError) {
+            console.error("Failed to link identified exercises to gym:", insertGymExerciseError);
+            toast.error("Could not link all identified exercises to your gym.");
+          }
+        }
+      }
 
-      // toast.success("Onboarding completed! Welcome to your fitness journey."); // REMOVED
+      const generationPromises = insertedTPaths.map(async (tp) => {
+        const response = await fetch(`/api/generate-t-path`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          body: JSON.stringify({ tPathId: tp.id })
+        });
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Failed to initiate T-Path workout generation for ${tp.template_name}: ${errorText}`);
+        }
+      });
+      await Promise.all(generationPromises);
+
       router.push('/dashboard');
     } catch (error: any) {
-      toast.error("Failed to save personal details: " + error.message);
-      console.error("Personal details save error:", error);
+      toast.error("Onboarding failed: " + error.message);
+      console.error("Onboarding submission error:", error);
     } finally {
       setLoading(false);
     }
-  }, [session, supabase, router]);
+  }, [session, supabase, router, tPathType, experience, goalFocus, preferredMuscles, constraints, sessionLength, equipmentMethod, identifiedExercises, gymName]); // Added gymName to dependencies
 
   return {
     currentStep,
@@ -223,11 +246,15 @@ export const useOnboardingForm = () => {
     consentGiven,
     setConsentGiven,
     loading,
-    isInitialSetupLoading, // Expose new loading state
+    isInitialSetupLoading,
     tPathDescriptions,
     handleNext,
     handleBack,
-    handleAdvanceToFinalStep, // Expose new function
     handleSubmit,
+    identifiedExercises,
+    addIdentifiedExercise,
+    removeIdentifiedExercise,
+    gymName, // NEW: Expose gymName
+    setGymName, // NEW: Expose setGymName
   };
 };

@@ -60,9 +60,9 @@ export default function ManageExercisesPage() {
   // AI-related states
   const [showAnalyseGymDialog, setShowAnalyseGymDialog] = useState(false);
   const [showSaveAiExercisePrompt, setShowSaveAiExercisePrompt] = useState(false);
-  const [aiIdentifiedExercise, setAiIdentifiedExercise] = useState<Partial<Tables<'exercise_definitions'>> | null>(null);
+  const [aiIdentifiedExercise, setAiIdentifiedExercise] = useState<Partial<FetchedExerciseDefinition> | null>(null); // Use FetchedExerciseDefinition
   const [isAiSaving, setIsAiSaving] = useState(false);
-  const [isDuplicateAiExercise, setIsDuplicateAiExercise] = useState(false);
+  // Removed aiDuplicateStatus state as it's now part of aiIdentifiedExercise
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
@@ -97,13 +97,20 @@ export default function ManageExercisesPage() {
   }, [emblaApi]);
 
   // AI Gym Analysis Handlers for Manage Exercises page
-  const handleExerciseIdentified = useCallback((exercise: Partial<Tables<'exercise_definitions'>>, isDuplicate: boolean) => {
-    setAiIdentifiedExercise(exercise);
-    setIsDuplicateAiExercise(isDuplicate);
-    setShowSaveAiExercisePrompt(true);
+  const handleExerciseIdentified = useCallback((exercises: Partial<FetchedExerciseDefinition>[], duplicate_status: 'none' | 'global' | 'my-exercises') => {
+    // For manage-exercises, we typically want to process one by one or show a list.
+    // For now, let's assume we only care about the first identified exercise for the prompt.
+    // If multiple are identified, the user would need to go through them one by one.
+    if (exercises.length > 0) {
+      setAiIdentifiedExercise(exercises[0]); // Take the first one, which now includes duplicate_status
+      // No need to set aiDuplicateStatus separately
+      setShowSaveAiExercisePrompt(true);
+    } else {
+      toast.info("No exercises were identified from the photos.");
+    }
   }, []);
 
-  const handleSaveAiExerciseToMyExercises = useCallback(async (exercise: Partial<Tables<'exercise_definitions'>>) => {
+  const handleSaveAiExerciseToMyExercises = useCallback(async (exercise: Partial<FetchedExerciseDefinition>) => {
     if (!session) {
       toast.error("You must be logged in to save exercises.");
       return;
@@ -144,7 +151,7 @@ export default function ManageExercisesPage() {
     }
   }, [session, supabase, refreshExercises]);
 
-  const handleEditIdentifiedExercise = useCallback((exercise: Partial<Tables<'exercise_definitions'>>) => {
+  const handleEditIdentifiedExercise = useCallback((exercise: Partial<FetchedExerciseDefinition>) => {
     const exerciseToEdit: FetchedExerciseDefinition = {
       ...exercise,
       id: exercise.id || null,
@@ -297,7 +304,6 @@ export default function ManageExercisesPage() {
         context="manage-exercises"
         onEditExercise={handleEditIdentifiedExercise}
         isSaving={isAiSaving}
-        isDuplicate={isDuplicateAiExercise}
       />
       {editingExercise && (
         <EditExerciseDialog

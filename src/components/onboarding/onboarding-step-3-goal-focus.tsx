@@ -2,10 +2,12 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
+import { ChevronDown, X, Bot } from "lucide-react"; // Added Bot icon
 
 interface OnboardingStep3Props {
   goalFocus: string;
@@ -18,6 +20,19 @@ interface OnboardingStep3Props {
   handleBack: () => void;
 }
 
+const mainMuscleGroups = [
+  "Pectorals", "Deltoids", "Lats", "Traps", "Biceps", 
+  "Triceps", "Quadriceps", "Hamstrings", "Glutes", "Calves", 
+  "Abdominals", "Core", "Full Body"
+];
+
+const goals = [
+  { id: "muscle_gain", title: "Build Muscle & Tone" },
+  { id: "general_fitness", title: "Improve General Fitness" },
+  { id: "strength", title: "Build Strength" },
+  { id: "mobility", title: "Increase Mobility" },
+];
+
 export const OnboardingStep3_GoalFocus = ({
   goalFocus,
   setGoalFocus,
@@ -28,53 +43,112 @@ export const OnboardingStep3_GoalFocus = ({
   handleNext,
   handleBack,
 }: OnboardingStep3Props) => {
+  const selectedMuscles = preferredMuscles ? preferredMuscles.split(',').map(m => m.trim()) : [];
+
+  const handleMuscleToggle = (muscle: string) => {
+    const currentSelection = new Set(selectedMuscles);
+    if (currentSelection.has(muscle)) {
+      currentSelection.delete(muscle);
+    } else {
+      currentSelection.add(muscle);
+    }
+    setPreferredMuscles(Array.from(currentSelection).join(', '));
+  };
+
   return (
     <div className="space-y-6">
-      <RadioGroup 
-        value={goalFocus} 
-        onValueChange={setGoalFocus}
-      >
-        <div className="space-y-2">
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="muscle_gain" id="muscle_gain" />
-            <Label htmlFor="muscle_gain">Build Muscle & Tone</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="general_fitness" id="general_fitness" />
-            <Label htmlFor="general_fitness">Improve General Fitness</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="strength" id="strength" />
-            <Label htmlFor="strength">Build Strength</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="mobility" id="mobility" />
-            <Label htmlFor="mobility">Increase Mobility</Label>
-          </div>
-        </div>
-      </RadioGroup>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {goals.map(goal => (
+          <Card 
+            key={goal.id}
+            className={cn(
+              "cursor-pointer transition-all min-h-[100px] flex flex-col justify-center", // Reduced min-height
+              goalFocus === goal.id 
+                ? 'border-primary ring-2 ring-primary' 
+                : 'hover:border-primary/50'
+            )}
+            onClick={() => setGoalFocus(goal.id)}
+          >
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base text-center">{goal.title}</CardTitle> {/* Reduced font size */}
+            </CardHeader>
+            <CardContent className="pt-0">
+              {/* Optional: Add a short description here if needed, with text-xs */}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
       
       <div>
-        <Label htmlFor="preferredMuscles">Preferred Muscles to Train (Optional)</Label>
-        <Input 
-          id="preferredMuscles" 
-          placeholder="e.g., Chest, Back, Legs..." 
-          value={preferredMuscles}
-          onChange={(e) => setPreferredMuscles(e.target.value)}
-        />
-        <p className="text-sm text-muted-foreground mt-1">
-          Let us know if there are specific muscle groups you want to focus on
+        <label className="text-sm font-medium">Preferred Muscles to Train (Optional)</label>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              className={cn(
+                "w-full justify-between mt-1 h-auto min-h-[40px] py-2", // Adjusted height and padding
+                selectedMuscles.length === 0 && "text-muted-foreground"
+              )}
+            >
+              <span className="flex items-center justify-between w-full">
+                <div className="flex flex-wrap gap-1"> {/* Allow badges to wrap */}
+                  {selectedMuscles.length > 0 ? (
+                    selectedMuscles.map((muscle) => (
+                      <Badge key={muscle} variant="secondary" className="flex items-center gap-1 text-xs"> {/* Reduced badge text size */}
+                        {muscle}
+                        <X className="h-3 w-3 cursor-pointer" onClick={(e) => {
+                          e.stopPropagation();
+                          handleMuscleToggle(muscle);
+                        }} />
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-sm">Select muscles...</span>
+                  )}
+                </div>
+                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+            <div className="grid grid-cols-2 gap-2 p-2">
+              {mainMuscleGroups.map((muscle) => (
+                <Button
+                  key={muscle}
+                  type="button"
+                  variant={selectedMuscles.includes(muscle) ? "default" : "outline"}
+                  onClick={() => handleMuscleToggle(muscle)}
+                  className={cn(
+                    "flex-1 text-sm", // Reduced button text size
+                    selectedMuscles.includes(muscle) ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent"
+                  )}
+                >
+                  {muscle}
+                </Button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"> {/* Reduced text size, added AI icon */}
+          <Bot className="h-3 w-3 flex-shrink-0" />
+          This helps our AI tailor exercise suggestions and coaching feedback.
         </p>
       </div>
       
       <div>
-        <Label htmlFor="constraints">Constraints (Optional)</Label>
+        <label htmlFor="constraints" className="text-sm font-medium">Constraints (Optional)</label>
         <Textarea 
           id="constraints" 
           placeholder="Any injuries, health conditions, or limitations..." 
           value={constraints}
           onChange={(e) => setConstraints(e.target.value)}
+          className="mt-1 text-sm" // Reduced text size
         />
+        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"> {/* Reduced text size, added AI icon */}
+          <Bot className="h-3 w-3 flex-shrink-0" />
+          Our AI will consider these when generating workout plans and advice.
+        </p>
       </div>
       
       <div className="flex justify-between">

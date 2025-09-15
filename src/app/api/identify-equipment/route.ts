@@ -1,13 +1,10 @@
+import { supabase } from '@/integrations/supabase/client';
 import { NextResponse } from 'next/server';
-
-// This route will proxy the request to the Supabase Edge Function
-// It's necessary because direct client-to-Edge-Function calls might have CORS issues
-// or require more complex setup for file uploads.
-// By proxying through a Next.js API route, we can easily forward the auth token.
 
 export async function POST(request: Request) {
   try {
-    const { base64Image } = await request.json();
+    // Expect an array of base64 images
+    const { base64Images } = await request.json();
     
     // Extract the Authorization header from the incoming request
     const authHeader = request.headers.get('Authorization');
@@ -15,8 +12,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Authorization header missing' }, { status: 401 });
     }
 
-    // Call the Supabase Edge Function
-    // Replace 'mgbfevrzrbjjiajkqpti' with your actual Supabase Project ID
+    // Call the Supabase Edge Function, passing the array of images
     const SUPABASE_PROJECT_ID = 'mgbfevrzrbjjiajkqpti'; 
     const EDGE_FUNCTION_URL = `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/identify-equipment`;
 
@@ -26,7 +22,7 @@ export async function POST(request: Request) {
         'Content-Type': 'application/json',
         'Authorization': authHeader, // Forward the user's JWT
       },
-      body: JSON.stringify({ base64Image }),
+      body: JSON.stringify({ base64Images }), // Send the array of images
     });
 
     const data = await edgeFunctionResponse.json();

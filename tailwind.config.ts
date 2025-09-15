@@ -105,20 +105,14 @@ export default {
           from: { opacity: '0', transform: 'translateY(20px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
         },
-        'input-glow': {
-          '0%': { boxShadow: '0 0 0 0px hsl(var(--ring) / 0.3)' },
-          '100%': { boxShadow: '0 0 0 3px hsl(var(--ring) / 0.3)' },
-        },
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out',
         'fade-in-slide-up': 'fade-in-slide-up 0.6s ease-out forwards',
-        'input-glow': 'input-glow 0.3s ease-out forwards',
   		},
       boxShadow: {
         'workout-pill-selected': '0 8px 20px -6px rgba(0, 0, 0, 0.2)', // A subtle, diffused shadow
-        'input-glow-focus': '0 0 0 3px hsl(var(--ring) / 0.3), 0 0 0 6px hsl(var(--ring) / 0.15)',
       },
   	}
   },
@@ -138,13 +132,5 @@ export default {
     'bg-green-200',
     'bg-green-400',
     'bg-green-600',
-    // Added for new gradients
-    'bg-[length:100%_100%]', // For gradient backgrounds
-    'bg-[image:var(--gradient-checkbox)]',
-    'bg-[image:var(--gradient-button-complete)]',
-    'from-[hsl(var(--workout-upper-body-a))]',
-    'to-[hsl(var(--workout-bonus))]',
-    'from-[hsl(var(--action-primary))]',
-    'to-[hsl(var(--workout-upper-body-a))]',
   ],
 } satisfies Config;

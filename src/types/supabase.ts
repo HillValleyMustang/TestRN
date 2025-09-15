@@ -8,8 +8,8 @@
  */
 
 // Import generated Supabase types to be used and re-exported
-import type { Database } from "./supabase-generated/database";
 import type { Json } from "./supabase-generated/json";
+import type { Database } from "./supabase-generated/database";
 import type { Tables, TablesInsert, TablesUpdate } from "./supabase-generated/tables";
 import type { Enums } from "./supabase-generated/enums";
 import type { UserAchievementsRow } from "./supabase-generated/tables/user_achievements";
@@ -19,7 +19,7 @@ import type { GetTotalCompletedExerciseInstancesArgs, GetTotalCompletedExerciseI
 import type { BodyFatReferenceImagesRow } from "./supabase-generated/tables/body_fat_reference_images";
 import type { UserAlertsRow } from "./supabase-generated/tables/user_alerts";
 
-export type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums, GetLastExerciseSetsForExerciseReturns, GetTotalCompletedExerciseInstancesArgs, GetTotalCompletedExerciseInstancesReturns };
+export type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums, GetLastExerciseSetsForExerciseReturns, GetTotalCompletedExerciseInstancesArgs, GetTotalCompletedExerciseInstancesReturns }; // Export new RPC types
 
 // --- Custom Types ---
 // These are application-specific types that extend or combine Supabase-generated types.
@@ -85,6 +85,7 @@ export type AiCoachUsageLog = AiCoachUsageLogsRow;
 export interface FetchedExerciseDefinition extends Omit<Tables<'exercise_definitions'>, 'id'> {
   id: string | null; // Allow null for new exercises (e.g., when creating from global)
   is_favorited_by_current_user?: boolean; // For global exercises favorited by user
+  duplicate_status?: 'none' | 'global' | 'my-exercises'; // NEW: Add duplicate status
 }
 
 // Centralized type for workouts with last completed date

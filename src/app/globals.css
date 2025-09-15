@@ -5,7 +5,7 @@
 @layer base {
   :root {
 
-    --background: 0 0% 100%; /* Pure white background */
+    --background: 0 0% 98%; /* Softer off-white background */
 
     --foreground: 0 0% 3.9%;
 
@@ -37,14 +37,15 @@
 
     --destructive-foreground: 0 0% 98%;
 
-    --action-primary: 12 76% 61%; /* Coral/Salmon for primary actions */
-    --action-primary-light: 12 76% 71%; /* Lighter shade for gradient */
+    --action-primary: 217 91% 60%; /* New premium blue for primary actions */
+    --action-primary-light: 217 91% 70%; /* Lighter shade for gradient */
     --action-primary-foreground: 0 0% 100%;
 
-    --border: 0 0% 90%; /* Light gray border */
-    --input: 0 0% 97%; /* Light gray input background */
+    --border: 0 0% 89.8%;
 
-    --ring: 220 68% 32%; /* Deep blue for focus ring */
+    --input: 0 0% 89.8%;
+
+    --ring: 0 0% 3.9%;
 
     --chart-1: 12 76% 61%;
 
@@ -93,6 +94,7 @@
     --activity-cycling: 160 70% 40%; /* sage green */
     --activity-tennis: 300 70% 55%; /* bright magenta */
 
+
     /* New Aurora Colors (Light Mode) - Adjusted to retro palette */
     --aurora-blue: 200 100% 78%; /* Sky Blue */
     --aurora-purple: 270 50% 32%; /* Deep Purple */
@@ -100,11 +102,6 @@
     --aurora-green: 160 100% 43%; /* Vibrant Mint */
     --aurora-pink: 324 100% 44%; /* Hot Magenta */
     --aurora-yellow: 58 98% 73%; /* Pale Yellow */
-
-    /* NEW: Custom Gradients */
-    --gradient-top-border: linear-gradient(to right, hsl(var(--workout-upper-body-a)), hsl(var(--workout-push)), hsl(var(--workout-bonus)));
-    --gradient-checkbox: linear-gradient(to bottom right, hsl(var(--workout-upper-body-a) / 0.8), hsl(var(--workout-push) / 0.8));
-    --gradient-button-complete: linear-gradient(to right, hsl(var(--action-primary)), hsl(var(--workout-upper-body-a)));
   }
   .dark {
 
@@ -140,8 +137,8 @@
 
     --destructive-foreground: 0 0% 98%;
 
-    --action-primary: 12 76% 61%;
-    --action-primary-light: 12 76% 71%;
+    --action-primary: 217 91% 60%;
+    --action-primary-light: 217 91% 70%;
     --action-primary-foreground: 0 0% 100%;
 
     --border: 0 0% 14.9%;
@@ -194,11 +191,6 @@
     --activity-swimming: 200 85% 45%; /* deeper aqua blue */
     --activity-cycling: 160 70% 40%; /* sage green */
     --activity-tennis: 300 70% 55%; /* bright magenta */
-
-    /* NEW: Custom Gradients (Dark Mode) */
-    --gradient-top-border: linear-gradient(to right, hsl(var(--workout-upper-body-a)), hsl(var(--workout-push)), hsl(var(--workout-bonus)));
-    --gradient-checkbox: linear-gradient(to bottom right, hsl(var(--workout-upper-body-a) / 0.8), hsl(var(--workout-push) / 0.8));
-    --gradient-button-complete: linear-gradient(to right, hsl(var(--action-primary)), hsl(var(--workout-upper-body-a)));
   }
 }
 
@@ -281,30 +273,4 @@
   background-color: hsl(var(--card) / 0.7); /* Updated opacity to 0.7 */
   backdrop-filter: blur(12px); /* Updated blur to 12px */
   -webkit-backdrop-filter: blur(12px); /* For Safari compatibility */
-}
-
-/* Custom styling for checkbox with gradient background */
-.checkbox-gradient {
-  background-image: var(--gradient-checkbox);
-  border: none; /* Remove default border */
-}
-
-/* Custom styling for primary button with gradient background */
-.button-gradient-complete {
-  background-image: var(--gradient-button-complete);
-  color: hsl(var(--action-primary-foreground));
-  border: none;
-  transition: all 0.2s ease-in-out;
-}
-.button-gradient-complete:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-}
-
-/* Custom styling for input focus glow */
-.input-focus-glow:focus-within {
-  outline: none;
-  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.3), 0 0 0 6px hsl(var(--ring) / 0.15);
-  border-color: hsl(var(--ring));
 }
