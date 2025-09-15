@@ -342,7 +342,10 @@ export default function ProfilePage() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`
           },
-          body: JSON.stringify({ tPathId: activeTPath.id })
+          body: JSON.stringify({ 
+            tPathId: activeTPath.id,
+            preferred_session_length: newSessionLength // Pass the new value directly
+          })
         });
         console.log("[ProfilePage Debug] onSubmit: Fetch call to /api/generate-t-path completed.");
 

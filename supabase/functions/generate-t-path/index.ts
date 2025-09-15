@@ -482,7 +482,7 @@ serve(async (req: Request) => {
     }
     userId = user.id;
 
-    const { tPathId } = await req.json();
+    const { tPathId, preferred_session_length: sessionLengthFromBody } = await req.json();
     if (!tPathId) {
       return new Response(JSON.stringify({ error: 'tPathId is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -554,14 +554,20 @@ serve(async (req: Request) => {
         const tPath: TPathData = tPathData;
         console.log('[Background] Fetched T-Path data:', tPath);
 
-        const { data: profileData, error: profileError } = await supabaseServiceRoleClient
-          .from('profiles')
-          .select('preferred_session_length')
-          .eq('id', user.id)
-          .single();
-        if (profileError) throw profileError;
-        const preferredSessionLength = (profileData as ProfileData)?.preferred_session_length;
-        console.log('[Background] Fetched profile data, preferred_session_length:', preferredSessionLength);
+        let preferredSessionLength: string | null;
+        if (sessionLengthFromBody) {
+          preferredSessionLength = sessionLengthFromBody;
+          console.log('[Background] Using preferred_session_length from request body:', preferredSessionLength);
+        } else {
+          const { data: profileData, error: profileError } = await supabaseServiceRoleClient
+            .from('profiles')
+            .select('preferred_session_length')
+            .eq('id', user.id)
+            .single();
+          if (profileError) throw profileError;
+          preferredSessionLength = (profileData as ProfileData)?.preferred_session_length;
+          console.log('[Background] Fetched profile data, preferred_session_length:', preferredSessionLength);
+        }
 
         const tPathSettings = tPath.settings as { tPathType?: string };
         if (!tPathSettings || !tPathSettings.tPathType) throw new Error('Invalid T-Path settings.');

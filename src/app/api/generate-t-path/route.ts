@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
   console.log("[API Route Debug] /api/generate-t-path: Request received.");
   try {
-    const { tPathId } = await request.json();
-    console.log(`[API Route Debug] /api/generate-t-path: Received tPathId: ${tPathId}`);
+    const { tPathId, preferred_session_length } = await request.json(); // Destructure new value
+    console.log(`[API Route Debug] /api/generate-t-path: Received tPathId: ${tPathId}, preferred_session_length: ${preferred_session_length}`);
     
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) {
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
         'Content-Type': 'application/json',
         'Authorization': authHeader,
       },
-      body: JSON.stringify({ tPathId }),
+      body: JSON.stringify({ tPathId, preferred_session_length }), // Forward it
     });
 
     const data = await edgeFunctionResponse.json();
