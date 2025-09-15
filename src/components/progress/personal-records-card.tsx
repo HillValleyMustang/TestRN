@@ -49,8 +49,8 @@ export const PersonalRecordsCard = () => {
         
         setPersonalRecords(formattedRecords);
       } catch (err: any) {
-        toast.error("Failed to load personal bests: " + err.message);
-        console.error("Error fetching personal records:", err);
+        console.error("Failed to load personal bests:", err);
+        toast.info("Failed to load personal bests.");
       } finally {
         setLoading(false);
       }

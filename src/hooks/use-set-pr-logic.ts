@@ -105,7 +105,7 @@ export const useSetPRLogic = ({ exerciseId, exerciseType, supabase }: UseSetPRLo
 
       if (upsertError) {
         console.error(`[useSetPRLogic] Error saving set PB for ${exerciseId}:`, upsertError);
-        toast.error("Failed to update personal best: " + upsertError.message);
+        toast.info("Failed to update personal best.");
         return { isNewPR: false, updatedPR: currentPRState }; // Return original if error
       }
       setExercisePR(updatedPR as UserExercisePR); // Update internal state

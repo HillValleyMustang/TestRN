@@ -36,12 +36,12 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
 
     files.forEach(file => {
       if (!file.type.startsWith('image/')) {
-        toast.error(`File '${file.name}' is not an image.`);
+        toast.info(`File '${file.name}' is not an image.`);
         hasError = true;
         return;
       }
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        toast.error(`File '${file.name}' exceeds 5MB limit.`);
+        toast.info(`File '${file.name}' exceeds 5MB limit.`);
         hasError = true;
         return;
       }
@@ -76,11 +76,11 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
 
   const handleAnalyseImage = async () => {
     if (base64Images.length === 0) {
-      toast.error("Please upload at least one image first.");
+      toast.info("Please upload at least one image first.");
       return;
     }
     if (!session) {
-      toast.error("You must be logged in to use this feature.");
+      toast.info("You must be logged in to use this feature.");
       return;
     }
 
@@ -113,7 +113,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
       resetForm();
     } catch (err: any) {
       console.error("Error analysing images:", err);
-      toast.error("Image analysis failed: " + err.message);
+      toast.info("Image analysis failed.");
     } finally {
       setLoading(false);
     }

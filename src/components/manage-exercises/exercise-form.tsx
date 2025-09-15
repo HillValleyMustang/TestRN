@@ -148,17 +148,17 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
 
   async function onSubmit(values: z.infer<typeof exerciseSchema>) {
     if (!session) {
-      toast.error("You must be logged in to manage exercises.");
+      toast.info("You must be logged in to manage exercises.");
       return;
     }
 
     if (!values.type || values.type.length === 0) {
-      toast.error("Please select at least one exercise type.");
+      toast.info("Please select at least one exercise type.");
       return;
     }
 
     if (!values.main_muscles || values.main_muscles.length === 0) {
-      toast.error("Please select at least one main muscle group.");
+      toast.info("Please select at least one main muscle group.");
       return;
     }
 
@@ -181,9 +181,10 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
         .eq('id', editingExercise.id);
 
       if (error) {
-        toast.error("Failed to update exercise: " + error.message);
+        console.error("Failed to update exercise:", error.message);
+        toast.info("Failed to update exercise.");
       } else {
-        toast.success("Exercise updated successfully!");
+        console.log("Exercise updated successfully!"); // Replaced toast.success
         onCancelEdit();
         onSaveSuccess();
         setIsExpanded(false);
@@ -197,9 +198,10 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
         created_at: new Date().toISOString(),
       }]).select('id').single();
       if (error) {
-        toast.error("Failed to add exercise: " + error.message);
+        console.error("Failed to add exercise:", error.message);
+        toast.info("Failed to add exercise.");
       } else {
-        toast.success("Exercise added successfully!");
+        console.log("Exercise added successfully!"); // Replaced toast.success
         form.reset();
         setSelectedMuscles([]);
         setSelectedTypes([]);

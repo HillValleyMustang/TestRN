@@ -169,7 +169,7 @@ export const WorkoutSelector = ({
 
   const handleSaveAiExerciseToMyExercises = useCallback(async (exercise: Partial<FetchedExerciseDefinition>) => {
     if (!session) {
-      toast.error("You must be logged in to save exercises.");
+      toast.info("You must be logged in to save exercises.");
       return;
     }
     setIsAiSaving(true);
@@ -194,12 +194,12 @@ export const WorkoutSelector = ({
 
       if (insertError) {
         if (insertError.code === '23505') { // Unique violation code
-          toast.error(`You already have a custom exercise named "${exercise.name}".`);
+          toast.info(`You already have a custom exercise named "${exercise.name}".`);
         } else {
           throw insertError;
         }
       } else {
-        toast.success(`'${exercise.name}' added to My Exercises!`);
+        console.log(`'${exercise.name}' added to My Exercises!`); // Replaced toast.success
         finalExerciseToAdd = insertedExercise as ExerciseDefinition;
         // Immediately update allAvailableExercises with the new exercise
         setAllAvailableExercises((prev: FetchedExerciseDefinition[]) => [...prev, insertedExercise as FetchedExerciseDefinition]);
@@ -208,7 +208,7 @@ export const WorkoutSelector = ({
       // Now add to current workout session
       if (finalExerciseToAdd) {
         await addExerciseToSession(finalExerciseToAdd);
-        toast.success(`'${finalExerciseToAdd.name}' added to current workout!`);
+        console.log(`'${finalExerciseToAdd.name}' added to current workout!`); // Replaced toast.success
       } else {
         throw new Error("Could not find the exercise to add to workout.");
       }
@@ -219,7 +219,7 @@ export const WorkoutSelector = ({
 
     } catch (err: any) {
       console.error("Failed to save AI identified exercise and add to workout:", err);
-      toast.error("Failed to save exercise: " + err.message);
+      toast.info("Failed to save exercise.");
     } finally {
       setIsAiSaving(false);
     }
@@ -227,7 +227,7 @@ export const WorkoutSelector = ({
 
   const handleAddAiExerciseToWorkoutOnly = useCallback(async (exercise: Partial<FetchedExerciseDefinition>) => {
     if (!session) {
-      toast.error("You must be logged in to add exercises.");
+      toast.info("You must be logged in to add exercises.");
       return;
     }
     setIsAiSaving(true);
@@ -266,7 +266,7 @@ export const WorkoutSelector = ({
 
         if (insertError) {
           if (insertError.code === '23505') {
-            toast.error(`You already have a custom exercise named "${exercise.name}".`);
+            toast.info(`You already have a custom exercise named "${exercise.name}".`);
             const existingUserExercise = allAvailableExercises.find(ex => ex.name?.trim().toLowerCase() === exercise.name?.trim().toLowerCase() && ex.user_id === session.user.id);
             if (existingUserExercise) {
               finalExerciseToAdd = existingUserExercise as ExerciseDefinition;
@@ -284,7 +284,7 @@ export const WorkoutSelector = ({
 
       if (finalExerciseToAdd) {
         await addExerciseToSession(finalExerciseToAdd);
-        toast.success(`'${finalExerciseToAdd.name}' added to current workout!`);
+        console.log(`'${finalExerciseToAdd.name}' added to current workout!`); // Replaced toast.success
       } else {
         throw new Error("Could not find or create the exercise to add to workout.");
       }
@@ -295,7 +295,7 @@ export const WorkoutSelector = ({
 
     } catch (err: any) {
       console.error("Failed to add AI identified exercise to workout only:", err);
-      toast.error("Failed to add exercise: " + err.message);
+      toast.info("Failed to add exercise.");
     } finally {
       setIsAiSaving(false);
     }

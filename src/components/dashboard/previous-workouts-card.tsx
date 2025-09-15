@@ -109,8 +109,8 @@ export const PreviousWorkoutsCard = ({ onViewSummary }: PreviousWorkoutsCardProp
         );
         setRecentSessions(sessionsWithDetails);
       } catch (err: any) {
-        toast.error("Failed to load previous workouts: " + err.message);
-        console.error("Error fetching previous workouts:", err);
+        console.error("Failed to load previous workouts:", err);
+        toast.info("Failed to load previous workouts.");
       } finally {
         setLoading(false);
       }

@@ -71,7 +71,7 @@ export const useSetSaver = ({
     console.log(`[useSetSaver] handleSaveSet called for setIndex: ${setIndex}. Initial currentSessionId: ${currentSessionId}`);
 
     if (!isValidId(exerciseId)) {
-      toast.error("Cannot save set: exercise information is incomplete.");
+      toast.info("Cannot save set: exercise information is incomplete.");
       return;
     }
     if (!sets[setIndex]) return;
@@ -79,7 +79,7 @@ export const useSetSaver = ({
     let currentSet = { ...sets[setIndex] }; // Create a mutable copy
 
     if (!hasUserInput(currentSet)) {
-      toast.error(`Set ${setIndex + 1}: No data to save.`);
+      toast.info(`Set ${setIndex + 1}: No data to save.`);
       return;
     }
 
@@ -92,7 +92,7 @@ export const useSetSaver = ({
         console.log(`[useSetSaver] New sessionId generated: ${sessionIdToUse}`);
         currentSet.session_id = newSessionId; // IMPORTANT: Update session_id in the currentSet copy
       } catch (err) {
-        toast.error("Failed to start workout session.");
+        toast.info("Failed to start workout session.");
         return;
       }
     } else {
@@ -127,7 +127,7 @@ export const useSetSaver = ({
       });
       console.log(`[useSetSaver] handleSaveSet: Set ${setIndex + 1} saved locally with is_pb=${savedSet.is_pb}. Draft updated.`);
     } else {
-      toast.error(`Failed to save set ${setIndex + 1}. Please try again.`);
+      toast.info(`Failed to save set ${setIndex + 1}. Please try again.`);
       await updateDraft(setIndex, { isSaved: false }); // Rollback saved status
       console.log(`[useSetSaver] handleSaveSet: Set ${setIndex + 1} failed to save. Draft rolled back.`);
     }

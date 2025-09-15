@@ -112,8 +112,8 @@ export const WeeklyVolumeChart = () => {
 
       } catch (err: any) {
         console.error("[WeeklyVolumeChart] Failed to load weekly volume chart:", err);
+        toast.info("Failed to load weekly volume chart.");
         setError(err.message || "Failed to load weekly volume chart.");
-        toast.error(err.message || "Failed to load weekly volume chart.");
       } finally {
         setLoading(false);
       }

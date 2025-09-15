@@ -26,6 +26,7 @@ import { ProfileSettingsTab } from '@/components/profile/profile-settings-tab';
 import { PointsExplanationModal } from '@/components/profile/points-explanation-modal';
 import { achievementsList } from '@/lib/achievements';
 import { LoadingOverlay } from '@/components/loading-overlay';
+import { FloatingSaveEditButton } from '@/components/profile/floating-save-edit-button'; // Import new component
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
@@ -88,10 +89,6 @@ export default function ProfilePage() {
   });
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
-
-  // Use a ref to store the desired tab/edit state during a refresh cycle
-  const pendingTabRef = useRef<string | null>(null);
-  const pendingEditRef = useRef<boolean>(false);
 
   // Use useCacheAndRevalidate for profile data
   const { data: cachedProfile, loading: loadingProfile, error: profileError, refresh: refreshProfileCache } = useCacheAndRevalidate<Profile>({
@@ -206,10 +203,9 @@ export default function ProfilePage() {
         setAiCoachUsageToday(0);
       }
     } catch (err: any) {
-      toast.error("Failed to load profile data: " + err.message);
       console.error("[ProfilePage Debug] refreshProfileData: Caught error during fetch:", err);
+      toast.info("Failed to load profile data.");
     } finally {
-      // No setLoading(false) here.
       console.log("[ProfilePage Debug] refreshProfileData: Fetch operation finished.");
     }
   }, [session, supabase, form, refreshProfileCache, refreshAchievementsCache, setActiveTPath, setAiCoachUsageToday]);
@@ -222,21 +218,21 @@ export default function ProfilePage() {
       return;
     }
     
-    // Store current tab/edit state before refresh
-    pendingTabRef.current = activeTab;
-    pendingEditRef.current = isEditing;
-
     refreshProfileData();
 
     const tabParam = searchParams.get('tab');
     const editParam = searchParams.get('edit');
 
-    if (tabParam === 'settings') {
-      setActiveTab('settings');
-      if (editParam === 'true') {
-        setIsEditing(true);
-      }
+    if (tabParam) {
+      setActiveTab(tabParam);
     }
+    // Only update isEditing if editParam is explicitly provided
+    if (editParam === 'true') {
+      setIsEditing(true);
+    } else if (editParam === 'false') {
+      setIsEditing(false);
+    }
+    // If editParam is null/undefined, isEditing state remains as is (controlled by onEditToggle)
   }, [session, router, refreshProfileData, searchParams]);
 
   // Effect to re-apply tab/edit state after refreshProfileData completes
@@ -244,14 +240,8 @@ export default function ProfilePage() {
     // This effect should run after `refreshProfileData` has potentially caused a re-render
     // and the `loadingProfile` and `loadingAchievements` states have settled.
     if (!loadingProfile && !loadingAchievements) {
-      if (pendingTabRef.current) {
-        setActiveTab(pendingTabRef.current);
-        pendingTabRef.current = null; // Clear ref
-      }
-      if (pendingEditRef.current) {
-        setIsEditing(pendingEditRef.current);
-        pendingEditRef.current = false; // Clear ref
-      }
+      // No need to re-apply pendingTabRef/pendingEditRef here, as the main useEffect handles it
+      // and isEditing is now controlled by explicit actions.
     }
   }, [loadingProfile, loadingAchievements]); // Depend on loading states of the cache hooks
 
@@ -330,14 +320,14 @@ export default function ProfilePage() {
     console.log("[ProfilePage Debug] onSubmit: Attempting to update profile in Supabase with data:", updateData);
     const { error } = await supabase.from('profiles').update(updateData).eq('id', session.user.id);
     if (error) {
-      toast.error("Failed to update profile: " + error.message);
       console.error("[ProfilePage Debug] onSubmit: Supabase update error:", error);
+      toast.info("Failed to update profile.");
       setIsSaving(false);
       return;
     }
     console.log("[ProfilePage Debug] onSubmit: Profile updated successfully in Supabase.");
 
-    toast.success("Profile updated successfully!");
+    console.log("Profile updated successfully!"); // Replaced toast.success
 
     if (sessionLengthChanged && activeTPath) {
       console.log("[ProfilePage Debug] onSubmit: Session length changed and active T-Path exists. Initiating workout plan regeneration.");
@@ -360,14 +350,14 @@ export default function ProfilePage() {
         }
         console.log("[ProfilePage Debug] onSubmit: T-Path regeneration initiated successfully via API.");
       } catch (err: any) {
-        toast.error("Error initiating workout plan update: " + err.message);
         console.error("[ProfilePage Debug] onSubmit: T-Path regeneration initiation error:", err);
+        toast.info("Error initiating workout plan update.");
       }
     }
     console.log("[ProfilePage Debug] onSubmit: Calling refreshProfileData to refresh profile.");
     await refreshProfileData();
     console.log("[ProfilePage Debug] onSubmit: refreshProfileData completed.");
-    setIsEditing(false);
+    setIsEditing(false); // This is the only place where isEditing should be set to false after a full save.
     setIsSaving(false);
     console.log("[ProfilePage Debug] onSubmit: isEditing and isSaving set to false. Save operation finished.");
   }
@@ -486,7 +476,7 @@ export default function ProfilePage() {
                       AI_COACH_LIMIT_PER_SESSION={AI_COACH_LIMIT_PER_SESSION}
                       onTPathChange={refreshProfileData}
                       onSignOut={handleSignOut}
-                      onSubmit={onSubmit}
+                      onSubmit={onSubmit} // Pass the onSubmit function directly
                       profile={profile}
                       onDataChange={refreshProfileData}
                     />
@@ -531,6 +521,11 @@ export default function ProfilePage() {
         isOpen={isSaving} 
         title="Saving Profile" 
         description="Please wait while we update your profile and workout plan." 
+      />
+      <FloatingSaveEditButton 
+        isEditing={isEditing} 
+        onSave={form.handleSubmit(onSubmit)} 
+        isSaving={isSaving} 
       />
     </>
   );

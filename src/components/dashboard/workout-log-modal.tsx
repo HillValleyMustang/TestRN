@@ -38,7 +38,8 @@ export const WorkoutLogModal = ({ open, onOpenChange }: WorkoutLogModalProps) =>
           if (error) throw error;
           setRecentSessions(data as WorkoutSession[] || []); // Explicitly cast
         } catch (err: any) {
-          toast.error("Failed to load recent workouts: " + err.message);
+          console.error("Failed to load recent workouts:", err.message);
+          toast.info("Failed to load recent workouts.");
         } finally {
           setLoading(false);
         }

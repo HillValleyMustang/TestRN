@@ -112,7 +112,7 @@ export default function ManageExercisesPage() {
 
   const handleSaveAiExerciseToMyExercises = useCallback(async (exercise: Partial<FetchedExerciseDefinition>) => {
     if (!session) {
-      toast.error("You must be logged in to save exercises.");
+      toast.info("You must be logged in to save exercises.");
       return;
     }
     setIsAiSaving(true);
@@ -133,19 +133,19 @@ export default function ManageExercisesPage() {
 
       if (error) {
         if (error.code === '23505') {
-          toast.error("This exercise already exists in your custom exercises.");
+          toast.info("This exercise already exists in your custom exercises.");
         } else {
           throw error;
         }
       } else {
-        toast.success(`'${exercise.name}' added to My Exercises!`);
+        console.log(`'${exercise.name}' added to My Exercises!`); // Replaced toast.success
         refreshExercises();
         setShowSaveAiExercisePrompt(false);
         setAiIdentifiedExercise(null);
       }
     } catch (err: any) {
       console.error("Failed to save AI identified exercise:", err);
-      toast.error("Failed to save exercise: " + err.message);
+      toast.info("Failed to save exercise.");
     } finally {
       setIsAiSaving(false);
     }

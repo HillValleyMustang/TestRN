@@ -89,7 +89,7 @@ export const WorkoutVolumeHistoryCard = ({ workoutTemplateName, currentSessionId
         setChartData(formattedChartData);
       } catch (err: any) {
         setError(err.message || "Failed to load workout volume history.");
-        toast.error(err.message || "Failed to load workout volume history.");
+        toast.info("Failed to load workout volume history.");
       } finally {
         setLoading(false);
       }

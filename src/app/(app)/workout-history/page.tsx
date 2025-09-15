@@ -131,8 +131,8 @@ export default function WorkoutHistoryPage() {
       });
       setWorkoutSessions(sessionsWithDetails);
     } catch (err: any) {
-      toast.error("Failed to load workout history: " + err.message);
-      console.error("Error fetching workout history:", err);
+      console.error("Failed to load workout history:", err);
+      toast.info("Failed to load workout history.");
       setError(err.message || "Failed to load workout history. Please try again.");
     } finally {
       setLoading(false);
@@ -158,11 +158,11 @@ export default function WorkoutHistoryPage() {
       if (error) {
         throw new Error(error.message);
       }
-      toast.success("Workout session deleted successfully!");
+      console.log("Workout session deleted successfully!"); // Replaced toast.success
       await fetchWorkoutHistory(); // Re-fetch history after deletion
     } catch (err: any) {
       console.error("Failed to delete workout session:", err);
-      toast.error("Failed to delete workout session: " + err.message);
+      toast.info("Failed to delete workout session.");
     }
   };
 

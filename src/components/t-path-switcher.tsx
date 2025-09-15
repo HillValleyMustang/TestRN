@@ -53,7 +53,8 @@ export const TPathSwitcher = ({ currentTPathId, onTPathChange, disabled }: TPath
         if (error) throw error;
         setTPaths(data as TPath[] || []); // Explicitly cast
       } catch (err: any) {
-        toast.error("Failed to load T-Paths: " + err.message);
+        console.error("Failed to load T-Paths:", err.message);
+        toast.info("Failed to load T-Paths.");
       }
     };
 
@@ -113,8 +114,8 @@ export const TPathSwitcher = ({ currentTPathId, onTPathChange, disabled }: TPath
       setShowSwitchDialog(false);
       // Removed toast.success("Switched to new T-Path! Workouts are being generated in the background.", { id: toastId });
     } catch (err: any) {
-      toast.error("Failed to switch T-Path: " + err.message); // Kept error toast
       console.error("Error switching T-Path:", err);
+      toast.info("Failed to switch T-Path."); // Kept error toast
     } finally {
       setIsSwitching(false); // End loading
     }

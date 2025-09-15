@@ -168,7 +168,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
           setCurrentSessionId(null);
           setSessionStartTime(null);
         } else {
-          toast.error("Selected workout not found. Starting Ad-Hoc workout.");
+          toast.info("Selected workout not found. Starting Ad-Hoc workout.");
           setActiveWorkout({ id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: new Date().toISOString(), version: null, settings: null, progression_settings: null, parent_t_path_id: null });
           setExercisesForSession([]);
           setExercisesWithSets({});

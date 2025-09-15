@@ -168,6 +168,7 @@ export const useOnboardingForm = () => {
         default_rest_time_seconds: 60,
         preferred_session_length: sessionLength,
         active_t_path_id: activeTPath.id,
+        active_gym_id: newGymId, // Set the active gym ID
       };
       const { error: profileError } = await supabase
         .from('profiles')
@@ -188,7 +189,7 @@ export const useOnboardingForm = () => {
           .select('id'); // Select ID to link to gym_exercises
         if (insertExercisesError) {
           console.error("Failed to save identified exercises during onboarding:", insertExercisesError);
-          toast.error("Could not save all identified exercises, but your profile is set up!");
+          toast.info("Could not save all identified exercises, but your profile is set up!");
         } else if (insertedExercises && newGymId) {
           // NEW: Link identified exercises to the new gym
           const gymExerciseLinks = insertedExercises.map(ex => ({
@@ -200,7 +201,7 @@ export const useOnboardingForm = () => {
             .insert(gymExerciseLinks);
           if (insertGymExerciseError) {
             console.error("Failed to link identified exercises to gym:", insertGymExerciseError);
-            toast.error("Could not link all identified exercises to your gym.");
+            toast.info("Could not link all identified exercises to your gym.");
           }
         }
       }
@@ -220,8 +221,8 @@ export const useOnboardingForm = () => {
 
       router.push('/dashboard');
     } catch (error: any) {
-      toast.error("Onboarding failed: " + error.message);
-      console.error("Onboarding submission error:", error);
+      console.error("Onboarding failed:", error.message);
+      toast.info("Onboarding failed.");
     } finally {
       setLoading(false);
     }

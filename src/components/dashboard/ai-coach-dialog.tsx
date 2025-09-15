@@ -58,7 +58,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
 
   const handleAnalyse = async () => { // Renamed to handleAnalyse
     if (usageCount >= AI_COACH_LIMIT_PER_SESSION) {
-      toast.error(`You've reached the limit of ${AI_COACH_LIMIT_PER_SESSION} AI coach uses per session.`);
+      toast.info(`You've reached the limit of ${AI_COACH_LIMIT_PER_SESSION} AI coach uses per session.`);
       return;
     }
 
@@ -81,7 +81,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
       
     } catch (err: any) {
       console.error("AI Coach error:", err);
-      toast.error("Failed to get AI analysis: " + err.message); // Changed to analysis
+      toast.info("Failed to get AI analysis."); // Changed to analysis
     } finally {
       setLoading(false);
     }

@@ -83,7 +83,7 @@ export default function DashboardPage() {
 
       } catch (err: any) {
         console.error("Error checking onboarding status:", err);
-        toast.error("Error loading dashboard: " + err.message);
+        toast.info("Error loading dashboard.");
       } finally {
         setLoading(false);
       }

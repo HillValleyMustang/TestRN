@@ -101,8 +101,8 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       setAllAvailableExercises(allExercisesData as ExerciseDefinition[]);
 
     } catch (err: any) {
-      toast.error("Failed to load workout exercises: " + err.message);
-      console.error("Error fetching workout exercises:", JSON.stringify(err, null, 2)); // Log full error
+      console.error("Failed to load workout exercises:", JSON.stringify(err, null, 2)); // Log full error
+      toast.info("Failed to load workout exercises.");
     } finally {
       setLoading(false);
     }
@@ -179,7 +179,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         ex.t_path_exercise_id === tempTPathExerciseId ? { ...ex, t_path_exercise_id: insertedTpe.id } : ex
       ));
 
-      toast.success(`'${exerciseToAddDetails.name}' added to workout as ${isBonus ? 'Bonus' : 'Core'}!`);
+      console.log(`'${exerciseToAddDetails.name}' added to workout as ${isBonus ? 'Bonus' : 'Core'}!`); // Replaced toast.success
       setSelectedExerciseToAdd("");
       setExerciseToAddDetails(null);
     } catch (err: any) {
@@ -190,7 +190,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         "Code:", err.code,
         "Details:", err.details,
         "Hint:", err.hint,
-        "Full Error:", JSON.stringify(err, null, 2) // Log the full error object for debugging
+        "Full Error:", JSON.stringify(err, null, 2) // Log full error
       );
 
       let errorMessage = "An unexpected error occurred.";
@@ -203,7 +203,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
           errorMessage = err.details;
         }
       }
-      toast.error("Failed to add exercise: " + errorMessage);
+      toast.info("Failed to add exercise: " + errorMessage); // Replaced toast.error
     } finally {
       setIsSaving(false);
     }
@@ -211,7 +211,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
 
   const handleSelectAndPromptBonus = useCallback(() => {
     if (!selectedExerciseToAdd) {
-      toast.error("Please select an exercise to add.");
+      toast.info("Please select an exercise to add.");
       return;
     }
     const exercise = allAvailableExercises.find(e => e.id === selectedExerciseToAdd);
@@ -244,10 +244,10 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         setExercises(previousExercises);
         throw error;
       }
-      toast.success("Exercise removed from workout!");
+      console.log("Exercise removed from workout!"); // Replaced toast.success
     } catch (err: any) {
-      toast.error("Failed to remove exercise: " + err.message);
-      console.error("Error removing exercise:", JSON.stringify(err, null, 2)); // Log full error
+      console.error("Failed to remove exercise:", JSON.stringify(err, null, 2)); // Log full error
+      toast.info("Failed to remove exercise."); // Replaced toast.error
     } finally {
       setIsSaving(false);
       setExerciseToRemove(null);
@@ -270,10 +270,10 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         .eq('id', exercise.t_path_exercise_id);
 
       if (error) throw error;
-      toast.success(`'${exercise.name}' is now a ${newBonusStatus ? 'Bonus' : 'Core'} exercise!`);
+      console.log(`'${exercise.name}' is now a ${newBonusStatus ? 'Bonus' : 'Core'} exercise!`); // Replaced toast.success
     } catch (err: any) {
-      toast.error("Failed to toggle bonus status: " + err.message);
       console.error("Error toggling bonus status:", JSON.stringify(err, null, 2)); // Log full error
+      toast.info("Failed to toggle bonus status."); // Replaced toast.error
       setExercises(prev => prev.map(ex =>
         ex.id === exercise.id ? { ...ex, is_bonus_exercise: !newBonusStatus } : ex
       ));
@@ -315,12 +315,12 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         throw new Error(errorBody.error || `Failed to regenerate T-Path workouts.`);
       }
 
-      toast.success("Workout exercises reset to defaults!");
+      console.log("Workout exercises reset to defaults!"); // Replaced toast.success
       onSaveSuccess();
       fetchWorkoutData();
     } catch (err: any) {
-      toast.error("Failed to reset exercises: " + err.message);
       console.error("Error resetting exercises:", err);
+      toast.info("Failed to reset exercises."); // Replaced toast.error
     } finally {
       setIsSaving(false);
     }
@@ -339,11 +339,11 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         .upsert(updates, { onConflict: 'id' });
 
       if (error) throw error;
-      toast.success("Workout order saved successfully!");
+      console.log("Workout order saved successfully!"); // Replaced toast.success
       onSaveSuccess();
     } catch (err: any) {
-      toast.error("Failed to save workout order: " + err.message);
       console.error("Error saving order:", JSON.stringify(err, null, 2)); // Log full error
+      toast.info("Failed to save workout order."); // Replaced toast.error
     } finally {
       setIsSaving(false);
     }

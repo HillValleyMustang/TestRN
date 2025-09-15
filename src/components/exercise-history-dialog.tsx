@@ -89,7 +89,7 @@ export const ExerciseHistoryDialog = ({ open, onOpenChange, exerciseId, exercise
         setHistoryLogs(mappedData || []);
       } catch (err: any) {
         console.error("Failed to fetch exercise history:", err);
-        toast.error("Failed to load exercise history: " + err.message);
+        toast.info("Failed to load exercise history.");
       } finally {
         setLoading(false);
       }

@@ -59,7 +59,7 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
       setAvailableExercises(filteredExercises || []);
     } catch (err: any) {
       console.error("Failed to fetch available exercises for swap:", err);
-      toast.error("Failed to load swap options: " + err.message);
+      toast.info("Failed to load swap options.");
     } finally {
       setLoading(false);
     }
@@ -77,7 +77,7 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
   const handleConfirmSwap = async () => {
     const newExercise = availableExercises.find(ex => ex.id === selectedNewExerciseId);
     if (!newExercise) {
-      toast.error("Please select an exercise to swap with.");
+      toast.info("Please select an exercise to swap with.");
       return;
     }
 
@@ -85,16 +85,16 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
       // Directly use the newExercise, no adoption needed.
       onSwap(newExercise);
       onOpenChange(false);
-      toast.success(`Swapped with ${newExercise.name}`);
+      console.log(`Swapped with ${newExercise.name}`); // Replaced toast.success
     } catch (err: any) {
       console.error("Failed to swap exercise:", err);
-      toast.error("Failed to swap exercise: " + err.message);
+      toast.info("Failed to swap exercise.");
     }
   };
 
   const handleGenerateAiSuggestion = async () => {
     if (!session) {
-      toast.error("You must be logged in to generate AI suggestions.");
+      toast.info("You must be logged in to generate AI suggestions.");
       return;
     }
     setGeneratingAi(true);
@@ -120,13 +120,13 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
       const newAiExercise = data.newExercise;
       if (newAiExercise) {
         setAvailableExercises(prev => [...prev, newAiExercise]);
-        toast.success("AI generated a new exercise suggestion!");
+        console.log("AI generated a new exercise suggestion!"); // Replaced toast.success
       } else {
-        toast.error("AI did not return a valid exercise.");
+        toast.info("AI did not return a valid exercise.");
       }
     } catch (err: any) {
       console.error("Failed to generate AI suggestion:", err);
-      toast.error("Failed to generate AI suggestion: " + err.message);
+      toast.info("Failed to generate AI suggestion.");
     } finally {
       setGeneratingAi(false);
     }

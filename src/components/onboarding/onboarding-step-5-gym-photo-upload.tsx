@@ -38,7 +38,7 @@ export const OnboardingStep5_GymPhotoUpload = ({
       // Cast to Partial<Tables<'exercise_definitions'>> as addIdentifiedExercise expects this
       addIdentifiedExercise(ex as Partial<Tables<'exercise_definitions'>>);
     });
-    toast.success(`${exercises.length} exercise(s) identified and added to your setup!`);
+    console.log(`${exercises.length} exercise(s) identified and added to your setup!`); // Replaced toast.success
     // No need to show SaveAiExercisePrompt for each one individually in onboarding context
     // If we wanted to allow review/edit of each, we'd loop and open the prompt for each.
     // For now, we assume direct addition.
@@ -48,7 +48,7 @@ export const OnboardingStep5_GymPhotoUpload = ({
     addIdentifiedExercise(exercise);
     setShowSaveAiExercisePrompt(false);
     setAiIdentifiedExercise(null);
-    toast.success(`'${exercise.name}' added to your setup!`);
+    console.log(`'${exercise.name}' added to your setup!`); // Replaced toast.success
   }, [addIdentifiedExercise]);
 
   return (

@@ -126,14 +126,14 @@ export const WorkoutSummaryModal = ({ open, onOpenChange, sessionId }: WorkoutSu
           newlyUnlockedAchievements.forEach(achievementId => {
             const displayInfo = ACHIEVEMENT_DISPLAY_INFO[achievementId];
             if (displayInfo) {
-              toast.success(`Congrats! Achievement Unlocked: ${displayInfo.name}! ${displayInfo.icon}`);
+              toast.info(`Congrats! Achievement Unlocked: ${displayInfo.name}! ${displayInfo.icon}`); // Changed to toast.info
             }
           });
           setHasShownAchievementToasts(true); // Mark as shown
         }
       } catch (err: any) {
         setError(err.message || "Failed to load workout summary. Please try again.");
-        toast.error(err.message || "Failed to load workout summary.");
+        toast.info("Failed to load workout summary.");
       } finally {
         setLoading(false);
       }

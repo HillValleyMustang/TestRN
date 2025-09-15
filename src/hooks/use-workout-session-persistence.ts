@@ -109,7 +109,7 @@ export const useWorkoutSessionPersistence = ({
       setSessionStartTime(new Date(firstSetTimestamp));
       return newSessionId;
     } catch (err: any) {
-      toast.error(err.message || "Failed to create workout session locally.");
+      toast.info(err.message || "Failed to create workout session locally.");
       throw err;
     } finally {
       setIsCreatingSession(false);
@@ -118,7 +118,7 @@ export const useWorkoutSessionPersistence = ({
 
   const finishWorkoutSession = useCallback(async (): Promise<string | null> => {
     if (!currentSessionId || !sessionStartTime || !session || !activeWorkout) {
-      toast.error("Workout session not properly started or no sets logged yet.");
+      toast.info("Workout session not properly started or no sets logged yet.");
       console.error("finishWorkoutSession: Missing currentSessionId, sessionStartTime, session, or activeWorkout.");
       return null;
     }
@@ -169,7 +169,7 @@ export const useWorkoutSessionPersistence = ({
 
       if (achievementError) {
         console.error("Error processing achievements:", achievementError);
-        toast.warning("Could not check for new achievements, but your workout was saved!");
+        toast.info("Could not check for new achievements, but your workout was saved!");
       }
 
       // Removed: toast.success("Workout session finished! Generating Summary.");
@@ -177,7 +177,7 @@ export const useWorkoutSessionPersistence = ({
       await resetWorkoutSession();
       return finishedSessionId;
     } catch (err: any) {
-      toast.error("Failed to save workout duration: " + err.message);
+      toast.info("Failed to save workout duration.");
       console.error("useWorkoutSessionState: Error in finishWorkoutSession:", err);
       return null;
     }
@@ -200,7 +200,7 @@ export const useWorkoutSessionPersistence = ({
 
       let drafts: LocalDraftSetLog[] = [];
       if (targetSessionId === null) {
-        drafts = await db.draft_set_logs.filter((draft: LocalDraftSetLog) => draft.session_id === null).toArray();
+        drafts = await db.draft_set_logs.filter(draft => draft.session_id === null).toArray();
       } else {
         drafts = await db.draft_set_logs.where('session_id').equals(targetSessionId).toArray();
       }
@@ -275,8 +275,6 @@ export const useWorkoutSessionPersistence = ({
 
       // These setters are from the coreState, so they are not directly available here.
       // This useEffect should not be setting coreState directly.
-      // The coreState is updated by the useWorkoutSessionState hook, which wraps this.
-      // This useEffect is primarily for loading drafts and deriving initial state.
       // The actual state updates are handled by the parent useWorkoutSessionState.
     };
 

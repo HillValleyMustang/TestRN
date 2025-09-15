@@ -55,12 +55,12 @@ export const ExerciseInfoDialog = ({ open, onOpenChange, exercise, trigger, exer
 
   const handleRemoveFromWorkoutClick = async (workoutId: string) => {
     if (!session) {
-      toast.error("You must be logged in to remove exercises from workouts.");
+      toast.info("You must be logged in to remove exercises from workouts.");
       return;
     }
     if (onRemoveFromWorkout) {
       if (exercise.id === null) {
-        toast.error("Cannot remove exercise: invalid exercise ID.");
+        toast.info("Cannot remove exercise: invalid exercise ID.");
         return;
       }
       onRemoveFromWorkout(workoutId, exercise.id);

@@ -90,7 +90,10 @@ export default function ManageTPathsPage() {
       // 4. Fetch last completed date for each child workout
       const workoutsWithLastDatePromises = (childWorkoutsData || []).map(async (workout) => {
         const { data: lastSessionDate } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
-        return { ...workout, last_completed_at: lastSessionDate?.[0]?.last_completed_at || null };
+        if (lastSessionDate && lastSessionDate.length > 0) {
+          return { ...workout, last_completed_at: lastSessionDate[0].last_completed_at || null };
+        }
+        return { ...workout, last_completed_at: null };
       });
       let childWorkoutsWithLastDate = await Promise.all(workoutsWithLastDatePromises);
 
@@ -119,8 +122,8 @@ export default function ManageTPathsPage() {
       setChildWorkouts(childWorkoutsWithLastDate as WorkoutWithLastCompleted[]); // Cast to centralized type
 
     } catch (err: any) {
-      toast.error("Failed to load Transformation Path data: " + err.message);
-      console.error("Error fetching T-Paths or exercises:", err);
+      console.error("Failed to load Transformation Path data:", err);
+      toast.info("Failed to load Transformation Path data.");
     } finally {
       setLoading(false);
     }

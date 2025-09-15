@@ -253,8 +253,8 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       setGlobalExercises(finalGlobalExercises);
 
     } catch (err: any) {
-      toast.error("Failed to load exercises: " + err.message);
       console.error("ManageExercises: Error in fetchPageData:", err);
+      toast.info("Failed to load exercises.");
     } finally {
       setLoading(false);
     }
@@ -283,15 +283,15 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
 
   const handleDeleteExercise = useCallback(async (exercise: FetchedExerciseDefinition) => {
     if (!sessionUserId) {
-      toast.error("You must be logged in to delete exercises.");
+      toast.info("You must be logged in to delete exercises.");
       return;
     }
     if (!exercise.id) {
-      toast.error("Cannot delete an exercise without an ID.");
+      toast.info("Cannot delete an exercise without an ID.");
       return;
     }
     if (exercise.user_id !== sessionUserId) {
-      toast.error("You can only delete your own custom exercises.");
+      toast.info("You can only delete your own custom exercises.");
       return;
     }
 
@@ -302,17 +302,17 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       if (error) {
         throw new Error(error.message);
       }
-      toast.success("Exercise deleted successfully!", { id: toastId });
+      console.log("Exercise deleted successfully!", { id: toastId }); // Replaced toast.success
       refreshExercises(); // Trigger revalidation after delete
     } catch (err: any) {
       console.error("Failed to delete exercise:", err);
-      toast.error("Failed to delete exercise: " + err.message, { id: toastId });
+      toast.info("Failed to delete exercise.", { id: toastId }); // Replaced toast.error
     }
   }, [sessionUserId, supabase, refreshExercises]);
 
   const handleToggleFavorite = useCallback(async (exercise: FetchedExerciseDefinition) => {
     if (!sessionUserId) {
-      toast.error("You must be logged in to favourite exercises.");
+      toast.info("You must be logged in to favourite exercises.");
       return;
     }
 
@@ -331,14 +331,14 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
           .eq('user_id', sessionUserId);
 
         if (error) throw error;
-        toast.success(newFavoriteStatus ? "Added to favourites!" : "Removed from favourites.", { id: toastId });
+        console.log(newFavoriteStatus ? "Added to favourites!" : "Removed from favourites.", { id: toastId }); // Replaced toast.success
       } else { // Global exercise
         if (newFavoriteStatus) {
           const { error } = await supabase
             .from('user_global_favorites')
             .insert({ user_id: sessionUserId, exercise_id: exercise.id as string }); // Cast to string
           if (error) throw error;
-          toast.success("Added to favourites!", { id: toastId });
+          console.log("Added to favourites!", { id: toastId }); // Replaced toast.success
         } else {
           const { error } = await supabase
             .from('user_global_favorites')
@@ -346,13 +346,13 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
             .eq('user_id', sessionUserId)
             .eq('exercise_id', exercise.id as string); // Cast to string
           if (error) throw error;
-          toast.success("Removed from favourites.", { id: toastId });
+          console.log("Removed from favourites.", { id: toastId }); // Replaced toast.success
         }
       }
       refreshExercises(); // Trigger revalidation after favorite change
     } catch (err: any) {
       console.error("Failed to toggle favourite status:", err);
-      toast.error("Failed to update favourite status: " + err.message, { id: toastId });
+      toast.info("Failed to update favourite status.", { id: toastId }); // Replaced toast.error
     }
   }, [sessionUserId, supabase, refreshExercises]);
 
@@ -385,7 +385,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
 
   const handleRemoveFromWorkout = useCallback(async (workoutId: string, exerciseId: string) => {
     if (!sessionUserId) {
-      toast.error("You must be logged in to remove exercises from workouts.");
+      toast.info("You must be logged in to remove exercises from workouts.");
       return;
     }
 
@@ -405,11 +405,11 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       if (error) {
         throw new Error(error.message);
       }
-      toast.success("Exercise removed from workout successfully!", { id: toastId });
+      console.log("Exercise removed from workout successfully!", { id: toastId }); // Replaced toast.success
       refreshTPaths(); // Trigger revalidation of T-Paths after removal
     } catch (err: any) {
       console.error("Failed to remove exercise from workout:", err);
-      toast.error("Failed to remove exercise from workout: " + err.message, { id: toastId });
+      toast.info("Failed to remove exercise from workout.", { id: toastId }); // Replaced toast.error
     }
   }, [sessionUserId, supabase, refreshTPaths]);
 

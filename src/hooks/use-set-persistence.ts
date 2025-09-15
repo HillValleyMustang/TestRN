@@ -28,23 +28,23 @@ export const useSetPersistence = ({
     // Validation logic remains the same
     if (exerciseType === 'weight') {
       if (set.weight_kg === null || set.weight_kg <= 0) {
-        toast.error(`Set ${setIndex + 1}: Please enter a valid positive weight.`);
+        toast.info(`Set ${setIndex + 1}: Please enter a valid positive weight.`);
         return { savedSet: null };
       }
       if (exerciseCategory === 'Unilateral') {
         if (set.reps_l === null || set.reps_r === null || set.reps_l < 0 || set.reps_r < 0) {
-          toast.error(`Set ${setIndex + 1}: Please enter valid positive reps for both left and right sides.`);
+          toast.info(`Set ${setIndex + 1}: Please enter valid positive reps for both left and right sides.`);
           return { savedSet: null };
         }
       } else {
         if (set.reps === null || set.reps <= 0) {
-          toast.error(`Set ${setIndex + 1}: Please enter valid positive reps.`);
+          toast.info(`Set ${setIndex + 1}: Please enter valid positive reps.`);
           return { savedSet: null };
         }
       }
     } else if (exerciseType === 'timed') {
       if (set.time_seconds === null || set.time_seconds <= 0) {
-        toast.error(`Set ${setIndex + 1}: Please enter a valid positive time in seconds.`);
+        toast.info(`Set ${setIndex + 1}: Please enter a valid positive time in seconds.`);
         return { savedSet: null };
       }
     }
@@ -74,7 +74,7 @@ export const useSetPersistence = ({
       return { savedSet: { ...set, ...setLogData, isSaved: true } };
     } catch (error: any) {
       console.error(`[useSetPersistence] ERROR saving set ${setIndex + 1} locally:`, error);
-      toast.error(`Failed to save set ${setIndex + 1} locally: ` + error.message);
+      toast.info(`Failed to save set ${setIndex + 1} locally.`);
       return { savedSet: null };
     }
   }, [exerciseId, exerciseType, exerciseCategory, supabase, preferredWeightUnit]);
@@ -83,10 +83,10 @@ export const useSetPersistence = ({
     try {
       await db.set_logs.delete(setId);
       await addToSyncQueue('delete', 'set_logs', { id: setId });
-      toast.success("Set removed. Will sync deletion when online.");
+      toast.info("Set removed. Will sync deletion when online.");
       return true;
     } catch (error: any) {
-      toast.error("Failed to remove set locally: " + error.message);
+      toast.info("Failed to remove set locally.");
       return false;
     }
   }, [supabase]);

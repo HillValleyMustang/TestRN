@@ -43,7 +43,8 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
       .order('created_at', { ascending: false });
 
     if (error) {
-      toast.error("Failed to load gyms: " + error.message);
+      console.error("Failed to load gyms:", error.message);
+      toast.info("Failed to load gyms.");
     } else {
       setGyms(data || []);
     }
@@ -57,15 +58,16 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
   const handleAddGym = async () => {
     if (!session || !newGymName.trim()) return;
     if (gyms.length >= 3) {
-      toast.error("You can have a maximum of 3 gyms.");
+      toast.info("You can have a maximum of 3 gyms.");
       return;
     }
 
     const { error } = await supabase.from('gyms').insert({ name: newGymName, user_id: session.user.id });
     if (error) {
-      toast.error("Failed to add gym: " + error.message);
+      console.error("Failed to add gym:", error.message);
+      toast.info("Failed to add gym.");
     } else {
-      toast.success(`Gym "${newGymName}" added successfully!`);
+      console.log(`Gym "${newGymName}" added successfully!`);
       await fetchGyms();
       onDataChange();
       setIsAddDialogOpen(false);
@@ -78,9 +80,10 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
 
     const { error } = await supabase.from('gyms').update({ name: newGymName }).eq('id', selectedGym.id);
     if (error) {
-      toast.error("Failed to rename gym: " + error.message);
+      console.error("Failed to rename gym:", error.message);
+      toast.info("Failed to rename gym.");
     } else {
-      toast.success("Gym renamed successfully!");
+      console.log("Gym renamed successfully!");
       await fetchGyms();
       onDataChange();
       setIsRenameDialogOpen(false);
@@ -110,11 +113,12 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
       const { error } = await supabase.from('gyms').delete().eq('id', selectedGym.id);
       if (error) throw error;
 
-      toast.success(`Gym "${selectedGym.name}" deleted.`);
+      console.log(`Gym "${selectedGym.name}" deleted.`);
       await fetchGyms();
       onDataChange();
     } catch (err: any) {
-      toast.error("Failed to delete gym: " + err.message);
+      console.error("Failed to delete gym:", err.message);
+      toast.info("Failed to delete gym.");
     } finally {
       setSelectedGym(null);
     }
@@ -142,11 +146,12 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
       const { error: profileError } = await supabase.from('profiles').update({ active_gym_id: null }).eq('id', session.user.id);
       if (profileError) throw profileError;
 
-      toast.success("Last gym deleted and workout plan reset to defaults.", { id: toastId });
+      toast.info("Last gym deleted and workout plan reset to defaults.", { id: toastId });
       await fetchGyms();
       onDataChange();
     } catch (err: any) {
-      toast.error("Failed to delete last gym: " + err.message, { id: toastId });
+      console.error("Failed to delete last gym:", err.message);
+      toast.info("Failed to delete last gym.", { id: toastId });
     } finally {
       setSelectedGym(null);
     }

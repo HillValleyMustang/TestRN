@@ -73,7 +73,7 @@ export const ExerciseSubstitutionDialog = ({
       setSubstitutions(filteredSubstitutions || []);
     } catch (err: any) {
       console.error("Failed to fetch substitutions:", err);
-      toast.error("Failed to load substitution options: " + err.message);
+      toast.info("Failed to load substitution options.");
     } finally {
       setLoading(false);
     }
@@ -91,16 +91,16 @@ export const ExerciseSubstitutionDialog = ({
     try {
       onSubstitute(exercise);
       onOpenChange(false);
-      toast.success(`Substituted with ${exercise.name}`);
+      console.log(`Substituted with ${exercise.name}`); // Replaced toast.success
     } catch (err: any) {
       console.error("Failed to substitute exercise:", err);
-      toast.error("Failed to substitute exercise: " + err.message);
+      toast.info("Failed to substitute exercise.");
     }
   };
 
   const handleGenerateAiSuggestion = async () => {
     if (!session) {
-      toast.error("You must be logged in to generate AI suggestions.");
+      toast.info("You must be logged in to generate AI suggestions.");
       return;
     }
     if (aiGenerationCount >= 2) {
@@ -133,15 +133,15 @@ export const ExerciseSubstitutionDialog = ({
       const newAiExercise = data.newExercise;
       if (newAiExercise) {
         setSubstitutions(prev => [...prev, newAiExercise]);
-        toast.success("AI generated a new exercise suggestion!");
+        console.log("AI generated a new exercise suggestion!"); // Replaced toast.success
         setNewlyGeneratedExerciseIds(prev => new Set(prev).add(newAiExercise.id));
         setAiGenerationCount(prev => prev + 1);
       } else {
-        toast.error("AI did not return a valid exercise.");
+        toast.info("AI did not return a valid exercise.");
       }
     } catch (err: any) {
       console.error("Failed to generate AI suggestion:", err);
-      toast.error("Failed to generate AI suggestion: " + err.message);
+      toast.info("Failed to generate AI suggestion.");
     } finally {
       setGeneratingAi(false);
     }

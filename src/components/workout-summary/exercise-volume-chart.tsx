@@ -96,8 +96,8 @@ export const ExerciseVolumeChart = ({ currentSessionId, exerciseName, exerciseId
 
       } catch (err: any) {
         console.error("Failed to fetch exercise history for chart:", err);
+        toast.info("Failed to load exercise history chart.");
         setError(err.message || "Failed to load exercise history chart.");
-        toast.error(err.message || "Failed to load exercise history chart.");
       } finally {
         setLoading(false);
       }

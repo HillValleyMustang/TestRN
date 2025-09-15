@@ -31,10 +31,10 @@ export const WorkoutRatingCard = ({ workoutSession, onRatingChange, currentRatin
       .eq('user_id', session.user.id);
 
     if (updateError) {
-      toast.error("Failed to save rating: " + updateError.message);
-      console.error("Error saving rating:", updateError);
+      console.error("Error saving rating:", updateError.message);
+      toast.info("Failed to save rating.");
     } else {
-      toast.success("Workout rated successfully!");
+      console.log("Workout rated successfully!");
     }
   };
 
