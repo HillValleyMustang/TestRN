@@ -102,7 +102,7 @@ export default function ProfilePage() {
     supabase,
     sessionUserId: session?.user.id ?? null,
   });
-  const profile = cachedProfile?.[0] || null;
+  const profile = cachedProfile?.[0] || null; // This `profile` is reactive to IndexedDB changes
 
   // Use useCacheAndRevalidate for user achievements
   const { data: cachedAchievements, loading: loadingAchievements, error: achievementsError, refresh: refreshAchievementsCache } = useCacheAndRevalidate<LocalUserAchievement>({
@@ -145,84 +145,84 @@ export default function ProfilePage() {
   }, [session?.user.id]) || 0;
 
 
+  // Simplified refreshProfileData: just triggers the cache revalidation
   const refreshProfileData = useCallback(async () => {
-    console.log("[ProfilePage Debug] refreshProfileData: Starting refresh operation.");
-    if (!session) {
-      console.log("[ProfilePage Debug] refreshProfileData: No session, returning.");
+    console.log("[ProfilePage Debug] refreshProfileData: Triggering cache refresh.");
+    await refreshProfileCache();
+    await refreshAchievementsCache();
+    console.log("[ProfilePage Debug] refreshProfileData: Cache refresh triggered.");
+  }, [refreshProfileCache, refreshAchievementsCache]);
+
+
+  // Effect to load form and active T-Path when `profile` (from useLiveQuery) changes
+  useEffect(() => {
+    if (loadingProfile || loadingAchievements || !session?.user.id) {
+      // Still loading or no user, do nothing yet
       return;
     }
-    // Do NOT set setLoading(true) here. Let individual cache hooks manage their loading.
-    try {
-      await refreshProfileCache(); // This updates the IndexedDB cache.
-      await refreshAchievementsCache(); // This updates the IndexedDB cache.
 
-      // Now, explicitly fetch the *latest* profile from the cache after it's been refreshed.
-      // This avoids relying on the 'profile' variable from the outer scope's closure.
-      const latestCachedProfile = await db.profiles_cache.get(session.user.id);
-      const currentProfile = latestCachedProfile || null; // Use a local variable for the current profile data
+    console.log("[ProfilePage Debug] useEffect[profile]: Profile data changed or finished loading.");
 
-      if (currentProfile) {
-        console.log("[ProfilePage Debug] refreshProfileData: Latest cached profile:", currentProfile);
-        console.log("[ProfilePage Debug] refreshProfileData: Latest cached profile preferred_session_length:", currentProfile.preferred_session_length);
-        form.reset({
-          full_name: [currentProfile.first_name, currentProfile.last_name].filter(Boolean).join(' '),
-          height_cm: currentProfile.height_cm,
-          weight_kg: currentProfile.weight_kg,
-          body_fat_pct: currentProfile.body_fat_pct,
-          primary_goal: currentProfile.primary_goal,
-          health_notes: currentProfile.health_notes,
-          preferred_session_length: currentProfile.preferred_session_length,
-          preferred_muscles: currentProfile.preferred_muscles ? currentProfile.preferred_muscles.split(',').map((m: string) => m.trim()) : [],
-        });
-        console.log("[ProfilePage Debug] refreshProfileData: Profile data loaded and form reset with:", form.getValues());
+    if (profile) {
+      console.log("[ProfilePage Debug] useEffect[profile]: Latest reactive profile:", profile);
+      console.log("[ProfilePage Debug] useEffect[profile]: Latest reactive profile preferred_session_length:", profile.preferred_session_length);
+      form.reset({
+        full_name: [profile.first_name, profile.last_name].filter(Boolean).join(' '),
+        height_cm: profile.height_cm,
+        weight_kg: profile.weight_kg,
+        body_fat_pct: profile.body_fat_pct,
+        primary_goal: profile.primary_goal,
+        health_notes: profile.health_notes,
+        preferred_session_length: profile.preferred_session_length,
+        preferred_muscles: profile.preferred_muscles ? profile.preferred_muscles.split(',').map((m: string) => m.trim()) : [],
+      });
+      console.log("[ProfilePage Debug] useEffect[profile]: Form reset with reactive profile data.");
 
-        if (currentProfile.active_t_path_id) {
-          console.log("[ProfilePage Debug] refreshProfileData: Fetching active T-Path.");
-          const { data: tpathData, error: tpathError } = await supabase.from('t_paths').select('*, settings').eq('id', currentProfile.active_t_path_id).single();
-          if (tpathError) console.error("[ProfilePage Debug] refreshProfileData: Failed to load active T-Path:", tpathError);
+      const fetchActiveTPath = async () => {
+        if (profile.active_t_path_id) {
+          console.log("[ProfilePage Debug] useEffect[profile]: Fetching active T-Path for ID:", profile.active_t_path_id);
+          const { data: tpathData, error: tpathError } = await supabase.from('t_paths').select('*, settings').eq('id', profile.active_t_path_id).single();
+          if (tpathError) console.error("[ProfilePage Debug] useEffect[profile]: Failed to load active T-Path:", tpathError);
           else {
             setActiveTPath(tpathData as TPath);
-            console.log("[ProfilePage Debug] refreshProfileData: Active T-Path loaded:", tpathData);
+            console.log("[ProfilePage Debug] useEffect[profile]: Active T-Path loaded:", tpathData);
           }
         } else {
-          setActiveTPath(null); // Clear active T-Path if none in profile
-          console.log("[ProfilePage Debug] refreshProfileData: No active T-Path found in profile.");
+          setActiveTPath(null);
+          console.log("[ProfilePage Debug] useEffect[profile]: No active T-Path found in profile.");
         }
+      };
+      fetchActiveTPath();
 
-        // AI Coach Usage
-        console.log("[ProfilePage Debug] refreshProfileData: Checking AI Coach usage.");
-        if (currentProfile.last_ai_coach_use_at) {
-          const lastUsedDate = new Date(currentProfile.last_ai_coach_use_at).toDateString();
-          const today = new Date().toDateString();
-          setAiCoachUsageToday(lastUsedDate === today ? 1 : 0);
-        } else {
-          setAiCoachUsageToday(0);
-        }
-        console.log("[ProfilePage Debug] refreshProfileData: AI Coach usage checked.");
+      // AI Coach Usage
+      console.log("[ProfilePage Debug] useEffect[profile]: Checking AI Coach usage.");
+      if (profile.last_ai_coach_use_at) {
+        const lastUsedDate = new Date(profile.last_ai_coach_use_at).toDateString();
+        const today = new Date().toDateString();
+        setAiCoachUsageToday(lastUsedDate === today ? 1 : 0);
       } else {
-        // If no profile found after refresh, reset form and states
-        console.log("[ProfilePage Debug] refreshProfileData: No profile found after refresh, resetting form and states.");
-        form.reset();
-        setActiveTPath(null);
         setAiCoachUsageToday(0);
       }
-    } catch (err: any) {
-      console.error("[ProfilePage Debug] refreshProfileData: Caught error during fetch:", err);
-      toast.info("Failed to load profile data.");
-    } finally {
-      console.log("[ProfilePage Debug] refreshProfileData: Fetch operation finished.");
+      console.log("[ProfilePage Debug] useEffect[profile]: AI Coach usage checked.");
+
+    } else {
+      // No profile found (e.g., after sign-out or initial load before profile exists)
+      console.log("[ProfilePage Debug] useEffect[profile]: No reactive profile found, resetting form and states.");
+      form.reset();
+      setActiveTPath(null);
+      setAiCoachUsageToday(0);
     }
-  }, [session, supabase, form, refreshProfileCache, refreshAchievementsCache, setActiveTPath, setAiCoachUsageToday]);
+  }, [profile, loadingProfile, loadingAchievements, session?.user.id, form, supabase, setActiveTPath, setAiCoachUsageToday]); // Dependencies for this effect
 
-
-  // Initial load effect (from search params)
+  // Initial load effect (from search params) - now only triggers data fetch, not form reset
   useEffect(() => {
     if (!session) {
       router.push('/login');
       return;
     }
     
-    refreshProfileData();
+    // This will trigger the `useEffect[profile]` when `profile` eventually updates
+    refreshProfileData(); 
 
     const tabParam = searchParams.get('tab');
     const editParam = searchParams.get('edit');
@@ -230,24 +230,12 @@ export default function ProfilePage() {
     if (tabParam) {
       setActiveTab(tabParam);
     }
-    // Only update isEditing if editParam is explicitly provided
     if (editParam === 'true') {
       setIsEditing(true);
     } else if (editParam === 'false') {
       setIsEditing(false);
     }
-    // If editParam is null/undefined, isEditing state remains as is (controlled by onEditToggle)
   }, [session, router, refreshProfileData, searchParams]);
-
-  // Effect to re-apply tab/edit state after refreshProfileData completes
-  useEffect(() => {
-    // This effect should run after `refreshProfileData` has potentially caused a re-render
-    // and the `loadingProfile` and `loadingAchievements` states have settled.
-    if (!loadingProfile && !loadingAchievements) {
-      // No need to re-apply pendingTabRef/pendingEditRef here, as the main useEffect handles it
-      // and isEditing is now controlled by explicit actions.
-    }
-  }, [loadingProfile, loadingAchievements]); // Depend on loading states of the cache hooks
 
   const { bmi, dailyCalories } = useMemo(() => {
     const weight = profile?.weight_kg;
