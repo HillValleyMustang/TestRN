@@ -7,6 +7,7 @@ import { useWorkoutFlowManager } from '@/hooks/use-workout-flow-manager';
 import { WorkoutSelector } from '@/components/workout-flow/workout-selector';
 import { WorkoutProgressBar } from '@/components/workout-flow/workout-progress-bar';
 import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal'; // Import the modal
+import { GymToggle } from '@/components/dashboard/gym-toggle';
 
 export default function WorkoutPage() {
   const { session, supabase } = useSession();
@@ -38,9 +39,15 @@ export default function WorkoutPage() {
 
   return (
     <div className="p-2 sm:p-4">
-      <header className="mb-4 text-center">
-        <h1 className="text-3xl font-bold">Workout Session</h1>
-        <p className="text-muted-foreground">
+      <header className="mb-4">
+        <div className="flex justify-between items-center mb-2">
+          <div className="w-24" /> {/* Spacer */}
+          <h1 className="text-3xl font-bold text-center flex-1">Workout Session</h1>
+          <div className="w-24 flex justify-end">
+            <GymToggle />
+          </div>
+        </div>
+        <p className="text-muted-foreground text-center">
           Select a workout or start an ad-hoc session.
         </p>
       </header>

@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PreviousWorkoutsCard } from '@/components/dashboard/previous-workouts-card';
 import { AllWorkoutsQuickStart } from '@/components/dashboard/all-workouts-quick-start';
 import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal'; // Import the modal
+import { GymToggle } from '@/components/dashboard/gym-toggle';
 
 type Profile = Tables<'profiles'>;
 
@@ -113,8 +114,13 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-6 p-2 sm:p-4">
       <header className="animate-fade-in-slide-up" style={{ animationDelay: '0s' }}>
-        <h1 className="text-4xl font-bold tracking-tight">Welcome Back, {welcomeName}</h1>
-        <p className="text-muted-foreground mt-2">Ready to Train? Let's get Started!</p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight">Welcome Back, {welcomeName}</h1>
+            <p className="text-muted-foreground mt-2">Ready to Train? Let's get Started!</p>
+          </div>
+          <GymToggle />
+        </div>
       </header>
 
       <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.1s' }}>

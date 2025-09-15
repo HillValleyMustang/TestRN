@@ -10,6 +10,7 @@ import { useCoreWorkoutSessionState } from './use-core-workout-session-state';
 import { useWorkoutSessionPersistence } from './use-workout-session-persistence';
 import { useSessionExerciseManagement } from './use-session-exercise-management';
 import { useSession } from '@/components/session-context-provider';
+import { useGym } from '@/components/gym-context-provider';
 
 type TPath = Tables<'t_paths'>;
 
@@ -20,6 +21,7 @@ interface UseWorkoutFlowManagerProps {
 
 export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFlowManagerProps) => {
   const { supabase } = useSession();
+  const { activeGym } = useGym();
 
   const {
     activeWorkout,
@@ -162,8 +164,39 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
           .find(workout => workout.id === pendingWorkoutIdToSelect);
 
         if (selectedWorkout) {
+          let exercisesForThisWorkout = workoutExercisesCache[selectedWorkout.id] || [];
+          
+          // NEW: Filter exercises based on active gym
+          if (activeGym) {
+            const { data: gymExerciseLinks, error } = await supabase
+              .from('gym_exercises')
+              .select('exercise_id')
+              .eq('gym_id', activeGym.id);
+
+            if (error) {
+              toast.error("Could not filter exercises for the selected gym.");
+            } else {
+              const availableExerciseIds = new Set(gymExerciseLinks.map(l => l.exercise_id));
+              
+              const { data: allLinkedExercises, error: allLinksError } = await supabase
+                .from('gym_exercises')
+                .select('exercise_id');
+              
+              if (allLinksError) {
+                toast.error("Could not determine bodyweight exercises.");
+              } else {
+                const allLinkedExerciseIds = new Set(allLinkedExercises.map(l => l.exercise_id));
+                
+                exercisesForThisWorkout = exercisesForThisWorkout.filter(ex => 
+                  !allLinkedExerciseIds.has(ex.id) || // It's a bodyweight exercise
+                  availableExerciseIds.has(ex.id)      // It's available in the active gym
+                );
+              }
+            }
+          }
+          
           setActiveWorkout(selectedWorkout);
-          setExercisesForSession(workoutExercisesCache[selectedWorkout.id] || []);
+          setExercisesForSession(exercisesForThisWorkout);
           setExercisesWithSets({});
           setCurrentSessionId(null);
           setSessionStartTime(null);
@@ -186,7 +219,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     };
 
     performSelection();
-  }, [loadingData, pendingWorkoutIdToSelect, groupedTPaths, workoutExercisesCache, setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId, setSessionStartTime]);
+  }, [loadingData, pendingWorkoutIdToSelect, groupedTPaths, workoutExercisesCache, setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId, setSessionStartTime, activeGym, supabase]);
 
 
   const handleEditWorkoutSaveSuccess = useCallback(async () => {
