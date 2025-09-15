@@ -199,7 +199,14 @@ export const useOnboardingForm = () => {
 
       if (confirmedExercisesToInsert.length > 0) {
         const exercisesToInsert = confirmedExercisesToInsert.map(ex => ({
-          ...ex,
+          name: ex.name!,
+          main_muscle: ex.main_muscle!,
+          type: ex.type!,
+          category: ex.category,
+          description: ex.description,
+          pro_tip: ex.pro_tip,
+          video_url: ex.video_url,
+          icon_url: ex.icon_url,
           user_id: session.user.id,
           library_id: null,
           is_favorite: false,
