@@ -5,12 +5,13 @@ import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlusCircle, Heart, Info } from "lucide-react";
+import { PlusCircle, Heart, Info, Home } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExerciseInfoDialog } from "@/components/exercise-info-dialog";
 import { AddExerciseToTPathDialog } from "./add-exercise-to-tpath-dialog";
 import { cn, getWorkoutColorClass } from "@/lib/utils";
 import { WorkoutBadge } from "@/components/workout-badge";
+import { Badge } from "@/components/ui/badge";
 
 // Removed local FetchedExerciseDefinition definition
 
@@ -19,6 +20,7 @@ interface GlobalExerciseListProps {
   loading: boolean;
   onEdit: (exercise: FetchedExerciseDefinition) => void;
   exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>;
+  exerciseGymsMap: Record<string, string[]>;
   onRemoveFromWorkout: (workoutId: string, exerciseId: string) => void;
   onToggleFavorite: (exercise: FetchedExerciseDefinition) => void;
   onAddSuccess: () => void;
@@ -31,6 +33,7 @@ export const GlobalExerciseList = ({
   loading,
   onEdit,
   exerciseWorkoutsMap,
+  exerciseGymsMap,
   onRemoveFromWorkout,
   onToggleFavorite,
   onAddSuccess,
@@ -81,10 +84,19 @@ export const GlobalExerciseList = ({
                   <div className="flex-1 py-1 px-0">
                     <p className="font-medium">{ex.name}</p> {/* Exercise name */}
                     <p className="text-sm text-muted-foreground">{ex.main_muscle}</p> {/* Muscle group on new line */}
-                    {exerciseWorkoutsMap[ex.id as string]?.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {exerciseWorkoutsMap[ex.id as string].map(workout => (
-                          <div key={workout.id} className="flex items-center gap-1 p-1 rounded-md"> {/* Removed bg-muted */}
+                    
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {exerciseGymsMap[ex.id as string]?.length > 0 && (
+                        exerciseGymsMap[ex.id as string].map(gymName => (
+                          <Badge key={gymName} variant="secondary" className="text-xs">
+                            <Home className="h-3 w-3 mr-1" />
+                            {gymName}
+                          </Badge>
+                        ))
+                      )}
+                      {exerciseWorkoutsMap[ex.id as string]?.length > 0 && (
+                        exerciseWorkoutsMap[ex.id as string].map(workout => (
+                          <div key={workout.id} className="flex items-center gap-1">
                             <WorkoutBadge 
                               workoutName={workout.name}
                             >
@@ -96,9 +108,9 @@ export const GlobalExerciseList = ({
                               </WorkoutBadge>
                             )}
                           </div>
-                        ))}
-                      </div>
-                    )}
+                        ))
+                      )}
+                    </div>
                   </div>
                   {/* Action buttons group */}
                   <div className="flex gap-1">

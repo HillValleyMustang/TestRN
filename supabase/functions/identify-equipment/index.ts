@@ -15,9 +15,17 @@ const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/
 
 // Define an interface for the structure of existing exercise data fetched from Supabase
 interface ExistingExercise {
+  id: string;
   name: string;
   user_id: string | null;
 }
+
+// NEW: List of valid muscle groups
+const VALID_MUSCLE_GROUPS = [
+  "Pectorals", "Deltoids", "Lats", "Traps", "Biceps", 
+  "Triceps", "Quadriceps", "Hamstrings", "Glutes", "Calves", 
+  "Abdominals", "Core", "Full Body"
+];
 
 // Helper function to normalize exercise names for comparison
 const normalizeName = (name: string): string => {
@@ -110,12 +118,13 @@ serve(async (req: Request) => {
         1. If the equipment is versatile and can be used for many exercises (e.g., dumbbells, cable machine, squat rack), suggest the top 5-7 most common and effective exercises.
         2. If the equipment is simple and designed for only one or two primary movements (e.g., leg extension machine, pec deck, pull-up bar), suggest only those 1-2 primary exercises.
         3. For each exercise, provide its name, primary muscle group(s) (comma-separated), type ('weight' or 'timed'), category ('Bilateral', 'Unilateral', or null), a brief description, a pro tip, and an an optional YouTube embed URL.
-        4. IMPORTANT: Your entire response MUST be a single JSON array of objects, with no other text or markdown formatting.
+        4. IMPORTANT: For the "main_muscle" field, you MUST only use values from this exact list: ${VALID_MUSCLE_GROUPS.join(', ')}. If an exercise works multiple muscles, select the most primary one from the list.
+        5. IMPORTANT: Your entire response MUST be a single JSON array of objects, with no other text or markdown formatting.
 
         Example response for versatile equipment:
         [
           { "name": "Bench Press", "main_muscle": "Pectorals", "type": "weight", "category": "Bilateral", "description": "...", "pro_tip": "...", "video_url": "..." },
-          { "name": "Dumbbell Row", "main_muscle": "Back, Biceps", "type": "weight", "category": "Unilateral", "description": "...", "pro_tip": "...", "video_url": "..." }
+          { "name": "Dumbbell Row", "main_muscle": "Lats", "type": "weight", "category": "Unilateral", "description": "...", "pro_tip": "...", "video_url": "..." }
         ]
 
         Example response for simple equipment:
@@ -177,7 +186,7 @@ serve(async (req: Request) => {
     // Fetch all existing exercises (global and user-owned) for robust duplicate checking
     const { data: allExistingExercises, error: fetchAllExistingError } = await supabaseServiceRoleClient
       .from('exercise_definitions')
-      .select('name, user_id');
+      .select('id, name, user_id');
 
     if (fetchAllExistingError) {
       console.error("Error fetching all existing exercises for duplicate check:", fetchAllExistingError.message);
@@ -186,15 +195,13 @@ serve(async (req: Request) => {
 
     const typedExistingExercises: ExistingExercise[] = allExistingExercises || [];
 
-    const normalizedGlobalNames = new Set(typedExistingExercises.filter((ex: ExistingExercise) => ex.user_id === null).map((ex: ExistingExercise) => normalizeName(ex.name)));
-    const normalizedUserNames = new Set(typedExistingExercises.filter((ex: ExistingExercise) => ex.user_id === user.id).map((ex: ExistingExercise) => normalizeName(ex.name)));
-
     const finalUniqueExercises: any[] = [];
     const seenNormalizedNames = new Set<string>(); // To track exercises identified in the current batch
 
     for (const ex of allIdentifiedExercises) {
       const normalizedAiName = normalizeName(ex.name);
       let duplicate_status: 'none' | 'global' | 'my-exercises' = 'none';
+      let existing_id: string | null = null; // NEW: To store the ID of the duplicate
 
       // Check if already identified in this batch
       if (seenNormalizedNames.has(normalizedAiName)) {
@@ -202,11 +209,17 @@ serve(async (req: Request) => {
       }
 
       // Check user's custom exercises first
-      if (normalizedUserNames.has(normalizedAiName)) {
+      const userDuplicate = typedExistingExercises.find(existingEx => existingEx.user_id === user.id && normalizeName(existingEx.name) === normalizedAiName);
+      if (userDuplicate) {
         duplicate_status = 'my-exercises';
-      } else if (normalizedGlobalNames.has(normalizedAiName)) {
+        existing_id = userDuplicate.id;
+      } else {
         // If not in user's, check global library
-        duplicate_status = 'global';
+        const globalDuplicate = typedExistingExercises.find(existingEx => existingEx.user_id === null && normalizeName(existingEx.name) === normalizedAiName);
+        if (globalDuplicate) {
+          duplicate_status = 'global';
+          existing_id = globalDuplicate.id;
+        }
       }
 
       // Convert YouTube URL to embed format
@@ -218,6 +231,7 @@ serve(async (req: Request) => {
         ...ex,
         video_url: embedVideoUrl, // Update to embed URL
         duplicate_status: duplicate_status,
+        existing_id: existing_id, // NEW: Add the ID to the response
       });
       seenNormalizedNames.add(normalizedAiName); // Mark as seen for this batch
     }

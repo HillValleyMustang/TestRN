@@ -11,8 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 
 interface OnboardingStep5Props {
-  identifiedExercises: Partial<Tables<'exercise_definitions'>>[];
-  addIdentifiedExercise: (exercise: Partial<Tables<'exercise_definitions'>>) => void;
+  identifiedExercises: Partial<FetchedExerciseDefinition>[];
+  addIdentifiedExercise: (exercise: Partial<FetchedExerciseDefinition>) => void;
   removeIdentifiedExercise: (exerciseName: string) => void;
   confirmedExercises: Set<string>;
   toggleConfirmedExercise: (exerciseName: string) => void;

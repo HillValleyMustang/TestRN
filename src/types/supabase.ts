@@ -86,6 +86,7 @@ export interface FetchedExerciseDefinition extends Omit<Tables<'exercise_definit
   id: string | null; // Allow null for new exercises (e.g., when creating from global)
   is_favorited_by_current_user?: boolean; // For global exercises favorited by user
   duplicate_status?: 'none' | 'global' | 'my-exercises'; // NEW: Add duplicate status
+  existing_id?: string | null; // ID of the duplicate exercise if found
 }
 
 // Centralized type for workouts with last completed date

@@ -49,6 +49,7 @@ export default function ManageExercisesPage() {
     setSelectedMuscleFilter,
     availableMuscleGroups,
     exerciseWorkoutsMap,
+    exerciseGymsMap,
     handleToggleFavorite,
     handleOptimisticAdd,
     handleAddFailure,
@@ -239,6 +240,7 @@ export default function ManageExercisesPage() {
                           onCancelEdit={handleCancelEdit}
                           onSaveSuccess={handleSaveSuccess}
                           exerciseWorkoutsMap={exerciseWorkoutsMap}
+                          exerciseGymsMap={exerciseGymsMap}
                           onRemoveFromWorkout={handleRemoveFromWorkout}
                           onToggleFavorite={handleToggleFavorite}
                           onAddSuccess={refreshExercises}
@@ -256,6 +258,7 @@ export default function ManageExercisesPage() {
                           loading={loading}
                           onEdit={handleEditClick}
                           exerciseWorkoutsMap={exerciseWorkoutsMap}
+                          exerciseGymsMap={exerciseGymsMap}
                           onRemoveFromWorkout={handleRemoveFromWorkout}
                           onToggleFavorite={handleToggleFavorite}
                           onAddSuccess={refreshExercises}

@@ -8,8 +8,6 @@ import { getMaxMinutes } from '@/lib/utils';
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
 import { LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise } from '@/lib/db';
 
-// Removed local FetchedExerciseDefinition definition
-
 type TPath = Tables<'t_paths'>;
 
 interface UseManageExercisesDataProps {
@@ -25,6 +23,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
   const [selectedMuscleFilter, setSelectedMuscleFilter] = useState<string>('all');
   const [availableMuscleGroups, setAvailableMuscleGroups] = useState<string[]>([]);
   const [exerciseWorkoutsMap, setExerciseWorkoutsMap] = useState<Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>>({});
+  const [exerciseGymsMap, setExerciseGymsMap] = useState<Record<string, string[]>>({});
 
   // Define Supabase query functions for caching hook
   const fetchExercisesSupabase = useCallback(async (client: SupabaseClient) => {
@@ -66,6 +65,33 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
     try {
       if (exercisesError) throw new Error(exercisesError);
       if (tPathsError) throw new Error(tPathsError);
+
+      // Fetch gyms and gym_exercises
+      const { data: gymsData, error: gymsError } = await supabase
+        .from('gyms')
+        .select('id, name')
+        .eq('user_id', sessionUserId);
+      if (gymsError) throw new Error(gymsError.message);
+
+      const { data: gymExercisesData, error: gymExercisesError } = await supabase
+        .from('gym_exercises')
+        .select('exercise_id, gym_id');
+      if (gymExercisesError) throw new Error(gymExercisesError.message);
+
+      const gymIdToNameMap = new Map<string, string>();
+      (gymsData || []).forEach(gym => gymIdToNameMap.set(gym.id, gym.name));
+
+      const newExerciseGymsMap: Record<string, string[]> = {};
+      (gymExercisesData || []).forEach(link => {
+        const gymName = gymIdToNameMap.get(link.gym_id);
+        if (gymName) {
+          if (!newExerciseGymsMap[link.exercise_id]) {
+            newExerciseGymsMap[link.exercise_id] = [];
+          }
+          newExerciseGymsMap[link.exercise_id].push(gymName);
+        }
+      });
+      setExerciseGymsMap(newExerciseGymsMap);
 
       // 1. Fetch user's profile to get active_t_path_id AND preferred_session_length
       const { data: profileData, error: profileError } = await supabase
@@ -423,6 +449,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
     setSelectedMuscleFilter,
     availableMuscleGroups,
     exerciseWorkoutsMap,
+    exerciseGymsMap,
     handleEditClick,
     handleCancelEdit,
     handleSaveSuccess,

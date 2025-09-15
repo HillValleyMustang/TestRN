@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/components/session-context-provider";
 import { toast } from "sonner";
-import { Tables, TablesInsert, ProfileInsert } from "@/types/supabase";
+import { Tables, TablesInsert, ProfileInsert, FetchedExerciseDefinition } from "@/types/supabase";
 
 export const useOnboardingForm = () => {
   const router = useRouter();
@@ -18,7 +18,7 @@ export const useOnboardingForm = () => {
   const [constraints, setConstraints] = useState<string>("");
   const [sessionLength, setSessionLength] = useState<string>("");
   const [equipmentMethod, setEquipmentMethod] = useState<"photo" | "skip" | null>(null);
-  const [identifiedExercises, setIdentifiedExercises] = useState<Partial<Tables<'exercise_definitions'>>[]>([]);
+  const [identifiedExercises, setIdentifiedExercises] = useState<Partial<FetchedExerciseDefinition>[]>([]);
   const [confirmedExercises, setConfirmedExercises] = useState<Set<string>>(new Set());
   const [consentGiven, setConsentGiven] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -64,12 +64,11 @@ export const useOnboardingForm = () => {
     }
   };
 
-  const addIdentifiedExercise = useCallback((exercise: Partial<Tables<'exercise_definitions'>>) => {
+  const addIdentifiedExercise = useCallback((exercise: Partial<FetchedExerciseDefinition>) => {
     setIdentifiedExercises(prev => {
       if (prev.some(e => e.name === exercise.name)) {
         return prev;
       }
-      // When a new exercise is added, also add it to the confirmed set by default
       setConfirmedExercises(prevConfirmed => new Set(prevConfirmed).add(exercise.name!));
       return [...prev, exercise];
     });
@@ -77,7 +76,6 @@ export const useOnboardingForm = () => {
 
   const removeIdentifiedExercise = useCallback((exerciseName: string) => {
     setIdentifiedExercises(prev => prev.filter(e => e.name !== exerciseName));
-    // Also remove it from the confirmed set
     setConfirmedExercises(prevConfirmed => {
       const newSet = new Set(prevConfirmed);
       newSet.delete(exerciseName);
@@ -194,35 +192,52 @@ export const useOnboardingForm = () => {
         .upsert(profileData, { onConflict: 'id' });
       if (profileError) throw profileError;
 
-      const confirmedExercisesToInsert = identifiedExercises
+      const confirmedExercisesToProcess = identifiedExercises
         .filter(ex => confirmedExercises.has(ex.name!));
 
-      if (confirmedExercisesToInsert.length > 0) {
-        const exercisesToInsert = confirmedExercisesToInsert.map(ex => ({
-          name: ex.name!,
-          main_muscle: ex.main_muscle!,
-          type: ex.type!,
-          category: ex.category,
-          description: ex.description,
-          pro_tip: ex.pro_tip,
-          video_url: ex.video_url,
-          icon_url: ex.icon_url,
-          user_id: session.user.id,
-          library_id: null,
-          is_favorite: false,
-          created_at: new Date().toISOString(),
-        }));
-        const { data: insertedExercises, error: insertExercisesError } = await supabase
-          .from('exercise_definitions')
-          .insert(exercisesToInsert as TablesInsert<'exercise_definitions'>[])
-          .select('id');
-        if (insertExercisesError) {
-          console.error("Failed to save identified exercises during onboarding:", insertExercisesError);
-          toast.info("Could not save all identified exercises, but your profile is set up!");
-        } else if (insertedExercises && newGymId) {
-          const gymExerciseLinks = insertedExercises.map(ex => ({
+      if (confirmedExercisesToProcess.length > 0) {
+        const exercisesToInsert: TablesInsert<'exercise_definitions'>[] = [];
+        const exerciseIdsToLinkToGym: string[] = [];
+
+        for (const ex of confirmedExercisesToProcess) {
+          if (ex.existing_id) {
+            exerciseIdsToLinkToGym.push(ex.existing_id);
+          } else {
+            exercisesToInsert.push({
+              name: ex.name!,
+              main_muscle: ex.main_muscle!,
+              type: ex.type!,
+              category: ex.category,
+              description: ex.description,
+              pro_tip: ex.pro_tip,
+              video_url: ex.video_url,
+              icon_url: ex.icon_url,
+              user_id: session.user.id,
+              library_id: null,
+              is_favorite: false,
+              created_at: new Date().toISOString(),
+            });
+          }
+        }
+
+        if (exercisesToInsert.length > 0) {
+          const { data: insertedExercises, error: insertExercisesError } = await supabase
+            .from('exercise_definitions')
+            .insert(exercisesToInsert)
+            .select('id');
+          
+          if (insertExercisesError) {
+            console.error("Failed to save identified exercises during onboarding:", insertExercisesError);
+            toast.info("Could not save all identified exercises, but your profile is set up!");
+          } else if (insertedExercises) {
+            insertedExercises.forEach(ex => exerciseIdsToLinkToGym.push(ex.id));
+          }
+        }
+
+        if (exerciseIdsToLinkToGym.length > 0 && newGymId) {
+          const gymExerciseLinks = exerciseIdsToLinkToGym.map(exId => ({
             gym_id: newGymId!,
-            exercise_id: ex.id,
+            exercise_id: exId,
           }));
           const { error: insertGymExerciseError } = await supabase
             .from('gym_exercises')
