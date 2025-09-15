@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -61,10 +61,8 @@ export default function ProfilePage() {
   const { session, supabase } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  // Profile and activeTPath will now come from cache
   const [activeTPath, setActiveTPath] = useState<TPath | null>(null);
   const [aiCoachUsageToday, setAiCoachUsageToday] = useState(0);
   
@@ -90,6 +88,10 @@ export default function ProfilePage() {
   });
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
+
+  // Use a ref to store the desired tab/edit state during a refresh cycle
+  const pendingTabRef = useRef<string | null>(null);
+  const pendingEditRef = useRef<boolean>(false);
 
   // Use useCacheAndRevalidate for profile data
   const { data: cachedProfile, loading: loadingProfile, error: profileError, refresh: refreshProfileCache } = useCacheAndRevalidate<Profile>({
@@ -152,7 +154,7 @@ export default function ProfilePage() {
       console.log("[ProfilePage Debug] refreshProfileData: No session, returning.");
       return;
     }
-    setLoading(true);
+    // Do NOT set setLoading(true) here. Let individual cache hooks manage their loading.
     try {
       await refreshProfileCache(); // This updates the IndexedDB cache.
       await refreshAchievementsCache(); // This updates the IndexedDB cache.
@@ -207,17 +209,23 @@ export default function ProfilePage() {
       toast.error("Failed to load profile data: " + err.message);
       console.error("[ProfilePage Debug] refreshProfileData: Caught error during fetch:", err);
     } finally {
-      setLoading(false);
+      // No setLoading(false) here.
       console.log("[ProfilePage Debug] refreshProfileData: Fetch operation finished.");
     }
   }, [session, supabase, form, refreshProfileCache, refreshAchievementsCache, setActiveTPath, setAiCoachUsageToday]);
 
 
+  // Initial load effect (from search params)
   useEffect(() => {
     if (!session) {
       router.push('/login');
       return;
     }
+    
+    // Store current tab/edit state before refresh
+    pendingTabRef.current = activeTab;
+    pendingEditRef.current = isEditing;
+
     refreshProfileData();
 
     const tabParam = searchParams.get('tab');
@@ -230,6 +238,22 @@ export default function ProfilePage() {
       }
     }
   }, [session, router, refreshProfileData, searchParams]);
+
+  // Effect to re-apply tab/edit state after refreshProfileData completes
+  useEffect(() => {
+    // This effect should run after `refreshProfileData` has potentially caused a re-render
+    // and the `loadingProfile` and `loadingAchievements` states have settled.
+    if (!loadingProfile && !loadingAchievements) {
+      if (pendingTabRef.current) {
+        setActiveTab(pendingTabRef.current);
+        pendingTabRef.current = null; // Clear ref
+      }
+      if (pendingEditRef.current) {
+        setIsEditing(pendingEditRef.current);
+        pendingEditRef.current = false; // Clear ref
+      }
+    }
+  }, [loadingProfile, loadingAchievements]); // Depend on loading states of the cache hooks
 
   const { bmi, dailyCalories } = useMemo(() => {
     const weight = profile?.weight_kg;
@@ -393,7 +417,7 @@ export default function ProfilePage() {
     emblaApi && emblaApi.scrollNext();
   }, [emblaApi]);
 
-  if (loadingProfile || loadingAchievements || loading) return <div className="p-4"><Skeleton className="h-screen w-full" /></div>;
+  if (loadingProfile || loadingAchievements) return <div className="p-4"><Skeleton className="h-screen w-full" /></div>;
   if (!profile) return <div className="p-4">Could not load profile.</div>;
 
   const userInitial = profile.first_name ? profile.first_name[0].toUpperCase() : (session?.user.email ? session.user.email[0].toUpperCase() : '?');
