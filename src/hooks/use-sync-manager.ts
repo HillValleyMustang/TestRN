@@ -37,13 +37,12 @@ export const useSyncManager = () => {
 
   const processQueue = React.useCallback(async () => {
     // Ensure syncQueue is loaded and not undefined before proceeding
-    // ADDED: !session check to ensure user is authenticated
     if (!isOnline || isSyncing || !syncQueue || syncQueue.length === 0 || !supabase || !session) {
       if (!isOnline) console.log("[SyncManager] Not syncing: Offline.");
       if (isSyncing) console.log("[SyncManager] Not syncing: Already syncing.");
       if (!syncQueue || syncQueue.length === 0) console.log("[SyncManager] Not syncing: Sync queue is empty or not loaded.");
       if (!supabase) console.log("[SyncManager] Not syncing: Supabase client not available.");
-      if (!session) console.log("[SyncManager] Not syncing: Session not available."); // New log for session check
+      if (!session) console.log("[SyncManager] Not syncing: Session not available.");
       return;
     }
 
@@ -56,9 +55,8 @@ export const useSyncManager = () => {
     try {
       const { table, payload, operation } = item;
       
-      // ADDED: Debugging log for workout_sessions sync
       if (table === 'workout_sessions') {
-        console.log(`[SyncManager] Debugging workout_sessions sync: session.user.id = ${session.user.id}, payload.user_id = ${payload.user_id}`);
+        console.log(`[SyncManager] Workout Session Sync Debug: Client User ID = ${session.user.id}, Payload User ID = ${payload.user_id}`);
       }
 
       if (operation === 'create' || operation === 'update') {
@@ -94,7 +92,7 @@ export const useSyncManager = () => {
       setIsSyncing(false);
       console.log("[SyncManager] Finished queue processing for current item.");
     }
-  }, [isOnline, isSyncing, syncQueue, supabase, session]); // ADDED: session to dependencies
+  }, [isOnline, isSyncing, syncQueue, supabase, session]);
 
   React.useEffect(() => {
     // Trigger processing whenever the queue changes or network status comes back online
@@ -103,7 +101,7 @@ export const useSyncManager = () => {
     }, 5000); // Attempt to sync every 5 seconds if there's something in the queue
 
     return () => clearInterval(syncInterval);
-  }, [syncQueue, isOnline, processQueue]); // Added syncQueue to dependencies
+  }, [syncQueue, isOnline, processQueue]);
 
   return { isOnline }; // Expose isOnline
 };
