@@ -110,6 +110,8 @@ export interface LocalProfile extends Tables<'profiles'> {
   longest_streak: number | null; // Added missing property
   last_workout_date: string | null; // Added missing property
   rolling_workout_status: string | null; // Added missing property
+  t_path_generation_status: string | null; // NEW
+  t_path_generation_error: string | null; // NEW
 }
 export interface LocalTPathExercise extends Tables<'t_path_exercises'> {
   id: string;

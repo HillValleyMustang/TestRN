@@ -77,6 +77,15 @@ interface ExerciseDefinitionInsert {
   icon_url?: string | null;
 }
 
+// Helper function to initialize Supabase client with service role key
+const getSupabaseServiceRoleClient = () => {
+  // @ts-ignore
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+  // @ts-ignore
+  const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  return createClient(supabaseUrl, supabaseServiceRoleKey);
+};
+
 // --- Utility Functions (from utils.ts) ---
 const toNullOrNumber = (val: string | null | undefined): number | null => {
   if (val === null || val === undefined || val.trim() === '') return null;
@@ -467,6 +476,9 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let userId: string | null = null; // Declare userId here for broader scope
+  const supabaseServiceRoleClient = getSupabaseServiceRoleClient(); // Initialize here
+
   try {
     console.log('Edge Function: generate-t-path started processing.');
 
@@ -474,16 +486,27 @@ serve(async (req: Request) => {
     if (!authHeader) throw new Error('Authorization header missing');
     console.log('Edge Function: Authorization header present.');
 
-    const { supabaseAuthClient, supabaseServiceRoleClient } = getSupabaseClients(authHeader);
+    const { supabaseAuthClient } = getSupabaseClients(authHeader); // Removed supabaseServiceRoleClient from destructuring
     console.log('Edge Function: Supabase clients initialized.');
 
     const { data: { user }, error: userError } = await supabaseAuthClient.auth.getUser();
     if (userError || !user) throw new Error('Unauthorized');
-    console.log(`Edge Function: User authenticated: ${user.id}`);
+    userId = user.id; // Assign user ID
 
     const { tPathId } = await req.json();
     if (!tPathId) throw new Error('tPathId is required');
     console.log(`Edge Function: Received tPathId (main T-Path ID): ${tPathId}`);
+
+    // --- Set status to 'in_progress' immediately ---
+    console.log(`[Background] Setting t_path_generation_status to 'in_progress' for user ${userId}.`);
+    const { error: updateStatusError } = await supabaseServiceRoleClient
+      .from('profiles')
+      .update({ t_path_generation_status: 'in_progress', t_path_generation_error: null })
+      .eq('id', userId);
+    if (updateStatusError) {
+      console.error('[Background] Error updating profile status to in_progress:', updateStatusError);
+      // Do not throw, as the main process should continue
+    }
 
     // --- IMMEDIATE RESPONSE ---
     const response = new Response(
@@ -592,10 +615,28 @@ serve(async (req: Request) => {
         }
         console.log('Edge Function: generate-t-path background process finished successfully.');
 
+        // --- Set status to 'completed' on success ---
+        console.log(`[Background] Setting t_path_generation_status to 'completed' for user ${userId}.`);
+        const { error: updateSuccessError } = await supabaseServiceRoleClient
+          .from('profiles')
+          .update({ t_path_generation_status: 'completed', t_path_generation_error: null })
+          .eq('id', userId);
+        if (updateSuccessError) {
+          console.error('[Background] Error updating profile status to completed:', updateSuccessError);
+        }
+
       } catch (backgroundError: any) {
         console.error('Edge Function: generate-t-path background process failed:', backgroundError);
-        // Log this error, but don't re-throw as the main response has already been sent.
-        // Consider adding a mechanism to notify the user of background failures (e.g., a notification table).
+        // --- Set status to 'failed' on error ---
+        const errorMessage = backgroundError instanceof Error ? backgroundError.message : "An unknown error occurred during T-Path generation.";
+        console.log(`[Background] Setting t_path_generation_status to 'failed' for user ${userId}. Error: ${errorMessage}`);
+        const { error: updateFailError } = await supabaseServiceRoleClient
+          .from('profiles')
+          .update({ t_path_generation_status: 'failed', t_path_generation_error: errorMessage })
+          .eq('id', userId);
+        if (updateFailError) {
+          console.error('[Background] Error updating profile status to failed:', updateFailError);
+        }
       }
     })();
 
@@ -603,6 +644,17 @@ serve(async (req: Request) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     console.error('Unhandled error in generate-t-path edge function (before background spawn):', errorMessage);
+    // If an error occurs before the background process even starts, set status to failed
+    if (userId) {
+      console.log(`[Background] Setting t_path_generation_status to 'failed' for user ${userId} due to initial error. Error: ${errorMessage}`);
+      const { error: updateFailError } = await supabaseServiceRoleClient
+        .from('profiles')
+        .update({ t_path_generation_status: 'failed', t_path_generation_error: errorMessage })
+        .eq('id', userId);
+      if (updateFailError) {
+        console.error('[Background] Error updating profile status to failed (initial error):', updateFailError);
+      }
+    }
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
