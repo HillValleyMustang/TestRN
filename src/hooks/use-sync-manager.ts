@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { SyncQueueItem } from '@/lib/db'; // Import SyncQueueItem type
 
 export const useSyncManager = () => {
-  const { supabase } = useSession();
+  const { supabase, session } = useSession(); // Get session as well
   const [isOnline, setIsOnline] = React.useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [isSyncing, setIsSyncing] = React.useState(false);
 
@@ -37,11 +37,13 @@ export const useSyncManager = () => {
 
   const processQueue = React.useCallback(async () => {
     // Ensure syncQueue is loaded and not undefined before proceeding
-    if (!isOnline || isSyncing || !syncQueue || syncQueue.length === 0 || !supabase) {
+    // ADDED: !session check to ensure user is authenticated
+    if (!isOnline || isSyncing || !syncQueue || syncQueue.length === 0 || !supabase || !session) {
       if (!isOnline) console.log("[SyncManager] Not syncing: Offline.");
       if (isSyncing) console.log("[SyncManager] Not syncing: Already syncing.");
       if (!syncQueue || syncQueue.length === 0) console.log("[SyncManager] Not syncing: Sync queue is empty or not loaded.");
       if (!supabase) console.log("[SyncManager] Not syncing: Supabase client not available.");
+      if (!session) console.log("[SyncManager] Not syncing: Session not available."); // New log for session check
       return;
     }
 
@@ -54,6 +56,11 @@ export const useSyncManager = () => {
     try {
       const { table, payload, operation } = item;
       
+      // ADDED: Debugging log for workout_sessions sync
+      if (table === 'workout_sessions') {
+        console.log(`[SyncManager] Debugging workout_sessions sync: session.user.id = ${session.user.id}, payload.user_id = ${payload.user_id}`);
+      }
+
       if (operation === 'create' || operation === 'update') {
         console.log(`[SyncManager] Attempting upsert to table '${table}' with payload:`, payload);
         const { error } = await supabase.from(table).upsert(payload, { onConflict: 'id' });
@@ -87,7 +94,7 @@ export const useSyncManager = () => {
       setIsSyncing(false);
       console.log("[SyncManager] Finished queue processing for current item.");
     }
-  }, [isOnline, isSyncing, syncQueue, supabase]); // Added syncQueue to dependencies
+  }, [isOnline, isSyncing, syncQueue, supabase, session]); // ADDED: session to dependencies
 
   React.useEffect(() => {
     // Trigger processing whenever the queue changes or network status comes back online
