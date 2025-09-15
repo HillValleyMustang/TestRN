@@ -87,7 +87,7 @@ export const OnboardingStep5_GymPhotoUpload = ({
           <Button variant="outline" onClick={handleBack}>
             Back
           </Button>
-          <Button onClick={handleNext}>
+          <Button onClick={handleNext} disabled={identifiedExercises.length === 0}> {/* Disabled if no exercises */}
             Next
           </Button>
         </div>
