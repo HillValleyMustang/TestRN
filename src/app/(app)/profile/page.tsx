@@ -163,6 +163,7 @@ export default function ProfilePage() {
 
       if (currentProfile) {
         console.log("[ProfilePage Debug] refreshProfileData: Latest cached profile:", currentProfile);
+        console.log("[ProfilePage Debug] refreshProfileData: Latest cached profile preferred_session_length:", currentProfile.preferred_session_length);
         form.reset({
           full_name: [currentProfile.first_name, currentProfile.last_name].filter(Boolean).join(' '),
           height_cm: currentProfile.height_cm,
@@ -320,7 +321,7 @@ export default function ProfilePage() {
       updated_at: new Date().toISOString()
     };
     
-    console.log("[ProfilePage Debug] onSubmit: Attempting to update profile in Supabase with data:", updateData);
+    console.log("[ProfilePage Debug] onSubmit: Full updateData payload:", updateData); // Log full payload
     const { error } = await supabase.from('profiles').update(updateData).eq('id', session.user.id);
     if (error) {
       console.error("[ProfilePage Debug] onSubmit: Supabase update error:", error);
