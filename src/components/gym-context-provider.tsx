@@ -15,6 +15,7 @@ interface GymContextType {
   activeGym: Gym | null;
   switchActiveGym: (gymId: string) => Promise<void>;
   loadingGyms: boolean;
+  refreshGyms: () => Promise<void>; // Added refresh function
 }
 
 const GymContext = createContext<GymContextType | undefined>(undefined);
@@ -59,7 +60,7 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
     } finally {
       setLoadingGyms(false);
     }
-  }, [session]);
+  }, [session, supabase]);
 
   useEffect(() => {
     fetchGymData();
@@ -85,7 +86,7 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
   };
 
   return (
-    <GymContext.Provider value={{ userGyms, activeGym, switchActiveGym, loadingGyms }}>
+    <GymContext.Provider value={{ userGyms, activeGym, switchActiveGym, loadingGyms, refreshGyms: fetchGymData }}>
       {children}
     </GymContext.Provider>
   );

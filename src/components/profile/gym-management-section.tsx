@@ -10,6 +10,7 @@ import { Home, PlusCircle, Edit, Trash2 } from 'lucide-react';
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { Tables, Profile } from '@/types/supabase';
+import { useGym } from '@/components/gym-context-provider'; // Import useGym
 
 type Gym = Tables<'gyms'>;
 
@@ -21,6 +22,7 @@ interface GymManagementSectionProps {
 
 export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymManagementSectionProps) => {
   const { session, supabase } = useSession();
+  const { refreshGyms } = useGym(); // Get the refresh function from context
   const [gyms, setGyms] = useState<Gym[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -70,6 +72,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
       console.log(`Gym "${newGymName}" added successfully!`);
       await fetchGyms();
       onDataChange();
+      refreshGyms(); // Refresh global gym context
       setIsAddDialogOpen(false);
       setNewGymName("");
     }
@@ -86,6 +89,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
       console.log("Gym renamed successfully!");
       await fetchGyms();
       onDataChange();
+      refreshGyms(); // Refresh global gym context
       setIsRenameDialogOpen(false);
       setNewGymName("");
       setSelectedGym(null);
@@ -116,6 +120,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
       console.log(`Gym "${selectedGym.name}" deleted.`);
       await fetchGyms();
       onDataChange();
+      refreshGyms(); // Refresh global gym context
     } catch (err: any) {
       console.error("Failed to delete gym:", err.message);
       toast.info("Failed to delete gym.");
@@ -149,6 +154,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
       toast.info("Last gym deleted and workout plan reset to defaults.", { id: toastId });
       await fetchGyms();
       onDataChange();
+      refreshGyms(); // Refresh global gym context
     } catch (err: any) {
       console.error("Failed to delete last gym:", err.message);
       toast.info("Failed to delete last gym.", { id: toastId });
