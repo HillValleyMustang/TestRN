@@ -32,27 +32,16 @@ const normalizeName = (name: string): string => {
   if (!name) return '';
   let normalized = name.toLowerCase();
 
-  // 1. Remove common *redundant* equipment words.
-  // Keep descriptive words like 'incline', 'decline', 'seated', 'standing', 'single arm', 'single leg', 'unilateral', 'bilateral'.
-  const equipmentWordsToRemove = [
-    'cable', 'dumbbell', 'barbell', 'smith machine', 'machine', 'assisted'
-  ];
-
-  equipmentWordsToRemove.forEach(word => {
-    // Match as a whole word, optionally followed by space/hyphen
-    normalized = normalized.replace(new RegExp(`\\b${word}\\b[\\s-]*`, 'g'), ' ');
-  });
-
-  // 2. Normalize spaces (multiple to single, then trim)
+  // 1. Normalize spaces (multiple to single, then trim)
   normalized = normalized.replace(/\s+/g, ' ').trim();
 
-  // 3. Remove plural 's' from the end of the entire string
+  // 2. Remove plural 's' from the end of the entire string
   if (normalized.endsWith('s')) {
     normalized = normalized.slice(0, -1);
   }
 
-  // 4. Remove all remaining non-alphanumeric characters and spaces
-  normalized = normalized.replace(/[^a-z0-9]/g, '');
+  // 3. Remove non-alphanumeric characters, but keep spaces
+  normalized = normalized.replace(/[^a-z0-9\s]/g, '');
 
   return normalized;
 };

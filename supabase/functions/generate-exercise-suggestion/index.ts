@@ -26,30 +26,16 @@ const normalizeName = (name: string): string => {
   if (!name) return '';
   let normalized = name.toLowerCase();
 
-  // 1. Remove common equipment/position prefixes/suffixes (allowing for optional spaces/hyphens)
-  // This list is carefully curated to avoid removing core exercise action words.
-  const equipmentAndPositionWords = [
-    'cable', 'dumbbell', 'barbell', 'smith machine', 'machine',
-    'seated', 'standing', 'incline', 'flat', 'decline',
-    'assisted', 'single arm', 'single leg', 'unilateral', 'bilateral',
-    'upper body', 'lower body', 'full body',
-  ];
-
-  equipmentAndPositionWords.forEach(word => {
-    // Match as a whole word, optionally followed by space/hyphen
-    normalized = normalized.replace(new RegExp(`\\b${word}\\b[\\s-]*`, 'g'), ' ');
-  });
-
-  // 2. Normalize spaces (multiple to single, then trim)
+  // 1. Normalize spaces (multiple to single, then trim)
   normalized = normalized.replace(/\s+/g, ' ').trim();
 
-  // 3. Remove plural 's' from the end of the entire string
+  // 2. Remove plural 's' from the end of the entire string
   if (normalized.endsWith('s')) {
     normalized = normalized.slice(0, -1);
   }
 
-  // 4. Remove all remaining non-alphanumeric characters and spaces
-  normalized = normalized.replace(/[^a-z0-9]/g, '');
+  // 3. Remove non-alphanumeric characters, but keep spaces
+  normalized = normalized.replace(/[^a-z0-9\s]/g, '');
 
   return normalized;
 };
