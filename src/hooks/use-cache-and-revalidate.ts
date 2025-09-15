@@ -63,7 +63,13 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
     try {
       console.log(`[useCacheAndRevalidate] Fetching for ${queryKey}. User ID: ${sessionUserId}, Access Token present: ${!!session?.access_token}`); // ADDED LOG
       const { data: remoteData, error: remoteError } = await supabaseQuery(supabase);
-      if (remoteError) throw remoteError;
+      if (remoteError) {
+        // NEW: Log full error object for 406 status
+        if (remoteError.code === '406') {
+          console.warn(`[useCacheAndRevalidate] Supabase 406 error for ${queryKey}:`, remoteError);
+        }
+        throw remoteError;
+      }
 
       if (remoteData) {
         const table = db[cacheTable] as any;

@@ -61,8 +61,12 @@ export const useSyncManager = () => {
       
       // ADDED: Debugging log for workout_sessions sync
       if (table === 'workout_sessions') {
-        console.log(`[SyncManager] Debugging workout_sessions sync: session.user.id = ${session.user.id}, payload.user_id = ${payload.user_id}`);
+        console.log(`[SyncManager] Workout Session Sync Debug: Client User ID = ${session.user.id}, Payload User ID = ${payload.user_id}`);
       }
+
+      // The 'supabase' client from useSession is already authenticated.
+      // No need to call supabase.auth.setSession(session) here, as it returns a Promise<AuthResponse>
+      // and not a SupabaseClient instance for database operations.
 
       if (operation === 'create' || operation === 'update') {
         console.log(`[SyncManager] Attempting upsert to table '${table}' with payload:`, payload);
