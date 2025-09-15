@@ -154,54 +154,17 @@ export class AppDatabase extends Dexie {
 
   constructor() {
     super('WorkoutTrackerDB');
-    this.version(1).stores({
-      workout_sessions: '&id, user_id, session_date',
+    this.version(10).stores({
+      workout_sessions: '&id, user_id, session_date, t_path_id, template_name',
       set_logs: '&id, session_id, exercise_id',
       sync_queue: '++id, timestamp',
-      draft_set_logs: '[exercise_id+set_index], session_id',
-    });
-    this.version(2).stores({
-      supabase_session: '&id', // Primary key is 'id'
-    }).upgrade(tx => {
-      // Add any migration logic here if needed for existing users
-      // For now, we just add the new table.
-    });
-    // Increment version for new tables
-    this.version(3).stores({
-      exercise_definitions_cache: '&id, user_id, library_id', // Cache exercises
-      t_paths_cache: '&id, user_id, parent_t_path_id', // Cache T-Paths
-    });
-    // **FIX**: Remove the fragile compound index and add a simple index on exercise_id for performance.
-    this.version(4).stores({
-        draft_set_logs: '[exercise_id+set_index], session_id, exercise_id',
-    }).upgrade(tx => {
-        // Dexie handles the re-indexing automatically when the schema definition changes.
-        // No data migration is needed here as we are only adding a new index.
-        return tx.table('draft_set_logs').toCollection().modify(draft => {});
-    });
-    // New version for profiles_cache and t_path_exercises_cache
-    this.version(5).stores({
-      profiles_cache: '&id', // Cache user profile
-      t_path_exercises_cache: '&id, template_id, exercise_id', // Cache t_path_exercises
-    });
-    // New version to add t_path_id to workout_sessions
-    this.version(6).stores({
-      workout_sessions: '&id, user_id, session_date, t_path_id',
-    });
-    // New version to add is_pb to draft_set_logs
-    this.version(7).stores({
       draft_set_logs: '[exercise_id+set_index], session_id, exercise_id',
-    });
-    // New version to add template_name index to workout_sessions
-    this.version(8).stores({
-      workout_sessions: '&id, user_id, session_date, t_path_id, template_name',
-    });
-    // NEW: Add user_achievements_cache
-    this.version(9).stores({
+      supabase_session: '&id',
+      exercise_definitions_cache: '&id, user_id, library_id',
+      t_paths_cache: '&id, user_id, parent_t_path_id',
+      profiles_cache: '&id',
+      t_path_exercises_cache: '&id, template_id, exercise_id',
       user_achievements_cache: '&id, user_id, achievement_id',
-    });
-    // NEW: Add user_alerts table
-    this.version(10).stores({
       user_alerts: '&id, user_id, created_at',
     });
   }
