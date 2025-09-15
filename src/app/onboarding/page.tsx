@@ -44,8 +44,10 @@ export default function OnboardingPage() {
     identifiedExercises,
     addIdentifiedExercise,
     removeIdentifiedExercise,
-    gymName, // Destructure gymName
-    setGymName, // Destructure setGymName
+    confirmedExercises,
+    toggleConfirmedExercise,
+    gymName,
+    setGymName,
   } = useOnboardingForm();
 
   const [fullName, setFullName] = useState('');
@@ -105,8 +107,8 @@ export default function OnboardingPage() {
             setEquipmentMethod={setEquipmentMethod}
             handleNext={handleNext}
             handleBack={handleBack}
-            gymName={gymName} // Pass gymName
-            setGymName={setGymName} // Pass setGymName
+            gymName={gymName}
+            setGymName={setGymName}
           />
         );
       case 5:
@@ -115,6 +117,8 @@ export default function OnboardingPage() {
             identifiedExercises={identifiedExercises}
             addIdentifiedExercise={addIdentifiedExercise}
             removeIdentifiedExercise={removeIdentifiedExercise}
+            confirmedExercises={confirmedExercises}
+            toggleConfirmedExercise={toggleConfirmedExercise}
             handleNext={handleNext}
             handleBack={handleBack}
           />

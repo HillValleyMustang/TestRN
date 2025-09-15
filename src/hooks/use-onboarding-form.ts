@@ -17,12 +17,13 @@ export const useOnboardingForm = () => {
   const [preferredMuscles, setPreferredMuscles] = useState<string>("");
   const [constraints, setConstraints] = useState<string>("");
   const [sessionLength, setSessionLength] = useState<string>("");
-  const [equipmentMethod, setEquipmentMethod] = useState<"photo" | "skip" | null>(null); // Changed from "skip" to null
+  const [equipmentMethod, setEquipmentMethod] = useState<"photo" | "skip" | null>(null);
   const [identifiedExercises, setIdentifiedExercises] = useState<Partial<Tables<'exercise_definitions'>>[]>([]);
+  const [confirmedExercises, setConfirmedExercises] = useState<Set<string>>(new Set());
   const [consentGiven, setConsentGiven] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isInitialSetupLoading, setIsInitialSetupLoading] = useState(false);
-  const [gymName, setGymName] = useState<string>(""); // NEW: State for gym name
+  const [gymName, setGymName] = useState<string>("");
 
   const tPathDescriptions = {
     ulul: {
@@ -37,7 +38,7 @@ export const useOnboardingForm = () => {
         "Potential for upper body fatigue",
         "Less focus on single 'big lift' days"
       ],
-      research: [ // Added research points
+      research: [
         "Studies show that training muscle groups twice a week can lead to greater muscle growth than once a week.",
         "Allows for more recovery time for individual muscle groups compared to full-body splits.",
         "Provides a balanced approach to training, hitting all major muscle groups effectively."
@@ -55,7 +56,7 @@ export const useOnboardingForm = () => {
         "Missing a day can unbalance the week",
         "Can be demanding for beginners"
       ],
-      research: [ // Added research points
+      research: [
         "PPL is effective for building strength and muscle mass by allowing high volume for specific movement patterns.",
         "Grouping exercises by push, pull, and legs can optimize recovery and performance for each session.",
         "This split is popular among intermediate to advanced lifters for its structured approach to progressive overload."
@@ -68,12 +69,32 @@ export const useOnboardingForm = () => {
       if (prev.some(e => e.name === exercise.name)) {
         return prev;
       }
+      // When a new exercise is added, also add it to the confirmed set by default
+      setConfirmedExercises(prevConfirmed => new Set(prevConfirmed).add(exercise.name!));
       return [...prev, exercise];
     });
   }, []);
 
   const removeIdentifiedExercise = useCallback((exerciseName: string) => {
     setIdentifiedExercises(prev => prev.filter(e => e.name !== exerciseName));
+    // Also remove it from the confirmed set
+    setConfirmedExercises(prevConfirmed => {
+      const newSet = new Set(prevConfirmed);
+      newSet.delete(exerciseName);
+      return newSet;
+    });
+  }, []);
+
+  const toggleConfirmedExercise = useCallback((exerciseName: string) => {
+    setConfirmedExercises(prevConfirmed => {
+      const newSet = new Set(prevConfirmed);
+      if (newSet.has(exerciseName)) {
+        newSet.delete(exerciseName);
+      } else {
+        newSet.add(exerciseName);
+      }
+      return newSet;
+    });
   }, []);
 
   const handleNext = useCallback(() => {
@@ -100,7 +121,6 @@ export const useOnboardingForm = () => {
     setLoading(true);
     
     try {
-      // NEW: Create the gym entry first
       let newGymId: string | null = null;
       if (equipmentMethod === 'photo' && gymName) {
         const { data: insertedGym, error: insertGymError } = await supabase
@@ -111,7 +131,6 @@ export const useOnboardingForm = () => {
         if (insertGymError) throw insertGymError;
         newGymId = insertedGym.id;
       } else if (equipmentMethod === 'skip') {
-        // Create a default "Home Gym" if skipped
         const { data: insertedGym, error: insertGymError } = await supabase
           .from('gyms')
           .insert({ user_id: session.user.id, name: "Home Gym" })
@@ -168,7 +187,7 @@ export const useOnboardingForm = () => {
         default_rest_time_seconds: 60,
         preferred_session_length: sessionLength,
         active_t_path_id: activeTPath.id,
-        active_gym_id: newGymId, // Set the active gym ID
+        active_gym_id: newGymId,
       };
       const { error: profileError } = await supabase
         .from('profiles')
@@ -186,12 +205,11 @@ export const useOnboardingForm = () => {
         const { data: insertedExercises, error: insertExercisesError } = await supabase
           .from('exercise_definitions')
           .insert(exercisesToInsert as TablesInsert<'exercise_definitions'>[])
-          .select('id'); // Select ID to link to gym_exercises
+          .select('id');
         if (insertExercisesError) {
           console.error("Failed to save identified exercises during onboarding:", insertExercisesError);
           toast.info("Could not save all identified exercises, but your profile is set up!");
         } else if (insertedExercises && newGymId) {
-          // NEW: Link identified exercises to the new gym
           const gymExerciseLinks = insertedExercises.map(ex => ({
             gym_id: newGymId!,
             exercise_id: ex.id,
@@ -226,7 +244,7 @@ export const useOnboardingForm = () => {
     } finally {
       setLoading(false);
     }
-  }, [session, supabase, router, tPathType, experience, goalFocus, preferredMuscles, constraints, sessionLength, equipmentMethod, identifiedExercises, gymName]); // Added gymName to dependencies
+  }, [session, supabase, router, tPathType, experience, goalFocus, preferredMuscles, constraints, sessionLength, equipmentMethod, identifiedExercises, gymName]);
 
   return {
     currentStep,
@@ -255,7 +273,9 @@ export const useOnboardingForm = () => {
     identifiedExercises,
     addIdentifiedExercise,
     removeIdentifiedExercise,
-    gymName, // NEW: Expose gymName
-    setGymName, // NEW: Expose setGymName
+    confirmedExercises,
+    toggleConfirmedExercise,
+    gymName,
+    setGymName,
   };
 };
