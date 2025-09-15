@@ -36,13 +36,17 @@ export const useSyncManager = () => {
   }, []);
 
   const processQueue = React.useCallback(async () => {
+    // ADDED: Detailed log at the start of processQueue
+    console.log(`[SyncManager] processQueue called. isOnline: ${isOnline}, isSyncing: ${isSyncing}, syncQueue.length: ${syncQueue?.length || 0}, supabase: ${!!supabase}, session: ${!!session}, session.user.id: ${session?.user?.id}`);
+
     // Ensure syncQueue is loaded and not undefined before proceeding
-    if (!isOnline || isSyncing || !syncQueue || syncQueue.length === 0 || !supabase || !session) {
+    // UPDATED: Check for session?.user?.id to ensure a valid user context
+    if (!isOnline || isSyncing || !syncQueue || syncQueue.length === 0 || !supabase || !session?.user?.id) {
       if (!isOnline) console.log("[SyncManager] Not syncing: Offline.");
       if (isSyncing) console.log("[SyncManager] Not syncing: Already syncing.");
       if (!syncQueue || syncQueue.length === 0) console.log("[SyncManager] Not syncing: Sync queue is empty or not loaded.");
       if (!supabase) console.log("[SyncManager] Not syncing: Supabase client not available.");
-      if (!session) console.log("[SyncManager] Not syncing: Session not available.");
+      if (!session?.user?.id) console.log("[SyncManager] Not syncing: Session user ID not available."); // New log for session user ID check
       return;
     }
 
@@ -55,8 +59,9 @@ export const useSyncManager = () => {
     try {
       const { table, payload, operation } = item;
       
+      // ADDED: Debugging log for workout_sessions sync
       if (table === 'workout_sessions') {
-        console.log(`[SyncManager] Workout Session Sync Debug: Client User ID = ${session.user.id}, Payload User ID = ${payload.user_id}`);
+        console.log(`[SyncManager] Debugging workout_sessions sync: session.user.id = ${session.user.id}, payload.user_id = ${payload.user_id}`);
       }
 
       if (operation === 'create' || operation === 'update') {
