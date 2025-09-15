@@ -204,7 +204,7 @@ export const useOnboardingForm = () => {
             // If it's an existing global or user exercise, link its ID
             exerciseIdsToLinkToGym.push(ex.existing_id);
           } else {
-            // If it's a brand new exercise, insert it as a GLOBAL exercise
+            // If it's a brand new exercise, insert it as a USER exercise
             const { data: insertedExercise, error: insertExerciseError } = await supabase
               .from('exercise_definitions')
               .insert({
@@ -216,8 +216,8 @@ export const useOnboardingForm = () => {
                 pro_tip: ex.pro_tip,
                 video_url: ex.video_url,
                 icon_url: ex.icon_url,
-                user_id: null, // <--- IMPORTANT: Save as GLOBAL exercise
-                library_id: `ai_onboard_${uuidv4()}`, // Assign a unique library_id for AI-identified global exercises
+                user_id: session.user.id, // CORRECTED: Save as USER exercise
+                library_id: null, // CORRECTED: User exercises don't have a library_id
                 is_favorite: false,
                 created_at: new Date().toISOString(),
               })
