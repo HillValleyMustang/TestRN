@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { SyncQueueItem } from '@/lib/db'; // Import SyncQueueItem type
 
 export const useSyncManager = () => {
-  const { supabase, session } = useSession(); // Get session as well
+  const { supabase } = useSession();
   const [isOnline, setIsOnline] = React.useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [isSyncing, setIsSyncing] = React.useState(false);
 
@@ -36,17 +36,12 @@ export const useSyncManager = () => {
   }, []);
 
   const processQueue = React.useCallback(async () => {
-    // ADDED: Detailed log at the start of processQueue
-    console.log(`[SyncManager] processQueue called. isOnline: ${isOnline}, isSyncing: ${isSyncing}, syncQueue.length: ${syncQueue?.length || 0}, supabase: ${!!supabase}, session: ${!!session}, session.user.id: ${session?.user?.id}`);
-
     // Ensure syncQueue is loaded and not undefined before proceeding
-    // UPDATED: Check for session?.user?.id to ensure a valid user context
-    if (!isOnline || isSyncing || !syncQueue || syncQueue.length === 0 || !supabase || !session?.user?.id) {
+    if (!isOnline || isSyncing || !syncQueue || syncQueue.length === 0 || !supabase) {
       if (!isOnline) console.log("[SyncManager] Not syncing: Offline.");
       if (isSyncing) console.log("[SyncManager] Not syncing: Already syncing.");
       if (!syncQueue || syncQueue.length === 0) console.log("[SyncManager] Not syncing: Sync queue is empty or not loaded.");
       if (!supabase) console.log("[SyncManager] Not syncing: Supabase client not available.");
-      if (!session?.user?.id) console.log("[SyncManager] Not syncing: Session user ID not available."); // New log for session user ID check
       return;
     }
 
@@ -59,15 +54,6 @@ export const useSyncManager = () => {
     try {
       const { table, payload, operation } = item;
       
-      // ADDED: Debugging log for workout_sessions sync
-      if (table === 'workout_sessions') {
-        console.log(`[SyncManager] Workout Session Sync Debug: Client User ID = ${session.user.id}, Payload User ID = ${payload.user_id}`);
-      }
-
-      // The 'supabase' client from useSession is already authenticated.
-      // No need to call supabase.auth.setSession(session) here, as it returns a Promise<AuthResponse>
-      // and not a SupabaseClient instance for database operations.
-
       if (operation === 'create' || operation === 'update') {
         console.log(`[SyncManager] Attempting upsert to table '${table}' with payload:`, payload);
         const { error } = await supabase.from(table).upsert(payload, { onConflict: 'id' });
@@ -101,7 +87,7 @@ export const useSyncManager = () => {
       setIsSyncing(false);
       console.log("[SyncManager] Finished queue processing for current item.");
     }
-  }, [isOnline, isSyncing, syncQueue, supabase, session]);
+  }, [isOnline, isSyncing, syncQueue, supabase]); // Added syncQueue to dependencies
 
   React.useEffect(() => {
     // Trigger processing whenever the queue changes or network status comes back online
@@ -110,7 +96,7 @@ export const useSyncManager = () => {
     }, 5000); // Attempt to sync every 5 seconds if there's something in the queue
 
     return () => clearInterval(syncInterval);
-  }, [syncQueue, isOnline, processQueue]);
+  }, [syncQueue, isOnline, processQueue]); // Added syncQueue to dependencies
 
   return { isOnline }; // Expose isOnline
 };

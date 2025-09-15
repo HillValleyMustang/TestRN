@@ -59,13 +59,11 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
       if (supabaseSession) {
         setSession(supabaseSession);
         await saveSessionToIndexedDB(supabaseSession);
-        console.log("[SessionContextProvider] Initial session set:", supabaseSession.user.id);
       } else {
         // 2. If no session from Supabase, try to load from IndexedDB
         const localSession = await loadSessionFromIndexedDB();
         if (localSession) {
           setSession(localSession);
-          console.log("[SessionContextProvider] Session loaded from IndexedDB:", localSession.user.id);
           // Attempt to refresh the session in the background if it's from IndexedDB
           // This helps ensure we have the latest token when online
           supabase.auth.setSession(localSession).then(() => {
@@ -73,18 +71,14 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
               if (data?.session) {
                 setSession(data.session);
                 saveSessionToIndexedDB(data.session);
-                console.log("[SessionContextProvider] Session refreshed from IndexedDB:", data.session.user.id);
               } else if (error) {
                 console.error("Error refreshing session from IndexedDB:", error);
                 // If refresh fails, consider the local session invalid
                 setSession(null);
                 saveSessionToIndexedDB(null);
-                console.log("[SessionContextProvider] Session refresh failed, cleared.");
               }
             });
           });
-        } else {
-          console.log("[SessionContextProvider] No session found, local or remote.");
         }
       }
       setLoading(false);
@@ -96,7 +90,6 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
       setSession(newSession);
       await saveSessionToIndexedDB(newSession); // Always save the latest session state
       setLoading(false); // Ensure loading is false after any auth state change
-      console.log(`[SessionContextProvider] Auth state changed: ${_event}. New session ID: ${newSession?.user.id || 'none'}`);
 
       if (_event === 'SIGNED_OUT') {
         router.push('/login');
