@@ -95,19 +95,6 @@ const toNullOrNumber = (val: string | null | undefined): number | null => {
 
 const toNullIfEmpty = (str: string | null | undefined): string | null => (str === '' || str === undefined || str === null) ? null : str;
 
-const getSupabaseClients = (authHeader: string) => {
-  // @ts-ignore
-  const supabaseUrl = (Deno.env as any).get('SUPABASE_URL') ?? '';
-  // @ts-ignore
-  const supabaseAnonKey = (Deno.env as any).get('SUPABASE_ANON_KEY') ?? '';
-  // @ts-ignore
-  const supabaseServiceRoleKey = (Deno.env as any).get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-
-  const supabaseAuthClient = createClient(supabaseUrl, supabaseAnonKey, { global: { headers: { Authorization: authHeader } } });
-  const supabaseServiceRoleClient = createClient(supabaseUrl, supabaseServiceRoleKey);
-  return { supabaseAuthClient, supabaseServiceRoleClient };
-};
-
 function getMaxMinutes(sessionLength: string | null | undefined): number {
   switch (sessionLength) {
     case '15-30': return 30;
@@ -486,10 +473,8 @@ serve(async (req: Request) => {
     if (!authHeader) throw new Error('Authorization header missing');
     console.log('Edge Function: Authorization header present.');
 
-    const { supabaseAuthClient } = getSupabaseClients(authHeader); // Removed supabaseServiceRoleClient from destructuring
-    console.log('Edge Function: Supabase clients initialized.');
-
-    const { data: { user }, error: userError } = await supabaseAuthClient.auth.getUser();
+    // Use the service role client for authentication
+    const { data: { user }, error: userError } = await supabaseServiceRoleClient.auth.getUser(authHeader.split(' ')[1]);
     if (userError || !user) throw new Error('Unauthorized');
     userId = user.id; // Assign user ID
 
@@ -635,7 +620,7 @@ serve(async (req: Request) => {
           .update({ t_path_generation_status: 'failed', t_path_generation_error: errorMessage })
           .eq('id', userId);
         if (updateFailError) {
-          console.error('[Background] Error updating profile status to failed:', updateFailError);
+          console.error('[Background] Error updating profile status to failed (initial error):', updateFailError);
         }
       }
     })();
