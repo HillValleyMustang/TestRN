@@ -162,6 +162,7 @@ export default function ProfilePage() {
       const currentProfile = latestCachedProfile || null; // Use a local variable for the current profile data
 
       if (currentProfile) {
+        console.log("[ProfilePage Debug] refreshProfileData: Latest cached profile:", currentProfile);
         form.reset({
           full_name: [currentProfile.first_name, currentProfile.last_name].filter(Boolean).join(' '),
           height_cm: currentProfile.height_cm,
@@ -172,7 +173,7 @@ export default function ProfilePage() {
           preferred_session_length: currentProfile.preferred_session_length,
           preferred_muscles: currentProfile.preferred_muscles ? currentProfile.preferred_muscles.split(',').map((m: string) => m.trim()) : [],
         });
-        console.log("[ProfilePage Debug] refreshProfileData: Profile data loaded and form reset.");
+        console.log("[ProfilePage Debug] refreshProfileData: Profile data loaded and form reset with:", form.getValues());
 
         if (currentProfile.active_t_path_id) {
           console.log("[ProfilePage Debug] refreshProfileData: Fetching active T-Path.");
@@ -180,10 +181,11 @@ export default function ProfilePage() {
           if (tpathError) console.error("[ProfilePage Debug] refreshProfileData: Failed to load active T-Path:", tpathError);
           else {
             setActiveTPath(tpathData as TPath);
-            console.log("[ProfilePage Debug] refreshProfileData: Active T-Path loaded.");
+            console.log("[ProfilePage Debug] refreshProfileData: Active T-Path loaded:", tpathData);
           }
         } else {
           setActiveTPath(null); // Clear active T-Path if none in profile
+          console.log("[ProfilePage Debug] refreshProfileData: No active T-Path found in profile.");
         }
 
         // AI Coach Usage
@@ -198,6 +200,7 @@ export default function ProfilePage() {
         console.log("[ProfilePage Debug] refreshProfileData: AI Coach usage checked.");
       } else {
         // If no profile found after refresh, reset form and states
+        console.log("[ProfilePage Debug] refreshProfileData: No profile found after refresh, resetting form and states.");
         form.reset();
         setActiveTPath(null);
         setAiCoachUsageToday(0);
@@ -303,7 +306,7 @@ export default function ProfilePage() {
     const oldSessionLength = profile.preferred_session_length;
     const newSessionLength = values.preferred_session_length;
     const sessionLengthChanged = oldSessionLength !== newSessionLength;
-    console.log(`[ProfilePage Debug] onSubmit: Session length changed: ${sessionLengthChanged}`);
+    console.log(`[ProfilePage Debug] onSubmit: Session length changed: ${sessionLengthChanged} (Old: ${oldSessionLength}, New: ${newSessionLength})`);
 
     const nameParts = values.full_name.split(' ');
     const firstName = nameParts.shift() || '';
@@ -327,12 +330,12 @@ export default function ProfilePage() {
     }
     console.log("[ProfilePage Debug] onSubmit: Profile updated successfully in Supabase.");
 
-    console.log("Profile updated successfully!"); // Replaced toast.success
+    toast.success("Profile updated successfully!"); // Replaced console.log
 
     if (sessionLengthChanged && activeTPath) {
       console.log("[ProfilePage Debug] onSubmit: Session length changed and active T-Path exists. Initiating workout plan regeneration.");
       try {
-        console.log("[ProfilePage Debug] onSubmit: Calling /api/generate-t-path API route.");
+        console.log("[ProfilePage Debug] onSubmit: Calling /api/generate-t-path API route with tPathId:", activeTPath.id);
         const response = await fetch(`/api/generate-t-path`, {
           method: 'POST',
           headers: {
