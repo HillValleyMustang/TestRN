@@ -3,10 +3,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
-import { useWorkoutFlowManager } from '@/hooks/use-workout-flow-manager';
+import { useWorkoutFlow } from '@/components/workout-flow/workout-flow-context-provider'; // Import the context hook
 import { WorkoutSelector } from '@/components/workout-flow/workout-selector';
 import { WorkoutProgressBar } from '@/components/workout-flow/workout-progress-bar';
-import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal'; // Import the modal
+import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal';
 import { GymToggle } from '@/components/dashboard/gym-toggle';
 
 export default function WorkoutPage() {
@@ -16,15 +16,13 @@ export default function WorkoutPage() {
   const initialWorkoutId = searchParams.get('workoutId');
   const isQuickStart = !!initialWorkoutId;
 
-  const workoutFlowManager = useWorkoutFlowManager({
-    initialWorkoutId: initialWorkoutId,
-    router,
-  });
+  // Use the context hook to get the shared state and functions
+  const workoutFlowManager = useWorkoutFlow();
 
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [summarySessionId, setSummarySessionId] = useState<string | null>(null);
 
-  const handleFinishAndShowSummary = async (): Promise<string | null> => { // Explicitly define return type
+  const handleFinishAndShowSummary = async (): Promise<string | null> => {
     const finishedSessionId = await workoutFlowManager.finishWorkoutSession();
     console.log("WorkoutPage: Finished workout session. Returned ID:", finishedSessionId);
     if (finishedSessionId) {
@@ -34,8 +32,16 @@ export default function WorkoutPage() {
       workoutFlowManager.refreshProfile();
       workoutFlowManager.refreshAchievements();
     }
-    return finishedSessionId; // Return the session ID
+    return finishedSessionId;
   };
+
+  // Effect to handle the initial workout selection from URL parameters
+  useEffect(() => {
+    if (initialWorkoutId && !workoutFlowManager.activeWorkout && !workoutFlowManager.loading) {
+      workoutFlowManager.selectWorkout(initialWorkoutId);
+    }
+  }, [initialWorkoutId, workoutFlowManager.activeWorkout, workoutFlowManager.loading, workoutFlowManager.selectWorkout]);
+
 
   return (
     <div className="p-2 sm:p-4">
@@ -54,13 +60,12 @@ export default function WorkoutPage() {
       <WorkoutSelector
         key={workoutFlowManager.activeWorkout?.id || 'no-workout'}
         {...workoutFlowManager}
-        // Removed onWorkoutSelect as it's no longer a valid prop
         loadingWorkoutFlow={workoutFlowManager.loading}
         createWorkoutSessionInDb={workoutFlowManager.createWorkoutSessionInDb}
-        finishWorkoutSession={handleFinishAndShowSummary} // Use the local handler
+        finishWorkoutSession={handleFinishAndShowSummary}
         isQuickStart={isQuickStart}
-        allAvailableExercises={workoutFlowManager.allAvailableExercises} // Corrected type is now handled by WorkoutSelectorProps
-        setAllAvailableExercises={workoutFlowManager.setAllAvailableExercises} // Pass the setter
+        allAvailableExercises={workoutFlowManager.allAvailableExercises}
+        setAllAvailableExercises={workoutFlowManager.setAllAvailableExercises}
         updateSessionStartTime={workoutFlowManager.updateSessionStartTime}
       />
       <WorkoutProgressBar

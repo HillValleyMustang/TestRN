@@ -4,17 +4,16 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { MobileFooterNav } from "@/components/layout/mobile-footer-nav";
 import { WorkoutNavigationProvider } from "@/components/workout-flow/workout-aware-link";
-import { useWorkoutFlowManager } from "@/hooks/use-workout-flow-manager";
+import { useWorkoutFlow } from "@/components/workout-flow/workout-flow-context-provider"; // Import the context hook
+import { WorkoutFlowProvider } from "@/components/workout-flow/workout-flow-context-provider"; // Import the provider
 import { useEffect } from "react";
 import { UnsavedChangesDialog } from "@/components/workout-flow/unsaved-changes-dialog";
 import { EditWorkoutExercisesDialog } from "@/components/manage-t-paths/edit-workout-exercises-dialog";
-import { useRouter } from "next/navigation";
 import { GymContextProvider } from "@/components/gym-context-provider";
 
-// This new component contains all the logic that depends on the GymContext
+// This component now consumes the context provided by WorkoutFlowProvider
 function AppLayoutContent({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const workoutFlowManager = useWorkoutFlowManager({ router });
+  const workoutFlowManager = useWorkoutFlow(); // Use the context hook
 
   // --- Browser-level warning (for page close/refresh/browser navigation) ---
   useEffect(() => {
@@ -65,7 +64,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   );
 }
 
-// The main export now wraps the content with the GymContextProvider
+// The main export now wraps everything in the correct provider order
 export default function AppLayout({
   children,
 }: {
@@ -73,7 +72,9 @@ export default function AppLayout({
 }) {
   return (
     <GymContextProvider>
-      <AppLayoutContent>{children}</AppLayoutContent>
+      <WorkoutFlowProvider>
+        <AppLayoutContent>{children}</AppLayoutContent>
+      </WorkoutFlowProvider>
     </GymContextProvider>
   );
 }
