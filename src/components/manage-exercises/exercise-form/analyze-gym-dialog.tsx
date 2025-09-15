@@ -75,20 +75,16 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
   };
 
   const handleAnalyseImage = async () => {
-    console.log("[AnalyseGymDialog] handleAnalyseImage called.");
     if (base64Images.length === 0) {
       toast.info("Please upload at least one image first.");
-      console.log("[AnalyseGymDialog] No images to analyze.");
       return;
     }
     if (!session) {
       toast.info("You must be logged in to use this feature.");
-      console.log("[AnalyseGymDialog] User not logged in.");
       return;
     }
 
     setLoading(true);
-    console.log("[AnalyseGymDialog] Loading state set to true.");
     try {
       const response = await fetch('/api/identify-equipment', {
         method: 'POST',
@@ -98,13 +94,10 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
         },
         body: JSON.stringify({ base64Images }),
       });
-      console.log("[AnalyseGymDialog] API call to /api/identify-equipment finished. Response status:", response.status);
 
       const data = await response.json();
-      console.log("[AnalyseGymDialog] API response data:", data);
 
       if (!response.ok) {
-        console.error("[AnalyseGymDialog] API Error:", data.error || 'Failed to analyse images.');
         throw new Error(data.error || 'Failed to analyse images.');
       }
 
@@ -112,21 +105,17 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
       if (identifiedExercises && identifiedExercises.length > 0) {
         const firstExerciseDuplicateStatus = identifiedExercises[0].duplicate_status || 'none';
         onExerciseIdentified(identifiedExercises, firstExerciseDuplicateStatus);
-        console.log(`[AnalyseGymDialog] ${identifiedExercises.length} exercises identified.`);
       } else {
         toast.info("The AI couldn't identify any specific exercises from the uploaded images. Please try different angles or add them manually.");
-        console.log("[AnalyseGymDialog] No exercises identified by AI.");
       }
 
       onOpenChange(false);
       resetForm();
-      console.log("[AnalyseGymDialog] Dialog closed and form reset.");
     } catch (err: any) {
-      console.error("[AnalyseGymDialog] Error analysing images:", err);
+      console.error("Error analysing images:", err);
       toast.info("Image analysis failed.");
     } finally {
       setLoading(false);
-      console.log("[AnalyseGymDialog] Loading state set to false in finally block.");
     }
   };
 
@@ -136,7 +125,6 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-    console.log("[AnalyseGymDialog] Form fields reset.");
   };
 
   React.useEffect(() => {
@@ -190,7 +178,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
                   </div>
                 </ScrollArea>
               ) : (
-                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center"> {/* Added text-center */}
                   <Upload className="w-8 h-8 mb-3 text-muted-foreground" />
                   <p className="mb-2 text-sm text-muted-foreground">
                     <span className="font-semibold">Click to upload</span> or drag and drop
@@ -205,7 +193,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
               </Button>
             )}
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t">
+          <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t"> {/* Made buttons responsive */}
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading} size="sm" className="flex-1">
               Cancel
             </Button>

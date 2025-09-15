@@ -200,13 +200,6 @@ export const useOnboardingForm = () => {
         const exerciseIdsToLinkToGym: string[] = [];
 
         for (const ex of confirmedExercisesToProcess) {
-          // Validate required fields before attempting insert
-          if (!ex.name || !ex.main_muscle || !ex.type) {
-            console.warn(`Skipping AI-identified exercise due to missing required fields: ${JSON.stringify(ex)}`);
-            toast.info(`Skipped an identified exercise due to incomplete data: ${ex.name || 'Unnamed Exercise'}.`);
-            continue;
-          }
-
           if (ex.existing_id) {
             // If it's an existing global or user exercise, link its ID
             exerciseIdsToLinkToGym.push(ex.existing_id);
@@ -215,9 +208,9 @@ export const useOnboardingForm = () => {
             const { data: insertedExercise, error: insertExerciseError } = await supabase
               .from('exercise_definitions')
               .insert({
-                name: ex.name,
-                main_muscle: ex.main_muscle,
-                type: ex.type,
+                name: ex.name!,
+                main_muscle: ex.main_muscle!,
+                type: ex.type!,
                 category: ex.category,
                 description: ex.description,
                 pro_tip: ex.pro_tip,
@@ -232,14 +225,8 @@ export const useOnboardingForm = () => {
               .single();
             
             if (insertExerciseError) {
-              console.error("Failed to save new AI-identified exercise during onboarding:", {
-                message: insertExerciseError.message,
-                code: insertExerciseError.code,
-                details: insertExerciseError.details,
-                hint: insertExerciseError.hint,
-                exerciseData: ex,
-              });
-              toast.info(`Could not save identified exercise "${ex.name}", but your profile is set up!`);
+              console.error("Failed to save new AI-identified exercise during onboarding:", insertExerciseError);
+              toast.info("Could not save some identified exercises, but your profile is set up!");
             } else if (insertedExercise) {
               exerciseIdsToLinkToGym.push(insertedExercise.id);
             }

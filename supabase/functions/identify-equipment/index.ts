@@ -65,44 +65,37 @@ const getYouTubeEmbedUrl = (url: string | null | undefined): string | null => {
 };
 
 serve(async (req: Request) => {
-  console.log("[identify-equipment] Edge Function invoked.");
   if (req.method === 'OPTIONS') {
-    console.log("[identify-equipment] Handling OPTIONS request.");
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Use the service role client for all database operations within the function
     const supabaseServiceRoleClient = createClient(
       // @ts-ignore
       Deno.env.get('SUPABASE_URL') ?? '',
       // @ts-ignore
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
-    console.log("[identify-equipment] Supabase service role client initialized.");
 
+    // Authenticate the user using the JWT from the client's Authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      console.error("[identify-equipment] Authorization header missing.");
       return new Response(JSON.stringify({ error: 'Authorization header missing' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } } );
     }
     const { data: { user }, error: userError } = await supabaseServiceRoleClient.auth.getUser(authHeader.split(' ')[1]);
     if (userError || !user) {
-      console.error("[identify-equipment] Unauthorized: No user session found or user fetch error.", userError?.message);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-    console.log(`[identify-equipment] User authenticated: ${user.id}`);
 
-    const { base64Images } = await req.json();
+    const { base64Images } = await req.json(); // Expect an array of base64 images
     if (!base64Images || !Array.isArray(base64Images) || base64Images.length === 0) {
-      console.warn("[identify-equipment] No images provided in request body.");
       return new Response(JSON.stringify({ error: 'No images provided.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-    console.log(`[identify-equipment] Received ${base64Images.length} images for analysis.`);
 
     const allIdentifiedExercises: any[] = [];
 
-    for (const [index, base64Image] of base64Images.entries()) {
-      console.log(`[identify-equipment] Processing image ${index + 1}/${base64Images.length}.`);
+    for (const base64Image of base64Images) {
       const prompt = `
         You are an expert fitness coach. Analyze the gym equipment in this image.
         Your task is to suggest exercises that can be performed with it.
@@ -143,18 +136,17 @@ serve(async (req: Request) => {
 
       if (!geminiResponse.ok) {
         const errorBody = await geminiResponse.text();
-        console.error(`[identify-equipment] Gemini API error for image ${index + 1}: ${geminiResponse.status} - ${errorBody}`);
+        console.error(`Gemini API error for one image: ${geminiResponse.status} - ${errorBody}`);
+        // Continue processing other images, but log the error
         continue; 
       }
-      console.log(`[identify-equipment] Gemini API responded for image ${index + 1}.`);
 
       const geminiData = await geminiResponse.json();
       const generatedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!generatedText) {
-        console.warn(`[identify-equipment] AI did not return a valid response for image ${index + 1}.`);
+        console.warn("AI did not return a valid response for one image.");
         continue;
       }
-      console.log(`[identify-equipment] Raw AI response for image ${index + 1}:`, generatedText);
 
       const jsonMatch = generatedText.match(/\[[\s\S]*\]/);
       let jsonString = jsonMatch ? jsonMatch[0] : generatedText;
@@ -166,50 +158,49 @@ serve(async (req: Request) => {
           identifiedExercisesForImage = [identifiedExercisesForImage]; // Wrap single object in an array
         }
         allIdentifiedExercises.push(...identifiedExercisesForImage);
-        console.log(`[identify-equipment] Successfully parsed ${identifiedExercisesForImage.length} exercises from image ${index + 1}.`);
       } catch (parseError) {
-        console.error(`[identify-equipment] AI returned an invalid JSON format for image ${index + 1}:`, parseError);
+        console.error("AI returned an invalid format for one image:", parseError);
         continue;
       }
     }
 
     if (allIdentifiedExercises.length === 0) {
-      console.log("[identify-equipment] No exercises identified across all images.");
       return new Response(JSON.stringify({ identifiedExercises: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-    console.log(`[identify-equipment] Total exercises identified before duplicate check: ${allIdentifiedExercises.length}.`);
 
     // --- DUPLICATE CHECK & URL CONVERSION ---
+    // Fetch all existing exercises (global and user-owned) for robust duplicate checking
     const { data: allExistingExercises, error: fetchAllExistingError } = await supabaseServiceRoleClient
       .from('exercise_definitions')
       .select('id, name, user_id');
 
     if (fetchAllExistingError) {
-      console.error("[identify-equipment] Error fetching all existing exercises for duplicate check:", fetchAllExistingError.message);
+      console.error("Error fetching all existing exercises for duplicate check:", fetchAllExistingError.message);
       throw fetchAllExistingError;
     }
-    console.log(`[identify-equipment] Fetched ${allExistingExercises?.length || 0} existing exercises from DB.`);
 
     const typedExistingExercises: ExistingExercise[] = allExistingExercises || [];
 
     const finalUniqueExercises: any[] = [];
-    const seenNormalizedNames = new Set<string>();
+    const seenNormalizedNames = new Set<string>(); // To track exercises identified in the current batch
 
     for (const ex of allIdentifiedExercises) {
       const normalizedAiName = normalizeName(ex.name);
       let duplicate_status: 'none' | 'global' | 'my-exercises' = 'none';
-      let existing_id: string | null = null;
+      let existing_id: string | null = null; // NEW: To store the ID of the duplicate
 
+      // Check if already identified in this batch
       if (seenNormalizedNames.has(normalizedAiName)) {
-        console.log(`[identify-equipment] Skipping duplicate identified in current batch: ${ex.name}`);
-        continue;
+        continue; // Skip if already processed in this batch
       }
 
+      // Check user's custom exercises first
       const userDuplicate = typedExistingExercises.find(existingEx => existingEx.user_id === user.id && normalizeName(existingEx.name) === normalizedAiName);
       if (userDuplicate) {
         duplicate_status = 'my-exercises';
         existing_id = userDuplicate.id;
       } else {
+        // If not in user's, check global library
         const globalDuplicate = typedExistingExercises.find(existingEx => existingEx.user_id === null && normalizeName(existingEx.name) === normalizedAiName);
         if (globalDuplicate) {
           duplicate_status = 'global';
@@ -217,17 +208,19 @@ serve(async (req: Request) => {
         }
       }
 
+      // Convert YouTube URL to embed format
+      console.log(`[identify-equipment] Original video_url for ${ex.name}: ${ex.video_url}`); // DEBUG
       const embedVideoUrl = getYouTubeEmbedUrl(ex.video_url);
+      console.log(`[identify-equipment] Converted video_url for ${ex.name}: ${embedVideoUrl}`); // DEBUG
 
       finalUniqueExercises.push({
         ...ex,
-        video_url: embedVideoUrl,
+        video_url: embedVideoUrl, // Update to embed URL
         duplicate_status: duplicate_status,
-        existing_id: existing_id,
+        existing_id: existing_id, // NEW: Add the ID to the response
       });
-      seenNormalizedNames.add(normalizedAiName);
+      seenNormalizedNames.add(normalizedAiName); // Mark as seen for this batch
     }
-    console.log(`[identify-equipment] Final unique exercises after duplicate check: ${finalUniqueExercises.length}.`);
 
     return new Response(JSON.stringify({ identifiedExercises: finalUniqueExercises }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -235,7 +228,7 @@ serve(async (req: Request) => {
 
   } catch (error) {
     const message = error instanceof Error ? error.message : "An unknown error occurred";
-    console.error("[identify-equipment] Unhandled error in edge function:", message);
+    console.error("Error in identify-equipment edge function:", message);
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
