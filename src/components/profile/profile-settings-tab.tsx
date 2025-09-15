@@ -8,10 +8,11 @@ import { PersonalInfoForm } from './personal-info-form';
 import { WorkoutPreferencesForm } from './workout-preferences-form';
 import { ActiveTPathSection } from './active-t-path-section';
 import { AICoachUsageSection } from './ai-coach-usage-section';
-import { DataExportSection } from './data-export-section'; // Import the new component
+import { DataExportSection } from './data-export-section';
+import { GymManagementSection } from './gym-management-section'; // Import new component
 import { UseFormReturn } from 'react-hook-form';
 import *as z from 'zod';
-import { Tables } from '@/types/supabase';
+import { Tables, Profile } from '@/types/supabase'; // Import Profile
 
 type TPath = Tables<'t_paths'>;
 
@@ -33,9 +34,11 @@ interface ProfileSettingsTabProps {
   activeTPath: TPath | null;
   aiCoachUsageToday: number;
   AI_COACH_LIMIT_PER_SESSION: number;
-  onTPathChange: () => Promise<void>; // Changed to Promise<void>
+  onTPathChange: () => Promise<void>;
   onSignOut: () => void;
   onSubmit: (values: z.infer<typeof profileSchema>) => Promise<void>;
+  profile: Profile | null; // Add profile prop
+  onDataChange: () => void; // Add onDataChange prop
 }
 
 export const ProfileSettingsTab = ({
@@ -48,6 +51,8 @@ export const ProfileSettingsTab = ({
   onTPathChange,
   onSignOut,
   onSubmit,
+  profile, // Destructure profile
+  onDataChange, // Destructure onDataChange
 }: ProfileSettingsTabProps) => {
   return (
     <div className="mt-6 space-y-6 border-none p-0">
@@ -56,8 +61,9 @@ export const ProfileSettingsTab = ({
           <PersonalInfoForm form={form} isEditing={isEditing} mainMuscleGroups={mainMuscleGroups} />
           <WorkoutPreferencesForm form={form} isEditing={isEditing} />
           <ActiveTPathSection activeTPath={activeTPath} isEditing={isEditing} onTPathChange={onTPathChange} />
+          <GymManagementSection isEditing={isEditing} profile={profile} onDataChange={onDataChange} />
           <AICoachUsageSection aiCoachUsageToday={aiCoachUsageToday} AI_COACH_LIMIT_PER_SESSION={AI_COACH_LIMIT_PER_SESSION} />
-          <DataExportSection /> {/* Add the new DataExportSection here */}
+          <DataExportSection />
         </form>
       </Form>
       

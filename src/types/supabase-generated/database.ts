@@ -222,8 +222,11 @@ export type Database = {
       };
       profiles: {
         Row: {
+          active_gym_id: string | null;
+          active_t_path_id: string | null;
           body_fat_pct: number | null;
           created_at: string | null;
+          current_streak: number | null;
           default_rest_time_seconds: number | null;
           first_name: string | null;
           full_name: string | null;
@@ -232,24 +235,24 @@ export type Database = {
           id: string;
           last_ai_coach_use_at: string | null;
           last_name: string | null;
+          last_workout_date: string | null;
           preferred_distance_unit: string | null;
           preferred_muscles: string | null;
+          preferred_session_length: string | null;
           preferred_weight_unit: string | null;
           primary_goal: string | null;
-          target_date: string | null;
-          updated_at: string | null;
-          preferred_session_length: string | null;
-          active_t_path_id: string | null;
-          weight_kg: number | null;
-          total_points: number | null;
-          current_streak: number | null;
-          longest_streak: number | null;
-          last_workout_date: string | null;
           rolling_workout_status: string | null;
+          target_date: string | null;
+          total_points: number | null;
+          updated_at: string | null;
+          weight_kg: number | null;
         };
         Insert: {
+          active_gym_id?: string | null;
+          active_t_path_id?: string | null;
           body_fat_pct?: number | null;
           created_at?: string | null;
+          current_streak?: number | null;
           default_rest_time_seconds?: number | null;
           first_name?: string | null;
           full_name?: string | null;
@@ -258,24 +261,24 @@ export type Database = {
           id: string;
           last_ai_coach_use_at?: string | null;
           last_name?: string | null;
+          last_workout_date?: string | null;
           preferred_distance_unit?: string | null;
           preferred_muscles?: string | null;
+          preferred_session_length?: string | null;
           preferred_weight_unit?: string | null;
           primary_goal?: string | null;
+          rolling_workout_status?: string | null;
           target_date?: string | null;
+          total_points?: number | null;
           updated_at?: string | null;
           weight_kg?: number | null;
-          preferred_session_length?: string | null;
-          active_t_path_id?: string | null;
-          total_points?: number | null;
-          current_streak?: number | null;
-          longest_streak?: number | null;
-          last_workout_date?: string | null;
-          rolling_workout_status?: string | null;
         };
         Update: {
+          active_gym_id?: string | null;
+          active_t_path_id?: string | null;
           body_fat_pct?: number | null;
           created_at?: string | null;
+          current_streak?: number | null;
           default_rest_time_seconds?: number | null;
           first_name?: string | null;
           full_name?: string | null;
@@ -284,20 +287,17 @@ export type Database = {
           id?: string;
           last_ai_coach_use_at?: string | null;
           last_name?: string | null;
+          last_workout_date?: string | null;
           preferred_distance_unit?: string | null;
           preferred_muscles?: string | null;
+          preferred_session_length?: string | null;
           preferred_weight_unit?: string | null;
           primary_goal?: string | null;
+          rolling_workout_status?: string | null;
           target_date?: string | null;
+          total_points?: number | null;
           updated_at?: string | null;
           weight_kg?: number | null;
-          preferred_session_length?: string | null;
-          active_t_path_id?: string | null;
-          total_points?: number | null;
-          current_streak?: number | null;
-          longest_streak?: number | null;
-          last_workout_date?: string | null;
-          rolling_workout_status?: string | null;
         };
         Relationships: [
           {
@@ -368,25 +368,25 @@ export type Database = {
           created_at: string | null;
           exercise_id: string;
           id: string;
+          is_bonus_exercise: boolean | null;
           order_index: number;
           template_id: string;
-          is_bonus_exercise: boolean | null;
         };
         Insert: {
           created_at?: string | null;
           exercise_id: string;
           id?: string;
+          is_bonus_exercise?: boolean | null;
           order_index: number;
           template_id: string;
-          is_bonus_exercise?: boolean | null;
         };
         Update: {
           created_at?: string | null;
           exercise_id?: string;
           id?: string;
+          is_bonus_exercise?: boolean | null;
           order_index?: number;
           template_id?: string;
-          is_bonus_exercise?: boolean | null;
         };
         Relationships: [
           {
@@ -410,43 +410,36 @@ export type Database = {
           created_at: string | null;
           id: string;
           is_bonus: boolean | null;
+          parent_t_path_id: string | null;
+          progression_settings: Json | null;
+          settings: Json | null;
           template_name: string;
           user_id: string | null;
           version: number | null;
-          settings: Json | null;
-          progression_settings: Json | null;
-          parent_t_path_id: string | null;
         };
         Insert: {
           created_at?: string | null;
           id?: string;
           is_bonus?: boolean | null;
+          parent_t_path_id?: string | null;
+          progression_settings?: Json | null;
+          settings?: Json | null;
           template_name: string;
           user_id?: string | null;
           version?: number | null;
-          settings?: Json | null;
-          progression_settings?: Json | null;
-          parent_t_path_id?: string | null;
         };
         Update: {
           created_at?: string | null;
           id?: string;
           is_bonus?: boolean | null;
+          parent_t_path_id?: string | null;
+          progression_settings?: Json | null;
+          settings?: Json | null;
           template_name?: string;
           user_id?: string | null;
           version?: number | null;
-          settings?: Json | null;
-          progression_settings?: Json | null;
-          parent_t_path_id?: string | null;
         };
         Relationships: [
-          {
-            foreignKeyName: "workout_templates_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
           {
             foreignKeyName: "t_paths_parent_t_path_id_fkey";
             columns: ["parent_t_path_id"];
@@ -454,7 +447,228 @@ export type Database = {
             referencedRelation: "t_paths";
             referencedColumns: ["id"];
           },
+          {
+            foreignKeyName: "workout_templates_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
         ];
+      };
+      user_achievements: {
+        Row: {
+          achievement_id: string;
+          id: string;
+          unlocked_at: string | null;
+          user_id: string;
+        };
+        Insert: {
+          achievement_id: string;
+          id?: string;
+          unlocked_at?: string | null;
+          user_id: string;
+        };
+        Update: {
+          achievement_id?: string;
+          id?: string;
+          unlocked_at?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_achievements_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      user_alerts: {
+        Row: {
+          created_at: string | null;
+          id: string;
+          is_read: boolean | null;
+          message: string;
+          title: string;
+          type: string | null;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string | null;
+          id?: string;
+          is_read?: boolean | null;
+          message: string;
+          title: string;
+          type?: string | null;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string | null;
+          id?: string;
+          is_read?: boolean | null;
+          message?: string;
+          title?: string;
+          type?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_alerts_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      user_exercise_prs: {
+        Row: {
+          best_time_seconds: number | null;
+          best_volume_kg: number | null;
+          created_at: string | null;
+          exercise_id: string;
+          id: string;
+          last_achieved_date: string;
+          updated_at: string | null;
+          user_id: string;
+        };
+        Insert: {
+          best_time_seconds?: number | null;
+          best_volume_kg?: number | null;
+          created_at?: string | null;
+          exercise_id: string;
+          id?: string;
+          last_achieved_date?: string;
+          updated_at?: string | null;
+          user_id: string;
+        };
+        Update: {
+          best_time_seconds?: number | null;
+          best_volume_kg?: number | null;
+          created_at?: string | null;
+          exercise_id?: string;
+          id?: string;
+          last_achieved_date?: string;
+          updated_at?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_exercise_prs_exercise_id_fkey";
+            columns: ["exercise_id"];
+            isOneToOne: false;
+            referencedRelation: "exercise_definitions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_exercise_prs_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      user_global_favorites: {
+        Row: {
+          created_at: string | null;
+          exercise_id: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string | null;
+          exercise_id: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string | null;
+          exercise_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_global_favorites_exercise_id_fkey";
+            columns: ["exercise_id"];
+            isOneToOne: false;
+            referencedRelation: "exercise_definitions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_global_favorites_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      user_notifications: {
+        Row: {
+          id: string;
+          notification_id: string;
+          read_at: string | null;
+          user_id: string;
+        };
+        Insert: {
+          id?: string;
+          notification_id: string;
+          read_at?: string | null;
+          user_id: string;
+        };
+        Update: {
+          id?: string;
+          notification_id?: string;
+          read_at?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_notifications_notification_id_fkey";
+            columns: ["notification_id"];
+            isOneToOne: false;
+            referencedRelation: "notifications";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_notifications_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      workout_exercise_structure: {
+        Row: {
+          bonus_for_time_group: number | null;
+          created_at: string | null;
+          exercise_library_id: string;
+          id: string;
+          min_session_minutes: number | null;
+          workout_name: string;
+          workout_split: string;
+        };
+        Insert: {
+          bonus_for_time_group?: number | null;
+          created_at?: string | null;
+          exercise_library_id: string;
+          id?: string;
+          min_session_minutes?: number | null;
+          workout_name: string;
+          workout_split: string;
+        };
+        Update: {
+          bonus_for_time_group?: number | null;
+          created_at?: string | null;
+          exercise_library_id?: string;
+          id?: string;
+          min_session_minutes?: number | null;
+          workout_name?: string;
+          workout_split?: string;
+        };
+        Relationships: [];
       };
       workout_sessions: {
         Row: {
@@ -503,182 +717,6 @@ export type Database = {
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      user_notifications: {
-        Row: {
-          id: string;
-          user_id: string;
-          notification_id: string;
-          read_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          notification_id: string;
-          read_at?: string | null;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          notification_id?: string;
-          read_at?: string | null;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "user_notifications_notification_id_fkey";
-            columns: ["notification_id"];
-            isOneToOne: false;
-            referencedRelation: "notifications";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "user_notifications_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          }
-        ];
-      };
-      notifications: {
-        Row: {
-          id: string;
-          title: string;
-          message: string;
-          type: string;
-          created_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          title: string;
-          message: string;
-          type?: string;
-          created_at?: string | null;
-        };
-        Update: {
-          id?: string;
-          title?: string;
-          message?: string;
-          type?: string;
-          created_at?: string | null;
-        };
-        Relationships: [];
-      };
-      workout_exercise_structure: {
-        Row: {
-          id: string;
-          exercise_library_id: string;
-          workout_split: string;
-          workout_name: string;
-          min_session_minutes: number | null;
-          bonus_for_time_group: number | null;
-          created_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          exercise_library_id: string;
-          workout_split: string;
-          workout_name: string;
-          min_session_minutes?: number | null;
-          bonus_for_time_group?: number | null;
-          created_at?: string | null;
-        };
-        Update: {
-          id?: string;
-          exercise_library_id?: string;
-          workout_split?: string;
-          workout_name?: string;
-          min_session_minutes?: number | null;
-          bonus_for_time_group?: number | null;
-          created_at?: string | null;
-        };
-        Relationships: [];
-      };
-      user_exercise_prs: {
-        Row: {
-          id: string;
-          user_id: string;
-          exercise_id: string;
-          best_volume_kg: number | null;
-          best_time_seconds: number | null;
-          last_achieved_date: string;
-          created_at: string | null;
-          updated_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          exercise_id: string;
-          best_volume_kg?: number | null;
-          best_time_seconds?: number | null;
-          last_achieved_date?: string;
-          created_at?: string | null;
-          updated_at?: string | null;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          exercise_id?: string;
-          best_volume_kg?: number | null;
-          best_time_seconds?: number | null;
-          last_achieved_date?: string;
-          created_at?: string | null;
-          updated_at?: string | null;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "user_exercise_prs_exercise_id_fkey";
-            columns: ["exercise_id"];
-            isOneToOne: false;
-            referencedRelation: "exercise_definitions";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "user_exercise_prs_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          }
-        ];
-      };
-      user_alerts: {
-        Row: {
-          created_at: string | null;
-          id: string;
-          is_read: boolean | null;
-          message: string;
-          title: string;
-          type: string | null;
-          user_id: string;
-        };
-        Insert: {
-          created_at?: string | null;
-          id?: string;
-          is_read?: boolean | null;
-          message: string;
-          title: string;
-          type?: string | null;
-          user_id: string;
-        };
-        Update: {
-          created_at?: string | null;
-          id?: string;
-          is_read?: boolean | null;
-          message?: string;
-          title?: string;
-          type?: string | null;
-          user_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "user_alerts_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "users";
             referencedColumns: ["id"];
           },
         ];

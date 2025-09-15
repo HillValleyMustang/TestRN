@@ -210,7 +210,7 @@ export default function ProfilePage() {
       setLoading(false);
       console.log("[ProfilePage Debug] refreshProfileData: Fetch operation finished.");
     }
-  }, [session, supabase, form, refreshProfileCache, refreshAchievementsCache, setActiveTPath, setAiCoachUsageToday]); // Removed 'profile' from dependencies.
+  }, [session, supabase, form, refreshProfileCache, refreshAchievementsCache, setActiveTPath, setAiCoachUsageToday]);
 
 
   useEffect(() => {
@@ -460,9 +460,11 @@ export default function ProfilePage() {
                       activeTPath={activeTPath}
                       aiCoachUsageToday={aiCoachUsageToday}
                       AI_COACH_LIMIT_PER_SESSION={AI_COACH_LIMIT_PER_SESSION}
-                      onTPathChange={refreshProfileData} // Pass the refresh function
+                      onTPathChange={refreshProfileData}
                       onSignOut={handleSignOut}
-                      onSubmit={onSubmit} // Pass the raw onSubmit function
+                      onSubmit={onSubmit}
+                      profile={profile}
+                      onDataChange={refreshProfileData}
                     />
                   </FormProvider>
                 </div>
