@@ -5,13 +5,20 @@ import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlusCircle, Heart, Info, Home } from "lucide-react";
+import { PlusCircle, Heart, Info, Menu, Home } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExerciseInfoDialog } from "@/components/exercise-info-dialog";
 import { AddExerciseToTPathDialog } from "./add-exercise-to-tpath-dialog";
 import { cn, getWorkoutColorClass } from "@/lib/utils";
 import { WorkoutBadge } from "@/components/workout-badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { ManageExerciseGymsDialog } from "./manage-exercise-gyms-dialog";
 
 // Removed local FetchedExerciseDefinition definition
 
@@ -21,6 +28,7 @@ interface GlobalExerciseListProps {
   onEdit: (exercise: FetchedExerciseDefinition) => void;
   exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>;
   exerciseGymsMap: Record<string, string[]>;
+  userGyms: Tables<'gyms'>[];
   onRemoveFromWorkout: (workoutId: string, exerciseId: string) => void;
   onToggleFavorite: (exercise: FetchedExerciseDefinition) => void;
   onAddSuccess: () => void;
@@ -34,6 +42,7 @@ export const GlobalExerciseList = ({
   onEdit,
   exerciseWorkoutsMap,
   exerciseGymsMap,
+  userGyms,
   onRemoveFromWorkout,
   onToggleFavorite,
   onAddSuccess,
@@ -44,9 +53,10 @@ export const GlobalExerciseList = ({
   const [selectedExerciseForTPath, setSelectedExerciseForTPath] = useState<FetchedExerciseDefinition | null>(null);
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
   const [selectedExerciseForInfo, setSelectedExerciseForInfo] = useState<FetchedExerciseDefinition | null>(null);
+  const [isManageGymsDialogOpen, setIsManageGymsDialogOpen] = useState(false);
+  const [selectedExerciseForGyms, setSelectedExerciseForGyms] = useState<FetchedExerciseDefinition | null>(null);
 
-  const handleOpenAddTPathDialog = (exercise: FetchedExerciseDefinition, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleOpenAddTPathDialog = (exercise: FetchedExerciseDefinition) => {
     setSelectedExerciseForTPath(exercise);
     setIsAddTPathDialogOpen(true);
   };
@@ -60,6 +70,11 @@ export const GlobalExerciseList = ({
     e.stopPropagation();
     setSelectedExerciseForInfo(exercise);
     setIsInfoDialogOpen(true);
+  };
+
+  const handleOpenManageGymsDialog = (exercise: FetchedExerciseDefinition) => {
+    setSelectedExerciseForGyms(exercise);
+    setIsManageGymsDialogOpen(true);
   };
 
   return (
@@ -125,9 +140,23 @@ export const GlobalExerciseList = ({
                     >
                       <Heart className={cn("h-4 w-4", ex.is_favorited_by_current_user ? "fill-red-500 text-red-500" : "text-muted-foreground")} />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={(e) => handleOpenAddTPathDialog(ex, e)} title="Add to T-Path">
-                      <PlusCircle className="h-4 w-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" title="More Options">
+                          <Menu className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={() => handleOpenAddTPathDialog(ex)}>
+                          <PlusCircle className="h-4 w-4 mr-2" /> Add to T-Path
+                        </DropdownMenuItem>
+                        {userGyms.length > 0 && (
+                          <DropdownMenuItem onSelect={() => handleOpenManageGymsDialog(ex)}>
+                            <Home className="h-4 w-4 mr-2" /> Manage Gyms
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </li>
               ))}
@@ -155,6 +184,21 @@ export const GlobalExerciseList = ({
           exercise={selectedExerciseForInfo}
           exerciseWorkouts={exerciseWorkoutsMap[selectedExerciseForInfo.id as string] || []}
           onRemoveFromWorkout={onRemoveFromWorkout}
+        />
+      )}
+
+      {selectedExerciseForGyms && (
+        <ManageExerciseGymsDialog
+            open={isManageGymsDialogOpen}
+            onOpenChange={setIsManageGymsDialogOpen}
+            exercise={selectedExerciseForGyms}
+            userGyms={userGyms}
+            initialSelectedGymIds={new Set(
+                userGyms
+                    .filter(gym => exerciseGymsMap[selectedExerciseForGyms.id as string]?.includes(gym.name))
+                    .map(gym => gym.id)
+            )}
+            onSaveSuccess={onAddSuccess}
         />
       )}
     </Card>

@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { EditExerciseDialog } from "./edit-exercise-dialog"; // Import the new dialog
 import { Badge } from "@/components/ui/badge";
+import { ManageExerciseGymsDialog } from "./manage-exercise-gyms-dialog";
 
 // Removed local FetchedExerciseDefinition definition
 
@@ -43,6 +44,7 @@ interface UserExerciseListProps {
   onSaveSuccess: () => void;
   exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>;
   exerciseGymsMap: Record<string, string[]>;
+  userGyms: Tables<'gyms'>[];
   onRemoveFromWorkout: (workoutId: string, exerciseId: string) => void;
   onToggleFavorite: (exercise: FetchedExerciseDefinition) => void;
   onAddSuccess: () => void;
@@ -60,6 +62,7 @@ export const UserExerciseList = ({
   onSaveSuccess,
   exerciseWorkoutsMap,
   exerciseGymsMap,
+  userGyms,
   onRemoveFromWorkout,
   onToggleFavorite,
   onAddSuccess,
@@ -70,14 +73,12 @@ export const UserExerciseList = ({
   const [selectedExerciseForTPath, setSelectedExerciseForTPath] = useState<FetchedExerciseDefinition | null>(null);
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
   const [selectedExerciseForInfo, setSelectedExerciseForInfo] = useState<FetchedExerciseDefinition | null>(null);
+  const [isManageGymsDialogOpen, setIsManageGymsDialogOpen] = useState(false);
+  const [selectedExerciseForGyms, setSelectedExerciseForGyms] = useState<FetchedExerciseDefinition | null>(null);
 
   // State for the new EditExerciseDialog
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [exerciseToEdit, setExerciseToEdit] = useState<FetchedExerciseDefinition | null>(null);
-
-  // Removed exerciseFormRef and its useEffect as the form is now in a modal
-  // const exerciseFormRef = useRef<HTMLDivElement>(null); 
-  // useEffect(() => { ... }, [editingExercise]);
 
   const handleOpenAddTPathDialog = (exercise: FetchedExerciseDefinition, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -112,6 +113,11 @@ export const UserExerciseList = ({
     handleEditDialogClose(); // Close dialog and reset state
   };
 
+  const handleOpenManageGymsDialog = (exercise: FetchedExerciseDefinition) => {
+    setSelectedExerciseForGyms(exercise);
+    setIsManageGymsDialogOpen(true);
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
@@ -124,7 +130,6 @@ export const UserExerciseList = ({
             editingExercise={null} // Always null for adding new
             onCancelEdit={() => {}} // No specific cancel logic needed here for add form
             onSaveSuccess={onAddSuccess} // Use onAddSuccess for new exercises
-            // Removed onAddOnlyToCurrentWorkout prop
           />
         </div>
 
@@ -196,9 +201,14 @@ export const UserExerciseList = ({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => handleOpenEditDialog(ex)}> {/* Open dialog here */}
+                        <DropdownMenuItem onSelect={() => handleOpenEditDialog(ex)}>
                           <Edit className="h-4 w-4 mr-2" /> Edit Exercise
                         </DropdownMenuItem>
+                        {userGyms.length > 0 && (
+                          <DropdownMenuItem onSelect={() => handleOpenManageGymsDialog(ex)}>
+                            <Home className="h-4 w-4 mr-2" /> Manage Gyms
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onSelect={() => onDelete(ex)} className="text-destructive">
                           <Trash2 className="h-4 w-4 mr-2" /> Delete Exercise
                         </DropdownMenuItem>
@@ -232,6 +242,21 @@ export const UserExerciseList = ({
           exerciseWorkouts={exerciseWorkoutsMap[selectedExerciseForInfo.id as string] || []}
           onRemoveFromWorkout={onRemoveFromWorkout}
           onDeleteExercise={onDelete}
+        />
+      )}
+
+      {selectedExerciseForGyms && (
+        <ManageExerciseGymsDialog
+            open={isManageGymsDialogOpen}
+            onOpenChange={setIsManageGymsDialogOpen}
+            exercise={selectedExerciseForGyms}
+            userGyms={userGyms}
+            initialSelectedGymIds={new Set(
+                userGyms
+                    .filter(gym => exerciseGymsMap[selectedExerciseForGyms.id as string]?.includes(gym.name))
+                    .map(gym => gym.id)
+            )}
+            onSaveSuccess={onSaveSuccess}
         />
       )}
 

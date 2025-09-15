@@ -117,7 +117,7 @@ export default function ManageExercisesPage() {
 
   const handleSaveAiExerciseToMyExercises = useCallback(async (exercise: Partial<FetchedExerciseDefinition>) => {
     if (!session) {
-      toast.info("You must be logged in to save exercises.");
+      toast.error("You must be logged in to save exercises.");
       return;
     }
     setIsAiSaving(true);
@@ -143,14 +143,14 @@ export default function ManageExercisesPage() {
           throw error;
         }
       } else {
-        console.log(`'${exercise.name}' added to My Exercises!`); // Replaced toast.success
+        toast.success(`'${exercise.name}' added to My Exercises!`);
         refreshExercises();
         setShowSaveAiExercisePrompt(false);
         setAiIdentifiedExercise(null);
       }
     } catch (err: any) {
       console.error("Failed to save AI identified exercise:", err);
-      toast.info("Failed to save exercise.");
+      toast.error("Failed to save exercise.");
     } finally {
       setIsAiSaving(false);
     }
@@ -264,6 +264,7 @@ export default function ManageExercisesPage() {
                           onSaveSuccess={handleSaveSuccess}
                           exerciseWorkoutsMap={exerciseWorkoutsMap}
                           exerciseGymsMap={exerciseGymsMap}
+                          userGyms={userGyms}
                           onRemoveFromWorkout={handleRemoveFromWorkout}
                           onToggleFavorite={handleToggleFavorite}
                           onAddSuccess={refreshExercises}
@@ -282,6 +283,7 @@ export default function ManageExercisesPage() {
                           onEdit={handleEditClick}
                           exerciseWorkoutsMap={exerciseWorkoutsMap}
                           exerciseGymsMap={exerciseGymsMap}
+                          userGyms={userGyms}
                           onRemoveFromWorkout={handleRemoveFromWorkout}
                           onToggleFavorite={handleToggleFavorite}
                           onAddSuccess={refreshExercises}
