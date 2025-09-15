@@ -470,16 +470,22 @@ serve(async (req: Request) => {
     console.log('Edge Function: generate-t-path started processing.');
 
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error('Authorization header missing');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authorization header missing' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
     console.log('Edge Function: Authorization header present.');
 
-    // Use the service role client for authentication
     const { data: { user }, error: userError } = await supabaseServiceRoleClient.auth.getUser(authHeader.split(' ')[1]);
-    if (userError || !user) throw new Error('Unauthorized');
-    userId = user.id; // Assign user ID
+    if (userError || !user) {
+      console.error('Auth error:', userError?.message);
+      return new Response(JSON.stringify({ error: 'Unauthorized', details: userError?.message }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    userId = user.id;
 
     const { tPathId } = await req.json();
-    if (!tPathId) throw new Error('tPathId is required');
+    if (!tPathId) {
+      return new Response(JSON.stringify({ error: 'tPathId is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
     console.log(`Edge Function: Received tPathId (main T-Path ID): ${tPathId}`);
 
     // --- Set status to 'in_progress' immediately ---

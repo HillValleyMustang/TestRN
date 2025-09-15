@@ -1,4 +1,3 @@
-import { supabase } from '@/integrations/supabase/client';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -14,19 +13,27 @@ export async function POST(request: Request) {
     }
     console.log("[API Route Debug] /api/generate-t-path: Authorization header present.");
 
-    console.log("[API Route Debug] /api/generate-t-path: Invoking Supabase Edge Function 'generate-t-path'.");
-    const { data, error } = await supabase.functions.invoke('generate-t-path', {
-      body: { tPathId },
-      headers: {
-        Authorization: authHeader,
-      },
-    });
-    console.log("[API Route Debug] /api/generate-t-path: Supabase Edge Function invocation completed.");
+    // Use direct fetch instead of supabase.functions.invoke for more robust error handling
+    const SUPABASE_PROJECT_ID = 'mgbfevrzrbjjiajkqpti'; 
+    const EDGE_FUNCTION_URL = `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/generate-t-path`;
 
-    if (error) {
-      console.error("[API Route Debug] /api/generate-t-path: Error from Supabase Edge Function:", error.message);
-      throw new Error(error.message);
+    const edgeFunctionResponse = await fetch(EDGE_FUNCTION_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader,
+      },
+      body: JSON.stringify({ tPathId }),
+    });
+
+    const data = await edgeFunctionResponse.json();
+
+    if (!edgeFunctionResponse.ok) {
+      // Forward the error from the Edge Function
+      console.error("[API Route Debug] /api/generate-t-path: Error from Edge Function:", data.error || 'Unknown edge function error');
+      return NextResponse.json({ error: data.error || 'Edge function returned a non-2xx status code' }, { status: edgeFunctionResponse.status });
     }
+
     console.log("[API Route Debug] /api/generate-t-path: Supabase Edge Function returned data:", data);
 
     return NextResponse.json({ message: 'T-Path generation initiated successfully.', functionId: data?.function_id });
