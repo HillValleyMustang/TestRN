@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "@/components/session-context-provider";
 import { toast } from "sonner";
 import { Tables, TablesInsert, ProfileInsert, FetchedExerciseDefinition } from "@/types/supabase";
+import { v4 as uuidv4 } from 'uuid'; // Import uuidv4
 
 export const useOnboardingForm = () => {
   const router = useRouter();
@@ -196,41 +197,39 @@ export const useOnboardingForm = () => {
         .filter(ex => confirmedExercises.has(ex.name!));
 
       if (confirmedExercisesToProcess.length > 0) {
-        const exercisesToInsert: TablesInsert<'exercise_definitions'>[] = [];
         const exerciseIdsToLinkToGym: string[] = [];
 
         for (const ex of confirmedExercisesToProcess) {
           if (ex.existing_id) {
+            // If it's an existing global or user exercise, link its ID
             exerciseIdsToLinkToGym.push(ex.existing_id);
           } else {
-            exercisesToInsert.push({
-              name: ex.name!,
-              main_muscle: ex.main_muscle!,
-              type: ex.type!,
-              category: ex.category,
-              description: ex.description,
-              pro_tip: ex.pro_tip,
-              video_url: ex.video_url,
-              icon_url: ex.icon_url,
-              user_id: session.user.id,
-              library_id: null,
-              is_favorite: false,
-              created_at: new Date().toISOString(),
-            });
-          }
-        }
-
-        if (exercisesToInsert.length > 0) {
-          const { data: insertedExercises, error: insertExercisesError } = await supabase
-            .from('exercise_definitions')
-            .insert(exercisesToInsert)
-            .select('id');
-          
-          if (insertExercisesError) {
-            console.error("Failed to save identified exercises during onboarding:", insertExercisesError);
-            toast.info("Could not save all identified exercises, but your profile is set up!");
-          } else if (insertedExercises) {
-            insertedExercises.forEach(ex => exerciseIdsToLinkToGym.push(ex.id));
+            // If it's a brand new exercise, insert it as a GLOBAL exercise
+            const { data: insertedExercise, error: insertExerciseError } = await supabase
+              .from('exercise_definitions')
+              .insert({
+                name: ex.name!,
+                main_muscle: ex.main_muscle!,
+                type: ex.type!,
+                category: ex.category,
+                description: ex.description,
+                pro_tip: ex.pro_tip,
+                video_url: ex.video_url,
+                icon_url: ex.icon_url,
+                user_id: null, // <--- IMPORTANT: Save as GLOBAL exercise
+                library_id: `ai_onboard_${uuidv4()}`, // Assign a unique library_id for AI-identified global exercises
+                is_favorite: false,
+                created_at: new Date().toISOString(),
+              })
+              .select('id')
+              .single();
+            
+            if (insertExerciseError) {
+              console.error("Failed to save new AI-identified exercise during onboarding:", insertExerciseError);
+              toast.info("Could not save some identified exercises, but your profile is set up!");
+            } else if (insertedExercise) {
+              exerciseIdsToLinkToGym.push(insertedExercise.id);
+            }
           }
         }
 
