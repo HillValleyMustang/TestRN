@@ -144,6 +144,8 @@ export default function ProfilePage() {
     return uniqueExerciseInstances.size;
   }, [session?.user.id]) || 0;
 
+  // Ref to store the preferred_session_length from the *last successfully loaded/saved profile*
+  const lastSavedSessionLengthRef = useRef<string | null>(null);
 
   // Simplified refreshProfileData: just triggers the cache revalidation
   const refreshProfileData = useCallback(async () => {
@@ -166,6 +168,10 @@ export default function ProfilePage() {
     if (profile) {
       console.log("[ProfilePage Debug] useEffect[profile]: Latest reactive profile:", profile);
       console.log("[ProfilePage Debug] useEffect[profile]: Latest reactive profile preferred_session_length:", profile.preferred_session_length);
+      
+      // Update the ref with the current profile's session length
+      lastSavedSessionLengthRef.current = profile.preferred_session_length;
+
       form.reset({
         full_name: [profile.first_name, profile.last_name].filter(Boolean).join(' '),
         height_cm: profile.height_cm,
@@ -209,6 +215,7 @@ export default function ProfilePage() {
       // No profile found (e.g., after sign-out or initial load before profile exists)
       console.log("[ProfilePage Debug] useEffect[profile]: No reactive profile found, resetting form and states.");
       form.reset();
+      lastSavedSessionLengthRef.current = null; // Reset ref
       setActiveTPath(null);
       setAiCoachUsageToday(0);
     }
@@ -292,7 +299,8 @@ export default function ProfilePage() {
     setIsSaving(true);
     console.log("[ProfilePage Debug] onSubmit: isSaving set to true.");
 
-    const oldSessionLength = profile.preferred_session_length;
+    // Use the ref for the old session length
+    const oldSessionLength = lastSavedSessionLengthRef.current;
     const newSessionLength = values.preferred_session_length;
     const sessionLengthChanged = oldSessionLength !== newSessionLength;
     console.log(`[ProfilePage Debug] onSubmit: Session length changed: ${sessionLengthChanged} (Old: ${oldSessionLength}, New: ${newSessionLength})`);
@@ -320,6 +328,9 @@ export default function ProfilePage() {
     console.log("[ProfilePage Debug] onSubmit: Profile updated successfully in Supabase.");
 
     toast.success("Profile updated successfully!"); // Replaced console.log
+
+    // Update the ref with the newly saved session length, ensuring it's string or null
+    lastSavedSessionLengthRef.current = newSessionLength ?? null;
 
     if (sessionLengthChanged && activeTPath) {
       console.log("[ProfilePage Debug] onSubmit: Session length changed and active T-Path exists. Initiating workout plan regeneration.");
