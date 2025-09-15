@@ -22,87 +22,122 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
 
   // Function to save session to IndexedDB
   const saveSessionToIndexedDB = useCallback(async (currentSession: Session | null) => {
-    if (currentSession) {
-      await db.supabase_session.put({
-        id: 'current_session', // Fixed ID for the single session object
-        session: currentSession,
-        last_updated: Date.now(),
-      });
-    } else {
-      // If session is null, remove it from IndexedDB
-      await db.supabase_session.delete('current_session');
+    try {
+      if (currentSession) {
+        await db.supabase_session.put({
+          id: 'current_session', // Fixed ID for the single session object
+          session: currentSession,
+          last_updated: Date.now(),
+        });
+      } else {
+        // If session is null, remove it from IndexedDB
+        await db.supabase_session.delete('current_session');
+      }
+    } catch (error) {
+      console.error("Error saving session to IndexedDB:", error);
     }
   }, []);
 
   // Function to load session from IndexedDB
   const loadSessionFromIndexedDB = useCallback(async (): Promise<Session | null> => {
-    const localSession = await db.supabase_session.get('current_session');
-    if (localSession && localSession.session) {
-      // Check if the session is still valid (e.g., not expired)
-      const currentTime = Date.now() / 1000; // in seconds
-      if (localSession.session.expires_at && localSession.session.expires_at > currentTime) {
-        return localSession.session;
-      } else {
-        // Session expired, remove it
-        await db.supabase_session.delete('current_session');
+    try {
+      const localSession = await db.supabase_session.get('current_session');
+      if (localSession && localSession.session) {
+        // Check if the session is still valid (e.g., not expired)
+        const currentTime = Date.now() / 1000; // in seconds
+        if (localSession.session.expires_at && localSession.session.expires_at > currentTime) {
+          return localSession.session;
+        } else {
+          // Session expired, remove it
+          await db.supabase_session.delete('current_session');
+        }
       }
+    } catch (error) {
+      console.error("Error loading session from IndexedDB:", error);
     }
     return null;
   }, []);
 
   useEffect(() => {
-    const initializeSession = async () => {
+    let isMounted = true; // Flag to prevent state updates on unmounted component
+
+    const initializeDbAndSession = async () => {
       setLoading(true);
+      try {
+        await db.open(); // Ensure DB is open when provider mounts
+        console.log("[SessionContextProvider] IndexedDB opened.");
+      } catch (error) {
+        console.error("[SessionContextProvider] Failed to open IndexedDB:", error);
+        // If DB fails to open, we might not be able to load/save sessions locally.
+        // Proceed without local session, relying only on Supabase.
+      }
+
       // 1. Try to get session from Supabase (server-side or fresh client-side)
       const { data: { session: supabaseSession } } = await supabase.auth.getSession();
 
-      if (supabaseSession) {
-        setSession(supabaseSession);
-        await saveSessionToIndexedDB(supabaseSession);
-      } else {
-        // 2. If no session from Supabase, try to load from IndexedDB
-        const localSession = await loadSessionFromIndexedDB();
-        if (localSession) {
-          setSession(localSession);
-          // Attempt to refresh the session in the background if it's from IndexedDB
-          // This helps ensure we have the latest token when online
-          supabase.auth.setSession(localSession).then(() => {
-            supabase.auth.refreshSession().then(({ data, error }) => {
-              if (data?.session) {
-                setSession(data.session);
-                saveSessionToIndexedDB(data.session);
-              } else if (error) {
-                console.error("Error refreshing session from IndexedDB:", error);
-                // If refresh fails, consider the local session invalid
-                setSession(null);
-                saveSessionToIndexedDB(null);
-              }
+      if (isMounted) {
+        if (supabaseSession) {
+          setSession(supabaseSession);
+          await saveSessionToIndexedDB(supabaseSession);
+        } else {
+          // 2. If no session from Supabase, try to load from IndexedDB
+          const localSession = await loadSessionFromIndexedDB();
+          if (localSession) {
+            setSession(localSession);
+            // Attempt to refresh the session in the background if it's from IndexedDB
+            supabase.auth.setSession(localSession).then(() => {
+              supabase.auth.refreshSession().then(({ data, error }) => {
+                if (isMounted) {
+                  if (data?.session) {
+                    setSession(data.session);
+                    saveSessionToIndexedDB(data.session);
+                  } else if (error) {
+                    console.error("Error refreshing session from IndexedDB:", error);
+                    // If refresh fails, consider the local session invalid
+                    setSession(null);
+                    saveSessionToIndexedDB(null);
+                  }
+                }
+              });
             });
-          });
+          }
         }
+        setLoading(false);
       }
-      setLoading(false);
     };
 
-    initializeSession();
+    initializeDbAndSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      setSession(newSession);
-      await saveSessionToIndexedDB(newSession); // Always save the latest session state
-      setLoading(false); // Ensure loading is false after any auth state change
+      if (isMounted) {
+        setSession(newSession);
+        await saveSessionToIndexedDB(newSession); // Always save the latest session state
+        setLoading(false); // Ensure loading is false after any auth state change
 
-      if (_event === 'SIGNED_OUT') {
-        router.push('/login');
-        // Clear all IndexedDB data on sign out
-        db.delete().then(() => {
-          console.log("IndexedDB cleared on sign out.");
-        }).catch(err => {
-          console.error("Error clearing IndexedDB on sign out:", err);
-        });
+        if (_event === 'SIGNED_OUT') {
+          router.push('/login');
+          // Clear all IndexedDB data on sign out
+          try {
+            await db.delete(); // Delete all data
+            await db.open(); // Re-open the database after deletion
+            console.log("[SessionContextProvider] IndexedDB cleared and re-opened on sign out.");
+          } catch (err) {
+            console.error("[SessionContextProvider] Error clearing/re-opening IndexedDB on sign out:", err);
+          }
+        }
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false; // Cleanup flag
+      subscription.unsubscribe();
+      try {
+        db.close(); // Close DB when provider unmounts
+        console.log("[SessionContextProvider] IndexedDB closed on unmount.");
+      } catch (error) {
+        console.error("[SessionContextProvider] Error closing IndexedDB on unmount:", error);
+      }
+    };
   }, [router, saveSessionToIndexedDB, loadSessionFromIndexedDB]);
 
   if (loading) {
