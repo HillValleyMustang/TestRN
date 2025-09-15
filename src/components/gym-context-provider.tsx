@@ -47,14 +47,21 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
         .single();
       if (profileError && profileError.code !== 'PGRST116') throw profileError;
 
-      const activeGymId = profileData?.active_gym_id;
-      if (activeGymId && gymsData) {
-        setActiveGym(gymsData.find(g => g.id === activeGymId) || gymsData[0] || null);
-      } else if (gymsData && gymsData.length > 0) {
-        setActiveGym(gymsData[0]);
-      } else {
-        setActiveGym(null);
+      const activeGymIdFromProfile = profileData?.active_gym_id;
+      
+      let newActiveGym: Gym | null = null;
+      if (gymsData && gymsData.length > 0) {
+        if (activeGymIdFromProfile) {
+          // Try to find the gym specified in the profile
+          newActiveGym = gymsData.find(g => g.id === activeGymIdFromProfile) || null;
+        }
+        // If no active_gym_id in profile, or if the gym wasn't found, default to the first gym
+        if (!newActiveGym) {
+          newActiveGym = gymsData[0];
+        }
       }
+      setActiveGym(newActiveGym);
+
     } catch (error: any) {
       toast.error("Failed to load gym data: " + error.message);
     } finally {
