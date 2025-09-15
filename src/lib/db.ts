@@ -4,7 +4,8 @@ import Dexie, { Table } from 'dexie';
 import { TablesInsert, TablesUpdate, Tables } from '@/types/supabase'; // Import Tables
 import { Session } from '@supabase/supabase-js'; // Import Session type
 import { UserAchievementsRow } from '@/types/supabase-generated/tables/user_achievements'; // Import UserAchievementsRow
-import { Json } from '@/types/supabase-generated'; // Import Json type
+import { Json } from '@/types/supabase-generated/json'; // Import Json type
+import { UserAlertsRow } from '@/types/supabase-generated/tables/user_alerts'; // NEW: Import UserAlertsRow directly
 
 export interface SyncQueueItem {
   id?: number;
@@ -128,7 +129,7 @@ export interface LocalUserAchievement extends UserAchievementsRow {
 }
 
 // NEW: LocalUserAlert
-export interface LocalUserAlert extends Tables<'user_alerts'> {
+export interface LocalUserAlert extends UserAlertsRow {
   id: string;
   user_id: string;
   title: string;

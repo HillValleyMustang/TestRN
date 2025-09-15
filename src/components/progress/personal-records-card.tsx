@@ -21,6 +21,15 @@ interface PersonalRecord {
   unit: string;
 }
 
+// Define the interface for the RPC return type
+interface UserPersonalRecordRpcReturn {
+  exercise_name: string;
+  exercise_type: string;
+  best_value: number;
+  unit: string;
+  last_achieved_date: string;
+}
+
 export const PersonalRecordsCard = () => {
   const { session, supabase } = useSession();
   const [personalRecords, setPersonalRecords] = useState<PersonalRecord[]>([]);
@@ -39,7 +48,7 @@ export const PersonalRecordsCard = () => {
 
         if (error) throw error;
 
-        const formattedRecords: PersonalRecord[] = (prs || []).map(pr => ({
+        const formattedRecords: PersonalRecord[] = (prs || []).map((pr: UserPersonalRecordRpcReturn) => ({
           exerciseName: pr.exercise_name,
           exerciseType: pr.exercise_type,
           value: pr.best_value || 0,
