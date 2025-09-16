@@ -17,9 +17,17 @@ const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/
 
 // Define an interface for the structure of existing exercise data fetched from Supabase
 interface ExistingExercise {
+  id: string;
   name: string;
   user_id: string | null;
 }
+
+// NEW: List of valid muscle groups
+const VALID_MUSCLE_GROUPS = [
+  "Pectorals", "Deltoids", "Lats", "Traps", "Biceps", 
+  "Triceps", "Quadriceps", "Hamstrings", "Glutes", "Calves", 
+  "Abdominals", "Core", "Full Body"
+];
 
 // Helper function to normalize exercise names for comparison
 const normalizeName = (name: string): string => {
@@ -139,6 +147,16 @@ serve(async (req: Request) => {
       console.error("Failed to parse Gemini response as JSON:", generatedText);
       throw new Error("AI generated an invalid response format.");
     }
+
+    // --- Start Validation ---
+    if (!newExerciseData || !newExerciseData.name || newExerciseData.name.trim() === '') {
+        console.error("AI generated an exercise without a name. Discarding.", newExerciseData);
+        return new Response(JSON.stringify({ error: "AI failed to generate a valid exercise with a name. Please try again." }), {
+            status: 200, // Return 200 OK with an error message in the body
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+    }
+    // --- End Validation ---
 
     // --- Start Duplicate Check (after parsing Gemini response) ---
     const { data: allExistingExercises, error: fetchAllExistingError } = await supabaseServiceRoleClient

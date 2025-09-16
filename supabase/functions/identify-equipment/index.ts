@@ -157,7 +157,16 @@ serve(async (req: Request) => {
         if (!Array.isArray(identifiedExercisesForImage)) {
           identifiedExercisesForImage = [identifiedExercisesForImage]; // Wrap single object in an array
         }
-        allIdentifiedExercises.push(...identifiedExercisesForImage);
+        // --- Start Validation ---
+        const validatedExercises = identifiedExercisesForImage.filter(ex => ex.name && ex.name.trim() !== '');
+        if (validatedExercises.length !== identifiedExercisesForImage.length) {
+            console.warn("AI returned some exercises without a name. They will be discarded.", {
+                original: identifiedExercisesForImage,
+                validated: validatedExercises
+            });
+        }
+        allIdentifiedExercises.push(...validatedExercises); // Push only validated exercises
+        // --- End Validation ---
       } catch (parseError) {
         console.error("AI returned an invalid format for one image:", parseError);
         continue;
