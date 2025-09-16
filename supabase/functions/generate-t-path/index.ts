@@ -413,15 +413,21 @@ const synchronizeSourceData = async (supabaseServiceRoleClient: ReturnType<typeo
         user_id: null // Global exercises
     }));
 
+    // NEW: Filter out any exercises that are missing a name before upserting
+    const validExercisesToUpsert = exercisesToUpsertWithoutIcon.filter(ex => ex.name && ex.name.trim() !== '');
+    if (validExercisesToUpsert.length !== exercisesToUpsertWithoutIcon.length) {
+        console.warn('Filtered out some exercises with missing names during source data sync.');
+    }
+
     const { error: upsertError } = await supabaseServiceRoleClient
         .from('exercise_definitions')
-        .upsert(exercisesToUpsertWithoutIcon, { onConflict: 'library_id' });
+        .upsert(validExercisesToUpsert, { onConflict: 'library_id' });
         
     if (upsertError) {
         console.error("Upsert error details (without icon_url):", upsertError);
         throw upsertError;
     }
-    console.log(`Successfully upserted ${exercisesToUpsertWithoutIcon.length} global exercises (without touching icon_url).`);
+    console.log(`Successfully upserted ${validExercisesToUpsert.length} global exercises (without touching icon_url).`);
 
     // 3. Identify global exercises that still have a NULL icon_url and update them with the default
     const { data: nullIconExercises, error: fetchNullIconError } = await supabaseServiceRoleClient
