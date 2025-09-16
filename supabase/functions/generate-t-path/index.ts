@@ -403,17 +403,24 @@ const synchronizeSourceData = async (supabaseServiceRoleClient: ReturnType<typeo
     console.log(`Successfully re-inserted ${workoutStructureData.length} workout structure rules.`);
 
     // 2. Prepare exercises for UPSERT (excluding icon_url initially)
-    const exercisesToUpsertWithoutIcon = exerciseLibraryData.map(ex => ({
-        library_id: ex.exercise_id,
-        name: ex.name,
-        main_muscle: ex.main_muscle,
-        type: ex.type,
-        category: ex.category,
-        description: ex.description,
-        pro_tip: ex.pro_tip,
-        video_url: ex.video_url,
-        user_id: null // Global exercises
-    }));
+    const exercisesToUpsertWithoutIcon = exerciseLibraryData.map(ex => {
+        // Failsafe: Ensure name is not null or empty. This should be caught by the filter, but as a backup.
+        if (!ex.name || ex.name.trim() === '') {
+            console.error(`[SYNC] CRITICAL: Found exercise with empty name in exerciseLibraryData. Skipping. Library ID: ${ex.exercise_id}`);
+            return null; // This will be filtered out later
+        }
+        return {
+            library_id: ex.exercise_id,
+            name: ex.name,
+            main_muscle: ex.main_muscle,
+            type: ex.type,
+            category: ex.category,
+            description: ex.description,
+            pro_tip: ex.pro_tip,
+            video_url: ex.video_url,
+            user_id: null // Global exercises
+        };
+    }).filter(Boolean); // Filter out any null entries
 
     const { error: upsertError } = await supabaseServiceRoleClient
         .from('exercise_definitions')
