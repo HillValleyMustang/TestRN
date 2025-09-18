@@ -110,6 +110,8 @@ serve(async (req: Request) => {
         "main_muscle": "Main Muscle Group (e.g., Pectorals, Quadriceps)",
         "type": "weight" | "timed",
         "category": "Bilateral" | "Unilateral" | null,
+        "movement_type": "compound" | "isolation",
+        "movement_pattern": "Push" | "Pull" | "Legs" | "Core",
         "description": "A brief description of the exercise.",
         "pro_tip": "A short, actionable pro tip for performing the exercise.",
         "video_url": "Optional YouTube or instructional video URL (can be empty string if none)"
@@ -196,13 +198,15 @@ serve(async (req: Request) => {
         main_muscle: newExerciseData.main_muscle,
         type: newExerciseData.type,
         category: newExerciseData.category,
+        movement_type: newExerciseData.movement_type,
+        movement_pattern: newExerciseData.movement_pattern,
         description: newExerciseData.description,
         pro_tip: newExerciseData.pro_tip,
         video_url: newExerciseData.video_url,
         user_id: null, // Mark as a global exercise
         library_id: newLibraryId, // Assign the unique AI-generated library ID
       })
-      .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id') // Specify columns
+      .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, movement_type, movement_pattern') // Specify columns
       .single();
 
     if (insertError) {

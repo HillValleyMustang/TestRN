@@ -104,18 +104,19 @@ serve(async (req: Request) => {
         1. If the equipment is versatile and can be used for many exercises (e.g., dumbbells, cable machine, squat rack), suggest the top 5-7 most common and effective exercises.
         2. If the equipment is simple and designed for only one or two primary movements (e.g., leg extension machine, pec deck, pull-up bar), suggest only those 1-2 primary exercises.
         3. For each exercise, provide its name, primary muscle group(s) (comma-separated), type ('weight' or 'timed'), category ('Bilateral', 'Unilateral', or null), a brief description, a pro tip, and an an optional YouTube embed URL.
-        4. IMPORTANT: For the "main_muscle" field, you MUST only use values from this exact list: ${VALID_MUSCLE_GROUPS.join(', ')}. If an exercise works multiple muscles, select the most primary one from the list.
-        5. IMPORTANT: Your entire response MUST be a single JSON array of objects, with no other text or markdown formatting.
+        4. NEW: For each exercise, you must also provide 'movement_type' ('compound' or 'isolation') and 'movement_pattern' ('Push', 'Pull', 'Legs', or 'Core').
+        5. IMPORTANT: For the "main_muscle" field, you MUST only use values from this exact list: ${VALID_MUSCLE_GROUPS.join(', ')}. If an exercise works multiple muscles, select the most primary one from the list.
+        6. IMPORTANT: Your entire response MUST be a single JSON array of objects, with no other text or markdown formatting.
 
         Example response for versatile equipment:
         [
-          { "name": "Bench Press", "main_muscle": "Pectorals", "type": "weight", "category": "Bilateral", "description": "...", "pro_tip": "...", "video_url": "..." },
-          { "name": "Dumbbell Row", "main_muscle": "Lats", "type": "weight", "category": "Unilateral", "description": "...", "pro_tip": "...", "video_url": "..." }
+          { "name": "Bench Press", "main_muscle": "Pectorals", "type": "weight", "category": "Bilateral", "movement_type": "compound", "movement_pattern": "Push", "description": "...", "pro_tip": "...", "video_url": "..." },
+          { "name": "Dumbbell Row", "main_muscle": "Lats", "type": "weight", "category": "Unilateral", "movement_type": "compound", "movement_pattern": "Pull", "description": "...", "pro_tip": "...", "video_url": "..." }
         ]
 
         Example response for simple equipment:
         [
-          { "name": "Leg Extension", "main_muscle": "Quadriceps", "type": "weight", "category": "Bilateral", "description": "...", "pro_tip": "...", "video_url": "..." }
+          { "name": "Leg Extension", "main_muscle": "Quadriceps", "type": "weight", "category": "Bilateral", "movement_type": "isolation", "movement_pattern": "Legs", "description": "...", "pro_tip": "...", "video_url": "..." }
         ]
       `;
 
