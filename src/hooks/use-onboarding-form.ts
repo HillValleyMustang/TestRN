@@ -195,16 +195,14 @@ export const useOnboardingForm = () => {
 
       const confirmedExercisesToProcess = identifiedExercises
         .filter(ex => confirmedExercises.has(ex.name!));
+      
+      const exerciseIdsToLinkToGym: string[] = [];
 
       if (confirmedExercisesToProcess.length > 0) {
-        const exerciseIdsToLinkToGym: string[] = [];
-
         for (const ex of confirmedExercisesToProcess) {
           if (ex.existing_id) {
-            // If it's an existing global or user exercise, link its ID
             exerciseIdsToLinkToGym.push(ex.existing_id);
           } else {
-            // If it's a brand new exercise, insert it as a USER exercise
             const { data: insertedExercise, error: insertExerciseError } = await supabase
               .from('exercise_definitions')
               .insert({
@@ -216,8 +214,8 @@ export const useOnboardingForm = () => {
                 pro_tip: ex.pro_tip,
                 video_url: ex.video_url,
                 icon_url: ex.icon_url,
-                user_id: session.user.id, // CORRECTED: Save as USER exercise
-                library_id: null, // CORRECTED: User exercises don't have a library_id
+                user_id: session.user.id,
+                library_id: null,
                 is_favorite: false,
                 created_at: new Date().toISOString(),
               })
@@ -245,17 +243,16 @@ export const useOnboardingForm = () => {
         }
       }
 
-      // CRITICAL FIX: Ensure all DB writes are complete before calling generation
-      // This is a conceptual delay; in a real-world scenario with replication lag,
-      // a more robust solution like a webhook or queue would be better, but for now,
-      // we ensure the client-side `await`s have finished.
-      console.log("All profile and exercise data saved. Now initiating workout generation...");
+      console.log("All profile and exercise data saved. Now initiating workout generation with confirmed exercises:", exerciseIdsToLinkToGym);
 
       const generationPromises = insertedTPaths.map(async (tp) => {
         const response = await fetch(`/api/generate-t-path`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-          body: JSON.stringify({ tPathId: tp.id })
+          body: JSON.stringify({ 
+            tPathId: tp.id,
+            confirmedExerciseIds: exerciseIdsToLinkToGym // Pass the confirmed IDs here
+          })
         });
         if (!response.ok) {
           const errorText = await response.text();
