@@ -191,6 +191,35 @@ serve(async (req: Request) => {
       const maxAllowedMinutes = getMaxMinutes(sessionLength);
       const workoutNames = getWorkoutNamesForSplit(workoutSplit);
 
+      // Create master pools for each movement pattern
+      const pushPool = (allExercises || []).filter((ex: ExerciseDefinition) => ex.movement_pattern === 'Push');
+      const pullPool = (allExercises || []).filter((ex: ExerciseDefinition) => ex.movement_pattern === 'Pull');
+      const legsPool = (allExercises || []).filter((ex: ExerciseDefinition) => ex.movement_pattern === 'Legs');
+      const corePool = (allExercises || []).filter((ex: ExerciseDefinition) => ex.movement_pattern === 'Core');
+
+      // Combine pools for ULUL split
+      const upperPool = [...pushPool, ...pullPool];
+      const lowerPool = [...legsPool, ...corePool];
+
+      // Distribute exercises for A/B splits
+      const workoutSpecificPools: Record<string, ExerciseDefinition[]> = {};
+      if (workoutSplit === 'ulul') {
+        workoutSpecificPools['Upper Body A'] = [];
+        workoutSpecificPools['Upper Body B'] = [];
+        workoutSpecificPools['Lower Body A'] = [];
+        workoutSpecificPools['Lower Body B'] = [];
+        sortExercises(upperPool).forEach((ex, i) => {
+          workoutSpecificPools[i % 2 === 0 ? 'Upper Body A' : 'Upper Body B'].push(ex);
+        });
+        sortExercises(lowerPool).forEach((ex, i) => {
+          workoutSpecificPools[i % 2 === 0 ? 'Lower Body A' : 'Lower Body B'].push(ex);
+        });
+      } else { // ppl
+        workoutSpecificPools['Push'] = sortExercises(pushPool);
+        workoutSpecificPools['Pull'] = sortExercises(pullPool);
+        workoutSpecificPools['Legs'] = sortExercises(legsPool);
+      }
+
       for (const workoutName of workoutNames) {
         const { data: newChildWorkout, error: createChildError } = await supabaseServiceRoleClient
           .from('t_paths')
@@ -199,47 +228,45 @@ serve(async (req: Request) => {
         if (createChildError) throw createChildError;
         const childWorkoutId = newChildWorkout.id;
 
-        let movementPatterns: string[] = [];
-        if (workoutName.includes('Upper')) movementPatterns = ['Push', 'Pull'];
-        else if (workoutName.includes('Lower')) movementPatterns = ['Legs', 'Core'];
-        else if (workoutName === 'Push') movementPatterns = ['Push'];
-        else if (workoutName === 'Pull') movementPatterns = ['Pull'];
-        else if (workoutName === 'Legs') movementPatterns = ['Legs'];
+        const candidatePool = workoutSpecificPools[workoutName] || [];
+        
+        // Prioritize user's confirmed exercises
+        const confirmedIds = new Set(confirmedExercisesDataForPlan.map(ex => ex.id));
+        const tier1Pool = candidatePool.filter(ex => confirmedIds.has(ex.id));
+        const tier2Pool = candidatePool.filter(ex => !confirmedIds.has(ex.id) && ex.user_id === user.id);
+        const tier3Pool = candidatePool.filter(ex => !confirmedIds.has(ex.id) && ex.user_id === null && !allLinkedExerciseIds.has(ex.id)); // Bodyweight
+        const tier4Pool = candidatePool.filter(ex => !confirmedIds.has(ex.id) && ex.user_id === null && allLinkedExerciseIds.has(ex.id)); // Common Gym
 
-        // --- NEW TIERED LOGIC ---
-        const tier1Pool = confirmedExercisesDataForPlan.filter(ex => movementPatterns.includes(ex.movement_pattern || ''));
-        const tier2Pool = (allExercises || []).filter((ex: ExerciseDefinition) => movementPatterns.includes(ex.movement_pattern || '') && !allLinkedExerciseIds.has(ex.id));
-        const commonGymLibraryIds = new Set((workoutStructure || []).filter((s: WorkoutStructure) => s.workout_name === workoutName && s.min_session_minutes !== null && maxAllowedMinutes >= s.min_session_minutes).map((s: WorkoutStructure) => s.exercise_library_id));
-        const commonGymUuids = new Set(Array.from(commonGymLibraryIds).map((libId: any) => libraryIdToUuidMap.get(libId)).filter((uuid): uuid is string => !!uuid));
-        const tier3Pool = (allExercises || []).filter((ex: ExerciseDefinition) => commonGymUuids.has(ex.id));
-
+        const finalPool = [...tier1Pool, ...tier2Pool, ...tier3Pool, ...tier4Pool];
+        
         const mainExercisesForWorkout: ExerciseDefinition[] = [];
+        const bonusExercisesForWorkout: ExerciseDefinition[] = [];
         const addedExerciseIds = new Set<string>();
         let currentDuration = 0;
         const exerciseDurationEstimate = 5;
 
-        const addExercisesFromPool = (pool: ExerciseDefinition[]) => {
-          for (const ex of pool) {
-            if (currentDuration + exerciseDurationEstimate > maxAllowedMinutes) break;
+        // Build core workout
+        for (const ex of finalPool) {
+          if (currentDuration + exerciseDurationEstimate <= maxAllowedMinutes) {
             if (!addedExerciseIds.has(ex.id)) {
               mainExercisesForWorkout.push(ex);
               addedExerciseIds.add(ex.id);
               currentDuration += exerciseDurationEstimate;
             }
           }
-        };
+        }
 
-        addExercisesFromPool(sortExercises(tier1Pool as ExerciseDefinition[]));
-        addExercisesFromPool(sortExercises(tier2Pool as ExerciseDefinition[]));
-        addExercisesFromPool(sortExercises(tier3Pool as ExerciseDefinition[]));
-
-        const bonusLibraryIds = new Set((workoutStructure || []).filter((s: WorkoutStructure) => s.workout_name === workoutName && s.bonus_for_time_group !== null && maxAllowedMinutes >= s.bonus_for_time_group).map((s: WorkoutStructure) => s.exercise_library_id));
-        const bonusUuids = new Set(Array.from(bonusLibraryIds).map((libId: any) => libraryIdToUuidMap.get(libId)).filter((uuid): uuid is string => !!uuid));
-        const bonusExercisesForWorkout = (allExercises || []).filter((ex: ExerciseDefinition) => bonusUuids.has(ex.id) && !addedExerciseIds.has(ex.id));
+        // Add remaining confirmed exercises as bonus
+        for (const ex of tier1Pool) {
+          if (!addedExerciseIds.has(ex.id)) {
+            bonusExercisesForWorkout.push(ex);
+            addedExerciseIds.add(ex.id);
+          }
+        }
 
         const exercisesToInsertPayload = [
-          ...sortExercises(mainExercisesForWorkout).map((ex, index) => ({ template_id: childWorkoutId, exercise_id: ex.id, order_index: index, is_bonus_exercise: false })),
-          ...sortExercises(bonusExercisesForWorkout).map((ex, index) => ({ template_id: childWorkoutId, exercise_id: ex.id, order_index: mainExercisesForWorkout.length + index, is_bonus_exercise: true }))
+          ...mainExercisesForWorkout.map((ex, index) => ({ template_id: childWorkoutId, exercise_id: ex.id, order_index: index, is_bonus_exercise: false })),
+          ...bonusExercisesForWorkout.map((ex, index) => ({ template_id: childWorkoutId, exercise_id: ex.id, order_index: mainExercisesForWorkout.length + index, is_bonus_exercise: true }))
         ];
 
         if (exercisesToInsertPayload.length > 0) {
