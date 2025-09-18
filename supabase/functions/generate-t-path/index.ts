@@ -16,6 +16,7 @@ interface ExerciseDefinition {
   library_id: string | null;
   movement_type: string | null;
   movement_pattern: string | null;
+  main_muscle: string; // Added for new logic
 }
 
 interface WorkoutStructure {
@@ -109,7 +110,7 @@ serve(async (req: Request) => {
           activeGymId = (profileData as ProfileData)?.active_gym_id;
         }
 
-        const { data: allExercises, error: fetchAllExercisesError } = await supabaseServiceRoleClient.from('exercise_definitions').select('id, name, user_id, library_id, movement_type, movement_pattern');
+        const { data: allExercises, error: fetchAllExercisesError } = await supabaseServiceRoleClient.from('exercise_definitions').select('id, name, user_id, library_id, movement_type, movement_pattern, main_muscle');
         if (fetchAllExercisesError) throw fetchAllExercisesError;
 
         const { data: allGymLinks, error: allGymLinksError } = await supabaseServiceRoleClient.from('gym_exercises').select('exercise_id');
@@ -138,19 +139,23 @@ serve(async (req: Request) => {
         const maxAllowedMinutes = getMaxMinutes(sessionLength);
         const workoutNames = getWorkoutNamesForSplit(workoutSplit);
 
-        // Create master pools for each movement pattern
-        const pushPool = (allExercises || []).filter((ex: ExerciseDefinition) => ex.movement_pattern === 'Push');
-        const pullPool = (allExercises || []).filter((ex: ExerciseDefinition) => ex.movement_pattern === 'Pull');
-        const legsPool = (allExercises || []).filter((ex: ExerciseDefinition) => ex.movement_pattern === 'Legs');
-        const corePool = (allExercises || []).filter((ex: ExerciseDefinition) => ex.movement_pattern === 'Core');
-
-        // Combine pools for ULUL split
-        const upperPool = [...pushPool, ...pullPool];
-        const lowerPool = [...legsPool, ...corePool];
-
-        // Distribute exercises for A/B splits
         const workoutSpecificPools: Record<string, ExerciseDefinition[]> = {};
+
         if (workoutSplit === 'ulul') {
+          const UPPER_BODY_MUSCLES = new Set(['Pectorals', 'Deltoids', 'Lats', 'Traps', 'Biceps', 'Triceps', 'Abdominals', 'Core']);
+          const LOWER_BODY_MUSCLES = new Set(['Quadriceps', 'Hamstrings', 'Glutes', 'Calves']);
+
+          const upperPool = (allExercises || []).filter((ex: any) => {
+            if (!ex.main_muscle) return false;
+            const muscles = ex.main_muscle.split(',').map((m: string) => m.trim());
+            return muscles.some((m: string) => UPPER_BODY_MUSCLES.has(m));
+          });
+          const lowerPool = (allExercises || []).filter((ex: any) => {
+            if (!ex.main_muscle) return false;
+            const muscles = ex.main_muscle.split(',').map((m: string) => m.trim());
+            return muscles.some((m: string) => LOWER_BODY_MUSCLES.has(m));
+          });
+
           workoutSpecificPools['Upper Body A'] = [];
           workoutSpecificPools['Upper Body B'] = [];
           workoutSpecificPools['Lower Body A'] = [];
@@ -162,6 +167,10 @@ serve(async (req: Request) => {
             workoutSpecificPools[i % 2 === 0 ? 'Lower Body A' : 'Lower Body B'].push(ex);
           });
         } else { // ppl
+          const pushPool = (allExercises || []).filter((ex: ExerciseDefinition) => ex.movement_pattern === 'Push');
+          const pullPool = (allExercises || []).filter((ex: ExerciseDefinition) => ex.movement_pattern === 'Pull');
+          const legsPool = (allExercises || []).filter((ex: ExerciseDefinition) => ex.movement_pattern === 'Legs');
+          
           workoutSpecificPools['Push'] = sortExercises(pushPool);
           workoutSpecificPools['Pull'] = sortExercises(pullPool);
           workoutSpecificPools['Legs'] = sortExercises(legsPool);
@@ -177,7 +186,6 @@ serve(async (req: Request) => {
 
           const candidatePool = workoutSpecificPools[workoutName] || [];
           
-          // Tiered logic for regeneration
           let activeGymExerciseIds = new Set<string>();
           if (activeGymId) {
             const { data: activeGymLinks, error: activeGymLinksError } = await supabaseServiceRoleClient.from('gym_exercises').select('exercise_id').eq('gym_id', activeGymId);
@@ -202,7 +210,6 @@ serve(async (req: Request) => {
           let currentDuration = 0;
           const exerciseDurationEstimate = 5;
 
-          // Build core workout
           for (const ex of finalUniquePool) {
             if (currentDuration + exerciseDurationEstimate <= maxAllowedMinutes) {
               if (!addedExerciseIds.has(ex.id)) {
@@ -211,11 +218,10 @@ serve(async (req: Request) => {
                 currentDuration += exerciseDurationEstimate;
               }
             } else {
-              break; // Stop adding once time limit is reached
+              break;
             }
           }
 
-          // Add bonus exercises based on structure
           const bonusLibraryIds = new Set((workoutStructure || []).filter((s: WorkoutStructure) => s.workout_name === workoutName && s.bonus_for_time_group !== null && maxAllowedMinutes >= s.bonus_for_time_group).map((s: WorkoutStructure) => s.exercise_library_id));
           const bonusUuids = new Set(Array.from(bonusLibraryIds).map((libId: any) => libraryIdToUuidMap.get(libId)).filter((uuid): uuid is string => !!uuid));
           const bonusExercisesForWorkout = (allExercises || []).filter((ex: ExerciseDefinition) => bonusUuids.has(ex.id) && !addedExerciseIds.has(ex.id));
