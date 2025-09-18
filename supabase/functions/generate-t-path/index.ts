@@ -195,6 +195,7 @@ serve(async (req: Request) => {
           const tier5Pool = candidatePool.filter(ex => commonGymUuids.has(ex.id));
 
           const finalPool = [...tier1Pool, ...tier2Pool, ...tier3Pool, ...tier4Pool, ...tier5Pool];
+          const finalUniquePool = [...new Map(finalPool.map(item => [item.id, item])).values()];
           
           const mainExercisesForWorkout: ExerciseDefinition[] = [];
           const addedExerciseIds = new Set<string>();
@@ -202,7 +203,7 @@ serve(async (req: Request) => {
           const exerciseDurationEstimate = 5;
 
           // Build core workout
-          for (const ex of finalPool) {
+          for (const ex of finalUniquePool) {
             if (currentDuration + exerciseDurationEstimate <= maxAllowedMinutes) {
               if (!addedExerciseIds.has(ex.id)) {
                 mainExercisesForWorkout.push(ex);

@@ -230,14 +230,19 @@ serve(async (req: Request) => {
 
         const candidatePool = workoutSpecificPools[workoutName] || [];
         
-        // Prioritize user's confirmed exercises
         const confirmedIds = new Set(confirmedExercisesDataForPlan.map(ex => ex.id));
         const tier1Pool = candidatePool.filter(ex => confirmedIds.has(ex.id));
         const tier2Pool = candidatePool.filter(ex => !confirmedIds.has(ex.id) && ex.user_id === user.id);
         const tier3Pool = candidatePool.filter(ex => !confirmedIds.has(ex.id) && ex.user_id === null && !allLinkedExerciseIds.has(ex.id)); // Bodyweight
-        const tier4Pool = candidatePool.filter(ex => !confirmedIds.has(ex.id) && ex.user_id === null && allLinkedExerciseIds.has(ex.id)); // Common Gym
+        const tier4Pool = candidatePool.filter(ex => !confirmedIds.has(ex.id) && ex.user_id === null && allLinkedExerciseIds.has(ex.id)); // Common Gym (from user's gym)
 
-        const finalPool = [...tier1Pool, ...tier2Pool, ...tier3Pool, ...tier4Pool];
+        // Tier 5: Fallback to default global exercises for this workout type and session length
+        const commonGymLibraryIds = new Set((workoutStructure || []).filter((s: WorkoutStructure) => s.workout_name === workoutName && s.min_session_minutes !== null && maxAllowedMinutes >= s.min_session_minutes).map((s: WorkoutStructure) => s.exercise_library_id));
+        const commonGymUuids = new Set(Array.from(commonGymLibraryIds).map((libId: any) => libraryIdToUuidMap.get(libId)).filter((uuid): uuid is string => !!uuid));
+        const tier5Pool = candidatePool.filter(ex => commonGymUuids.has(ex.id));
+
+        const finalPool = [...tier1Pool, ...tier2Pool, ...tier3Pool, ...tier4Pool, ...tier5Pool];
+        const finalUniquePool = [...new Map(finalPool.map(item => [item.id, item])).values()];
         
         const mainExercisesForWorkout: ExerciseDefinition[] = [];
         const bonusExercisesForWorkout: ExerciseDefinition[] = [];
@@ -246,7 +251,7 @@ serve(async (req: Request) => {
         const exerciseDurationEstimate = 5;
 
         // Build core workout
-        for (const ex of finalPool) {
+        for (const ex of finalUniquePool) {
           if (currentDuration + exerciseDurationEstimate <= maxAllowedMinutes) {
             if (!addedExerciseIds.has(ex.id)) {
               mainExercisesForWorkout.push(ex);
