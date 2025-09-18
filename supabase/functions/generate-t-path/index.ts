@@ -18,6 +18,12 @@ interface ExerciseDefinition {
   movement_pattern: string | null;
 }
 
+interface WorkoutStructure {
+  exercise_library_id: string;
+  workout_name: string;
+  min_session_minutes: number | null;
+}
+
 interface TPathData {
   id: string;
   settings: { tPathType?: string } | null;
@@ -110,6 +116,9 @@ serve(async (req: Request) => {
         const { data: allGymLinks, error: gymLinksError } = await supabaseServiceRoleClient.from('gym_exercises').select('gym_id, exercise_id');
         if (gymLinksError) throw gymLinksError;
 
+        const { data: workoutStructure, error: structureError } = await supabaseServiceRoleClient.from('workout_exercise_structure').select('exercise_library_id, workout_name, min_session_minutes');
+        if (structureError) throw structureError;
+
         // 2. Cleanup Old Workouts
         const { data: oldChildWorkouts, error: fetchOldError } = await supabaseServiceRoleClient.from('t_paths').select('id').eq('parent_t_path_id', tPathId).eq('user_id', user.id);
         if (fetchOldError) throw fetchOldError;
@@ -119,7 +128,7 @@ serve(async (req: Request) => {
           await supabaseServiceRoleClient.from('t_paths').delete().in('id', oldChildIds);
         }
 
-        // 3. Determine Parameters
+        // 3. Determine Parameters & Create Maps
         const tPathSettings = tPathData.settings as { tPathType?: string };
         if (!tPathSettings?.tPathType) throw new Error('Invalid T-Path settings.');
         const workoutSplit = tPathSettings.tPathType;
@@ -127,6 +136,8 @@ serve(async (req: Request) => {
         const workoutNames = getWorkoutNamesForSplit(workoutSplit);
         const allLinkedExerciseIds = new Set((allGymLinks || []).map((l: GymLink) => l.exercise_id));
         const activeGymExerciseIds = new Set(activeGymId ? (allGymLinks || []).filter((l: GymLink) => l.gym_id === activeGymId).map((l: GymLink) => l.exercise_id) : []);
+        const libraryIdToUuidMap = new Map<string, string>();
+        (allExercises || []).forEach((ex: ExerciseDefinition) => { if (ex.library_id) libraryIdToUuidMap.set(ex.library_id, ex.id); });
 
         // 4. Generate New Workouts
         for (const workoutName of workoutNames) {
@@ -137,41 +148,46 @@ serve(async (req: Request) => {
           if (createChildError) throw createChildError;
           const childWorkoutId = newChildWorkout.id;
 
-          const movementPattern = workoutName.split(' ')[0]; // "Push", "Pull", "Legs", "Upper", "Lower"
+          const movementPattern = workoutName.split(' ')[0];
 
           // Build Exercise Pools
-          const gymExercises = (allExercises || []).filter((ex: ExerciseDefinition) => ex.movement_pattern === movementPattern && activeGymExerciseIds.has(ex.id));
-          const bodyweightExercises = (allExercises || []).filter((ex: ExerciseDefinition) => ex.movement_pattern === movementPattern && !allLinkedExerciseIds.has(ex.id));
-
-          // Sort Pools
-          const sortedGymExercises = sortExercises(gymExercises as ExerciseDefinition[]);
-          const sortedBodyweightExercises = sortExercises(bodyweightExercises as ExerciseDefinition[]);
+          const tier1Pool = (allExercises || []).filter((ex: ExerciseDefinition) => ex.movement_pattern === movementPattern && activeGymExerciseIds.has(ex.id));
+          const tier2Pool = (allExercises || []).filter((ex: ExerciseDefinition) => ex.movement_pattern === movementPattern && !allLinkedExerciseIds.has(ex.id));
+          const commonGymLibraryIds = new Set(
+            (workoutStructure || []).filter((s: WorkoutStructure) => s.workout_name === workoutName && s.min_session_minutes !== null && maxAllowedMinutes >= s.min_session_minutes).map((s: WorkoutStructure) => s.exercise_library_id)
+          );
+          const commonGymUuids = new Set(Array.from(commonGymLibraryIds).map(libId => libraryIdToUuidMap.get(libId)).filter(Boolean) as string[]);
+          const tier3Pool = (allExercises || []).filter((ex: ExerciseDefinition) => commonGymUuids.has(ex.id));
 
           // Assemble Workout
           const finalExercisesForWorkout: ExerciseDefinition[] = [];
+          const addedExerciseIds = new Set<string>();
           let currentDuration = 0;
-          const exerciseDurationEstimate = 5; // 5 minutes per exercise
+          const exerciseDurationEstimate = 5;
 
-          for (const ex of sortedGymExercises) {
-            if (currentDuration + exerciseDurationEstimate <= maxAllowedMinutes) {
-              finalExercisesForWorkout.push(ex);
-              currentDuration += exerciseDurationEstimate;
-            } else break;
-          }
-          for (const ex of sortedBodyweightExercises) {
-            if (currentDuration + exerciseDurationEstimate <= maxAllowedMinutes) {
-              finalExercisesForWorkout.push(ex);
-              currentDuration += exerciseDurationEstimate;
-            } else break;
-          }
+          const addExercisesFromPool = (pool: ExerciseDefinition[]) => {
+            for (const ex of pool) {
+              if (currentDuration + exerciseDurationEstimate > maxAllowedMinutes) break;
+              if (!addedExerciseIds.has(ex.id)) {
+                finalExercisesForWorkout.push(ex);
+                addedExerciseIds.add(ex.id);
+                currentDuration += exerciseDurationEstimate;
+              }
+            }
+          };
 
-          // Save Workout
-          if (finalExercisesForWorkout.length > 0) {
-            const exercisesToInsertPayload = finalExercisesForWorkout.map((ex, index) => ({
+          addExercisesFromPool(sortExercises(tier1Pool as ExerciseDefinition[]));
+          addExercisesFromPool(sortExercises(tier2Pool as ExerciseDefinition[]));
+          addExercisesFromPool(sortExercises(tier3Pool as ExerciseDefinition[]));
+
+          // Final Sort and Save
+          const sortedFinalExercises = sortExercises(finalExercisesForWorkout);
+          if (sortedFinalExercises.length > 0) {
+            const exercisesToInsertPayload = sortedFinalExercises.map((ex, index) => ({
               template_id: childWorkoutId,
               exercise_id: ex.id,
               order_index: index,
-              is_bonus_exercise: false, // Bonus logic can be added here if needed
+              is_bonus_exercise: false,
             }));
             const { error: insertError } = await supabaseServiceRoleClient.from('t_path_exercises').insert(exercisesToInsertPayload);
             if (insertError) throw insertError;
