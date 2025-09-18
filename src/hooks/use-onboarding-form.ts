@@ -116,159 +116,53 @@ export const useOnboardingForm = () => {
 
   const handleSubmit = useCallback(async (fullName: string, heightCm: number, weightKg: number, bodyFatPct: number | null) => {
     if (!session) return;
-    
     setLoading(true);
-    
+
     try {
-      let newGymId: string | null = null;
-      if (equipmentMethod === 'photo' && gymName) {
-        const { data: insertedGym, error: insertGymError } = await supabase
-          .from('gyms')
-          .insert({ user_id: session.user.id, name: gymName })
-          .select('id')
-          .single();
-        if (insertGymError) throw insertGymError;
-        newGymId = insertedGym.id;
-      } else if (equipmentMethod === 'skip') {
-        const { data: insertedGym, error: insertGymError } = await supabase
-          .from('gyms')
-          .insert({ user_id: session.user.id, name: "Home Gym" })
-          .select('id')
-          .single();
-        if (insertGymError) throw insertGymError;
-        newGymId = insertedGym.id;
-      }
-
-      if (!newGymId) {
-        throw new Error("Failed to create gym during onboarding.");
-      }
-
-      const ululTPathData: TablesInsert<'t_paths'> = {
-        user_id: session.user.id,
-        template_name: '4-Day Upper/Lower',
-        is_bonus: false,
-        parent_t_path_id: null,
-        settings: { tPathType: 'ulul', experience, goalFocus, preferredMuscles, constraints, equipmentMethod }
+      const payload = {
+        tPathType,
+        experience,
+        goalFocus,
+        preferredMuscles,
+        constraints,
+        sessionLength,
+        equipmentMethod,
+        gymName,
+        confirmedExercises: identifiedExercises.filter(ex => confirmedExercises.has(ex.name!)),
+        fullName,
+        heightCm,
+        weightKg,
+        bodyFatPct,
       };
-      const pplTPathData: TablesInsert<'t_paths'> = {
-        user_id: session.user.id,
-        template_name: '3-Day Push/Pull/Legs',
-        is_bonus: false,
-        parent_t_path_id: null,
-        settings: { tPathType: 'ppl', experience, goalFocus, preferredMuscles, constraints, equipmentMethod }
-      };
-      const { data: insertedTPaths, error: insertTPathsError } = await supabase
-        .from('t_paths')
-        .insert([ululTPathData, pplTPathData])
-        .select('id, template_name');
-      if (insertTPathsError) throw insertTPathsError;
 
-      const activeTPath = insertedTPaths.find(tp =>
-        (tPathType === 'ulul' && tp.template_name === '4-Day Upper/Lower') ||
-        (tPathType === 'ppl' && tp.template_name === '3-Day Push/Pull/Legs')
-      );
-      if (!activeTPath) throw new Error("Could not find the selected T-Path after creation.");
-
-      const nameParts = fullName.split(' ');
-      const firstName = nameParts.shift() || '';
-      const lastName = nameParts.join(' ');
-      const profileData: ProfileInsert = {
-        id: session.user.id,
-        first_name: firstName,
-        last_name: lastName,
-        full_name: fullName,
-        height_cm: heightCm,
-        weight_kg: weightKg,
-        body_fat_pct: bodyFatPct,
-        preferred_muscles: preferredMuscles,
-        primary_goal: goalFocus,
-        health_notes: constraints,
-        default_rest_time_seconds: 60,
-        preferred_session_length: sessionLength,
-        active_t_path_id: activeTPath.id,
-        active_gym_id: newGymId,
-      };
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert(profileData, { onConflict: 'id' });
-      if (profileError) throw profileError;
-
-      const confirmedExercisesToProcess = identifiedExercises
-        .filter(ex => confirmedExercises.has(ex.name!));
-      
-      const exerciseIdsToLinkToGym: string[] = [];
-
-      if (confirmedExercisesToProcess.length > 0) {
-        for (const ex of confirmedExercisesToProcess) {
-          if (ex.existing_id) {
-            exerciseIdsToLinkToGym.push(ex.existing_id);
-          } else {
-            const { data: insertedExercise, error: insertExerciseError } = await supabase
-              .from('exercise_definitions')
-              .insert({
-                name: ex.name!,
-                main_muscle: ex.main_muscle!,
-                type: ex.type!,
-                category: ex.category,
-                description: ex.description,
-                pro_tip: ex.pro_tip,
-                video_url: ex.video_url,
-                icon_url: ex.icon_url,
-                user_id: session.user.id,
-                library_id: null,
-                is_favorite: false,
-                created_at: new Date().toISOString(),
-              })
-              .select('id')
-              .single();
-            
-            if (insertExerciseError) {
-              console.error("Failed to save new AI-identified exercise during onboarding:", insertExerciseError);
-              toast.info("Could not save some identified exercises, but your profile is set up!");
-            } else if (insertedExercise) {
-              exerciseIdsToLinkToGym.push(insertedExercise.id);
-            }
-          }
-        }
-
-        if (exerciseIdsToLinkToGym.length > 0 && newGymId) {
-          const gymExerciseLinks = exerciseIdsToLinkToGym.map(exId => ({
-            gym_id: newGymId!,
-            exercise_id: exId,
-          }));
-          const { error: insertGymExerciseError } = await supabase
-            .from('gym_exercises')
-            .insert(gymExerciseLinks);
-          if (insertGymExerciseError) throw insertGymExerciseError;
-        }
-      }
-
-      console.log("All profile and exercise data saved. Now initiating workout generation with confirmed exercises:", exerciseIdsToLinkToGym);
-
-      const generationPromises = insertedTPaths.map(async (tp) => {
-        const response = await fetch(`/api/generate-t-path`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-          body: JSON.stringify({ 
-            tPathId: tp.id,
-            confirmedExerciseIds: exerciseIdsToLinkToGym // Pass the confirmed IDs here
-          })
-        });
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Failed to initiate T-Path workout generation for ${tp.template_name}: ${errorText}`);
-        }
+      const response = await fetch('/api/complete-onboarding', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(payload),
       });
-      await Promise.all(generationPromises);
 
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Onboarding process failed.');
+      }
+
+      toast.success("Welcome! Your personalized plan is ready.");
       router.push('/dashboard');
+
     } catch (error: any) {
       console.error("Onboarding failed:", error.message);
-      toast.info("Onboarding failed.");
+      toast.error("Onboarding failed: " + error.message);
     } finally {
       setLoading(false);
     }
-  }, [session, supabase, router, tPathType, experience, goalFocus, preferredMuscles, constraints, sessionLength, equipmentMethod, identifiedExercises, confirmedExercises, gymName]);
+  }, [
+    session, router, tPathType, experience, goalFocus, preferredMuscles,
+    constraints, sessionLength, equipmentMethod, gymName, identifiedExercises, confirmedExercises
+  ]);
 
   return {
     currentStep,
