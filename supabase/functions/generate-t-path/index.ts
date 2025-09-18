@@ -75,6 +75,21 @@ const sortExercises = (exercises: ExerciseDefinition[]) => {
   });
 };
 
+// NEW: Helper for retry logic to combat replication lag
+const fetchWithRetry = async (query: () => Promise<{ data: any[] | null, error: any }>, expectedCount: number, retries = 5, delay = 500) => {
+  for (let i = 0; i < retries; i++) {
+    const { data, error } = await query();
+    if (error) throw error; // If there's a real DB error, fail fast
+    if (data && data.length === expectedCount) {
+      return data; // Success
+    }
+    console.log(`[Retry] Attempt ${i + 1}/${retries}: Expected ${expectedCount} items, got ${data?.length || 0}. Retrying in ${delay}ms...`);
+    await new Promise(resolve => setTimeout(resolve, delay));
+  }
+  throw new Error(`Failed to fetch expected number of items (${expectedCount}) after ${retries} retries.`);
+};
+
+
 // --- Main Serve Function ---
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
@@ -92,7 +107,7 @@ serve(async (req: Request) => {
     const body = await req.json();
     const tPathId = body.tPathId;
     const sessionLengthFromBody = body.preferred_session_length;
-    const confirmedExerciseIds = body.confirmedExerciseIds; // NEW: Get confirmed IDs
+    const confirmedExerciseIds = body.confirmedExerciseIds;
     if (!tPathId) throw new Error('tPathId is required');
 
     await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'in_progress', t_path_generation_error: null }).eq('id', userId);
@@ -105,7 +120,6 @@ serve(async (req: Request) => {
 
         let preferredSessionLength = sessionLengthFromBody;
         
-        // This logic is now simplified because we prioritize passed-in exercise IDs
         if (preferredSessionLength === undefined) {
           const { data: profileData, error: profileError } = await supabaseServiceRoleClient.from('profiles').select('preferred_session_length').eq('id', user.id).single();
           if (profileError) throw profileError;
@@ -119,14 +133,28 @@ serve(async (req: Request) => {
         if (allGymLinksError) throw allGymLinksError;
         const allLinkedExerciseIds = new Set((allGymLinks || []).map((l: { exercise_id: string }) => l.exercise_id));
 
+        let confirmedExercisesData: ExerciseDefinition[] = [];
         let activeGymExerciseIds = new Set<string>();
 
-        // NEW LOGIC: Prioritize confirmedExerciseIds if provided (onboarding case)
+        // MODIFIED LOGIC: Prioritize confirmedExerciseIds and use retry mechanism
         if (confirmedExerciseIds && Array.isArray(confirmedExerciseIds) && confirmedExerciseIds.length > 0) {
-          console.log(`Using ${confirmedExerciseIds.length} confirmed exercise IDs from request body for Tier 1 pool.`);
-          activeGymExerciseIds = new Set(confirmedExerciseIds);
+          console.log(`Received ${confirmedExerciseIds.length} confirmed exercise IDs. Attempting to fetch them with retry logic.`);
+          
+          const query = () => supabaseServiceRoleClient
+              .from('exercise_definitions')
+              .select('id, name, user_id, library_id, movement_type, movement_pattern')
+              .in('id', confirmedExerciseIds);
+
+          try {
+              confirmedExercisesData = await fetchWithRetry(query, confirmedExerciseIds.length) as ExerciseDefinition[];
+              activeGymExerciseIds = new Set(confirmedExercisesData.map(ex => ex.id));
+              console.log(`Successfully fetched ${confirmedExercisesData.length} confirmed exercises after retries.`);
+          } catch (retryError) {
+              console.error("Failed to fetch confirmed exercises even with retries:", retryError);
+              throw new Error("Could not find all confirmed exercises in the database, even after retrying. This might indicate a problem with exercise creation.");
+          }
         } else {
-          // FALLBACK LOGIC: For non-onboarding cases (e.g., changing session length)
+          // FALLBACK LOGIC: For non-onboarding cases
           console.log("No confirmed exercise IDs provided. Fetching active gym from profile.");
           const { data: profileData, error: profileError } = await supabaseServiceRoleClient.from('profiles').select('active_gym_id').eq('id', user.id).single();
           if (profileError) throw profileError;
@@ -186,7 +214,11 @@ serve(async (req: Request) => {
           }
 
           // Build Exercise Pools
-          const tier1Pool = (allExercises || []).filter((ex: ExerciseDefinition) => movementPatterns.includes(ex.movement_pattern || '') && activeGymExerciseIds.has(ex.id));
+          // MODIFIED: Prioritize freshly fetched confirmedExercisesData for Tier 1
+          const tier1Pool = confirmedExercisesData.length > 0
+            ? confirmedExercisesData.filter((ex: ExerciseDefinition) => movementPatterns.includes(ex.movement_pattern || ''))
+            : (allExercises || []).filter((ex: ExerciseDefinition) => movementPatterns.includes(ex.movement_pattern || '') && activeGymExerciseIds.has(ex.id));
+          
           const tier2Pool = (allExercises || []).filter((ex: ExerciseDefinition) => movementPatterns.includes(ex.movement_pattern || '') && !allLinkedExerciseIds.has(ex.id));
           const commonGymLibraryIds = new Set(
             (workoutStructure || []).filter((s: WorkoutStructure) => s.workout_name === workoutName && s.min_session_minutes !== null && maxAllowedMinutes >= s.min_session_minutes).map((s: WorkoutStructure) => s.exercise_library_id)
