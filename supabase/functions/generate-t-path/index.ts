@@ -212,7 +212,15 @@ serve(async (req: Request) => {
 
     return new Response(JSON.stringify({ message: 'T-Path generation initiated.' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    let errorMessage = "An unknown error occurred.";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    } else if (typeof error === 'object' && error !== null && 'message' in error && typeof (error as any).message === 'string') {
+      errorMessage = (error as any).message;
+    } else if (typeof error === 'string') {
+      errorMessage = error;
+    }
+    console.error("Error in generate-t-path edge function:", JSON.stringify(error, null, 2));
     if (userId) {
       await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'failed', t_path_generation_error: errorMessage }).eq('id', userId);
     }

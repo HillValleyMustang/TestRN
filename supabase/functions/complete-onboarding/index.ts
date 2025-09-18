@@ -243,8 +243,15 @@ serve(async (req: Request) => {
 
     return new Response(JSON.stringify({ message: 'Onboarding completed successfully.' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "An unknown error occurred";
-    console.error("Error in complete-onboarding edge function:", message);
+    let message = "An unknown error occurred";
+    if (error instanceof Error) {
+      message = error.message;
+    } else if (typeof error === 'object' && error !== null && 'message' in error && typeof (error as any).message === 'string') {
+      message = (error as any).message;
+    } else if (typeof error === 'string') {
+      message = error;
+    }
+    console.error("Error in complete-onboarding edge function:", JSON.stringify(error, null, 2));
     return new Response(JSON.stringify({ error: message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
