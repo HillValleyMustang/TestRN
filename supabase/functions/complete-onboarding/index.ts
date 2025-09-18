@@ -100,7 +100,7 @@ serve(async (req: Request) => {
     const { data: insertedTPaths, error: insertTPathsError } = await supabaseServiceRoleClient
       .from('t_paths')
       .insert(tPathsToInsert)
-      .select('id, template_name');
+      .select('id, template_name, settings'); // FIX: Added 'settings' to the select query
     if (insertTPathsError) throw insertTPathsError;
 
     const activeTPath = insertedTPaths.find((tp: { id: string; template_name: string }) =>
@@ -169,7 +169,12 @@ serve(async (req: Request) => {
 
     for (const tPath of insertedTPaths) {
       const tPathSettings = (tPath as any).settings as { tPathType?: string };
-      const workoutSplit = tPathSettings.tPathType!;
+      // FIX: Added a null check for tPathSettings to prevent crash
+      if (!tPathSettings?.tPathType) {
+        console.error("T-Path is missing settings.tPathType", tPath);
+        continue; // Skip this T-Path if settings are invalid
+      }
+      const workoutSplit = tPathSettings.tPathType;
       const maxAllowedMinutes = getMaxMinutes(sessionLength);
       const workoutNames = getWorkoutNamesForSplit(workoutSplit);
 
