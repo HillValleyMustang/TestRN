@@ -100,7 +100,7 @@ serve(async (req: Request) => {
     const { data: insertedTPaths, error: insertTPathsError } = await supabaseServiceRoleClient
       .from('t_paths')
       .insert(tPathsToInsert)
-      .select('id, template_name, settings'); // FIX: Added 'settings' to the select query
+      .select('id, template_name, settings');
     if (insertTPathsError) throw insertTPathsError;
 
     const activeTPath = insertedTPaths.find((tp: { id: string; template_name: string }) =>
@@ -112,16 +112,19 @@ serve(async (req: Request) => {
     // 3. Process and save confirmed exercises
     const exerciseIdsToLinkToGym = new Set<string>();
     const newExercisesToCreate = [];
+    const confirmedExercisesDataForPlan: ExerciseDefinition[] = [];
 
     for (const ex of (confirmedExercises || [])) {
       if (ex.existing_id) {
         exerciseIdsToLinkToGym.add(ex.existing_id);
+        confirmedExercisesDataForPlan.push(ex);
       } else {
         newExercisesToCreate.push({
           name: ex.name!, main_muscle: ex.main_muscle!, type: ex.type!,
           category: ex.category, description: ex.description, pro_tip: ex.pro_tip,
           video_url: ex.video_url, icon_url: ex.icon_url, user_id: user.id,
           library_id: null, is_favorite: false, created_at: new Date().toISOString(),
+          movement_type: ex.movement_type, movement_pattern: ex.movement_pattern,
         });
       }
     }
@@ -130,9 +133,12 @@ serve(async (req: Request) => {
       const { data: insertedExercises, error: insertExError } = await supabaseServiceRoleClient
         .from('exercise_definitions')
         .insert(newExercisesToCreate)
-        .select('id');
+        .select('*');
       if (insertExError) throw insertExError;
-      insertedExercises.forEach((ex: { id: string }) => exerciseIdsToLinkToGym.add(ex.id));
+      insertedExercises.forEach((ex: any) => {
+        exerciseIdsToLinkToGym.add(ex.id);
+        confirmedExercisesDataForPlan.push(ex);
+      });
     }
 
     // 4. Link exercises to the new gym
@@ -169,10 +175,9 @@ serve(async (req: Request) => {
 
     for (const tPath of insertedTPaths) {
       const tPathSettings = (tPath as any).settings as { tPathType?: string };
-      // FIX: Added a null check for tPathSettings to prevent crash
       if (!tPathSettings?.tPathType) {
         console.error("T-Path is missing settings.tPathType", tPath);
-        continue; // Skip this T-Path if settings are invalid
+        continue;
       }
       const workoutSplit = tPathSettings.tPathType;
       const maxAllowedMinutes = getMaxMinutes(sessionLength);
@@ -193,7 +198,8 @@ serve(async (req: Request) => {
         else if (workoutName === 'Pull') movementPatterns = ['Pull'];
         else if (workoutName === 'Legs') movementPatterns = ['Legs'];
 
-        const tier1Pool = (allExercises || []).filter((ex: ExerciseDefinition) => movementPatterns.includes(ex.movement_pattern || '') && exerciseIdsToLinkToGym.has(ex.id));
+        // --- NEW TIERED LOGIC ---
+        const tier1Pool = confirmedExercisesDataForPlan.filter(ex => movementPatterns.includes(ex.movement_pattern || ''));
         const tier2Pool = (allExercises || []).filter((ex: ExerciseDefinition) => movementPatterns.includes(ex.movement_pattern || '') && !allLinkedExerciseIds.has(ex.id));
         const commonGymLibraryIds = new Set((workoutStructure || []).filter((s: WorkoutStructure) => s.workout_name === workoutName && s.min_session_minutes !== null && maxAllowedMinutes >= s.min_session_minutes).map((s: WorkoutStructure) => s.exercise_library_id));
         const commonGymUuids = new Set(Array.from(commonGymLibraryIds).map((libId: any) => libraryIdToUuidMap.get(libId)).filter((uuid): uuid is string => !!uuid));

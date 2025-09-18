@@ -22,7 +22,7 @@ interface WorkoutStructure {
   exercise_library_id: string;
   workout_name: string;
   min_session_minutes: number | null;
-  bonus_for_time_group: number | null; // Added bonus field
+  bonus_for_time_group: number | null;
 }
 
 interface TPathData {
@@ -34,11 +34,6 @@ interface TPathData {
 interface ProfileData {
   preferred_session_length: string | null;
   active_gym_id: string | null;
-}
-
-interface GymLink {
-  gym_id: string;
-  exercise_id: string;
 }
 
 // Helper function to initialize Supabase client with service role key
@@ -75,21 +70,6 @@ const sortExercises = (exercises: ExerciseDefinition[]) => {
   });
 };
 
-// NEW: Helper for retry logic to combat replication lag
-const fetchWithRetry = async (query: () => Promise<{ data: any[] | null, error: any }>, expectedCount: number, retries = 5, delay = 500) => {
-  for (let i = 0; i < retries; i++) {
-    const { data, error } = await query();
-    if (error) throw error; // If there's a real DB error, fail fast
-    if (data && data.length === expectedCount) {
-      return data; // Success
-    }
-    console.log(`[Retry] Attempt ${i + 1}/${retries}: Expected ${expectedCount} items, got ${data?.length || 0}. Retrying in ${delay}ms...`);
-    await new Promise(resolve => setTimeout(resolve, delay));
-  }
-  throw new Error(`Failed to fetch expected number of items (${expectedCount}) after ${retries} retries.`);
-};
-
-
 // --- Main Serve Function ---
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
@@ -104,10 +84,7 @@ serve(async (req: Request) => {
     if (userError || !user) throw new Error('Unauthorized');
     userId = user.id;
 
-    const body = await req.json();
-    const tPathId = body.tPathId;
-    const sessionLengthFromBody = body.preferred_session_length;
-    const confirmedExerciseIds = body.confirmedExerciseIds;
+    const { tPathId, preferred_session_length } = await req.json();
     if (!tPathId) throw new Error('tPathId is required');
 
     await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'in_progress', t_path_generation_error: null }).eq('id', userId);
@@ -118,12 +95,18 @@ serve(async (req: Request) => {
         const { data: tPathData, error: tPathError } = await supabaseServiceRoleClient.from('t_paths').select('id, settings, user_id').eq('id', tPathId).eq('user_id', user.id).single();
         if (tPathError || !tPathData) throw new Error('Main T-Path not found.');
 
-        let preferredSessionLength = sessionLengthFromBody;
-        
-        if (preferredSessionLength === undefined) {
-          const { data: profileData, error: profileError } = await supabaseServiceRoleClient.from('profiles').select('preferred_session_length').eq('id', user.id).single();
+        let sessionLength = preferred_session_length;
+        let activeGymId: string | null = null;
+
+        if (!sessionLength) {
+          const { data: profileData, error: profileError } = await supabaseServiceRoleClient.from('profiles').select('preferred_session_length, active_gym_id').eq('id', user.id).single();
           if (profileError) throw profileError;
-          preferredSessionLength = (profileData as ProfileData)?.preferred_session_length;
+          sessionLength = (profileData as ProfileData)?.preferred_session_length;
+          activeGymId = (profileData as ProfileData)?.active_gym_id;
+        } else {
+          const { data: profileData, error: profileError } = await supabaseServiceRoleClient.from('profiles').select('active_gym_id').eq('id', user.id).single();
+          if (profileError) throw profileError;
+          activeGymId = (profileData as ProfileData)?.active_gym_id;
         }
 
         const { data: allExercises, error: fetchAllExercisesError } = await supabaseServiceRoleClient.from('exercise_definitions').select('id, name, user_id, library_id, movement_type, movement_pattern');
@@ -133,45 +116,11 @@ serve(async (req: Request) => {
         if (allGymLinksError) throw allGymLinksError;
         const allLinkedExerciseIds = new Set((allGymLinks || []).map((l: { exercise_id: string }) => l.exercise_id));
 
-        let confirmedExercisesData: ExerciseDefinition[] = [];
-        let activeGymExerciseIds = new Set<string>();
-
-        // MODIFIED LOGIC: Prioritize confirmedExerciseIds and use retry mechanism
-        if (confirmedExerciseIds && Array.isArray(confirmedExerciseIds) && confirmedExerciseIds.length > 0) {
-          console.log(`Received ${confirmedExerciseIds.length} confirmed exercise IDs. Attempting to fetch them with retry logic.`);
-          
-          const query = () => supabaseServiceRoleClient
-              .from('exercise_definitions')
-              .select('id, name, user_id, library_id, movement_type, movement_pattern')
-              .in('id', confirmedExerciseIds);
-
-          try {
-              confirmedExercisesData = await fetchWithRetry(query, confirmedExerciseIds.length) as ExerciseDefinition[];
-              activeGymExerciseIds = new Set(confirmedExercisesData.map(ex => ex.id));
-              console.log(`Successfully fetched ${confirmedExercisesData.length} confirmed exercises after retries.`);
-          } catch (retryError) {
-              console.error("Failed to fetch confirmed exercises even with retries:", retryError);
-              throw new Error("Could not find all confirmed exercises in the database, even after retrying. This might indicate a problem with exercise creation.");
-          }
-        } else {
-          // FALLBACK LOGIC: For non-onboarding cases
-          console.log("No confirmed exercise IDs provided. Fetching active gym from profile.");
-          const { data: profileData, error: profileError } = await supabaseServiceRoleClient.from('profiles').select('active_gym_id').eq('id', user.id).single();
-          if (profileError) throw profileError;
-          const activeGymId = (profileData as ProfileData)?.active_gym_id;
-
-          if (activeGymId) {
-            const { data: activeGymLinks, error: activeGymLinksError } = await supabaseServiceRoleClient.from('gym_exercises').select('exercise_id').eq('gym_id', activeGymId);
-            if (activeGymLinksError) throw activeGymLinksError;
-            activeGymExerciseIds = new Set((activeGymLinks || []).map((l: { exercise_id: string }) => l.exercise_id));
-            console.log(`Found ${activeGymExerciseIds.size} exercises for active gym ${activeGymId}.`);
-          } else {
-            console.log("No active gym found in profile.");
-          }
-        }
-
         const { data: workoutStructure, error: structureError } = await supabaseServiceRoleClient.from('workout_exercise_structure').select('exercise_library_id, workout_name, min_session_minutes, bonus_for_time_group');
         if (structureError) throw structureError;
+
+        const libraryIdToUuidMap = new Map<string, string>();
+        (allExercises || []).forEach((ex: ExerciseDefinition) => { if (ex.library_id) libraryIdToUuidMap.set(ex.library_id, ex.id); });
 
         // 2. Cleanup Old Workouts
         const { data: oldChildWorkouts, error: fetchOldError } = await supabaseServiceRoleClient.from('t_paths').select('id').eq('parent_t_path_id', tPathId).eq('user_id', user.id);
@@ -186,10 +135,8 @@ serve(async (req: Request) => {
         const tPathSettings = tPathData.settings as { tPathType?: string };
         if (!tPathSettings?.tPathType) throw new Error('Invalid T-Path settings.');
         const workoutSplit = tPathSettings.tPathType;
-        const maxAllowedMinutes = getMaxMinutes(preferredSessionLength);
+        const maxAllowedMinutes = getMaxMinutes(sessionLength);
         const workoutNames = getWorkoutNamesForSplit(workoutSplit);
-        const libraryIdToUuidMap = new Map<string, string>();
-        (allExercises || []).forEach((ex: ExerciseDefinition) => { if (ex.library_id) libraryIdToUuidMap.set(ex.library_id, ex.id); });
 
         // 4. Generate New Workouts
         for (const workoutName of workoutNames) {
@@ -201,36 +148,26 @@ serve(async (req: Request) => {
           const childWorkoutId = newChildWorkout.id;
 
           let movementPatterns: string[] = [];
-          if (workoutName.includes('Upper')) {
-              movementPatterns = ['Push', 'Pull'];
-          } else if (workoutName.includes('Lower')) {
-              movementPatterns = ['Legs', 'Core'];
-          } else if (workoutName === 'Push') {
-              movementPatterns = ['Push'];
-          } else if (workoutName === 'Pull') {
-              movementPatterns = ['Pull'];
-          } else if (workoutName === 'Legs') {
-              movementPatterns = ['Legs'];
+          if (workoutName.includes('Upper')) movementPatterns = ['Push', 'Pull'];
+          else if (workoutName.includes('Lower')) movementPatterns = ['Legs', 'Core'];
+          else if (workoutName === 'Push') movementPatterns = ['Push'];
+          else if (workoutName === 'Pull') movementPatterns = ['Pull'];
+          else if (workoutName === 'Legs') movementPatterns = ['Legs'];
+
+          // --- TIERED LOGIC FOR RE-GENERATION ---
+          let activeGymExerciseIds = new Set<string>();
+          if (activeGymId) {
+            const { data: activeGymLinks, error: activeGymLinksError } = await supabaseServiceRoleClient.from('gym_exercises').select('exercise_id').eq('gym_id', activeGymId);
+            if (activeGymLinksError) throw activeGymLinksError;
+            activeGymExerciseIds = new Set((activeGymLinks || []).map((l: { exercise_id: string }) => l.exercise_id));
           }
 
-          // Build Exercise Pools
-          // MODIFIED: Prioritize freshly fetched confirmedExercisesData for Tier 1
-          const tier1Pool = confirmedExercisesData.length > 0
-            ? confirmedExercisesData.filter((ex: ExerciseDefinition) => movementPatterns.includes(ex.movement_pattern || ''))
-            : (allExercises || []).filter((ex: ExerciseDefinition) => movementPatterns.includes(ex.movement_pattern || '') && activeGymExerciseIds.has(ex.id));
-          
+          const tier1Pool = (allExercises || []).filter((ex: ExerciseDefinition) => movementPatterns.includes(ex.movement_pattern || '') && activeGymExerciseIds.has(ex.id));
           const tier2Pool = (allExercises || []).filter((ex: ExerciseDefinition) => movementPatterns.includes(ex.movement_pattern || '') && !allLinkedExerciseIds.has(ex.id));
-          const commonGymLibraryIds = new Set(
-            (workoutStructure || []).filter((s: WorkoutStructure) => s.workout_name === workoutName && s.min_session_minutes !== null && maxAllowedMinutes >= s.min_session_minutes).map((s: WorkoutStructure) => s.exercise_library_id)
-          );
-          const commonGymUuids = new Set(
-            Array.from(commonGymLibraryIds)
-              .map((libId: any) => libraryIdToUuidMap.get(libId))
-              .filter((uuid): uuid is string => !!uuid)
-          );
+          const commonGymLibraryIds = new Set((workoutStructure || []).filter((s: WorkoutStructure) => s.workout_name === workoutName && s.min_session_minutes !== null && maxAllowedMinutes >= s.min_session_minutes).map((s: WorkoutStructure) => s.exercise_library_id));
+          const commonGymUuids = new Set(Array.from(commonGymLibraryIds).map((libId: any) => libraryIdToUuidMap.get(libId)).filter((uuid): uuid is string => !!uuid));
           const tier3Pool = (allExercises || []).filter((ex: ExerciseDefinition) => commonGymUuids.has(ex.id));
 
-          // Assemble Main Workout
           const mainExercisesForWorkout: ExerciseDefinition[] = [];
           const addedExerciseIds = new Set<string>();
           let currentDuration = 0;
@@ -251,40 +188,13 @@ serve(async (req: Request) => {
           addExercisesFromPool(sortExercises(tier2Pool as ExerciseDefinition[]));
           addExercisesFromPool(sortExercises(tier3Pool as ExerciseDefinition[]));
 
-          // Identify and Add Bonus Exercises
-          const bonusExercisesForWorkout: ExerciseDefinition[] = [];
-          const bonusLibraryIds = new Set(
-            (workoutStructure || []).filter((s: WorkoutStructure) => s.workout_name === workoutName && s.bonus_for_time_group !== null && maxAllowedMinutes >= s.bonus_for_time_group).map((s: WorkoutStructure) => s.exercise_library_id)
-          );
-          const bonusUuids = new Set(
-            Array.from(bonusLibraryIds)
-              .map((libId: any) => libraryIdToUuidMap.get(libId))
-              .filter((uuid): uuid is string => !!uuid)
-          );
-          (allExercises || []).forEach((ex: ExerciseDefinition) => {
-            if (bonusUuids.has(ex.id) && !addedExerciseIds.has(ex.id)) {
-              bonusExercisesForWorkout.push(ex);
-              addedExerciseIds.add(ex.id); // Also add to main set to avoid duplicates if logic overlaps
-            }
-          });
-
-          // Final Sort and Save
-          const sortedMainExercises = sortExercises(mainExercisesForWorkout);
-          const sortedBonusExercises = sortExercises(bonusExercisesForWorkout);
+          const bonusLibraryIds = new Set((workoutStructure || []).filter((s: WorkoutStructure) => s.workout_name === workoutName && s.bonus_for_time_group !== null && maxAllowedMinutes >= s.bonus_for_time_group).map((s: WorkoutStructure) => s.exercise_library_id));
+          const bonusUuids = new Set(Array.from(bonusLibraryIds).map((libId: any) => libraryIdToUuidMap.get(libId)).filter((uuid): uuid is string => !!uuid));
+          const bonusExercisesForWorkout = (allExercises || []).filter((ex: ExerciseDefinition) => bonusUuids.has(ex.id) && !addedExerciseIds.has(ex.id));
 
           const exercisesToInsertPayload = [
-            ...sortedMainExercises.map((ex, index) => ({
-              template_id: childWorkoutId,
-              exercise_id: ex.id,
-              order_index: index,
-              is_bonus_exercise: false,
-            })),
-            ...sortedBonusExercises.map((ex, index) => ({
-              template_id: childWorkoutId,
-              exercise_id: ex.id,
-              order_index: sortedMainExercises.length + index,
-              is_bonus_exercise: true,
-            }))
+            ...sortExercises(mainExercisesForWorkout).map((ex, index) => ({ template_id: childWorkoutId, exercise_id: ex.id, order_index: index, is_bonus_exercise: false })),
+            ...sortExercises(bonusExercisesForWorkout).map((ex, index) => ({ template_id: childWorkoutId, exercise_id: ex.id, order_index: mainExercisesForWorkout.length + index, is_bonus_exercise: true }))
           ];
 
           if (exercisesToInsertPayload.length > 0) {
