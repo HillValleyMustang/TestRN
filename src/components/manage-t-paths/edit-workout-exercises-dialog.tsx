@@ -33,22 +33,25 @@ export const EditWorkoutExercisesDialog = ({
 }: EditWorkoutExercisesDialogProps) => {
   const {
     exercises,
-    allAvailableExercises,
+    filteredExercisesForDropdown,
     selectedExerciseToAdd,
     setSelectedExerciseToAdd,
     loading,
     isSaving,
     addExerciseFilter,
     setAddExerciseFilter,
-    mainMuscleGroups, // DESTRUCTURE NEW STATE
+    mainMuscleGroups,
+    selectedMuscleFilter,
+    setSelectedMuscleFilter,
+    userGyms,
+    selectedGymFilter,
+    setSelectedGymFilter,
     showConfirmRemoveDialog,
     setShowConfirmRemoveDialog,
     exerciseToRemove,
-    setExerciseToRemove,
     showAddAsBonusDialog,
     setShowAddAsBonusDialog,
     exerciseToAddDetails,
-    setExerciseToAddDetails,
     showConfirmResetDialog,
     setShowConfirmResetDialog,
     handleDragEnd,
@@ -84,7 +87,7 @@ export const EditWorkoutExercisesDialog = ({
           ) : (
             <div className="space-y-6 w-full">
               <AddExerciseSection
-                allAvailableExercises={allAvailableExercises}
+                allAvailableExercises={filteredExercisesForDropdown}
                 exercisesInWorkout={exercises}
                 selectedExerciseToAdd={selectedExerciseToAdd}
                 setSelectedExerciseToAdd={setSelectedExerciseToAdd}
@@ -93,6 +96,11 @@ export const EditWorkoutExercisesDialog = ({
                 handleSelectAndPromptBonus={handleSelectAndPromptBonus}
                 isSaving={isSaving}
                 mainMuscleGroups={mainMuscleGroups}
+                selectedMuscleFilter={selectedMuscleFilter}
+                setSelectedMuscleFilter={setSelectedMuscleFilter}
+                userGyms={userGyms}
+                selectedGymFilter={selectedGymFilter}
+                setSelectedGymFilter={setSelectedGymFilter}
               />
 
               <SortableExerciseList

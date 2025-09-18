@@ -10,7 +10,7 @@ import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { WorkoutBadge } from '../workout-badge';
 import { LoadingOverlay } from '../loading-overlay';
 import { useSession } from '@/components/session-context-provider';
-import { WorkoutPill, WorkoutPillProps } from './workout-pill';
+import { WorkoutPill, WorkoutPillProps } from '@/components/workout-flow/workout-pill';
 import { EditWorkoutExercisesDialog } from '../manage-t-paths/edit-workout-exercises-dialog';
 import { ExerciseSelectionDropdown } from '@/components/shared/exercise-selection-dropdown';
 import { toast } from 'sonner';
@@ -127,11 +127,21 @@ export const WorkoutSelector = ({
   const [showSaveAiExercisePrompt, setShowSaveAiExercisePrompt] = useState(false);
   const [aiIdentifiedExercise, setAiIdentifiedExercise] = useState<Partial<FetchedExerciseDefinition> | null>(null); // Use FetchedExerciseDefinition
   const [isAiSaving, setIsAiSaving] = useState(false);
-  // Removed aiDuplicateStatus state as it's now part of aiIdentifiedExercise
 
   const mainMuscleGroups: string[] = useMemo(() => {
     return Array.from(new Set(allAvailableExercises.map((ex: FetchedExerciseDefinition) => ex.main_muscle))).sort();
   }, [allAvailableExercises]);
+
+  const filteredExercisesForAdHoc = useMemo(() => {
+    if (!session) return [];
+    return allAvailableExercises
+      .filter(ex => {
+        if (adHocExerciseSourceFilter === 'my-exercises') return ex.user_id === session.user.id;
+        if (adHocExerciseSourceFilter === 'global-library') return ex.user_id === null;
+        return false;
+      })
+      .filter(ex => !exercisesForSession.some(existingEx => existingEx.id === ex.id));
+  }, [allAvailableExercises, adHocExerciseSourceFilter, exercisesForSession, session]);
 
   const handleWorkoutClick = (workoutId: string) => {
     console.log(`[WorkoutSelector] handleWorkoutClick triggered for ID: ${workoutId}`);
@@ -155,12 +165,8 @@ export const WorkoutSelector = ({
 
   // AI Gym Analysis Handlers for Workout Page
   const handleExerciseIdentified = useCallback((exercises: Partial<FetchedExerciseDefinition>[], duplicate_status: 'none' | 'global' | 'my-exercises') => {
-    // For workout-flow, we typically want to process one by one or show a list.
-    // For now, let's assume we only care about the first identified exercise for the prompt.
-    // If multiple are identified, the user would need to go through them one by one.
     if (exercises.length > 0) {
-      setAiIdentifiedExercise(exercises[0]); // Take the first one, which now includes duplicate_status
-      // No need to set aiDuplicateStatus separately
+      setAiIdentifiedExercise(exercises[0]);
       setShowSaveAiExercisePrompt(true);
     } else {
       toast.info("No exercises were identified from the photos.");
@@ -176,8 +182,6 @@ export const WorkoutSelector = ({
     try {
       let finalExerciseToAdd: ExerciseDefinition | null = null;
 
-      // Always insert a new user-owned exercise, regardless of the duplicate flag.
-      // The flag is for the UI prompt only.
       const { data: insertedExercise, error: insertError } = await supabase.from('exercise_definitions').insert([{
         name: exercise.name!,
         main_muscle: exercise.main_muscle!,
@@ -187,33 +191,31 @@ export const WorkoutSelector = ({
         pro_tip: exercise.pro_tip,
         video_url: exercise.video_url,
         user_id: session.user.id,
-        library_id: null, // User-created, not from global library
+        library_id: null,
         is_favorite: false,
         created_at: new Date().toISOString(),
-      }]).select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url').single();
+      }]).select('*').single();
 
       if (insertError) {
-        if (insertError.code === '23505') { // Unique violation code
+        if (insertError.code === '23505') {
           toast.info(`You already have a custom exercise named "${exercise.name}".`);
         } else {
           throw insertError;
         }
       } else {
-        console.log(`'${exercise.name}' added to My Exercises!`); // Replaced toast.success
+        console.log(`'${exercise.name}' added to My Exercises!`);
         finalExerciseToAdd = insertedExercise as ExerciseDefinition;
-        // Immediately update allAvailableExercises with the new exercise
         setAllAvailableExercises((prev: FetchedExerciseDefinition[]) => [...prev, insertedExercise as FetchedExerciseDefinition]);
       }
 
-      // Now add to current workout session
       if (finalExerciseToAdd) {
         await addExerciseToSession(finalExerciseToAdd);
-        console.log(`'${finalExerciseToAdd.name}' added to current workout!`); // Replaced toast.success
+        console.log(`'${finalExerciseToAdd.name}' added to current workout!`);
       } else {
         throw new Error("Could not find the exercise to add to workout.");
       }
 
-      refreshAllData(); // Trigger refresh of exercise lists
+      refreshAllData();
       setShowSaveAiExercisePrompt(false);
       setAiIdentifiedExercise(null);
 
@@ -234,21 +236,14 @@ export const WorkoutSelector = ({
     try {
       let finalExerciseToAdd: ExerciseDefinition | null = null;
 
-      // If it's a duplicate in 'my-exercises' or 'global', find it and add it.
-      // We need to find the *actual* exercise definition from allAvailableExercises
-      // to get its full ID and other properties.
       const existingExercise = allAvailableExercises.find(ex => 
         ex.name?.trim().toLowerCase() === exercise.name?.trim().toLowerCase() && 
-        (ex.user_id === session.user.id || ex.user_id === null) // Match either user's or global
+        (ex.user_id === session.user.id || ex.user_id === null)
       );
       if (existingExercise) {
         finalExerciseToAdd = existingExercise as ExerciseDefinition;
-      } else {
-        console.warn("Could not find duplicate exercise in local cache. Attempting to insert as new user exercise.");
-        // Fall through to the insert logic below if not found in cache.
       }
       
-      // If not a duplicate OR if the duplicate wasn't found in the cache, we must insert it as a new user exercise.
       if (!finalExerciseToAdd) {
         const { data: insertedExercise, error: insertError } = await supabase.from('exercise_definitions').insert([{
           name: exercise.name!,
@@ -259,10 +254,10 @@ export const WorkoutSelector = ({
           pro_tip: exercise.pro_tip,
           video_url: exercise.video_url,
           user_id: session.user.id,
-          library_id: null, // User-created, not from global library
+          library_id: null,
           is_favorite: false,
           created_at: new Date().toISOString(),
-        }]).select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url').single();
+        }]).select('*').single();
 
         if (insertError) {
           if (insertError.code === '23505') {
@@ -284,7 +279,7 @@ export const WorkoutSelector = ({
 
       if (finalExerciseToAdd) {
         await addExerciseToSession(finalExerciseToAdd);
-        console.log(`'${finalExerciseToAdd.name}' added to current workout!`); // Replaced toast.success
+        console.log(`'${finalExerciseToAdd.name}' added to current workout!`);
       } else {
         throw new Error("Could not find or create the exercise to add to workout.");
       }
@@ -362,13 +357,9 @@ export const WorkoutSelector = ({
                 <h3 className="text-lg font-semibold mb-3">Add Exercises</h3>
                 <div className="flex flex-col sm:flex-row gap-3 mb-3">
                   <ExerciseSelectionDropdown
-                    allAvailableExercises={allAvailableExercises}
-                    exercisesInCurrentContext={exercisesForSession}
+                    exercises={filteredExercisesForAdHoc as ExerciseDefinition[]}
                     selectedExerciseId={selectedExerciseToAdd}
                     setSelectedExerciseId={setSelectedExerciseToAdd}
-                    exerciseSourceFilter={adHocExerciseSourceFilter}
-                    setExerciseSourceFilter={setAdHocExerciseSourceFilter}
-                    mainMuscleGroups={mainMuscleGroups}
                     placeholder="Select exercise to add"
                   />
                   <Button onClick={handleAddExercise} disabled={!selectedExerciseToAdd} className="flex-shrink-0">
