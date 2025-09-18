@@ -51,27 +51,27 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     setLoading(true);
     try {
       // Fetch all necessary data in parallel
-      const [tpeRes, allExRes, gymsRes, gymExRes] = await Promise.all([
+      const [tpeRes, allExRes, gymsRes] = await Promise.all([
         supabase.from('t_path_exercises').select('id, exercise_id, order_index, is_bonus_exercise').eq('template_id', workoutId).order('order_index', { ascending: true }),
         supabase.from('exercise_definitions').select('*').or(`user_id.eq.${session.user.id},user_id.is.null`).order('name', { ascending: true }),
         supabase.from('gyms').select('*').eq('user_id', session.user.id),
-        supabase.from('gym_exercises').select('exercise_id, gym_id, gyms!inner(user_id)').eq('gyms.user_id', session.user.id)
       ]);
 
       if (tpeRes.error) throw tpeRes.error;
       if (allExRes.error) throw allExRes.error;
       if (gymsRes.error) throw gymsRes.error;
-      if (gymExRes.error) throw gymExRes.error;
 
       const tPathExercisesLinks = tpeRes.data || [];
       const allExercisesData = allExRes.data || [];
       const gymsData = gymsRes.data || [];
-      const gymExercisesData = gymExRes.data || [];
-
       setUserGyms(gymsData);
 
+      const gymIds = gymsData.map(g => g.id);
+      const { data: gymExercisesData, error: gymExError } = await supabase.from('gym_exercises').select('exercise_id, gym_id').in('gym_id', gymIds);
+      if (gymExError) throw gymExError;
+
       const newExerciseToGymIdsMap: Record<string, string[]> = {};
-      gymExercisesData.forEach(link => {
+      (gymExercisesData || []).forEach(link => {
         if (!newExerciseToGymIdsMap[link.exercise_id]) {
           newExerciseToGymIdsMap[link.exercise_id] = [];
         }
@@ -332,9 +332,8 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         order_index: index,
       }));
 
-      const { error } = await supabase
-        .from('t_path_exercises')
-        .upsert(updates, { onConflict: 'id' });
+      // Use the new RPC function instead of upsert
+      const { error } = await supabase.rpc('update_exercise_order', { updates });
 
       if (error) throw error;
       console.log("Workout order saved successfully!");
