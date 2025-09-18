@@ -55,7 +55,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         supabase.from('t_path_exercises').select('id, exercise_id, order_index, is_bonus_exercise').eq('template_id', workoutId).order('order_index', { ascending: true }),
         supabase.from('exercise_definitions').select('*').or(`user_id.eq.${session.user.id},user_id.is.null`).order('name', { ascending: true }),
         supabase.from('gyms').select('*').eq('user_id', session.user.id),
-        supabase.from('gym_exercises').select('exercise_id, gym_id').eq('gyms.user_id', session.user.id)
+        supabase.from('gym_exercises').select('exercise_id, gym_id, gyms!inner(user_id)').eq('gyms.user_id', session.user.id)
       ]);
 
       if (tpeRes.error) throw tpeRes.error;
