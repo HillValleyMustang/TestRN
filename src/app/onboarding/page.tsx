@@ -14,6 +14,7 @@ import { OnboardingStep8_FinalDetails } from "@/components/onboarding/onboarding
 import { useSession } from "@/components/session-context-provider";
 import { LoadingOverlay } from "@/components/loading-overlay";
 import { toast } from "sonner";
+import { OnboardingSummaryModal } from "@/components/onboarding/onboarding-summary-modal"; // Import the new modal
 
 export default function OnboardingPage() {
   const { session } = useSession();
@@ -48,6 +49,10 @@ export default function OnboardingPage() {
     toggleConfirmedExercise,
     gymName,
     setGymName,
+    summaryData,
+    isSummaryModalOpen,
+    setIsSummaryModalOpen,
+    handleCloseSummaryModal,
   } = useOnboardingForm();
 
   const [fullName, setFullName] = useState('');
@@ -191,55 +196,63 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-2 sm:p-4">
-      <div className="max-w-2xl mx-auto">
-        <header className="mb-8 text-center">
-          <h1 className="text-3xl font-bold">Welcome to Your Fitness Journey</h1>
-          <p className="text-muted-foreground mt-2">
-            Let's set up your personalised Transformation Path
-          </p>
-        </header>
+    <>
+      <div className="min-h-screen bg-background p-2 sm:p-4">
+        <div className="max-w-2xl mx-auto">
+          <header className="mb-8 text-center">
+            <h1 className="text-3xl font-bold">Welcome to Your Fitness Journey</h1>
+            <p className="text-muted-foreground mt-2">
+              Let's set up your personalised Transformation Path
+            </p>
+          </header>
 
-        <div className="mb-6">
-          <div className="flex justify-between items-start">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((step) => (
-              <React.Fragment key={step}>
-                <div className="flex-shrink-0 text-center">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto ${
-                    currentStep >= step 
-                      ? "bg-primary text-primary-foreground" 
-                      : "bg-muted text-muted-foreground"
-                  }`}>
-                    {step}
+          <div className="mb-6">
+            <div className="flex justify-between items-start">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((step) => (
+                <React.Fragment key={step}>
+                  <div className="flex-shrink-0 text-center">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto ${
+                      currentStep >= step 
+                        ? "bg-primary text-primary-foreground" 
+                        : "bg-muted text-muted-foreground"
+                    }`}>
+                      {step}
+                    </div>
                   </div>
-                </div>
-                {step < 8 && (
-                  <div className={`flex-grow h-1 mt-4 ${
-                    currentStep > step 
-                      ? "bg-primary" 
-                      : "bg-muted"
-                  }`}></div>
-                )}
-              </React.Fragment>
-            ))}
+                  {step < 8 && (
+                    <div className={`flex-grow h-1 mt-4 ${
+                      currentStep > step 
+                        ? "bg-primary" 
+                        : "bg-muted"
+                    }`}></div>
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
           </div>
-        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{getStepTitle()}</CardTitle>
-            <CardDescription>{getStepDescription()}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {renderStepContent()}
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>{getStepTitle()}</CardTitle>
+              <CardDescription>{getStepDescription()}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {renderStepContent()}
+            </CardContent>
+          </Card>
+        </div>
+        <LoadingOverlay 
+          isOpen={loading || isInitialSetupLoading}
+          title={loading ? "Completing Setup..." : "Setting up your workout plan..."}
+          description={loading ? "Finalizing your profile details." : "Please wait while we generate your initial workout programs."}
+        />
       </div>
-      <LoadingOverlay 
-        isOpen={loading || isInitialSetupLoading}
-        title={loading ? "Completing Setup..." : "Setting up your workout plan..."}
-        description={loading ? "Finalizing your profile details." : "Please wait while we generate your initial workout programs."}
+      <OnboardingSummaryModal
+        open={isSummaryModalOpen}
+        onOpenChange={setIsSummaryModalOpen}
+        summaryData={summaryData}
+        onClose={handleCloseSummaryModal}
       />
-    </div >
+    </>
   );
 }

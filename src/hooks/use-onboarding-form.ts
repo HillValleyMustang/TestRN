@@ -5,7 +5,16 @@ import { useRouter } from "next/navigation";
 import { useSession } from "@/components/session-context-provider";
 import { toast } from "sonner";
 import { Tables, TablesInsert, ProfileInsert, FetchedExerciseDefinition } from "@/types/supabase";
-import { v4 as uuidv4 } from 'uuid'; // Import uuidv4
+import { v4 as uuidv4 } from 'uuid';
+
+// New type for the summary data structure
+type OnboardingSummaryData = {
+  profile: Tables<'profiles'>;
+  mainTPath: Tables<'t_paths'>;
+  childWorkouts: (Tables<'t_paths'> & { exercises: (Tables<'exercise_definitions'> & { is_bonus_exercise: boolean })[] })[];
+  identifiedExercises: Partial<FetchedExerciseDefinition>[];
+  confirmedExerciseNames: Set<string>;
+};
 
 export const useOnboardingForm = () => {
   const router = useRouter();
@@ -25,6 +34,10 @@ export const useOnboardingForm = () => {
   const [loading, setLoading] = useState(false);
   const [isInitialSetupLoading, setIsInitialSetupLoading] = useState(false);
   const [gymName, setGymName] = useState<string>("");
+
+  // New state for the summary modal
+  const [summaryData, setSummaryData] = useState<OnboardingSummaryData | null>(null);
+  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
 
   const tPathDescriptions = {
     ulul: {
@@ -150,8 +163,9 @@ export const useOnboardingForm = () => {
         throw new Error(data.error || 'Onboarding process failed.');
       }
 
-      toast.success("Welcome! Your personalized plan is ready.");
-      router.push('/dashboard');
+      // Instead of redirecting, set the summary data and open the modal
+      setSummaryData({ ...data, confirmedExerciseNames: confirmedExercises });
+      setIsSummaryModalOpen(true);
 
     } catch (error: any) {
       console.error("Onboarding failed:", error.message);
@@ -163,6 +177,11 @@ export const useOnboardingForm = () => {
     session, router, tPathType, experience, goalFocus, preferredMuscles,
     constraints, sessionLength, equipmentMethod, gymName, identifiedExercises, confirmedExercises
   ]);
+
+  const handleCloseSummaryModal = () => {
+    setIsSummaryModalOpen(false);
+    router.push('/dashboard');
+  };
 
   return {
     currentStep,
@@ -195,5 +214,9 @@ export const useOnboardingForm = () => {
     toggleConfirmedExercise,
     gymName,
     setGymName,
+    summaryData,
+    isSummaryModalOpen,
+    setIsSummaryModalOpen,
+    handleCloseSummaryModal,
   };
 };
