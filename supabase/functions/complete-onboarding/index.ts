@@ -117,7 +117,15 @@ serve(async (req: Request) => {
     for (const ex of (confirmedExercises || [])) {
       if (ex.existing_id) {
         exerciseIdsToLinkToGym.add(ex.existing_id);
-        confirmedExercisesDataForPlan.push(ex);
+        // FIX: Construct a valid object for the plan with the correct ID
+        confirmedExercisesDataForPlan.push({
+          id: ex.existing_id,
+          name: ex.name!,
+          user_id: null, // Not needed for sorting/planning logic
+          library_id: null, // Not needed for sorting/planning logic
+          movement_type: ex.movement_type || null,
+          movement_pattern: ex.movement_pattern || null,
+        });
       } else {
         newExercisesToCreate.push({
           name: ex.name!, main_muscle: ex.main_muscle!, type: ex.type!,
