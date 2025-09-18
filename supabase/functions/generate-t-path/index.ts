@@ -8,9 +8,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// --- Type Definitions (from types.ts) ---
+// --- Type Definitions ---
 interface ExerciseDefFromCSV {
-  exercise_id: string; // This is the library_id
+  exercise_id: string;
   name: string;
   main_muscle: string;
   type: string;
@@ -37,13 +37,6 @@ interface ExerciseDefinitionForWorkoutGeneration {
   icon_url: string | null;
 }
 
-interface TPathExerciseLink {
-  id: string; // t_path_exercises.id
-  exercise_id: string;
-  order_index: number;
-  is_bonus_exercise: boolean;
-}
-
 interface TPathData {
   id: string;
   template_name: string;
@@ -60,21 +53,9 @@ interface NullIconExercise {
   library_id: string | null;
 }
 
-// NEW: Local interface mirroring TablesInsert<'exercise_definitions'>
-interface ExerciseDefinitionInsert {
-  category?: string | null;
-  created_at?: string | null;
-  description?: string | null;
-  id?: string;
-  main_muscle: string;
+interface GymData {
+  id: string;
   name: string;
-  pro_tip?: string | null;
-  type?: string;
-  user_id?: string | null;
-  video_url?: string | null;
-  library_id?: string | null;
-  is_favorite?: boolean | null;
-  icon_url?: string | null;
 }
 
 // Helper function to initialize Supabase client with service role key
@@ -86,7 +67,7 @@ const getSupabaseServiceRoleClient = () => {
   return createClient(supabaseUrl, supabaseServiceRoleKey);
 };
 
-// --- Utility Functions (from utils.ts) ---
+// --- Utility Functions ---
 const toNullOrNumber = (val: string | null | undefined): number | null => {
   if (val === null || val === undefined || val.trim() === '') return null;
   const num = Number(val);
@@ -111,7 +92,7 @@ function getWorkoutNamesForSplit(workoutSplit: string): string[] {
   throw new Error('Unknown workout split type.');
 }
 
-// --- Data Source (from data.ts) ---
+// --- Data Source ---
 const rawCsvData = [
     { name: 'Incline Smith Machine Press', main_muscle: 'Chest, Shoulders', type: 'weight', category: 'Bilateral', description: 'Lie on an incline bench under the bar. Grip the bar slightly wider than your shoulders. Unrack it, lower it to your upper chest, and press it back up until your arms are extended.', pro_tip: 'Tuck your elbows to about a 45-75 degree angle relative to your torso. Flaring them out to 90 degrees puts unnecessary stress on your shoulder joints.', video_url: 'https://www.youtube.com/embed/tLB1XtM21Fk', workout_name: 'Upper Body A', min_session_minutes: '0', bonus_for_time_group: '', icon_url: 'https://i.imgur.com/2Y4Y4Y4.png' },
     { name: 'Lat Pulldown', main_muscle: 'Back, Biceps', type: 'weight', category: 'Bilateral', description: 'Sit down and secure your knees under the pads. Grab the bar with a wide, overhand grip. Pull the bar down to your upper chest, squeezing your back muscles. Slowly return to the start.', pro_tip: 'Instead of just pulling with your arms, think about driving your elbows down and back towards the floor. This will engage your lats much more effectively.', video_url: 'https://www.youtube.com/embed/JGeRYIZdojU', workout_name: 'Upper Body A', min_session_minutes: '0', bonus_for_time_group: '', icon_url: 'https://i.imgur.com/2Y4Y4Y4.png' },
@@ -206,7 +187,7 @@ const rawCsvData = [
 const exerciseLibraryData: ExerciseDefFromCSV[] = (() => {
   const uniqueMap = new Map<string, ExerciseDefFromCSV>();
   rawCsvData
-    .filter(row => row.name && row.name.trim() !== '') // Robust validation at the source
+    .filter(row => row.name && row.name.trim() !== '') // BUG FIX: Ensure name is not null or empty
     .forEach(row => {
     const exerciseId = 'ex_' + row.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
     if (!uniqueMap.has(exerciseId)) {
@@ -252,427 +233,206 @@ const workoutStructureData: WorkoutStructureEntry[] = (() => {
   return Array.from(new Set(structure.map(s => JSON.stringify(s)))).map(s => JSON.parse(s)); // Deduplicate
 })();
 
-// --- Workout Processor (from workout_processor.ts) ---
-const processSingleChildWorkout = async (
-  supabaseServiceRoleClient: ReturnType<typeof createClient>,
-  user: any,
-  tPath: TPathData,
-  workoutName: string,
-  workoutSplit: string,
-  maxAllowedMinutes: number,
-  allUserAndGlobalExercises: ExerciseDefinitionForWorkoutGeneration[], // Pass this down
-  globalExerciseDefMap: Map<string, ExerciseDefFromCSV> // Pass this down
-) => {
-  console.log(`[Background] Processing workout: ${workoutName}`);
-  
-  // 1. Find or Create the child t_path (the individual workout like "Upper Body A")
-  let childWorkoutId: string;
-  const { data: existingChildWorkout, error: fetchExistingChildError } = await supabaseServiceRoleClient
-    .from('t_paths')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('parent_t_path_id', tPath.id)
-    .eq('template_name', workoutName)
-    .eq('is_bonus', true)
-    .single();
-
-  if (fetchExistingChildError && fetchExistingChildError.code !== 'PGRST116') {
-    throw fetchExistingChildError;
-  }
-
-  if (existingChildWorkout) {
-    childWorkoutId = existingChildWorkout.id;
-    console.log(`[Background] Found existing child workout ${workoutName} with ID: ${childWorkoutId}`);
-  } else {
-    const { data: newChildWorkout, error: createChildWorkoutError } = await supabaseServiceRoleClient
-      .from('t_paths')
-      .insert({
-        user_id: user.id,
-        parent_t_path_id: tPath.id,
-        template_name: workoutName,
-        is_bonus: true,
-        settings: tPath.settings
-      })
-      .select('id')
-      .single();
-    if (createChildWorkoutError) throw createChildWorkoutError;
-    childWorkoutId = newChildWorkout.id;
-    console.log(`[Background] Created new child workout ${workoutName} with ID: ${childWorkoutId}`);
-  }
-
-  // 2. Delete all existing exercise links for this child workout to ensure a clean slate.
-  const { error: deleteError } = await supabaseServiceRoleClient
-      .from('t_path_exercises')
-      .delete()
-      .eq('template_id', childWorkoutId);
-  if (deleteError) throw deleteError;
-  console.log(`[Background] Cleared existing exercises for workout ${workoutName} (ID: ${childWorkoutId}).`);
-
-  // 3. Determine `desiredDefaultExercises` from workout_exercise_structure
-  const { data: structureEntries, error: structureError } = await supabaseServiceRoleClient
-    .from('workout_exercise_structure')
-    .select('exercise_library_id, min_session_minutes, bonus_for_time_group')
-    .eq('workout_split', workoutSplit)
-    .eq('workout_name', workoutName)
-    .order('min_session_minutes', { ascending: true, nullsFirst: true })
-    .order('bonus_for_time_group', { ascending: true, nullsFirst: true });
-  if (structureError) throw structureError;
-
-  // Create a map to quickly find user's custom version of a global exercise
-  const userCustomExerciseMap = new Map<string, string>(); // Map<library_id, user_exercise_id>
-  (allUserAndGlobalExercises || []).filter(ex => ex.user_id === user.id && ex.library_id !== null)
-    .forEach(ex => userCustomExerciseMap.set(ex.library_id!, ex.id));
-  console.log(`[Background] Initial userCustomExerciseMap for ${workoutName}:`, userCustomExerciseMap);
-
-
-  const exercisesToInsertPayload: { template_id: string; exercise_id: string; order_index: number; is_bonus_exercise: boolean }[] = [];
-  for (const entry of structureEntries || []) {
-    const globalLibraryId = entry.exercise_library_id;
-    let finalExerciseId: string; // This will be the ID we use in t_path_exercises
-
-    // Check if user already has a custom version of this global exercise
-    if (userCustomExerciseMap.has(globalLibraryId)) {
-      finalExerciseId = userCustomExerciseMap.get(globalLibraryId)!;
-      console.log(`[Background] REUSING existing user exercise for global ${globalLibraryId}. User Exercise ID: ${finalExerciseId}`);
-    } else {
-      // User does not have a custom version, so link directly to the global exercise.
-      const globalExercise = allUserAndGlobalExercises.find(ex => ex.library_id === globalLibraryId && ex.user_id === null);
-      if (!globalExercise) {
-        console.warn(`[Background] Global exercise definition not found in DB for library_id: ${globalLibraryId}. Skipping.`);
-        continue;
-      }
-      finalExerciseId = globalExercise.id;
-      console.log(`[Background] LINKING to global exercise for ${globalLibraryId}. Global Exercise ID: ${finalExerciseId}`);
-    }
-    
-    // Log the final exercise ID that will be used for t_path_exercises
-    console.log(`[Background] Final exercise ID for t_path_exercises entry: ${finalExerciseId} (from global ${globalLibraryId})`);
-
-
-    const isIncludedAsMain = entry.min_session_minutes !== null && maxAllowedMinutes >= entry.min_session_minutes;
-    const isIncludedAsBonus = entry.bonus_for_time_group !== null && maxAllowedMinutes >= entry.bonus_for_time_group;
-
-    if (isIncludedAsMain || isIncludedAsBonus) {
-      const isBonus = isIncludedAsBonus && !isIncludedAsMain;
-      exercisesToInsertPayload.push({
-        template_id: childWorkoutId,
-        exercise_id: finalExerciseId, // THIS IS THE KEY CHANGE
-        order_index: isBonus ? (entry.bonus_for_time_group || 0) : (entry.min_session_minutes || 0),
-        is_bonus_exercise: isBonus,
-      });
-    }
-  }
-
-  // 4. Sort and re-index before inserting
-  exercisesToInsertPayload.sort((a, b) => a.order_index - b.order_index);
-  exercisesToInsertPayload.forEach((ex, i) => {
-    ex.order_index = i;
-  });
-
-  console.log(`[Background] Prepared ${exercisesToInsertPayload.length} exercises for insertion into ${workoutName}.`);
-
-  // 5. Perform a single bulk insert.
-  if (exercisesToInsertPayload.length > 0) {
-    const { error: insertError } = await supabaseServiceRoleClient
-      .from('t_path_exercises')
-      .insert(exercisesToInsertPayload);
-    if (insertError) throw insertError;
-    console.log(`[Background] Successfully inserted exercises for workout ${workoutName}.`);
-  }
-
-  return { id: childWorkoutId, template_name: workoutName };
-};
-
-// --- Synchronization Logic (from sync.ts - included as a callable function, not auto-executed) ---
+// --- Synchronization Logic ---
 const synchronizeSourceData = async (supabaseServiceRoleClient: ReturnType<typeof createClient>) => {
     console.log('Synchronizing source data...');
-
-    // 1. Safely wipe and repopulate workout_exercise_structure
-    const { error: deleteStructureError } = await supabaseServiceRoleClient
-        .from('workout_exercise_structure')
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Trick to delete all rows
+    const { error: deleteStructureError } = await supabaseServiceRoleClient.from('workout_exercise_structure').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     if (deleteStructureError) throw deleteStructureError;
-    console.log('Successfully wiped workout_exercise_structure.');
-
-    const { error: insertStructureError } = await supabaseServiceRoleClient
-        .from('workout_exercise_structure')
-        .insert(workoutStructureData);
+    const { error: insertStructureError } = await supabaseServiceRoleClient.from('workout_exercise_structure').insert(workoutStructureData);
     if (insertStructureError) throw insertStructureError;
-    console.log(`Successfully re-inserted ${workoutStructureData.length} workout structure rules.`);
 
-    // 2. Prepare exercises for UPSERT (excluding icon_url initially)
-    const exercisesToUpsertWithoutIcon = exerciseLibraryData.map(ex => {
-        // Failsafe: Ensure name is not null or empty. This should be caught by the filter, but as a backup.
-        if (!ex.name || ex.name.trim() === '') {
-            console.error(`[SYNC] CRITICAL: Found exercise with empty name in exerciseLibraryData. Skipping. Library ID: ${ex.exercise_id}`);
-            return null; // This will be filtered out later
-        }
-        return {
-            library_id: ex.exercise_id,
-            name: ex.name,
-            main_muscle: ex.main_muscle,
-            type: ex.type,
-            category: ex.category,
-            description: ex.description,
-            pro_tip: ex.pro_tip,
-            video_url: ex.video_url,
-            user_id: null // Global exercises
-        };
-    }).filter(Boolean); // Filter out any null entries
+    const exercisesToUpsertWithoutIcon = exerciseLibraryData
+        .map(ex => {
+            if (!ex.name || ex.name.trim() === '') {
+                console.error(`[SYNC] CRITICAL: Found exercise with empty name. Skipping. Library ID: ${ex.exercise_id}`);
+                return null;
+            }
+            return {
+                library_id: ex.exercise_id, name: ex.name, main_muscle: ex.main_muscle, type: ex.type, category: ex.category,
+                description: ex.description, pro_tip: ex.pro_tip, video_url: ex.video_url, user_id: null
+            };
+        })
+        .filter(Boolean);
 
-    const { error: upsertError } = await supabaseServiceRoleClient
-        .from('exercise_definitions')
-        .upsert(exercisesToUpsertWithoutIcon, { onConflict: 'library_id' });
-        
-    if (upsertError) {
-        console.error("Upsert error details (without icon_url):", upsertError);
-        throw upsertError;
-    }
-    console.log(`Successfully upserted ${exercisesToUpsertWithoutIcon.length} global exercises (without touching icon_url).`);
+    const { error: upsertError } = await supabaseServiceRoleClient.from('exercise_definitions').upsert(exercisesToUpsertWithoutIcon, { onConflict: 'library_id' });
+    if (upsertError) throw upsertError;
 
-    // 3. Identify global exercises that still have a NULL icon_url and update them with the default
-    const { data: nullIconExercises, error: fetchNullIconError } = await supabaseServiceRoleClient
-        .from('exercise_definitions')
-        .select('id, library_id')
-        .is('user_id', null)
-        .is('icon_url', null);
-    
+    const { data: nullIconExercises, error: fetchNullIconError } = await supabaseServiceRoleClient.from('exercise_definitions').select('id, library_id').is('user_id', null).is('icon_url', null);
     if (fetchNullIconError) throw fetchNullIconError;
 
     if (nullIconExercises && nullIconExercises.length > 0) {
-        const updatesForNullIcons = nullIconExercises.map((ex: NullIconExercise) => {
-            const defaultIcon = exerciseLibraryData.find(csvEx => csvEx.exercise_id === ex.library_id)?.icon_url;
-            return {
-                id: ex.id,
-                icon_url: defaultIcon || 'https://i.imgur.com/2Y4Y4Y4.png' // Fallback to generic if not found in CSV
-            };
-        });
-
-        const { error: updateIconsError } = await supabaseServiceRoleClient
-            .from('exercise_definitions')
-            .upsert(updatesForNullIcons, { onConflict: 'id' });
-        
-        if (updateIconsError) {
-            console.error("Error updating NULL icon_urls:", updateIconsError);
-            throw updateIconsError;
-        }
-        console.log(`Successfully updated ${updatesForNullIcons.length} global exercises with default icon_urls.`);
-    } else {
-        console.log('No global exercises found with NULL icon_url to update.');
+        const updatesForNullIcons = nullIconExercises.map((ex: NullIconExercise) => ({
+            id: ex.id,
+            icon_url: exerciseLibraryData.find(csvEx => csvEx.exercise_id === ex.library_id)?.icon_url || 'https://i.imgur.com/2Y4Y4Y4.png'
+        }));
+        const { error: updateIconsError } = await supabaseServiceRoleClient.from('exercise_definitions').upsert(updatesForNullIcons, { onConflict: 'id' });
+        if (updateIconsError) throw updateIconsError;
     }
 };
 
+// --- Workout Generation Logic ---
+const generateWorkoutsForGym = async (
+  supabaseServiceRoleClient: ReturnType<typeof createClient>,
+  user: any,
+  mainTPath: TPathData,
+  gym: GymData | null, // Can be null for the default case
+  workoutNames: string[],
+  workoutSplit: string,
+  maxAllowedMinutes: number,
+  allExercises: ExerciseDefinitionForWorkoutGeneration[],
+  allGymExerciseLinks: { gym_id: string; exercise_id: string }[]
+) => {
+  for (const workoutName of workoutNames) {
+    const childWorkoutName = gym ? `${workoutName} - ${gym.name}` : workoutName;
+    
+    const { data: newChildWorkout, error: createChildError } = await supabaseServiceRoleClient
+      .from('t_paths')
+      .insert({ user_id: user.id, parent_t_path_id: mainTPath.id, template_name: childWorkoutName, is_bonus: true, settings: mainTPath.settings })
+      .select('id').single();
+    if (createChildError) throw createChildError;
+    const childWorkoutId = newChildWorkout.id;
+
+    const { data: structureEntries, error: structureError } = await supabaseServiceRoleClient
+      .from('workout_exercise_structure').select('*').eq('workout_split', workoutSplit).eq('workout_name', workoutName);
+    if (structureError) throw structureError;
+
+    const libraryIdToUuidMap = new Map<string, string>();
+    allExercises.forEach(ex => { if (ex.library_id) libraryIdToUuidMap.set(ex.library_id, ex.id); });
+
+    const gymExerciseIds = new Set(gym ? allGymExerciseLinks.filter(l => l.gym_id === gym.id).map(l => l.exercise_id) : []);
+
+    const exercisesToInsertPayload: { template_id: string; exercise_id: string; order_index: number; is_bonus_exercise: boolean }[] = [];
+    const addedExerciseIds = new Set<string>();
+
+    const processEntries = (entries: WorkoutStructureEntry[], isGymSpecific: boolean) => {
+      for (const entry of entries) {
+        const exerciseUuid = libraryIdToUuidMap.get(entry.exercise_library_id);
+        if (!exerciseUuid || addedExerciseIds.has(exerciseUuid)) continue;
+
+        const isIncludedAsMain = entry.min_session_minutes !== null && maxAllowedMinutes >= entry.min_session_minutes;
+        const isIncludedAsBonus = entry.bonus_for_time_group !== null && maxAllowedMinutes >= entry.bonus_for_time_group;
+
+        if (isIncludedAsMain || isIncludedAsBonus) {
+          exercisesToInsertPayload.push({
+            template_id: childWorkoutId,
+            exercise_id: exerciseUuid,
+            order_index: isIncludedAsBonus && !isIncludedAsMain ? (entry.bonus_for_time_group || 0) : (entry.min_session_minutes || 0),
+            is_bonus_exercise: isIncludedAsBonus && !isIncludedAsMain,
+          });
+          addedExerciseIds.add(exerciseUuid);
+        }
+      }
+    };
+
+    const gymSpecificEntries = (structureEntries || []).filter((entry: WorkoutStructureEntry) => {
+      const uuid = libraryIdToUuidMap.get(entry.exercise_library_id);
+      return uuid ? gymExerciseIds.has(uuid) : false;
+    });
+    const globalEntries = (structureEntries || []).filter((entry: WorkoutStructureEntry) => {
+      const uuid = libraryIdToUuidMap.get(entry.exercise_library_id);
+      return uuid ? !gymExerciseIds.has(uuid) : false;
+    });
+
+    processEntries(gymSpecificEntries, true);
+    processEntries(globalEntries, false);
+
+    exercisesToInsertPayload.sort((a, b) => a.order_index - b.order_index);
+    exercisesToInsertPayload.forEach((ex, i) => { ex.order_index = i; });
+
+    if (exercisesToInsertPayload.length > 0) {
+      const { error: insertError } = await supabaseServiceRoleClient.from('t_path_exercises').insert(exercisesToInsertPayload);
+      if (insertError) throw insertError;
+    }
+  }
+};
 
 // --- Main Serve Function ---
 serve(async (req: Request) => {
-  console.log('Edge Function: generate-t-path received request.');
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
-  let userId: string | null = null; // Declare userId here for broader scope
-  const supabaseServiceRoleClient = getSupabaseServiceRoleClient(); // Initialize here
+  let userId: string | null = null;
+  const supabaseServiceRoleClient = getSupabaseServiceRoleClient();
 
   try {
-    console.log('Edge Function: generate-t-path started processing.');
-
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Authorization header missing' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-    console.log('Edge Function: Authorization header present.');
-
+    if (!authHeader) return new Response(JSON.stringify({ error: 'Authorization header missing' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     const { data: { user }, error: userError } = await supabaseServiceRoleClient.auth.getUser(authHeader.split(' ')[1]);
-    if (userError || !user) {
-      console.error('Auth error:', userError?.message);
-      return new Response(JSON.stringify({ error: 'Unauthorized', details: userError?.message }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+    if (userError || !user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     userId = user.id;
 
     const body = await req.json();
     const tPathId = body.tPathId;
     const sessionLengthFromBody = body.preferred_session_length;
+    if (!tPathId) return new Response(JSON.stringify({ error: 'tPathId is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-    if (!tPathId) {
-      return new Response(JSON.stringify({ error: 'tPathId is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-    console.log(`Edge Function: Received tPathId (main T-Path ID): ${tPathId}`);
+    await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'in_progress', t_path_generation_error: null }).eq('id', userId);
 
-    // --- Set status to 'in_progress' immediately ---
-    console.log(`[Background] Setting t_path_generation_status to 'in_progress' for user ${userId}.`);
-    const { error: updateStatusError } = await supabaseServiceRoleClient
-      .from('profiles')
-      .update({ t_path_generation_status: 'in_progress', t_path_generation_error: null })
-      .eq('id', userId);
-    if (updateStatusError) {
-      console.error('[Background] Error updating profile status to in_progress:', updateStatusError);
-      // Do not throw, as the main process should continue
-    }
-
-    // --- IMMEDIATE RESPONSE ---
-    const response = new Response(
-      JSON.stringify({ message: 'T-Path generation initiated successfully (background process).', functionId: 'N/A' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
-    // --- ASYNCHRONOUS BACKGROUND WORK ---
     (async () => {
       try {
-        console.log('[Background] Starting asynchronous T-Path generation...');
-
-        // Check and synchronize source data if needed
-        const SYNC_INTERVAL_HOURS = 24; // Define how often to sync source data
-        const { data: appMetadata, error: fetchMetadataError } = await supabaseServiceRoleClient
-          .from('app_metadata')
-          .select('last_source_sync_at')
-          .eq('id', 'app_settings')
-          .single();
-
-        if (fetchMetadataError && fetchMetadataError.code !== 'PGRST116') {
-          console.error('[Background] Error fetching app_metadata:', fetchMetadataError);
-          // Continue without sync, but log the error
-        }
-
+        const { data: appMetadata } = await supabaseServiceRoleClient.from('app_metadata').select('last_source_sync_at').eq('id', 'app_settings').single();
         const lastSyncTime = appMetadata?.last_source_sync_at ? new Date(appMetadata.last_source_sync_at) : null;
-        const now = new Date();
-        const shouldSync = !lastSyncTime || (now.getTime() - lastSyncTime.getTime()) > (SYNC_INTERVAL_HOURS * 60 * 60 * 1000);
-
+        const shouldSync = !lastSyncTime || (new Date().getTime() - lastSyncTime.getTime()) > (24 * 60 * 60 * 1000);
         if (shouldSync) {
-          console.log('[Background] Source data sync needed. Initiating synchronizeSourceData...');
           await synchronizeSourceData(supabaseServiceRoleClient);
-          const { error: updateSyncTimeError } = await supabaseServiceRoleClient
-            .from('app_metadata')
-            .upsert({ id: 'app_settings', last_source_sync_at: now.toISOString() }, { onConflict: 'id' });
-          if (updateSyncTimeError) {
-            console.error('[Background] Error updating last_source_sync_at:', updateSyncTimeError);
-          }
-          console.log('[Background] Source data synchronization complete.');
-        } else {
-          console.log('[Background] Source data is up-to-date. Skipping synchronization.');
+          await supabaseServiceRoleClient.from('app_metadata').upsert({ id: 'app_settings', last_source_sync_at: new Date().toISOString() }, { onConflict: 'id' });
         }
 
-        // Step 1: Fetch T-Path details and user's preferred session length
-        console.log(`[Background] Fetching T-Path details for ID: ${tPathId} and user profile for preferred session length.`);
-        const { data: tPathData, error: tPathError } = await supabaseServiceRoleClient
-          .from('t_paths')
-          .select('id, template_name, settings, user_id')
-          .eq('id', tPathId)
-          .eq('user_id', user.id)
-          .single();
-        if (tPathError) throw tPathError;
-        if (!tPathData) throw new Error('Main T-Path not found or does not belong to user.');
-        const tPath: TPathData = tPathData;
-        console.log('[Background] Fetched T-Path data:', tPath);
-
-        let preferredSessionLength: string | null;
-        if (sessionLengthFromBody !== undefined) {
-          preferredSessionLength = sessionLengthFromBody;
-          console.log('[Background] Using preferred_session_length from request body:', preferredSessionLength);
-        } else {
-          const { data: profileData, error: profileError } = await supabaseServiceRoleClient
-            .from('profiles')
-            .select('preferred_session_length')
-            .eq('id', user.id)
-            .single();
+        const { data: tPathData, error: tPathError } = await supabaseServiceRoleClient.from('t_paths').select('id, template_name, settings, user_id').eq('id', tPathId).eq('user_id', user.id).single();
+        if (tPathError || !tPathData) throw new Error('Main T-Path not found.');
+        
+        let preferredSessionLength = sessionLengthFromBody;
+        if (preferredSessionLength === undefined) {
+          const { data: profileData, error: profileError } = await supabaseServiceRoleClient.from('profiles').select('preferred_session_length').eq('id', user.id).single();
           if (profileError) throw profileError;
           preferredSessionLength = (profileData as ProfileData)?.preferred_session_length;
-          console.log('[Background] Fetched profile data, preferred_session_length:', preferredSessionLength);
         }
 
-        const tPathSettings = tPath.settings as { tPathType?: string };
-        if (!tPathSettings || !tPathSettings.tPathType) throw new Error('Invalid T-Path settings.');
+        const tPathSettings = tPathData.settings as { tPathType?: string };
+        if (!tPathSettings?.tPathType) throw new Error('Invalid T-Path settings.');
         
         const workoutSplit = tPathSettings.tPathType;
         const maxAllowedMinutes = getMaxMinutes(preferredSessionLength);
-        console.log(`[Background] Workout split: ${workoutSplit}, Max Minutes: ${maxAllowedMinutes}`);
-
         const workoutNames = getWorkoutNamesForSplit(workoutSplit);
-        console.log('[Background] Workout names to process:', workoutNames);
 
-        // Step 2: Fetch all user-owned and global exercises for efficient lookup
-        console.log('[Background] Fetching all user-owned and global exercises for lookup map...');
-        const { data: allUserAndGlobalExercises, error: fetchAllExercisesError } = await supabaseServiceRoleClient
-          .from('exercise_definitions')
-          .select('id, library_id, user_id, icon_url, name, main_muscle, type, category, description, pro_tip, video_url'); // Select all fields needed for creating a copy
+        const { data: userGyms, error: gymsError } = await supabaseServiceRoleClient.from('gyms').select('id, name').eq('user_id', user.id);
+        if (gymsError) throw gymsError;
+
+        const { data: allExercises, error: fetchAllExercisesError } = await supabaseServiceRoleClient.from('exercise_definitions').select('id, library_id, user_id, name');
         if (fetchAllExercisesError) throw fetchAllExercisesError;
-        
-        // Create a map for global exercise definitions by their library_id
-        const globalExerciseDefMap = new Map<string, ExerciseDefFromCSV>();
-        exerciseLibraryData.forEach(ex => globalExerciseDefMap.set(ex.exercise_id, ex));
-        console.log(`[Background] Loaded ${globalExerciseDefMap.size} global exercise definitions from CSV.`);
 
-        console.log(`[Background] Fetched ${allUserAndGlobalExercises?.length || 0} user and global exercises from DB.`);
+        const gymIds = (userGyms || []).map((g: GymData) => g.id);
+        const { data: allGymExerciseLinks, error: gymLinksError } = await supabaseServiceRoleClient.from('gym_exercises').select('gym_id, exercise_id').in('gym_id', gymIds);
+        if (gymLinksError) throw gymLinksError;
 
-        // Step 3: Process each workout (child T-Path)
-        const generatedWorkouts = [];
-        for (const workoutName of workoutNames) {
-          console.log(`[Background] Starting processSingleChildWorkout for: ${workoutName}`);
-          const result = await processSingleChildWorkout(
-            supabaseServiceRoleClient,
-            user,
-            tPath,
-            workoutName,
-            workoutSplit,
-            maxAllowedMinutes,
-            allUserAndGlobalExercises as ExerciseDefinitionForWorkoutGeneration[], // Pass all exercises
-            globalExerciseDefMap // Pass global def map
-          );
-          generatedWorkouts.push(result);
-          console.log(`[Background] Finished processSingleChildWorkout for: ${workoutName}. Result:`, result);
-        }
-        console.log('Edge Function: generate-t-path background process finished successfully.');
-
-        // --- Set status to 'completed' on success ---
-        console.log(`[Background] Setting t_path_generation_status to 'completed' for user ${userId}.`);
-        const { error: updateSuccessError } = await supabaseServiceRoleClient
-          .from('profiles')
-          .update({ t_path_generation_status: 'completed', t_path_generation_error: null })
-          .eq('id', userId);
-        if (updateSuccessError) {
-          console.error('[Background] Error updating profile status to completed:', updateSuccessError);
+        const { data: oldChildWorkouts, error: fetchOldError } = await supabaseServiceRoleClient.from('t_paths').select('id').eq('parent_t_path_id', tPathId).eq('user_id', user.id);
+        if (fetchOldError) throw fetchOldError;
+        if (oldChildWorkouts && oldChildWorkouts.length > 0) {
+          const oldChildIds = oldChildWorkouts.map((w: { id: string }) => w.id);
+          await supabaseServiceRoleClient.from('t_path_exercises').delete().in('template_id', oldChildIds);
+          await supabaseServiceRoleClient.from('t_paths').delete().in('id', oldChildIds);
         }
 
+        if (!userGyms || userGyms.length === 0) {
+          await generateWorkoutsForGym(supabaseServiceRoleClient, user, tPathData, null, workoutNames, workoutSplit, maxAllowedMinutes, allExercises as ExerciseDefinitionForWorkoutGeneration[], []);
+        } else {
+          for (const gym of userGyms) {
+            await generateWorkoutsForGym(supabaseServiceRoleClient, user, tPathData, gym, workoutNames, workoutSplit, maxAllowedMinutes, allExercises as ExerciseDefinitionForWorkoutGeneration[], allGymExerciseLinks || []);
+          }
+        }
+
+        await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'completed', t_path_generation_error: null }).eq('id', userId);
       } catch (backgroundError: any) {
-        console.error('Edge Function: generate-t-path background process failed:', backgroundError);
-        // --- Set status to 'failed' on error ---
-        let errorMessage = "An unknown error occurred during T-Path generation.";
-        if (backgroundError instanceof Error) {
-            errorMessage = backgroundError.message;
-        } else if (typeof backgroundError === 'object' && backgroundError !== null) {
-            errorMessage = JSON.stringify(backgroundError);
-        } else if (typeof backgroundError === 'string') {
-            errorMessage = backgroundError;
-        }
-        console.log(`[Background] Setting t_path_generation_status to 'failed' for user ${userId}. Error: ${errorMessage}`);
-        const { error: updateFailError } = await supabaseServiceRoleClient
-          .from('profiles')
-          .update({ t_path_generation_status: 'failed', t_path_generation_error: errorMessage })
-          .eq('id', userId);
-        if (updateFailError) {
-          console.error('[Background] Error updating profile status to failed (initial error):', updateFailError);
-        }
+        const errorMessage = backgroundError instanceof Error ? backgroundError.message : "An unknown error occurred.";
+        await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'failed', t_path_generation_error: errorMessage }).eq('id', userId);
       }
     })();
 
-    return response; // Return the immediate response
+    return new Response(JSON.stringify({ message: 'T-Path generation initiated.' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-    console.error('Unhandled error in generate-t-path edge function (before background spawn):', errorMessage);
-    // If an error occurs before the background process even starts, set status to failed
     if (userId) {
-      console.log(`[Background] Setting t_path_generation_status to 'failed' for user ${userId} due to initial error. Error: ${errorMessage}`);
-      const { error: updateFailError } = await supabaseServiceRoleClient
-        .from('profiles')
-        .update({ t_path_generation_status: 'failed', t_path_generation_error: errorMessage })
-        .eq('id', userId);
-      if (updateFailError) {
-        console.error('[Background] Error updating profile status to failed (initial error):', updateFailError);
-      }
+      await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'failed', t_path_generation_error: errorMessage }).eq('id', userId);
     }
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: errorMessage }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
