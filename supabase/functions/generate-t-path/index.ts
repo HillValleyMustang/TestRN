@@ -22,6 +22,7 @@ interface WorkoutStructure {
   exercise_library_id: string;
   workout_name: string;
   min_session_minutes: number | null;
+  bonus_for_time_group: number | null; // Added bonus field
 }
 
 interface TPathData {
@@ -116,7 +117,7 @@ serve(async (req: Request) => {
         const { data: allGymLinks, error: gymLinksError } = await supabaseServiceRoleClient.from('gym_exercises').select('gym_id, exercise_id');
         if (gymLinksError) throw gymLinksError;
 
-        const { data: workoutStructure, error: structureError } = await supabaseServiceRoleClient.from('workout_exercise_structure').select('exercise_library_id, workout_name, min_session_minutes');
+        const { data: workoutStructure, error: structureError } = await supabaseServiceRoleClient.from('workout_exercise_structure').select('exercise_library_id, workout_name, min_session_minutes, bonus_for_time_group');
         if (structureError) throw structureError;
 
         // 2. Cleanup Old Workouts
@@ -148,19 +149,34 @@ serve(async (req: Request) => {
           if (createChildError) throw createChildError;
           const childWorkoutId = newChildWorkout.id;
 
-          const movementPattern = workoutName.split(' ')[0];
+          let movementPatterns: string[] = [];
+          if (workoutName.includes('Upper')) {
+              movementPatterns = ['Push', 'Pull'];
+          } else if (workoutName.includes('Lower')) {
+              movementPatterns = ['Legs', 'Core'];
+          } else if (workoutName === 'Push') {
+              movementPatterns = ['Push'];
+          } else if (workoutName === 'Pull') {
+              movementPatterns = ['Pull'];
+          } else if (workoutName === 'Legs') {
+              movementPatterns = ['Legs'];
+          }
 
           // Build Exercise Pools
-          const tier1Pool = (allExercises || []).filter((ex: ExerciseDefinition) => ex.movement_pattern === movementPattern && activeGymExerciseIds.has(ex.id));
-          const tier2Pool = (allExercises || []).filter((ex: ExerciseDefinition) => ex.movement_pattern === movementPattern && !allLinkedExerciseIds.has(ex.id));
+          const tier1Pool = (allExercises || []).filter((ex: ExerciseDefinition) => movementPatterns.includes(ex.movement_pattern || '') && activeGymExerciseIds.has(ex.id));
+          const tier2Pool = (allExercises || []).filter((ex: ExerciseDefinition) => movementPatterns.includes(ex.movement_pattern || '') && !allLinkedExerciseIds.has(ex.id));
           const commonGymLibraryIds = new Set(
             (workoutStructure || []).filter((s: WorkoutStructure) => s.workout_name === workoutName && s.min_session_minutes !== null && maxAllowedMinutes >= s.min_session_minutes).map((s: WorkoutStructure) => s.exercise_library_id)
           );
-          const commonGymUuids = new Set(Array.from(commonGymLibraryIds).map(libId => libraryIdToUuidMap.get(libId)).filter(Boolean) as string[]);
+          const commonGymUuids = new Set(Array.from(commonGymLibraryIds).reduce<string[]>((acc, libId) => {
+            const uuid = libraryIdToUuidMap.get(libId);
+            if (uuid) acc.push(uuid);
+            return acc;
+          }, []));
           const tier3Pool = (allExercises || []).filter((ex: ExerciseDefinition) => commonGymUuids.has(ex.id));
 
-          // Assemble Workout
-          const finalExercisesForWorkout: ExerciseDefinition[] = [];
+          // Assemble Main Workout
+          const mainExercisesForWorkout: ExerciseDefinition[] = [];
           const addedExerciseIds = new Set<string>();
           let currentDuration = 0;
           const exerciseDurationEstimate = 5;
@@ -169,7 +185,7 @@ serve(async (req: Request) => {
             for (const ex of pool) {
               if (currentDuration + exerciseDurationEstimate > maxAllowedMinutes) break;
               if (!addedExerciseIds.has(ex.id)) {
-                finalExercisesForWorkout.push(ex);
+                mainExercisesForWorkout.push(ex);
                 addedExerciseIds.add(ex.id);
                 currentDuration += exerciseDurationEstimate;
               }
@@ -180,15 +196,43 @@ serve(async (req: Request) => {
           addExercisesFromPool(sortExercises(tier2Pool as ExerciseDefinition[]));
           addExercisesFromPool(sortExercises(tier3Pool as ExerciseDefinition[]));
 
+          // Identify and Add Bonus Exercises
+          const bonusExercisesForWorkout: ExerciseDefinition[] = [];
+          const bonusLibraryIds = new Set(
+            (workoutStructure || []).filter((s: WorkoutStructure) => s.workout_name === workoutName && s.bonus_for_time_group !== null && maxAllowedMinutes >= s.bonus_for_time_group).map((s: WorkoutStructure) => s.exercise_library_id)
+          );
+          const bonusUuids = new Set(Array.from(bonusLibraryIds).reduce<string[]>((acc, libId) => {
+            const uuid = libraryIdToUuidMap.get(libId);
+            if (uuid) acc.push(uuid);
+            return acc;
+          }, []));
+          (allExercises || []).forEach((ex: ExerciseDefinition) => {
+            if (bonusUuids.has(ex.id) && !addedExerciseIds.has(ex.id)) {
+              bonusExercisesForWorkout.push(ex);
+              addedExerciseIds.add(ex.id); // Also add to main set to avoid duplicates if logic overlaps
+            }
+          });
+
           // Final Sort and Save
-          const sortedFinalExercises = sortExercises(finalExercisesForWorkout);
-          if (sortedFinalExercises.length > 0) {
-            const exercisesToInsertPayload = sortedFinalExercises.map((ex, index) => ({
+          const sortedMainExercises = sortExercises(mainExercisesForWorkout);
+          const sortedBonusExercises = sortExercises(bonusExercisesForWorkout);
+
+          const exercisesToInsertPayload = [
+            ...sortedMainExercises.map((ex, index) => ({
               template_id: childWorkoutId,
               exercise_id: ex.id,
               order_index: index,
               is_bonus_exercise: false,
-            }));
+            })),
+            ...sortedBonusExercises.map((ex, index) => ({
+              template_id: childWorkoutId,
+              exercise_id: ex.id,
+              order_index: sortedMainExercises.length + index,
+              is_bonus_exercise: true,
+            }))
+          ];
+
+          if (exercisesToInsertPayload.length > 0) {
             const { error: insertError } = await supabaseServiceRoleClient.from('t_path_exercises').insert(exercisesToInsertPayload);
             if (insertError) throw insertError;
           }
