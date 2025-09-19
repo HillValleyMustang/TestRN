@@ -6,7 +6,7 @@ import { useSession } from '@/components/session-context-provider';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import *as z from "zod";
 import { toast } from 'sonner';
 import { Profile as ProfileType, ProfileUpdate, Tables, LocalUserAchievement } from '@/types/supabase';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -252,6 +252,13 @@ export default function ProfilePage() {
 
   async function onSubmit(values: z.infer<typeof profileSchema>) {
     if (!session || !profile) return;
+
+    // Check if the form has been modified
+    if (!form.formState.isDirty) {
+      setIsEditing(false); // Just exit edit mode
+      return;
+    }
+
     setIsSaving(true);
 
     const oldSessionLength = lastSavedSessionLengthRef.current;
