@@ -86,8 +86,8 @@ export const OnboardingSummaryModal = ({ open, onOpenChange, summaryData, onClos
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl w-[95vw] max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="p-4 sm:p-6 pb-4 border-b">
           <DialogTitle className="flex items-center gap-2 text-2xl">
             <CheckCircle className="h-6 w-6 text-green-500" /> Your Plan is Ready!
           </DialogTitle>
@@ -95,7 +95,7 @@ export const OnboardingSummaryModal = ({ open, onOpenChange, summaryData, onClos
             Here's a summary of your personalised setup.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="flex-grow overflow-y-auto py-4">
+        <ScrollArea className="flex-grow overflow-y-auto py-4 px-4 sm:px-6">
           <div className="space-y-6">
             <div>
               <h3 className="font-semibold text-lg flex items-center gap-2 mb-2">
@@ -119,7 +119,7 @@ export const OnboardingSummaryModal = ({ open, onOpenChange, summaryData, onClos
             </div>
           </div>
         </ScrollArea>
-        <div className="flex justify-end pt-4">
+        <div className="flex justify-end p-4 sm:p-6 pt-4 border-t">
           <Button onClick={onClose}>Start Training</Button>
         </div>
       </DialogContent>
