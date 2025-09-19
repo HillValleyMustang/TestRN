@@ -9,20 +9,23 @@ import { Tables } from '@/types/supabase';
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { LoadingOverlay } from '../loading-overlay';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"; // Import Form components
+import { useFormContext } from 'react-hook-form'; // Import useFormContext
 
 type Profile = Tables<'profiles'>;
 
 interface ProgrammeTypeSectionProps {
-  profile: Profile | null;
   isEditing: boolean;
   onDataChange: () => void;
+  profile: Profile | null; // Pass the full profile
 }
 
-export const ProgrammeTypeSection = ({ profile, isEditing, onDataChange }: ProgrammeTypeSectionProps) => {
+export const ProgrammeTypeSection = ({ isEditing, onDataChange, profile }: ProgrammeTypeSectionProps) => {
   const { session, supabase } = useSession();
   const [isWarningOpen, setIsWarningOpen] = useState(false);
   const [pendingProgrammeType, setPendingProgrammeType] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const form = useFormContext(); // Get form context
 
   const currentProgrammeType = profile?.programme_type || '';
 
@@ -84,6 +87,8 @@ export const ProgrammeTypeSection = ({ profile, isEditing, onDataChange }: Progr
   const cancelChange = () => {
     setIsWarningOpen(false);
     setPendingProgrammeType(null);
+    // Revert the form value if the change is cancelled
+    form.setValue('programme_type', currentProgrammeType);
   };
 
   return (
@@ -98,15 +103,33 @@ export const ProgrammeTypeSection = ({ profile, isEditing, onDataChange }: Progr
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
-          <Select onValueChange={handleValueChange} value={currentProgrammeType} disabled={!isEditing}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select your programme type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ulul">4-Day Upper/Lower</SelectItem>
-              <SelectItem value="ppl">3-Day Push/Pull/Legs</SelectItem>
-            </SelectContent>
-          </Select>
+          <FormField
+            control={form.control}
+            name="programme_type"
+            render={({ field }) => (
+              <FormItem>
+                <Select
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    handleValueChange(value);
+                  }}
+                  value={field.value || ''}
+                  disabled={!isEditing}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select your programme type" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="ulul">4-Day Upper/Lower</SelectItem>
+                    <SelectItem value="ppl">3-Day Push/Pull/Legs</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </CardContent>
       </Card>
 
