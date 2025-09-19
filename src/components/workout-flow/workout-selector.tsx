@@ -4,7 +4,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Dumbbell, Settings, Sparkles } from 'lucide-react';
-import { Tables, WorkoutWithLastCompleted, GroupedTPath, SetLogState, WorkoutExercise, FetchedExerciseDefinition } from '@/types/supabase';
+import { Tables, WorkoutWithLastCompleted, GroupedTPath, SetLogState, WorkoutExercise, FetchedExerciseDefinition, Profile } from '@/types/supabase';
 import { cn, formatTimeAgo, getPillStyles } from '@/lib/utils';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { WorkoutBadge } from '../workout-badge';
@@ -55,6 +55,7 @@ interface WorkoutSelectorProps {
   handleOpenEditWorkoutDialog: (workoutId: string, workoutName: string) => void;
   handleEditWorkoutSaveSuccess: () => void;
   setIsEditWorkoutDialogOpen: (isOpen: boolean) => void;
+  profile: Profile | null; // Add profile prop
 }
 
 const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName: string): Omit<WorkoutPillProps, 'isSelected' | 'onClick'> => {
@@ -119,6 +120,7 @@ export const WorkoutSelector = ({
   handleOpenEditWorkoutDialog,
   handleEditWorkoutSaveSuccess,
   setIsEditWorkoutDialogOpen,
+  profile, // Destructure profile prop
 }: WorkoutSelectorProps) => {
   const { supabase, session } = useSession();
   const { activeGym } = useGym();
@@ -129,6 +131,9 @@ export const WorkoutSelector = ({
   const [showSaveAiExercisePrompt, setShowSaveAiExercisePrompt] = useState(false);
   const [aiIdentifiedExercise, setAiIdentifiedExercise] = useState<Partial<FetchedExerciseDefinition> | null>(null);
   const [isAiSaving, setIsAiSaving] = useState(false);
+
+  const activeTPathId = profile?.active_t_path_id;
+  const activeTPathGroup = activeTPathId ? groupedTPaths.find(group => group.mainTPath.id === activeTPathId) : null;
 
   const isGymConfigured = useMemo(() => {
     if (!activeGym || groupedTPaths.length === 0) return false;
@@ -307,39 +312,37 @@ export const WorkoutSelector = ({
             <p className="text-muted-foreground text-center py-4">Loading Transformation Paths...</p>
           ) : !isGymConfigured && activeGym ? (
             <UnconfiguredGymPrompt gymName={activeGym.name} />
-          ) : groupedTPaths.length === 0 ? (
+          ) : !activeTPathGroup ? (
             <p className="text-muted-foreground text-center py-4">
-              You haven't created any Transformation Paths yet. Go to <WorkoutAwareLink href="/manage-t-paths" className="text-primary underline">Manage T-Paths</WorkoutAwareLink> to create one.
+              No active Transformation Path found for this gym. Go to <WorkoutAwareLink href="/manage-t-paths" className="text-primary underline">Manage T-Paths</WorkoutAwareLink> to set one up.
             </p>
           ) : (
-            groupedTPaths.map((group: GroupedTPath) => (
-              <div key={group.mainTPath.id} className="space-y-3">
-                <h4 className="text-lg font-semibold flex items-center gap-2">
-                  <Dumbbell className="h-5 w-5 text-muted-foreground" />
-                  {group.mainTPath.template_name}
-                </h4>
-                {group.childWorkouts.length === 0 ? (
-                  <p className="text-muted-foreground text-sm ml-7">No workouts defined for this path. This may happen if your session length is too short for any workouts.</p>
-                ) : (
-                  <div className="grid grid-cols-2 gap-2">
-                    {group.childWorkouts.map((workout: WorkoutWithLastCompleted) => {
-                      const pillProps = mapWorkoutToPillProps(workout, group.mainTPath.template_name);
-                      const isPPLAndLegs = pillProps.workoutType === 'push-pull-legs' && pillProps.category === 'legs';
-                      const isSelectedPill = activeWorkout?.id === workout.id;
-                      return (
-                        <WorkoutPill
-                          key={workout.id}
-                          {...pillProps}
-                          isSelected={isSelectedPill}
-                          onClick={handleWorkoutClick}
-                          className={cn(isPPLAndLegs && "col-span-2 justify-self-center")}
-                        />
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            ))
+            <div key={activeTPathGroup.mainTPath.id} className="space-y-3">
+              <h4 className="text-lg font-semibold flex items-center gap-2">
+                <Dumbbell className="h-5 w-5 text-muted-foreground" />
+                {activeTPathGroup.mainTPath.template_name}
+              </h4>
+              {activeTPathGroup.childWorkouts.length === 0 ? (
+                <p className="text-muted-foreground text-sm ml-7">No workouts defined for this path. This may happen if your session length is too short for any workouts.</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {activeTPathGroup.childWorkouts.map((workout: WorkoutWithLastCompleted) => {
+                    const pillProps = mapWorkoutToPillProps(workout, activeTPathGroup.mainTPath.template_name);
+                    const isPPLAndLegs = pillProps.workoutType === 'push-pull-legs' && pillProps.category === 'legs';
+                    const isSelectedPill = activeWorkout?.id === workout.id;
+                    return (
+                      <WorkoutPill
+                        key={workout.id}
+                        {...pillProps}
+                        isSelected={isSelectedPill}
+                        onClick={handleWorkoutClick}
+                        className={cn(isPPLAndLegs && "col-span-2 justify-self-center")}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
         </div>
 

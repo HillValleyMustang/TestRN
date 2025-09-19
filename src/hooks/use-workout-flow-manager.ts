@@ -56,6 +56,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     refreshAchievements,
     setAllAvailableExercises, // Destructure setAllAvailableExercises
     isGeneratingPlan, // Get the new state
+    profile, // Get profile from the data fetcher
   } = useWorkoutDataFetcher();
 
   const {
@@ -338,5 +339,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     refreshProfile,
     refreshAchievements,
     isGeneratingPlan, // Return the new state
+    profile, // Expose profile
   };
 };
