@@ -168,13 +168,13 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
                   <span className="font-medium">{gym.name}</span>
                   {isEditing && (
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" title="Manage Exercises" onClick={() => { setSelectedGym(gym); setIsManageExercisesDialogOpen(true); }}>
+                      <Button type="button" variant="ghost" size="icon" title="Manage Exercises" onClick={() => { setSelectedGym(gym); setIsManageExercisesDialogOpen(true); }}>
                         <Dumbbell className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" title="Rename Gym" onClick={() => { setSelectedGym(gym); setNewGymName(gym.name); setIsRenameDialogOpen(true); }}>
+                      <Button type="button" variant="ghost" size="icon" title="Rename Gym" onClick={() => { setSelectedGym(gym); setNewGymName(gym.name); setIsRenameDialogOpen(true); }}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" title="Delete Gym" onClick={() => { setSelectedGym(gym); setIsDeleteDialogOpen(true); }}>
+                      <Button type="button" variant="ghost" size="icon" title="Delete Gym" onClick={() => { setSelectedGym(gym); setIsDeleteDialogOpen(true); }}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
@@ -184,7 +184,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
             </ul>
           )}
           {isEditing && gyms.length < 3 && (
-            <Button variant="outline" className="w-full" onClick={() => setIsAddGymDialogOpen(true)}>
+            <Button type="button" variant="outline" className="w-full" onClick={() => setIsAddGymDialogOpen(true)}>
               <PlusCircle className="h-4 w-4 mr-2" /> Add New Gym
             </Button>
           )}

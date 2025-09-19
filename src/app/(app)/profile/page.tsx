@@ -56,6 +56,7 @@ const profileSchema = z.object({
   health_notes: z.string().optional().nullable(),
   preferred_session_length: z.string().optional().nullable(),
   preferred_muscles: z.array(z.string()).optional().nullable(),
+  programme_type: z.string().optional().nullable(), // Added programme_type
 });
 
 export default function ProfilePage() {
@@ -84,6 +85,7 @@ export default function ProfilePage() {
       health_notes: null,
       preferred_session_length: null, 
       preferred_muscles: [],
+      programme_type: null, // Added programme_type
     },
   });
 
@@ -163,6 +165,7 @@ export default function ProfilePage() {
         health_notes: profile.health_notes,
         preferred_session_length: profile.preferred_session_length,
         preferred_muscles: profile.preferred_muscles ? profile.preferred_muscles.split(',').map((m: string) => m.trim()) : [],
+        programme_type: profile.programme_type, // Added programme_type
       });
 
       if (profile.last_ai_coach_use_at) {

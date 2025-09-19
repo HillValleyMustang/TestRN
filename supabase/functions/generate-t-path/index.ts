@@ -72,7 +72,7 @@ serve(async (req: Request) => {
     if (userError || !user) throw new Error('Unauthorized');
     userId = user.id;
 
-    const { tPathId, preferred_session_length } = await req.json();
+    const { tPathId, preferred_session_length, confirmedExerciseIds } = await req.json();
     if (!tPathId) throw new Error('tPathId is required');
 
     await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'in_progress', t_path_generation_error: null }).eq('id', userId);
