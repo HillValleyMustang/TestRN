@@ -1,179 +1,84 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useSession } from "@/components/session-context-provider";
-import { Tables, WorkoutWithLastCompleted } from "@/types/supabase"; // Import WorkoutWithLastCompleted
+import { Tables, WorkoutWithLastCompleted, GroupedTPath } from "@/types/supabase";
 import { toast } from "sonner";
 import { ActiveTPathWorkoutsList } from "@/components/manage-t-paths/active-t-path-workouts-list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
-import { LayoutTemplate } from "lucide-react";
 import { Button } from "@/components/ui/button";
-// Removed: import { TPathSwitcher } from "@/components/t-path-switcher";
 import { LoadingOverlay } from "@/components/loading-overlay";
-import { EditWorkoutExercisesDialog } from "@/components/manage-t-paths/edit-workout-exercises-dialog"; // Import the new dialog
+import { EditWorkoutExercisesDialog } from "@/components/manage-t-paths/edit-workout-exercises-dialog";
+import { useWorkoutDataFetcher } from "@/hooks/use-workout-data-fetcher";
+import { useGym } from "@/components/gym-context-provider";
+import { UnconfiguredGymPrompt } from "@/components/prompts/unconfigured-gym-prompt";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type TPath = Tables<'t_paths'>;
-type Profile = Tables<'profiles'>;
-
-// Define the workout orders
-const ULUL_ORDER = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
-const PPL_ORDER = ['Push', 'Pull', 'Legs'];
 
 export default function ManageTPathsPage() {
   const { session, supabase } = useSession();
   const router = useRouter();
-  const [activeMainTPath, setActiveMainTPath] = useState<TPath | null>(null);
-  const [childWorkouts, setChildWorkouts] = useState<WorkoutWithLastCompleted[]>([]); // Use centralized type
-  const [loading, setLoading] = useState(true);
-  const [isSwitchingTPath, setIsSwitchingTPath] = useState(false); // This state is now unused but kept for potential future use if switcher is re-added
-  
+  const { activeGym, loadingGyms } = useGym();
+  const { groupedTPaths, loadingData, refreshAllData } = useWorkoutDataFetcher();
+
   const [isEditWorkoutDialogOpen, setIsEditWorkoutDialogOpen] = useState(false);
   const [selectedWorkoutToEdit, setSelectedWorkoutToEdit] = useState<{ id: string; name: string } | null>(null);
 
-  const fetchActiveTPathAndWorkouts = useCallback(async () => {
-    if (!session) return;
-    setLoading(true);
-    try {
-      // 1. Fetch user profile to get active_t_path_id
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('active_t_path_id')
-        .eq('id', session.user.id)
-        .single();
+  const activeTPathGroup = useMemo(() => {
+    if (!activeGym || groupedTPaths.length === 0) return null;
+    return groupedTPaths.find(group => group.mainTPath.gym_id === activeGym.id) || null;
+  }, [activeGym, groupedTPaths]);
 
-      if (profileError && profileError.code !== 'PGRST116') {
-        throw profileError;
-      }
-
-      const activeTPathId = profileData?.active_t_path_id;
-
-      if (!activeTPathId) {
-        // This case should ideally not happen if onboarding ensures an active T-Path
-        // but we handle it gracefully.
-        setActiveMainTPath(null);
-        setChildWorkouts([]);
-        setLoading(false);
-        return;
-      }
-
-      // 2. Fetch the active main T-Path details
-      const { data: mainTPathData, error: mainTPathError } = await supabase
-        .from('t_paths')
-        .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id, gym_id')
-        .eq('id', activeTPathId)
-        .eq('user_id', session.user.id)
-        .is('parent_t_path_id', null)
-        .single();
-
-      if (mainTPathError || !mainTPathData) {
-        console.error("Active main T-Path not found or invalid:", mainTPathError);
-        setActiveMainTPath(null);
-        setChildWorkouts([]);
-        setLoading(false);
-        return;
-      }
-      setActiveMainTPath(mainTPathData);
-
-      // 3. Fetch child workouts for this main T-Path
-      const { data: childWorkoutsData, error: childWorkoutsError } = await supabase
-        .from('t_paths')
-        .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id, gym_id')
-        .eq('parent_t_path_id', mainTPathData.id)
-        .eq('is_bonus', true) // These are the actual individual workouts
-        .order('template_name', { ascending: true }); // Keep DB order for initial fetch
-
-      if (childWorkoutsError) {
-        throw childWorkoutsError;
-      }
-
-      // 4. Fetch last completed date for each child workout
-      const workoutsWithLastDatePromises = (childWorkoutsData || []).map(async (workout) => {
-        const { data: lastSessionDate } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
-        if (lastSessionDate && lastSessionDate.length > 0) {
-          return { ...workout, last_completed_at: lastSessionDate[0].last_completed_at || null };
-        }
-        return { ...workout, last_completed_at: null };
-      });
-      let childWorkoutsWithLastDate = await Promise.all(workoutsWithLastDatePromises);
-
-      // 5. Apply custom sorting for PPL and ULUL workouts
-      const tPathSettings = mainTPathData.settings as { tPathType?: string };
-      if (tPathSettings?.tPathType === 'ppl') {
-        childWorkoutsWithLastDate.sort((a, b) => {
-          const indexA = PPL_ORDER.indexOf(a.template_name);
-          const indexB = PPL_ORDER.indexOf(b.template_name);
-          if (indexA === -1 && indexB === -1) return 0; // Both not in custom order
-          if (indexA === -1) return 1; // A not in custom order, B is
-          if (indexB === -1) return -1; // B not in custom order, A is
-          return indexA - indexB;
-        });
-      } else if (tPathSettings?.tPathType === 'ulul') {
-        childWorkoutsWithLastDate.sort((a, b) => {
-          const indexA = ULUL_ORDER.indexOf(a.template_name);
-          const indexB = ULUL_ORDER.indexOf(b.template_name);
-          if (indexA === -1 && indexB === -1) return 0;
-          if (indexA === -1) return 1;
-          if (indexB === -1) return -1;
-          return indexA - indexB;
-        });
-      }
-
-      setChildWorkouts(childWorkoutsWithLastDate as WorkoutWithLastCompleted[]); // Cast to centralized type
-
-    } catch (err: any) {
-      console.error("Failed to load Transformation Path data:", err);
-      toast.info("Failed to load Transformation Path data.");
-    } finally {
-      setLoading(false);
-    }
-  }, [session, supabase]);
-
-  useEffect(() => {
-    fetchActiveTPathAndWorkouts();
-  }, [fetchActiveTPathAndWorkouts]);
+  const isGymConfigured = !!activeTPathGroup;
 
   const handleEditWorkout = (workoutId: string, workoutName: string) => {
     setSelectedWorkoutToEdit({ id: workoutId, name: workoutName });
     setIsEditWorkoutDialogOpen(true);
   };
 
-  const handleTPathSwitch = async (newTPathId: string) => {
-    setIsSwitchingTPath(true);
-    // The TPathSwitcher component already handles the API call and toast messages.
-    // We just need to refetch the data here.
-    await fetchActiveTPathAndWorkouts();
-    setIsSwitchingTPath(false);
+  const handleSaveSuccess = () => {
+    refreshAllData();
+    setIsEditWorkoutDialogOpen(false);
   };
+
+  if (loadingData || loadingGyms) {
+    return (
+      <div className="flex flex-col gap-4 p-2 sm:p-4">
+        <header className="mb-4"><Skeleton className="h-9 w-3/4" /></header>
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4 p-2 sm:p-4">
-      <header className="mb-4"><h1 className="text-3xl font-bold">Manage Active Transformation Path</h1></header>
-      <div className="grid grid-cols-1 gap-8"> {/* Adjusted grid layout */}
-        <div className="lg:col-span-2"> {/* This div now takes full width */}
-          {activeMainTPath ? (
-            <ActiveTPathWorkoutsList
-              activeTPathName={activeMainTPath.template_name}
-              childWorkouts={childWorkouts}
-              loading={loading}
-              onEditWorkout={handleEditWorkout}
-            />
-          ) : (
-            <Card>
-              <CardHeader><CardTitle>Workouts</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">No active Transformation Path found. Please set one in your profile.</p>
-                <Button onClick={() => router.push('/profile')} className="mt-4">Go to Profile</Button>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
-      <LoadingOverlay 
-        isOpen={isSwitchingTPath} 
-        title="Switching Transformation Path" 
-        description="Please wait while your new workout plan is activated." 
-      />
+      <header className="mb-4">
+        <h1 className="text-3xl font-bold">Manage Workout Plans</h1>
+        <p className="text-muted-foreground">
+          Configure the workouts for your active gym: <span className="font-semibold text-primary">{activeGym?.name || '...'}</span>
+        </p>
+      </header>
+      
+      {!activeGym ? (
+        <Card>
+          <CardHeader><CardTitle>No Active Gym</CardTitle></CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">Please add a gym in your profile settings to begin.</p>
+            <Button onClick={() => router.push('/profile?tab=settings&edit=true')} className="mt-4">Go to Profile Settings</Button>
+          </CardContent>
+        </Card>
+      ) : !isGymConfigured ? (
+        <UnconfiguredGymPrompt gymName={activeGym.name} />
+      ) : (
+        <ActiveTPathWorkoutsList
+          activeTPathName={activeTPathGroup.mainTPath.template_name}
+          childWorkouts={activeTPathGroup.childWorkouts}
+          loading={loadingData}
+          onEditWorkout={handleEditWorkout}
+        />
+      )}
 
       {selectedWorkoutToEdit && (
         <EditWorkoutExercisesDialog
@@ -181,7 +86,7 @@ export default function ManageTPathsPage() {
           onOpenChange={setIsEditWorkoutDialogOpen}
           workoutId={selectedWorkoutToEdit.id}
           workoutName={selectedWorkoutToEdit.name}
-          onSaveSuccess={fetchActiveTPathAndWorkouts} // Refresh the list after saving changes in the dialog
+          onSaveSuccess={handleSaveSuccess}
         />
       )}
     </div>

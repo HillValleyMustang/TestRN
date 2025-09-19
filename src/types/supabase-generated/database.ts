@@ -419,6 +419,7 @@ export type Database = {
           template_name: string;
           user_id: string | null;
           version: number | null;
+          gym_id: string | null;
         };
         Insert: {
           created_at?: string | null;
@@ -430,6 +431,7 @@ export type Database = {
           template_name: string;
           user_id?: string | null;
           version?: number | null;
+          gym_id?: string | null;
         };
         Update: {
           created_at?: string | null;
@@ -441,6 +443,7 @@ export type Database = {
           template_name?: string;
           user_id?: string | null;
           version?: number | null;
+          gym_id?: string | null;
         };
         Relationships: [
           {

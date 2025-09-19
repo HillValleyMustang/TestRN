@@ -16,9 +16,11 @@ import { ExerciseSelectionDropdown } from '@/components/shared/exercise-selectio
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { WorkoutAwareLink, useWorkoutNavigation } from './workout-aware-link';
-import { AnalyseGymButton } from "@/components/manage-exercises/exercise-form/analyze-gym-button"; // Renamed import
-import { AnalyseGymDialog } from "@/components/manage-exercises/exercise-form/analyze-gym-dialog"; // Renamed import
+import { AnalyseGymButton } from "@/components/manage-exercises/exercise-form/analyze-gym-button";
+import { AnalyseGymDialog } from "@/components/manage-exercises/exercise-form/analyze-gym-dialog";
 import { SaveAiExercisePrompt } from "@/components/workout-flow/save-ai-exercise-prompt";
+import { UnconfiguredGymPrompt } from '@/components/prompts/unconfigured-gym-prompt';
+import { useGym } from '@/components/gym-context-provider';
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -28,7 +30,7 @@ interface WorkoutSelectorProps {
   exercisesForSession: WorkoutExercise[];
   exercisesWithSets: Record<string, SetLogState[]>;
   allAvailableExercises: FetchedExerciseDefinition[];
-  setAllAvailableExercises: React.Dispatch<React.SetStateAction<FetchedExerciseDefinition[]>>; // New prop
+  setAllAvailableExercises: React.Dispatch<React.SetStateAction<FetchedExerciseDefinition[]>>;
   currentSessionId: string | null;
   sessionStartTime: Date | null;
   completedExercises: Set<string>;
@@ -66,15 +68,15 @@ const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName:
   if (isUpperLowerSplit) {
     if (lowerTitle.includes('upper')) category = 'upper';
     else if (lowerTitle.includes('lower')) category = 'lower';
-    else category = 'upper'; // Default if neither, though should not happen with current data
+    else category = 'upper';
     
     if (lowerTitle.includes(' a')) variant = 'a';
     else if (lowerTitle.includes(' b')) variant = 'b';
-  } else { // push-pull-legs
+  } else {
     if (lowerTitle.includes('push')) category = 'push';
     else if (lowerTitle.includes('pull')) category = 'pull';
     else if (lowerTitle.includes('legs')) category = 'legs';
-    else category = 'push'; // Default if neither, though should not happen with current data
+    else category = 'push';
   }
 
   return {
@@ -92,7 +94,7 @@ export const WorkoutSelector = ({
   exercisesForSession,
   exercisesWithSets,
   allAvailableExercises,
-  setAllAvailableExercises, // Destructure new prop
+  setAllAvailableExercises,
   currentSessionId,
   sessionStartTime,
   completedExercises,
@@ -119,18 +121,19 @@ export const WorkoutSelector = ({
   setIsEditWorkoutDialogOpen,
 }: WorkoutSelectorProps) => {
   const { supabase, session } = useSession();
+  const { activeGym } = useGym();
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
   const [adHocExerciseSourceFilter, setAdHocExerciseSourceFilter] = useState<'my-exercises' | 'global-library'>('my-exercises');
 
-  // AI-related states for Workout Page
   const [showAnalyseGymDialog, setShowAnalyseGymDialog] = useState(false);
   const [showSaveAiExercisePrompt, setShowSaveAiExercisePrompt] = useState(false);
-  const [aiIdentifiedExercise, setAiIdentifiedExercise] = useState<Partial<FetchedExerciseDefinition> | null>(null); // Use FetchedExerciseDefinition
+  const [aiIdentifiedExercise, setAiIdentifiedExercise] = useState<Partial<FetchedExerciseDefinition> | null>(null);
   const [isAiSaving, setIsAiSaving] = useState(false);
 
-  const mainMuscleGroups: string[] = useMemo(() => {
-    return Array.from(new Set(allAvailableExercises.map((ex: FetchedExerciseDefinition) => ex.main_muscle))).sort();
-  }, [allAvailableExercises]);
+  const isGymConfigured = useMemo(() => {
+    if (!activeGym || groupedTPaths.length === 0) return false;
+    return groupedTPaths.some(group => group.mainTPath.gym_id === activeGym.id);
+  }, [activeGym, groupedTPaths]);
 
   const filteredExercisesForAdHoc = useMemo(() => {
     if (!session) return [];
@@ -144,12 +147,10 @@ export const WorkoutSelector = ({
   }, [allAvailableExercises, adHocExerciseSourceFilter, exercisesForSession, session]);
 
   const handleWorkoutClick = (workoutId: string) => {
-    console.log(`[WorkoutSelector] handleWorkoutClick triggered for ID: ${workoutId}`);
     selectWorkout(workoutId);
   };
 
   const handleAdHocClick = () => {
-    console.log(`[WorkoutSelector] handleAdHocClick triggered.`);
     selectWorkout('ad-hoc');
   };
 
@@ -163,7 +164,6 @@ export const WorkoutSelector = ({
     }
   };
 
-  // AI Gym Analysis Handlers for Workout Page
   const handleExerciseIdentified = useCallback((exercises: Partial<FetchedExerciseDefinition>[], duplicate_status: 'none' | 'global' | 'my-exercises') => {
     if (exercises.length > 0) {
       setAiIdentifiedExercise(exercises[0]);
@@ -305,6 +305,8 @@ export const WorkoutSelector = ({
         <div className="space-y-4">
           {loadingWorkoutFlow ? (
             <p className="text-muted-foreground text-center py-4">Loading Transformation Paths...</p>
+          ) : !isGymConfigured && activeGym ? (
+            <UnconfiguredGymPrompt gymName={activeGym.name} />
           ) : groupedTPaths.length === 0 ? (
             <p className="text-muted-foreground text-center py-4">
               You haven't created any Transformation Paths yet. Go to <WorkoutAwareLink href="/manage-t-paths" className="text-primary underline">Manage T-Paths</WorkoutAwareLink> to create one.

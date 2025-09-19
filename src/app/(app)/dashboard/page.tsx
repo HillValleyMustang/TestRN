@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { ActionHub } from '@/components/dashboard/action-hub';
@@ -11,17 +11,23 @@ import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PreviousWorkoutsCard } from '@/components/dashboard/previous-workouts-card';
 import { AllWorkoutsQuickStart } from '@/components/dashboard/all-workouts-quick-start';
-import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal'; // Import the modal
+import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal';
 import { GymToggle } from '@/components/dashboard/gym-toggle';
+import { useGym } from '@/components/gym-context-provider';
+import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher';
+import { UnconfiguredGymPrompt } from '@/components/prompts/unconfigured-gym-prompt';
 
 type Profile = Tables<'profiles'>;
 
 export default function DashboardPage() {
   const { session, supabase } = useSession();
   const router = useRouter();
+  const { activeGym, loadingGyms } = useGym();
+  const { groupedTPaths, loadingData: loadingWorkoutData } = useWorkoutDataFetcher();
+  
   const [welcomeName, setWelcomeName] = useState<string>('');
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [summarySessionId, setSummarySessionId] = useState<string | null>(null);
@@ -38,60 +44,41 @@ export default function DashboardPage() {
     }
 
     const checkOnboardingStatus = async () => {
+      setLoadingProfile(true);
       try {
-        // Check if user has completed onboarding
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('first_name, last_name, active_t_path_id, body_fat_pct, created_at, default_rest_time_seconds, full_name, health_notes, height_cm, id, last_ai_coach_use_at, preferred_distance_unit, preferred_muscles, preferred_session_length, preferred_weight_unit, primary_goal, target_date, updated_at, weight_kg')
+          .select('*')
           .eq('id', session.user.id)
           .single();
         
-        if (profileError && profileError.code !== 'PGRST116') {
-          throw profileError;
-        }
-
+        if (profileError && profileError.code !== 'PGRST116') throw profileError;
         if (!profileData) {
-          // Redirect to onboarding if no profile exists
           router.push('/onboarding');
           return;
         }
 
         setProfile(profileData as Profile);
-
-        // Check if user has T-Paths
-        const { data: tPaths, error: tPathError } = await supabase
-          .from('t_paths')
-          .select('id')
-          .eq('user_id', session.user.id)
-          .is('parent_t_path_id', null)
-          .limit(1);
-
-        if (tPathError) {
-          throw tPathError;
-        }
-
-        if (!tPaths || tPaths.length === 0) {
-          // Redirect to onboarding if no T-Paths exist
-          router.push('/onboarding');
-          return;
-        }
-
-        // Set welcome name based on initials
-        const firstNameInitial = profileData.first_name ? profileData.first_name[0].toUpperCase() : '';
-        const lastNameInitial = profileData.last_name ? profileData.last_name[0].toUpperCase() : '';
-        const initials = `${firstNameInitial}${lastNameInitial}`;
-        setWelcomeName(`Athlete ${initials}`);
+        const name = profileData.full_name || profileData.first_name || 'Athlete';
+        setWelcomeName(name);
 
       } catch (err: any) {
         console.error("Error checking onboarding status:", err);
-        toast.info("Error loading dashboard.");
+        toast.error("Error loading dashboard.");
       } finally {
-        setLoading(false);
+        setLoadingProfile(false);
       }
     };
 
     checkOnboardingStatus();
   }, [session, router, supabase]);
+
+  const isGymConfigured = useMemo(() => {
+    if (!activeGym || groupedTPaths.length === 0) return false;
+    return groupedTPaths.some(group => group.mainTPath.gym_id === activeGym.id);
+  }, [activeGym, groupedTPaths]);
+
+  const loading = loadingProfile || loadingGyms || loadingWorkoutData;
 
   if (loading) {
     return (
@@ -107,9 +94,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (!session) {
-    return null;
-  }
+  if (!session) return null;
 
   return (
     <div className="flex flex-col gap-6 p-2 sm:p-4">
@@ -123,12 +108,19 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.1s' }}>
-        <NextWorkoutCard />
-      </div>
-      <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.15s' }}>
-        <AllWorkoutsQuickStart />
-      </div>
+      {activeGym && !isGymConfigured ? (
+        <UnconfiguredGymPrompt gymName={activeGym.name} />
+      ) : (
+        <>
+          <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.1s' }}>
+            <NextWorkoutCard />
+          </div>
+          <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.15s' }}>
+            <AllWorkoutsQuickStart />
+          </div>
+        </>
+      )}
+
       <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.2s' }}>
         <ActionHub />
       </div>
@@ -136,7 +128,7 @@ export default function DashboardPage() {
         <WeeklyVolumeChart />
       </div>
       <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.4s' }}>
-        <PreviousWorkoutsCard onViewSummary={handleViewSummary} /> {/* Pass the handler */}
+        <PreviousWorkoutsCard onViewSummary={handleViewSummary} />
       </div>
       <WorkoutSummaryModal
         open={showSummaryModal}
