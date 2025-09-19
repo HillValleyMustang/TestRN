@@ -6,12 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Home, PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { Home, PlusCircle, Edit, Trash2, Dumbbell } from 'lucide-react'; // Added Dumbbell
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { Tables, Profile } from '@/types/supabase';
 import { useGym } from '@/components/gym-context-provider';
 import { AddGymDialog } from './add-gym-dialog';
+import { ManageGymExercisesDialog } from './manage-gym-exercises-dialog'; // Import new dialog
 
 type Gym = Tables<'gyms'>;
 
@@ -32,6 +33,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isLastGymWarningOpen, setIsLastGymWarningOpen] = useState(false);
+  const [isManageExercisesDialogOpen, setIsManageExercisesDialogOpen] = useState(false); // New state
 
   const [selectedGym, setSelectedGym] = useState<Gym | null>(null);
   const [newGymName, setNewGymName] = useState("");
@@ -146,43 +148,48 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
   };
 
   return (
-    <Card className="bg-card">
-      <CardHeader className="border-b border-border/50 pb-4">
-        <CardTitle className="flex items-center gap-2">
-          <Home className="h-5 w-5 text-primary" /> My Gyms
-        </CardTitle>
-        <CardDescription>
-          Manage your saved gyms. You can have up to 3.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4 pt-6">
-        {loading ? (
-          <p>Loading gyms...</p>
-        ) : (
-          <ul className="space-y-2">
-            {gyms.map(gym => (
-              <li key={gym.id} className="flex items-center justify-between p-2 border rounded-md">
-                <span className="font-medium">{gym.name}</span>
-                {isEditing && (
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => { setSelectedGym(gym); setNewGymName(gym.name); setIsRenameDialogOpen(true); }}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => { setSelectedGym(gym); setIsDeleteDialogOpen(true); }}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-        {isEditing && gyms.length < 3 && (
-          <Button variant="outline" className="w-full" onClick={() => setIsAddGymDialogOpen(true)}>
-            <PlusCircle className="h-4 w-4 mr-2" /> Add New Gym
-          </Button>
-        )}
-      </CardContent>
+    <>
+      <Card className="bg-card">
+        <CardHeader className="border-b border-border/50 pb-4">
+          <CardTitle className="flex items-center gap-2">
+            <Home className="h-5 w-5 text-primary" /> My Gyms
+          </CardTitle>
+          <CardDescription>
+            Manage your saved gyms. You can have up to 3.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 pt-6">
+          {loading ? (
+            <p>Loading gyms...</p>
+          ) : (
+            <ul className="space-y-2">
+              {gyms.map(gym => (
+                <li key={gym.id} className="flex items-center justify-between p-2 border rounded-md">
+                  <span className="font-medium">{gym.name}</span>
+                  {isEditing && (
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" title="Manage Exercises" onClick={() => { setSelectedGym(gym); setIsManageExercisesDialogOpen(true); }}>
+                        <Dumbbell className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" title="Rename Gym" onClick={() => { setSelectedGym(gym); setNewGymName(gym.name); setIsRenameDialogOpen(true); }}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" title="Delete Gym" onClick={() => { setSelectedGym(gym); setIsDeleteDialogOpen(true); }}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {isEditing && gyms.length < 3 && (
+            <Button variant="outline" className="w-full" onClick={() => setIsAddGymDialogOpen(true)}>
+              <PlusCircle className="h-4 w-4 mr-2" /> Add New Gym
+            </Button>
+          )}
+        </CardContent>
+      </Card>
 
       <AddGymDialog
         open={isAddGymDialogOpen}
@@ -239,6 +246,17 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+
+      <ManageGymExercisesDialog
+        open={isManageExercisesDialogOpen}
+        onOpenChange={setIsManageExercisesDialogOpen}
+        gym={selectedGym}
+        onSaveSuccess={() => {
+          fetchGyms();
+          onDataChange();
+          refreshGyms();
+        }}
+      />
+    </>
   );
 };
