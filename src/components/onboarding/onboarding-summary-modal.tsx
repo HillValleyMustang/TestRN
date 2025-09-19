@@ -53,16 +53,17 @@ export const OnboardingSummaryModal = ({ open, onOpenChange, summaryData, onClos
       {childWorkouts.map(workout => {
         const Icon = getWorkoutIcon(workout.template_name);
         const workoutColorClass = getWorkoutColorClass(workout.template_name, 'text');
+        const workoutBorderClass = getWorkoutColorClass(workout.template_name, 'border');
         return (
           <div key={workout.id} className="border rounded-md p-3">
             <h4 className={cn("font-semibold text-lg flex items-center gap-2", workoutColorClass)}>
               {Icon && <Icon className="h-5 w-5" />} {workout.template_name}
             </h4>
             {workout.exercises.length > 0 ? (
-              <ul className="list-disc list-inside text-sm text-muted-foreground mt-2 space-y-1">
+              <ul className="text-sm text-muted-foreground mt-2 space-y-1">
                 {workout.exercises.map(ex => (
-                  <li key={ex.id} className="flex items-center gap-2">
-                    <span>{ex.name}</span>
+                  <li key={ex.id} className={cn("flex items-center gap-2 border rounded-md p-2", workoutBorderClass)}>
+                    <span className="flex-grow">{ex.name}</span>
                     {ex.is_bonus_exercise && <WorkoutBadge workoutName="Bonus">Bonus</WorkoutBadge>}
                     {confirmedExerciseNames.has(ex.name) && (
                       <WorkoutBadge workoutName="Bonus" className="bg-blue-500 text-white">
@@ -90,7 +91,7 @@ export const OnboardingSummaryModal = ({ open, onOpenChange, summaryData, onClos
             <CheckCircle className="h-6 w-6 text-green-500" /> Your Plan is Ready!
           </DialogTitle>
           <DialogDescription>
-            Here's a summary of your personalized setup.
+            Here's a summary of your personalised setup.
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="flex-grow overflow-y-auto py-4 pr-4">
