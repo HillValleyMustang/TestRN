@@ -30,7 +30,8 @@ export const ProgrammeTypeSection = ({ isEditing, onDataChange, profile }: Progr
   const currentProgrammeType = profile?.programme_type || '';
 
   const handleValueChange = (newType: string) => {
-    if (newType !== currentProgrammeType) {
+    // Only trigger the warning if in edit mode and the value actually changes
+    if (isEditing && newType !== currentProgrammeType) {
       setPendingProgrammeType(newType);
       setIsWarningOpen(true);
     }
