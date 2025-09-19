@@ -16,19 +16,8 @@ import { UseFormReturn } from 'react-hook-form';
 import * as z from 'zod';
 import { BodyFatInfoModal } from '../onboarding/body-fat-info-modal'; // Import BodyFatInfoModal
 
-const profileSchema = z.object({
-  full_name: z.string().min(1, "Your name is required."),
-  height_cm: z.coerce.number().int("Height must be a whole number.").positive("Height must be positive.").optional().nullable(),
-  weight_kg: z.coerce.number().int("Weight must be a whole number.").positive("Weight must be positive.").optional().nullable(),
-  body_fat_pct: z.coerce.number().int("Body Fat % must be a whole number.").min(0, "Cannot be negative.").max(100, "Cannot exceed 100.").optional().nullable(),
-  primary_goal: z.string().optional().nullable(),
-  health_notes: z.string().optional().nullable(),
-  preferred_session_length: z.string().optional().nullable(),
-  preferred_muscles: z.array(z.string()).optional().nullable(),
-});
-
 interface PersonalInfoFormProps {
-  form: UseFormReturn<z.infer<typeof profileSchema>>;
+  form: UseFormReturn<any>;
   isEditing: boolean;
   mainMuscleGroups: string[];
 }
@@ -99,13 +88,13 @@ export const PersonalInfoForm = ({ form, isEditing, mainMuscleGroups }: Personal
                     <span className="flex items-center justify-between w-full"> {/* Wrapped content in a single span */}
                       <div className="flex flex-wrap gap-1">
                         {field.value && field.value.length > 0 ? (
-                          field.value.map((muscle) => (
+                          field.value.map((muscle: string) => (
                             <Badge key={muscle} variant="secondary" className="flex items-center gap-1 text-xs"> {/* Added text-xs */}
                               {muscle}
                               <X className="h-3 w-3 cursor-pointer" onClick={(e) => {
                                 e.stopPropagation();
                                 if (isEditing) {
-                                  const newSelection = field.value?.filter((m) => m !== muscle);
+                                  const newSelection = field.value?.filter((m: string) => m !== muscle);
                                   field.onChange(newSelection);
                                 }
                               }} />

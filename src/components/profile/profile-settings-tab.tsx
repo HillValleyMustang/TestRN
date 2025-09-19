@@ -16,25 +16,14 @@ import { Tables, Profile } from '@/types/supabase';
 
 type TPath = Tables<'t_paths'>;
 
-const profileSchema = z.object({
-  full_name: z.string().min(1, "Your name is required."),
-  height_cm: z.coerce.number().positive("Height must be positive.").optional().nullable(),
-  weight_kg: z.coerce.number().positive("Weight must be positive.").optional().nullable(),
-  body_fat_pct: z.coerce.number().min(0, "Cannot be negative.").max(100, "Cannot exceed 100.").optional().nullable(),
-  primary_goal: z.string().optional().nullable(),
-  health_notes: z.string().optional().nullable(),
-  preferred_session_length: z.string().optional().nullable(),
-  preferred_muscles: z.array(z.string()).optional().nullable(),
-});
-
 interface ProfileSettingsTabProps {
-  form: UseFormReturn<z.infer<typeof profileSchema>>;
+  form: UseFormReturn<any>;
   isEditing: boolean;
   mainMuscleGroups: string[];
   aiCoachUsageToday: number;
   AI_COACH_DAILY_LIMIT: number;
   onSignOut: () => void;
-  onSubmit: (values: z.infer<typeof profileSchema>) => Promise<void>;
+  onSubmit: (values: any) => Promise<void>;
   profile: Profile | null;
   onDataChange: () => void;
 }
