@@ -10,6 +10,7 @@ export type TPathsRow = {
   settings: Json | null;
   progression_settings: Json | null;
   parent_t_path_id: string | null;
+  gym_id: string | null;
 };
 export type TPathsInsert = {
   created_at?: string | null;
@@ -21,6 +22,7 @@ export type TPathsInsert = {
   settings?: Json | null;
   progression_settings?: Json | null;
   parent_t_path_id?: string | null;
+  gym_id?: string | null;
 };
 export type TPathsUpdate = {
   created_at?: string | null;
@@ -32,4 +34,5 @@ export type TPathsUpdate = {
   settings?: Json | null;
   progression_settings?: Json | null;
   parent_t_path_id?: string | null;
+  gym_id?: string | null;
 };

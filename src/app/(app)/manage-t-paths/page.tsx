@@ -60,7 +60,7 @@ export default function ManageTPathsPage() {
       // 2. Fetch the active main T-Path details
       const { data: mainTPathData, error: mainTPathError } = await supabase
         .from('t_paths')
-        .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
+        .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id, gym_id')
         .eq('id', activeTPathId)
         .eq('user_id', session.user.id)
         .is('parent_t_path_id', null)
@@ -78,7 +78,7 @@ export default function ManageTPathsPage() {
       // 3. Fetch child workouts for this main T-Path
       const { data: childWorkoutsData, error: childWorkoutsError } = await supabase
         .from('t_paths')
-        .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id')
+        .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id, gym_id')
         .eq('parent_t_path_id', mainTPathData.id)
         .eq('is_bonus', true) // These are the actual individual workouts
         .order('template_name', { ascending: true }); // Keep DB order for initial fetch

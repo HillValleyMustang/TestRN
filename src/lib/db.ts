@@ -84,6 +84,7 @@ export interface LocalTPath extends Tables<'t_paths'> {
   version: number | null; // Added missing property
   settings: Json | null; // Added missing property
   progression_settings: Json | null; // Added missing property
+  gym_id: string | null;
 }
 export interface LocalProfile extends Tables<'profiles'> {
   id: string;

@@ -39,7 +39,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
   const fetchTPathsSupabase = useCallback(async (client: SupabaseClient) => {
     return client
       .from('t_paths')
-      .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id');
+      .select('id, template_name, is_bonus, version, settings, progression_settings, parent_t_path_id, created_at, user_id, gym_id');
   }, []);
 
   // Use the caching hook for exercises

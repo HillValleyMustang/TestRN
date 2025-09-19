@@ -46,7 +46,7 @@ export const TPathSwitcher = ({ currentTPathId, onTPathChange, disabled }: TPath
       try {
         const { data, error } = await supabase
           .from('t_paths')
-          .select('id, template_name, created_at, is_bonus, user_id, version, settings, progression_settings, parent_t_path_id') // Specify all columns required by TPath
+          .select('id, template_name, created_at, is_bonus, user_id, version, settings, progression_settings, parent_t_path_id, gym_id') // Specify all columns required by TPath
           .eq('user_id', session.user.id)
           .is('parent_t_path_id', null); // Fetch only main T-Paths
 
