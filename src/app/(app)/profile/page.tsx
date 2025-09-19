@@ -72,7 +72,7 @@ export default function ProfilePage() {
   const [isPointsExplanationOpen, setIsPointsExplanationOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
 
-  const AI_COACH_LIMIT_PER_SESSION = 2;
+  const AI_COACH_DAILY_LIMIT = 2;
 
   const form = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
@@ -424,7 +424,7 @@ export default function ProfilePage() {
                       isEditing={isEditing}
                       mainMuscleGroups={mainMuscleGroups}
                       aiCoachUsageToday={aiCoachUsageToday}
-                      AI_COACH_LIMIT_PER_SESSION={AI_COACH_LIMIT_PER_SESSION}
+                      AI_COACH_DAILY_LIMIT={AI_COACH_DAILY_LIMIT}
                       onSignOut={handleSignOut}
                       onSubmit={onSubmit}
                       profile={profile}

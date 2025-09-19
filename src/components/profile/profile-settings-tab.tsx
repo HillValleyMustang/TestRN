@@ -32,7 +32,7 @@ interface ProfileSettingsTabProps {
   isEditing: boolean;
   mainMuscleGroups: string[];
   aiCoachUsageToday: number;
-  AI_COACH_LIMIT_PER_SESSION: number;
+  AI_COACH_DAILY_LIMIT: number;
   onSignOut: () => void;
   onSubmit: (values: z.infer<typeof profileSchema>) => Promise<void>;
   profile: Profile | null;
@@ -44,7 +44,7 @@ export const ProfileSettingsTab = ({
   isEditing,
   mainMuscleGroups,
   aiCoachUsageToday,
-  AI_COACH_LIMIT_PER_SESSION,
+  AI_COACH_DAILY_LIMIT,
   onSignOut,
   onSubmit,
   profile,
@@ -58,7 +58,7 @@ export const ProfileSettingsTab = ({
           <WorkoutPreferencesForm form={form} isEditing={isEditing} />
           <ProgrammeTypeSection profile={profile} isEditing={isEditing} onDataChange={onDataChange} />
           <GymManagementSection isEditing={isEditing} profile={profile} onDataChange={onDataChange} />
-          <AICoachUsageSection aiCoachUsageToday={aiCoachUsageToday} AI_COACH_LIMIT_PER_SESSION={AI_COACH_LIMIT_PER_SESSION} />
+          <AICoachUsageSection aiCoachUsageToday={aiCoachUsageToday} AI_COACH_DAILY_LIMIT={AI_COACH_DAILY_LIMIT} />
           <DataExportSection />
         </form>
       </Form>

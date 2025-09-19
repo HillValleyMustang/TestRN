@@ -7,10 +7,10 @@ import { Bot } from 'lucide-react';
 
 interface AICoachUsageSectionProps {
   aiCoachUsageToday: number;
-  AI_COACH_LIMIT_PER_SESSION: number;
+  AI_COACH_DAILY_LIMIT: number;
 }
 
-export const AICoachUsageSection = ({ aiCoachUsageToday, AI_COACH_LIMIT_PER_SESSION }: AICoachUsageSectionProps) => {
+export const AICoachUsageSection = ({ aiCoachUsageToday, AI_COACH_DAILY_LIMIT }: AICoachUsageSectionProps) => {
   return (
     <Card className="bg-card">
       <CardHeader className="border-b border-border/50 pb-4">
@@ -21,9 +21,9 @@ export const AICoachUsageSection = ({ aiCoachUsageToday, AI_COACH_LIMIT_PER_SESS
       <CardContent className="space-y-2 pt-6">
         <div className="flex justify-between items-center text-sm mb-2">
           <p>Daily Uses</p>
-          <p className="font-semibold">{aiCoachUsageToday} / {AI_COACH_LIMIT_PER_SESSION}</p>
+          <p className="font-semibold">{aiCoachUsageToday} / {AI_COACH_DAILY_LIMIT}</p>
         </div>
-        <Progress value={(aiCoachUsageToday / AI_COACH_LIMIT_PER_SESSION) * 100} />
+        <Progress value={(aiCoachUsageToday / AI_COACH_DAILY_LIMIT) * 100} />
         <p className="text-xs text-muted-foreground pt-1">
           The AI Coach needs at least 3 workouts in the last 30 days to provide advice.
         </p>

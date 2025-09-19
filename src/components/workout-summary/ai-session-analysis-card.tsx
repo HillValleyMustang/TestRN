@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Bot, Sparkles, AlertCircle } from 'lucide-react';
@@ -18,55 +18,53 @@ export const AiSessionAnalysisCard = ({ sessionId }: AiSessionAnalysisCardProps)
   const [analysis, setAnalysis] = useState("");
   const [loading, setLoading] = useState(false);
   const [usageCount, setUsageCount] = useState(0);
-  const AI_COACH_LIMIT_PER_SESSION = 2; // This limit is per *user session*, not per workout session
+  const AI_COACH_DAILY_LIMIT = 2;
 
-  useEffect(() => {
-    const fetchUsageData = async () => {
-      if (!session) return;
+  const fetchUsageData = useCallback(async () => {
+    if (!session) return;
+    
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+
+      const { count, error } = await supabase
+        .from('ai_coach_usage_logs')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', session.user.id)
+        .gte('used_at', today.toISOString())
+        .lt('used_at', tomorrow.toISOString());
+
+      if (error) throw error;
       
-      try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(today.getDate() + 1);
-
-        const { data: usageLogs, error } = await supabase
-          .from('ai_coach_usage_logs')
-          .select('id')
-          .eq('user_id', session.user.id)
-          .gte('used_at', today.toISOString())
-          .lt('used_at', tomorrow.toISOString());
-
-        if (error) throw error;
-        
-        setUsageCount(usageLogs?.length || 0);
-        
-      } catch (err: any) {
-        console.error("Failed to fetch AI coach usage data:", err);
-      }
-    };
-
-    if (session) { // Fetch usage data when component mounts or session changes
-      fetchUsageData();
+      setUsageCount(count || 0);
+      
+    } catch (err: any) {
+      console.error("Failed to fetch AI coach usage data:", err);
     }
   }, [session, supabase]);
 
-  const handleAnalyse = async () => { // Renamed to handleAnalyse
+  useEffect(() => {
+    if (session) {
+      fetchUsageData();
+    }
+  }, [session, fetchUsageData]);
+
+  const handleAnalyse = async () => {
     if (!session) {
       toast.error("You must be logged in to use the AI coach.");
       return;
     }
-    if (usageCount >= AI_COACH_LIMIT_PER_SESSION) {
-      toast.error(`You've reached the limit of ${AI_COACH_LIMIT_PER_SESSION} AI coach uses per day.`);
+    if (usageCount >= AI_COACH_DAILY_LIMIT) {
+      toast.error(`You've reached the limit of ${AI_COACH_DAILY_LIMIT} AI coach uses per day.`);
       return;
     }
 
     setLoading(true);
-    // Do NOT clear analysis here, so it persists if user closes and reopens
-    // setAnalysis(""); 
     try {
       const { data, error } = await supabase.functions.invoke('ai-coach', {
-        body: { sessionId }, // Pass the current workout sessionId
+        body: { sessionId },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
@@ -81,17 +79,17 @@ export const AiSessionAnalysisCard = ({ sessionId }: AiSessionAnalysisCardProps)
       }
 
       setAnalysis(data.analysis);
-      setUsageCount(prev => prev + 1); // Increment usage count after successful call
+      await fetchUsageData(); // Re-fetch the count from the database
       
     } catch (err: any) {
       console.error("AI Coach error:", err);
-      toast.error("Failed to get AI analysis: " + err.message); // Changed to analysis
+      toast.error("Failed to get AI analysis: " + err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const canUseAiCoach = usageCount < AI_COACH_LIMIT_PER_SESSION;
+  const canUseAiCoach = usageCount < AI_COACH_DAILY_LIMIT;
 
   return (
     <Card className="mb-6">
@@ -106,18 +104,18 @@ export const AiSessionAnalysisCard = ({ sessionId }: AiSessionAnalysisCardProps)
             {canUseAiCoach ? (
               <>
                 <p className="text-muted-foreground">Get personalised feedback on this specific workout session.</p>
-                <Button onClick={handleAnalyse} disabled={!canUseAiCoach}> {/* Changed to Analyse */}
-                  <Sparkles className="h-4 w-4 mr-2" /> Analyse This Workout {/* Changed to Analyse */}
+                <Button onClick={handleAnalyse} disabled={!canUseAiCoach}>
+                  <Sparkles className="h-4 w-4 mr-2" /> Analyse This Workout
                 </Button>
                 <p className="text-sm text-muted-foreground">
-                  You have {AI_COACH_LIMIT_PER_SESSION - usageCount} uses remaining today.
+                  You have {AI_COACH_DAILY_LIMIT - usageCount} uses remaining today.
                 </p>
               </>
             ) : (
               <div className="space-y-4">
                 <AlertCircle className="h-12 w-12 text-yellow-500 mx-auto" />
                 <p className="text-muted-foreground">
-                  You've reached the limit of {AI_COACH_LIMIT_PER_SESSION} AI coach uses per day.
+                  You've reached the limit of {AI_COACH_DAILY_LIMIT} AI coach uses per day.
                 </p>
               </div>
             )}
