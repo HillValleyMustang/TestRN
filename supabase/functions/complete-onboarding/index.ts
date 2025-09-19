@@ -84,10 +84,10 @@ serve(async (req: Request) => {
     if (insertGymError) throw insertGymError;
     const newGymId = insertedGym.id;
 
-    // 2. Create main T-Paths
+    // 2. Create main T-Paths and link them to the new gym
     const tPathsToInsert = [
-      { user_id: user.id, template_name: '4-Day Upper/Lower', is_bonus: false, parent_t_path_id: null, settings: { tPathType: 'ulul', experience, goalFocus, preferredMuscles, constraints, equipmentMethod } },
-      { user_id: user.id, template_name: '3-Day Push/Pull/Legs', is_bonus: false, parent_t_path_id: null, settings: { tPathType: 'ppl', experience, goalFocus, preferredMuscles, constraints, equipmentMethod } }
+      { user_id: user.id, gym_id: newGymId, template_name: '4-Day Upper/Lower', is_bonus: false, parent_t_path_id: null, settings: { tPathType: 'ulul', experience, goalFocus, preferredMuscles, constraints, equipmentMethod } },
+      { user_id: user.id, gym_id: newGymId, template_name: '3-Day Push/Pull/Legs', is_bonus: false, parent_t_path_id: null, settings: { tPathType: 'ppl', experience, goalFocus, preferredMuscles, constraints, equipmentMethod } }
     ];
     const { data: insertedTPaths, error: insertTPathsError } = await supabaseServiceRoleClient
       .from('t_paths')
