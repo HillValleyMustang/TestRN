@@ -31,7 +31,7 @@ export const ExerciseTransferList = ({
   onRemove,
 }: ExerciseTransferListProps) => {
   return (
-    <div className="grid grid-cols-2 gap-4 h-full">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 h-full">
       {/* Available Exercises Column */}
       <div className="flex flex-col border rounded-md">
         <h4 className="font-semibold p-3 border-b text-center">Available Exercises</h4>
