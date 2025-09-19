@@ -6,6 +6,55 @@ import { Badge } from "@/components/ui/badge";
 import { Flame, Dumbbell, CheckCircle, Clock, AlertCircle, WifiOff, Loader2 } from "lucide-react"; // Added WifiOff and Loader2
 import { cn } from '@/lib/utils';
 import { useSyncManager } from '@/hooks/use-sync-manager'; // Import useSyncManager
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'; // Import Dialog components
+
+const StatusInfoModal = () => (
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Workout Status Explained</DialogTitle>
+      <DialogDescription>
+        Your status reflects your workout consistency over time. It also provides temporary updates and shows your connection status.
+      </DialogDescription>
+    </DialogHeader>
+    <div className="space-y-4 py-4">
+      <div className="flex items-start gap-3">
+        <Dumbbell className="h-5 w-5 text-gray-500 flex-shrink-0 mt-1" />
+        <div>
+          <h4 className="font-semibold">Getting into it</h4>
+          <p className="text-sm text-muted-foreground">You're just getting started or have had a break of more than a week. Keep it up!</p>
+        </div>
+      </div>
+      <div className="flex items-start gap-3">
+        <CheckCircle className="h-5 w-5 text-blue-500 flex-shrink-0 mt-1" />
+        <div>
+          <h4 className="font-semibold">Building Momentum</h4>
+          <p className="text-sm text-muted-foreground">You've been working out consistently for 1-3 weeks.</p>
+        </div>
+      </div>
+      <div className="flex items-start gap-3">
+        <Flame className="h-5 w-5 text-orange-500 flex-shrink-0 mt-1" />
+        <div>
+          <h4 className="font-semibold">In the Zone</h4>
+          <p className="text-sm text-muted-foreground">You've maintained your workout habit for 4-7 consecutive weeks.</p>
+        </div>
+      </div>
+      <div className="flex items-start gap-3">
+        <Flame className="h-5 w-5 text-red-500 fill-red-500 flex-shrink-0 mt-1" />
+        <div>
+          <h4 className="font-semibold">On Fire</h4>
+          <p className="text-sm text-muted-foreground">Incredible consistency! You've been working out for 8+ weeks straight.</p>
+        </div>
+      </div>
+      <div className="flex items-start gap-3">
+        <WifiOff className="h-5 w-5 text-red-500 flex-shrink-0 mt-1" />
+        <div>
+          <h4 className="font-semibold">Offline</h4>
+          <p className="text-sm text-muted-foreground">You are currently offline. Your progress is being saved locally and will sync when you reconnect.</p>
+        </div>
+      </div>
+    </div>
+  </DialogContent>
+);
 
 export function RollingStatusBadge({ isGeneratingPlan }: { isGeneratingPlan: boolean }) {
   const { session, supabase } = useSession();
@@ -71,10 +120,15 @@ export function RollingStatusBadge({ isGeneratingPlan }: { isGeneratingPlan: boo
 
   if (!isOnline) {
     return (
-      <Badge variant="destructive" className="flex items-center gap-1 px-3 py-1 text-sm font-semibold bg-red-100 text-red-700 border-red-300 dark:bg-red-800 dark:text-red-300 dark:border-red-700">
-        <WifiOff className="h-4 w-4 text-red-500" />
-        <span>Offline</span>
-      </Badge>
+      <Dialog>
+        <DialogTrigger asChild>
+          <Badge variant="destructive" className="flex items-center gap-1 px-3 py-1 text-sm font-semibold bg-red-100 text-red-700 border-red-300 dark:bg-red-800 dark:text-red-300 dark:border-red-700 cursor-pointer">
+            <WifiOff className="h-4 w-4 text-red-500" />
+            <span>Offline</span>
+          </Badge>
+        </DialogTrigger>
+        <StatusInfoModal />
+      </Dialog>
     );
   }
 
@@ -112,9 +166,14 @@ export function RollingStatusBadge({ isGeneratingPlan }: { isGeneratingPlan: boo
   }
 
   return (
-    <Badge variant="outline" className={cn("flex items-center gap-1 px-3 py-1 text-sm font-semibold", badgeColorClass)}>
-      {badgeIcon}
-      <span>{displayText}</span>
-    </Badge>
+    <Dialog>
+      <DialogTrigger asChild>
+        <Badge variant="outline" className={cn("flex items-center gap-1 px-3 py-1 text-sm font-semibold cursor-pointer", badgeColorClass)}>
+          {badgeIcon}
+          <span>{displayText}</span>
+        </Badge>
+      </DialogTrigger>
+      <StatusInfoModal />
+    </Dialog>
   );
 }

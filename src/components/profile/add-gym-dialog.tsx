@@ -53,7 +53,6 @@ export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount }: Ad
 
       if (error) throw error;
 
-      toast.success(`Gym "${newGymName}" created! Now, let's set it up.`);
       setCreatedGym(insertedGym);
       setStep('configure');
       onSaveSuccess(); // Refresh the list in the background

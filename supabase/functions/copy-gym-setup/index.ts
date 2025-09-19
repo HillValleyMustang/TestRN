@@ -82,6 +82,16 @@ serve(async (req: Request) => {
       }
       throw sourceTPathError;
     }
+    
+    // NEW: Fetch user's preferred session length
+    const { data: profileData, error: profileError } = await supabaseServiceRoleClient
+      .from('profiles')
+      .select('preferred_session_length')
+      .eq('id', user.id)
+      .single();
+    if (profileError) throw profileError;
+    const preferred_session_length = profileData?.preferred_session_length;
+
 
     // 3. Create a new main T-Path for the target gym, copying settings
     const { data: newTargetTPath, error: newTPathError } = await supabaseServiceRoleClient
@@ -101,7 +111,10 @@ serve(async (req: Request) => {
 
     // 4. Invoke the generate-t-path function for the new T-Path
     const { error: invokeError } = await supabaseServiceRoleClient.functions.invoke('generate-t-path', {
-      body: { tPathId: newTargetTPath.id },
+      body: { 
+        tPathId: newTargetTPath.id,
+        preferred_session_length: preferred_session_length // Pass the session length
+      },
     });
 
     if (invokeError) {

@@ -94,7 +94,7 @@ export const ProgrammeTypeSection = ({ profile, isEditing, onDataChange }: Progr
             <LayoutTemplate className="h-5 w-5 text-primary" /> Core Programme Type
           </CardTitle>
           <CardDescription>
-            This is your overarching fitness philosophy. Changing this will reset and regenerate the workout plans for ALL of your gyms to match the new structure.
+            This is your fitness progamme (or Transformation Path as we call it). Changing this will reset and regenerate the workout plans for ALL your gyms to match the new structure. You can always manage the gyms, workouts and/or exercises later.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">

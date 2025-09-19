@@ -4,7 +4,7 @@ import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CheckCircle, LayoutTemplate, Dumbbell, User, Info } from "lucide-react";
+import { CheckCircle, LayoutTemplate, Dumbbell, User, Info, Sparkles } from "lucide-react";
 import { Tables, FetchedExerciseDefinition } from '@/types/supabase';
 import { cn, getWorkoutColorClass, getWorkoutIcon } from '@/lib/utils';
 import { WorkoutBadge } from '../workout-badge';
@@ -28,7 +28,7 @@ interface OnboardingSummaryModalProps {
 export const OnboardingSummaryModal = ({ open, onOpenChange, summaryData, onClose }: OnboardingSummaryModalProps) => {
   if (!summaryData) return null;
 
-  const { profile, mainTPath, childWorkouts } = summaryData;
+  const { profile, mainTPath, childWorkouts, confirmedExerciseNames } = summaryData;
 
   const renderProfileSummary = () => (
     <div className="space-y-2 text-sm">
@@ -64,6 +64,12 @@ export const OnboardingSummaryModal = ({ open, onOpenChange, summaryData, onClos
                   <li key={ex.id} className="flex items-center gap-2">
                     <span>{ex.name}</span>
                     {ex.is_bonus_exercise && <WorkoutBadge workoutName="Bonus">Bonus</WorkoutBadge>}
+                    {confirmedExerciseNames.has(ex.name) && (
+                      <WorkoutBadge workoutName="Bonus" className="bg-blue-500 text-white">
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        AI Identified
+                      </WorkoutBadge>
+                    )}
                   </li>
                 ))}
               </ul>
