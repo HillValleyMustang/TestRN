@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react'; // Import useState
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,20 +10,19 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Button } from '@/components/ui/button';
-import { User, ChevronDown, X, Info } from 'lucide-react'; // Import Info
+import { User, ChevronDown, X, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { UseFormReturn } from 'react-hook-form';
-import * as z from 'zod';
-import { BodyFatInfoModal } from '../onboarding/body-fat-info-modal'; // Import BodyFatInfoModal
+import { useFormContext } from 'react-hook-form'; // Import useFormContext
+import { BodyFatInfoModal } from '../onboarding/body-fat-info-modal';
 
 interface PersonalInfoFormProps {
-  form: UseFormReturn<any>;
   isEditing: boolean;
   mainMuscleGroups: string[];
 }
 
-export const PersonalInfoForm = ({ form, isEditing, mainMuscleGroups }: PersonalInfoFormProps) => {
-  const [isBodyFatInfoModalOpen, setIsBodyFatInfoModalOpen] = useState(false); // State for modal
+export const PersonalInfoForm = ({ isEditing, mainMuscleGroups }: PersonalInfoFormProps) => {
+  const [isBodyFatInfoModalOpen, setIsBodyFatInfoModalOpen] = useState(false);
+  const form = useFormContext(); // Use context
 
   return (
     <>
@@ -36,8 +35,8 @@ export const PersonalInfoForm = ({ form, isEditing, mainMuscleGroups }: Personal
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-6">
           <FormField control={form.control} name="full_name" render={({ field }) => (
             <FormItem className="sm:col-span-2">
-              <FormLabel>Preferred Name</FormLabel> {/* Changed label */}
-              <FormControl><Input {...field} disabled={!isEditing} className="text-sm" /></FormControl> {/* Added text-sm */}
+              <FormLabel>Preferred Name</FormLabel>
+              <FormControl><Input {...field} disabled={!isEditing} className="text-sm" /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
@@ -45,14 +44,14 @@ export const PersonalInfoForm = ({ form, isEditing, mainMuscleGroups }: Personal
             <FormField control={form.control} name="height_cm" render={({ field }) => (
               <FormItem className="flex-1">
                 <FormLabel>Height (cm)</FormLabel>
-                <FormControl><Input type="number" inputMode="numeric" step="1" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px] text-sm" /></FormControl> {/* Added text-sm */}
+                <FormControl><Input type="number" inputMode="numeric" step="1" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px] text-sm" /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
             <FormField control={form.control} name="weight_kg" render={({ field }) => (
               <FormItem className="flex-1">
                 <FormLabel>Weight (kg)</FormLabel>
-                <FormControl><Input type="number" step="1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px] text-sm" /></FormControl> {/* Added text-sm */}
+                <FormControl><Input type="number" step="1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px] text-sm" /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
@@ -65,7 +64,7 @@ export const PersonalInfoForm = ({ form, isEditing, mainMuscleGroups }: Personal
                   <Info className="h-4 w-4 text-muted-foreground" />
                 </Button>
               </div>
-              <FormControl><Input type="number" inputMode="numeric" step="1" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px] text-sm" /></FormControl> {/* Added text-sm */}
+              <FormControl><Input type="number" inputMode="numeric" step="1" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px] text-sm" /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
@@ -74,22 +73,21 @@ export const PersonalInfoForm = ({ form, isEditing, mainMuscleGroups }: Personal
               <FormLabel>Preferred Muscles to Train (Optional)</FormLabel>
               <Popover>
                 <PopoverTrigger asChild>
-                  {/* Removed FormControl wrapper here */}
                   <Button
-                    type="button" // Ensure this button doesn't submit the form
+                    type="button"
                     variant="outline"
                     role="combobox"
                     className={cn(
-                      "w-full justify-between text-sm", // Added text-sm
+                      "w-full justify-between text-sm",
                       !field.value?.length && "text-muted-foreground"
                     )}
                     disabled={!isEditing}
                   >
-                    <span className="flex items-center justify-between w-full"> {/* Wrapped content in a single span */}
+                    <span className="flex items-center justify-between w-full">
                       <div className="flex flex-wrap gap-1">
                         {field.value && field.value.length > 0 ? (
                           field.value.map((muscle: string) => (
-                            <Badge key={muscle} variant="secondary" className="flex items-center gap-1 text-xs"> {/* Added text-xs */}
+                            <Badge key={muscle} variant="secondary" className="flex items-center gap-1 text-xs">
                               {muscle}
                               <X className="h-3 w-3 cursor-pointer" onClick={(e) => {
                                 e.stopPropagation();
@@ -126,7 +124,7 @@ export const PersonalInfoForm = ({ form, isEditing, mainMuscleGroups }: Personal
                             }
                             field.onChange(Array.from(currentSelection));
                           }}
-                          className="text-sm" // Added text-sm
+                          className="text-sm"
                         >
                           <Checkbox
                             checked={field.value?.includes(muscle)}
@@ -158,7 +156,7 @@ export const PersonalInfoForm = ({ form, isEditing, mainMuscleGroups }: Personal
           <FormField control={form.control} name="health_notes" render={({ field }) => (
             <FormItem className="sm:col-span-2">
               <FormLabel>Health Notes / Constraints (Optional)</FormLabel>
-              <FormControl><Textarea {...field} value={field.value ?? ''} disabled={!isEditing} placeholder="Any injuries, health conditions, or limitations..." className="text-sm" /></FormControl> {/* Added text-sm */}
+              <FormControl><Textarea {...field} value={field.value ?? ''} disabled={!isEditing} placeholder="Any injuries, health conditions, or limitations..." className="text-sm" /></FormControl>
               <p className="text-sm text-muted-foreground mt-1">
                 Share any relevant health information or limitations for the AI Coach to consider when generating advice.
               </p>

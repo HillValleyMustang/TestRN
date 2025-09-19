@@ -9,23 +9,23 @@ import { Tables } from '@/types/supabase';
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { LoadingOverlay } from '../loading-overlay';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"; // Import Form components
-import { UseFormReturn } from 'react-hook-form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useFormContext } from 'react-hook-form'; // Import useFormContext
 
 type Profile = Tables<'profiles'>;
 
 interface ProgrammeTypeSectionProps {
-  form: UseFormReturn<any>;
   isEditing: boolean;
   onDataChange: () => void;
-  profile: Profile | null; // Pass the full profile
+  profile: Profile | null;
 }
 
-export const ProgrammeTypeSection = ({ form, isEditing, onDataChange, profile }: ProgrammeTypeSectionProps) => {
+export const ProgrammeTypeSection = ({ isEditing, onDataChange, profile }: ProgrammeTypeSectionProps) => {
   const { session, supabase } = useSession();
   const [isWarningOpen, setIsWarningOpen] = useState(false);
   const [pendingProgrammeType, setPendingProgrammeType] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const form = useFormContext(); // Use context
 
   const currentProgrammeType = profile?.programme_type || '';
 
@@ -42,14 +42,12 @@ export const ProgrammeTypeSection = ({ form, isEditing, onDataChange, profile }:
     setIsSaving(true);
 
     try {
-      // 1. Update profile with the new programme type
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ programme_type: pendingProgrammeType })
         .eq('id', session.user.id);
       if (profileError) throw profileError;
 
-      // 2. Find all user's main T-Paths
       const { data: mainTPaths, error: tPathsError } = await supabase
         .from('t_paths')
         .select('id')
@@ -57,7 +55,6 @@ export const ProgrammeTypeSection = ({ form, isEditing, onDataChange, profile }:
         .is('parent_t_path_id', null);
       if (tPathsError) throw tPathsError;
 
-      // 3. Trigger regeneration for each main T-Path
       if (mainTPaths && mainTPaths.length > 0) {
         toast.info(`Regenerating plans for ${mainTPaths.length} programme(s)...`);
         const regenerationPromises = mainTPaths.map(tPath => 
@@ -67,14 +64,14 @@ export const ProgrammeTypeSection = ({ form, isEditing, onDataChange, profile }:
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${session.access_token}`,
             },
-            body: JSON.stringify({ tPathId: tPath.id }), // The edge function will read the user's latest preferences from the DB
+            body: JSON.stringify({ tPathId: tPath.id }),
           })
         );
         await Promise.all(regenerationPromises);
       }
 
       toast.success("Programme type updated! Your workout plans are regenerating in the background.");
-      onDataChange(); // Refresh parent data
+      onDataChange();
     } catch (err: any) {
       console.error("Failed to update programme type and regenerate plans:", err);
       toast.error("Failed to update programme type.");
@@ -87,7 +84,6 @@ export const ProgrammeTypeSection = ({ form, isEditing, onDataChange, profile }:
   const cancelChange = () => {
     setIsWarningOpen(false);
     setPendingProgrammeType(null);
-    // Revert the form value if the change is cancelled
     form.setValue('programme_type', currentProgrammeType);
   };
 

@@ -5,15 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dumbbell } from 'lucide-react';
-import { UseFormReturn } from 'react-hook-form';
-import * as z from 'zod';
+import { useFormContext } from 'react-hook-form'; // Import useFormContext
 
 interface WorkoutPreferencesFormProps {
-  form: UseFormReturn<any>;
   isEditing: boolean;
 }
 
-export const WorkoutPreferencesForm = ({ form, isEditing }: WorkoutPreferencesFormProps) => {
+export const WorkoutPreferencesForm = ({ isEditing }: WorkoutPreferencesFormProps) => {
+  const form = useFormContext(); // Use context
+
   return (
     <Card className="bg-card">
       <CardHeader className="border-b border-border/50 pb-4">
