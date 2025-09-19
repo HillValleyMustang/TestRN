@@ -8,6 +8,7 @@ import { CheckCircle, LayoutTemplate, Dumbbell, User, Info, Sparkles } from "luc
 import { Tables, FetchedExerciseDefinition } from '@/types/supabase';
 import { cn, getWorkoutColorClass, getWorkoutIcon } from '@/lib/utils';
 import { WorkoutBadge } from '../workout-badge';
+import { Badge } from '@/components/ui/badge'; // Import the base Badge component
 
 type Profile = Tables<'profiles'>;
 type TPath = Tables<'t_paths'>;
@@ -55,21 +56,21 @@ export const OnboardingSummaryModal = ({ open, onOpenChange, summaryData, onClos
         const workoutColorClass = getWorkoutColorClass(workout.template_name, 'text');
         const workoutBorderClass = getWorkoutColorClass(workout.template_name, 'border');
         return (
-          <div key={workout.id} className="border rounded-md p-3">
+          <div key={workout.id} className={cn("border rounded-md p-3", workoutBorderClass)}>
             <h4 className={cn("font-semibold text-lg flex items-center gap-2", workoutColorClass)}>
               {Icon && <Icon className="h-5 w-5" />} {workout.template_name}
             </h4>
             {workout.exercises.length > 0 ? (
               <ul className="text-sm text-muted-foreground mt-2 space-y-1">
                 {workout.exercises.map(ex => (
-                  <li key={ex.id} className={cn("flex items-center gap-2 border rounded-md p-2", workoutBorderClass)}>
+                  <li key={ex.id} className="flex items-center gap-2 p-2">
                     <span className="flex-grow">{ex.name}</span>
                     {ex.is_bonus_exercise && <WorkoutBadge workoutName="Bonus">Bonus</WorkoutBadge>}
                     {confirmedExerciseNames.has(ex.name) && (
-                      <WorkoutBadge workoutName="Bonus" className="bg-blue-500 text-white">
+                      <Badge className="bg-blue-500 text-white">
                         <Sparkles className="h-3 w-3 mr-1" />
                         AI Identified
-                      </WorkoutBadge>
+                      </Badge>
                     )}
                   </li>
                 ))}
