@@ -46,7 +46,7 @@ serve(async (req: Request) => {
       throw new Error('User does not own one or both gyms, or gyms not found.');
     }
 
-    // Fetch exercises from source gym
+    // 1. Copy exercises from source gym
     const { data: sourceExercises, error: sourceError } = await supabaseServiceRoleClient
       .from('gym_exercises')
       .select('exercise_id')
@@ -59,16 +59,56 @@ serve(async (req: Request) => {
         gym_id: targetGymId,
         exercise_id: ex.exercise_id,
       }));
-
-      // Insert new links for target gym
       const { error: insertError } = await supabaseServiceRoleClient
         .from('gym_exercises')
         .insert(linksToCreate);
-
       if (insertError) throw insertError;
     }
 
-    return new Response(JSON.stringify({ message: `Successfully copied ${sourceExercises.length} exercises.` }), {
+    // 2. Find the main T-Path for the source gym
+    const { data: sourceTPath, error: sourceTPathError } = await supabaseServiceRoleClient
+      .from('t_paths')
+      .select('template_name, settings')
+      .eq('gym_id', sourceGymId)
+      .eq('user_id', user.id)
+      .is('parent_t_path_id', null)
+      .single();
+
+    if (sourceTPathError) {
+      if (sourceTPathError.code === 'PGRST116') { // No rows found
+        return new Response(JSON.stringify({ message: `Successfully copied ${sourceExercises.length} exercises. The source gym had no workout plan to copy.` }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      throw sourceTPathError;
+    }
+
+    // 3. Create a new main T-Path for the target gym, copying settings
+    const { data: newTargetTPath, error: newTPathError } = await supabaseServiceRoleClient
+      .from('t_paths')
+      .insert({
+        user_id: user.id,
+        gym_id: targetGymId,
+        template_name: sourceTPath.template_name,
+        settings: sourceTPath.settings,
+        is_bonus: false,
+        parent_t_path_id: null,
+      })
+      .select('id')
+      .single();
+
+    if (newTPathError) throw newTPathError;
+
+    // 4. Invoke the generate-t-path function for the new T-Path
+    const { error: invokeError } = await supabaseServiceRoleClient.functions.invoke('generate-t-path', {
+      body: { tPathId: newTargetTPath.id },
+    });
+
+    if (invokeError) {
+      console.error("Failed to trigger workout generation for new gym:", invokeError);
+    }
+
+    return new Response(JSON.stringify({ message: `Successfully copied setup and initiated workout plan generation for new gym.` }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 

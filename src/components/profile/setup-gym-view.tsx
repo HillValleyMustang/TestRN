@@ -40,7 +40,7 @@ export const SetupGymView = ({ gym, onClose }: SetupGymViewProps) => {
     fetchOtherGyms();
   }, [session, supabase, gym.id]);
 
-  const handleSetupOption = (option: 'copy' | 'defaults' | 'empty') => {
+  const handleSetupOption = async (option: 'copy' | 'defaults' | 'empty') => {
     switch (option) {
       case 'copy':
         if (sourceGyms.length > 0) {
@@ -50,7 +50,29 @@ export const SetupGymView = ({ gym, onClose }: SetupGymViewProps) => {
         }
         break;
       case 'defaults':
-        toast.info("Setting up with app defaults is not yet implemented.");
+        if (!session) {
+          toast.error("You must be logged in.");
+          return;
+        }
+        const toastId = toast.loading("Setting up with app defaults...");
+        try {
+          const response = await fetch('/api/setup-default-gym', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ gymId: gym.id }),
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || 'Failed to set up default gym.');
+          }
+          toast.success(`"${gym.name}" is being set up with default workouts.`, { id: toastId });
+          onClose();
+        } catch (err: any) {
+          toast.error(`Failed to set up default gym: ${err.message}`, { id: toastId });
+        }
         break;
       case 'empty':
         toast.success(`"${gym.name}" is ready! You can add exercises manually.`);
