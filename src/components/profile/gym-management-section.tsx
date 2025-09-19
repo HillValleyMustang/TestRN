@@ -6,13 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Home, PlusCircle, Edit, Trash2, Dumbbell } from 'lucide-react'; // Added Dumbbell
+import { Home, PlusCircle, Edit, Trash2, Dumbbell } from 'lucide-react';
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { Tables, Profile } from '@/types/supabase';
 import { useGym } from '@/components/gym-context-provider';
 import { AddGymDialog } from './add-gym-dialog';
-import { ManageGymExercisesDialog } from './manage-gym-exercises-dialog'; // Import new dialog
+import { GymExerciseManager } from './gym-exercise-manager'; // Import the NEW component
 
 type Gym = Tables<'gyms'>;
 
@@ -33,7 +33,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isLastGymWarningOpen, setIsLastGymWarningOpen] = useState(false);
-  const [isManageExercisesDialogOpen, setIsManageExercisesDialogOpen] = useState(false); // New state
+  const [isManageExercisesDialogOpen, setIsManageExercisesDialogOpen] = useState(false);
 
   const [selectedGym, setSelectedGym] = useState<Gym | null>(null);
   const [newGymName, setNewGymName] = useState("");
@@ -247,7 +247,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
         </AlertDialogContent>
       </AlertDialog>
 
-      <ManageGymExercisesDialog
+      <GymExerciseManager
         open={isManageExercisesDialogOpen}
         onOpenChange={setIsManageExercisesDialogOpen}
         gym={selectedGym}

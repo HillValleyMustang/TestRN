@@ -8,7 +8,7 @@ import { Tables } from '@/types/supabase';
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
-interface ExerciseTransferListProps {
+interface ExerciseTransferUIProps {
   availableExercises: ExerciseDefinition[];
   exercisesInGym: ExerciseDefinition[];
   onAdd: (exerciseId: string) => void;
@@ -24,12 +24,12 @@ const ExerciseListItem = ({ exercise, onAction, actionIcon }: { exercise: Exerci
   </li>
 );
 
-export const ExerciseTransferList = ({
+export const ExerciseTransferUI = ({
   availableExercises,
   exercisesInGym,
   onAdd,
   onRemove,
-}: ExerciseTransferListProps) => {
+}: ExerciseTransferUIProps) => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 h-full">
       {/* Available Exercises Column */}

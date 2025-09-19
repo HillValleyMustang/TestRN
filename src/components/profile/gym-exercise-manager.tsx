@@ -8,20 +8,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { Tables } from '@/types/supabase';
-import { ExerciseTransferList } from './exercise-transfer-list';
+import { ExerciseTransferUI } from './exercise-transfer-ui';
 import { LoadingOverlay } from '../loading-overlay';
 
 type Gym = Tables<'gyms'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
-interface ManageGymExercisesDialogProps {
+interface GymExerciseManagerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   gym: Gym | null;
   onSaveSuccess: () => void;
 }
 
-export const ManageGymExercisesDialog = ({ open, onOpenChange, gym, onSaveSuccess }: ManageGymExercisesDialogProps) => {
+export const GymExerciseManager = ({ open, onOpenChange, gym, onSaveSuccess }: GymExerciseManagerProps) => {
   const { session, supabase } = useSession();
   const [allExercises, setAllExercises] = useState<ExerciseDefinition[]>([]);
   const [initialExerciseIdsInGym, setInitialExerciseIdsInGym] = useState<Set<string>>(new Set());
@@ -62,7 +62,6 @@ export const ManageGymExercisesDialog = ({ open, onOpenChange, gym, onSaveSucces
     if (open) {
       fetchData();
     } else {
-      // Reset state on close
       setSearchTerm("");
       setMuscleFilter("all");
     }
@@ -147,7 +146,7 @@ export const ManageGymExercisesDialog = ({ open, onOpenChange, gym, onSaveSucces
             {loading ? (
               <p className="text-muted-foreground text-center">Loading...</p>
             ) : (
-              <ExerciseTransferList
+              <ExerciseTransferUI
                 availableExercises={availableExercises}
                 exercisesInGym={exercisesInGym}
                 onAdd={handleAddExercise}
