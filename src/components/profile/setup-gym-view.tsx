@@ -1,14 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from 'react'; // Added useEffect
+import React, { useState, useEffect } from 'react';
 import { DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Copy, PlusSquare, Sparkles } from 'lucide-react';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
-import { useSession } from '@/components/session-context-provider'; // Added useSession
-import { CopyGymSetupDialog } from './copy-gym-setup-dialog'; // Import new dialog
+import { useSession } from '@/components/session-context-provider';
+import { CopyGymSetupDialog } from './copy-gym-setup-dialog';
 
 type Gym = Tables<'gyms'>;
 
@@ -18,7 +18,7 @@ interface SetupGymViewProps {
 }
 
 export const SetupGymView = ({ gym, onClose }: SetupGymViewProps) => {
-  const { session, supabase } = useSession(); // Get session and supabase
+  const { session, supabase } = useSession();
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
   const [sourceGyms, setSourceGyms] = useState<Gym[]>([]);
 
