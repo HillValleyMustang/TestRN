@@ -28,6 +28,7 @@ export type ProfilesRow = {
   active_gym_id: string | null;
   t_path_generation_status: string | null;
   t_path_generation_error: string | null;
+  programme_type: string | null;
 };
 export type ProfilesInsert = {
   body_fat_pct?: number | null;
@@ -57,6 +58,7 @@ export type ProfilesInsert = {
   active_gym_id?: string | null;
   t_path_generation_status?: string | null;
   t_path_generation_error?: string | null;
+  programme_type?: string | null;
 };
 export type ProfilesUpdate = {
   body_fat_pct?: number | null;
@@ -86,4 +88,5 @@ export type ProfilesUpdate = {
   active_gym_id?: string | null;
   t_path_generation_status?: string | null;
   t_path_generation_error?: string | null;
+  programme_type?: string | null;
 };

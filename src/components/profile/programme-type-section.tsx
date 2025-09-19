@@ -1,0 +1,135 @@
+"use client";
+
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { LayoutTemplate } from 'lucide-react';
+import { Tables } from '@/types/supabase';
+import { useSession } from '@/components/session-context-provider';
+import { toast } from 'sonner';
+import { LoadingOverlay } from '../loading-overlay';
+
+type Profile = Tables<'profiles'>;
+
+interface ProgrammeTypeSectionProps {
+  profile: Profile | null;
+  isEditing: boolean;
+  onDataChange: () => void;
+}
+
+export const ProgrammeTypeSection = ({ profile, isEditing, onDataChange }: ProgrammeTypeSectionProps) => {
+  const { session, supabase } = useSession();
+  const [isWarningOpen, setIsWarningOpen] = useState(false);
+  const [pendingProgrammeType, setPendingProgrammeType] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const currentProgrammeType = profile?.programme_type || '';
+
+  const handleValueChange = (newType: string) => {
+    if (newType !== currentProgrammeType) {
+      setPendingProgrammeType(newType);
+      setIsWarningOpen(true);
+    }
+  };
+
+  const confirmChange = async () => {
+    if (!session || !pendingProgrammeType) return;
+    setIsWarningOpen(false);
+    setIsSaving(true);
+
+    try {
+      // 1. Update profile with the new programme type
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ programme_type: pendingProgrammeType })
+        .eq('id', session.user.id);
+      if (profileError) throw profileError;
+
+      // 2. Find all user's main T-Paths
+      const { data: mainTPaths, error: tPathsError } = await supabase
+        .from('t_paths')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .is('parent_t_path_id', null);
+      if (tPathsError) throw tPathsError;
+
+      // 3. Trigger regeneration for each main T-Path
+      if (mainTPaths && mainTPaths.length > 0) {
+        toast.info(`Regenerating plans for ${mainTPaths.length} programme(s)...`);
+        const regenerationPromises = mainTPaths.map(tPath => 
+          fetch('/api/generate-t-path', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ tPathId: tPath.id }), // The edge function will read the user's latest preferences from the DB
+          })
+        );
+        await Promise.all(regenerationPromises);
+      }
+
+      toast.success("Programme type updated! Your workout plans are regenerating in the background.");
+      onDataChange(); // Refresh parent data
+    } catch (err: any) {
+      console.error("Failed to update programme type and regenerate plans:", err);
+      toast.error("Failed to update programme type.");
+    } finally {
+      setIsSaving(false);
+      setPendingProgrammeType(null);
+    }
+  };
+
+  const cancelChange = () => {
+    setIsWarningOpen(false);
+    setPendingProgrammeType(null);
+  };
+
+  return (
+    <>
+      <Card className="bg-card">
+        <CardHeader className="border-b border-border/50 pb-4">
+          <CardTitle className="flex items-center gap-2">
+            <LayoutTemplate className="h-5 w-5 text-primary" /> Core Programme Type
+          </CardTitle>
+          <CardDescription>
+            This is your overarching fitness philosophy. Changing this will reset and regenerate the workout plans for ALL of your gyms to match the new structure.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <Select onValueChange={handleValueChange} value={currentProgrammeType} disabled={!isEditing}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select your programme type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ulul">4-Day Upper/Lower</SelectItem>
+              <SelectItem value="ppl">3-Day Push/Pull/Legs</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={isWarningOpen} onOpenChange={setIsWarningOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Programme Change</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to change your programme type? This action cannot be undone. It will permanently delete and regenerate the workout plans for ALL of your gyms to match the new structure.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelChange}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmChange}>Confirm & Reset All Plans</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <LoadingOverlay 
+        isOpen={isSaving} 
+        title="Updating Programme" 
+        description="Please wait while we regenerate all your workout plans..." 
+      />
+    </>
+  );
+};

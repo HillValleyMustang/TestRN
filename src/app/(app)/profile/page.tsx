@@ -15,9 +15,9 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, getLevelFromPoints } from '@/lib/utils';
 import { AchievementDetailDialog } from '@/components/profile/achievement-detail-dialog';
 import useEmblaCarousel from 'embla-carousel-react';
-import { useLiveQuery } from 'dexie-react-hooks'; // Import useLiveQuery
-import { db } from '@/lib/db'; // Import db
-import { useCacheAndRevalidate } from '@/hooks/use-cache-and-revalidate'; // Import useCacheAndRevalidate
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/lib/db';
+import { useCacheAndRevalidate } from '@/hooks/use-cache-and-revalidate';
 
 import { ProfileHeader } from '@/components/profile/profile-header';
 import { ProfileOverviewTab } from '@/components/profile/profile-overview-tab';
@@ -26,7 +26,7 @@ import { ProfileSettingsTab } from '@/components/profile/profile-settings-tab';
 import { PointsExplanationModal } from '@/components/profile/points-explanation-modal';
 import { achievementsList } from '@/lib/achievements';
 import { LoadingOverlay } from '@/components/loading-overlay';
-import { FloatingSaveEditButton } from '@/components/profile/floating-save-edit-button'; // Import new component
+import { FloatingSaveEditButton } from '@/components/profile/floating-save-edit-button';
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
@@ -64,7 +64,6 @@ export default function ProfilePage() {
   const searchParams = useSearchParams();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [activeTPath, setActiveTPath] = useState<TPath | null>(null);
   const [aiCoachUsageToday, setAiCoachUsageToday] = useState(0);
   
   const [isAchievementDetailOpen, setIsAchievementDetailOpen] = useState(false);
@@ -90,7 +89,6 @@ export default function ProfilePage() {
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
 
-  // Use useCacheAndRevalidate for profile data
   const { data: cachedProfile, loading: loadingProfile, error: profileError, refresh: refreshProfileCache } = useCacheAndRevalidate<Profile>({
     cacheTable: 'profiles_cache',
     supabaseQuery: useCallback(async (client) => {
@@ -102,15 +100,14 @@ export default function ProfilePage() {
     supabase,
     sessionUserId: session?.user.id ?? null,
   });
-  const profile = cachedProfile?.[0] || null; // This `profile` is reactive to IndexedDB changes
+  const profile = cachedProfile?.[0] || null;
 
-  // Use useCacheAndRevalidate for user achievements
   const { data: cachedAchievements, loading: loadingAchievements, error: achievementsError, refresh: refreshAchievementsCache } = useCacheAndRevalidate<LocalUserAchievement>({
     cacheTable: 'user_achievements_cache',
     supabaseQuery: useCallback(async (client) => {
       if (!session?.user.id) return { data: [], error: null };
       const { data, error } = await client.from('user_achievements').select('id, user_id, achievement_id, unlocked_at').eq('user_id', session.user.id);
-      return { data: data as LocalUserAchievement[] || [], error }; // Explicitly cast data
+      return { data: data as LocalUserAchievement[] || [], error };
     }, [session?.user.id]),
     queryKey: 'user_achievements_page',
     supabase,
@@ -118,7 +115,6 @@ export default function ProfilePage() {
   });
   const unlockedAchievements = useMemo(() => new Set((cachedAchievements || []).map(a => a.achievement_id)), [cachedAchievements]);
 
-  // Use useLiveQuery for totalWorkoutsCount from local IndexedDB
   const totalWorkoutsCount = useLiveQuery(async () => {
     if (!session?.user.id) return 0;
     const count = await db.workout_sessions
@@ -128,7 +124,6 @@ export default function ProfilePage() {
     return count;
   }, [session?.user.id]) || 0;
 
-  // Use useLiveQuery for totalExercisesCount from local IndexedDB
   const totalExercisesCount = useLiveQuery(async () => {
     if (!session?.user.id) return 0;
     const uniqueExerciseInstances = new Set<string>();
@@ -144,32 +139,19 @@ export default function ProfilePage() {
     return uniqueExerciseInstances.size;
   }, [session?.user.id]) || 0;
 
-  // Ref to store the preferred_session_length from the *last successfully loaded/saved profile*
   const lastSavedSessionLengthRef = useRef<string | null>(null);
 
-  // Simplified refreshProfileData: just triggers the cache revalidation
   const refreshProfileData = useCallback(async () => {
-    console.log("[ProfilePage Debug] refreshProfileData: Triggering cache refresh.");
     await refreshProfileCache();
     await refreshAchievementsCache();
-    console.log("[ProfilePage Debug] refreshProfileData: Cache refresh triggered.");
   }, [refreshProfileCache, refreshAchievementsCache]);
 
-
-  // Effect to load form and active T-Path when `profile` (from useLiveQuery) changes
   useEffect(() => {
     if (loadingProfile || loadingAchievements || !session?.user.id) {
-      // Still loading or no user, do nothing yet
       return;
     }
 
-    console.log("[ProfilePage Debug] useEffect[profile]: Profile data changed or finished loading.");
-
     if (profile) {
-      console.log("[ProfilePage Debug] useEffect[profile]: Latest reactive profile:", profile);
-      console.log("[ProfilePage Debug] useEffect[profile]: Latest reactive profile preferred_session_length:", profile.preferred_session_length);
-      
-      // Update the ref with the current profile's session length
       lastSavedSessionLengthRef.current = profile.preferred_session_length;
 
       form.reset({
@@ -182,26 +164,7 @@ export default function ProfilePage() {
         preferred_session_length: profile.preferred_session_length,
         preferred_muscles: profile.preferred_muscles ? profile.preferred_muscles.split(',').map((m: string) => m.trim()) : [],
       });
-      console.log("[ProfilePage Debug] useEffect[profile]: Form reset with reactive profile data.");
 
-      const fetchActiveTPath = async () => {
-        if (profile.active_t_path_id) {
-          console.log("[ProfilePage Debug] useEffect[profile]: Fetching active T-Path for ID:", profile.active_t_path_id);
-          const { data: tpathData, error: tpathError } = await supabase.from('t_paths').select('*, settings').eq('id', profile.active_t_path_id).single();
-          if (tpathError) console.error("[ProfilePage Debug] useEffect[profile]: Failed to load active T-Path:", tpathError);
-          else {
-            setActiveTPath(tpathData as TPath);
-            console.log("[ProfilePage Debug] useEffect[profile]: Active T-Path loaded:", tpathData);
-          }
-        } else {
-          setActiveTPath(null);
-          console.log("[ProfilePage Debug] useEffect[profile]: No active T-Path found in profile.");
-        }
-      };
-      fetchActiveTPath();
-
-      // AI Coach Usage
-      console.log("[ProfilePage Debug] useEffect[profile]: Checking AI Coach usage.");
       if (profile.last_ai_coach_use_at) {
         const lastUsedDate = new Date(profile.last_ai_coach_use_at).toDateString();
         const today = new Date().toDateString();
@@ -209,26 +172,20 @@ export default function ProfilePage() {
       } else {
         setAiCoachUsageToday(0);
       }
-      console.log("[ProfilePage Debug] useEffect[profile]: AI Coach usage checked.");
 
     } else {
-      // No profile found (e.g., after sign-out or initial load before profile exists)
-      console.log("[ProfilePage Debug] useEffect[profile]: No reactive profile found, resetting form and states.");
       form.reset();
-      lastSavedSessionLengthRef.current = null; // Reset ref
-      setActiveTPath(null);
+      lastSavedSessionLengthRef.current = null;
       setAiCoachUsageToday(0);
     }
-  }, [profile, loadingProfile, loadingAchievements, session?.user.id, form, supabase, setActiveTPath, setAiCoachUsageToday]); // Dependencies for this effect
+  }, [profile, loadingProfile, loadingAchievements, session?.user.id, form, supabase, setAiCoachUsageToday]);
 
-  // Initial load effect (from search params) - now only triggers data fetch, not form reset
   useEffect(() => {
     if (!session) {
       router.push('/login');
       return;
     }
     
-    // This will trigger the `useEffect[profile]` when `profile` eventually updates
     refreshProfileData(); 
 
     const tabParam = searchParams.get('tab');
@@ -291,19 +248,12 @@ export default function ProfilePage() {
   const fitnessLevel = getFitnessLevel();
 
   async function onSubmit(values: z.infer<typeof profileSchema>) {
-    console.log("[ProfilePage Debug] onSubmit: Starting save operation.");
-    if (!session || !profile) {
-      console.log("[ProfilePage Debug] onSubmit: No session or profile, returning.");
-      return;
-    }
+    if (!session || !profile) return;
     setIsSaving(true);
-    console.log("[ProfilePage Debug] onSubmit: isSaving set to true.");
 
-    // Use the ref for the old session length
     const oldSessionLength = lastSavedSessionLengthRef.current;
     const newSessionLength = values.preferred_session_length;
     const sessionLengthChanged = oldSessionLength !== newSessionLength;
-    console.log(`[ProfilePage Debug] onSubmit: Session length changed: ${sessionLengthChanged} (Old: ${oldSessionLength}, New: ${newSessionLength})`);
 
     const nameParts = values.full_name.split(' ');
     const firstName = nameParts.shift() || '';
@@ -317,25 +267,18 @@ export default function ProfilePage() {
       updated_at: new Date().toISOString()
     };
     
-    console.log("[ProfilePage Debug] onSubmit: Full updateData payload:", updateData); // Log full payload
     const { error } = await supabase.from('profiles').update(updateData).eq('id', session.user.id);
     if (error) {
-      console.error("[ProfilePage Debug] onSubmit: Supabase update error:", error);
-      toast.info("Failed to update profile.");
+      toast.error("Failed to update profile.");
       setIsSaving(false);
       return;
     }
-    console.log("[ProfilePage Debug] onSubmit: Profile updated successfully in Supabase.");
 
-    toast.success("Profile updated successfully!"); // Replaced console.log
-
-    // Update the ref with the newly saved session length, ensuring it's string or null
+    toast.success("Profile updated successfully!");
     lastSavedSessionLengthRef.current = newSessionLength ?? null;
 
-    if (sessionLengthChanged && activeTPath) {
-      console.log("[ProfilePage Debug] onSubmit: Session length changed and active T-Path exists. Initiating workout plan regeneration.");
+    if (sessionLengthChanged && profile.active_t_path_id) {
       try {
-        console.log("[ProfilePage Debug] onSubmit: Calling /api/generate-t-path API route with tPathId:", activeTPath.id);
         const response = await fetch(`/api/generate-t-path`, {
           method: 'POST',
           headers: {
@@ -343,29 +286,22 @@ export default function ProfilePage() {
             'Authorization': `Bearer ${session.access_token}`
           },
           body: JSON.stringify({ 
-            tPathId: activeTPath.id,
-            preferred_session_length: newSessionLength // Pass the new value directly
+            tPathId: profile.active_t_path_id,
+            preferred_session_length: newSessionLength
           })
         });
-        console.log("[ProfilePage Debug] onSubmit: Fetch call to /api/generate-t-path completed.");
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error("[ProfilePage Debug] onSubmit: API Error during T-Path regeneration initiation:", errorText);
           throw new Error(`Failed to initiate T-Path workout regeneration: ${errorText}`);
         }
-        console.log("[ProfilePage Debug] onSubmit: T-Path regeneration initiated successfully via API.");
       } catch (err: any) {
-        console.error("[ProfilePage Debug] onSubmit: T-Path regeneration initiation error:", err);
-        toast.info("Error initiating workout plan update.");
+        toast.error("Error initiating workout plan update.");
       }
     }
-    console.log("[ProfilePage Debug] onSubmit: Calling refreshProfileData to refresh profile.");
     await refreshProfileData();
-    console.log("[ProfilePage Debug] onSubmit: refreshProfileData completed.");
-    setIsEditing(false); // This is the only place where isEditing should be set to false after a full save.
+    setIsEditing(false);
     setIsSaving(false);
-    console.log("[ProfilePage Debug] onSubmit: isEditing and isSaving set to false. Save operation finished.");
   }
 
   const handleAchievementClick = (achievement: { id: string; name: string; icon: string }) => {
@@ -477,12 +413,10 @@ export default function ProfilePage() {
                       form={form}
                       isEditing={isEditing}
                       mainMuscleGroups={mainMuscleGroups}
-                      activeTPath={activeTPath}
                       aiCoachUsageToday={aiCoachUsageToday}
                       AI_COACH_LIMIT_PER_SESSION={AI_COACH_LIMIT_PER_SESSION}
-                      onTPathChange={refreshProfileData}
                       onSignOut={handleSignOut}
-                      onSubmit={onSubmit} // Pass the onSubmit function directly
+                      onSubmit={onSubmit}
                       profile={profile}
                       onDataChange={refreshProfileData}
                     />

@@ -241,6 +241,7 @@ export type Database = {
           preferred_session_length: string | null;
           preferred_weight_unit: string | null;
           primary_goal: string | null;
+          programme_type: string | null;
           rolling_workout_status: string | null;
           target_date: string | null;
           total_points: number | null;
@@ -267,6 +268,7 @@ export type Database = {
           preferred_session_length?: string | null;
           preferred_weight_unit?: string | null;
           primary_goal?: string | null;
+          programme_type?: string | null;
           rolling_workout_status?: string | null;
           target_date?: string | null;
           total_points?: number | null;
@@ -293,6 +295,7 @@ export type Database = {
           preferred_session_length?: string | null;
           preferred_weight_unit?: string | null;
           primary_goal?: string | null;
+          programme_type?: string | null;
           rolling_workout_status?: string | null;
           target_date?: string | null;
           total_points?: number | null;

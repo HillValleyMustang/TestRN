@@ -6,13 +6,13 @@ import { Form } from "@/components/ui/form";
 import { LogOut } from 'lucide-react';
 import { PersonalInfoForm } from './personal-info-form';
 import { WorkoutPreferencesForm } from './workout-preferences-form';
-import { ActiveTPathSection } from './active-t-path-section';
+import { ProgrammeTypeSection } from './programme-type-section';
 import { AICoachUsageSection } from './ai-coach-usage-section';
 import { DataExportSection } from './data-export-section';
-import { GymManagementSection } from './gym-management-section'; // Import new component
+import { GymManagementSection } from './gym-management-section';
 import { UseFormReturn } from 'react-hook-form';
 import *as z from 'zod';
-import { Tables, Profile } from '@/types/supabase'; // Import Profile
+import { Tables, Profile } from '@/types/supabase';
 
 type TPath = Tables<'t_paths'>;
 
@@ -31,28 +31,24 @@ interface ProfileSettingsTabProps {
   form: UseFormReturn<z.infer<typeof profileSchema>>;
   isEditing: boolean;
   mainMuscleGroups: string[];
-  activeTPath: TPath | null;
   aiCoachUsageToday: number;
   AI_COACH_LIMIT_PER_SESSION: number;
-  onTPathChange: () => Promise<void>;
   onSignOut: () => void;
   onSubmit: (values: z.infer<typeof profileSchema>) => Promise<void>;
-  profile: Profile | null; // Add profile prop
-  onDataChange: () => void; // Add onDataChange prop
+  profile: Profile | null;
+  onDataChange: () => void;
 }
 
 export const ProfileSettingsTab = ({
   form,
   isEditing,
   mainMuscleGroups,
-  activeTPath,
   aiCoachUsageToday,
   AI_COACH_LIMIT_PER_SESSION,
-  onTPathChange,
   onSignOut,
   onSubmit,
-  profile, // Destructure profile
-  onDataChange, // Destructure onDataChange
+  profile,
+  onDataChange,
 }: ProfileSettingsTabProps) => {
   return (
     <div className="mt-6 space-y-6 border-none p-0">
@@ -60,7 +56,7 @@ export const ProfileSettingsTab = ({
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <PersonalInfoForm form={form} isEditing={isEditing} mainMuscleGroups={mainMuscleGroups} />
           <WorkoutPreferencesForm form={form} isEditing={isEditing} />
-          <ActiveTPathSection activeTPath={activeTPath} isEditing={isEditing} onTPathChange={onTPathChange} />
+          <ProgrammeTypeSection profile={profile} isEditing={isEditing} onDataChange={onDataChange} />
           <GymManagementSection isEditing={isEditing} profile={profile} onDataChange={onDataChange} />
           <AICoachUsageSection aiCoachUsageToday={aiCoachUsageToday} AI_COACH_LIMIT_PER_SESSION={AI_COACH_LIMIT_PER_SESSION} />
           <DataExportSection />
