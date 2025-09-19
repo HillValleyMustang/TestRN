@@ -41,16 +41,14 @@ export const ProfileSettingsTab = ({
 }: ProfileSettingsTabProps) => {
   return (
     <div className="mt-6 space-y-6 border-none p-0">
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <PersonalInfoForm form={form} isEditing={isEditing} mainMuscleGroups={mainMuscleGroups} />
-          <WorkoutPreferencesForm form={form} isEditing={isEditing} />
-          <ProgrammeTypeSection profile={profile} isEditing={isEditing} onDataChange={onDataChange} />
-          <GymManagementSection isEditing={isEditing} profile={profile} onDataChange={onDataChange} />
-          <AICoachUsageSection aiCoachUsageToday={aiCoachUsageToday} AI_COACH_DAILY_LIMIT={AI_COACH_DAILY_LIMIT} />
-          <DataExportSection />
-        </form>
-      </Form>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <PersonalInfoForm form={form} isEditing={isEditing} mainMuscleGroups={mainMuscleGroups} />
+        <WorkoutPreferencesForm form={form} isEditing={isEditing} />
+        <ProgrammeTypeSection form={form} profile={profile} isEditing={isEditing} onDataChange={onDataChange} />
+        <GymManagementSection isEditing={isEditing} profile={profile} onDataChange={onDataChange} />
+        <AICoachUsageSection aiCoachUsageToday={aiCoachUsageToday} AI_COACH_DAILY_LIMIT={AI_COACH_DAILY_LIMIT} />
+        <DataExportSection />
+      </form>
       
       <div className="flex justify-end mt-6">
         <Button type="button" variant="ghost" className="text-destructive hover:text-destructive" onClick={onSignOut}>

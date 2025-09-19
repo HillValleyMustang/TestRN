@@ -10,22 +10,22 @@ import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { LoadingOverlay } from '../loading-overlay';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"; // Import Form components
-import { useFormContext } from 'react-hook-form'; // Import useFormContext
+import { UseFormReturn } from 'react-hook-form';
 
 type Profile = Tables<'profiles'>;
 
 interface ProgrammeTypeSectionProps {
+  form: UseFormReturn<any>;
   isEditing: boolean;
   onDataChange: () => void;
   profile: Profile | null; // Pass the full profile
 }
 
-export const ProgrammeTypeSection = ({ isEditing, onDataChange, profile }: ProgrammeTypeSectionProps) => {
+export const ProgrammeTypeSection = ({ form, isEditing, onDataChange, profile }: ProgrammeTypeSectionProps) => {
   const { session, supabase } = useSession();
   const [isWarningOpen, setIsWarningOpen] = useState(false);
   const [pendingProgrammeType, setPendingProgrammeType] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const form = useFormContext(); // Get form context
 
   const currentProgrammeType = profile?.programme_type || '';
 
