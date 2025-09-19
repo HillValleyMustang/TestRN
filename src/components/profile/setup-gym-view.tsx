@@ -1,12 +1,14 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react'; // Added useEffect
 import { DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Copy, PlusSquare, Sparkles } from 'lucide-react';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
+import { useSession } from '@/components/session-context-provider'; // Added useSession
+import { CopyGymSetupDialog } from './copy-gym-setup-dialog'; // Import new dialog
 
 type Gym = Tables<'gyms'>;
 
@@ -16,17 +18,39 @@ interface SetupGymViewProps {
 }
 
 export const SetupGymView = ({ gym, onClose }: SetupGymViewProps) => {
+  const { session, supabase } = useSession(); // Get session and supabase
+  const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
+  const [sourceGyms, setSourceGyms] = useState<Gym[]>([]);
+
+  useEffect(() => {
+    const fetchOtherGyms = async () => {
+      if (!session) return;
+      const { data, error } = await supabase
+        .from('gyms')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .neq('id', gym.id); // Exclude the newly created gym
+
+      if (error) {
+        console.error("Failed to fetch other gyms for copying:", error);
+      } else {
+        setSourceGyms(data || []);
+      }
+    };
+    fetchOtherGyms();
+  }, [session, supabase, gym.id]);
 
   const handleSetupOption = (option: 'copy' | 'defaults' | 'empty') => {
-    // Placeholder for now. In the future, this will trigger different flows.
     switch (option) {
       case 'copy':
-        toast.info("Copying from an existing gym is not yet implemented.");
-        // Here we would open another dialog to select a gym to copy from.
+        if (sourceGyms.length > 0) {
+          setIsCopyDialogOpen(true);
+        } else {
+          toast.info("You don't have any other gyms to copy from.");
+        }
         break;
       case 'defaults':
         toast.info("Setting up with app defaults is not yet implemented.");
-        // Here we would call an edge function to populate the gym_exercises table.
         break;
       case 'empty':
         toast.success(`"${gym.name}" is ready! You can add exercises manually.`);
@@ -72,6 +96,15 @@ export const SetupGymView = ({ gym, onClose }: SetupGymViewProps) => {
           </CardHeader>
         </Card>
       </div>
+      {isCopyDialogOpen && (
+        <CopyGymSetupDialog
+          open={isCopyDialogOpen}
+          onOpenChange={setIsCopyDialogOpen}
+          targetGym={gym}
+          sourceGyms={sourceGyms}
+          onCopySuccess={onClose} // Close the main setup view on success
+        />
+      )}
     </>
   );
 };
