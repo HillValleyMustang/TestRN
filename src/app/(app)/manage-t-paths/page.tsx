@@ -14,6 +14,7 @@ import { useWorkoutDataFetcher } from "@/hooks/use-workout-data-fetcher";
 import { useGym } from "@/components/gym-context-provider";
 import { UnconfiguredGymPrompt } from "@/components/prompts/unconfigured-gym-prompt";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SetupGymPlanPrompt } from "@/components/manage-t-paths/setup-gym-plan-prompt";
 
 type TPath = Tables<'t_paths'>;
 
@@ -70,7 +71,7 @@ export default function ManageTPathsPage() {
           </CardContent>
         </Card>
       ) : !isGymConfigured ? (
-        <UnconfiguredGymPrompt gymName={activeGym.name} />
+        <SetupGymPlanPrompt gym={activeGym} onSetupSuccess={refreshAllData} />
       ) : (
         <ActiveTPathWorkoutsList
           activeTPathName={activeTPathGroup.mainTPath.template_name}

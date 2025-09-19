@@ -117,6 +117,31 @@ export default function ProfilePage() {
   });
   const unlockedAchievements = useMemo(() => new Set((cachedAchievements || []).map(a => a.achievement_id)), [cachedAchievements]);
 
+  const { refresh: refreshTPathsCache } = useCacheAndRevalidate<TPath>({
+    cacheTable: 't_paths_cache',
+    supabaseQuery: useCallback(async (client) => {
+      if (!session?.user.id) return { data: [], error: null };
+      return client.from('t_paths').select('*').eq('user_id', session.user.id);
+    }, [session?.user.id]),
+    queryKey: 't_paths_profile_page',
+    supabase,
+    sessionUserId: session?.user.id ?? null,
+  });
+
+  const { refresh: refreshTPathExercisesCache } = useCacheAndRevalidate<Tables<'t_path_exercises'>>({
+    cacheTable: 't_path_exercises_cache',
+    supabaseQuery: useCallback(async (client) => {
+      if (!session?.user.id) return { data: [], error: null };
+      const { data: userTPaths } = await client.from('t_paths').select('id').eq('user_id', session.user.id);
+      if (!userTPaths) return { data: [], error: null };
+      const tpathIds = userTPaths.map(p => p.id);
+      return client.from('t_path_exercises').select('*').in('template_id', tpathIds);
+    }, [session?.user.id]),
+    queryKey: 't_path_exercises_profile_page',
+    supabase,
+    sessionUserId: session?.user.id ?? null,
+  });
+
   const totalWorkoutsCount = useLiveQuery(async () => {
     if (!session?.user.id) return 0;
     const count = await db.workout_sessions
@@ -146,7 +171,9 @@ export default function ProfilePage() {
   const refreshProfileData = useCallback(async () => {
     await refreshProfileCache();
     await refreshAchievementsCache();
-  }, [refreshProfileCache, refreshAchievementsCache]);
+    await refreshTPathsCache();
+    await refreshTPathExercisesCache();
+  }, [refreshProfileCache, refreshAchievementsCache, refreshTPathsCache, refreshTPathExercisesCache]);
 
   useEffect(() => {
     if (loadingProfile || loadingAchievements || !session?.user.id) {

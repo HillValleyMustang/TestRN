@@ -86,7 +86,7 @@ export const OnboardingSummaryModal = ({ open, onOpenChange, summaryData, onClos
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col">
+      <DialogContent className="sm:max-w-2xl w-[95vw] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-2xl">
             <CheckCircle className="h-6 w-6 text-green-500" /> Your Plan is Ready!
@@ -95,7 +95,7 @@ export const OnboardingSummaryModal = ({ open, onOpenChange, summaryData, onClos
             Here's a summary of your personalised setup.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="flex-grow overflow-y-auto py-4 pr-4">
+        <ScrollArea className="flex-grow overflow-y-auto py-4">
           <div className="space-y-6">
             <div>
               <h3 className="font-semibold text-lg flex items-center gap-2 mb-2">

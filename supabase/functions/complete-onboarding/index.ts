@@ -158,6 +158,7 @@ serve(async (req: Request) => {
       preferred_muscles: preferredMuscles, primary_goal: goalFocus, health_notes: constraints,
       default_rest_time_seconds: 60, preferred_session_length: sessionLength,
       active_t_path_id: activeTPath.id, active_gym_id: newGymId,
+      programme_type: tPathType,
     };
     const { data: upsertedProfile, error: profileError } = await supabaseServiceRoleClient.from('profiles').upsert(profileData).select().single();
     if (profileError) throw profileError;
