@@ -42,7 +42,7 @@ serve(async (req: Request) => {
     }
 
     // 2. Find source main T-Path
-    const { data: sourceTPath, error: sourceTPathError } = await supabaseServiceRoleClient.from('t_paths').select('*').eq('gym_id', sourceGymId).eq('user_id', user.id).is('parent_t_path_id', null).single();
+    const { data: sourceTPath, error: sourceTPathError } = await supabaseServiceRoleClient.from('t_paths').select('id').eq('gym_id', sourceGymId).eq('user_id', user.id).is('parent_t_path_id', null).single();
 
     // If no source plan, we're done. Just copied exercises.
     if (sourceTPathError) {
@@ -53,69 +53,18 @@ serve(async (req: Request) => {
       throw sourceTPathError;
     }
 
-    // 3. Create new main T-Path for target gym
-    const { data: newTargetTPath, error: newTPathError } = await supabaseServiceRoleClient
-      .from('t_paths')
-      .insert({
-        user_id: user.id,
-        gym_id: targetGymId,
-        template_name: sourceTPath.template_name,
-        settings: sourceTPath.settings,
-        is_bonus: false,
-        parent_t_path_id: null,
-      })
-      .select('*')
-      .single();
-    if (newTPathError) throw newTPathError;
+    // 3. Call the RPC function to clone the entire T-Path structure
+    const { data: newMainTPathId, error: rpcError } = await supabaseServiceRoleClient.rpc('clone_t_path_for_new_gym', {
+      source_t_path_id: sourceTPath.id,
+      new_user_id: user.id,
+      new_gym_id: targetGymId
+    });
 
-    // 4. Find source child workouts
-    const { data: sourceChildWorkouts, error: sourceChildError } = await supabaseServiceRoleClient.from('t_paths').select('*').eq('parent_t_path_id', sourceTPath.id);
-    if (sourceChildError) throw sourceChildError;
+    if (rpcError) throw rpcError;
+    if (!newMainTPathId) throw new Error("Cloning the workout plan failed to return a new plan ID.");
 
-    if (sourceChildWorkouts.length > 0) {
-      // 5. Create new child workouts and map old IDs to new IDs
-      const newChildWorkoutsToInsert = sourceChildWorkouts.map((cw: any) => ({
-        user_id: user.id,
-        parent_t_path_id: newTargetTPath.id,
-        template_name: cw.template_name,
-        is_bonus: true,
-        settings: cw.settings,
-        gym_id: targetGymId,
-      }));
-      const { data: insertedNewChildWorkouts, error: insertChildError } = await supabaseServiceRoleClient.from('t_paths').insert(newChildWorkoutsToInsert).select('id, template_name');
-      if (insertChildError) throw insertChildError;
-
-      const oldToNewIdMap = new Map<string, string>();
-      sourceChildWorkouts.forEach((oldCw: any) => {
-        const newCw = insertedNewChildWorkouts.find((ncw: any) => ncw.template_name === oldCw.template_name);
-        if (newCw) {
-          oldToNewIdMap.set(oldCw.id, newCw.id);
-        }
-      });
-
-      // 6. Find all t_path_exercises for the source child workouts
-      const sourceChildWorkoutIds = sourceChildWorkouts.map((cw: any) => cw.id);
-      const { data: sourceTpeLinks, error: sourceTpeError } = await supabaseServiceRoleClient.from('t_path_exercises').select('*').in('template_id', sourceChildWorkoutIds);
-      if (sourceTpeError) throw sourceTpeError;
-
-      // 7. Create new t_path_exercises links for the new child workouts
-      if (sourceTpeLinks.length > 0) {
-        const newTpeLinksToInsert = sourceTpeLinks.map((link: any) => ({
-          template_id: oldToNewIdMap.get(link.template_id),
-          exercise_id: link.exercise_id,
-          order_index: link.order_index,
-          is_bonus_exercise: link.is_bonus_exercise,
-        })).filter((link: { template_id: string | undefined }) => link.template_id);
-
-        if (newTpeLinksToInsert.length > 0) {
-          const { error: insertTpeError } = await supabaseServiceRoleClient.from('t_path_exercises').insert(newTpeLinksToInsert);
-          if (insertTpeError) throw insertTpeError;
-        }
-      }
-    }
-
-    // 8. Update profile to make the new gym and T-Path active
-    await supabaseServiceRoleClient.from('profiles').update({ active_gym_id: targetGymId, active_t_path_id: newTargetTPath.id }).eq('id', user.id);
+    // 4. Update profile to make the new gym and T-Path active
+    await supabaseServiceRoleClient.from('profiles').update({ active_gym_id: targetGymId, active_t_path_id: newMainTPathId }).eq('id', user.id);
 
     return new Response(JSON.stringify({ message: `Successfully copied setup to new gym.` }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
