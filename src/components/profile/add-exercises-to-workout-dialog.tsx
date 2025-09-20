@@ -90,16 +90,16 @@ export const AddExercisesToWorkoutDialog = ({
           <DialogTitle className="flex items-center gap-2">
             <PlusCircle className="h-5 w-5" /> Add Exercises
           </DialogTitle>
-          <DialogDescription className="mb-1 text-sm"> {/* Reduced margin-bottom */}
+          <DialogDescription className="mb-1 text-sm">
             Select exercises to add to the current workout template.
           </DialogDescription>
         </DialogHeader>
-        <div className="py-2 space-y-2 flex-grow flex flex-col"> {/* Reduced padding and spacing */}
+        <div className="py-2 space-y-2 flex-grow flex flex-col"> {/* This div now correctly acts as a flex column and grows */}
           {/* Filters and Search */}
-          <div className="flex flex-col sm:flex-row gap-2"> {/* Reduced gap */}
+          <div className="flex flex-col sm:flex-row gap-2">
             <div className="flex sm:w-1/3">
               <Button
-                variant={addExerciseSourceFilter === 'my-exercises' ? 'default' : 'outline'} // Improved contrast
+                variant={addExerciseSourceFilter === 'my-exercises' ? 'default' : 'outline'}
                 onClick={() => setAddExerciseSourceFilter('my-exercises')}
                 className={cn(
                   "flex-1 h-9 text-xs",
@@ -109,7 +109,7 @@ export const AddExercisesToWorkoutDialog = ({
                 My Exercises
               </Button>
               <Button
-                variant={addExerciseSourceFilter === 'global-library' ? 'default' : 'outline'} // Improved contrast
+                variant={addExerciseSourceFilter === 'global-library' ? 'default' : 'outline'}
                 onClick={() => setAddExerciseSourceFilter('global-library')}
                 className={cn(
                   "flex-1 h-9 text-xs",
@@ -125,11 +125,11 @@ export const AddExercisesToWorkoutDialog = ({
                 placeholder="Search exercises..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 text-xs" // Reduced text size
+                className="pl-9 text-xs"
               />
             </div>
             <Select onValueChange={setMuscleFilter} value={muscleFilter}>
-              <SelectTrigger className="sm:w-1/3 h-9 text-xs"> {/* Added text-xs */}
+              <SelectTrigger className="sm:w-1/3 h-9 text-xs">
                 <SelectValue placeholder="Filter by muscle" />
               </SelectTrigger>
               <SelectContent>
@@ -139,8 +139,8 @@ export const AddExercisesToWorkoutDialog = ({
             </Select>
           </div>
 
-          {/* Exercise List */}
-          <ScrollArea className="flex-grow border rounded-md p-2 h-64"> {/* Changed max-h to h-64 for consistent scrolling */}
+          {/* Exercise List - now uses flex-grow to take remaining space */}
+          <ScrollArea className="flex-grow border rounded-md p-2">
             {availableExercises.length === 0 ? (
               <p className="text-muted-foreground text-center p-4 text-sm">No exercises found matching your criteria.</p>
             ) : (
