@@ -24,8 +24,6 @@ export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, 
   const [selectedSourceGymId, setSelectedSourceGymId] = useState<string>("");
   const [isCopying, setIsCopying] = useState(false);
 
-  console.log("[CopyGymSetupDialog] Rendered. Source Gyms:", sourceGyms); // NEW LOG HERE
-
   const handleCopySetup = async () => {
     console.log("[CopyGymSetupDialog] handleCopySetup called.");
     console.log("[CopyGymSetupDialog] Session:", session);
@@ -56,7 +54,8 @@ export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, 
         throw new Error(data.error || 'Failed to copy gym setup.');
       }
 
-      toast.success(`Successfully copied setup to "${targetGym.name}"!`);
+      // NEW: Informative toast message
+      toast.success(`Successfully copied setup to "${targetGym.name}"! Your workout plan is now being generated in the background.`);
       onCopySuccess();
       onOpenChange(false);
     } catch (err: any) {
