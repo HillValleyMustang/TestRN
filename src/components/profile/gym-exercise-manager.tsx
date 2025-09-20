@@ -7,11 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
-import { Tables, FetchedExerciseDefinition, Profile } from '@/types/supabase'; // Import Profile type
-import { ExerciseTransferUI } from './exercise-transfer-ui';
+import { Tables, FetchedExerciseDefinition, Profile } from '@/types/supabase';
 import { LoadingOverlay } from '../loading-overlay';
-import { LayoutTemplate, PlusCircle } from 'lucide-react'; // Added LayoutTemplate and PlusCircle
-import { SetupGymPlanPrompt } from '@/components/manage-t-paths/setup-gym-plan-prompt'; // Import SetupGymPlanPrompt
+import { LayoutTemplate, PlusCircle, Trash2, Info } from 'lucide-react';
+import { SetupGymPlanPrompt } from '@/components/manage-t-paths/setup-gym-plan-prompt';
+import { AddExercisesToWorkoutDialog } from './add-exercises-to-workout-dialog'; // NEW: Import the new dialog
+import { ScrollArea } from '@/components/ui/scroll-area'; // For the list of exercises in workout
 
 type Gym = Tables<'gyms'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -37,7 +38,7 @@ interface ManageGymWorkoutsExercisesDialogProps {
   onOpenChange: (open: boolean) => void;
   gym: Gym | null;
   onSaveSuccess: () => void;
-  profile: Profile | null; // NEW: Pass profile to SetupGymPlanPrompt
+  profile: Profile | null;
 }
 
 export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSaveSuccess, profile }: ManageGymWorkoutsExercisesDialogProps) => {
@@ -51,13 +52,19 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
   
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [muscleFilter, setMuscleFilter] = useState("all");
+  const [searchTerm, setSearchTerm] = useState(""); // No longer used directly in this component, but kept for potential future use
+  const [muscleFilter, setMuscleFilter] = useState("all"); // No longer used directly in this component, but kept for potential future use
   const [muscleGroups, setMuscleGroups] = useState<string[]>([]);
   const [addExerciseSourceFilter, setAddExerciseSourceFilter] = useState<'my-exercises' | 'global-library'>('my-exercises');
 
+  // NEW: State for the AddExercisesToWorkoutDialog
+  const [showAddExercisesDialog, setShowAddExercisesDialog] = useState(false);
+  const [selectedExerciseForInfo, setSelectedExerciseForInfo] = useState<ExerciseDefinition | null>(null);
+  const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
+
+
   const fetchData = useCallback(async () => {
-    if (!session || !gym || !profile) { // Ensure profile is available
+    if (!session || !gym || !profile) {
       console.log("[ManageGymWorkoutsExercisesDialog] Skipping fetchData: session, gym, or profile is null.", { session: !!session, gym: !!gym, profile: !!profile });
       setLoading(false);
       return;
@@ -72,7 +79,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       let mainTPathData: TPath | null = null;
       if (activeTPathId) {
         // 2. Fetch the specific main T-Path using the active_t_path_id
-        console.log(`[ManageGymWorkoutsExercisesDialog] Querying t_paths for id: ${activeTPathId}, gym_id: ${gym.id}, user_id: ${session.user.id}`);
+        console.log(`[ManageGymWorkoutsExercisesDialog] Querying t_paths for id: ${activeTPathId}, gym_id: ${gym.id}, user_id: ${session.user.id}, parent_t_path_id: null`);
         const { data, error } = await supabase
           .from('t_paths')
           .select('*')
@@ -167,7 +174,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
     } finally {
       setLoading(false);
     }
-  }, [session, supabase, gym, profile, selectedWorkoutId]); // Added profile to dependencies to re-fetch when it changes
+  }, [session, supabase, gym, profile, selectedWorkoutId]);
 
   // Add a refresh function for the dialog itself
   const refreshDialogData = useCallback(() => {
@@ -190,95 +197,90 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       setMuscleFilter("all");
       setAddExerciseSourceFilter('my-exercises');
     }
-  }, [open, refreshDialogData]); // Changed dependency to refreshDialogData
+  }, [open, refreshDialogData]);
 
-  // Memoized list of exercises available for transfer (left column)
-  const availableExercisesForTransfer = useMemo(() => {
-    if (!session) return [];
-    const lowerCaseSearchTerm = searchTerm.toLowerCase();
-
-    return allExercises
-      .filter(ex => { // Filter by source (My Exercises vs Global)
-        if (addExerciseSourceFilter === 'my-exercises') return ex.user_id === session.user.id;
-        if (addExerciseSourceFilter === 'global-library') return ex.user_id === null;
-        return false;
-      })
-      .filter(ex => { // Filter by muscle group
-        return muscleFilter === 'all' || ex.main_muscle === muscleFilter;
-      })
-      .filter(ex => { // Filter by search term
-        return ex.name.toLowerCase().includes(lowerCaseSearchTerm);
-      })
-      .filter(ex => { // Only show exercises that are available in the current gym
-        return exerciseIdsInGym.has(ex.id);
-      })
-      .filter(ex => { // Exclude exercises already in the selected workout
-        return !exercisesInSelectedWorkout.some(e => e.id === ex.id);
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [allExercises, addExerciseSourceFilter, muscleFilter, searchTerm, exerciseIdsInGym, exercisesInSelectedWorkout, session]);
-
-  const handleAddExerciseToWorkout = useCallback(async (exerciseId: string) => {
-    if (!session || !gym || !selectedWorkoutId) return;
+  // NEW: Handle adding multiple exercises from the AddExercisesToWorkoutDialog
+  const handleAddExercisesToWorkout = useCallback(async (exerciseIds: string[]) => {
+    if (!session || !gym || !selectedWorkoutId || exerciseIds.length === 0) return;
     setIsSaving(true);
 
     try {
-      // 1. Ensure the exercise is linked to the gym (if not already)
-      if (!exerciseIdsInGym.has(exerciseId)) {
-        const { error: linkError } = await supabase
-          .from('gym_exercises')
-          .insert({ gym_id: gym.id, exercise_id: exerciseId });
-        if (linkError) throw linkError;
-        setExerciseIdsInGym(prev => new Set(prev).add(exerciseId)); // Optimistic update
-      }
+      const exercisesToInsert: { template_id: string; exercise_id: string; order_index: number; is_bonus_exercise: boolean }[] = [];
+      const gymLinksToInsert: { gym_id: string; exercise_id: string }[] = [];
+      const optimisticUpdates: WorkoutExerciseWithDetails[] = [];
 
-      // 2. Add exercise to the selected workout (t_path_exercises)
-      const exerciseDef = allExercises.find(ex => ex.id === exerciseId);
-      if (!exerciseDef) throw new Error("Exercise definition not found.");
+      let currentMaxOrderIndex = exercisesInSelectedWorkout.length > 0 ? Math.max(...exercisesInSelectedWorkout.map(e => e.order_index)) : -1;
 
-      const newOrderIndex = exercisesInSelectedWorkout.length > 0 ? Math.max(...exercisesInSelectedWorkout.map(e => e.order_index)) + 1 : 0;
-      const tempTPathExerciseId = `temp-${Date.now()}`; // Temporary ID for optimistic update
+      for (const exerciseId of exerciseIds) {
+        const exerciseDef = allExercises.find(ex => ex.id === exerciseId);
+        if (!exerciseDef) {
+          console.warn(`Exercise definition not found for ID: ${exerciseId}, skipping.`);
+          continue;
+        }
 
-      const newExerciseWithDetails: WorkoutExerciseWithDetails = {
-        ...exerciseDef,
-        id: exerciseDef.id,
-        name: exerciseDef.name,
-        order_index: newOrderIndex,
-        is_bonus_exercise: false, // Default to non-bonus when adding
-        t_path_exercise_id: tempTPathExerciseId,
-      };
-      setExercisesInSelectedWorkout(prev => [...prev, newExerciseWithDetails]); // Optimistic update
+        // 1. Prepare gym link if not already linked
+        if (!exerciseIdsInGym.has(exerciseId)) {
+          gymLinksToInsert.push({ gym_id: gym.id, exercise_id: exerciseId });
+        }
 
-      const { data: insertedTpe, error: insertError } = await supabase
-        .from('t_path_exercises')
-        .insert({
+        // 2. Prepare exercise for workout template
+        currentMaxOrderIndex++;
+        exercisesToInsert.push({
           template_id: selectedWorkoutId,
           exercise_id: exerciseId,
-          order_index: newOrderIndex,
-          is_bonus_exercise: false,
-        })
-        .select('id')
-        .single();
+          order_index: currentMaxOrderIndex,
+          is_bonus_exercise: false, // Default to non-bonus when adding
+        });
 
-      if (insertError) {
-        setExercisesInSelectedWorkout(prev => prev.filter(ex => ex.t_path_exercise_id !== tempTPathExerciseId)); // Rollback
-        throw insertError;
+        // Prepare optimistic update
+        optimisticUpdates.push({
+          ...exerciseDef,
+          id: exerciseDef.id,
+          name: exerciseDef.name,
+          order_index: currentMaxOrderIndex,
+          is_bonus_exercise: false,
+          t_path_exercise_id: `temp-${Date.now()}-${exerciseId}`, // Temporary ID
+        });
       }
 
-      // Update the temporary ID with the real one from Supabase
-      setExercisesInSelectedWorkout(prev => prev.map(ex => 
-        ex.t_path_exercise_id === tempTPathExerciseId ? { ...ex, t_path_exercise_id: insertedTpe.id } : ex
-      ));
+      // Optimistic update UI
+      setExercisesInSelectedWorkout(prev => [...prev, ...optimisticUpdates]);
+      setExerciseIdsInGym(prev => new Set([...prev, ...exerciseIds.filter(id => !prev.has(id))]));
 
-      toast.success(`'${exerciseDef.name}' added to workout!`);
+      // Perform database operations
+      if (gymLinksToInsert.length > 0) {
+        const { error: linkError } = await supabase.from('gym_exercises').insert(gymLinksToInsert).select();
+        if (linkError) throw linkError;
+      }
+
+      if (exercisesToInsert.length > 0) {
+        const { data: insertedTpes, error: insertError } = await supabase
+          .from('t_path_exercises')
+          .insert(exercisesToInsert)
+          .select('id, exercise_id');
+
+        if (insertError) throw insertError;
+
+        // Update optimistic updates with real t_path_exercise_ids
+        setExercisesInSelectedWorkout(prev => prev.map(ex => {
+          const realTpe = insertedTpes.find(tpe => tpe.exercise_id === ex.id && ex.t_path_exercise_id.startsWith('temp-'));
+          return realTpe ? { ...ex, t_path_exercise_id: realTpe.id } : ex;
+        }));
+      }
+
+      toast.success(`Added ${exerciseIds.length} exercise(s) to workout!`);
       onSaveSuccess(); // Trigger parent refresh
     } catch (err: any) {
-      toast.error("Failed to add exercise to workout.");
-      console.error("Error adding exercise to workout:", err);
+      toast.error("Failed to add exercises to workout.");
+      console.error("Error adding exercises to workout:", err);
+      // Rollback optimistic updates on error
+      setExercisesInSelectedWorkout(prev => prev.filter(ex => !ex.t_path_exercise_id.startsWith('temp-')));
+      setExerciseIdsInGym(prev => new Set([...prev].filter(id => !exerciseIds.includes(id))));
     } finally {
       setIsSaving(false);
     }
   }, [session, supabase, gym, selectedWorkoutId, exercisesInSelectedWorkout, allExercises, exerciseIdsInGym, onSaveSuccess]);
+
 
   const handleRemoveExerciseFromWorkout = useCallback(async (exerciseId: string) => {
     if (!session || !selectedWorkoutId) return;
@@ -316,6 +318,11 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
     // The useEffect for fetchData will handle re-fetching exercises for the new workout
   }, []);
 
+  const handleOpenInfoDialog = (exercise: ExerciseDefinition) => {
+    setSelectedExerciseForInfo(exercise);
+    setIsInfoDialogOpen(true);
+  };
+
   if (!gym) {
     return null; // Should not happen if opened from GymManagementSection
   }
@@ -337,7 +344,6 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
               <p className="text-muted-foreground text-center">Loading gym workout data...</p>
             ) : !mainTPath ? (
               <div className="text-center text-muted-foreground">
-                {/* Display SetupGymPlanPrompt if no mainTPath is found */}
                 <SetupGymPlanPrompt gym={gym} onSetupSuccess={refreshDialogData} profile={profile} />
               </div>
             ) : (
@@ -355,49 +361,41 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
                       ))}
                     </SelectContent>
                   </Select>
-                  <div className="flex sm:w-1/3">
-                    <Button
-                      variant={addExerciseSourceFilter === 'my-exercises' ? 'secondary' : 'ghost'}
-                      onClick={() => setAddExerciseSourceFilter('my-exercises')}
-                      className="flex-1 h-9 text-xs"
-                    >
-                      My Exercises
-                    </Button>
-                    <Button
-                      variant={addExerciseSourceFilter === 'global-library' ? 'secondary' : 'ghost'}
-                      onClick={() => setAddExerciseSourceFilter('global-library')}
-                      className="flex-1 h-9 text-xs"
-                    >
-                      Global
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Input
-                    placeholder="Search exercises..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Select onValueChange={setMuscleFilter} value={muscleFilter}>
-                    <SelectTrigger className="sm:w-1/3">
-                      <SelectValue placeholder="Filter by muscle" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Muscle Groups</SelectItem>
-                      {muscleGroups.map(muscle => <SelectItem key={muscle} value={muscle}>{muscle}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Button 
+                    onClick={() => setShowAddExercisesDialog(true)} 
+                    disabled={!selectedWorkoutId}
+                    className="flex-shrink-0 sm:w-1/3"
+                  >
+                    <PlusCircle className="h-4 w-4 mr-2" /> Add Exercises
+                  </Button>
                 </div>
                 
-                <div className="flex-grow overflow-hidden">
+                <div className="flex-grow overflow-hidden border rounded-md">
                   {selectedWorkoutId ? (
-                    <ExerciseTransferUI
-                      availableExercises={availableExercisesForTransfer}
-                      exercisesInGym={exercisesInSelectedWorkout} // Renamed prop to reflect content
-                      onAdd={handleAddExerciseToWorkout}
-                      onRemove={handleRemoveExerciseFromWorkout}
-                    />
+                    <ScrollArea className="h-full w-full p-2">
+                      {exercisesInSelectedWorkout.length === 0 ? (
+                        <p className="text-muted-foreground text-center p-4">No exercises in this workout. Click "Add Exercises" to get started!</p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {exercisesInSelectedWorkout.map(ex => (
+                            <li key={ex.id} className="flex items-center justify-between p-2 border rounded-md bg-card">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{ex.name}</span>
+                                <span className="text-muted-foreground text-sm">({ex.main_muscle})</span>
+                              </div>
+                              <div className="flex gap-1">
+                                <Button variant="ghost" size="icon" title="Exercise Info" onClick={() => handleOpenInfoDialog(ex)}>
+                                  <Info className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" title="Remove Exercise" onClick={() => handleRemoveExerciseFromWorkout(ex.id)}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </ScrollArea>
                   ) : (
                     <p className="text-muted-foreground text-center p-4">Please select a workout to manage its exercises.</p>
                   )}
@@ -411,6 +409,27 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
         </DialogContent>
       </Dialog>
       <LoadingOverlay isOpen={isSaving} title="Updating Workout Exercises" />
+
+      {/* NEW: Add Exercises Dialog */}
+      <AddExercisesToWorkoutDialog
+        open={showAddExercisesDialog}
+        onOpenChange={setShowAddExercisesDialog}
+        allExercises={allExercises}
+        exercisesInWorkout={exercisesInSelectedWorkout.map(ex => ex.id)}
+        muscleGroups={muscleGroups}
+        onAddExercises={handleAddExercisesToWorkout}
+        addExerciseSourceFilter={addExerciseSourceFilter}
+        setAddExerciseSourceFilter={setAddExerciseSourceFilter}
+      />
+
+      {/* Exercise Info Dialog */}
+      {selectedExerciseForInfo && (
+        <ExerciseInfoDialog
+          open={isInfoDialogOpen}
+          onOpenChange={setIsInfoDialogOpen}
+          exercise={selectedExerciseForInfo}
+        />
+      )}
     </>
   );
 };
