@@ -15,6 +15,17 @@ import { AddExercisesToWorkoutDialog } from './add-exercises-to-workout-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ExerciseInfoDialog } from '@/components/exercise-info-dialog';
 
+// DND imports
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { arrayMove } from '@dnd-kit/sortable';
+
+// New sortable components
+import { SortableGymExerciseList } from './gym-exercise-manager/sortable-gym-exercise-list';
+import { SortableGymExerciseItem } from './gym-exercise-manager/sortable-gym-exercise-item';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+
+
 type Gym = Tables<'gyms'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type TPath = Tables<'t_paths'>;
@@ -45,7 +56,8 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
   const [mainTPath, setMainTPath] = useState<TPath | null>(null);
   const [childWorkouts, setChildWorkouts] = useState<TPath[]>([]);
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
-  const [exercisesInSelectedWorkout, setExercisesInSelectedWorkout] = useState<WorkoutExerciseWithDetails[]>([]);
+  const [coreExercises, setCoreExercises] = useState<WorkoutExerciseWithDetails[]>([]);
+  const [bonusExercises, setBonusExercises] = useState<WorkoutExerciseWithDetails[]>([]);
   const [allExercises, setAllExercises] = useState<ExerciseDefinition[]>([]);
   const [exerciseIdsInGym, setExerciseIdsInGym] = useState<Set<string>>(new Set());
   
@@ -57,6 +69,9 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
   const [showAddExercisesDialog, setShowAddExercisesDialog] = useState(false);
   const [selectedExerciseForInfo, setSelectedExerciseForInfo] = useState<ExerciseDefinition | null>(null);
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
+
+  const [showConfirmRemoveDialog, setShowConfirmRemoveDialog] = useState(false);
+  const [exerciseToRemove, setExerciseToRemove] = useState<WorkoutExerciseWithDetails | null>(null);
 
 
   const fetchData = useCallback(async () => {
@@ -90,7 +105,8 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       if (!mainTPathData) {
         setChildWorkouts([]);
         setAllExercises([]);
-        setExercisesInSelectedWorkout([]);
+        setCoreExercises([]);
+        setBonusExercises([]);
         setExerciseIdsInGym(new Set());
         setLoading(false);
         return;
@@ -146,9 +162,13 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
             t_path_exercise_id: link.id,
           };
         }).filter(Boolean) as WorkoutExerciseWithDetails[];
-        setExercisesInSelectedWorkout(fetchedExercises);
+        
+        setCoreExercises(fetchedExercises.filter(ex => !ex.is_bonus_exercise));
+        setBonusExercises(fetchedExercises.filter(ex => ex.is_bonus_exercise));
+
       } else {
-        setExercisesInSelectedWorkout([]);
+        setCoreExercises([]);
+        setBonusExercises([]);
       }
 
     } catch (err: any) {
@@ -171,7 +191,8 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       setMainTPath(null);
       setChildWorkouts([]);
       setSelectedWorkoutId(null);
-      setExercisesInSelectedWorkout([]);
+      setCoreExercises([]);
+      setBonusExercises([]);
       setAllExercises([]);
       setExerciseIdsInGym(new Set());
       setMuscleGroups([]);
@@ -188,7 +209,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       const gymLinksToInsert: { gym_id: string; exercise_id: string }[] = [];
       const optimisticUpdates: WorkoutExerciseWithDetails[] = [];
 
-      let currentMaxOrderIndex = exercisesInSelectedWorkout.length > 0 ? Math.max(...exercisesInSelectedWorkout.map(e => e.order_index)) : -1;
+      let currentMaxOrderIndex = [...coreExercises, ...bonusExercises].length > 0 ? Math.max(...[...coreExercises, ...bonusExercises].map(e => e.order_index)) : -1;
 
       for (const exerciseId of exerciseIds) {
         const exerciseDef = allExercises.find(ex => ex.id === exerciseId);
@@ -219,7 +240,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
         });
       }
 
-      setExercisesInSelectedWorkout(prev => [...prev, ...optimisticUpdates]);
+      setCoreExercises(prev => [...prev, ...optimisticUpdates]);
       setExerciseIdsInGym(prev => new Set([...prev, ...exerciseIds.filter(id => !prev.has(id))]));
 
       if (gymLinksToInsert.length > 0) {
@@ -235,10 +256,11 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
 
         if (insertError) throw insertError;
 
-        setExercisesInSelectedWorkout(prev => prev.map(ex => {
-          const realTpe = insertedTpes.find(tpe => tpe.exercise_id === ex.id && ex.t_path_exercise_id.startsWith('temp-'));
-          return realTpe ? { ...ex, t_path_exercise_id: realTpe.id } : ex;
-        }));
+        setCoreExercises(prev => prev.map(ex => 
+          ex.t_path_exercise_id.startsWith('temp-') && insertedTpes.some(tpe => tpe.exercise_id === ex.id)
+            ? { ...ex, t_path_exercise_id: insertedTpes.find(tpe => tpe.exercise_id === ex.id)?.id || ex.t_path_exercise_id }
+            : ex
+        ));
       }
 
       toast.success(`Added ${exerciseIds.length} exercise(s) to workout!`);
@@ -246,23 +268,31 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
     } catch (err: any) {
       toast.error("Failed to add exercises to workout.");
       console.error("Error adding exercises to workout:", err);
-      setExercisesInSelectedWorkout(prev => prev.filter(ex => !ex.t_path_exercise_id.startsWith('temp-')));
+      setCoreExercises(prev => prev.filter(ex => !ex.t_path_exercise_id.startsWith('temp-')));
       setExerciseIdsInGym(prev => new Set([...prev].filter(id => !exerciseIds.includes(id))));
     } finally {
       setIsSaving(false);
     }
-  }, [session, supabase, gym, selectedWorkoutId, exercisesInSelectedWorkout, allExercises, exerciseIdsInGym, onSaveSuccess]);
+  }, [session, supabase, gym, selectedWorkoutId, coreExercises, bonusExercises, allExercises, exerciseIdsInGym, onSaveSuccess]);
 
 
-  const handleRemoveExerciseFromWorkout = useCallback(async (exerciseId: string) => {
-    if (!session || !selectedWorkoutId) return;
+  const handleRemoveExerciseClick = useCallback((exerciseId: string) => {
+    const exercise = [...coreExercises, ...bonusExercises].find(ex => ex.id === exerciseId);
+    if (exercise) {
+      setExerciseToRemove(exercise);
+      setShowConfirmRemoveDialog(true);
+    }
+  }, [coreExercises, bonusExercises]);
+
+  const confirmRemoveExercise = useCallback(async () => {
+    if (!session || !selectedWorkoutId || !exerciseToRemove) return;
     setIsSaving(true);
+    setShowConfirmRemoveDialog(false);
 
     try {
-      const exerciseToRemove = exercisesInSelectedWorkout.find(ex => ex.id === exerciseId);
-      if (!exerciseToRemove) throw new Error("Exercise not found in workout.");
-
-      setExercisesInSelectedWorkout(prev => prev.filter(ex => ex.id !== exerciseId));
+      // Optimistic update
+      setCoreExercises(prev => prev.filter(ex => ex.id !== exerciseToRemove.id));
+      setBonusExercises(prev => prev.filter(ex => ex.id !== exerciseToRemove.id));
 
       const { error: deleteError } = await supabase
         .from('t_path_exercises')
@@ -270,7 +300,12 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
         .eq('id', exerciseToRemove.t_path_exercise_id);
 
       if (deleteError) {
-        setExercisesInSelectedWorkout(prev => [...prev, exerciseToRemove]);
+        // Rollback on error
+        if (!exerciseToRemove.is_bonus_exercise) {
+          setCoreExercises(prev => [...prev, exerciseToRemove]);
+        } else {
+          setBonusExercises(prev => [...prev, exerciseToRemove]);
+        }
         throw deleteError;
       }
 
@@ -281,17 +316,98 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       console.error("Error removing exercise from workout:", err);
     } finally {
       setIsSaving(false);
+      setExerciseToRemove(null);
     }
-  }, [session, supabase, selectedWorkoutId, exercisesInSelectedWorkout, onSaveSuccess]);
+  }, [session, supabase, selectedWorkoutId, coreExercises, bonusExercises, exerciseToRemove, onSaveSuccess]);
 
   const handleWorkoutSelectChange = useCallback((newWorkoutId: string) => {
     setSelectedWorkoutId(newWorkoutId);
   }, []);
 
-  const handleOpenInfoDialog = (exercise: ExerciseDefinition) => {
+  const handleOpenInfoDialog = (exercise: WorkoutExerciseWithDetails) => {
     setSelectedExerciseForInfo(exercise);
     setIsInfoDialogOpen(true);
   };
+
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || !selectedWorkoutId) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+    const overContainerId = over.data.current?.sortable?.containerId || over.id;
+    const activeContainerId = active.data.current?.sortable?.containerId || active.id;
+
+    let updatedCore = [...coreExercises];
+    let updatedBonus = [...bonusExercises];
+    let exercisesToUpdate: { id: string; order_index: number; is_bonus_exercise: boolean }[] = [];
+
+    // Find the dragged item
+    const draggedItem = [...updatedCore, ...updatedBonus].find(ex => ex.id === activeId);
+    if (!draggedItem) return;
+
+    if (activeContainerId === overContainerId) {
+      // Moved within the same list
+      const isCoreList = activeContainerId === 'core-exercises';
+      const currentList = isCoreList ? updatedCore : updatedBonus;
+      const setter = isCoreList ? setCoreExercises : setBonusExercises;
+
+      const oldIndex = currentList.findIndex(item => item.id === activeId);
+      const newIndex = currentList.findIndex(item => item.id === overId);
+
+      const newOrderedList = arrayMove(currentList, oldIndex, newIndex);
+      setter(newOrderedList);
+
+      exercisesToUpdate = newOrderedList.map((ex, index) => ({
+        id: ex.t_path_exercise_id,
+        order_index: index,
+        is_bonus_exercise: isCoreList ? false : true,
+      }));
+
+    } else {
+      // Moved between lists (e.g., Core to Bonus, or Bonus to Core)
+      const isMovingToBonus = overContainerId === 'bonus-exercises';
+      const isMovingToCore = overContainerId === 'core-exercises';
+
+      // Remove from source list
+      updatedCore = updatedCore.filter(ex => ex.id !== activeId);
+      updatedBonus = updatedBonus.filter(ex => ex.id !== activeId);
+
+      // Add to target list at the correct position
+      const targetList = isMovingToCore ? updatedCore : updatedBonus;
+      const newIndex = targetList.findIndex(item => item.id === overId);
+      const insertIndex = newIndex === -1 ? targetList.length : newIndex;
+
+      const newItem = { ...draggedItem, is_bonus_exercise: isMovingToBonus };
+      targetList.splice(insertIndex, 0, newItem);
+
+      setCoreExercises(updatedCore);
+      setBonusExercises(updatedBonus);
+
+      // Recalculate order for both lists
+      exercisesToUpdate = [
+        ...updatedCore.map((ex, index) => ({ id: ex.t_path_exercise_id, order_index: index, is_bonus_exercise: false })),
+        ...updatedBonus.map((ex, index) => ({ id: ex.t_path_exercise_id, order_index: index, is_bonus_exercise: true })),
+      ];
+    }
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase.rpc('update_gym_exercise_order_and_status', { updates: exercisesToUpdate });
+      if (error) throw error;
+      toast.success("Exercise order and status updated!");
+      onSaveSuccess(); // Trigger parent refresh
+    } catch (err: any) {
+      toast.error("Failed to update exercise order/status.");
+      console.error("Error updating exercise order/status:", err);
+      // Re-fetch data to revert optimistic update if API fails
+      fetchData();
+    } finally {
+      setIsSaving(false);
+    }
+  }, [coreExercises, bonusExercises, selectedWorkoutId, supabase, onSaveSuccess, fetchData]);
+
 
   if (!gym) {
     return null;
@@ -300,16 +416,16 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-0"> {/* Added p-0 here */}
-          <DialogHeader className="p-4 pb-2 border-b"> {/* Added padding to header */}
-            <DialogTitle className="flex items-center gap-2 text-xl"> {/* Reduced title size */}
+        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-0">
+          <DialogHeader className="p-4 pb-2 border-b">
+            <DialogTitle className="flex items-center gap-2 text-xl">
               <LayoutTemplate className="h-5 w-5" /> Manage Workouts for "{gym.name}"
             </DialogTitle>
-            <DialogDescription className="text-sm"> {/* Reduced description size */}
-              Select a workout to add or remove exercises from its template.
+            <DialogDescription className="text-sm">
+              Select a workout to add, remove, or reorder exercises.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex-grow flex flex-col p-4 space-y-4 overflow-hidden"> {/* Added padding and flex-col */}
+          <div className="flex-grow flex flex-col p-4 space-y-4 overflow-hidden">
             {loading ? (
               <p className="text-muted-foreground text-center">Loading gym workout data...</p>
             ) : !mainTPath ? (
@@ -320,7 +436,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
               <>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Select onValueChange={handleWorkoutSelectChange} value={selectedWorkoutId || ''}>
-                    <SelectTrigger className="flex-1 h-9 text-sm"> {/* Reduced height and text size */}
+                    <SelectTrigger className="flex-1 h-9 text-sm">
                       <SelectValue placeholder="Select a workout to manage" />
                     </SelectTrigger>
                     <SelectContent>
@@ -334,41 +450,42 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
                   <Button 
                     onClick={() => setShowAddExercisesDialog(true)} 
                     disabled={!selectedWorkoutId}
-                    className="flex-shrink-0 sm:w-1/3 h-9 text-sm" // Reduced height and text size
+                    className="flex-shrink-0 sm:w-1/3 h-9 text-sm"
                   >
                     <PlusCircle className="h-4 w-4 mr-2" /> Add Exercises
                   </Button>
                 </div>
                 
-                <ScrollArea className="flex-grow border rounded-md p-2"> {/* ScrollArea now wraps the ul */}
-                  {selectedWorkoutId ? (
-                    exercisesInSelectedWorkout.length === 0 ? (
-                      <p className="text-muted-foreground text-center p-4">No exercises in this workout. Click "Add Exercises" to get started!</p>
-                    ) : (
-                      <ul className="space-y-1"> {/* Reduced space-y */}
-                        {exercisesInSelectedWorkout.map(ex => (
-                          <li key={ex.id} className="flex items-center justify-between p-2 border rounded-md bg-card text-sm"> {/* Reduced padding, text size */}
-                            <span className="font-medium">{ex.name}</span>
-                            <div className="flex gap-1"> {/* Reduced gap */}
-                              <Button variant="ghost" size="icon" title="Exercise Info" onClick={() => handleOpenInfoDialog(ex)} className="h-7 w-7"> {/* Reduced button size */}
-                                <Info className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" title="Remove Exercise" onClick={() => handleRemoveExerciseFromWorkout(ex.id)} className="h-7 w-7"> {/* Reduced button size */}
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    )
-                  ) : (
-                    <p className="text-muted-foreground text-center p-4">Please select a workout to manage its exercises.</p>
-                  )}
-                </ScrollArea>
+                {selectedWorkoutId ? (
+                  <div className="flex-grow flex flex-col gap-4 overflow-y-auto">
+                    <DndContext sensors={useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }))} onDragEnd={handleDragEnd}>
+                      <SortableGymExerciseList
+                        id="core-exercises"
+                        title="Core Exercises"
+                        exercises={coreExercises}
+                        onDragEnd={handleDragEnd}
+                        onRemoveExercise={handleRemoveExerciseClick}
+                        onOpenInfoDialog={handleOpenInfoDialog}
+                        emptyMessage="No core exercises in this workout. Add some!"
+                      />
+                      <SortableGymExerciseList
+                        id="bonus-exercises"
+                        title="Bonus Exercises"
+                        exercises={bonusExercises}
+                        onDragEnd={handleDragEnd}
+                        onRemoveExercise={handleRemoveExerciseClick}
+                        onOpenInfoDialog={handleOpenInfoDialog}
+                        emptyMessage="No bonus exercises in this workout. Add some!"
+                      />
+                    </DndContext>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-center p-4">Please select a workout to manage its exercises.</p>
+                )}
               </>
             )}
           </div>
-          <DialogFooter className="p-4 pt-2 border-t"> {/* Added padding to footer */}
+          <DialogFooter className="p-4 pt-2 border-t">
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>Close</Button>
           </DialogFooter>
         </DialogContent>
@@ -379,7 +496,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
         open={showAddExercisesDialog}
         onOpenChange={setShowAddExercisesDialog}
         allExercises={allExercises}
-        exercisesInWorkout={exercisesInSelectedWorkout.map(ex => ex.id)}
+        exercisesInWorkout={[...coreExercises, ...bonusExercises].map(ex => ex.id)}
         muscleGroups={muscleGroups}
         onAddExercises={handleAddExercisesToWorkout}
         addExerciseSourceFilter={addExerciseSourceFilter}
@@ -393,6 +510,21 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
           exercise={selectedExerciseForInfo}
         />
       )}
+
+      <AlertDialog open={showConfirmRemoveDialog} onOpenChange={setShowConfirmRemoveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Removal</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove "<span className="font-semibold">{exerciseToRemove?.name}</span>" from this workout? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowConfirmRemoveDialog(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRemoveExercise}>Remove</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
