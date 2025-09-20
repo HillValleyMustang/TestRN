@@ -8,41 +8,194 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// --- Type Definitions ---
+interface ExerciseDefinition {
+  id: string;
+  name: string;
+  user_id: string | null;
+  library_id: string | null;
+  movement_type: string | null;
+  movement_pattern: string | null;
+  main_muscle: string;
+}
+
+// --- Utility Functions ---
+function getExerciseCounts(sessionLength: string | null | undefined): { main: number; bonus: number } {
+  switch (sessionLength) {
+    case '15-30': return { main: 3, bonus: 3 };
+    case '30-45': return { main: 5, bonus: 3 };
+    case '45-60': return { main: 7, bonus: 2 };
+    case '60-90': return { main: 10, bonus: 2 };
+    default: return { main: 5, bonus: 3 };
+  }
+}
+
+function getWorkoutNamesForSplit(workoutSplit: string): string[] {
+  if (workoutSplit === 'ulul') return ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
+  if (workoutSplit === 'ppl') return ['Push', 'Pull', 'Legs'];
+  throw new Error('Unknown workout split type.');
+}
+
+const sortExercises = (exercises: ExerciseDefinition[]) => {
+  return exercises.sort((a, b) => {
+    if (a.movement_type === 'compound' && b.movement_type !== 'compound') return -1;
+    if (a.movement_type !== 'compound' && b.movement_type === 'compound') return 1;
+    return a.name.localeCompare(b.name);
+  });
+};
+
+function musclesIntersect(muscleString: string, muscleSet: Set<string>): boolean {
+    if (!muscleString) return false;
+    const muscles = muscleString.split(',').map(m => m.trim());
+    return muscles.some(m => muscleSet.has(m));
+}
+
+async function generateWorkoutPlanForTPath(
+  supabaseServiceRoleClient: any,
+  userId: string,
+  tPathId: string,
+  sessionLength: string | null,
+  activeGymId: string | null
+) {
+  console.log(`[generateWorkoutPlanForTPath] User ${userId}: Starting for tPathId: ${tPathId}`);
+
+  const { data: tPathData, error: tPathError } = await supabaseServiceRoleClient.from('t_paths').select('id, settings, user_id').eq('id', tPathId).eq('user_id', userId).single();
+  if (tPathError || !tPathData) throw new Error(`Main T-Path not found for user ${userId} and tPathId ${tPathId}.`);
+  console.log(`[generateWorkoutPlanForTPath] Fetched main T-Path data: ${JSON.stringify(tPathData)}`);
+
+  const { data: allExercises, error: fetchAllExercisesError } = await supabaseServiceRoleClient.from('exercise_definitions').select('*');
+  if (fetchAllExercisesError) throw fetchAllExercisesError;
+  console.log(`[generateWorkoutPlanForTPath] Fetched ${allExercises?.length || 0} total exercise definitions.`);
+
+  const { data: allGymLinks, error: allGymLinksError } = await supabaseServiceRoleClient.from('gym_exercises').select('exercise_id');
+  if (allGymLinksError) throw allGymLinksError;
+  const allLinkedExerciseIds = new Set((allGymLinks || []).map((l: { exercise_id: string }) => l.exercise_id));
+  console.log(`[generateWorkoutPlanForTPath] Total exercises linked to any gym: ${allLinkedExerciseIds.size}`);
+
+  console.log(`[generateWorkoutPlanForTPath] Deleting old child workouts and their exercises for parent T-Path ${tPathId}`);
+  const { data: oldChildWorkouts, error: fetchOldError } = await supabaseServiceRoleClient.from('t_paths').select('id').eq('parent_t_path_id', tPathId).eq('user_id', userId);
+  if (fetchOldError) throw fetchOldError;
+  if (oldChildWorkouts && oldChildWorkouts.length > 0) {
+    const oldChildIds = oldChildWorkouts.map((w: { id: string }) => w.id);
+    console.log(`[generateWorkoutPlanForTPath] Found ${oldChildIds.length} old child workouts: ${oldChildIds.join(', ')}`);
+    await supabaseServiceRoleClient.from('t_path_exercises').delete().in('template_id', oldChildIds);
+    await supabaseServiceRoleClient.from('t_paths').delete().in('id', oldChildIds);
+    console.log(`[generateWorkoutPlanForTPath] Successfully deleted old child workouts and their exercises.`);
+  } else {
+    console.log(`[generateWorkoutPlanForTPath] No old child workouts found to delete.`);
+  }
+
+  const tPathSettings = tPathData.settings as { tPathType?: string };
+  if (!tPathSettings?.tPathType) throw new Error('Invalid T-Path settings.');
+  const workoutSplit = tPathSettings.tPathType;
+  const { main: maxMainExercises, bonus: maxBonusExercises } = getExerciseCounts(sessionLength);
+  const workoutNames = getWorkoutNamesForSplit(workoutSplit);
+  console.log(`[generateWorkoutPlanForTPath] Workout Split: ${workoutSplit}, Workout Names: ${workoutNames.join(', ')}`);
+  console.log(`[generateWorkoutPlanForTPath] Max Main Exercises: ${maxMainExercises}, Max Bonus Exercises: ${maxBonusExercises}`);
+
+  const workoutSpecificPools: Record<string, ExerciseDefinition[]> = {};
+  if (workoutSplit === 'ulul') {
+    const UPPER_BODY_MUSCLES = new Set(['Pectorals', 'Deltoids', 'Lats', 'Traps', 'Biceps', 'Triceps', 'Abdominals', 'Core']);
+    const LOWER_BODY_MUSCLES = new Set(['Quadriceps', 'Hamstrings', 'Glutes', 'Calves']);
+    const upperPool = (allExercises || []).filter((ex: any) => musclesIntersect(ex.main_muscle, UPPER_BODY_MUSCLES));
+    const lowerPool = (allExercises || []).filter((ex: any) => musclesIntersect(ex.main_muscle, LOWER_BODY_MUSCLES));
+    workoutSpecificPools['Upper Body A'] = []; workoutSpecificPools['Upper Body B'] = [];
+    workoutSpecificPools['Lower Body A'] = []; workoutSpecificPools['Lower Body B'] = [];
+    sortExercises(upperPool).forEach((ex, i) => workoutSpecificPools[i % 2 === 0 ? 'Upper Body A' : 'Upper Body B'].push(ex));
+    sortExercises(lowerPool).forEach((ex, i) => workoutSpecificPools[i % 2 === 0 ? 'Lower Body A' : 'Lower Body B'].push(ex));
+    console.log(`[generateWorkoutPlanForTPath] ULUL Pools - Upper A: ${workoutSpecificPools['Upper Body A'].length}, Upper B: ${workoutSpecificPools['Upper Body B'].length}, Lower A: ${workoutSpecificPools['Lower Body A'].length}, Lower B: ${workoutSpecificPools['Lower Body B'].length}`);
+  } else { // ppl
+    workoutSpecificPools['Push'] = sortExercises((allExercises || []).filter((ex: any) => ex.movement_pattern === 'Push'));
+    workoutSpecificPools['Pull'] = sortExercises((allExercises || []).filter((ex: any) => ex.movement_pattern === 'Pull'));
+    workoutSpecificPools['Legs'] = sortExercises((allExercises || []).filter((ex: any) => ex.movement_pattern === 'Legs'));
+    console.log(`[generateWorkoutPlanForTPath] PPL Pools - Push: ${workoutSpecificPools['Push'].length}, Pull: ${workoutSpecificPools['Pull'].length}, Legs: ${workoutSpecificPools['Legs'].length}`);
+  }
+
+  for (const workoutName of workoutNames) {
+    console.log(`[generateWorkoutPlanForTPath] Processing workout: ${workoutName}`);
+    const { data: newChildWorkout, error: createChildError } = await supabaseServiceRoleClient
+      .from('t_paths')
+      .insert({ user_id: userId, parent_t_path_id: tPathId, template_name: workoutName, is_bonus: true, settings: tPathData.settings })
+      .select('id').single();
+    if (createChildError) throw createChildError;
+    const childWorkoutId = newChildWorkout.id;
+    console.log(`[generateWorkoutPlanForTPath] Created child workout ${workoutName} with ID: ${childWorkoutId}`);
+
+    const candidatePool = workoutSpecificPools[workoutName] || [];
+    console.log(`[generateWorkoutPlanForTPath] Candidate pool for ${workoutName}: ${candidatePool.length} exercises`);
+    
+    let activeGymExerciseIds = new Set<string>();
+    if (activeGymId) {
+      const { data: activeGymLinks, error: activeGymLinksError } = await supabaseServiceRoleClient.from('gym_exercises').select('exercise_id').eq('gym_id', activeGymId);
+      if (activeGymLinksError) throw activeGymLinksError;
+      activeGymExerciseIds = new Set((activeGymLinks || []).map((l: { exercise_id: string }) => l.exercise_id));
+      console.log(`[generateWorkoutPlanForTPath] Active gym ${activeGymId} has ${activeGymExerciseIds.size} linked exercises.`);
+    }
+
+    const tier1Pool = candidatePool.filter(ex => ex.user_id === userId);
+    const tier2Pool = candidatePool.filter(ex => ex.user_id === null && !allLinkedExerciseIds.has(ex.id));
+    const tier3Pool = candidatePool.filter(ex => ex.user_id === null && activeGymExerciseIds.has(ex.id));
+
+    console.log(`[generateWorkoutPlanForTPath] Tier 1 (User Custom) for ${workoutName}: ${tier1Pool.length} exercises`);
+    console.log(`[generateWorkoutPlanForTPath] Tier 2 (Global Bodyweight) for ${workoutName}: ${tier2Pool.length} exercises`);
+    console.log(`[generateWorkoutPlanForTPath] Tier 3 (Global Gym-Specific) for ${workoutName}: ${tier3Pool.length} exercises`);
+
+    const finalPool = [...tier1Pool, ...tier2Pool, ...tier3Pool];
+    const finalUniquePool = [...new Map(finalPool.map(item => [item.id, item])).values()];
+    console.log(`[generateWorkoutPlanForTPath] Final unique pool for ${workoutName}: ${finalUniquePool.length} exercises`);
+    
+    const mainExercisesForWorkout = finalUniquePool.slice(0, maxMainExercises);
+    const bonusExercisesForWorkout = finalUniquePool.slice(maxMainExercises, maxMainExercises + maxBonusExercises);
+    console.log(`[generateWorkoutPlanForTPath] Selected ${mainExercisesForWorkout.length} main and ${bonusExercisesForWorkout.length} bonus exercises for ${workoutName}.`);
+
+    const exercisesToInsertPayload = [
+      ...mainExercisesForWorkout.map((ex, index) => ({ template_id: childWorkoutId, exercise_id: ex.id, order_index: index, is_bonus_exercise: false })),
+      ...bonusExercisesForWorkout.map((ex, index) => ({ template_id: childWorkoutId, exercise_id: ex.id, order_index: mainExercisesForWorkout.length + index, is_bonus_exercise: true }))
+    ];
+
+    if (exercisesToInsertPayload.length > 0) {
+      const { error: insertError } = await supabaseServiceRoleClient.from('t_path_exercises').insert(exercisesToInsertPayload);
+      if (insertError) throw insertError;
+      console.log(`[generateWorkoutPlanForTPath] Successfully inserted ${exercisesToInsertPayload.length} exercises into t_path_exercises for ${workoutName}.`);
+    } else {
+      console.log(`[generateWorkoutPlanForTPath] No exercises to insert for ${workoutName}.`);
+    }
+  }
+}
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const supabaseServiceRoleClient = createClient(
-      // @ts-ignore
-      Deno.env.get('SUPABASE_URL') ?? '',
-      // @ts-ignore
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+  const supabaseServiceRoleClient = createClient(
+    // @ts-ignore
+    Deno.env.get('SUPABASE_URL') ?? '',
+    // @ts-ignore
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
 
+  let userId: string | null = null;
+
+  try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('Authorization header missing');
-    }
+    if (!authHeader) throw new Error('Authorization header missing');
     const { data: { user }, error: userError } = await supabaseServiceRoleClient.auth.getUser(authHeader.split(' ')[1]);
-    if (userError || !user) {
-      throw new Error('Unauthorized');
-    }
+    if (userError || !user) throw new Error('Unauthorized');
+    userId = user.id;
+
+    await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'in_progress', t_path_generation_error: null }).eq('id', userId);
 
     const { gymId } = await req.json();
     if (!gymId) throw new Error('gymId is required.');
 
-    // 1. Verify user owns the gym
     const { data: gym, error: gymError } = await supabaseServiceRoleClient.from('gyms').select('id').eq('id', gymId).eq('user_id', user.id).single();
     if (gymError || !gym) throw new Error('Gym not found or user does not own it.');
 
-    // 2. Get user's core programme type from their profile
     const { data: profile, error: profileError } = await supabaseServiceRoleClient.from('profiles').select('programme_type, preferred_session_length, primary_goal, preferred_muscles, health_notes').eq('id', user.id).single();
     if (profileError || !profile) throw new Error('User profile not found.');
     if (!profile.programme_type) throw new Error('User has no core programme type set.');
 
-    // 3. Create a new main T-Path for the gym
     const tPathTemplateName = profile.programme_type === 'ulul' ? '4-Day Upper/Lower' : '3-Day Push/Pull/Legs';
     const { data: newTPath, error: newTPathError } = await supabaseServiceRoleClient
       .from('t_paths')
@@ -50,26 +203,9 @@ serve(async (req: Request) => {
       .select('id').single();
     if (newTPathError) throw newTPathError;
 
-    // 4. Invoke generate-t-path for the new T-Path using the official Supabase client method
-    const supabaseClientWithUserAuth = createClient(
-      // @ts-ignore
-      Deno.env.get('SUPABASE_URL') ?? '',
-      // @ts-ignore
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    await generateWorkoutPlanForTPath(supabaseServiceRoleClient, user.id, newTPath.id, profile.preferred_session_length, gymId);
 
-    const { error: invokeError } = await supabaseClientWithUserAuth.functions.invoke('generate-t-path', {
-      body: { 
-        tPathId: newTPath.id,
-        preferred_session_length: profile.preferred_session_length
-      },
-    });
-
-    if (invokeError) {
-      console.error(`[setup-default-gym] Error invoking generate-t-path:`, invokeError);
-      throw new Error(invokeError.message || `Failed to invoke generate-t-path.`);
-    }
+    await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'completed', t_path_generation_error: null }).eq('id', userId);
 
     return new Response(JSON.stringify({ message: `Successfully initiated default workout plan generation for new gym.` }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -78,6 +214,9 @@ serve(async (req: Request) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : "An unknown error occurred";
     console.error("Error in setup-default-gym edge function:", message);
+    if (userId) {
+      await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'failed', t_path_generation_error: message }).eq('id', userId);
+    }
     return new Response(JSON.stringify({ error: message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });

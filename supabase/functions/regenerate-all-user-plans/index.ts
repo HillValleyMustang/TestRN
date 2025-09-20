@@ -19,15 +19,6 @@ interface ExerciseDefinition {
   main_muscle: string;
 }
 
-// Helper function to initialize Supabase client with service role key
-const getSupabaseServiceRoleClient = () => {
-  // @ts-ignore
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-  // @ts-ignore
-  const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-  return createClient(supabaseUrl, supabaseServiceRoleKey);
-};
-
 // --- Utility Functions ---
 function getExerciseCounts(sessionLength: string | null | undefined): { main: number; bonus: number } {
   switch (sessionLength) {
@@ -35,7 +26,7 @@ function getExerciseCounts(sessionLength: string | null | undefined): { main: nu
     case '30-45': return { main: 5, bonus: 3 };
     case '45-60': return { main: 7, bonus: 2 };
     case '60-90': return { main: 10, bonus: 2 };
-    default: return { main: 5, bonus: 3 }; // Default to 30-45 mins
+    default: return { main: 5, bonus: 3 };
   }
 }
 
@@ -175,7 +166,13 @@ async function generateWorkoutPlanForTPath(
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
-  const supabaseServiceRoleClient = getSupabaseServiceRoleClient();
+  const supabaseServiceRoleClient = createClient(
+    // @ts-ignore
+    Deno.env.get('SUPABASE_URL') ?? '',
+    // @ts-ignore
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
   let userId: string | null = null;
 
   try {
@@ -187,81 +184,33 @@ serve(async (req: Request) => {
 
     await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'in_progress', t_path_generation_error: null }).eq('id', userId);
 
-    const {
-      tPathType, experience, goalFocus, preferredMuscles, constraints,
-      sessionLength, equipmentMethod, gymName, confirmedExercises,
-      fullName, heightCm, weightKg, bodyFatPct
-    } = await req.json();
+    const { data: mainTPaths, error: tPathsError } = await supabaseServiceRoleClient
+      .from('t_paths')
+      .select('id, settings, gym_id')
+      .eq('user_id', user.id)
+      .is('parent_t_path_id', null);
+    
+    if (tPathsError) throw tPathsError;
 
-    if (!tPathType || !experience || !sessionLength || !fullName || !heightCm || !weightKg) {
-      throw new Error("Missing required onboarding data.");
-    }
-
-    const { data: insertedGym, error: insertGymError } = await supabaseServiceRoleClient.from('gyms').insert({ user_id: user.id, name: gymName || "My Gym" }).select('id').single();
-    if (insertGymError) throw insertGymError;
-    const newGymId = insertedGym.id;
-
-    const tPathsToInsert = [
-      { user_id: user.id, gym_id: newGymId, template_name: '4-Day Upper/Lower', is_bonus: false, parent_t_path_id: null, settings: { tPathType: 'ulul', experience, goalFocus, preferredMuscles, constraints, equipmentMethod } },
-      { user_id: user.id, gym_id: newGymId, template_name: '3-Day Push/Pull/Legs', is_bonus: false, parent_t_path_id: null, settings: { tPathType: 'ppl', experience, goalFocus, preferredMuscles, constraints, equipmentMethod } }
-    ];
-    const { data: insertedTPaths, error: insertTPathsError } = await supabaseServiceRoleClient.from('t_paths').insert(tPathsToInsert).select('*');
-    if (insertTPathsError) throw insertTPathsError;
-
-    const activeTPath = insertedTPaths.find((tp: any) => (tPathType === 'ulul' && tp.template_name === '4-Day Upper/Lower') || (tPathType === 'ppl' && tp.template_name === '3-Day Push/Pull/Legs'));
-    if (!activeTPath) throw new Error("Could not determine active T-Path after creation.");
-
-    const exerciseIdsToLinkToGym = new Set<string>();
-    const newExercisesToCreate = [];
-    const confirmedExercisesDataForPlan: ExerciseDefinition[] = [];
-
-    for (const ex of (confirmedExercises || [])) {
-      if (ex.existing_id) {
-        exerciseIdsToLinkToGym.add(ex.existing_id);
-        confirmedExercisesDataForPlan.push({ id: ex.existing_id, name: ex.name!, user_id: null, library_id: null, movement_type: ex.movement_type || null, movement_pattern: ex.movement_pattern || null, main_muscle: ex.main_muscle! });
-      } else {
-        newExercisesToCreate.push({ name: ex.name!, main_muscle: ex.main_muscle!, type: ex.type!, category: ex.category, description: ex.description, pro_tip: ex.pro_tip, video_url: ex.video_url, icon_url: ex.icon_url, user_id: user.id, library_id: null, is_favorite: false, created_at: new Date().toISOString(), movement_type: ex.movement_type, movement_pattern: ex.movement_pattern });
-      }
-    }
-
-    if (newExercisesToCreate.length > 0) {
-      const { data: insertedExercises, error: insertExError } = await supabaseServiceRoleClient.from('exercise_definitions').insert(newExercisesToCreate).select('*');
-      if (insertExError) throw insertExError;
-      insertedExercises.forEach((ex: any) => {
-        exerciseIdsToLinkToGym.add(ex.id);
-        confirmedExercisesDataForPlan.push(ex);
-      });
-    }
-
-    if (exerciseIdsToLinkToGym.size > 0) {
-      const gymLinks = Array.from(exerciseIdsToLinkToGym).map(exId => ({ gym_id: newGymId, exercise_id: exId }));
-      const { error: gymLinkError } = await supabaseServiceRoleClient.from('gym_exercises').insert(gymLinks);
-      if (gymLinkError) throw gymLinkError;
-    }
-
-    const nameParts = fullName.split(' ');
-    const firstName = nameParts.shift() || '';
-    const lastName = nameParts.join(' ') || '';
-    const profileData = { id: user.id, first_name: firstName, last_name: lastName, full_name: fullName, height_cm: heightCm, weight_kg: weightKg, body_fat_pct: bodyFatPct, preferred_muscles: preferredMuscles, primary_goal: goalFocus, health_notes: constraints, default_rest_time_seconds: 60, preferred_session_length: sessionLength, active_t_path_id: activeTPath.id, active_gym_id: newGymId, programme_type: tPathType };
-    const { data: upsertedProfile, error: profileError } = await supabaseServiceRoleClient.from('profiles').upsert(profileData).select().single();
+    const { data: profileData, error: profileError } = await supabaseServiceRoleClient
+      .from('profiles')
+      .select('preferred_session_length')
+      .eq('id', user.id)
+      .single();
     if (profileError) throw profileError;
+    const sessionLength = profileData?.preferred_session_length;
 
-    const childWorkoutsWithExercises = [];
-    for (const tPath of insertedTPaths) {
-      await generateWorkoutPlanForTPath(supabaseServiceRoleClient, user.id, tPath.id, sessionLength, newGymId);
-      if (tPath.id === activeTPath.id) {
-        const { data: childWorkouts } = await supabaseServiceRoleClient.from('t_paths').select('*, t_path_exercises(*, exercise_definitions(*))').eq('parent_t_path_id', tPath.id);
-        childWorkoutsWithExercises.push(...(childWorkouts || []));
-      }
+    for (const tPath of mainTPaths) {
+      await generateWorkoutPlanForTPath(supabaseServiceRoleClient, user.id, tPath.id, sessionLength, tPath.gym_id);
     }
 
     await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'completed', t_path_generation_error: null }).eq('id', userId);
 
-    return new Response(JSON.stringify({ message: 'Onboarding completed successfully.', profile: upsertedProfile, mainTPath: activeTPath, childWorkouts: childWorkoutsWithExercises, identifiedExercises: confirmedExercises }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ message: 'All workout plans regenerated successfully.' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
     const message = error instanceof Error ? error.message : "An unknown error occurred";
-    console.error("Error in complete-onboarding edge function:", JSON.stringify(error, null, 2));
+    console.error("Error in regenerate-all-user-plans edge function:", message);
     if (userId) {
       await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'failed', t_path_generation_error: message }).eq('id', userId);
     }

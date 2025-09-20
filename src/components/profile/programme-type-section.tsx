@@ -5,14 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { LayoutTemplate } from 'lucide-react';
-import { Tables } from '@/types/supabase';
+import { Tables, Profile } from '@/types/supabase';
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { LoadingOverlay } from '../loading-overlay';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useFormContext } from 'react-hook-form'; // Import useFormContext
-
-type Profile = Tables<'profiles'>;
 
 interface ProgrammeTypeSectionProps {
   isEditing: boolean;
@@ -49,26 +47,19 @@ export const ProgrammeTypeSection = ({ isEditing, onDataChange, profile }: Progr
         .eq('id', session.user.id);
       if (profileError) throw profileError;
 
-      const { data: mainTPaths, error: tPathsError } = await supabase
-        .from('t_paths')
-        .select('id')
-        .eq('user_id', session.user.id)
-        .is('parent_t_path_id', null);
-      if (tPathsError) throw tPathsError;
+      // Call the new API route to regenerate all plans
+      const response = await fetch('/api/regenerate-all-plans', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({}), // No body needed
+      });
 
-      if (mainTPaths && mainTPaths.length > 0) {
-        toast.info(`Regenerating plans for ${mainTPaths.length} programme(s)...`);
-        const regenerationPromises = mainTPaths.map(tPath => 
-          fetch('/api/generate-t-path', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({ tPathId: tPath.id }),
-          })
-        );
-        await Promise.all(regenerationPromises);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to start plan regeneration.");
       }
 
       toast.success("Programme type updated! Your workout plans are regenerating in the background.");
