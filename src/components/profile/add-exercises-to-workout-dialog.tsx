@@ -85,8 +85,8 @@ export const AddExercisesToWorkoutDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-4"> {/* Added p-4 here */}
+        <DialogHeader className="pb-4"> {/* Added pb-4 for spacing */}
           <DialogTitle className="flex items-center gap-2">
             <PlusCircle className="h-5 w-5" /> Add Exercises
           </DialogTitle>
@@ -94,9 +94,9 @@ export const AddExercisesToWorkoutDialog = ({
             Select exercises to add to the current workout template.
           </DialogDescription>
         </DialogHeader>
-        <div className="py-2 flex-grow flex flex-col"> {/* Removed space-y-2 from here */}
+        <div className="flex-grow flex flex-col"> {/* Removed py-2 and space-y-2 */}
           {/* Filters and Search */}
-          <div className="flex flex-col sm:flex-row gap-2 mb-2"> {/* Added mb-2 */}
+          <div className="flex flex-col sm:flex-row gap-2 mb-4"> {/* Added mb-4 */}
             <div className="flex sm:w-1/3">
               <Button
                 variant={addExerciseSourceFilter === 'my-exercises' ? 'default' : 'outline'}
@@ -140,7 +140,7 @@ export const AddExercisesToWorkoutDialog = ({
           </div>
 
           {/* Exercise List - now uses flex-grow to take remaining space */}
-          <ScrollArea className="flex-grow border rounded-md p-2 min-h-0"> {/* Added min-h-0 */}
+          <ScrollArea className="flex-grow border rounded-md p-2 min-h-0">
             {availableExercises.length === 0 ? (
               <p className="text-muted-foreground text-center p-4 text-sm">No exercises found matching your criteria.</p>
             ) : (
@@ -163,7 +163,7 @@ export const AddExercisesToWorkoutDialog = ({
             )}
           </ScrollArea>
         </div>
-        <DialogFooter className="flex flex-row justify-end gap-2 pt-4">
+        <DialogFooter className="flex flex-row justify-end gap-2 pt-4"> {/* Added pt-4 for spacing */}
           <Button variant="outline" onClick={() => onOpenChange(false)} size="sm">Cancel</Button>
           <Button onClick={handleAddSelected} disabled={selectedExerciseIds.size === 0} size="sm">
             Add {selectedExerciseIds.size > 0 ? `(${selectedExerciseIds.size})` : ''} Exercises
