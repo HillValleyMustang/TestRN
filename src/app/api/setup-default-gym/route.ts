@@ -1,4 +1,3 @@
-import { supabase } from '@/integrations/supabase/client';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -10,15 +9,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Authorization header missing' }, { status: 401 });
     }
 
-    const { data, error } = await supabase.functions.invoke('setup-default-gym', {
-      body: { gymId },
+    const SUPABASE_PROJECT_ID = 'mgbfevrzrbjjiajkqpti';
+    const EDGE_FUNCTION_URL = `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/setup-default-gym`;
+
+    const edgeFunctionResponse = await fetch(EDGE_FUNCTION_URL, {
+      method: 'POST',
       headers: {
-        Authorization: authHeader,
+        'Content-Type': 'application/json',
+        'Authorization': authHeader,
       },
+      body: JSON.stringify({ gymId }),
     });
 
-    if (error) {
-      throw new Error(error.message);
+    const data = await edgeFunctionResponse.json();
+
+    if (!edgeFunctionResponse.ok) {
+      return NextResponse.json({ error: data.error || 'Edge function error' }, { status: edgeFunctionResponse.status });
     }
 
     return NextResponse.json(data);
