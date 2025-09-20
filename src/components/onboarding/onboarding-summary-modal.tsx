@@ -51,7 +51,7 @@ export const OnboardingSummaryModal = ({ open, onOpenChange, summaryData, onClos
       <p className="text-sm text-muted-foreground">
         Your new Transformation Path, "<span className="font-semibold">{mainTPath.template_name}</span>", has been created with the following workouts:
       </p>
-      {childWorkouts.map(workout => {
+      {(childWorkouts || []).map(workout => {
         const Icon = getWorkoutIcon(workout.template_name);
         const workoutColorClass = getWorkoutColorClass(workout.template_name, 'text');
         const workoutBorderClass = getWorkoutColorClass(workout.template_name, 'border');
@@ -60,7 +60,7 @@ export const OnboardingSummaryModal = ({ open, onOpenChange, summaryData, onClos
             <h4 className={cn("font-semibold text-lg flex items-center gap-2", workoutColorClass)}>
               {Icon && <Icon className="h-5 w-5" />} {workout.template_name}
             </h4>
-            {workout.exercises.length > 0 ? (
+            {workout.exercises && workout.exercises.length > 0 ? (
               <ul className="text-sm text-muted-foreground mt-2 space-y-1">
                 {workout.exercises.map(ex => (
                   <li key={ex.id} className="flex items-center gap-2 p-2">
