@@ -29,6 +29,8 @@ serve(async (req: Request) => {
     if (userError || !user) throw new Error('Unauthorized');
     userId = user.id;
 
+    await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'in_progress', t_path_generation_error: null }).eq('id', userId);
+
     const { sourceGymId, targetGymId } = await req.json();
     if (!sourceGymId || !targetGymId) throw new Error('sourceGymId and targetGymId are required.');
     console.log(`[copy-gym-setup] Starting for user ${user.id}. Source: ${sourceGymId}, Target: ${targetGymId}`);
@@ -49,7 +51,7 @@ serve(async (req: Request) => {
     // If no source plan, we're done. Just copied exercises.
     if (sourceTPathError) {
       if (sourceTPathError.code === 'PGRST116') {
-        await supabaseServiceRoleClient.from('profiles').update({ active_gym_id: targetGymId }).eq('id', user.id);
+        await supabaseServiceRoleClient.from('profiles').update({ active_gym_id: targetGymId, t_path_generation_status: 'completed' }).eq('id', user.id);
         return new Response(JSON.stringify({ message: `Copied exercises. Source gym had no workout plan.` }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
       throw sourceTPathError;
@@ -115,7 +117,7 @@ serve(async (req: Request) => {
     }
 
     // 6. Update profile to make the new gym and T-Path active
-    await supabaseServiceRoleClient.from('profiles').update({ active_gym_id: targetGymId, active_t_path_id: targetMainTPath.id }).eq('id', user.id);
+    await supabaseServiceRoleClient.from('profiles').update({ active_gym_id: targetGymId, active_t_path_id: targetMainTPath.id, t_path_generation_status: 'completed' }).eq('id', user.id);
     console.log(`[copy-gym-setup] Updating profile to set active gym to ${targetGymId} and active T-Path to ${targetMainTPath.id}`);
 
     console.log(`[copy-gym-setup] Process completed successfully.`);
@@ -124,6 +126,9 @@ serve(async (req: Request) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : "An unknown error occurred";
     console.error("Error in copy-gym-setup edge function:", message);
+    if (userId) {
+      await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'failed', t_path_generation_error: message }).eq('id', userId);
+    }
     return new Response(JSON.stringify({ error: message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
