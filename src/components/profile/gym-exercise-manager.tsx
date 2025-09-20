@@ -508,9 +508,9 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
               </>
             )}
           </div>
-          <DialogFooter className="flex flex-col sm:flex-row gap-2 p-4 pt-2 border-t">
-            <Button variant="outline" onClick={handleCloseDialog} disabled={isSaving} className="flex-1 h-9 text-sm">Close</Button>
-            <Button onClick={handleSaveChanges} disabled={isSaving || !hasUnsavedChanges} className="flex-1 h-9 text-sm">Save Changes</Button>
+          <DialogFooter className="flex justify-end gap-2 p-4 pt-2 border-t">
+            <Button variant="outline" onClick={handleCloseDialog} disabled={isSaving} size="sm">Close</Button>
+            <Button onClick={handleSaveChanges} disabled={isSaving || !hasUnsavedChanges} size="sm">Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
