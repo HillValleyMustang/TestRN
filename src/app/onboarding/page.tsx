@@ -14,7 +14,6 @@ import { OnboardingStep8_FinalDetails } from "@/components/onboarding/onboarding
 import { useSession } from "@/components/session-context-provider";
 import { LoadingOverlay } from "@/components/loading-overlay";
 import { toast } from "sonner";
-import { OnboardingSummaryModal } from "@/components/onboarding/onboarding-summary-modal"; // Import the new modal
 
 export default function OnboardingPage() {
   const { session } = useSession();
@@ -49,10 +48,6 @@ export default function OnboardingPage() {
     toggleConfirmedExercise,
     gymName,
     setGymName,
-    summaryData,
-    isSummaryModalOpen,
-    setIsSummaryModalOpen,
-    handleCloseSummaryModal,
   } = useOnboardingForm();
 
   const [fullName, setFullName] = useState('');
@@ -247,12 +242,6 @@ export default function OnboardingPage() {
           description={loading ? "Finalizing your profile details." : "Please wait while we generate your initial workout programs."}
         />
       </div>
-      <OnboardingSummaryModal
-        open={isSummaryModalOpen}
-        onOpenChange={setIsSummaryModalOpen}
-        summaryData={summaryData}
-        onClose={handleCloseSummaryModal}
-      />
     </>
   );
 }

@@ -185,8 +185,6 @@ serve(async (req: Request) => {
     if (userError || !user) throw new Error('Unauthorized');
     userId = user.id;
 
-    await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'in_progress', t_path_generation_error: null }).eq('id', userId);
-
     const {
       tPathType, experience, goalFocus, preferredMuscles, constraints,
       sessionLength, equipmentMethod, gymName, confirmedExercises,
@@ -197,6 +195,7 @@ serve(async (req: Request) => {
       throw new Error("Missing required onboarding data.");
     }
 
+    // --- Synchronous Part ---
     const { data: insertedGym, error: insertGymError } = await supabaseServiceRoleClient.from('gyms').insert({ user_id: user.id, name: gymName || "My Gym" }).select('id').single();
     if (insertGymError) throw insertGymError;
     const newGymId = insertedGym.id;
@@ -213,24 +212,19 @@ serve(async (req: Request) => {
 
     const exerciseIdsToLinkToGym = new Set<string>();
     const newExercisesToCreate = [];
-    const confirmedExercisesDataForPlan: ExerciseDefinition[] = [];
 
     for (const ex of (confirmedExercises || [])) {
       if (ex.existing_id) {
         exerciseIdsToLinkToGym.add(ex.existing_id);
-        confirmedExercisesDataForPlan.push({ id: ex.existing_id, name: ex.name!, user_id: null, library_id: null, movement_type: ex.movement_type || null, movement_pattern: ex.movement_pattern || null, main_muscle: ex.main_muscle! });
       } else {
         newExercisesToCreate.push({ name: ex.name!, main_muscle: ex.main_muscle!, type: ex.type!, category: ex.category, description: ex.description, pro_tip: ex.pro_tip, video_url: ex.video_url, icon_url: ex.icon_url, user_id: user.id, library_id: null, is_favorite: false, created_at: new Date().toISOString(), movement_type: ex.movement_type, movement_pattern: ex.movement_pattern });
       }
     }
 
     if (newExercisesToCreate.length > 0) {
-      const { data: insertedExercises, error: insertExError } = await supabaseServiceRoleClient.from('exercise_definitions').insert(newExercisesToCreate).select('*');
+      const { data: insertedExercises, error: insertExError } = await supabaseServiceRoleClient.from('exercise_definitions').insert(newExercisesToCreate).select('id');
       if (insertExError) throw insertExError;
-      insertedExercises.forEach((ex: any) => {
-        exerciseIdsToLinkToGym.add(ex.id);
-        confirmedExercisesDataForPlan.push(ex);
-      });
+      insertedExercises.forEach((ex: any) => exerciseIdsToLinkToGym.add(ex.id));
     }
 
     if (exerciseIdsToLinkToGym.size > 0) {
@@ -242,44 +236,26 @@ serve(async (req: Request) => {
     const nameParts = fullName.split(' ');
     const firstName = nameParts.shift() || '';
     const lastName = nameParts.join(' ') || '';
-    const profileData = { id: user.id, first_name: firstName, last_name: lastName, full_name: fullName, height_cm: heightCm, weight_kg: weightKg, body_fat_pct: bodyFatPct, preferred_muscles: preferredMuscles, primary_goal: goalFocus, health_notes: constraints, default_rest_time_seconds: 60, preferred_session_length: sessionLength, active_t_path_id: activeTPath.id, active_gym_id: newGymId, programme_type: tPathType };
-    const { data: upsertedProfile, error: profileError } = await supabaseServiceRoleClient.from('profiles').upsert(profileData).select().single();
+    const profileData = { id: user.id, first_name: firstName, last_name: lastName, full_name: fullName, height_cm: heightCm, weight_kg: weightKg, body_fat_pct: bodyFatPct, preferred_muscles: preferredMuscles, primary_goal: goalFocus, health_notes: constraints, default_rest_time_seconds: 60, preferred_session_length: sessionLength, active_t_path_id: activeTPath.id, active_gym_id: newGymId, programme_type: tPathType, t_path_generation_status: 'in_progress' };
+    const { error: profileError } = await supabaseServiceRoleClient.from('profiles').upsert(profileData);
     if (profileError) throw profileError;
 
-    const childWorkoutsWithExercises = [];
-    for (const tPath of insertedTPaths) {
-      await generateWorkoutPlanForTPath(supabaseServiceRoleClient, user.id, tPath.id, sessionLength, newGymId);
-      if (tPath.id === activeTPath.id) {
-        const { data: childWorkouts, error: childWorkoutsError } = await supabaseServiceRoleClient
-          .from('t_paths')
-          .select('*, t_path_exercises(*, exercise_definitions(*))')
-          .eq('parent_t_path_id', tPath.id);
-        if (childWorkoutsError) throw childWorkoutsError;
-
-        // Transform the data here to match client-side expectations
-        const transformedChildWorkouts = (childWorkouts || []).map((workout: any) => {
-          const exercises = (workout.t_path_exercises || []).map((tpe: any) => {
-            if (!tpe.exercise_definitions) return null;
-            return {
-              ...tpe.exercise_definitions,
-              is_bonus_exercise: tpe.is_bonus_exercise,
-            };
-          }).filter(Boolean);
-
-          const { t_path_exercises, ...restOfWorkout } = workout;
-          return {
-            ...restOfWorkout,
-            exercises: exercises,
-          };
-        });
-
-        childWorkoutsWithExercises.push(...transformedChildWorkouts);
+    // --- Asynchronous Part ---
+    (async () => {
+      try {
+        for (const tPath of insertedTPaths) {
+          await generateWorkoutPlanForTPath(supabaseServiceRoleClient, user.id, tPath.id, sessionLength, newGymId);
+        }
+        await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'completed', t_path_generation_error: null }).eq('id', userId);
+      } catch (generationError) {
+        const message = generationError instanceof Error ? generationError.message : "An unknown error occurred during plan generation.";
+        console.error("Error in background workout plan generation:", JSON.stringify(generationError, null, 2));
+        await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'failed', t_path_generation_error: message }).eq('id', userId);
       }
-    }
+    })();
 
-    await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'completed', t_path_generation_error: null }).eq('id', userId);
-
-    return new Response(JSON.stringify({ message: 'Onboarding completed successfully.', profile: upsertedProfile, mainTPath: activeTPath, childWorkouts: childWorkoutsWithExercises, identifiedExercises: confirmedExercises }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    // Return immediately
+    return new Response(JSON.stringify({ message: 'Onboarding process initiated successfully.' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
     const message = error instanceof Error ? error.message : "An unknown error occurred";

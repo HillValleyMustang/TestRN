@@ -35,10 +35,6 @@ export const useOnboardingForm = () => {
   const [isInitialSetupLoading, setIsInitialSetupLoading] = useState(false);
   const [gymName, setGymName] = useState<string>("");
 
-  // New state for the summary modal
-  const [summaryData, setSummaryData] = useState<OnboardingSummaryData | null>(null);
-  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
-
   const tPathDescriptions = {
     ulul: {
       title: "4-Day Upper/Lower (ULUL)",
@@ -163,9 +159,8 @@ export const useOnboardingForm = () => {
         throw new Error(data.error || 'Onboarding process failed.');
       }
 
-      // Instead of redirecting, set the summary data and open the modal
-      setSummaryData({ ...data, confirmedExerciseNames: confirmedExercises });
-      setIsSummaryModalOpen(true);
+      toast.success("Onboarding complete! Your personalized workout plan is being generated.");
+      router.push('/dashboard');
 
     } catch (error: any) {
       console.error("Onboarding failed:", error.message);
@@ -177,11 +172,6 @@ export const useOnboardingForm = () => {
     session, router, tPathType, experience, goalFocus, preferredMuscles,
     constraints, sessionLength, equipmentMethod, gymName, identifiedExercises, confirmedExercises
   ]);
-
-  const handleCloseSummaryModal = () => {
-    setIsSummaryModalOpen(false);
-    router.push('/dashboard');
-  };
 
   return {
     currentStep,
@@ -214,9 +204,5 @@ export const useOnboardingForm = () => {
     toggleConfirmedExercise,
     gymName,
     setGymName,
-    summaryData,
-    isSummaryModalOpen,
-    setIsSummaryModalOpen,
-    handleCloseSummaryModal,
   };
 };
