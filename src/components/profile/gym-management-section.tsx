@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { Tables, Profile } from '@/types/supabase';
 import { useGym } from '@/components/gym-context-provider';
 import { AddGymDialog } from './add-gym-dialog';
-import { GymExerciseManager } from './gym-exercise-manager'; // Import the NEW component
+import { ManageGymWorkoutsExercisesDialog } from './gym-exercise-manager'; // Import the NEW component
 
 type Gym = Tables<'gyms'>;
 
@@ -33,7 +33,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isLastGymWarningOpen, setIsLastGymWarningOpen] = useState(false);
-  const [isManageExercisesDialogOpen, setIsManageExercisesDialogOpen] = useState(false);
+  const [isManageExercisesDialogOpen, setIsManageExercisesDialogOpen] = useState(false); // Renamed state
 
   const [selectedGym, setSelectedGym] = useState<Gym | null>(null);
   const [newGymName, setNewGymName] = useState("");
@@ -247,7 +247,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
         </AlertDialogContent>
       </AlertDialog>
 
-      <GymExerciseManager
+      <ManageGymWorkoutsExercisesDialog // Changed to the new component name
         open={isManageExercisesDialogOpen}
         onOpenChange={setIsManageExercisesDialogOpen}
         gym={selectedGym}

@@ -18,6 +18,7 @@ import type { GetLastExerciseSetsForExerciseReturns } from "./supabase-generated
 import type { GetTotalCompletedExerciseInstancesArgs, GetTotalCompletedExerciseInstancesReturns } from "./supabase-generated/functions/get_total_completed_exercise_instances";
 import type { BodyFatReferenceImagesRow } from "./supabase-generated/tables/body_fat_reference_images";
 import type { UserAlertsRow } from "./supabase-generated/tables/user_alerts";
+import type { ExerciseDefinitionsRow } from "./supabase-generated/tables/exercise_definitions"; // Import ExerciseDefinitionsRow
 
 export type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums, GetLastExerciseSetsForExerciseReturns, GetTotalCompletedExerciseInstancesArgs, GetTotalCompletedExerciseInstancesReturns }; // Export new RPC types
 
@@ -112,4 +113,13 @@ export interface WorkoutSessionWithAggregatedDetails extends Tables<'workout_ses
 export interface GroupedTPath {
   mainTPath: Tables<'t_paths'>;
   childWorkouts: WorkoutWithLastCompleted[];
+}
+
+// NEW: WorkoutExerciseWithDetails type for exercises in a workout template
+export interface WorkoutExerciseWithDetails extends ExerciseDefinitionsRow {
+  id: string; // Ensure ID is always present
+  name: string; // Ensure name is always present
+  order_index: number;
+  is_bonus_exercise: boolean;
+  t_path_exercise_id: string; // ID from t_path_exercises table
 }
