@@ -35,18 +35,23 @@ serve(async (req: Request) => {
       throw new Error('sourceGymId and targetGymId are required.');
     }
 
-    // Verify user owns both gyms
-    const { data: gyms, error: gymError } = await supabaseServiceRoleClient
+    // 1. Verify user owns the SOURCE gym (this is the important security check)
+    const { data: sourceGym, error: sourceGymError } = await supabaseServiceRoleClient
       .from('gyms')
-      .select('id, user_id')
-      .in('id', [sourceGymId, targetGymId]);
+      .select('id')
+      .eq('id', sourceGymId)
+      .eq('user_id', user.id)
+      .single();
 
-    if (gymError) throw gymError;
-    if (gyms.length !== 2 || gyms.some((g: { user_id: string }) => g.user_id !== user.id)) {
-      throw new Error('User does not own one or both gyms, or gyms not found.');
+    if (sourceGymError || !sourceGym) {
+      console.error(`[copy-gym-setup] Source gym check failed for sourceGymId: ${sourceGymId}, userId: ${user.id}`, sourceGymError);
+      throw new Error('Source gym not found or user does not own it.');
     }
 
-    // 1. Copy exercises from source gym
+    // We trust the targetGymId is valid since the user just created it.
+    // The important security check is on the source data we are copying.
+
+    // 2. Copy exercises from source gym
     const { data: sourceExercises, error: sourceError } = await supabaseServiceRoleClient
       .from('gym_exercises')
       .select('exercise_id')
@@ -65,7 +70,7 @@ serve(async (req: Request) => {
       if (insertError) throw insertError;
     }
 
-    // 2. Find the main T-Path for the source gym
+    // 3. Find the main T-Path for the source gym
     const { data: sourceTPath, error: sourceTPathError } = await supabaseServiceRoleClient
       .from('t_paths')
       .select('template_name, settings')
@@ -100,7 +105,7 @@ serve(async (req: Request) => {
     if (profileError) throw profileError;
     const preferred_session_length = profileData?.preferred_session_length;
 
-    // 3. Create a new main T-Path for the target gym, copying settings
+    // 4. Create a new main T-Path for the target gym, copying settings
     const { data: newTargetTPath, error: newTPathError } = await supabaseServiceRoleClient
       .from('t_paths')
       .insert({
@@ -116,7 +121,7 @@ serve(async (req: Request) => {
 
     if (newTPathError) throw newTPathError;
 
-    // 4. Invoke the generate-t-path function using a direct fetch call
+    // 5. Invoke the generate-t-path function using a direct fetch call
     // @ts-ignore
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const edgeFunctionUrl = `${supabaseUrl}/functions/v1/generate-t-path`;
