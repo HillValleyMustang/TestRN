@@ -94,7 +94,7 @@ export const AddExercisesToWorkoutDialog = ({
             Select exercises to add to the current workout template.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex-grow flex flex-col"> {/* Removed h-full from here */}
+        <div className="flex-grow flex flex-col min-h-0"> {/* Added min-h-0 here */}
           {/* Filters and Search */}
           <div className="flex flex-col sm:flex-row gap-2 mb-4">
             <div className="flex sm:w-1/3">
