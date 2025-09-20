@@ -76,7 +76,6 @@ serve(async (req: Request) => {
 
     if (sourceTPathError) {
       if (sourceTPathError.code === 'PGRST116') { // No rows found
-        // Update the user's active_gym_id even if no T-Path was copied
         const { error: updateProfileError } = await supabaseServiceRoleClient
           .from('profiles')
           .update({ active_gym_id: targetGymId })
@@ -93,7 +92,6 @@ serve(async (req: Request) => {
       throw sourceTPathError;
     }
     
-    // Fetch user's preferred session length
     const { data: profileData, error: profileError } = await supabaseServiceRoleClient
       .from('profiles')
       .select('preferred_session_length')
@@ -101,7 +99,6 @@ serve(async (req: Request) => {
       .single();
     if (profileError) throw profileError;
     const preferred_session_length = profileData?.preferred_session_length;
-
 
     // 3. Create a new main T-Path for the target gym, copying settings
     const { data: newTargetTPath, error: newTPathError } = await supabaseServiceRoleClient
@@ -119,20 +116,30 @@ serve(async (req: Request) => {
 
     if (newTPathError) throw newTPathError;
 
-    // 4. Invoke the generate-t-path function for the new T-Path
-    const { data: invokeData, error: invokeError } = await supabaseServiceRoleClient.functions.invoke('generate-t-path', {
-      body: { 
-        tPathId: newTargetTPath.id,
-        preferred_session_length: preferred_session_length // Pass the session length
+    // 4. Invoke the generate-t-path function using a direct fetch call
+    // @ts-ignore
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const edgeFunctionUrl = `${supabaseUrl}/functions/v1/generate-t-path`;
+    
+    console.log(`[copy-gym-setup] Invoking generate-t-path at: ${edgeFunctionUrl}`);
+    const invokeResponse = await fetch(edgeFunctionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader, // Forward the original user's auth header
       },
+      body: JSON.stringify({ 
+        tPathId: newTargetTPath.id,
+        preferred_session_length: preferred_session_length
+      }),
     });
 
-    if (invokeError) {
-      console.error("Failed to trigger workout generation for new gym:", invokeError);
-      // Log the full error object from the invocation
-      console.error("generate-t-path invocation error details:", JSON.stringify(invokeError, null, 2));
-    } else {
-      console.log("generate-t-path invocation successful. Response:", JSON.stringify(invokeData, null, 2));
+    const invokeData = await invokeResponse.json();
+    console.log(`[copy-gym-setup] generate-t-path response status: ${invokeResponse.status}`);
+    console.log(`[copy-gym-setup] generate-t-path response body:`, invokeData);
+
+    if (!invokeResponse.ok) {
+      throw new Error(invokeData.error || `Failed to invoke generate-t-path. Status: ${invokeResponse.status}`);
     }
 
     // Update the user's active_gym_id in their profile
@@ -143,8 +150,6 @@ serve(async (req: Request) => {
 
     if (updateProfileError) {
       console.error("Failed to update user's active_gym_id after copying gym setup:", updateProfileError);
-      // Do not throw, as the main operation (copying T-Path) succeeded.
-      // Log an alert for the user if this is critical.
     }
 
     return new Response(JSON.stringify({ message: `Successfully copied setup and initiated workout plan generation for new gym.` }), {
