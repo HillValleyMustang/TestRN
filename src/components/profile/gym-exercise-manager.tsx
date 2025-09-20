@@ -57,37 +57,43 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
   const [addExerciseSourceFilter, setAddExerciseSourceFilter] = useState<'my-exercises' | 'global-library'>('my-exercises');
 
   const fetchData = useCallback(async () => {
-    if (!session || !gym) {
-      console.log("[ManageGymWorkoutsExercisesDialog] Skipping fetchData: session or gym is null.", { session: !!session, gym: !!gym });
+    if (!session || !gym || !profile) { // Ensure profile is available
+      console.log("[ManageGymWorkoutsExercisesDialog] Skipping fetchData: session, gym, or profile is null.", { session: !!session, gym: !!gym, profile: !!profile });
       setLoading(false);
       return;
     }
     setLoading(true);
     console.log("[ManageGymWorkoutsExercisesDialog] Starting fetchData for gym:", gym.name, "ID:", gym.id, "User ID:", session.user.id);
     try {
-      // 1. Fetch the main T-Path for this gym
-      console.log(`[ManageGymWorkoutsExercisesDialog] Querying t_paths for gym_id: ${gym.id}, user_id: ${session.user.id}, parent_t_path_id: null`);
-      const { data: mainTPathData, error: mainTPathError } = await supabase
-        .from('t_paths')
-        .select('*')
-        .eq('gym_id', gym.id)
-        .eq('user_id', session.user.id)
-        .is('parent_t_path_id', null)
-        .single();
+      // 1. Get the active_t_path_id from the user's profile
+      const activeTPathId = profile.active_t_path_id;
+      console.log(`[ManageGymWorkoutsExercisesDialog] User's active_t_path_id: ${activeTPathId}`);
 
-      if (mainTPathError) {
-        if (mainTPathError.code !== 'PGRST116') { // PGRST116 means no rows found
-          console.error("[ManageGymWorkoutsExercisesDialog] Error fetching main T-Path (not PGRST116):", mainTPathError);
-          throw mainTPathError;
-        } else {
-          console.log("[ManageGymWorkoutsExercisesDialog] No main T-Path found for this gym (PGRST116).");
+      let mainTPathData: TPath | null = null;
+      if (activeTPathId) {
+        // 2. Fetch the specific main T-Path using the active_t_path_id
+        console.log(`[ManageGymWorkoutsExercisesDialog] Querying t_paths for id: ${activeTPathId}, gym_id: ${gym.id}, user_id: ${session.user.id}`);
+        const { data, error } = await supabase
+          .from('t_paths')
+          .select('*')
+          .eq('id', activeTPathId)
+          .eq('gym_id', gym.id)
+          .eq('user_id', session.user.id)
+          .is('parent_t_path_id', null) // Ensure it's a main T-Path
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error("[ManageGymWorkoutsExercisesDialog] Error fetching active main T-Path:", error);
+          throw error;
         }
+        mainTPathData = data;
       }
+      
       console.log("[ManageGymWorkoutsExercisesDialog] Fetched main T-Path data:", mainTPathData);
       setMainTPath(mainTPathData);
 
       if (!mainTPathData) {
-        console.log("[ManageGymWorkoutsExercisesDialog] No main T-Path found for this gym. Displaying setup prompt.");
+        console.log("[ManageGymWorkoutsExercisesDialog] No active main T-Path found for this gym. Displaying setup prompt.");
         setChildWorkouts([]);
         setAllExercises([]);
         setExercisesInSelectedWorkout([]);
@@ -161,7 +167,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
     } finally {
       setLoading(false);
     }
-  }, [session, supabase, gym, selectedWorkoutId]); // Added selectedWorkoutId to dependencies to re-fetch when it changes
+  }, [session, supabase, gym, profile, selectedWorkoutId]); // Added profile to dependencies to re-fetch when it changes
 
   // Add a refresh function for the dialog itself
   const refreshDialogData = useCallback(() => {
@@ -332,7 +338,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
             ) : !mainTPath ? (
               <div className="text-center text-muted-foreground">
                 {/* Display SetupGymPlanPrompt if no mainTPath is found */}
-                <SetupGymPlanPrompt gym={gym} onSetupSuccess={refreshDialogData} />
+                <SetupGymPlanPrompt gym={gym} onSetupSuccess={refreshDialogData} profile={profile} />
               </div>
             ) : (
               <>

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { AlertTriangle, Copy, Sparkles } from 'lucide-react';
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
-import { Tables } from '@/types/supabase';
+import { Tables, Profile } from '@/types/supabase'; // Import Profile type
 import { CopyGymSetupDialog } from '@/components/profile/copy-gym-setup-dialog';
 
 type Gym = Tables<'gyms'>;
@@ -14,9 +14,10 @@ type Gym = Tables<'gyms'>;
 interface SetupGymPlanPromptProps {
   gym: Gym;
   onSetupSuccess: () => void;
+  profile: Profile | null; // NEW: Added profile prop
 }
 
-export const SetupGymPlanPrompt = ({ gym, onSetupSuccess }: SetupGymPlanPromptProps) => {
+export const SetupGymPlanPrompt = ({ gym, onSetupSuccess, profile }: SetupGymPlanPromptProps) => {
   const { session, supabase } = useSession();
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
   const [sourceGyms, setSourceGyms] = useState<Gym[]>([]);
