@@ -79,6 +79,8 @@ serve(async (req: Request) => {
     console.log(`[generate-t-path] User ${userId}: Initiating T-Path generation for tPathId: ${tPathId}`);
     await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'in_progress', t_path_generation_error: null }).eq('id', userId);
 
+    // Wrap the main logic in an immediately invoked async function to allow for background processing
+    // and to catch errors that occur after the initial response is sent.
     (async () => {
       try {
         const { data: tPathData, error: tPathError } = await supabaseServiceRoleClient.from('t_paths').select('id, settings, user_id').eq('id', tPathId).eq('user_id', user.id).single();
@@ -94,6 +96,7 @@ serve(async (req: Request) => {
           sessionLength = (profileData as ProfileData)?.preferred_session_length;
           activeGymId = (profileData as ProfileData)?.active_gym_id;
         } else {
+          // If preferred_session_length is provided, we still need active_gym_id from profile
           const { data: profileData, error: profileError } = await supabaseServiceRoleClient.from('profiles').select('active_gym_id').eq('id', user.id).single();
           if (profileError) throw profileError;
           activeGymId = (profileData as ProfileData)?.active_gym_id;
@@ -107,7 +110,7 @@ serve(async (req: Request) => {
         const { data: allGymLinks, error: allGymLinksError } = await supabaseServiceRoleClient.from('gym_exercises').select('exercise_id');
         if (allGymLinksError) throw allGymLinksError;
         const allLinkedExerciseIds = new Set((allGymLinks || []).map((l: { exercise_id: string }) => l.exercise_id));
-        console.log(`[generate-t-path] Total exercises linked to any gym: ${allLinkedExerciseIds.size}`);
+        console.log(`[generate-t-path] Total exercises linked to any gym (allLinkedExerciseIds): ${allLinkedExerciseIds.size}`);
 
         console.log(`[generate-t-path] Deleting old child workouts and their exercises for parent T-Path ${tPathId}`);
         const { data: oldChildWorkouts, error: fetchOldError } = await supabaseServiceRoleClient.from('t_paths').select('id').eq('parent_t_path_id', tPathId).eq('user_id', user.id);
@@ -169,12 +172,17 @@ serve(async (req: Request) => {
             console.log(`[generate-t-path] Active gym ${activeGymId} has ${activeGymExerciseIds.size} linked exercises.`);
           }
 
+          // Tiered selection logic
           const tier1Pool = candidatePool.filter(ex => ex.user_id === user.id); // User's custom exercises
-          const tier2Pool = candidatePool.filter(ex => ex.user_id === null && !allLinkedExerciseIds.has(ex.id)); // Global bodyweight
-          const tier3Pool = candidatePool.filter(ex => ex.user_id === null && activeGymExerciseIds.has(ex.id)); // Global gym-specific
+          const tier2Pool = candidatePool.filter(ex => ex.user_id === null && !allLinkedExerciseIds.has(ex.id)); // Global bodyweight (not linked to any gym)
+          const tier3Pool = candidatePool.filter(ex => ex.user_id === null && activeGymExerciseIds.has(ex.id)); // Global gym-specific (linked to active gym)
+
+          console.log(`[generate-t-path] Tier 1 (User Custom) for ${workoutName}: ${tier1Pool.length} exercises`);
+          console.log(`[generate-t-path] Tier 2 (Global Bodyweight) for ${workoutName}: ${tier2Pool.length} exercises`);
+          console.log(`[generate-t-path] Tier 3 (Global Gym-Specific) for ${workoutName}: ${tier3Pool.length} exercises`);
 
           const finalPool = [...tier1Pool, ...tier2Pool, ...tier3Pool];
-          const finalUniquePool = [...new Map(finalPool.map(item => [item.id, item])).values()];
+          const finalUniquePool = [...new Map(finalPool.map(item => [item.id, item])).values()]; // Ensure uniqueness
           console.log(`[generate-t-path] Final unique pool for ${workoutName}: ${finalUniquePool.length} exercises`);
           
           const mainExercisesForWorkout = finalUniquePool.slice(0, maxMainExercises);
