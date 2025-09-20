@@ -250,8 +250,30 @@ serve(async (req: Request) => {
     for (const tPath of insertedTPaths) {
       await generateWorkoutPlanForTPath(supabaseServiceRoleClient, user.id, tPath.id, sessionLength, newGymId);
       if (tPath.id === activeTPath.id) {
-        const { data: childWorkouts } = await supabaseServiceRoleClient.from('t_paths').select('*, t_path_exercises(*, exercise_definitions(*))').eq('parent_t_path_id', tPath.id);
-        childWorkoutsWithExercises.push(...(childWorkouts || []));
+        const { data: childWorkouts, error: childWorkoutsError } = await supabaseServiceRoleClient
+          .from('t_paths')
+          .select('*, t_path_exercises(*, exercise_definitions(*))')
+          .eq('parent_t_path_id', tPath.id);
+        if (childWorkoutsError) throw childWorkoutsError;
+
+        // Transform the data here to match client-side expectations
+        const transformedChildWorkouts = (childWorkouts || []).map((workout: any) => {
+          const exercises = (workout.t_path_exercises || []).map((tpe: any) => {
+            if (!tpe.exercise_definitions) return null;
+            return {
+              ...tpe.exercise_definitions,
+              is_bonus_exercise: tpe.is_bonus_exercise,
+            };
+          }).filter(Boolean);
+
+          const { t_path_exercises, ...restOfWorkout } = workout;
+          return {
+            ...restOfWorkout,
+            exercises: exercises,
+          };
+        });
+
+        childWorkoutsWithExercises.push(...transformedChildWorkouts);
       }
     }
 
