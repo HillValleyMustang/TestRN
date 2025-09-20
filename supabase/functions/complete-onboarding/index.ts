@@ -240,6 +240,8 @@ serve(async (req: Request) => {
     const { error: profileError } = await supabaseServiceRoleClient.from('profiles').upsert(profileData);
     if (profileError) throw profileError;
 
+    const childWorkoutsForSummary = insertedTPaths.filter((tp: any) => tp.parent_t_path_id === activeTPath.id);
+
     // --- Asynchronous Part ---
     (async () => {
       try {
@@ -254,8 +256,13 @@ serve(async (req: Request) => {
       }
     })();
 
-    // Return immediately
-    return new Response(JSON.stringify({ message: 'Onboarding process initiated successfully.' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    // Return immediately with summary data
+    return new Response(JSON.stringify({ 
+      message: 'Onboarding process initiated successfully.',
+      profile: profileData,
+      mainTPath: activeTPath,
+      childWorkouts: childWorkoutsForSummary,
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
     const message = error instanceof Error ? error.message : "An unknown error occurred";

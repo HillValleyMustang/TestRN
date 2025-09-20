@@ -8,11 +8,10 @@ import { Tables, TablesInsert, ProfileInsert, FetchedExerciseDefinition } from "
 import { v4 as uuidv4 } from 'uuid';
 
 // New type for the summary data structure
-type OnboardingSummaryData = {
-  profile: Tables<'profiles'>;
+export type OnboardingSummaryData = {
+  profile: Partial<ProfileInsert>;
   mainTPath: Tables<'t_paths'>;
-  childWorkouts: (Tables<'t_paths'> & { exercises: (Tables<'exercise_definitions'> & { is_bonus_exercise: boolean })[] })[];
-  identifiedExercises: Partial<FetchedExerciseDefinition>[];
+  childWorkouts: Tables<'t_paths'>[];
   confirmedExerciseNames: Set<string>;
 };
 
@@ -34,6 +33,7 @@ export const useOnboardingForm = () => {
   const [loading, setLoading] = useState(false);
   const [isInitialSetupLoading, setIsInitialSetupLoading] = useState(false);
   const [gymName, setGymName] = useState<string>("");
+  const [summaryData, setSummaryData] = useState<OnboardingSummaryData | null>(null);
 
   const tPathDescriptions = {
     ulul: {
@@ -110,7 +110,7 @@ export const useOnboardingForm = () => {
       setCurrentStep(6);
       return;
     }
-    if (currentStep < 8) {
+    if (currentStep < 9) {
       setCurrentStep(prev => prev + 1);
     }
   }, [currentStep, equipmentMethod]);
@@ -120,7 +120,9 @@ export const useOnboardingForm = () => {
       setCurrentStep(4);
       return;
     }
-    setCurrentStep(prev => prev - 1);
+    if (currentStep > 1) {
+      setCurrentStep(prev => prev - 1);
+    }
   }, [currentStep, equipmentMethod]);
 
   const handleSubmit = useCallback(async (fullName: string, heightCm: number, weightKg: number, bodyFatPct: number | null) => {
@@ -159,8 +161,14 @@ export const useOnboardingForm = () => {
         throw new Error(data.error || 'Onboarding process failed.');
       }
 
-      toast.success("Onboarding complete! Your personalized workout plan is being generated.");
-      router.push('/dashboard');
+      // Set summary data and move to the summary step
+      setSummaryData({
+        profile: data.profile,
+        mainTPath: data.mainTPath,
+        childWorkouts: data.childWorkouts,
+        confirmedExerciseNames: confirmedExercises,
+      });
+      setCurrentStep(9); // Go to summary step
 
     } catch (error: any) {
       console.error("Onboarding failed:", error.message);
@@ -172,6 +180,10 @@ export const useOnboardingForm = () => {
     session, router, tPathType, experience, goalFocus, preferredMuscles,
     constraints, sessionLength, equipmentMethod, gymName, identifiedExercises, confirmedExercises
   ]);
+
+  const handleFinish = useCallback(() => {
+    router.push('/dashboard');
+  }, [router]);
 
   return {
     currentStep,
@@ -204,5 +216,7 @@ export const useOnboardingForm = () => {
     toggleConfirmedExercise,
     gymName,
     setGymName,
+    summaryData,
+    handleFinish,
   };
 };
