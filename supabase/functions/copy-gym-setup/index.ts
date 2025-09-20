@@ -31,18 +31,20 @@ serve(async (req: Request) => {
 
     const { sourceGymId, targetGymId } = await req.json();
     if (!sourceGymId || !targetGymId) throw new Error('sourceGymId and targetGymId are required.');
+    console.log(`[copy-gym-setup] Starting for user ${user.id}. Source: ${sourceGymId}, Target: ${targetGymId}`);
 
     // 1. Copy gym_exercises from source to target
-    const { data: sourceExercises, error: sourceError } = await supabaseServiceRoleClient.from('gym_exercises').select('exercise_id').eq('gym_id', sourceGymId);
-    if (sourceError) throw sourceError;
+    const { data: sourceExercises, error: sourceExError } = await supabaseServiceRoleClient.from('gym_exercises').select('exercise_id').eq('gym_id', sourceGymId);
+    if (sourceExError) throw sourceExError;
     if (sourceExercises.length > 0) {
       const linksToCreate = sourceExercises.map((ex: { exercise_id: string }) => ({ gym_id: targetGymId, exercise_id: ex.exercise_id }));
-      const { error: insertError } = await supabaseServiceRoleClient.from('gym_exercises').insert(linksToCreate);
-      if (insertError) throw insertError;
+      const { error: insertLinksError } = await supabaseServiceRoleClient.from('gym_exercises').insert(linksToCreate);
+      if (insertLinksError) throw insertLinksError;
+      console.log(`[copy-gym-setup] Copied ${sourceExercises.length} gym exercise links.`);
     }
 
     // 2. Find source main T-Path
-    const { data: sourceTPath, error: sourceTPathError } = await supabaseServiceRoleClient.from('t_paths').select('id').eq('gym_id', sourceGymId).eq('user_id', user.id).is('parent_t_path_id', null).single();
+    const { data: sourceMainTPath, error: sourceTPathError } = await supabaseServiceRoleClient.from('t_paths').select('*').eq('gym_id', sourceGymId).eq('user_id', user.id).is('parent_t_path_id', null).single();
 
     // If no source plan, we're done. Just copied exercises.
     if (sourceTPathError) {
@@ -52,20 +54,71 @@ serve(async (req: Request) => {
       }
       throw sourceTPathError;
     }
+    console.log(`[copy-gym-setup] Found source main T-Path: ${sourceMainTPath.id}`);
 
-    // 3. Call the RPC function to clone the entire T-Path structure
-    const { data: newMainTPathId, error: rpcError } = await supabaseServiceRoleClient.rpc('clone_t_path_for_new_gym', {
-      source_t_path_id: sourceTPath.id,
-      new_user_id: user.id,
-      new_gym_id: targetGymId
-    });
+    // 3. Create new main T-Path for target gym
+    const { data: targetMainTPath, error: newTPathError } = await supabaseServiceRoleClient
+      .from('t_paths')
+      .insert({
+        user_id: user.id,
+        gym_id: targetGymId,
+        template_name: sourceMainTPath.template_name,
+        settings: sourceMainTPath.settings,
+        is_bonus: false,
+        parent_t_path_id: null,
+      })
+      .select('*')
+      .single();
+    if (newTPathError) throw newTPathError;
+    console.log(`[copy-gym-setup] Created target main T-Path: ${targetMainTPath.id}`);
 
-    if (rpcError) throw rpcError;
-    if (!newMainTPathId) throw new Error("Cloning the workout plan failed to return a new plan ID.");
+    // 4. Find source child workouts
+    const { data: sourceChildWorkouts, error: sourceChildError } = await supabaseServiceRoleClient.from('t_paths').select('*').eq('parent_t_path_id', sourceMainTPath.id);
+    if (sourceChildError) throw sourceChildError;
+    console.log(`[copy-gym-setup] Found ${sourceChildWorkouts.length} source child workouts.`);
 
-    // 4. Update profile to make the new gym and T-Path active
-    await supabaseServiceRoleClient.from('profiles').update({ active_gym_id: targetGymId, active_t_path_id: newMainTPathId }).eq('id', user.id);
+    // 5. Loop and copy child workouts and exercises
+    if (sourceChildWorkouts.length > 0) {
+      for (const sourceChild of sourceChildWorkouts) {
+        console.log(`[copy-gym-setup] Copying child workout: ${sourceChild.template_name}`);
+        const { data: newChild, error: newChildError } = await supabaseServiceRoleClient
+          .from('t_paths')
+          .insert({
+            user_id: user.id,
+            gym_id: targetGymId,
+            template_name: sourceChild.template_name,
+            settings: sourceChild.settings,
+            is_bonus: true,
+            parent_t_path_id: targetMainTPath.id,
+          })
+          .select('id')
+          .single();
+        if (newChildError) throw newChildError;
+        console.log(`[copy-gym-setup] Created new child workout with ID: ${newChild.id}`);
 
+        const { data: sourceTpeLinks, error: sourceTpeError } = await supabaseServiceRoleClient.from('t_path_exercises').select('*').eq('template_id', sourceChild.id);
+        if (sourceTpeError) throw sourceTpeError;
+        console.log(`[copy-gym-setup] Found ${sourceTpeLinks.length} exercises for source child ${sourceChild.id}`);
+
+        if (sourceTpeLinks.length > 0) {
+          const newTpeLinksToInsert = sourceTpeLinks.map((link: any) => ({
+            template_id: newChild.id,
+            exercise_id: link.exercise_id,
+            order_index: link.order_index,
+            is_bonus_exercise: link.is_bonus_exercise,
+          }));
+          const { error: insertTpeError } = await supabaseServiceRoleClient.from('t_path_exercises').insert(newTpeLinksToInsert);
+          if (insertTpeError) throw insertTpeError;
+          console.log(`[copy-gym-setup] Inserted ${newTpeLinksToInsert.length} exercises for new child ${newChild.id}`);
+        }
+      }
+    }
+
+    // 6. Update profile to make the new gym and T-Path active
+    await supabaseServiceRoleClient.from('profiles').update({ active_gym_id: targetGymId, active_t_path_id: targetMainTPath.id }).eq('id', user.id);
+    console.log(`[copy-gym-setup] Updating profile to set active gym to ${targetGymId} and active T-Path to ${targetMainTPath.id}`);
+
+    console.log(`[copy-gym-setup] Process completed successfully.`);
     return new Response(JSON.stringify({ message: `Successfully copied setup to new gym.` }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
