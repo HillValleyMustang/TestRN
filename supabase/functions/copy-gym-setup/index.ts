@@ -76,6 +76,16 @@ serve(async (req: Request) => {
 
     if (sourceTPathError) {
       if (sourceTPathError.code === 'PGRST116') { // No rows found
+        // NEW: Update the user's active_gym_id even if no T-Path was copied
+        const { error: updateProfileError } = await supabaseServiceRoleClient
+          .from('profiles')
+          .update({ active_gym_id: targetGymId })
+          .eq('id', user.id);
+
+        if (updateProfileError) {
+          console.error("Failed to update user's active_gym_id after copying gym setup (no T-Path):", updateProfileError);
+        }
+
         return new Response(JSON.stringify({ message: `Successfully copied ${sourceExercises.length} exercises. The source gym had no workout plan to copy.` }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -119,6 +129,18 @@ serve(async (req: Request) => {
 
     if (invokeError) {
       console.error("Failed to trigger workout generation for new gym:", invokeError);
+    }
+
+    // NEW: Update the user's active_gym_id in their profile
+    const { error: updateProfileError } = await supabaseServiceRoleClient
+      .from('profiles')
+      .update({ active_gym_id: targetGymId })
+      .eq('id', user.id);
+
+    if (updateProfileError) {
+      console.error("Failed to update user's active_gym_id after copying gym setup:", updateProfileError);
+      // Do not throw, as the main operation (copying T-Path) succeeded.
+      // Log an alert for the user if this is critical.
     }
 
     return new Response(JSON.stringify({ message: `Successfully copied setup and initiated workout plan generation for new gym.` }), {
