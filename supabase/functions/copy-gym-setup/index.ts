@@ -99,26 +99,25 @@ serve(async (req: Request) => {
       .select('id').single();
     if (newTPathError) throw newTPathError;
 
-    // 5. Invoke the generate-t-path function using a direct fetch call with the required apikey
-    // @ts-ignore
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    // @ts-ignore
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
-    const edgeFunctionUrl = `${supabaseUrl}/functions/v1/generate-t-path`;
-    
-    const invokeResponse = await fetch(edgeFunctionUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': authHeader,
-        'apikey': supabaseAnonKey, // This was the missing piece
+    // 5. Invoke the generate-t-path function using the official Supabase client method
+    const supabaseClientWithUserAuth = createClient(
+      // @ts-ignore
+      Deno.env.get('SUPABASE_URL') ?? '',
+      // @ts-ignore
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { error: invokeError } = await supabaseClientWithUserAuth.functions.invoke('generate-t-path', {
+      body: { 
+        tPathId: newTargetTPath.id,
+        preferred_session_length: preferred_session_length
       },
-      body: JSON.stringify({ tPathId: newTargetTPath.id, preferred_session_length }),
     });
 
-    if (!invokeResponse.ok) {
-      const invokeData = await invokeResponse.json();
-      throw new Error(invokeData.error || `Failed to invoke generate-t-path. Status: ${invokeResponse.status}`);
+    if (invokeError) {
+      console.error(`[copy-gym-setup] Error invoking generate-t-path:`, invokeError);
+      throw new Error(invokeError.message || `Failed to invoke generate-t-path.`);
     }
 
     // Update the user's active_gym_id
