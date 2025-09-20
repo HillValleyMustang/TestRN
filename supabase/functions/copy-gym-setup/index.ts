@@ -34,7 +34,7 @@ serve(async (req: Request) => {
     const { sourceGymId, targetGymId } = await req.json();
     if (!sourceGymId || !targetGymId) throw new Error('sourceGymId and targetGymId are required.');
 
-    // Call the new PostgreSQL function to handle the transactional copy
+    // Call the new, safe PostgreSQL function to handle the transactional copy
     const { data: newMainTPathId, error: rpcError } = await supabaseServiceRoleClient.rpc('clone_gym_setup', {
       source_gym_id_in: sourceGymId,
       target_gym_id_in: targetGymId,
@@ -46,8 +46,7 @@ serve(async (req: Request) => {
       throw rpcError;
     }
 
-    // Update profile to make the new gym and T-Path active
-    // newMainTPathId can be null if the source gym had no plan, which is fine.
+    // Update profile to make the new gym and its new workout plan active
     await supabaseServiceRoleClient
       .from('profiles')
       .update({ active_gym_id: targetGymId, active_t_path_id: newMainTPathId })
