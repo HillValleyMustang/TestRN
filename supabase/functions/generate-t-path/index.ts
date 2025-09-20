@@ -60,7 +60,7 @@ const sortExercises = (exercises: ExerciseDefinition[]) => {
 
 // --- Main Serve Function ---
 serve(async (req: Request) => {
-  console.log("[generate-t-path] Edge Function started."); // NEW: Log at the very beginning
+  console.log("[generate-t-path] Edge Function started.");
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   let userId: string | null = null;
@@ -79,140 +79,131 @@ serve(async (req: Request) => {
     console.log(`[generate-t-path] User ${userId}: Initiating T-Path generation for tPathId: ${tPathId}`);
     await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'in_progress', t_path_generation_error: null }).eq('id', userId);
 
-    // Wrap the main logic in an immediately invoked async function to allow for background processing
-    // and to catch errors that occur after the initial response is sent.
-    (async () => {
-      try {
-        const { data: tPathData, error: tPathError } = await supabaseServiceRoleClient.from('t_paths').select('id, settings, user_id').eq('id', tPathId).eq('user_id', user.id).single();
-        if (tPathError || !tPathData) throw new Error('Main T-Path not found.');
-        console.log(`[generate-t-path] Fetched main T-Path data: ${JSON.stringify(tPathData)}`);
+    // Main logic is now awaited directly
+    const { data: tPathData, error: tPathError } = await supabaseServiceRoleClient.from('t_paths').select('id, settings, user_id').eq('id', tPathId).eq('user_id', user.id).single();
+    if (tPathError || !tPathData) throw new Error('Main T-Path not found.');
+    console.log(`[generate-t-path] Fetched main T-Path data: ${JSON.stringify(tPathData)}`);
 
-        let sessionLength = preferred_session_length;
-        let activeGymId: string | null = null;
+    let sessionLength = preferred_session_length;
+    let activeGymId: string | null = null;
 
-        if (!sessionLength) {
-          const { data: profileData, error: profileError } = await supabaseServiceRoleClient.from('profiles').select('preferred_session_length, active_gym_id').eq('id', user.id).single();
-          if (profileError) throw profileError;
-          sessionLength = (profileData as ProfileData)?.preferred_session_length;
-          activeGymId = (profileData as ProfileData)?.active_gym_id;
-        } else {
-          // If preferred_session_length is provided, we still need active_gym_id from profile
-          const { data: profileData, error: profileError } = await supabaseServiceRoleClient.from('profiles').select('active_gym_id').eq('id', user.id).single();
-          if (profileError) throw profileError;
-          activeGymId = (profileData as ProfileData)?.active_gym_id;
-        }
-        console.log(`[generate-t-path] Session Length: ${sessionLength}, Active Gym ID: ${activeGymId}`);
+    if (!sessionLength) {
+      const { data: profileData, error: profileError } = await supabaseServiceRoleClient.from('profiles').select('preferred_session_length, active_gym_id').eq('id', user.id).single();
+      if (profileError) throw profileError;
+      sessionLength = (profileData as ProfileData)?.preferred_session_length;
+      activeGymId = (profileData as ProfileData)?.active_gym_id;
+    } else {
+      const { data: profileData, error: profileError } = await supabaseServiceRoleClient.from('profiles').select('active_gym_id').eq('id', user.id).single();
+      if (profileError) throw profileError;
+      activeGymId = (profileData as ProfileData)?.active_gym_id;
+    }
+    console.log(`[generate-t-path] Session Length: ${sessionLength}, Active Gym ID: ${activeGymId}`);
 
-        const { data: allExercises, error: fetchAllExercisesError } = await supabaseServiceRoleClient.from('exercise_definitions').select('*');
-        if (fetchAllExercisesError) throw fetchAllExercisesError;
-        console.log(`[generate-t-path] Fetched ${allExercises?.length || 0} total exercise definitions.`);
+    const { data: allExercises, error: fetchAllExercisesError } = await supabaseServiceRoleClient.from('exercise_definitions').select('*');
+    if (fetchAllExercisesError) throw fetchAllExercisesError;
+    console.log(`[generate-t-path] Fetched ${allExercises?.length || 0} total exercise definitions.`);
 
-        const { data: allGymLinks, error: allGymLinksError } = await supabaseServiceRoleClient.from('gym_exercises').select('exercise_id');
-        if (allGymLinksError) throw allGymLinksError;
-        const allLinkedExerciseIds = new Set((allGymLinks || []).map((l: { exercise_id: string }) => l.exercise_id));
-        console.log(`[generate-t-path] Total exercises linked to any gym (allLinkedExerciseIds): ${allLinkedExerciseIds.size}`);
+    const { data: allGymLinks, error: allGymLinksError } = await supabaseServiceRoleClient.from('gym_exercises').select('exercise_id');
+    if (allGymLinksError) throw allGymLinksError;
+    const allLinkedExerciseIds = new Set((allGymLinks || []).map((l: { exercise_id: string }) => l.exercise_id));
+    console.log(`[generate-t-path] Total exercises linked to any gym (allLinkedExerciseIds): ${allLinkedExerciseIds.size}`);
 
-        console.log(`[generate-t-path] Deleting old child workouts and their exercises for parent T-Path ${tPathId}`);
-        const { data: oldChildWorkouts, error: fetchOldError } = await supabaseServiceRoleClient.from('t_paths').select('id').eq('parent_t_path_id', tPathId).eq('user_id', user.id);
-        if (fetchOldError) throw fetchOldError;
-        if (oldChildWorkouts && oldChildWorkouts.length > 0) {
-          const oldChildIds = oldChildWorkouts.map((w: { id: string }) => w.id);
-          console.log(`[generate-t-path] Found ${oldChildIds.length} old child workouts: ${oldChildIds.join(', ')}`);
-          await supabaseServiceRoleClient.from('t_path_exercises').delete().in('template_id', oldChildIds);
-          await supabaseServiceRoleClient.from('t_paths').delete().in('id', oldChildIds);
-          console.log(`[generate-t-path] Successfully deleted old child workouts and their exercises.`);
-        } else {
-          console.log(`[generate-t-path] No old child workouts found to delete.`);
-        }
+    console.log(`[generate-t-path] Deleting old child workouts and their exercises for parent T-Path ${tPathId}`);
+    const { data: oldChildWorkouts, error: fetchOldError } = await supabaseServiceRoleClient.from('t_paths').select('id').eq('parent_t_path_id', tPathId).eq('user_id', user.id);
+    if (fetchOldError) throw fetchOldError;
+    if (oldChildWorkouts && oldChildWorkouts.length > 0) {
+      const oldChildIds = oldChildWorkouts.map((w: { id: string }) => w.id);
+      console.log(`[generate-t-path] Found ${oldChildIds.length} old child workouts: ${oldChildIds.join(', ')}`);
+      await supabaseServiceRoleClient.from('t_path_exercises').delete().in('template_id', oldChildIds);
+      await supabaseServiceRoleClient.from('t_paths').delete().in('id', oldChildIds);
+      console.log(`[generate-t-path] Successfully deleted old child workouts and their exercises.`);
+    } else {
+      console.log(`[generate-t-path] No old child workouts found to delete.`);
+    }
 
-        const tPathSettings = tPathData.settings as { tPathType?: string };
-        if (!tPathSettings?.tPathType) throw new Error('Invalid T-Path settings.');
-        const workoutSplit = tPathSettings.tPathType;
-        const { main: maxMainExercises, bonus: maxBonusExercises } = getExerciseCounts(sessionLength);
-        const workoutNames = getWorkoutNamesForSplit(workoutSplit);
-        console.log(`[generate-t-path] Workout Split: ${workoutSplit}, Workout Names: ${workoutNames.join(', ')}`);
-        console.log(`[generate-t-path] Max Main Exercises: ${maxMainExercises}, Max Bonus Exercises: ${maxBonusExercises}`);
+    const tPathSettings = tPathData.settings as { tPathType?: string };
+    if (!tPathSettings?.tPathType) throw new Error('Invalid T-Path settings.');
+    const workoutSplit = tPathSettings.tPathType;
+    const { main: maxMainExercises, bonus: maxBonusExercises } = getExerciseCounts(sessionLength);
+    const workoutNames = getWorkoutNamesForSplit(workoutSplit);
+    console.log(`[generate-t-path] Workout Split: ${workoutSplit}, Workout Names: ${workoutNames.join(', ')}`);
+    console.log(`[generate-t-path] Max Main Exercises: ${maxMainExercises}, Max Bonus Exercises: ${maxBonusExercises}`);
 
-        const workoutSpecificPools: Record<string, ExerciseDefinition[]> = {};
-        if (workoutSplit === 'ulul') {
-          const UPPER_BODY_MUSCLES = new Set(['Pectorals', 'Deltoids', 'Lats', 'Traps', 'Biceps', 'Triceps', 'Abdominals', 'Core']);
-          const LOWER_BODY_MUSCLES = new Set(['Quadriceps', 'Hamstrings', 'Glutes', 'Calves']);
-          const upperPool = (allExercises || []).filter((ex: any) => musclesIntersect(ex.main_muscle, UPPER_BODY_MUSCLES));
-          const lowerPool = (allExercises || []).filter((ex: any) => musclesIntersect(ex.main_muscle, LOWER_BODY_MUSCLES));
-          workoutSpecificPools['Upper Body A'] = []; workoutSpecificPools['Upper Body B'] = [];
-          workoutSpecificPools['Lower Body A'] = []; workoutSpecificPools['Lower Body B'] = [];
-          sortExercises(upperPool).forEach((ex, i) => workoutSpecificPools[i % 2 === 0 ? 'Upper Body A' : 'Upper Body B'].push(ex));
-          sortExercises(lowerPool).forEach((ex, i) => workoutSpecificPools[i % 2 === 0 ? 'Lower Body A' : 'Lower Body B'].push(ex));
-          console.log(`[generate-t-path] ULUL Pools - Upper A: ${workoutSpecificPools['Upper Body A'].length}, Upper B: ${workoutSpecificPools['Upper Body B'].length}, Lower A: ${workoutSpecificPools['Lower Body A'].length}, Lower B: ${workoutSpecificPools['Lower Body B'].length}`);
-        } else { // ppl
-          workoutSpecificPools['Push'] = sortExercises((allExercises || []).filter((ex: any) => ex.movement_pattern === 'Push'));
-          workoutSpecificPools['Pull'] = sortExercises((allExercises || []).filter((ex: any) => ex.movement_pattern === 'Pull'));
-          workoutSpecificPools['Legs'] = sortExercises((allExercises || []).filter((ex: any) => ex.movement_pattern === 'Legs'));
-          console.log(`[generate-t-path] PPL Pools - Push: ${workoutSpecificPools['Push'].length}, Pull: ${workoutSpecificPools['Pull'].length}, Legs: ${workoutSpecificPools['Legs'].length}`);
-        }
+    const workoutSpecificPools: Record<string, ExerciseDefinition[]> = {};
+    if (workoutSplit === 'ulul') {
+      const UPPER_BODY_MUSCLES = new Set(['Pectorals', 'Deltoids', 'Lats', 'Traps', 'Biceps', 'Triceps', 'Abdominals', 'Core']);
+      const LOWER_BODY_MUSCLES = new Set(['Quadriceps', 'Hamstrings', 'Glutes', 'Calves']);
+      const upperPool = (allExercises || []).filter((ex: any) => musclesIntersect(ex.main_muscle, UPPER_BODY_MUSCLES));
+      const lowerPool = (allExercises || []).filter((ex: any) => musclesIntersect(ex.main_muscle, LOWER_BODY_MUSCLES));
+      workoutSpecificPools['Upper Body A'] = []; workoutSpecificPools['Upper Body B'] = [];
+      workoutSpecificPools['Lower Body A'] = []; workoutSpecificPools['Lower Body B'] = [];
+      sortExercises(upperPool).forEach((ex, i) => workoutSpecificPools[i % 2 === 0 ? 'Upper Body A' : 'Upper Body B'].push(ex));
+      sortExercises(lowerPool).forEach((ex, i) => workoutSpecificPools[i % 2 === 0 ? 'Lower Body A' : 'Lower Body B'].push(ex));
+      console.log(`[generate-t-path] ULUL Pools - Upper A: ${workoutSpecificPools['Upper Body A'].length}, Upper B: ${workoutSpecificPools['Upper Body B'].length}, Lower A: ${workoutSpecificPools['Lower Body A'].length}, Lower B: ${workoutSpecificPools['Lower Body B'].length}`);
+    } else { // ppl
+      workoutSpecificPools['Push'] = sortExercises((allExercises || []).filter((ex: any) => ex.movement_pattern === 'Push'));
+      workoutSpecificPools['Pull'] = sortExercises((allExercises || []).filter((ex: any) => ex.movement_pattern === 'Pull'));
+      workoutSpecificPools['Legs'] = sortExercises((allExercises || []).filter((ex: any) => ex.movement_pattern === 'Legs'));
+      console.log(`[generate-t-path] PPL Pools - Push: ${workoutSpecificPools['Push'].length}, Pull: ${workoutSpecificPools['Pull'].length}, Legs: ${workoutSpecificPools['Legs'].length}`);
+    }
 
-        for (const workoutName of workoutNames) {
-          console.log(`[generate-t-path] Processing workout: ${workoutName}`);
-          const { data: newChildWorkout, error: createChildError } = await supabaseServiceRoleClient
-            .from('t_paths')
-            .insert({ user_id: user.id, parent_t_path_id: tPathId, template_name: workoutName, is_bonus: true, settings: tPathData.settings })
-            .select('id').single();
-          if (createChildError) throw createChildError;
-          const childWorkoutId = newChildWorkout.id;
-          console.log(`[generate-t-path] Created child workout ${workoutName} with ID: ${childWorkoutId}`);
+    for (const workoutName of workoutNames) {
+      console.log(`[generate-t-path] Processing workout: ${workoutName}`);
+      const { data: newChildWorkout, error: createChildError } = await supabaseServiceRoleClient
+        .from('t_paths')
+        .insert({ user_id: user.id, parent_t_path_id: tPathId, template_name: workoutName, is_bonus: true, settings: tPathData.settings })
+        .select('id').single();
+      if (createChildError) throw createChildError;
+      const childWorkoutId = newChildWorkout.id;
+      console.log(`[generate-t-path] Created child workout ${workoutName} with ID: ${childWorkoutId}`);
 
-          const candidatePool = workoutSpecificPools[workoutName] || [];
-          console.log(`[generate-t-path] Candidate pool for ${workoutName}: ${candidatePool.length} exercises`);
-          
-          let activeGymExerciseIds = new Set<string>();
-          if (activeGymId) {
-            const { data: activeGymLinks, error: activeGymLinksError } = await supabaseServiceRoleClient.from('gym_exercises').select('exercise_id').eq('gym_id', activeGymId);
-            if (activeGymLinksError) throw activeGymLinksError;
-            activeGymExerciseIds = new Set((activeGymLinks || []).map((l: { exercise_id: string }) => l.exercise_id));
-            console.log(`[generate-t-path] Active gym ${activeGymId} has ${activeGymExerciseIds.size} linked exercises.`);
-          }
-
-          // Tiered selection logic
-          const tier1Pool = candidatePool.filter(ex => ex.user_id === user.id); // User's custom exercises
-          const tier2Pool = candidatePool.filter(ex => ex.user_id === null && !allLinkedExerciseIds.has(ex.id)); // Global bodyweight (not linked to any gym)
-          const tier3Pool = candidatePool.filter(ex => ex.user_id === null && activeGymExerciseIds.has(ex.id)); // Global gym-specific (linked to active gym)
-
-          console.log(`[generate-t-path] Tier 1 (User Custom) for ${workoutName}: ${tier1Pool.length} exercises`);
-          console.log(`[generate-t-path] Tier 2 (Global Bodyweight) for ${workoutName}: ${tier2Pool.length} exercises`);
-          console.log(`[generate-t-path] Tier 3 (Global Gym-Specific) for ${workoutName}: ${tier3Pool.length} exercises`);
-
-          const finalPool = [...tier1Pool, ...tier2Pool, ...tier3Pool];
-          const finalUniquePool = [...new Map(finalPool.map(item => [item.id, item])).values()]; // Ensure uniqueness
-          console.log(`[generate-t-path] Final unique pool for ${workoutName}: ${finalUniquePool.length} exercises`);
-          
-          const mainExercisesForWorkout = finalUniquePool.slice(0, maxMainExercises);
-          const bonusExercisesForWorkout = finalUniquePool.slice(maxMainExercises, maxMainExercises + maxBonusExercises);
-          console.log(`[generate-t-path] Selected ${mainExercisesForWorkout.length} main and ${bonusExercisesForWorkout.length} bonus exercises for ${workoutName}.`);
-
-          const exercisesToInsertPayload = [
-            ...mainExercisesForWorkout.map((ex, index) => ({ template_id: childWorkoutId, exercise_id: ex.id, order_index: index, is_bonus_exercise: false })),
-            ...bonusExercisesForWorkout.map((ex, index) => ({ template_id: childWorkoutId, exercise_id: ex.id, order_index: mainExercisesForWorkout.length + index, is_bonus_exercise: true }))
-          ];
-
-          if (exercisesToInsertPayload.length > 0) {
-            const { error: insertError } = await supabaseServiceRoleClient.from('t_path_exercises').insert(exercisesToInsertPayload);
-            if (insertError) throw insertError;
-            console.log(`[generate-t-path] Successfully inserted ${exercisesToInsertPayload.length} exercises into t_path_exercises for ${workoutName}.`);
-          } else {
-            console.log(`[generate-t-path] No exercises to insert for ${workoutName}.`);
-          }
-        }
-
-        console.log(`[generate-t-path] T-Path generation completed for tPathId: ${tPathId}. Updating profile status.`);
-        await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'completed', t_path_generation_error: null }).eq('id', userId);
-      } catch (backgroundError: any) {
-        const errorMessage = backgroundError instanceof Error ? backgroundError.message : "An unknown error occurred.";
-        console.error(`[generate-t-path] Background generation FAILED for user ${userId}, tPathId ${tPathId}: ${errorMessage}`);
-        await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'failed', t_path_generation_error: errorMessage }).eq('id', userId);
+      const candidatePool = workoutSpecificPools[workoutName] || [];
+      console.log(`[generate-t-path] Candidate pool for ${workoutName}: ${candidatePool.length} exercises`);
+      
+      let activeGymExerciseIds = new Set<string>();
+      if (activeGymId) {
+        const { data: activeGymLinks, error: activeGymLinksError } = await supabaseServiceRoleClient.from('gym_exercises').select('exercise_id').eq('gym_id', activeGymId);
+        if (activeGymLinksError) throw activeGymLinksError;
+        activeGymExerciseIds = new Set((activeGymLinks || []).map((l: { exercise_id: string }) => l.exercise_id));
+        console.log(`[generate-t-path] Active gym ${activeGymId} has ${activeGymExerciseIds.size} linked exercises.`);
       }
-    })();
 
-    return new Response(JSON.stringify({ message: 'T-Path generation initiated.' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      const tier1Pool = candidatePool.filter(ex => ex.user_id === user.id);
+      const tier2Pool = candidatePool.filter(ex => ex.user_id === null && !allLinkedExerciseIds.has(ex.id));
+      const tier3Pool = candidatePool.filter(ex => ex.user_id === null && activeGymExerciseIds.has(ex.id));
+
+      console.log(`[generate-t-path] Tier 1 (User Custom) for ${workoutName}: ${tier1Pool.length} exercises`);
+      console.log(`[generate-t-path] Tier 2 (Global Bodyweight) for ${workoutName}: ${tier2Pool.length} exercises`);
+      console.log(`[generate-t-path] Tier 3 (Global Gym-Specific) for ${workoutName}: ${tier3Pool.length} exercises`);
+
+      const finalPool = [...tier1Pool, ...tier2Pool, ...tier3Pool];
+      const finalUniquePool = [...new Map(finalPool.map(item => [item.id, item])).values()];
+      console.log(`[generate-t-path] Final unique pool for ${workoutName}: ${finalUniquePool.length} exercises`);
+      
+      const mainExercisesForWorkout = finalUniquePool.slice(0, maxMainExercises);
+      const bonusExercisesForWorkout = finalUniquePool.slice(maxMainExercises, maxMainExercises + maxBonusExercises);
+      console.log(`[generate-t-path] Selected ${mainExercisesForWorkout.length} main and ${bonusExercisesForWorkout.length} bonus exercises for ${workoutName}.`);
+
+      const exercisesToInsertPayload = [
+        ...mainExercisesForWorkout.map((ex, index) => ({ template_id: childWorkoutId, exercise_id: ex.id, order_index: index, is_bonus_exercise: false })),
+        ...bonusExercisesForWorkout.map((ex, index) => ({ template_id: childWorkoutId, exercise_id: ex.id, order_index: mainExercisesForWorkout.length + index, is_bonus_exercise: true }))
+      ];
+
+      if (exercisesToInsertPayload.length > 0) {
+        const { error: insertError } = await supabaseServiceRoleClient.from('t_path_exercises').insert(exercisesToInsertPayload);
+        if (insertError) throw insertError;
+        console.log(`[generate-t-path] Successfully inserted ${exercisesToInsertPayload.length} exercises into t_path_exercises for ${workoutName}.`);
+      } else {
+        console.log(`[generate-t-path] No exercises to insert for ${workoutName}.`);
+      }
+    }
+
+    console.log(`[generate-t-path] T-Path generation completed for tPathId: ${tPathId}. Updating profile status.`);
+    await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'completed', t_path_generation_error: null }).eq('id', userId);
+
+    // Moved the success response to the end of the try block
+    return new Response(JSON.stringify({ message: 'T-Path generation completed successfully.' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
   } catch (error) {
     let errorMessage = "An unknown error occurred.";
     if (error instanceof Error) errorMessage = error.message;
