@@ -73,6 +73,8 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
   const [showConfirmRemoveDialog, setShowConfirmRemoveDialog] = useState(false);
   const [exerciseToRemove, setExerciseToRemove] = useState<WorkoutExerciseWithDetails | null>(null);
 
+  // Moved useSensors hook outside of conditional rendering
+  const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
   const fetchData = useCallback(async () => {
     if (!session || !gym || !profile) {
@@ -458,7 +460,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
                 
                 {selectedWorkoutId ? (
                   <div className="flex-grow flex flex-col gap-4 overflow-y-auto">
-                    <DndContext sensors={useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }))} onDragEnd={handleDragEnd}>
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                       <SortableGymExerciseList
                         id="core-exercises"
                         title="Core Exercises"
