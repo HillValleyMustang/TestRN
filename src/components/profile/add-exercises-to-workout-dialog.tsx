@@ -140,7 +140,7 @@ export const AddExercisesToWorkoutDialog = ({
           </div>
 
           {/* Exercise List - now uses flex-grow to take remaining space */}
-          <ScrollArea className="flex-grow border rounded-md p-2 min-h-0 h-0"> {/* Added h-0 */}
+          <ScrollArea className="flex-grow border rounded-md p-2 min-h-0"> {/* Removed h-0 */}
             {availableExercises.length === 0 ? (
               <p className="text-muted-foreground text-center p-4 text-sm">No exercises found matching your criteria.</p>
             ) : (
