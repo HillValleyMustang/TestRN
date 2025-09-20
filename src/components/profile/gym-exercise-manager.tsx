@@ -20,16 +20,14 @@ type ExerciseDefinition = Tables<'exercise_definitions'>;
 type TPath = Tables<'t_paths'>;
 type TPathExercise = Tables<'t_path_exercises'>;
 
-// Reusing the WorkoutExerciseWithDetails type from use-edit-workout-exercises for consistency
 export interface WorkoutExerciseWithDetails extends ExerciseDefinition {
-  id: string; // Explicitly define id
-  name: string; // Explicitly define name
+  id: string;
+  name: string;
   order_index: number;
   is_bonus_exercise: boolean;
-  t_path_exercise_id: string; // ID from t_path_exercises table
+  t_path_exercise_id: string;
 }
 
-// Define types for the specific Supabase query results
 type GymExerciseLink = { exercise_id: string; gym_id: string; };
 type TPathExerciseLink = { id: string; exercise_id: string; order_index: number; is_bonus_exercise: boolean | null; };
 
@@ -49,16 +47,13 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
   const [exercisesInSelectedWorkout, setExercisesInSelectedWorkout] = useState<WorkoutExerciseWithDetails[]>([]);
   const [allExercises, setAllExercises] = useState<ExerciseDefinition[]>([]);
-  const [exerciseIdsInGym, setExerciseIdsInGym] = useState<Set<string>>(new Set()); // Exercises explicitly linked to this gym
+  const [exerciseIdsInGym, setExerciseIdsInGym] = useState<Set<string>>(new Set());
   
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(""); // No longer used directly in this component, but kept for potential future use
-  const [muscleFilter, setMuscleFilter] = useState("all"); // No longer used directly in this component, but kept for potential future use
   const [muscleGroups, setMuscleGroups] = useState<string[]>([]);
   const [addExerciseSourceFilter, setAddExerciseSourceFilter] = useState<'my-exercises' | 'global-library'>('my-exercises');
 
-  // NEW: State for the AddExercisesToWorkoutDialog
   const [showAddExercisesDialog, setShowAddExercisesDialog] = useState(false);
   const [selectedExerciseForInfo, setSelectedExerciseForInfo] = useState<ExerciseDefinition | null>(null);
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
@@ -66,61 +61,50 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
 
   const fetchData = useCallback(async () => {
     if (!session || !gym || !profile) {
-      console.log("[ManageGymWorkoutsExercisesDialog] Skipping fetchData: session, gym, or profile is null.", { session: !!session, gym: !!gym, profile: !!profile });
       setLoading(false);
       return;
     }
     setLoading(true);
-    console.log("[ManageGymWorkoutsExercisesDialog] Starting fetchData for gym:", gym.name, "ID:", gym.id, "User ID:", session.user.id);
     try {
-      // 1. Get the active_t_path_id from the user's profile
       const activeTPathId = profile.active_t_path_id;
-      console.log(`[ManageGymWorkoutsExercisesDialog] User's active_t_path_id: ${activeTPathId}`);
 
       let mainTPathData: TPath | null = null;
       if (activeTPathId) {
-        // 2. Fetch the specific main T-Path using the active_t_path_id
-        console.log(`[ManageGymWorkoutsExercisesDialog] Querying t_paths for id: ${activeTPathId}, gym_id: ${gym.id}, user_id: ${session.user.id}, parent_t_path_id: null`);
         const { data, error } = await supabase
           .from('t_paths')
           .select('*')
           .eq('id', activeTPathId)
           .eq('gym_id', gym.id)
           .eq('user_id', session.user.id)
-          .is('parent_t_path_id', null) // Ensure it's a main T-Path
+          .is('parent_t_path_id', null)
           .single();
 
         if (error && error.code !== 'PGRST116') {
-          console.error("[ManageGymWorkoutsExercisesDialog] Error fetching active main T-Path:", error);
           throw error;
         }
         mainTPathData = data;
       }
       
-      console.log("[ManageGymWorkoutsExercisesDialog] Fetched main T-Path data:", mainTPathData);
       setMainTPath(mainTPathData);
 
       if (!mainTPathData) {
-        console.log("[ManageGymWorkoutsExercisesDialog] No active main T-Path found for this gym. Displaying setup prompt.");
         setChildWorkouts([]);
         setAllExercises([]);
         setExercisesInSelectedWorkout([]);
-        setExerciseIdsInGym(new Set()); // Corrected: Call setter with a new Set instance
+        setExerciseIdsInGym(new Set());
         setLoading(false);
         return;
       }
 
-      // 2. Fetch all child workouts for this main T-Path
       const { data: childWorkoutsData, error: childWorkoutsError } = await supabase
         .from('t_paths')
         .select('*')
         .eq('parent_t_path_id', mainTPathData.id)
-        .eq('is_bonus', true) // Only individual workouts, not the main T-Path itself
+        .eq('is_bonus', true)
         .order('template_name', { ascending: true });
       if (childWorkoutsError) throw childWorkoutsError;
       setChildWorkouts(childWorkoutsData || []);
 
-      // 3. Fetch all exercise definitions (user-owned and global)
       const { data: allExRes, error: allExError } = await supabase
         .from('exercise_definitions')
         .select('*')
@@ -129,15 +113,13 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       setAllExercises(allExRes || []);
       setMuscleGroups(Array.from(new Set((allExRes || []).map(ex => ex.main_muscle))).sort());
 
-      // 4. Fetch exercises explicitly linked to this gym
       const { data: gymExRes, error: gymExError } = await supabase
         .from('gym_exercises')
         .select('exercise_id')
         .eq('gym_id', gym.id);
       if (gymExError) throw gymExError;
-      setExerciseIdsInGym(new Set((gymExRes || []).map((link: { exercise_id: string }) => link.exercise_id))); // Corrected: Call setter with a new Set instance
+      setExerciseIdsInGym(new Set((gymExRes || []).map((link: { exercise_id: string }) => link.exercise_id)));
 
-      // 5. Set initial selected workout and its exercises
       const initialSelectedWorkoutId = selectedWorkoutId || (childWorkoutsData && childWorkoutsData.length > 0 ? childWorkoutsData[0].id : null);
       setSelectedWorkoutId(initialSelectedWorkoutId);
 
@@ -177,30 +159,26 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
     }
   }, [session, supabase, gym, profile, selectedWorkoutId]);
 
-  // Add a refresh function for the dialog itself
   const refreshDialogData = useCallback(() => {
     fetchData();
-    onSaveSuccess(); // Also notify parent to refresh
+    onSaveSuccess();
   }, [fetchData, onSaveSuccess]);
 
   useEffect(() => {
     if (open) {
       fetchData();
     } else {
-      // Reset state when dialog closes
       setMainTPath(null);
       setChildWorkouts([]);
       setSelectedWorkoutId(null);
       setExercisesInSelectedWorkout([]);
       setAllExercises([]);
-      setExerciseIdsInGym(new Set()); // Corrected: Call setter with a new Set instance
-      setSearchTerm("");
-      setMuscleFilter("all");
+      setExerciseIdsInGym(new Set());
+      setMuscleGroups([]);
       setAddExerciseSourceFilter('my-exercises');
     }
   }, [open, refreshDialogData]);
 
-  // NEW: Handle adding multiple exercises from the AddExercisesToWorkoutDialog
   const handleAddExercisesToWorkout = useCallback(async (exerciseIds: string[]) => {
     if (!session || !gym || !selectedWorkoutId || exerciseIds.length === 0) return;
     setIsSaving(true);
@@ -219,36 +197,31 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
           continue;
         }
 
-        // 1. Prepare gym link if not already linked
         if (!exerciseIdsInGym.has(exerciseId)) {
           gymLinksToInsert.push({ gym_id: gym.id, exercise_id: exerciseId });
         }
 
-        // 2. Prepare exercise for workout template
         currentMaxOrderIndex++;
         exercisesToInsert.push({
           template_id: selectedWorkoutId,
           exercise_id: exerciseId,
           order_index: currentMaxOrderIndex,
-          is_bonus_exercise: false, // Default to non-bonus when adding
+          is_bonus_exercise: false,
         });
 
-        // Prepare optimistic update
         optimisticUpdates.push({
           ...exerciseDef,
           id: exerciseDef.id,
           name: exerciseDef.name,
           order_index: currentMaxOrderIndex,
           is_bonus_exercise: false,
-          t_path_exercise_id: `temp-${Date.now()}-${exerciseId}`, // Temporary ID
+          t_path_exercise_id: `temp-${Date.now()}-${exerciseId}`,
         });
       }
 
-      // Optimistic update UI
       setExercisesInSelectedWorkout(prev => [...prev, ...optimisticUpdates]);
-      setExerciseIdsInGym((prev: Set<string>) => new Set([...prev, ...exerciseIds.filter(id => !prev.has(id))])); // Corrected: Type prev and call setter with a new Set instance
+      setExerciseIdsInGym(prev => new Set([...prev, ...exerciseIds.filter(id => !prev.has(id))]));
 
-      // Perform database operations
       if (gymLinksToInsert.length > 0) {
         const { error: linkError } = await supabase.from('gym_exercises').insert(gymLinksToInsert).select();
         if (linkError) throw linkError;
@@ -262,7 +235,6 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
 
         if (insertError) throw insertError;
 
-        // Update optimistic updates with real t_path_exercise_ids
         setExercisesInSelectedWorkout(prev => prev.map(ex => {
           const realTpe = insertedTpes.find(tpe => tpe.exercise_id === ex.id && ex.t_path_exercise_id.startsWith('temp-'));
           return realTpe ? { ...ex, t_path_exercise_id: realTpe.id } : ex;
@@ -270,13 +242,12 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       }
 
       toast.success(`Added ${exerciseIds.length} exercise(s) to workout!`);
-      onSaveSuccess(); // Trigger parent refresh
+      onSaveSuccess();
     } catch (err: any) {
       toast.error("Failed to add exercises to workout.");
       console.error("Error adding exercises to workout:", err);
-      // Rollback optimistic updates on error
       setExercisesInSelectedWorkout(prev => prev.filter(ex => !ex.t_path_exercise_id.startsWith('temp-')));
-      setExerciseIdsInGym((prev: Set<string>) => new Set([...prev].filter(id => !exerciseIds.includes(id)))); // Corrected: Type prev and call setter with a new Set instance
+      setExerciseIdsInGym(prev => new Set([...prev].filter(id => !exerciseIds.includes(id))));
     } finally {
       setIsSaving(false);
     }
@@ -291,7 +262,6 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       const exerciseToRemove = exercisesInSelectedWorkout.find(ex => ex.id === exerciseId);
       if (!exerciseToRemove) throw new Error("Exercise not found in workout.");
 
-      // Optimistic update
       setExercisesInSelectedWorkout(prev => prev.filter(ex => ex.id !== exerciseId));
 
       const { error: deleteError } = await supabase
@@ -300,12 +270,12 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
         .eq('id', exerciseToRemove.t_path_exercise_id);
 
       if (deleteError) {
-        setExercisesInSelectedWorkout(prev => [...prev, exerciseToRemove]); // Rollback
+        setExercisesInSelectedWorkout(prev => [...prev, exerciseToRemove]);
         throw deleteError;
       }
 
       toast.success(`'${exerciseToRemove.name}' removed from workout.`);
-      onSaveSuccess(); // Trigger parent refresh
+      onSaveSuccess();
     } catch (err: any) {
       toast.error("Failed to remove exercise from workout.");
       console.error("Error removing exercise from workout:", err);
@@ -316,7 +286,6 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
 
   const handleWorkoutSelectChange = useCallback((newWorkoutId: string) => {
     setSelectedWorkoutId(newWorkoutId);
-    // The useEffect for fetchData will handle re-fetching exercises for the new workout
   }, []);
 
   const handleOpenInfoDialog = (exercise: ExerciseDefinition) => {
@@ -325,34 +294,33 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
   };
 
   if (!gym) {
-    return null; // Should not happen if opened from GymManagementSection
+    return null;
   }
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-0"> {/* Added p-0 here */}
+          <DialogHeader className="p-4 pb-2 border-b"> {/* Added padding to header */}
+            <DialogTitle className="flex items-center gap-2 text-xl"> {/* Reduced title size */}
               <LayoutTemplate className="h-5 w-5" /> Manage Workouts for "{gym.name}"
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-sm"> {/* Reduced description size */}
               Select a workout to add or remove exercises from its template.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4 space-y-4 flex-grow flex flex-col">
+          <div className="flex-grow flex flex-col p-4 space-y-4 overflow-hidden"> {/* Added padding and flex-col */}
             {loading ? (
               <p className="text-muted-foreground text-center">Loading gym workout data...</p>
             ) : !mainTPath ? (
               <div className="text-center text-muted-foreground">
-                {/* Display SetupGymPlanPrompt if no mainTPath is found */}
                 <SetupGymPlanPrompt gym={gym} onSetupSuccess={refreshDialogData} profile={profile} />
               </div>
             ) : (
               <>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Select onValueChange={handleWorkoutSelectChange} value={selectedWorkoutId || ''}>
-                    <SelectTrigger className="flex-1">
+                    <SelectTrigger className="flex-1 h-9 text-sm"> {/* Reduced height and text size */}
                       <SelectValue placeholder="Select a workout to manage" />
                     </SelectTrigger>
                     <SelectContent>
@@ -366,53 +334,47 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
                   <Button 
                     onClick={() => setShowAddExercisesDialog(true)} 
                     disabled={!selectedWorkoutId}
-                    className="flex-shrink-0 sm:w-1/3"
+                    className="flex-shrink-0 sm:w-1/3 h-9 text-sm" // Reduced height and text size
                   >
                     <PlusCircle className="h-4 w-4 mr-2" /> Add Exercises
                   </Button>
                 </div>
                 
-                <div className="flex-grow overflow-hidden border rounded-md">
+                <ScrollArea className="flex-grow border rounded-md p-2"> {/* ScrollArea now wraps the ul */}
                   {selectedWorkoutId ? (
-                    <ScrollArea className="h-full w-full p-2">
-                      {exercisesInSelectedWorkout.length === 0 ? (
-                        <p className="text-muted-foreground text-center p-4">No exercises in this workout. Click "Add Exercises" to get started!</p>
-                      ) : (
-                        <ul className="space-y-2">
-                          {exercisesInSelectedWorkout.map(ex => (
-                            <li key={ex.id} className="flex items-center justify-between p-2 border rounded-md bg-card">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">{ex.name}</span>
-                                <span className="text-muted-foreground text-sm">({ex.main_muscle})</span>
-                              </div>
-                              <div className="flex gap-1">
-                                <Button variant="ghost" size="icon" title="Exercise Info" onClick={() => handleOpenInfoDialog(ex)}>
-                                  <Info className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" title="Remove Exercise" onClick={() => handleRemoveExerciseFromWorkout(ex.id)}>
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </ScrollArea>
+                    exercisesInSelectedWorkout.length === 0 ? (
+                      <p className="text-muted-foreground text-center p-4">No exercises in this workout. Click "Add Exercises" to get started!</p>
+                    ) : (
+                      <ul className="space-y-1"> {/* Reduced space-y */}
+                        {exercisesInSelectedWorkout.map(ex => (
+                          <li key={ex.id} className="flex items-center justify-between p-2 border rounded-md bg-card text-sm"> {/* Reduced padding, text size */}
+                            <span className="font-medium">{ex.name}</span>
+                            <div className="flex gap-1"> {/* Reduced gap */}
+                              <Button variant="ghost" size="icon" title="Exercise Info" onClick={() => handleOpenInfoDialog(ex)} className="h-7 w-7"> {/* Reduced button size */}
+                                <Info className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" title="Remove Exercise" onClick={() => handleRemoveExerciseFromWorkout(ex.id)} className="h-7 w-7"> {/* Reduced button size */}
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )
                   ) : (
                     <p className="text-muted-foreground text-center p-4">Please select a workout to manage its exercises.</p>
                   )}
-                </div>
+                </ScrollArea>
               </>
             )}
           </div>
-          <DialogFooter className="pt-4">
+          <DialogFooter className="p-4 pt-2 border-t"> {/* Added padding to footer */}
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
       <LoadingOverlay isOpen={isSaving} title="Updating Workout Exercises" />
 
-      {/* NEW: Add Exercises Dialog */}
       <AddExercisesToWorkoutDialog
         open={showAddExercisesDialog}
         onOpenChange={setShowAddExercisesDialog}
@@ -424,7 +386,6 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
         setAddExerciseSourceFilter={setAddExerciseSourceFilter}
       />
 
-      {/* Exercise Info Dialog */}
       {selectedExerciseForInfo && (
         <ExerciseInfoDialog
           open={isInfoDialogOpen}
