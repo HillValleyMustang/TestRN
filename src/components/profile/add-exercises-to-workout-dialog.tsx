@@ -85,7 +85,7 @@ export const AddExercisesToWorkoutDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-4">
+      <DialogContent className="sm:max-w-xl max-h-[90vh] h-full flex flex-col p-4"> {/* Added h-full here */}
         <DialogHeader className="pb-4">
           <DialogTitle className="flex items-center gap-2">
             <PlusCircle className="h-5 w-5" /> Add Exercises
@@ -94,7 +94,7 @@ export const AddExercisesToWorkoutDialog = ({
             Select exercises to add to the current workout template.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex-grow flex flex-col min-h-0 overflow-hidden"> {/* Added overflow-hidden here */}
+        <div className="flex-grow flex flex-col min-h-0 overflow-hidden">
           {/* Filters and Search */}
           <div className="flex flex-col sm:flex-row gap-2 mb-4">
             <div className="flex sm:w-1/3">
@@ -140,7 +140,7 @@ export const AddExercisesToWorkoutDialog = ({
           </div>
 
           {/* Exercise List - now uses flex-grow to take remaining space */}
-          <ScrollArea className="flex-1 border rounded-md p-2 min-h-0"> {/* Added min-h-0 back */}
+          <ScrollArea className="flex-1 border rounded-md p-2 min-h-0">
             {availableExercises.length === 0 ? (
               <p className="text-muted-foreground text-center p-4 text-sm">No exercises found matching your criteria.</p>
             ) : (
