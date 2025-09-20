@@ -140,7 +140,7 @@ export const AddExercisesToWorkoutDialog = ({
           </div>
 
           {/* Exercise List */}
-          <ScrollArea className="flex-grow border rounded-md p-2">
+          <ScrollArea className="flex-grow border rounded-md p-2 max-h-[calc(90vh-250px)]">
             {availableExercises.length === 0 ? (
               <p className="text-muted-foreground text-center p-4 text-sm">No exercises found matching your criteria.</p>
             ) : (
@@ -163,7 +163,7 @@ export const AddExercisesToWorkoutDialog = ({
             )}
           </ScrollArea>
         </div>
-        <DialogFooter className="flex justify-end gap-2 pt-4">
+        <DialogFooter className="flex flex-row justify-end gap-2 pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)} size="sm">Cancel</Button>
           <Button onClick={handleAddSelected} disabled={selectedExerciseIds.size === 0} size="sm">
             Add {selectedExerciseIds.size > 0 ? `(${selectedExerciseIds.size})` : ''} Exercises
