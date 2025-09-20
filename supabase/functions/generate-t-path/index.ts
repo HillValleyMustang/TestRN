@@ -60,6 +60,7 @@ const sortExercises = (exercises: ExerciseDefinition[]) => {
 
 // --- Main Serve Function ---
 serve(async (req: Request) => {
+  console.log("[generate-t-path] Edge Function started."); // NEW: Log at the very beginning
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   let userId: string | null = null;

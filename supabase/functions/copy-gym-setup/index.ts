@@ -76,7 +76,7 @@ serve(async (req: Request) => {
 
     if (sourceTPathError) {
       if (sourceTPathError.code === 'PGRST116') { // No rows found
-        // NEW: Update the user's active_gym_id even if no T-Path was copied
+        // Update the user's active_gym_id even if no T-Path was copied
         const { error: updateProfileError } = await supabaseServiceRoleClient
           .from('profiles')
           .update({ active_gym_id: targetGymId })
@@ -93,7 +93,7 @@ serve(async (req: Request) => {
       throw sourceTPathError;
     }
     
-    // NEW: Fetch user's preferred session length
+    // Fetch user's preferred session length
     const { data: profileData, error: profileError } = await supabaseServiceRoleClient
       .from('profiles')
       .select('preferred_session_length')
@@ -120,7 +120,7 @@ serve(async (req: Request) => {
     if (newTPathError) throw newTPathError;
 
     // 4. Invoke the generate-t-path function for the new T-Path
-    const { error: invokeError } = await supabaseServiceRoleClient.functions.invoke('generate-t-path', {
+    const { data: invokeData, error: invokeError } = await supabaseServiceRoleClient.functions.invoke('generate-t-path', {
       body: { 
         tPathId: newTargetTPath.id,
         preferred_session_length: preferred_session_length // Pass the session length
@@ -129,9 +129,13 @@ serve(async (req: Request) => {
 
     if (invokeError) {
       console.error("Failed to trigger workout generation for new gym:", invokeError);
+      // Log the full error object from the invocation
+      console.error("generate-t-path invocation error details:", JSON.stringify(invokeError, null, 2));
+    } else {
+      console.log("generate-t-path invocation successful. Response:", JSON.stringify(invokeData, null, 2));
     }
 
-    // NEW: Update the user's active_gym_id in their profile
+    // Update the user's active_gym_id in their profile
     const { error: updateProfileError } = await supabaseServiceRoleClient
       .from('profiles')
       .update({ active_gym_id: targetGymId })
