@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 export type OnboardingSummaryData = {
   profile: Partial<ProfileInsert>;
   mainTPath: Tables<'t_paths'>;
-  childWorkouts: Tables<'t_paths'>[];
+  childWorkoutsWithExercises: (Tables<'t_paths'> & { exercises: (Tables<'exercise_definitions'> & { is_bonus_exercise: boolean })[] })[];
   confirmedExerciseNames: Set<string>;
 };
 
@@ -165,7 +165,7 @@ export const useOnboardingForm = () => {
       setSummaryData({
         profile: data.profile,
         mainTPath: data.mainTPath,
-        childWorkouts: data.childWorkouts,
+        childWorkoutsWithExercises: data.childWorkoutsWithExercises,
         confirmedExerciseNames: confirmedExercises,
       });
       setCurrentStep(9); // Go to summary step
