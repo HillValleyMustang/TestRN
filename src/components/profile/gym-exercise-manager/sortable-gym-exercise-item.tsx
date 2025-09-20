@@ -35,7 +35,7 @@ export const SortableGymExerciseItem = ({ exercise, onRemove, onOpenInfo }: Sort
         <button {...listeners} {...attributes} className="cursor-grab p-1 -ml-1">
           <GripVertical className="h-4 w-4 text-muted-foreground" />
         </button>
-        <span className="font-medium text-sm text-foreground leading-tight">{exercise.name}</span>
+        <span className="font-medium text-sm text-foreground leading-tight break-words">{exercise.name}</span>
       </div>
       <div className="flex gap-1 flex-shrink-0">
         <Button variant="ghost" size="icon" onClick={() => onOpenInfo(exercise)} title="Exercise Info" className="h-7 w-7">

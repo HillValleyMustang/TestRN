@@ -163,9 +163,9 @@ export const AddExercisesToWorkoutDialog = ({
             )}
           </ScrollArea>
         </div>
-        <DialogFooter className="pt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleAddSelected} disabled={selectedExerciseIds.size === 0}>
+        <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-4">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1 h-9 text-sm">Cancel</Button>
+          <Button onClick={handleAddSelected} disabled={selectedExerciseIds.size === 0} className="flex-1 h-9 text-sm">
             Add {selectedExerciseIds.size > 0 ? `(${selectedExerciseIds.size})` : ''} Exercises
           </Button>
         </DialogFooter>
