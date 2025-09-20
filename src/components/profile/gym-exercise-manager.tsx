@@ -66,6 +66,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
     console.log("[ManageGymWorkoutsExercisesDialog] Starting fetchData for gym:", gym.name, "ID:", gym.id, "User ID:", session.user.id);
     try {
       // 1. Fetch the main T-Path for this gym
+      console.log(`[ManageGymWorkoutsExercisesDialog] Querying t_paths for gym_id: ${gym.id}, user_id: ${session.user.id}, parent_t_path_id: null`);
       const { data: mainTPathData, error: mainTPathError } = await supabase
         .from('t_paths')
         .select('*')
@@ -74,15 +75,19 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
         .is('parent_t_path_id', null)
         .single();
 
-      if (mainTPathError && mainTPathError.code !== 'PGRST116') {
-        console.error("[ManageGymWorkoutsExercisesDialog] Error fetching main T-Path:", mainTPathError);
-        throw mainTPathError;
+      if (mainTPathError) {
+        if (mainTPathError.code !== 'PGRST116') { // PGRST116 means no rows found
+          console.error("[ManageGymWorkoutsExercisesDialog] Error fetching main T-Path (not PGRST116):", mainTPathError);
+          throw mainTPathError;
+        } else {
+          console.log("[ManageGymWorkoutsExercisesDialog] No main T-Path found for this gym (PGRST116).");
+        }
       }
       console.log("[ManageGymWorkoutsExercisesDialog] Fetched main T-Path data:", mainTPathData);
       setMainTPath(mainTPathData);
 
       if (!mainTPathData) {
-        console.log("[ManageGymWorkoutsExercisesDialog] No main T-Path found for this gym. Displaying error message.");
+        console.log("[ManageGymWorkoutsExercisesDialog] No main T-Path found for this gym. Displaying setup prompt.");
         setChildWorkouts([]);
         setAllExercises([]);
         setExercisesInSelectedWorkout([]);
