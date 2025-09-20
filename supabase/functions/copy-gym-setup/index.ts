@@ -35,7 +35,7 @@ serve(async (req: Request) => {
       throw new Error('sourceGymId and targetGymId are required.');
     }
 
-    // 1. Verify user owns the SOURCE gym (this is the important security check)
+    // 1. Verify user owns the SOURCE gym
     const { data: sourceGym, error: sourceGymError } = await supabaseServiceRoleClient
       .from('gyms')
       .select('id')
@@ -47,9 +47,6 @@ serve(async (req: Request) => {
       console.error(`[copy-gym-setup] Source gym check failed for sourceGymId: ${sourceGymId}, userId: ${user.id}`, sourceGymError);
       throw new Error('Source gym not found or user does not own it.');
     }
-
-    // We trust the targetGymId is valid since the user just created it.
-    // The important security check is on the source data we are copying.
 
     // 2. Copy exercises from source gym
     const { data: sourceExercises, error: sourceError } = await supabaseServiceRoleClient
@@ -80,93 +77,60 @@ serve(async (req: Request) => {
       .single();
 
     if (sourceTPathError) {
-      if (sourceTPathError.code === 'PGRST116') { // No rows found
+      if (sourceTPathError.code === 'PGRST116') {
         const { error: updateProfileError } = await supabaseServiceRoleClient
           .from('profiles')
           .update({ active_gym_id: targetGymId })
           .eq('id', user.id);
-
-        if (updateProfileError) {
-          console.error("Failed to update user's active_gym_id after copying gym setup (no T-Path):", updateProfileError);
-        }
-
-        return new Response(JSON.stringify({ message: `Successfully copied ${sourceExercises.length} exercises. The source gym had no workout plan to copy.` }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        if (updateProfileError) console.error("Failed to update user's active_gym_id:", updateProfileError);
+        return new Response(JSON.stringify({ message: `Copied exercises. Source gym had no workout plan.` }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
       throw sourceTPathError;
     }
     
-    const { data: profileData, error: profileError } = await supabaseServiceRoleClient
-      .from('profiles')
-      .select('preferred_session_length')
-      .eq('id', user.id)
-      .single();
+    const { data: profileData, error: profileError } = await supabaseServiceRoleClient.from('profiles').select('preferred_session_length').eq('id', user.id).single();
     if (profileError) throw profileError;
     const preferred_session_length = profileData?.preferred_session_length;
 
-    // 4. Create a new main T-Path for the target gym, copying settings
+    // 4. Create a new main T-Path for the target gym
     const { data: newTargetTPath, error: newTPathError } = await supabaseServiceRoleClient
       .from('t_paths')
-      .insert({
-        user_id: user.id,
-        gym_id: targetGymId,
-        template_name: sourceTPath.template_name,
-        settings: sourceTPath.settings,
-        is_bonus: false,
-        parent_t_path_id: null,
-      })
-      .select('id')
-      .single();
-
+      .insert({ user_id: user.id, gym_id: targetGymId, template_name: sourceTPath.template_name, settings: sourceTPath.settings, is_bonus: false, parent_t_path_id: null })
+      .select('id').single();
     if (newTPathError) throw newTPathError;
 
-    // 5. Invoke the generate-t-path function using a direct fetch call
+    // 5. Invoke the generate-t-path function using a direct fetch call with the required apikey
     // @ts-ignore
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    // @ts-ignore
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
     const edgeFunctionUrl = `${supabaseUrl}/functions/v1/generate-t-path`;
     
-    console.log(`[copy-gym-setup] Invoking generate-t-path at: ${edgeFunctionUrl}`);
     const invokeResponse = await fetch(edgeFunctionUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': authHeader, // Forward the original user's auth header
+        'Authorization': authHeader,
+        'apikey': supabaseAnonKey, // This was the missing piece
       },
-      body: JSON.stringify({ 
-        tPathId: newTargetTPath.id,
-        preferred_session_length: preferred_session_length
-      }),
+      body: JSON.stringify({ tPathId: newTargetTPath.id, preferred_session_length }),
     });
 
-    const invokeData = await invokeResponse.json();
-    console.log(`[copy-gym-setup] generate-t-path response status: ${invokeResponse.status}`);
-    console.log(`[copy-gym-setup] generate-t-path response body:`, invokeData);
-
     if (!invokeResponse.ok) {
+      const invokeData = await invokeResponse.json();
       throw new Error(invokeData.error || `Failed to invoke generate-t-path. Status: ${invokeResponse.status}`);
     }
 
-    // Update the user's active_gym_id in their profile
-    const { error: updateProfileError } = await supabaseServiceRoleClient
-      .from('profiles')
-      .update({ active_gym_id: targetGymId })
-      .eq('id', user.id);
+    // Update the user's active_gym_id
+    await supabaseServiceRoleClient.from('profiles').update({ active_gym_id: targetGymId }).eq('id', user.id);
 
-    if (updateProfileError) {
-      console.error("Failed to update user's active_gym_id after copying gym setup:", updateProfileError);
-    }
-
-    return new Response(JSON.stringify({ message: `Successfully copied setup and initiated workout plan generation for new gym.` }), {
+    return new Response(JSON.stringify({ message: `Successfully copied setup and initiated workout plan generation.` }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
     const message = error instanceof Error ? error.message : "An unknown error occurred";
     console.error("Error in copy-gym-setup edge function:", message);
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(JSON.stringify({ error: message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
