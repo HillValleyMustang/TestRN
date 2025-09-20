@@ -80,9 +80,26 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
 
     setActiveGym(newActiveGym); // Optimistic update
 
+    // Find the main T-Path for the new gym
+    const { data: tPathForGym, error: tPathError } = await supabase
+      .from('t_paths')
+      .select('id')
+      .eq('gym_id', gymId)
+      .eq('user_id', session.user.id)
+      .is('parent_t_path_id', null)
+      .single();
+
+    if (tPathError && tPathError.code !== 'PGRST116') {
+      toast.error("Could not find workout plan for this gym.");
+      fetchGymData(); // Revert optimistic UI change
+      return;
+    }
+
+    const newActiveTPathId = tPathForGym ? tPathForGym.id : null;
+
     const { error } = await supabase
       .from('profiles')
-      .update({ active_gym_id: gymId })
+      .update({ active_gym_id: gymId, active_t_path_id: newActiveTPathId }) // Update both fields
       .eq('id', session.user.id);
 
     if (error) {

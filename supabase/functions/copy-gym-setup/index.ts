@@ -219,7 +219,7 @@ serve(async (req: Request) => {
 
     await generateWorkoutPlanForTPath(supabaseServiceRoleClient, user.id, newTargetTPath.id, preferred_session_length, targetGymId);
 
-    await supabaseServiceRoleClient.from('profiles').update({ active_gym_id: targetGymId, t_path_generation_status: 'completed', t_path_generation_error: null }).eq('id', user.id);
+    await supabaseServiceRoleClient.from('profiles').update({ active_gym_id: targetGymId, active_t_path_id: newTargetTPath.id, t_path_generation_status: 'completed', t_path_generation_error: null }).eq('id', user.id);
 
     return new Response(JSON.stringify({ message: `Successfully copied setup and generated workout plan.` }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
