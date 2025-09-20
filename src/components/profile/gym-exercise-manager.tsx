@@ -7,10 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
-import { Tables, FetchedExerciseDefinition } from '@/types/supabase';
+import { Tables, FetchedExerciseDefinition, Profile } from '@/types/supabase'; // Import Profile type
 import { ExerciseTransferUI } from './exercise-transfer-ui';
 import { LoadingOverlay } from '../loading-overlay';
 import { LayoutTemplate, PlusCircle } from 'lucide-react'; // Added LayoutTemplate and PlusCircle
+import { SetupGymPlanPrompt } from '@/components/manage-t-paths/setup-gym-plan-prompt'; // Import SetupGymPlanPrompt
 
 type Gym = Tables<'gyms'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -26,14 +27,20 @@ export interface WorkoutExerciseWithDetails extends ExerciseDefinition {
   t_path_exercise_id: string; // ID from t_path_exercises table
 }
 
+// Define types for the specific Supabase query results
+type GymExerciseLink = { exercise_id: string; gym_id: string; };
+type TPathExerciseLink = { id: string; exercise_id: string; order_index: number; is_bonus_exercise: boolean | null; };
+
+
 interface ManageGymWorkoutsExercisesDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   gym: Gym | null;
   onSaveSuccess: () => void;
+  profile: Profile | null; // NEW: Pass profile to SetupGymPlanPrompt
 }
 
-export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSaveSuccess }: ManageGymWorkoutsExercisesExercisesDialogProps) => {
+export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSaveSuccess, profile }: ManageGymWorkoutsExercisesDialogProps) => {
   const { session, supabase } = useSession();
   const [mainTPath, setMainTPath] = useState<TPath | null>(null);
   const [childWorkouts, setChildWorkouts] = useState<TPath[]>([]);
@@ -51,10 +58,12 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
 
   const fetchData = useCallback(async () => {
     if (!session || !gym) {
+      console.log("[ManageGymWorkoutsExercisesDialog] Skipping fetchData: session or gym is null.", { session: !!session, gym: !!gym });
       setLoading(false);
       return;
     }
     setLoading(true);
+    console.log("[ManageGymWorkoutsExercisesDialog] Starting fetchData for gym:", gym.name, "ID:", gym.id, "User ID:", session.user.id);
     try {
       // 1. Fetch the main T-Path for this gym
       const { data: mainTPathData, error: mainTPathError } = await supabase
@@ -65,10 +74,15 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
         .is('parent_t_path_id', null)
         .single();
 
-      if (mainTPathError && mainTPathError.code !== 'PGRST116') throw mainTPathError;
+      if (mainTPathError && mainTPathError.code !== 'PGRST116') {
+        console.error("[ManageGymWorkoutsExercisesDialog] Error fetching main T-Path:", mainTPathError);
+        throw mainTPathError;
+      }
+      console.log("[ManageGymWorkoutsExercisesDialog] Fetched main T-Path data:", mainTPathData);
       setMainTPath(mainTPathData);
 
       if (!mainTPathData) {
+        console.log("[ManageGymWorkoutsExercisesDialog] No main T-Path found for this gym. Displaying error message.");
         setChildWorkouts([]);
         setAllExercises([]);
         setExercisesInSelectedWorkout([]);
@@ -102,7 +116,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
         .select('exercise_id')
         .eq('gym_id', gym.id);
       if (gymExError) throw gymExError;
-      setExerciseIdsInGym(new Set((gymExRes.data || []).map(link => link.exercise_id)));
+      setExerciseIdsInGym(new Set((gymExRes || []).map((link: { exercise_id: string }) => link.exercise_id)));
 
       // 5. Set initial selected workout and its exercises
       const initialSelectedWorkoutId = selectedWorkoutId || (childWorkoutsData && childWorkoutsData.length > 0 ? childWorkoutsData[0].id : null);
@@ -119,7 +133,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
         const exerciseDefMap = new Map<string, ExerciseDefinition>();
         (allExRes || []).forEach(def => exerciseDefMap.set(def.id, def as ExerciseDefinition));
 
-        const fetchedExercises = (tpeRes.data || []).map(link => {
+        const fetchedExercises = (tpeRes || []).map((link: TPathExerciseLink) => {
           const exerciseDef = exerciseDefMap.get(link.exercise_id);
           if (!exerciseDef) return null;
           return {
@@ -144,6 +158,12 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
     }
   }, [session, supabase, gym, selectedWorkoutId]); // Added selectedWorkoutId to dependencies to re-fetch when it changes
 
+  // Add a refresh function for the dialog itself
+  const refreshDialogData = useCallback(() => {
+    fetchData();
+    onSaveSuccess(); // Also notify parent to refresh
+  }, [fetchData, onSaveSuccess]);
+
   useEffect(() => {
     if (open) {
       fetchData();
@@ -159,7 +179,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       setMuscleFilter("all");
       setAddExerciseSourceFilter('my-exercises');
     }
-  }, [open, fetchData]);
+  }, [open, refreshDialogData]); // Changed dependency to refreshDialogData
 
   // Memoized list of exercises available for transfer (left column)
   const availableExercisesForTransfer = useMemo(() => {
@@ -306,7 +326,8 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
               <p className="text-muted-foreground text-center">Loading gym workout data...</p>
             ) : !mainTPath ? (
               <div className="text-center text-muted-foreground">
-                No active workout plan found for "{gym.name}". Please set one up in your profile.
+                {/* Display SetupGymPlanPrompt if no mainTPath is found */}
+                <SetupGymPlanPrompt gym={gym} onSetupSuccess={refreshDialogData} />
               </div>
             ) : (
               <>

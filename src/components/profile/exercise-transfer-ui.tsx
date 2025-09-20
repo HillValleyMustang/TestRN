@@ -20,7 +20,7 @@ const ExerciseListItem = ({ exercise, onAction, actionIcon, isBonus }: { exercis
   <li className="flex items-center justify-between p-2 text-sm hover:bg-accent rounded-md">
     <span className="flex-1 truncate pr-2 flex items-center gap-2">
       {exercise.name}
-      {isBonus && <Sparkles className="h-3 w-3 text-yellow-500" title="Bonus Exercise" />}
+      {isBonus && <Sparkles className="h-3 w-3 text-yellow-500" />}
     </span>
     <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={() => onAction(exercise.id)}>
       {actionIcon}

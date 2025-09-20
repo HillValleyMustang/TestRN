@@ -256,6 +256,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
           onDataChange();
           refreshGyms();
         }}
+        profile={profile} // NEW: Pass profile
       />
     </>
   );
