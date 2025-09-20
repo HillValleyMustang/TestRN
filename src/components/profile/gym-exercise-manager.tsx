@@ -11,8 +11,9 @@ import { Tables, FetchedExerciseDefinition, Profile } from '@/types/supabase';
 import { LoadingOverlay } from '../loading-overlay';
 import { LayoutTemplate, PlusCircle, Trash2, Info } from 'lucide-react';
 import { SetupGymPlanPrompt } from '@/components/manage-t-paths/setup-gym-plan-prompt';
-import { AddExercisesToWorkoutDialog } from './add-exercises-to-workout-dialog'; // NEW: Import the new dialog
-import { ScrollArea } from '@/components/ui/scroll-area'; // For the list of exercises in workout
+import { AddExercisesToWorkoutDialog } from './add-exercises-to-workout-dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { ExerciseInfoDialog } from '@/components/exercise-info-dialog';
 
 type Gym = Tables<'gyms'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -104,7 +105,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
         setChildWorkouts([]);
         setAllExercises([]);
         setExercisesInSelectedWorkout([]);
-        setExerciseIdsInGym(new Set());
+        setExerciseIdsInGym(new Set()); // Corrected: Call setter with a new Set instance
         setLoading(false);
         return;
       }
@@ -134,7 +135,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
         .select('exercise_id')
         .eq('gym_id', gym.id);
       if (gymExError) throw gymExError;
-      setExerciseIdsInGym(new Set((gymExRes || []).map((link: { exercise_id: string }) => link.exercise_id)));
+      setExerciseIdsInGym(new Set((gymExRes || []).map((link: { exercise_id: string }) => link.exercise_id))); // Corrected: Call setter with a new Set instance
 
       // 5. Set initial selected workout and its exercises
       const initialSelectedWorkoutId = selectedWorkoutId || (childWorkoutsData && childWorkoutsData.length > 0 ? childWorkoutsData[0].id : null);
@@ -192,7 +193,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       setSelectedWorkoutId(null);
       setExercisesInSelectedWorkout([]);
       setAllExercises([]);
-      setExerciseIdsInGym(new Set());
+      setExerciseIdsInGym(new Set()); // Corrected: Call setter with a new Set instance
       setSearchTerm("");
       setMuscleFilter("all");
       setAddExerciseSourceFilter('my-exercises');
@@ -245,7 +246,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
 
       // Optimistic update UI
       setExercisesInSelectedWorkout(prev => [...prev, ...optimisticUpdates]);
-      setExerciseIdsInGym(prev => new Set([...prev, ...exerciseIds.filter(id => !prev.has(id))]));
+      setExerciseIdsInGym((prev: Set<string>) => new Set([...prev, ...exerciseIds.filter(id => !prev.has(id))])); // Corrected: Type prev and call setter with a new Set instance
 
       // Perform database operations
       if (gymLinksToInsert.length > 0) {
@@ -275,7 +276,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       console.error("Error adding exercises to workout:", err);
       // Rollback optimistic updates on error
       setExercisesInSelectedWorkout(prev => prev.filter(ex => !ex.t_path_exercise_id.startsWith('temp-')));
-      setExerciseIdsInGym(prev => new Set([...prev].filter(id => !exerciseIds.includes(id))));
+      setExerciseIdsInGym((prev: Set<string>) => new Set([...prev].filter(id => !exerciseIds.includes(id)))); // Corrected: Type prev and call setter with a new Set instance
     } finally {
       setIsSaving(false);
     }
@@ -344,6 +345,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
               <p className="text-muted-foreground text-center">Loading gym workout data...</p>
             ) : !mainTPath ? (
               <div className="text-center text-muted-foreground">
+                {/* Display SetupGymPlanPrompt if no mainTPath is found */}
                 <SetupGymPlanPrompt gym={gym} onSetupSuccess={refreshDialogData} profile={profile} />
               </div>
             ) : (
