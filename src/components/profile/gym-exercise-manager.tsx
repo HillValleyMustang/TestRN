@@ -73,7 +73,10 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
   const [showConfirmRemoveDialog, setShowConfirmRemoveDialog] = useState(false);
   const [exerciseToRemove, setExerciseToRemove] = useState<WorkoutExerciseWithDetails | null>(null);
 
-  // Moved useSensors hook outside of conditional rendering
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showDiscardChangesDialog, setShowDiscardChangesDialog] = useState(false);
+
+
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
   const fetchData = useCallback(async () => {
@@ -184,6 +187,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
   const refreshDialogData = useCallback(() => {
     fetchData();
     onSaveSuccess();
+    setHasUnsavedChanges(false); // Clear unsaved changes after a full refresh
   }, [fetchData, onSaveSuccess]);
 
   useEffect(() => {
@@ -199,6 +203,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       setExerciseIdsInGym(new Set());
       setMuscleGroups([]);
       setAddExerciseSourceFilter('my-exercises');
+      setHasUnsavedChanges(false); // Reset on close
     }
   }, [open, refreshDialogData]);
 
@@ -244,6 +249,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
 
       setCoreExercises(prev => [...prev, ...optimisticUpdates]);
       setExerciseIdsInGym(prev => new Set([...prev, ...exerciseIds.filter(id => !prev.has(id))]));
+      setHasUnsavedChanges(true); // Mark as unsaved after adding
 
       if (gymLinksToInsert.length > 0) {
         const { error: linkError } = await supabase.from('gym_exercises').insert(gymLinksToInsert).select();
@@ -295,6 +301,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       // Optimistic update
       setCoreExercises(prev => prev.filter(ex => ex.id !== exerciseToRemove.id));
       setBonusExercises(prev => prev.filter(ex => ex.id !== exerciseToRemove.id));
+      setHasUnsavedChanges(true); // Mark as unsaved after removing
 
       const { error: deleteError } = await supabase
         .from('t_path_exercises')
@@ -341,74 +348,88 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
     const overContainerId = over.data.current?.sortable?.containerId || over.id;
     const activeContainerId = active.data.current?.sortable?.containerId || active.id;
 
-    let updatedCore = [...coreExercises];
-    let updatedBonus = [...bonusExercises];
-    let exercisesToUpdate: { id: string; order_index: number; is_bonus_exercise: boolean }[] = [];
-
+    let newCore = [...coreExercises];
+    let newBonus = [...bonusExercises];
+    
     // Find the dragged item
-    const draggedItem = [...updatedCore, ...updatedBonus].find(ex => ex.id === activeId);
+    const draggedItem = [...newCore, ...newBonus].find(ex => ex.id === activeId);
     if (!draggedItem) return;
 
     if (activeContainerId === overContainerId) {
       // Moved within the same list
       const isCoreList = activeContainerId === 'core-exercises';
-      const currentList = isCoreList ? updatedCore : updatedBonus;
-      const setter = isCoreList ? setCoreExercises : setBonusExercises;
-
+      const currentList = isCoreList ? newCore : newBonus;
+      
       const oldIndex = currentList.findIndex(item => item.id === activeId);
       const newIndex = currentList.findIndex(item => item.id === overId);
 
       const newOrderedList = arrayMove(currentList, oldIndex, newIndex);
-      setter(newOrderedList);
-
-      exercisesToUpdate = newOrderedList.map((ex, index) => ({
-        id: ex.t_path_exercise_id,
-        order_index: index,
-        is_bonus_exercise: isCoreList ? false : true,
-      }));
+      
+      if (isCoreList) {
+        setCoreExercises(newOrderedList);
+      } else {
+        setBonusExercises(newOrderedList);
+      }
 
     } else {
       // Moved between lists (e.g., Core to Bonus, or Bonus to Core)
       const isMovingToBonus = overContainerId === 'bonus-exercises';
-      const isMovingToCore = overContainerId === 'core-exercises';
 
       // Remove from source list
-      updatedCore = updatedCore.filter(ex => ex.id !== activeId);
-      updatedBonus = updatedBonus.filter(ex => ex.id !== activeId);
+      newCore = newCore.filter(ex => ex.id !== activeId);
+      newBonus = newBonus.filter(ex => ex.id !== activeId);
 
       // Add to target list at the correct position
-      const targetList = isMovingToCore ? updatedCore : updatedBonus;
+      const targetList = isMovingToBonus ? newBonus : newCore;
       const newIndex = targetList.findIndex(item => item.id === overId);
       const insertIndex = newIndex === -1 ? targetList.length : newIndex;
 
       const newItem = { ...draggedItem, is_bonus_exercise: isMovingToBonus };
       targetList.splice(insertIndex, 0, newItem);
 
-      setCoreExercises(updatedCore);
-      setBonusExercises(updatedBonus);
-
-      // Recalculate order for both lists
-      exercisesToUpdate = [
-        ...updatedCore.map((ex, index) => ({ id: ex.t_path_exercise_id, order_index: index, is_bonus_exercise: false })),
-        ...updatedBonus.map((ex, index) => ({ id: ex.t_path_exercise_id, order_index: index, is_bonus_exercise: true })),
-      ];
+      setCoreExercises(newCore);
+      setBonusExercises(newBonus);
     }
+    setHasUnsavedChanges(true); // Mark as unsaved after any drag-and-drop
+  }, [coreExercises, bonusExercises, selectedWorkoutId]);
 
+  const handleSaveChanges = useCallback(async () => {
+    if (!session || !selectedWorkoutId || !hasUnsavedChanges) return;
     setIsSaving(true);
     try {
-      const { error } = await supabase.rpc('update_gym_exercise_order_and_status', { updates: exercisesToUpdate });
+      const updates = [
+        ...coreExercises.map((ex, index) => ({ id: ex.t_path_exercise_id, order_index: index, is_bonus_exercise: false })),
+        ...bonusExercises.map((ex, index) => ({ id: ex.t_path_exercise_id, order_index: index, is_bonus_exercise: true })),
+      ];
+      const { error } = await supabase.rpc('update_gym_exercise_order_and_status', { updates });
       if (error) throw error;
       toast.success("Exercise order and status updated!");
-      onSaveSuccess(); // Trigger parent refresh
+      setHasUnsavedChanges(false);
+      onSaveSuccess();
     } catch (err: any) {
-      toast.error("Failed to update exercise order/status.");
-      console.error("Error updating exercise order/status:", err);
-      // Re-fetch data to revert optimistic update if API fails
-      fetchData();
+      toast.error("Failed to save exercise order/status.");
+      console.error("Error saving exercise order/status:", err);
     } finally {
       setIsSaving(false);
     }
-  }, [coreExercises, bonusExercises, selectedWorkoutId, supabase, onSaveSuccess, fetchData]);
+  }, [session, supabase, selectedWorkoutId, coreExercises, bonusExercises, hasUnsavedChanges, onSaveSuccess]);
+
+  const handleCloseDialog = useCallback(() => {
+    if (hasUnsavedChanges) {
+      setShowDiscardChangesDialog(true);
+    } else {
+      onOpenChange(false);
+    }
+  }, [hasUnsavedChanges, onOpenChange]);
+
+  const handleConfirmDiscard = useCallback(() => {
+    setShowDiscardChangesDialog(false);
+    onOpenChange(false); // Close the main dialog
+  }, [onOpenChange]);
+
+  const handleCancelDiscard = useCallback(() => {
+    setShowDiscardChangesDialog(false);
+  }, []);
 
 
   if (!gym) {
@@ -417,7 +438,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={handleCloseDialog}>
         <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-0">
           <DialogHeader className="p-4 pb-2 border-b">
             <DialogTitle className="flex items-center gap-2 text-xl">
@@ -487,8 +508,9 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
               </>
             )}
           </div>
-          <DialogFooter className="p-4 pt-2 border-t">
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>Close</Button>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 p-4 pt-2 border-t">
+            <Button variant="outline" onClick={handleCloseDialog} disabled={isSaving} className="flex-1">Close</Button>
+            <Button onClick={handleSaveChanges} disabled={isSaving || !hasUnsavedChanges} className="flex-1">Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -524,6 +546,21 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setShowConfirmRemoveDialog(false)}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmRemoveExercise}>Remove</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showDiscardChangesDialog} onOpenChange={setShowDiscardChangesDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard Unsaved Changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Are you sure you want to close without saving? Your changes will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelDiscard}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDiscard}>Discard & Close</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -90,25 +90,31 @@ export const AddExercisesToWorkoutDialog = ({
           <DialogTitle className="flex items-center gap-2">
             <PlusCircle className="h-5 w-5" /> Add Exercises
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="mb-2"> {/* Reduced margin-bottom */}
             Select exercises to add to the current workout template.
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4 space-y-4 flex-grow flex flex-col">
+        <div className="py-2 space-y-2 flex-grow flex flex-col"> {/* Reduced padding and spacing */}
           {/* Filters and Search */}
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col sm:flex-row gap-2"> {/* Reduced gap */}
             <div className="flex sm:w-1/3">
               <Button
-                variant={addExerciseSourceFilter === 'my-exercises' ? 'secondary' : 'ghost'}
+                variant="ghost"
                 onClick={() => setAddExerciseSourceFilter('my-exercises')}
-                className="flex-1 h-9 text-xs"
+                className={cn(
+                  "flex-1 h-9 text-xs",
+                  addExerciseSourceFilter === 'my-exercises' ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-secondary text-secondary-foreground hover:bg-accent"
+                )}
               >
                 My Exercises
               </Button>
               <Button
-                variant={addExerciseSourceFilter === 'global-library' ? 'secondary' : 'ghost'}
+                variant="ghost"
                 onClick={() => setAddExerciseSourceFilter('global-library')}
-                className="flex-1 h-9 text-xs"
+                className={cn(
+                  "flex-1 h-9 text-xs",
+                  addExerciseSourceFilter === 'global-library' ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-secondary text-secondary-foreground hover:bg-accent"
+                )}
               >
                 Global
               </Button>
@@ -119,11 +125,11 @@ export const AddExercisesToWorkoutDialog = ({
                 placeholder="Search exercises..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
+                className="pl-9 text-sm" // Added text-sm
               />
             </div>
             <Select onValueChange={setMuscleFilter} value={muscleFilter}>
-              <SelectTrigger className="sm:w-1/3">
+              <SelectTrigger className="sm:w-1/3 h-9 text-sm"> {/* Added text-sm */}
                 <SelectValue placeholder="Filter by muscle" />
               </SelectTrigger>
               <SelectContent>
@@ -136,7 +142,7 @@ export const AddExercisesToWorkoutDialog = ({
           {/* Exercise List */}
           <ScrollArea className="flex-grow border rounded-md p-2">
             {availableExercises.length === 0 ? (
-              <p className="text-muted-foreground text-center p-4">No exercises found matching your criteria.</p>
+              <p className="text-muted-foreground text-center p-4 text-sm">No exercises found matching your criteria.</p>
             ) : (
               <ul className="space-y-1">
                 {availableExercises.map(ex => (
@@ -148,7 +154,7 @@ export const AddExercisesToWorkoutDialog = ({
                         onCheckedChange={(checked) => handleToggleSelect(ex.id, !!checked)}
                       />
                       <Label htmlFor={`add-exercise-${ex.id}`} className="font-medium cursor-pointer">
-                        {ex.name} <span className="text-muted-foreground text-xs">({ex.main_muscle})</span>
+                        {ex.name}
                       </Label>
                     </div>
                   </li>
