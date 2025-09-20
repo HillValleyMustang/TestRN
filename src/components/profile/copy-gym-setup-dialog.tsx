@@ -24,17 +24,19 @@ export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, 
   const [selectedSourceGymId, setSelectedSourceGymId] = useState<string>("");
   const [isCopying, setIsCopying] = useState(false);
 
+  console.log("[CopyGymSetupDialog] Rendered. Source Gyms:", sourceGyms); // NEW LOG HERE
+
   const handleCopySetup = async () => {
     console.log("[CopyGymSetupDialog] handleCopySetup called.");
-    console.log("[CopyGymSetupDialog] Session:", session); // NEW LOG
-    console.log("[CopyGymSetupDialog] Selected Source Gym ID:", selectedSourceGymId); // NEW LOG
+    console.log("[CopyGymSetupDialog] Session:", session);
+    console.log("[CopyGymSetupDialog] Selected Source Gym ID:", selectedSourceGymId);
 
     if (!session || !selectedSourceGymId) {
       toast.error("Please select a gym to copy from.");
       console.log("[CopyGymSetupDialog] Validation failed: No session or source gym selected.");
       return;
     }
-    console.log("[CopyGymSetupDialog] Validation passed. Proceeding to set loading state."); // NEW LOG
+    console.log("[CopyGymSetupDialog] Validation passed. Proceeding to set loading state.");
     setIsCopying(true);
     try {
       console.log("[CopyGymSetupDialog] Making fetch request to /api/copy-gym-setup...");
