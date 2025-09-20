@@ -8,10 +8,11 @@ import { Tables, TablesInsert, ProfileInsert, FetchedExerciseDefinition } from "
 import { v4 as uuidv4 } from 'uuid';
 
 // New type for the summary data structure
-export type OnboardingSummaryData = {
-  profile: Partial<ProfileInsert>;
+type OnboardingSummaryData = {
+  profile: Tables<'profiles'>;
   mainTPath: Tables<'t_paths'>;
-  childWorkoutsWithExercises: (Tables<'t_paths'> & { exercises: (Tables<'exercise_definitions'> & { is_bonus_exercise: boolean })[] })[];
+  childWorkouts: (Tables<'t_paths'> & { exercises: (Tables<'exercise_definitions'> & { is_bonus_exercise: boolean })[] })[];
+  identifiedExercises: Partial<FetchedExerciseDefinition>[];
   confirmedExerciseNames: Set<string>;
 };
 
@@ -33,7 +34,10 @@ export const useOnboardingForm = () => {
   const [loading, setLoading] = useState(false);
   const [isInitialSetupLoading, setIsInitialSetupLoading] = useState(false);
   const [gymName, setGymName] = useState<string>("");
+
+  // New state for the summary modal
   const [summaryData, setSummaryData] = useState<OnboardingSummaryData | null>(null);
+  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
 
   const tPathDescriptions = {
     ulul: {
@@ -110,7 +114,7 @@ export const useOnboardingForm = () => {
       setCurrentStep(6);
       return;
     }
-    if (currentStep < 9) {
+    if (currentStep < 8) {
       setCurrentStep(prev => prev + 1);
     }
   }, [currentStep, equipmentMethod]);
@@ -120,9 +124,7 @@ export const useOnboardingForm = () => {
       setCurrentStep(4);
       return;
     }
-    if (currentStep > 1) {
-      setCurrentStep(prev => prev - 1);
-    }
+    setCurrentStep(prev => prev - 1);
   }, [currentStep, equipmentMethod]);
 
   const handleSubmit = useCallback(async (fullName: string, heightCm: number, weightKg: number, bodyFatPct: number | null) => {
@@ -161,14 +163,9 @@ export const useOnboardingForm = () => {
         throw new Error(data.error || 'Onboarding process failed.');
       }
 
-      // Set summary data and move to the summary step
-      setSummaryData({
-        profile: data.profile,
-        mainTPath: data.mainTPath,
-        childWorkoutsWithExercises: data.childWorkoutsWithExercises,
-        confirmedExerciseNames: confirmedExercises,
-      });
-      setCurrentStep(9); // Go to summary step
+      // Instead of redirecting, set the summary data and open the modal
+      setSummaryData({ ...data, confirmedExerciseNames: confirmedExercises });
+      setIsSummaryModalOpen(true);
 
     } catch (error: any) {
       console.error("Onboarding failed:", error.message);
@@ -181,9 +178,10 @@ export const useOnboardingForm = () => {
     constraints, sessionLength, equipmentMethod, gymName, identifiedExercises, confirmedExercises
   ]);
 
-  const handleFinish = useCallback(() => {
+  const handleCloseSummaryModal = () => {
+    setIsSummaryModalOpen(false);
     router.push('/dashboard');
-  }, [router]);
+  };
 
   return {
     currentStep,
@@ -217,6 +215,8 @@ export const useOnboardingForm = () => {
     gymName,
     setGymName,
     summaryData,
-    handleFinish,
+    isSummaryModalOpen,
+    setIsSummaryModalOpen,
+    handleCloseSummaryModal,
   };
 };

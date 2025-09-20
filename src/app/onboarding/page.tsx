@@ -11,11 +11,10 @@ import { OnboardingStep5_GymPhotoUpload } from "@/components/onboarding/onboardi
 import { OnboardingStep6_SessionPreferences } from "@/components/onboarding/onboarding-step-6-session-preferences";
 import { OnboardingStep7_AppFeatures } from "@/components/onboarding/onboarding-step-7-app-features";
 import { OnboardingStep8_FinalDetails } from "@/components/onboarding/onboarding-step-8-final-details";
-import { OnboardingStep9_Summary } from "@/components/onboarding/onboarding-step-9-summary";
 import { useSession } from "@/components/session-context-provider";
 import { LoadingOverlay } from "@/components/loading-overlay";
 import { toast } from "sonner";
-import { CheckCircle } from "lucide-react";
+import { OnboardingSummaryModal } from "@/components/onboarding/onboarding-summary-modal"; // Import the new modal
 
 export default function OnboardingPage() {
   const { session } = useSession();
@@ -51,7 +50,9 @@ export default function OnboardingPage() {
     gymName,
     setGymName,
     summaryData,
-    handleFinish,
+    isSummaryModalOpen,
+    setIsSummaryModalOpen,
+    handleCloseSummaryModal,
   } = useOnboardingForm();
 
   const [fullName, setFullName] = useState('');
@@ -161,13 +162,6 @@ export default function OnboardingPage() {
             setBodyFatPct={setBodyFatPct}
           />
         );
-      case 9:
-        return (
-          <OnboardingStep9_Summary
-            summaryData={summaryData}
-            handleFinish={handleFinish}
-          />
-        );
       default:
         return null;
     }
@@ -183,7 +177,6 @@ export default function OnboardingPage() {
       case 6: return "Session Preferences";
       case 7: return "App Features";
       case 8: return "Final Details & Consent";
-      case 9: return "Setup Complete!";
       default: return "";
     }
   };
@@ -198,7 +191,6 @@ export default function OnboardingPage() {
       case 6: return "How long do you prefer your workout sessions to be?";
       case 7: return "Here's a quick look at what you can do with the app.";
       case 8: return "Just a few more details to personalise your experience.";
-      case 9: return "Your personalized plan is being generated.";
       default: return "";
     }
   };
@@ -216,7 +208,7 @@ export default function OnboardingPage() {
 
           <div className="mb-6">
             <div className="flex justify-between items-start">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((step) => (
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((step) => (
                 <React.Fragment key={step}>
                   <div className="flex-shrink-0 text-center">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto ${
@@ -224,10 +216,10 @@ export default function OnboardingPage() {
                         ? "bg-primary text-primary-foreground" 
                         : "bg-muted text-muted-foreground"
                     }`}>
-                      {step === 9 ? <CheckCircle className="h-5 w-5" /> : step}
+                      {step}
                     </div>
                   </div>
-                  {step < 9 && (
+                  {step < 8 && (
                     <div className={`flex-grow h-1 mt-4 ${
                       currentStep > step 
                         ? "bg-primary" 
@@ -255,6 +247,12 @@ export default function OnboardingPage() {
           description={loading ? "Finalizing your profile details." : "Please wait while we generate your initial workout programs."}
         />
       </div>
+      <OnboardingSummaryModal
+        open={isSummaryModalOpen}
+        onOpenChange={setIsSummaryModalOpen}
+        summaryData={summaryData}
+        onClose={handleCloseSummaryModal}
+      />
     </>
   );
 }
