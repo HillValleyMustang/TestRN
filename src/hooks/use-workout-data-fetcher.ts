@@ -252,7 +252,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       }
     };
 
-    if (status === 'in_progress') {
+    if (status === 'in_progress') { // Case 1: Polling is active
       if (!pollingRef.current) {
         setIsGeneratingPlan(true);
         console.log("[Polling] T-Path generation in progress. Starting to poll profile status.");
@@ -261,8 +261,12 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
           refreshProfile();
         }, 3000);
       }
-    } else if (prevStatusRef.current === 'in_progress' && (status === 'completed' || status === 'failed')) {
+    } else if (prevStatusRef.current === 'in_progress' && (status === 'completed' || status === 'failed')) { // Case 2: Polling was active and just finished
       stopPolling(status);
+    } else if (prevStatusRef.current !== 'completed' && status === 'completed') { // Case 3: Generation was too fast, missed 'in_progress'
+      console.log("[Polling] Detected direct transition to 'completed'. Refreshing all workout data.");
+      refreshAllData();
+      stopPolling();
     } else {
       stopPolling();
     }

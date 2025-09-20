@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/components/session-context-provider';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
+import { db } from '@/lib/db'; // Import db
 
 type Gym = Tables<'gyms'>;
 type Profile = Tables<'profiles'>;
@@ -97,15 +98,22 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
 
     const newActiveTPathId = tPathForGym ? tPathForGym.id : null;
 
-    const { error } = await supabase
+    const { data: updatedProfile, error } = await supabase
       .from('profiles')
-      .update({ active_gym_id: gymId, active_t_path_id: newActiveTPathId }) // Update both fields
-      .eq('id', session.user.id);
+      .update({ active_gym_id: gymId, active_t_path_id: newActiveTPathId })
+      .eq('id', session.user.id)
+      .select()
+      .single();
 
     if (error) {
       toast.error("Failed to switch active gym.");
       // Revert optimistic update
       fetchGymData();
+    } else {
+      // On success, update the local Dexie cache to trigger reactivity elsewhere
+      if (updatedProfile) {
+        await db.profiles_cache.put(updatedProfile);
+      }
     }
   };
 
