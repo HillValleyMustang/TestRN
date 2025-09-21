@@ -37,11 +37,22 @@ export default function WorkoutPage() {
 
   // Effect to handle the initial workout selection from URL parameters
   useEffect(() => {
-    if (initialWorkoutId && !workoutFlowManager.activeWorkout && !workoutFlowManager.loading) {
+    // Only select if a workout isn't active AND a selection isn't already pending
+    if (
+      initialWorkoutId &&
+      !workoutFlowManager.activeWorkout &&
+      !workoutFlowManager.loading &&
+      !workoutFlowManager.pendingWorkoutIdToSelect
+    ) {
       workoutFlowManager.selectWorkout(initialWorkoutId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialWorkoutId, workoutFlowManager.activeWorkout, workoutFlowManager.loading]);
+  }, [
+    initialWorkoutId,
+    workoutFlowManager.activeWorkout,
+    workoutFlowManager.loading,
+    workoutFlowManager.pendingWorkoutIdToSelect, // Add new dependency
+  ]);
 
 
   return (

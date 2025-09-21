@@ -349,5 +349,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     refreshAchievements,
     isGeneratingPlan, // Return the new state
     profile, // Expose profile
+    pendingWorkoutIdToSelect, // Expose the pending state
   };
 };
