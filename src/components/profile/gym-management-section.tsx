@@ -6,13 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Home, PlusCircle, Edit, Trash2, Dumbbell } from 'lucide-react';
+import { Home, PlusCircle, Edit, Trash2, Dumbbell, CheckCircle2 } from 'lucide-react';
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { Tables, Profile } from '@/types/supabase';
 import { useGym } from '@/components/gym-context-provider';
 import { AddGymDialog } from './add-gym-dialog';
-import { ManageGymWorkoutsExercisesDialog } from './gym-exercise-manager'; // Import the NEW component
+import { ManageGymWorkoutsExercisesDialog } from './gym-exercise-manager';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type Gym = Tables<'gyms'>;
 
@@ -24,20 +25,18 @@ interface GymManagementSectionProps {
 
 export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymManagementSectionProps) => {
   const { session, supabase } = useSession();
-  const { userGyms, activeGym, refreshGyms } = useGym(); // Use userGyms and activeGym from context
-  const [loading, setLoading] = useState(true); // Keep local loading for dialogs/actions
+  const { userGyms, activeGym, refreshGyms, switchActiveGym } = useGym(); // Destructure switchActiveGym here
+  const [loading, setLoading] = useState(true);
 
-  // State for dialogs
   const [isAddGymDialogOpen, setIsAddGymDialogOpen] = useState(false);
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isLastGymWarningOpen, setIsLastGymWarningOpen] = useState(false);
-  const [isManageExercisesDialogOpen, setIsManageExercisesDialogOpen] = useState(false); // Renamed state
+  const [isManageExercisesDialogOpen, setIsManageExercisesDialogOpen] = useState(false);
 
   const [selectedGym, setSelectedGym] = useState<Gym | null>(null);
   const [newGymName, setNewGymName] = useState("");
 
-  // Set local loading state based on userGyms availability
   useEffect(() => {
     setLoading(userGyms === undefined);
   }, [userGyms]);
@@ -45,14 +44,14 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
   const handleRenameGym = async () => {
     if (!session || !selectedGym || !newGymName.trim()) return;
 
-    setLoading(true); // Set loading for the rename operation
+    setLoading(true);
     try {
       const { error } = await supabase.from('gyms').update({ name: newGymName }).eq('id', selectedGym.id);
       if (error) throw error;
 
       toast.success("Gym renamed successfully!");
-      onDataChange(); // Trigger parent refresh
-      refreshGyms(); // Refresh the gym context
+      onDataChange();
+      refreshGyms();
       setIsRenameDialogOpen(false);
       setNewGymName("");
       setSelectedGym(null);
@@ -60,7 +59,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
       console.error("Failed to rename gym:", err.message);
       toast.error("Failed to rename gym.");
     } finally {
-      setLoading(false); // Clear loading
+      setLoading(false);
     }
   };
 
@@ -69,15 +68,15 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
 
     setIsDeleteDialogOpen(false);
 
-    if (userGyms.length === 1) { // Use userGyms from context
+    if (userGyms.length === 1) {
       setIsLastGymWarningOpen(true);
       return;
     }
 
-    setLoading(true); // Set loading for the delete operation
+    setLoading(true);
     try {
       if (selectedGym.id === profile.active_gym_id) {
-        const nextActiveGym = userGyms.find(g => g.id !== selectedGym.id); // Use userGyms
+        const nextActiveGym = userGyms.find(g => g.id !== selectedGym.id);
         if (nextActiveGym) {
           await supabase.from('profiles').update({ active_gym_id: nextActiveGym.id }).eq('id', session.user.id);
         }
@@ -86,13 +85,13 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
       if (error) throw error;
 
       toast.success(`Gym "${selectedGym.name}" deleted.`);
-      onDataChange(); // Trigger parent refresh
-      refreshGyms(); // Refresh the gym context
+      onDataChange();
+      refreshGyms();
     } catch (err: any) {
       console.error("Failed to delete gym:", err.message);
       toast.error("Failed to delete gym.");
     } finally {
-      setLoading(false); // Clear loading
+      setLoading(false);
       setSelectedGym(null);
     }
   };
@@ -100,7 +99,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
   const handleConfirmDeleteLastGym = async () => {
     if (!session || !selectedGym || !profile?.active_t_path_id) return;
     setIsLastGymWarningOpen(false);
-    setLoading(true); // Set loading for the delete operation
+    setLoading(true);
     const toastId = toast.loading("Resetting workout plan and deleting gym...");
 
     try {
@@ -118,20 +117,39 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
       if (profileError) throw profileError;
 
       toast.success("Last gym deleted and workout plan reset to defaults.", { id: toastId });
-      onDataChange(); // Trigger parent refresh
-      refreshGyms(); // Refresh the gym context
+      onDataChange();
+      refreshGyms();
     } catch (err: any) {
       console.error("Failed to delete last gym:", err.message);
       toast.error("Failed to delete last gym.", { id: toastId });
     } finally {
-      setLoading(false); // Clear loading
+      setLoading(false);
       setSelectedGym(null);
     }
   };
 
   const handleAddSuccess = () => {
-    refreshGyms(); // This should be sufficient to trigger revalidation and UI update
-    onDataChange(); // NEW: Trigger parent refresh for profile data
+    refreshGyms();
+    onDataChange();
+  };
+
+  const handleSetAsActive = async (gymId: string) => {
+    if (!session) return;
+    setLoading(true);
+    try {
+      const success = await switchActiveGym(gymId);
+      if (success) {
+        toast.success(`"${userGyms.find(g => g.id === gymId)?.name}" is now your active gym!`);
+        onDataChange();
+      } else {
+        toast.error("Failed to set active gym.");
+      }
+    } catch (err: any) {
+      console.error("Error setting active gym:", err.message);
+      toast.error("Failed to set active gym.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -150,11 +168,30 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
             <p>Loading gyms...</p>
           ) : (
             <ul className="space-y-2">
-              {userGyms.map(gym => ( // Use userGyms from context
+              {userGyms.map(gym => (
                 <li key={gym.id} className="flex items-center justify-between p-2 border rounded-md">
-                  <span className="font-medium">{gym.name}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{gym.name}</span>
+                    {activeGym?.id === gym.id && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Active Gym</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
                   {isEditing && (
                     <div className="flex gap-1">
+                      {activeGym?.id !== gym.id && (
+                        <Button type="button" variant="ghost" size="icon" title="Set as Active" onClick={() => handleSetAsActive(gym.id)} disabled={loading}>
+                          <CheckCircle2 className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button type="button" variant="ghost" size="icon" title="Manage Exercises" onClick={() => { setSelectedGym(gym); setIsManageExercisesDialogOpen(true); }}>
                         <Dumbbell className="h-4 w-4" />
                       </Button>
@@ -170,7 +207,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
               ))}
             </ul>
           )}
-          {isEditing && userGyms.length < 3 && ( // Use userGyms.length
+          {isEditing && userGyms.length < 3 && (
             <Button type="button" variant="outline" className="w-full" onClick={() => setIsAddGymDialogOpen(true)}>
               <PlusCircle className="h-4 w-4 mr-2" /> Add New Gym
             </Button>
@@ -182,7 +219,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
         open={isAddGymDialogOpen}
         onOpenChange={setIsAddGymDialogOpen}
         onSaveSuccess={handleAddSuccess}
-        gymCount={userGyms.length} // Pass userGyms.length
+        gymCount={userGyms.length}
       />
 
       <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
@@ -234,7 +271,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
         </AlertDialogContent>
       </AlertDialog>
 
-      <ManageGymWorkoutsExercisesDialog // Changed to the new component name
+      <ManageGymWorkoutsExercisesDialog
         open={isManageExercisesDialogOpen}
         onOpenChange={setIsManageExercisesDialogOpen}
         gym={selectedGym}
@@ -242,7 +279,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
           onDataChange();
           refreshGyms();
         }}
-        profile={profile} // NEW: Pass profile
+        profile={profile}
       />
     </>
   );
