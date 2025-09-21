@@ -149,6 +149,15 @@ export interface LocalGym extends Tables<'gyms'> {
   created_at: string;
 }
 
+// NEW: LocalActivityLog
+export interface LocalActivityLog extends Tables<'activity_logs'> {
+  id: string;
+  user_id: string;
+  log_date: string;
+  activity_type: string;
+  created_at: string;
+}
+
 
 export class AppDatabase extends Dexie {
   workout_sessions!: Table<LocalWorkoutSession, string>;
@@ -163,10 +172,11 @@ export class AppDatabase extends Dexie {
   user_achievements_cache!: Table<LocalUserAchievement, string>; // NEW: Cache user achievements
   user_alerts!: Table<LocalUserAlert, string>; // NEW: User Alerts table
   gyms_cache!: Table<LocalGym, string>; // NEW: Gyms cache table
+  activity_logs!: Table<LocalActivityLog, string>; // NEW: Activity Logs cache table
 
   constructor() {
     super('WorkoutTrackerDB');
-    this.version(11).stores({
+    this.version(12).stores({
       workout_sessions: '&id, user_id, session_date, t_path_id, template_name',
       set_logs: '&id, session_id, exercise_id',
       sync_queue: '++id, timestamp',
@@ -178,7 +188,8 @@ export class AppDatabase extends Dexie {
       t_path_exercises_cache: '&id, template_id, exercise_id',
       user_achievements_cache: '&id, user_id, achievement_id',
       user_alerts: '&id, user_id, created_at',
-      gyms_cache: '&id, user_id', // Added gyms_cache schema
+      gyms_cache: '&id, user_id',
+      activity_logs: '&id, user_id, log_date', // Added activity_logs schema
     });
   }
 }
