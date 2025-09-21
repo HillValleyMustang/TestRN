@@ -5,7 +5,7 @@ import { useSession } from '@/components/session-context-provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dumbbell, Clock } from 'lucide-react';
-import { Tables, WorkoutWithLastCompleted, Profile } from '@/types/supabase';
+import { Tables, WorkoutWithLastCompleted, Profile, GroupedTPath } from '@/types/supabase';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { cn, getWorkoutColorClass } from '@/lib/utils';
@@ -34,7 +34,7 @@ export const NextWorkoutCard = () => {
 
   useEffect(() => {
     const determineNextWorkout = () => {
-      if (loadingData || dataError || !session || !profile) return;
+      if (loadingData || dataError || !session || !profile || !groupedTPaths) return;
 
       const activeMainTPathId = profile?.active_t_path_id;
       const preferredSessionLength = profile?.preferred_session_length;
@@ -52,7 +52,7 @@ export const NextWorkoutCard = () => {
         return;
       }
 
-      const foundGroup = groupedTPaths.find(group => group.mainTPath.id === activeMainTPathId);
+      const foundGroup = groupedTPaths.find((group: GroupedTPath) => group.mainTPath.id === activeMainTPathId);
 
       if (!foundGroup || foundGroup.childWorkouts.length === 0) {
         setMainTPath(null);
@@ -68,7 +68,7 @@ export const NextWorkoutCard = () => {
       let lastCompletedWorkout: WorkoutWithLastCompleted | null = null;
       let mostRecentCompletionDate: Date | null = null;
 
-      childWorkouts.forEach(workout => {
+      childWorkouts.forEach((workout: WorkoutWithLastCompleted) => {
         if (workout.last_completed_at) {
           const completionDate = new Date(workout.last_completed_at);
           if (!mostRecentCompletionDate || completionDate > mostRecentCompletionDate) {
@@ -87,12 +87,12 @@ export const NextWorkoutCard = () => {
         if (currentIndex !== -1) {
           const nextIndex = (currentIndex + 1) % workoutOrder.length;
           const nextWorkoutName = workoutOrder[nextIndex];
-          nextWorkoutToSuggest = childWorkouts.find(w => w.template_name === nextWorkoutName) || null;
+          nextWorkoutToSuggest = childWorkouts.find((w: WorkoutWithLastCompleted) => w.template_name === nextWorkoutName) || null;
         } else {
-          nextWorkoutToSuggest = childWorkouts.find(w => w.template_name === workoutOrder[0]) || null;
+          nextWorkoutToSuggest = childWorkouts.find((w: WorkoutWithLastCompleted) => w.template_name === workoutOrder[0]) || null;
         }
       } else {
-        nextWorkoutToSuggest = childWorkouts.find(w => w.template_name === workoutOrder[0]) || null;
+        nextWorkoutToSuggest = childWorkouts.find((w: WorkoutWithLastCompleted) => w.template_name === workoutOrder[0]) || null;
         setLastWorkoutName("No previous workout");
       }
       
