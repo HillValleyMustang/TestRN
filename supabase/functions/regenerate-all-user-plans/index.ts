@@ -184,24 +184,73 @@ serve(async (req: Request) => {
 
     await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'in_progress', t_path_generation_error: null }).eq('id', userId);
 
-    const { data: mainTPaths, error: tPathsError } = await supabaseServiceRoleClient
-      .from('t_paths')
-      .select('id, settings, gym_id')
-      .eq('user_id', user.id)
-      .is('parent_t_path_id', null);
-    
-    if (tPathsError) throw tPathsError;
-
-    const { data: profileData, error: profileError } = await supabaseServiceRoleClient
+    const { data: profile, error: profileError } = await supabaseServiceRoleClient
       .from('profiles')
-      .select('preferred_session_length')
+      .select('programme_type, preferred_session_length, primary_goal, preferred_muscles, health_notes')
       .eq('id', user.id)
       .single();
-    if (profileError) throw profileError;
-    const sessionLength = profileData?.preferred_session_length;
+    if (profileError || !profile) throw new Error('User profile not found.');
+    if (!profile.programme_type) throw new Error('User has no core programme type set.');
 
-    for (const tPath of mainTPaths) {
-      await generateWorkoutPlanForTPath(supabaseServiceRoleClient, user.id, tPath.id, sessionLength, tPath.gym_id);
+    const { data: userGyms, error: gymsError } = await supabaseServiceRoleClient
+      .from('gyms')
+      .select('id')
+      .eq('user_id', user.id);
+    if (gymsError) throw gymsError;
+
+    for (const gym of userGyms) {
+      const gymId = gym.id;
+
+      const { data: mainTPaths, error: fetchMainTPathsError } = await supabaseServiceRoleClient
+        .from('t_paths')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('gym_id', gymId)
+        .is('parent_t_path_id', null);
+      if (fetchMainTPathsError) throw fetchMainTPathsError;
+
+      if (mainTPaths && mainTPaths.length > 0) {
+        for (const mainTPath of mainTPaths) {
+          const { data: childWorkouts, error: fetchChildrenError } = await supabaseServiceRoleClient.from('t_paths').select('id').eq('parent_t_path_id', mainTPath.id);
+          if (fetchChildrenError) throw fetchChildrenError;
+          if (childWorkouts && childWorkouts.length > 0) {
+            const childIds = childWorkouts.map((w: { id: string }) => w.id);
+            await supabaseServiceRoleClient.from('t_path_exercises').delete().in('template_id', childIds);
+            await supabaseServiceRoleClient.from('t_paths').delete().in('id', childIds);
+          }
+          await supabaseServiceRoleClient.from('t_paths').delete().eq('id', mainTPath.id);
+        }
+      }
+
+      const newTPathTemplateName = profile.programme_type === 'ulul' ? '4-Day Upper/Lower' : '3-Day Push/Pull/Legs';
+      const { data: newTPath, error: newTPathError } = await supabaseServiceRoleClient
+        .from('t_paths')
+        .insert({
+          user_id: user.id,
+          gym_id: gymId,
+          template_name: newTPathTemplateName,
+          settings: {
+            tPathType: profile.programme_type,
+            experience: 'intermediate',
+            goalFocus: profile.primary_goal,
+            preferredMuscles: profile.preferred_muscles,
+            constraints: profile.health_notes,
+            equipmentMethod: 'skip'
+          },
+          is_bonus: false,
+          parent_t_path_id: null
+        })
+        .select('id')
+        .single();
+      if (newTPathError) throw newTPathError;
+
+      await generateWorkoutPlanForTPath(supabaseServiceRoleClient, user.id, newTPath.id, profile.preferred_session_length, gymId);
+
+      const { data: activeGymProfile, error: activeGymProfileError } = await supabaseServiceRoleClient.from('profiles').select('active_gym_id').eq('id', user.id).single();
+      if (activeGymProfileError) throw activeGymProfileError;
+      if (activeGymProfile && activeGymProfile.active_gym_id === gymId) {
+        await supabaseServiceRoleClient.from('profiles').update({ active_t_path_id: newTPath.id }).eq('id', user.id);
+      }
     }
 
     await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'completed', t_path_generation_error: null }).eq('id', userId);

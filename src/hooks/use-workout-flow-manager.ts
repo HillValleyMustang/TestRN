@@ -22,6 +22,7 @@ interface UseWorkoutFlowManagerProps {
 export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFlowManagerProps) => {
   const { supabase } = useSession();
   const { activeGym } = useGym();
+  const previousActiveGymId = useRef<string | null>(null);
 
   const {
     activeWorkout,
@@ -101,6 +102,15 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
 
   const [isEditWorkoutDialogOpen, setIsEditWorkoutDialogOpen] = useState(false);
   const [selectedWorkoutToEdit, setSelectedWorkoutToEdit] = useState<{ id: string; name: string } | null>(null);
+
+  // Effect to reset workout state when the active gym changes
+  useEffect(() => {
+    if (activeGym && previousActiveGymId.current && activeGym.id !== previousActiveGymId.current) {
+      console.log(`[useWorkoutFlowManager] Active gym changed from ${previousActiveGymId.current} to ${activeGym.id}. Resetting workout session.`);
+      resetWorkoutSession();
+    }
+    previousActiveGymId.current = activeGym?.id || null;
+  }, [activeGym, resetWorkoutSession]);
 
   const handleOpenEditWorkoutDialog = useCallback((workoutId: string, workoutName: string) => {
     setSelectedWorkoutToEdit({ id: workoutId, name: workoutName });
