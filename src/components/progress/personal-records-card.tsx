@@ -1,65 +1,16 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useSession } from '@/components/session-context-provider';
-import { Tables } from '@/types/supabase';
-import { toast } from 'sonner';
 import { Trophy } from 'lucide-react';
-import { formatTime } from '@/lib/unit-conversions'; // Import formatTime
-
-type SetLog = Tables<'set_logs'>;
-type ExerciseDefinition = Tables<'exercise_definitions'>;
-type WorkoutSession = Tables<'workout_sessions'>; // Import WorkoutSession type
-
-interface PersonalRecord {
-  exerciseName: string;
-  exerciseType: string;
-  value: number;
-  date: string;
-  unit: string;
-}
+import { formatTime } from '@/lib/unit-conversions';
+import { usePersonalRecordsData } from '@/hooks/data/usePersonalRecordsData'; // Import the new hook
 
 export const PersonalRecordsCard = () => {
-  const { session, supabase } = useSession();
-  const [personalRecords, setPersonalRecords] = useState<PersonalRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { personalRecords, isLoading, error } = usePersonalRecordsData();
 
-  useEffect(() => {
-    const fetchPersonalRecords = async () => {
-      if (!session) return;
-      
-      setLoading(true);
-      try {
-        const { data: prs, error } = await supabase.rpc('get_user_personal_records', {
-          p_user_id: session.user.id,
-          p_limit: 5 // Fetch top 5 PRs
-        });
-
-        if (error) throw error;
-
-        const formattedRecords: PersonalRecord[] = (prs || []).map((pr: { exercise_name: string; exercise_type: string; best_value: number; last_achieved_date: string; unit: string; }) => ({
-          exerciseName: pr.exercise_name,
-          exerciseType: pr.exercise_type,
-          value: pr.best_value || 0,
-          date: new Date(pr.last_achieved_date).toLocaleDateString(),
-          unit: pr.unit || '',
-        }));
-        
-        setPersonalRecords(formattedRecords);
-      } catch (err: any) {
-        console.error("Failed to load personal bests:", err);
-        toast.info("Failed to load personal bests.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPersonalRecords();
-  }, [session, supabase]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <Card>
         <CardHeader>
@@ -70,6 +21,22 @@ export const PersonalRecordsCard = () => {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">Loading...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Trophy className="h-5 w-5" />
+            Personal Bests
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-destructive">Error: {error}</p>
         </CardContent>
       </Card>
     );
