@@ -5,36 +5,39 @@ import { useSession } from '@/components/session-context-provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dumbbell, Clock } from 'lucide-react';
-import { Tables, WorkoutWithLastCompleted, Profile } from '@/types/supabase'; // Import Profile type
+import { Tables, WorkoutWithLastCompleted, Profile } from '@/types/supabase';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { cn, getWorkoutColorClass } from '@/lib/utils';
-import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher'; // Import the data fetcher hook
+import { useUserProfile } from '@/hooks/data/useUserProfile';
+import { useWorkoutPlans } from '@/hooks/data/useWorkoutPlans';
 
 type TPath = Tables<'t_paths'>;
 
-// Define the workout orders (moved here for local use, but ideally from a shared constant)
+// Define the workout orders
 const ULUL_ORDER = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
 const PPL_ORDER = ['Push', 'Pull', 'Legs'];
 
 export const NextWorkoutCard = () => {
   const router = useRouter();
   const { session } = useSession();
-  const { groupedTPaths, loadingData, dataError, profile, refreshProfile } = useWorkoutDataFetcher(); // Destructure profile
+  const { profile, isLoading: loadingProfile, error: profileError } = useUserProfile();
+  const { groupedTPaths, isLoading: loadingPlans, error: plansError } = useWorkoutPlans();
   
   const [mainTPath, setMainTPath] = useState<TPath | null>(null);
   const [nextWorkout, setNextWorkout] = useState<WorkoutWithLastCompleted | null>(null);
   const [estimatedDuration, setEstimatedDuration] = useState<string>('N/A');
   const [lastWorkoutName, setLastWorkoutName] = useState<string | null>(null);
 
-  useEffect(() => {
-    const determineNextWorkout = async () => {
-      if (loadingData || dataError || !session) return;
+  const loadingData = loadingProfile || loadingPlans;
+  const dataError = profileError || plansError;
 
-      // Use the 'profile' object directly from the hook's return
-      const userProfile: Profile | null = profile; 
-      const activeMainTPathId = userProfile?.active_t_path_id;
-      const preferredSessionLength = userProfile?.preferred_session_length;
+  useEffect(() => {
+    const determineNextWorkout = () => {
+      if (loadingData || dataError || !session || !profile) return;
+
+      const activeMainTPathId = profile?.active_t_path_id;
+      const preferredSessionLength = profile?.preferred_session_length;
 
       if (preferredSessionLength) {
         setEstimatedDuration(`${preferredSessionLength} minutes`);
@@ -78,7 +81,6 @@ export const NextWorkoutCard = () => {
       let nextWorkoutToSuggest: WorkoutWithLastCompleted | null = null;
 
       if (lastCompletedWorkout) {
-        // Explicitly assert type here to resolve TS2339
         const lastWorkoutName = (lastCompletedWorkout as WorkoutWithLastCompleted).template_name;
         setLastWorkoutName(lastWorkoutName);
         const currentIndex = workoutOrder.indexOf(lastWorkoutName);
@@ -98,7 +100,7 @@ export const NextWorkoutCard = () => {
     };
 
     determineNextWorkout();
-  }, [session, groupedTPaths, loadingData, dataError, profile, refreshProfile]); // Added 'profile' to dependencies
+  }, [session, groupedTPaths, loadingData, dataError, profile]);
 
   if (loadingData) {
     return (
