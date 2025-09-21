@@ -73,6 +73,11 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
       if (remoteData) {
         const table = db[cacheTable] as any;
         
+        // NEW LOGGING: Check what data is being received from Supabase for gyms_cache
+        if (cacheTable === 'gyms_cache') {
+          console.log(`[useCacheAndRevalidate] ${queryKey}: Remote data fetched for bulkPut:`, remoteData);
+        }
+        
         await db.transaction('rw', table, async () => {
           if (cacheTable === 'profiles_cache') {
             await table.clear();
