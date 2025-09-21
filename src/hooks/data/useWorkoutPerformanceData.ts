@@ -187,6 +187,7 @@ export const useWorkoutPerformanceData = () => {
     cachedExerciseDefs, loadingExerciseDefs, exerciseDefsError
   ]);
 
+  // 3. Expose a single refresh function to re-fetch all data for this hook
   const refresh = useCallback(async () => {
     await Promise.all([
       refreshSessions(),
