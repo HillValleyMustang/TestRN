@@ -91,7 +91,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange, refresh
 
     try {
       if (selectedGym.id === profile.active_gym_id) {
-        const nextActiveGym = gyms.find(g => g.id !== selectedGym.id);
+        const nextActiveGym = gyms.find((g: Gym) => g.id !== selectedGym.id);
         if (nextActiveGym) {
           await supabase.from('profiles').update({ active_gym_id: nextActiveGym.id }).eq('id', session.user.id);
         }
@@ -164,7 +164,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange, refresh
             <p>Loading gyms...</p>
           ) : (
             <ul className="space-y-2">
-              {gyms.map(gym => (
+              {gyms.map((gym: Gym) => (
                 <li key={gym.id} className="flex items-center justify-between p-2 border rounded-md">
                   <span className="font-medium">{gym.name}</span>
                   {isEditing && (
@@ -259,6 +259,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange, refresh
           refreshGyms();
         }}
         profile={profile} // NEW: Pass profile
+        refreshAllData={refreshAllData}
       />
     </>
   );

@@ -49,11 +49,12 @@ interface ManageGymWorkoutsExercisesDialogProps {
   gym: Gym | null;
   onSaveSuccess: () => void;
   profile: Profile | null;
+  refreshAllData: () => void; // NEW: Add refreshAllData prop
 }
 
-export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSaveSuccess, profile }: ManageGymWorkoutsExercisesDialogProps) => {
+export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSaveSuccess, profile, refreshAllData }: ManageGymWorkoutsExercisesDialogProps) => {
   const { session, supabase } = useSession();
-  const { refreshAllData, switchActiveGym } = useGym(); // NEW: Get refreshAllData and switchActiveGym from useGym
+  const { switchActiveGym } = useGym(); // NEW: Get switchActiveGym from useGym
   const [mainTPath, setMainTPath] = useState<TPath | null>(null);
   const [childWorkouts, setChildWorkouts] = useState<TPath[]>([]);
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);

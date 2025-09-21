@@ -140,26 +140,59 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     await refreshAllData();
   }, [isWorkoutActive, hasUnsavedChanges, activeWorkout?.id, resetWorkoutSession, setPendingNavigationPath, setShowUnsavedChangesDialog, refreshAllData]);
 
+  // NEW: Effect to automatically select the first workout when activeGym or activeTPath changes
   useEffect(() => {
-    if (loadingData || !pendingWorkoutIdToSelect) {
+    if (loadingData || !profile || !activeGym || groupedTPaths.length === 0) {
       return;
     }
 
-    if (groupedTPaths.length === 0 && pendingWorkoutIdToSelect !== 'ad-hoc') {
-      return;
-    }
-    if (Object.keys(workoutExercisesCache).length === 0 && pendingWorkoutIdToSelect !== 'ad-hoc') {
-      return;
-    }
+    const currentActiveTPathId = profile.active_t_path_id;
+    const currentActiveWorkoutId = activeWorkout?.id;
 
+    const activeTPathGroupForGym = groupedTPaths.find(group => group.mainTPath.gym_id === activeGym.id);
+
+    // If there's an active T-Path for the current gym
+    if (activeTPathGroupForGym && activeTPathGroupForGym.mainTPath.id === currentActiveTPathId) {
+      // If no workout is currently selected, or the selected workout doesn't belong to the current active T-Path
+      if (!currentActiveWorkoutId || !activeTPathGroupForGym.childWorkouts.some(cw => cw.id === currentActiveWorkoutId)) {
+        // Automatically select the first child workout of the active T-Path
+        if (activeTPathGroupForGym.childWorkouts.length > 0) {
+          console.log(`[useWorkoutFlowManager] Auto-selecting first workout for active gym: ${activeTPathGroupForGym.childWorkouts[0].template_name}`);
+          setPendingWorkoutIdToSelect(activeTPathGroupForGym.childWorkouts[0].id);
+        } else {
+          // If no child workouts, reset active workout
+          setActiveWorkout(null);
+        }
+      }
+    } else {
+      // If the active gym has no configured T-Path, or the profile's active_t_path_id doesn't match the active gym
+      // Ensure no workout is selected
+      if (currentActiveWorkoutId) {
+        setActiveWorkout(null);
+      }
+    }
+  }, [loadingData, profile, activeGym, groupedTPaths, activeWorkout?.id, setActiveWorkout]);
+
+
+  useEffect(() => {
     const performSelection = async () => {
+      if (loadingData || !pendingWorkoutIdToSelect) {
+        return;
+      }
+
+      // Explicitly reset all workout-related states before setting new ones
+      setActiveWorkout(null);
+      setExercisesForSession([]);
+      setExercisesWithSets({});
+      setCurrentSessionId(null);
+      setSessionStartTime(null);
+      setCompletedExercises(new Set());
+      setExpandedExerciseCards({});
+
       if (pendingWorkoutIdToSelect === 'ad-hoc') {
         const adHocWorkout: TPath = { id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: new Date().toISOString(), version: null, settings: null, progression_settings: null, parent_t_path_id: null, gym_id: null };
         setActiveWorkout(adHocWorkout);
         setExercisesForSession([]);
-        setExercisesWithSets({});
-        setCurrentSessionId(null);
-        setSessionStartTime(null);
       } else if (pendingWorkoutIdToSelect) {
         const selectedWorkout = groupedTPaths
           .flatMap(group => group.childWorkouts)
@@ -199,29 +232,20 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
           
           setActiveWorkout(selectedWorkout);
           setExercisesForSession(exercisesForThisWorkout);
-          setExercisesWithSets({});
-          setCurrentSessionId(null);
-          setSessionStartTime(null);
         } else {
           toast.info("Selected workout not found. Starting Ad-Hoc workout.");
           setActiveWorkout({ id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: new Date().toISOString(), version: null, settings: null, progression_settings: null, parent_t_path_id: null, gym_id: null });
           setExercisesForSession([]);
-          setExercisesWithSets({});
-          setCurrentSessionId(null);
-          setSessionStartTime(null);
         }
       } else {
         setActiveWorkout(null);
         setExercisesForSession([]);
-        setExercisesWithSets({});
-        setCurrentSessionId(null);
-        setSessionStartTime(null);
       }
       setPendingWorkoutIdToSelect(null);
     };
 
     performSelection();
-  }, [loadingData, pendingWorkoutIdToSelect, groupedTPaths, workoutExercisesCache, setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId, setSessionStartTime, activeGym, supabase]);
+  }, [loadingData, pendingWorkoutIdToSelect, groupedTPaths, workoutExercisesCache, setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId, setSessionStartTime, setCompletedExercises, setExpandedExerciseCards, activeGym, supabase]);
 
 
   const handleEditWorkoutSaveSuccess = useCallback(async () => {
