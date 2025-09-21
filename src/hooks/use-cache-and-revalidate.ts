@@ -79,14 +79,23 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
         }
         
         await db.transaction('rw', table, async () => {
+          console.log(`[useCacheAndRevalidate] ${queryKey}: Starting transaction for bulkPut.`);
+          await table.clear();
+          console.log(`[useCacheAndRevalidate] ${queryKey}: Table cleared.`);
           if (cacheTable === 'profiles_cache') {
-            await table.clear();
             if (remoteData.length > 0) {
               await table.put(remoteData[0]);
+              console.log(`[useCacheAndRevalidate] ${queryKey}: Profile put.`);
             }
           } else {
-            await table.clear();
             await table.bulkPut(remoteData);
+            console.log(`[useCacheAndRevalidate] ${queryKey}: Bulk put ${remoteData.length} items.`);
+          }
+          console.log(`[useCacheAndRevalidate] ${queryKey}: Transaction completed.`);
+          // NEW: Log table contents immediately after transaction
+          if (cacheTable === 'gyms_cache') {
+            const currentTableContents = await table.toArray();
+            console.log(`[useCacheAndRevalidate] ${queryKey}: Current gyms_cache contents after transaction:`, currentTableContents);
           }
         });
       }
