@@ -95,10 +95,10 @@ export const GlobalExerciseList = ({
           <ScrollArea>
             <ul className="space-y-2">
               {exercises.map((ex) => (
-                <li key={ex.id} className="flex items-center justify-between py-2 px-3 border rounded-md"> {/* Increased padding */}
-                  <div className="flex-1 py-0 px-0 min-w-0"> {/* Removed vertical padding, added min-w-0 */}
-                    <p className="font-semibold text-base leading-tight line-clamp-2">{ex.name}</p> {/* Exercise name, 2 lines */}
-                    <p className="text-sm text-muted-foreground leading-tight">{ex.main_muscle}</p> {/* Muscle group on new line */}
+                <li key={ex.id} className="flex items-center justify-between py-1 px-2 border rounded-md">
+                  <div className="flex-1 py-1 px-0">
+                    <p className="font-medium">{ex.name}</p> {/* Exercise name */}
+                    <p className="text-sm text-muted-foreground">{ex.main_muscle}</p> {/* Muscle group on new line */}
                     
                     <div className="mt-2 flex flex-wrap gap-2">
                       {exerciseGymsMap[ex.id as string]?.length > 0 && (
@@ -128,7 +128,7 @@ export const GlobalExerciseList = ({
                     </div>
                   </div>
                   {/* Action buttons group */}
-                  <div className="flex gap-1 flex-shrink-0"> {/* Added flex-shrink-0 */}
+                  <div className="flex gap-1">
                     <Button variant="ghost" size="icon" title="More Info" onClick={(e) => handleOpenInfoDialog(ex, e)}>
                       <Info className="h-4 w-4" />
                     </Button>

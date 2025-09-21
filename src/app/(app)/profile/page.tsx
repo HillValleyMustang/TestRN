@@ -415,33 +415,9 @@ export default function ProfilePage() {
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid w-full grid-cols-3 bg-muted">
-            <TabsTrigger 
-              value="overview" 
-              className={cn(
-                "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm",
-                "data-[state=active]:font-semibold"
-              )}
-            >
-              <User className="h-4 w-4 mr-2" />Overview
-            </TabsTrigger>
-            <TabsTrigger 
-              value="stats"
-              className={cn(
-                "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm",
-                "data-[state=active]:font-semibold"
-              )}
-            >
-              <BarChart2 className="h-4 w-4 mr-2" />Stats
-            </TabsTrigger>
-            <TabsTrigger 
-              value="settings"
-              className={cn(
-                "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm",
-                "data-[state=active]:font-semibold"
-              )}
-            >
-              <Settings className="h-4 w-4 mr-2" />Settings
-            </TabsTrigger>
+            <TabsTrigger value="overview"><User className="h-4 w-4 mr-2" />Overview</TabsTrigger>
+            <TabsTrigger value="stats"><BarChart2 className="h-4 w-4 mr-2" />Stats</TabsTrigger>
+            <TabsTrigger value="settings"><Settings className="h-4 w-4 mr-2" />Settings</TabsTrigger>
           </TabsList>
           
           <div className="relative">

@@ -7,55 +7,52 @@ import { Flame, Dumbbell, CheckCircle, Clock, AlertCircle, WifiOff, Loader2 } fr
 import { cn } from '@/lib/utils';
 import { useSyncManager } from '@/hooks/use-sync-manager'; // Import useSyncManager
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'; // Import Dialog components
-import { ScrollArea } from '../ui/scroll-area'; // Import ScrollArea
 
 const StatusInfoModal = () => (
-  <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col"> {/* Added flex-col and max-h */}
+  <DialogContent>
     <DialogHeader>
       <DialogTitle>Workout Status Explained</DialogTitle>
       <DialogDescription>
         Your status reflects your workout consistency over time. It also provides temporary updates and shows your connection status.
       </DialogDescription>
     </DialogHeader>
-    <ScrollArea className="flex-grow overflow-y-auto py-4 pr-4"> {/* Added ScrollArea here */}
-      <div className="space-y-4">
-        <div className="flex items-start gap-3">
-          <Dumbbell className="h-5 w-5 text-gray-500 flex-shrink-0 mt-1" />
-          <div>
-            <h4 className="font-semibold">Getting into it</h4>
-            <p className="text-sm text-muted-foreground">You're just getting started or have had a break of more than a week. Keep it up!</p>
-          </div>
-        </div>
-        <div className="flex items-start gap-3">
-          <CheckCircle className="h-5 w-5 text-blue-500 flex-shrink-0 mt-1" />
-          <div>
-            <h4 className="font-semibold">Building Momentum</h4>
-            <p className="text-sm text-muted-foreground">You've been working out consistently for 1-3 weeks.</p>
-          </div>
-        </div>
-        <div className="flex items-start gap-3">
-          <Flame className="h-5 w-5 text-orange-500 flex-shrink-0 mt-1" />
-          <div>
-            <h4 className="font-semibold">In the Zone</h4>
-            <p className="text-sm text-muted-foreground">You've maintained your workout habit for 4-7 consecutive weeks.</p>
-          </div>
-        </div>
-        <div className="flex items-start gap-3">
-          <Flame className="h-5 w-5 text-red-500 fill-red-500 flex-shrink-0 mt-1" />
-          <div>
-            <h4 className="font-semibold">On Fire</h4>
-            <p className="text-sm text-muted-foreground">Incredible consistency! You've been working out for 8+ weeks straight.</p>
-          </div>
-        </div>
-        <div className="flex items-start gap-3">
-          <WifiOff className="h-5 w-5 text-red-500 flex-shrink-0 mt-1" />
-          <div>
-            <h4 className="font-semibold">Offline</h4>
-            <p className="text-sm text-muted-foreground">You are currently offline. Your progress is being saved locally and will sync when you reconnect.</p>
-          </div>
+    <div className="space-y-4 py-4">
+      <div className="flex items-start gap-3">
+        <Dumbbell className="h-5 w-5 text-gray-500 flex-shrink-0 mt-1" />
+        <div>
+          <h4 className="font-semibold">Getting into it</h4>
+          <p className="text-sm text-muted-foreground">You're just getting started or have had a break of more than a week. Keep it up!</p>
         </div>
       </div>
-    </ScrollArea>
+      <div className="flex items-start gap-3">
+        <CheckCircle className="h-5 w-5 text-blue-500 flex-shrink-0 mt-1" />
+        <div>
+          <h4 className="font-semibold">Building Momentum</h4>
+          <p className="text-sm text-muted-foreground">You've been working out consistently for 1-3 weeks.</p>
+        </div>
+      </div>
+      <div className="flex items-start gap-3">
+        <Flame className="h-5 w-5 text-orange-500 flex-shrink-0 mt-1" />
+        <div>
+          <h4 className="font-semibold">In the Zone</h4>
+          <p className="text-sm text-muted-foreground">You've maintained your workout habit for 4-7 consecutive weeks.</p>
+        </div>
+      </div>
+      <div className="flex items-start gap-3">
+        <Flame className="h-5 w-5 text-red-500 fill-red-500 flex-shrink-0 mt-1" />
+        <div>
+          <h4 className="font-semibold">On Fire</h4>
+          <p className="text-sm text-muted-foreground">Incredible consistency! You've been working out for 8+ weeks straight.</p>
+        </div>
+      </div>
+      <div className="flex items-start gap-3">
+        <WifiOff className="h-5 w-5 text-red-500 flex-shrink-0 mt-1" />
+        <div>
+          <h4 className="font-semibold">Offline</h4>
+          <p className="text-sm text-muted-foreground">You are currently offline. Your progress is being saved locally and will sync when you reconnect.</p>
+        </div>
+      </div>
+    </div>
   </DialogContent>
 );
 
