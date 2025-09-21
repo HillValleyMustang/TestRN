@@ -1,21 +1,17 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from '@/components/session-context-provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dumbbell, Play } from 'lucide-react';
-import { Tables, WorkoutWithLastCompleted, GroupedTPath } from '@/types/supabase'; // Import centralized types
-import { toast } from 'sonner';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Tables, WorkoutWithLastCompleted } from '@/types/supabase';
 import { WorkoutPill, WorkoutPillProps } from '@/components/workout-flow/workout-pill';
-import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher';
+import { useUserProfile } from '@/hooks/data/useUserProfile';
+import { useWorkoutPlans } from '@/hooks/data/useWorkoutPlans';
 import { cn } from '@/lib/utils';
 
 type TPath = Tables<'t_paths'>;
-
-// Removed local WorkoutWithLastCompleted definition, now using centralized type
 
 const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName: string): Omit<WorkoutPillProps, 'isSelected' | 'onClick'> => {
   const lowerTitle = workout.template_name.toLowerCase();
@@ -51,36 +47,21 @@ const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName:
 
 export const AllWorkoutsQuickStart = () => {
   const router = useRouter();
-  const { session, supabase } = useSession(); // Destructure supabase here
-  const { groupedTPaths, loadingData, dataError, refreshAllData } = useWorkoutDataFetcher();
-  const [activeMainTPath, setActiveMainTPath] = useState<TPath | null>(null);
-  const [childWorkouts, setChildWorkouts] = useState<WorkoutWithLastCompleted[]>([]);
+  const { profile, isLoading: loadingProfile, error: profileError } = useUserProfile();
+  const { groupedTPaths, isLoading: loadingPlans, error: plansError } = useWorkoutPlans();
 
-  useEffect(() => {
-    const processWorkouts = async () => {
-      if (!session?.user.id || loadingData || dataError) return;
+  const loadingData = loadingProfile || loadingPlans;
+  const dataError = profileError || plansError;
 
-      const userProfile = (await supabase.from('profiles').select('active_t_path_id').eq('id', session.user.id).single()).data;
-      const activeTPathId = userProfile?.active_t_path_id;
+  const activeTPathGroup = useMemo(() => {
+    if (!profile || !profile.active_t_path_id || groupedTPaths.length === 0) {
+      return null;
+    }
+    return groupedTPaths.find(group => group.mainTPath.id === profile.active_t_path_id);
+  }, [profile, groupedTPaths]);
 
-      if (!activeTPathId) {
-        setActiveMainTPath(null);
-        setChildWorkouts([]);
-        return;
-      }
-
-      const foundGroup = groupedTPaths.find(group => group.mainTPath.id === activeTPathId);
-      if (foundGroup) {
-        setActiveMainTPath(foundGroup.mainTPath);
-        setChildWorkouts(foundGroup.childWorkouts);
-      } else {
-        setActiveMainTPath(null);
-        setChildWorkouts([]);
-      }
-    };
-
-    processWorkouts();
-  }, [session, supabase, groupedTPaths, loadingData, dataError]);
+  const activeMainTPath = activeTPathGroup?.mainTPath;
+  const childWorkouts = activeTPathGroup?.childWorkouts || [];
 
   const handleStartWorkout = (workoutId: string) => {
     router.push(`/workout?workoutId=${workoutId}`);
@@ -145,24 +126,22 @@ export const AllWorkoutsQuickStart = () => {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {childWorkouts.map((workout: WorkoutWithLastCompleted) => { // Explicitly type workout
+          {childWorkouts.map((workout: WorkoutWithLastCompleted) => {
             const pillProps = mapWorkoutToPillProps(workout, activeMainTPath.template_name);
-            const isPPLAndLegs = pillProps.workoutType === 'push-pull-legs' && pillProps.category === 'legs';
-            // Removed isSelectedPill as it's not relevant in this component
             return (
               <div key={workout.id} className="flex items-center gap-2">
                 <WorkoutPill
                   {...pillProps}
-                  isSelected={false} // Always unselected in this view
-                  onClick={() => {}} // No direct click on pill, only button
+                  isSelected={false}
+                  onClick={() => {}}
                   className="flex-1"
                 />
                 <Button 
-                  size="icon" // Changed to icon size
+                  size="icon"
                   onClick={() => handleStartWorkout(workout.id)}
                   className="flex-shrink-0"
                 >
-                  <Play className="h-4 w-4" /> {/* Added Play icon */}
+                  <Play className="h-4 w-4" />
                 </Button>
               </div>
             );
