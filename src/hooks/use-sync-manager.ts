@@ -98,5 +98,5 @@ export const useSyncManager = () => {
     return () => clearInterval(syncInterval);
   }, [syncQueue, isOnline, processQueue]); // Added syncQueue to dependencies
 
-  return { isOnline }; // Expose isOnline
+  return { isOnline, setOfflineStatus: setIsOnline }; // Expose isOnline and its setter
 };
