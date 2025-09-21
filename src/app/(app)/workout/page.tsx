@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 import { useWorkoutFlow } from '@/components/workout-flow/workout-flow-context-provider'; // Import the context hook
@@ -18,6 +18,7 @@ export default function WorkoutPage() {
 
   // Use the context hook to get the shared state and functions
   const workoutFlowManager = useWorkoutFlow();
+  const initialSelectionAttempted = useRef(false); // Ref to track if we've tried to select the initial workout
 
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [summarySessionId, setSummarySessionId] = useState<string | null>(null);
@@ -37,22 +38,13 @@ export default function WorkoutPage() {
 
   // Effect to handle the initial workout selection from URL parameters
   useEffect(() => {
-    // Only select if a workout isn't active AND a selection isn't already pending
-    if (
-      initialWorkoutId &&
-      !workoutFlowManager.activeWorkout &&
-      !workoutFlowManager.loading &&
-      !workoutFlowManager.pendingWorkoutIdToSelect
-    ) {
+    // This effect should only run once on mount if an initialWorkoutId is present.
+    // The ref prevents it from re-triggering on subsequent re-renders.
+    if (initialWorkoutId && !initialSelectionAttempted.current) {
+      initialSelectionAttempted.current = true;
       workoutFlowManager.selectWorkout(initialWorkoutId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    initialWorkoutId,
-    workoutFlowManager.activeWorkout,
-    workoutFlowManager.loading,
-    workoutFlowManager.pendingWorkoutIdToSelect, // Add new dependency
-  ]);
+  }, [initialWorkoutId, workoutFlowManager.selectWorkout]);
 
 
   return (
