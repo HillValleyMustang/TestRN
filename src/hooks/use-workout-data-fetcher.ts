@@ -157,24 +157,18 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       // This ensures that when active_gym_id or active_t_path_id in profile changes,
       // the related T-Path data is also fresh.
       console.log("[useWorkoutDataFetcher] Profile changed, explicitly refreshing T-Paths and T-Path Exercises caches.");
-      // AWAIT these refreshes to ensure the cache update operations are completed
       await Promise.all([
         refreshTPaths(),
         refreshTPathExercises(),
       ]);
 
-      // After awaiting, directly read the *latest* data from Dexie
-      const latestCachedTPaths = await db.t_paths_cache.filter(tp => tp.user_id === session.user.id && !tp.parent_t_path_id).toArray();
-      const latestCachedTPathExercises = await db.t_path_exercises_cache.toArray();
-      const latestCachedExercises = await db.exercise_definitions_cache.toArray(); // Also need latest exercises for mapping
-
-      setAllAvailableExercises((latestCachedExercises || []).map(ex => ({
+      setAllAvailableExercises((cachedExercises || []).map(ex => ({
         ...ex,
         id: ex.id,
         is_favorited_by_current_user: false,
       })));
       
-      const userMainTPaths = latestCachedTPaths; // Use the freshly fetched data
+      const userMainTPaths = (cachedTPaths || []).filter(tp => tp.user_id === session.user.id && !tp.parent_t_path_id);
       
       if (userMainTPaths.length === 0) {
         setGroupedTPaths([]);
@@ -184,13 +178,13 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       }
 
       const exerciseDefMap = new Map<string, ExerciseDefinition>();
-      (latestCachedExercises || []).forEach(def => exerciseDefMap.set(def.id, def as ExerciseDefinition));
+      (cachedExercises || []).forEach(def => exerciseDefMap.set(def.id, def as ExerciseDefinition));
 
       const newWorkoutExercisesCache: Record<string, WorkoutExercise[]> = {};
-      const allChildWorkouts = (latestCachedTPaths || []).filter(tp => tp.user_id === session.user.id && tp.parent_t_path_id);
+      const allChildWorkouts = (cachedTPaths || []).filter(tp => tp.user_id === session.user.id && tp.parent_t_path_id);
 
       for (const workout of allChildWorkouts) {
-        const exercisesForWorkout = (latestCachedTPathExercises || [])
+        const exercisesForWorkout = (cachedTPathExercises || [])
           .filter(tpe => tpe.template_id === workout.id)
           .sort((a, b) => a.order_index - b.order_index)
           .map(tpe => {
@@ -211,13 +205,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
             const enrichedChildWorkouts = await Promise.all(
               childWorkouts.map(async (workout) => {
                 const { data: lastSessionDate, error: rpcError } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
-                if (rpcError) {
-                  console.error(`Error fetching last completed date for workout ${workout.id}:`, rpcError);
-                  // Add more specific logging if rpcError is an empty object
-                  if (Object.keys(rpcError).length === 0) {
-                    console.error(`[DEBUG] RPC Error object was empty. This might indicate a network issue or an unexpected server response.`);
-                  }
-                }
+                if (rpcError) console.error(`Error fetching last completed date for workout ${workout.id}:`, rpcError);
                 return { ...workout, last_completed_at: lastSessionDate?.[0]?.last_completed_at || null };
               })
             );
@@ -245,11 +233,11 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     processAndEnrichData();
   }, [
     session, supabase,
-    loadingExercises, exercisesError,
-    loadingTPaths, tPathsError,
+    cachedExercises, loadingExercises, exercisesError,
+    cachedTPaths, loadingTPaths, tPathsError,
     cachedProfile, loadingProfile, profileError, // cachedProfile is the trigger
-    loadingTPathExercises, tPathExercisesError,
-    loadingAchievements, achievementsError,
+    cachedTPathExercises, loadingTPathExercises, tPathExercisesError,
+    cachedAchievements, loadingAchievements, achievementsError,
     refreshTPaths, refreshTPathExercises // Add refresh functions to dependencies
   ]);
 
