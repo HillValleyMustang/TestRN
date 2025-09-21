@@ -147,8 +147,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
 
     await resetWorkoutSession();
     setPendingWorkoutIdToSelect(workoutId);
-    await refreshAllData();
-  }, [isWorkoutActive, hasUnsavedChanges, activeWorkout?.id, resetWorkoutSession, setPendingNavigationPath, setShowUnsavedChangesDialog, refreshAllData]);
+  }, [isWorkoutActive, hasUnsavedChanges, activeWorkout?.id, resetWorkoutSession, setPendingNavigationPath, setShowUnsavedChangesDialog]);
 
   useEffect(() => {
     if (loadingData || !pendingWorkoutIdToSelect) {
