@@ -131,6 +131,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
 
   const handleAddSuccess = () => {
     refreshGyms(); // This should be sufficient to trigger revalidation and UI update
+    onDataChange(); // NEW: Trigger parent refresh for profile data
   };
 
   return (
