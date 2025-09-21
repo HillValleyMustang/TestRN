@@ -9,12 +9,10 @@ import { useEffect } from "react";
 import { UnsavedChangesDialog } from "@/components/workout-flow/unsaved-changes-dialog";
 import { EditWorkoutExercisesDialog } from "@/components/manage-t-paths/edit-workout-exercises-dialog";
 import { GymContextProvider } from "@/components/gym-context-provider";
-import { GlobalStatusProvider, useGlobalStatus } from "@/components/global-status-provider"; // NEW IMPORT
 
 // This component now consumes the context provided by WorkoutFlowProvider
 function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const workoutFlowManager = useWorkoutFlow(); // Use the context hook
-  const { setOfflineStatus, setIsGeneratingPlanStatus } = useGlobalStatus(); // NEW: Consume global status setters
 
   // --- Browser-level warning (for page close/refresh/browser navigation) ---
   useEffect(() => {
@@ -34,17 +32,12 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   }, [workoutFlowManager.isWorkoutActive, workoutFlowManager.hasUnsavedChanges]);
   // --- End Browser-level warning ---
 
-  // NEW: Sync isGeneratingPlan status to global context
-  useEffect(() => {
-    setIsGeneratingPlanStatus(workoutFlowManager.isGeneratingPlan);
-  }, [workoutFlowManager.isGeneratingPlan, setIsGeneratingPlanStatus]);
-
   return (
     <>
       <div className="flex min-h-screen w-full flex-col bg-muted/40">
         <Sidebar />
         <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
-          <Header /> {/* Removed isGeneratingPlan prop */}
+          <Header isGeneratingPlan={workoutFlowManager.isGeneratingPlan} />
           <main className="flex-1 p-2 sm:px-4 sm:py-0 pb-20 sm:pb-2">{children}</main>
         </div>
         <MobileFooterNav />
@@ -79,9 +72,7 @@ export default function AppLayout({
   return (
     <GymContextProvider>
       <WorkoutFlowProvider>
-        <GlobalStatusProvider> {/* NEW: GlobalStatusProvider */}
-          <AppLayoutContent>{children}</AppLayoutContent>
-        </GlobalStatusProvider>
+        <AppLayoutContent>{children}</AppLayoutContent>
       </WorkoutFlowProvider>
     </GymContextProvider>
   );

@@ -274,19 +274,3 @@
   backdrop-filter: blur(12px); /* Updated blur to 12px */
   -webkit-backdrop-filter: blur(12px); /* For Safari compatibility */
 }
-
-/* NEW: Keyframes for animating ellipsis */
-@keyframes ellipsis-animation {
-  0% { content: ''; }
-  33% { content: '.'; }
-  66% { content: '..'; }
-  100% { content: '...'; }
-}
-
-.loading-ellipsis::after {
-  content: '...'; /* Fallback for non-animated state */
-  display: inline-block;
-  animation: ellipsis-animation 1.5s infinite steps(4);
-  width: 1em; /* Ensure consistent width */
-  text-align: left;
-}

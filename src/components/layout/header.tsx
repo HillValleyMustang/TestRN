@@ -24,7 +24,7 @@ const mobileNavLinks = [
   { href: "/workout", label: "Workout", icon: Dumbbell }, // Moved workout here for consistent styling
 ];
 
-export function Header() { // Removed isGeneratingPlan prop
+export function Header({ isGeneratingPlan }: { isGeneratingPlan: boolean }) {
   const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false); // NEW: State for sheet
   const isScrolled = useScrollPosition();
@@ -84,7 +84,7 @@ export function Header() { // Removed isGeneratingPlan prop
           </SheetContent>
         </Sheet>
         <div className="relative ml-auto flex flex-1 items-center justify-end gap-2 md:grow-0">
-          <RollingStatusBadge /> {/* Removed isGeneratingPlan prop */}
+          <RollingStatusBadge isGeneratingPlan={isGeneratingPlan} />
           <NotificationBell />
           <UserNav />
         </div>

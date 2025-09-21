@@ -74,7 +74,10 @@ export default function DashboardPage() {
   }, [session, router, supabase]);
 
   const isGymConfigured = useMemo(() => {
-    if (loadingWorkoutData || !activeGym) return false; 
+    // If still loading workout data, we can't definitively say if the gym is configured.
+    // Assume it's not configured *yet* if loading, to prevent premature display of content.
+    if (loadingWorkoutData) return false; 
+    if (!activeGym || groupedTPaths.length === 0) return false;
     return groupedTPaths.some(group => group.mainTPath.gym_id === activeGym.id);
   }, [activeGym, groupedTPaths, loadingWorkoutData]);
 
@@ -104,16 +107,18 @@ export default function DashboardPage() {
             <h1 className="text-4xl font-bold tracking-tight">Welcome Back, {welcomeName}</h1>
             <p className="text-muted-foreground mt-2">Ready to Train? Let's get Started!</p>
           </div>
+          {/* GymToggle is now moved out of here */}
         </div>
       </header>
 
-      {!loadingGyms && userGyms.length > 1 && (
+      {/* NEW: GymToggle placement */}
+      {!loadingGyms && userGyms.length > 1 && ( // Only show if there are multiple gyms and not loading
         <div className="flex justify-center animate-fade-in-slide-up" style={{ animationDelay: '0.05s' }}>
           <GymToggle />
         </div>
       )}
 
-      {activeGym && !isGymConfigured ? (
+      {activeGym && !isGymConfigured && !loadingWorkoutData ? ( // Only show prompt if not loading and not configured
         <UnconfiguredGymPrompt gymName={activeGym.name} />
       ) : (
         <>
