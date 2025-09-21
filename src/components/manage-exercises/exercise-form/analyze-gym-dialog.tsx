@@ -9,7 +9,6 @@ import { useSession } from "@/components/session-context-provider";
 import { Tables, FetchedExerciseDefinition } from "@/types/supabase";
 import { LoadingOverlay } from "@/components/loading-overlay";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useGlobalStatus } from '@/contexts'; // NEW: Import useGlobalStatus
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -21,11 +20,10 @@ interface AnalyseGymDialogProps {
 
 export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: AnalyseGymDialogProps) => {
   const { session } = useSession();
-  const { startLoading, endLoadingSuccess, endLoadingError } = useGlobalStatus(); // NEW: Use global status
   const [imagePreviews, setImagePreviews] = useState<string[]>([]
 );
   const [base64Images, setBase64Images] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false); // Keep local loading for button disabled state
+  const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,8 +84,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
       return;
     }
 
-    setLoading(true); // Set local loading
-    startLoading(`Analysing ${base64Images.length} Image(s)...`); // NEW: Use global loading
+    setLoading(true);
     try {
       const response = await fetch('/api/identify-equipment', {
         method: 'POST',
@@ -108,19 +105,17 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
       if (identifiedExercises && identifiedExercises.length > 0) {
         const firstExerciseDuplicateStatus = identifiedExercises[0].duplicate_status || 'none';
         onExerciseIdentified(identifiedExercises, firstExerciseDuplicateStatus);
-        endLoadingSuccess("Exercises identified successfully!"); // NEW: Use global success
       } else {
         toast.info("The AI couldn't identify any specific exercises from the uploaded images. Please try different angles or add them manually.");
-        endLoadingSuccess("No exercises identified."); // NEW: Use global success (or info)
       }
 
       onOpenChange(false);
       resetForm();
     } catch (err: any) {
       console.error("Error analysing images:", err);
-      endLoadingError("Image analysis failed."); // NEW: Use global error
+      toast.info("Image analysis failed.");
     } finally {
-      setLoading(false); // Clear local loading
+      setLoading(false);
     }
   };
 

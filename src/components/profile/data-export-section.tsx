@@ -7,7 +7,6 @@ import { Download, Loader2, FileText } from 'lucide-react';
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { Tables } from '@/types/supabase';
-import { useGlobalStatus } from '@/contexts'; // NEW: Import useGlobalStatus
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
@@ -16,8 +15,7 @@ type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 export const DataExportSection = () => {
   const { session, supabase } = useSession();
-  const { startLoading, endLoadingSuccess, endLoadingError } = useGlobalStatus(); // NEW: Use global status
-  const [loading, setLoading] = useState(false); // Keep local loading for button disabled state
+  const [loading, setLoading] = useState(false);
 
   const exportDataToCsv = async () => {
     if (!session) {
@@ -26,7 +24,7 @@ export const DataExportSection = () => {
     }
 
     setLoading(true);
-    startLoading("Preparing your data for export..."); // NEW: Use global loading
+    const toastId = toast.loading("Preparing your data for export..."); // Initial loading toast
 
     try {
       // Fetch Workout Sessions
@@ -136,11 +134,11 @@ export const DataExportSection = () => {
       link.click();
       URL.revokeObjectURL(url);
 
-      endLoadingSuccess("Your data has been exported successfully!"); // NEW: Use global success
+      toast.success("Your data has been exported successfully!", { id: toastId }); // Update to success
 
     } catch (error: any) {
       console.error("Error exporting data:", error);
-      endLoadingError("Failed to export data: " + error.message); // NEW: Use global error
+      toast.error("Failed to export data: " + error.message, { id: toastId }); // Update to error
     } finally {
       setLoading(false);
     }

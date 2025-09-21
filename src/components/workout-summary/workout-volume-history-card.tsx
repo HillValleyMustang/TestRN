@@ -4,11 +4,10 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { useSession } from '@/components/session-context-provider';
+import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { Dumbbell } from 'lucide-react';
 import { db, LocalWorkoutSession, LocalSetLog, LocalExerciseDefinition } from '@/lib/db';
-import { useGlobalStatus } from '@/contexts'; // NEW: Import useGlobalStatus
-import { Tables } from '@/types/supabase'; // NEW: Import Tables
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type SetLog = Tables<'set_logs'>;
@@ -28,7 +27,6 @@ interface WorkoutVolumeHistoryCardProps {
 
 export const WorkoutVolumeHistoryCard = ({ workoutTemplateName, currentSessionId }: WorkoutVolumeHistoryCardProps) => {
   const { session, supabase } = useSession();
-  const { startLoading, endLoadingSuccess, endLoadingError } = useGlobalStatus(); // NEW: Use global status
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +37,6 @@ export const WorkoutVolumeHistoryCard = ({ workoutTemplateName, currentSessionId
 
       setLoading(true);
       setError(null);
-      startLoading("Loading workout history..."); // NEW: Use global loading
       try {
         const sessionsData = await db.workout_sessions
           .where('template_name').equals(workoutTemplateName)
@@ -50,7 +47,6 @@ export const WorkoutVolumeHistoryCard = ({ workoutTemplateName, currentSessionId
         if (relevantSessionIds.length === 0) {
           setChartData([]);
           setLoading(false);
-          endLoadingSuccess("No workout history found."); // NEW: Use global success
           return;
         }
 
@@ -91,17 +87,16 @@ export const WorkoutVolumeHistoryCard = ({ workoutTemplateName, currentSessionId
         });
         
         setChartData(formattedChartData);
-        endLoadingSuccess("Workout history loaded!"); // NEW: Use global success
       } catch (err: any) {
         setError(err.message || "Failed to load workout volume history.");
-        endLoadingError("Failed to load workout volume history."); // NEW: Use global error
+        toast.info("Failed to load workout volume history.");
       } finally {
         setLoading(false);
       }
     };
 
     fetchWorkoutVolumeHistory();
-  }, [session, supabase, workoutTemplateName, currentSessionId, startLoading, endLoadingSuccess, endLoadingError]);
+  }, [session, supabase, workoutTemplateName, currentSessionId]);
 
   if (loading) {
     return <Card className="h-[250px] flex items-center justify-center mb-6"><p className="text-muted-foreground">Loading history...</p></Card>;

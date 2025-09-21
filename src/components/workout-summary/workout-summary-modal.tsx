@@ -18,7 +18,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatWeight, formatTime } from '@/lib/unit-conversions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useGlobalStatus } from '@/contexts'; // NEW: Import useGlobalStatus
 
 type WorkoutSession = Tables<'workout_sessions'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -39,7 +38,6 @@ interface WorkoutSummaryModalProps {
 
 export const WorkoutSummaryModal = ({ open, onOpenChange, sessionId }: WorkoutSummaryModalProps) => {
   const { session, supabase } = useSession();
-  const { startLoading, endLoadingSuccess, endLoadingError } = useGlobalStatus(); // NEW: Use global status
   const router = useRouter();
   const [workoutSession, setWorkoutSession] = useState<WorkoutSession | null>(null);
   const [setLogs, setSetLogs] = useState<SetLogWithExercise[]>([]);
@@ -68,7 +66,6 @@ export const WorkoutSummaryModal = ({ open, onOpenChange, sessionId }: WorkoutSu
     const fetchWorkoutSummary = async () => {
       setLoading(true);
       setError(null);
-      startLoading("Loading workout summary..."); // NEW: Use global loading
       try {
         const localSession = await db.workout_sessions.get(sessionId);
         if (!localSession) throw new Error("Workout session not found in local database.");
@@ -134,17 +131,16 @@ export const WorkoutSummaryModal = ({ open, onOpenChange, sessionId }: WorkoutSu
           });
           setHasShownAchievementToasts(true); // Mark as shown
         }
-        endLoadingSuccess("Workout summary loaded!"); // NEW: Use global success
       } catch (err: any) {
         setError(err.message || "Failed to load workout summary. Please try again.");
-        endLoadingError("Failed to load workout summary."); // NEW: Use global error
+        toast.info("Failed to load workout summary.");
       } finally {
         setLoading(false);
       }
     };
 
     fetchWorkoutSummary();
-  }, [session, sessionId, supabase, hasShownAchievementToasts, open, startLoading, endLoadingSuccess, endLoadingError]); // Added 'open' to dependencies to re-trigger on modal open
+  }, [session, sessionId, supabase, hasShownAchievementToasts, open]); // Added 'open' to dependencies to re-trigger on modal open
 
   const handleRatingChange = (rating: number) => {
     setCurrentRating(rating);

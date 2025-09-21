@@ -15,7 +15,6 @@ import { WorkoutActionButtons } from "@/components/manage-t-paths/edit-workout-e
 import { ConfirmRemoveExerciseDialog } from "@/components/manage-t-paths/edit-workout-exercises/confirm-remove-exercise-dialog";
 import { AddAsBonusDialog } from "@/components/manage-t-paths/edit-workout-exercises/add-as-bonus-dialog";
 import { ConfirmResetDialog } from "@/components/manage-t-paths/edit-workout-exercises/confirm-reset-dialog";
-import { useGlobalStatus } from '@/contexts'; // NEW: Import useGlobalStatus
 
 interface EditWorkoutExercisesDialogProps {
   open: boolean;
@@ -32,8 +31,6 @@ export const EditWorkoutExercisesDialog = ({
   workoutName,
   onSaveSuccess,
 }: EditWorkoutExercisesDialogProps) => {
-  const { startLoading, endLoadingSuccess, endLoadingError } = useGlobalStatus(); // NEW: Use global status
-
   const {
     exercises,
     filteredExercisesForDropdown,

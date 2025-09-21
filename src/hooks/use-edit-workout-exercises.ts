@@ -5,7 +5,6 @@ import { useSession } from "@/components/session-context-provider";
 import { Tables } from "@/types/supabase";
 import { toast } from "sonner";
 import { LocalExerciseDefinition } from '@/lib/db'; // Import LocalExerciseDefinition
-import { useGlobalStatus } from '@/contexts'; // NEW: Import useGlobalStatus
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type Profile = Tables<'profiles'>;
@@ -26,7 +25,6 @@ interface UseEditWorkoutExercisesProps {
 
 export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseEditWorkoutExercisesProps) => {
   const { session, supabase } = useSession();
-  const { startLoading, endLoadingSuccess, endLoadingError } = useGlobalStatus(); // NEW: Use global status
 
   const [exercises, setExercises] = useState<WorkoutExerciseWithDetails[]>([]);
   const [allAvailableExercises, setAllAvailableExercises] = useState<ExerciseDefinition[]>([]);
@@ -153,7 +151,6 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
 
     setIsSaving(true);
     setShowAddAsBonusDialog(false);
-    startLoading(`Adding '${exerciseToAddDetails.name}'...`); // NEW: Use global loading
 
     try {
       const finalExerciseId = exerciseToAddDetails.id;
@@ -191,7 +188,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         ex.t_path_exercise_id === tempTPathExerciseId ? { ...ex, t_path_exercise_id: insertedTpe.id } : ex
       ));
 
-      endLoadingSuccess(`'${exerciseToAddDetails.name}' added to workout as ${isBonus ? 'Bonus' : 'Core'}!`); // NEW: Use global success
+      console.log(`'${exerciseToAddDetails.name}' added to workout as ${isBonus ? 'Bonus' : 'Core'}!`);
       setSelectedExerciseToAdd("");
       setExerciseToAddDetails(null);
     } catch (err: any) {
@@ -204,11 +201,11 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
           errorMessage = err.message;
         }
       }
-      endLoadingError("Failed to add exercise: " + errorMessage); // NEW: Use global error
+      toast.info("Failed to add exercise: " + errorMessage);
     } finally {
       setIsSaving(false);
     }
-  }, [session, supabase, workoutId, exercises, exerciseToAddDetails, startLoading, endLoadingSuccess, endLoadingError]);
+  }, [session, supabase, workoutId, exercises, exerciseToAddDetails]);
 
   const handleSelectAndPromptBonus = useCallback(() => {
     if (!selectedExerciseToAdd) {
@@ -231,7 +228,6 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     if (!exerciseToRemove) return;
     setIsSaving(true);
     setShowConfirmRemoveDialog(false);
-    startLoading(`Removing '${exerciseToRemove.name}'...`); // NEW: Use global loading
 
     try {
       const previousExercises = exercises;
@@ -246,21 +242,20 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         setExercises(previousExercises);
         throw error;
       }
-      endLoadingSuccess("Exercise removed from workout!"); // NEW: Use global success
+      console.log("Exercise removed from workout!");
     } catch (err: any) {
       console.error("Failed to remove exercise:", JSON.stringify(err, null, 2));
-      endLoadingError("Failed to remove exercise."); // NEW: Use global error
+      toast.info("Failed to remove exercise.");
     } finally {
       setIsSaving(false);
       setExerciseToRemove(null);
     }
-  }, [exercises, exerciseToRemove, supabase, startLoading, endLoadingSuccess, endLoadingError]);
+  }, [exercises, exerciseToRemove, supabase]);
 
   const handleToggleBonusStatus = useCallback(async (exercise: WorkoutExerciseWithDetails) => {
     if (!session) return;
     setIsSaving(true);
     const newBonusStatus = !exercise.is_bonus_exercise;
-    startLoading(`Updating '${exercise.name}' status...`); // NEW: Use global loading
 
     setExercises(prev => prev.map(ex =>
       ex.id === exercise.id ? { ...ex, is_bonus_exercise: newBonusStatus } : ex
@@ -273,23 +268,22 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         .eq('id', exercise.t_path_exercise_id);
 
       if (error) throw error;
-      endLoadingSuccess(`'${exercise.name}' is now a ${newBonusStatus ? 'Bonus' : 'Core'} exercise!`); // NEW: Use global success
+      console.log(`'${exercise.name}' is now a ${newBonusStatus ? 'Bonus' : 'Core'} exercise!`);
     } catch (err: any) {
       console.error("Error toggling bonus status:", JSON.stringify(err, null, 2));
-      endLoadingError("Failed to toggle bonus status."); // NEW: Use global error
+      toast.info("Failed to toggle bonus status.");
       setExercises(prev => prev.map(ex =>
         ex.id === exercise.id ? { ...ex, is_bonus_exercise: !newBonusStatus } : ex
       ));
     } finally {
       setIsSaving(false);
     }
-  }, [session, supabase, startLoading, endLoadingSuccess, endLoadingError]);
+  }, [session, supabase]);
 
   const handleResetToDefaults = useCallback(async () => {
     if (!session) return;
     setIsSaving(true);
     setShowConfirmResetDialog(false);
-    startLoading("Resetting workout to defaults..."); // NEW: Use global loading
 
     try {
       const { data: childWorkoutData, error: childWorkoutError } = await supabase
@@ -319,20 +313,19 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         throw new Error(errorBody.error || `Failed to regenerate T-Path workouts.`);
       }
 
-      endLoadingSuccess("Workout exercises reset to defaults!"); // NEW: Use global success
+      console.log("Workout exercises reset to defaults!");
       onSaveSuccess();
       fetchWorkoutData();
     } catch (err: any) {
       console.error("Error resetting exercises:", err);
-      endLoadingError("Failed to reset exercises."); // NEW: Use global error
+      toast.info("Failed to reset exercises.");
     } finally {
       setIsSaving(false);
     }
-  }, [session, supabase, workoutId, onSaveSuccess, fetchWorkoutData, startLoading, endLoadingSuccess, endLoadingError]);
+  }, [session, supabase, workoutId, onSaveSuccess, fetchWorkoutData]);
 
   const handleSaveOrder = useCallback(async () => {
     setIsSaving(true);
-    startLoading("Saving Exercise Order..."); // NEW: Use global loading
     try {
       const updates = exercises.map((ex, index) => ({
         id: ex.t_path_exercise_id,
@@ -343,15 +336,15 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       const { error } = await supabase.rpc('update_exercise_order', { updates });
 
       if (error) throw error;
-      endLoadingSuccess("Workout order saved successfully!"); // NEW: Use global success
+      console.log("Workout order saved successfully!");
       onSaveSuccess();
     } catch (err: any) {
       console.error("Error saving order:", JSON.stringify(err, null, 2));
-      endLoadingError("Failed to save workout order."); // NEW: Use global error
+      toast.info("Failed to save workout order.");
     } finally {
       setIsSaving(false);
     }
-  }, [exercises, supabase, onSaveSuccess, startLoading, endLoadingSuccess, endLoadingError]);
+  }, [exercises, supabase, onSaveSuccess]);
 
   return {
     exercises,

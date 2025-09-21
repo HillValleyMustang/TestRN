@@ -7,7 +7,6 @@ import { Sparkles, Save, PlusCircle, Edit } from "lucide-react"; // Added Edit i
 import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { LoadingOverlay } from "../loading-overlay";
-import { useGlobalStatus } from '@/contexts'; // NEW: Import useGlobalStatus
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -32,8 +31,6 @@ export const SaveAiExercisePrompt = ({
   context, // Destructure new prop
   onEditExercise, // Destructure new prop
 }: SaveAiExercisePromptProps) => {
-  const { startLoading, endLoadingSuccess, endLoadingError } = useGlobalStatus(); // NEW: Use global status
-
   if (!exercise) return null;
 
   const currentDuplicateStatus = exercise.duplicate_status || 'none'; // Access directly from exercise
@@ -130,15 +127,7 @@ export const SaveAiExercisePrompt = ({
                 </>
               ) : ( // currentDuplicateStatus === 'none' or 'global' in manage-exercises context
                 <Button
-                  onClick={async () => {
-                    startLoading(`Saving "${exercise.name}" to My Exercises...`); // NEW: Use global loading
-                    try {
-                      await onSaveToMyExercises(exercise);
-                      endLoadingSuccess(`"${exercise.name}" saved to My Exercises!`); // NEW: Use global success
-                    } catch (err: any) {
-                      endLoadingError(`Failed to save "${exercise.name}": ${err.message}`); // NEW: Use global error
-                    }
-                  }}
+                  onClick={() => onSaveToMyExercises(exercise)}
                   disabled={isSaving}
                 >
                   <Save className="h-4 w-4 mr-2" /> {isSaving ? "Saving..." : "Add and Save to My Exercises"}
@@ -148,15 +137,7 @@ export const SaveAiExercisePrompt = ({
               <>
                 {/* Primary action: Add to Current Workout */}
                 {showAddOnlyToWorkoutButton && (
-                  <Button variant="default" onClick={async () => {
-                    startLoading(`Adding "${exercise.name}" to current workout...`); // NEW: Use global loading
-                    try {
-                      await onAddOnlyToCurrentWorkout!(exercise);
-                      endLoadingSuccess(`"${exercise.name}" added to current workout!`); // NEW: Use global success
-                    } catch (err: any) {
-                      endLoadingError(`Failed to add "${exercise.name}": ${err.message}`); // NEW: Use global error
-                    }
-                  }} disabled={isSaving}>
+                  <Button variant="default" onClick={() => onAddOnlyToCurrentWorkout!(exercise)} disabled={isSaving}>
                     <PlusCircle className="h-4 w-4 mr-2" /> Add to Current Workout
                   </Button>
                 )}
@@ -164,15 +145,7 @@ export const SaveAiExercisePrompt = ({
                 {currentDuplicateStatus === 'none' && (
                   <Button
                     variant="outline"
-                    onClick={async () => {
-                      startLoading(`Saving "${exercise.name}" to My Exercises...`); // NEW: Use global loading
-                      try {
-                        await onSaveToMyExercises(exercise);
-                        endLoadingSuccess(`"${exercise.name}" saved to My Exercises!`); // NEW: Use global success
-                      } catch (err: any) {
-                        endLoadingError(`Failed to save "${exercise.name}": ${err.message}`); // NEW: Use global error
-                      }
-                    }}
+                    onClick={() => onSaveToMyExercises(exercise)}
                     disabled={isSaving}
                   >
                     <Save className="h-4 w-4 mr-2" /> {isSaving ? "Saving..." : "Save to My Exercises"}

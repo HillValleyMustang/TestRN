@@ -6,7 +6,6 @@ import { useSession } from "@/components/session-context-provider";
 import { toast } from "sonner";
 import { Tables, TablesInsert, ProfileInsert, FetchedExerciseDefinition } from "@/types/supabase";
 import { v4 as uuidv4 } from 'uuid';
-import { useGlobalStatus } from '@/contexts'; // NEW: Import useGlobalStatus
 
 // New type for the summary data structure
 type OnboardingSummaryData = {
@@ -20,7 +19,6 @@ type OnboardingSummaryData = {
 export const useOnboardingForm = () => {
   const router = useRouter();
   const { session, supabase } = useSession();
-  const { startLoading, endLoadingSuccess, endLoadingError } = useGlobalStatus(); // NEW: Use global status
 
   const [currentStep, setCurrentStep] = useState(1);
   const [tPathType, setTPathType] = useState<"ulul" | "ppl" | null>(null);
@@ -33,7 +31,7 @@ export const useOnboardingForm = () => {
   const [identifiedExercises, setIdentifiedExercises] = useState<Partial<FetchedExerciseDefinition>[]>([]);
   const [confirmedExercises, setConfirmedExercises] = useState<Set<string>>(new Set());
   const [consentGiven, setConsentGiven] = useState(false);
-  const [loading, setLoading] = useState(false); // Keep local loading for button disabled state
+  const [loading, setLoading] = useState(false);
   const [isInitialSetupLoading, setIsInitialSetupLoading] = useState(false);
   const [gymName, setGymName] = useState<string>("");
 
@@ -131,8 +129,7 @@ export const useOnboardingForm = () => {
 
   const handleSubmit = useCallback(async (fullName: string, heightCm: number, weightKg: number, bodyFatPct: number | null) => {
     if (!session) return;
-    setLoading(true); // Set local loading
-    startLoading("Completing Onboarding Setup..."); // NEW: Use global loading
+    setLoading(true);
 
     try {
       const payload = {
@@ -169,18 +166,16 @@ export const useOnboardingForm = () => {
       // Instead of redirecting, set the summary data and open the modal
       setSummaryData({ ...data, confirmedExerciseNames: confirmedExercises });
       setIsSummaryModalOpen(true);
-      endLoadingSuccess("Onboarding completed successfully!"); // NEW: Use global success
 
     } catch (error: any) {
       console.error("Onboarding failed:", error.message);
-      endLoadingError("Onboarding failed: " + error.message); // NEW: Use global error
+      toast.error("Onboarding failed: " + error.message);
     } finally {
-      setLoading(false); // Clear local loading
+      setLoading(false);
     }
   }, [
     session, router, tPathType, experience, goalFocus, preferredMuscles,
-    constraints, sessionLength, equipmentMethod, gymName, identifiedExercises, confirmedExercises,
-    startLoading, endLoadingSuccess, endLoadingError
+    constraints, sessionLength, equipmentMethod, gymName, identifiedExercises, confirmedExercises
   ]);
 
   const handleCloseSummaryModal = () => {

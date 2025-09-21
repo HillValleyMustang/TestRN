@@ -21,7 +21,6 @@ import { AnalyseGymDialog } from "@/components/manage-exercises/exercise-form/an
 import { SaveAiExercisePrompt } from "@/components/workout-flow/save-ai-exercise-prompt";
 import { UnconfiguredGymPrompt } from '@/components/prompts/unconfigured-gym-prompt';
 import { useGym } from '@/components/gym-context-provider';
-import { useGlobalStatus } from '@/contexts'; // NEW: Import useGlobalStatus
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -123,7 +122,6 @@ export const WorkoutSelector = ({
 }: WorkoutSelectorProps) => {
   const { supabase, session } = useSession();
   const { activeGym } = useGym();
-  const { startLoading, endLoadingSuccess, endLoadingError } = useGlobalStatus(); // NEW: Use global status
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
   const [adHocExerciseSourceFilter, setAdHocExerciseSourceFilter] = useState<'my-exercises' | 'global-library'>('my-exercises');
 
@@ -184,7 +182,6 @@ export const WorkoutSelector = ({
       return;
     }
     setIsAiSaving(true);
-    startLoading(`Saving "${exercise.name}" to My Exercises...`); // NEW: Use global loading
     try {
       let finalExerciseToAdd: ExerciseDefinition | null = null;
 
@@ -209,13 +206,13 @@ export const WorkoutSelector = ({
           throw insertError;
         }
       } else {
-        endLoadingSuccess(`'${exercise.name}' added to My Exercises!`); // NEW: Use global success
+        console.log(`'${exercise.name}' added to My Exercises!`);
         finalExerciseToAdd = insertedExercise as ExerciseDefinition;
       }
 
       if (finalExerciseToAdd) {
         await addExerciseToSession(finalExerciseToAdd);
-        endLoadingSuccess(`'${finalExerciseToAdd.name}' added to current workout!`); // NEW: Use global success
+        console.log(`'${finalExerciseToAdd.name}' added to current workout!`);
       } else {
         throw new Error("Could not find the exercise to add to workout.");
       }
@@ -226,11 +223,11 @@ export const WorkoutSelector = ({
 
     } catch (err: any) {
       console.error("Failed to save AI identified exercise and add to workout:", err);
-      endLoadingError("Failed to save exercise."); // NEW: Use global error
+      toast.info("Failed to save exercise.");
     } finally {
       setIsAiSaving(false);
     }
-  }, [session, supabase, addExerciseToSession, refreshAllData, startLoading, endLoadingSuccess, endLoadingError]);
+  }, [session, supabase, addExerciseToSession, refreshAllData]);
 
   const handleAddAiExerciseToWorkoutOnly = useCallback(async (exercise: Partial<FetchedExerciseDefinition>) => {
     if (!session) {
@@ -238,7 +235,6 @@ export const WorkoutSelector = ({
       return;
     }
     setIsAiSaving(true);
-    startLoading(`Adding "${exercise.name}" to current workout...`); // NEW: Use global loading
     try {
       let finalExerciseToAdd: ExerciseDefinition | null = null;
 
@@ -284,7 +280,7 @@ export const WorkoutSelector = ({
 
       if (finalExerciseToAdd) {
         await addExerciseToSession(finalExerciseToAdd);
-        endLoadingSuccess(`'${finalExerciseToAdd.name}' added to current workout!`); // NEW: Use global success
+        console.log(`'${finalExerciseToAdd.name}' added to current workout!`);
       } else {
         throw new Error("Could not find or create the exercise to add to workout.");
       }
@@ -295,11 +291,11 @@ export const WorkoutSelector = ({
 
     } catch (err: any) {
       console.error("Failed to add AI identified exercise to workout only:", err);
-      endLoadingError("Failed to add exercise."); // NEW: Use global error
+      toast.info("Failed to add exercise.");
     } finally {
       setIsAiSaving(false);
     }
-  }, [session, supabase, allAvailableExercises, addExerciseToSession, refreshAllData, startLoading, endLoadingSuccess, endLoadingError]);
+  }, [session, supabase, allAvailableExercises, addExerciseToSession, refreshAllData]);
 
 
   const totalExercises = exercisesForSession.length;
