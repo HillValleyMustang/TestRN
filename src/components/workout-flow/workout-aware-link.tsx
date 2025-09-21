@@ -2,35 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import React, { useCallback, useContext, createContext, useMemo } from 'react';
-
-interface WorkoutNavigationContextType {
-  // promptBeforeNavigation now returns a Promise<boolean>
-  promptBeforeNavigation: (path: string) => Promise<boolean>; 
-}
-
-const WorkoutNavigationContext = createContext<WorkoutNavigationContextType | undefined>(undefined);
-
-export const WorkoutNavigationProvider = ({ children, promptBeforeNavigation }: { children: React.ReactNode; promptBeforeNavigation: (path: string) => Promise<boolean>; }) => {
-  // Memoize the context value to prevent unnecessary re-renders of consumers
-  const contextValue = useMemo(() => ({
-    promptBeforeNavigation
-  }), [promptBeforeNavigation]);
-
-  return (
-    <WorkoutNavigationContext.Provider value={contextValue}>
-      {children}
-    </WorkoutNavigationContext.Provider>
-  );
-};
-
-export const useWorkoutNavigation = () => {
-  const context = useContext(WorkoutNavigationContext);
-  if (context === undefined) {
-    throw new Error('useWorkoutNavigation must be used within a WorkoutNavigationProvider');
-  }
-  return context;
-};
+import React, { useCallback } from 'react';
+import { useWorkoutFlow } from './workout-flow-context-provider';
 
 interface WorkoutAwareLinkProps extends React.ComponentProps<typeof Link> {
   children: React.ReactNode;
@@ -38,24 +11,20 @@ interface WorkoutAwareLinkProps extends React.ComponentProps<typeof Link> {
 
 export const WorkoutAwareLink = ({ href, onClick, children, ...props }: WorkoutAwareLinkProps) => {
   const router = useRouter();
-  const pathname = usePathname();
-  const { promptBeforeNavigation } = useWorkoutNavigation(); // Use the new prompt function
+  const { promptBeforeNavigation } = useWorkoutFlow();
 
   const handleClick = useCallback(async (event: React.MouseEvent<HTMLAnchorElement>) => {
-    // Always prevent default navigation if we're taking control
     event.preventDefault(); 
 
     if (onClick) {
       onClick(event);
     }
 
-    // Only intercept if navigating to a different page or if it's the workout page itself
     if (typeof href === 'string') {
-      const shouldBlock = await promptBeforeNavigation(href); // Await the promise
-      if (!shouldBlock) { // If navigation is NOT blocked, proceed
-        router.push(href); // Manually navigate
+      const shouldBlock = await promptBeforeNavigation(href);
+      if (!shouldBlock) {
+        router.push(href);
       }
-      // If shouldBlock is true, do nothing (stay on current page)
     }
   }, [href, onClick, promptBeforeNavigation, router]);
 

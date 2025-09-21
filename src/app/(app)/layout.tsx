@@ -3,7 +3,6 @@
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { MobileFooterNav } from "@/components/layout/mobile-footer-nav";
-import { WorkoutNavigationProvider } from "@/components/workout-flow/workout-aware-link";
 import { useWorkoutFlow } from "@/components/workout-flow/workout-flow-context-provider"; // Import the context hook
 import { WorkoutFlowProvider } from "@/components/workout-flow/workout-flow-context-provider"; // Import the provider
 import { useEffect } from "react";
@@ -34,7 +33,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   // --- End Browser-level warning ---
 
   return (
-    <WorkoutNavigationProvider promptBeforeNavigation={workoutFlowManager.promptBeforeNavigation}>
+    <>
       <div className="flex min-h-screen w-full flex-col bg-muted/40">
         <Sidebar />
         <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
@@ -60,7 +59,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
           onSaveSuccess={workoutFlowManager.handleEditWorkoutSaveSuccess}
         />
       )}
-    </WorkoutNavigationProvider>
+    </>
   );
 }
 

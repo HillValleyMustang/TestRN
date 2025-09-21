@@ -15,7 +15,7 @@ import { EditWorkoutExercisesDialog } from '../manage-t-paths/edit-workout-exerc
 import { ExerciseSelectionDropdown } from '@/components/shared/exercise-selection-dropdown';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
-import { WorkoutAwareLink, useWorkoutNavigation } from './workout-aware-link';
+import { WorkoutAwareLink } from './workout-aware-link';
 import { AnalyseGymButton } from "@/components/manage-exercises/exercise-form/analyze-gym-button";
 import { AnalyseGymDialog } from "@/components/manage-exercises/exercise-form/analyze-gym-dialog";
 import { SaveAiExercisePrompt } from "@/components/workout-flow/save-ai-exercise-prompt";
