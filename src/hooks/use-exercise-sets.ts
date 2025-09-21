@@ -48,8 +48,6 @@ interface UseExerciseSetsReturn {
   hasAchievedPRInSession: boolean;
 }
 
-const MAX_SETS = 5;
-
 const isValidId = (id: string | null | undefined): id is string => {
   return typeof id === 'string' && id.length > 0;
 };

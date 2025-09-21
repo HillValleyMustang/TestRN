@@ -107,7 +107,6 @@ export const useSetActions = ({
     
     await deleteDraft(setIndex);
     console.log("Set removed."); // Replaced toast.success
-    console.log(`[useSetActions] handleDeleteSet: Set ${setIndex + 1} draft removed.`);
 
     if (setToDelete.id) {
       // If the set was already saved to DB, queue its deletion
