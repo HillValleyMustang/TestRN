@@ -27,6 +27,7 @@ import { PointsExplanationModal } from '@/components/profile/points-explanation-
 import { achievementsList } from '@/lib/achievements';
 import { LoadingOverlay } from '@/components/loading-overlay';
 import { FloatingSaveEditButton } from '@/components/profile/floating-save-edit-button';
+import { useGlobalStatus } from '@/contexts'; // NEW: Import useGlobalStatus
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
@@ -63,8 +64,9 @@ export default function ProfilePage() {
   const { session, supabase } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { startLoading, endLoadingSuccess, endLoadingError } = useGlobalStatus(); // NEW: Use global status
   const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // Keep local saving for button disabled state
   const [aiCoachUsageToday, setAiCoachUsageToday] = useState(0);
   
   const [isAchievementDetailOpen, setIsAchievementDetailOpen] = useState(false);
@@ -286,7 +288,8 @@ export default function ProfilePage() {
       return;
     }
 
-    setIsSaving(true);
+    setIsSaving(true); // Set local saving
+    startLoading("Saving Profile..."); // NEW: Use global loading
 
     const oldSessionLength = lastSavedSessionLengthRef.current;
     const newSessionLength = values.preferred_session_length;
@@ -306,12 +309,12 @@ export default function ProfilePage() {
     
     const { error } = await supabase.from('profiles').update(updateData).eq('id', session.user.id);
     if (error) {
-      toast.error("Failed to update profile.");
+      endLoadingError("Failed to update profile."); // NEW: Use global error
       setIsSaving(false);
       return;
     }
 
-    toast.success("Profile updated successfully!");
+    endLoadingSuccess("Profile updated successfully!"); // NEW: Use global success
     lastSavedSessionLengthRef.current = newSessionLength ?? null;
 
     if (sessionLengthChanged && profile.active_t_path_id) {
@@ -338,7 +341,7 @@ export default function ProfilePage() {
     }
     await refreshProfileData();
     setIsEditing(false);
-    setIsSaving(false);
+    setIsSaving(false); // Clear local saving
   }
 
   const handleAchievementClick = (achievement: { id: string; name: string; icon: string }) => {

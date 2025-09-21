@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
 import { getMaxMinutes } from '@/lib/utils';
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
-import { LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise } from '@/lib/db';
+import { db, LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise } from '@/lib/db';
+import { useGlobalStatus } from '@/contexts'; // NEW: Import useGlobalStatus
 
 type TPath = Tables<'t_paths'>;
 
@@ -16,6 +17,8 @@ interface UseManageExercisesDataProps {
 }
 
 export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExercisesDataProps) => {
+  const { startLoading, endLoadingSuccess, endLoadingError } = useGlobalStatus(); // NEW: Use global status
+
   const [globalExercises, setGlobalExercises] = useState<FetchedExerciseDefinition[]>([]);
   const [userExercises, setUserExercises] = useState<FetchedExerciseDefinition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -337,20 +340,20 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       return;
     }
 
-    const toastId = toast.loading(`Deleting '${exercise.name}'...`);
+    startLoading(`Deleting '${exercise.name}'...`); // NEW: Use global loading
 
     try {
       const { error } = await supabase.from('exercise_definitions').delete().eq('id', exercise.id);
       if (error) {
         throw new Error(error.message);
       }
-      toast.success("Exercise deleted successfully!", { id: toastId });
+      endLoadingSuccess("Exercise deleted successfully!"); // NEW: Use global success
       refreshExercises(); // Trigger revalidation after delete
     } catch (err: any) {
       console.error("Failed to delete exercise:", err);
-      toast.error("Failed to delete exercise.", { id: toastId });
+      endLoadingError("Failed to delete exercise."); // NEW: Use global error
     }
-  }, [sessionUserId, supabase, refreshExercises]);
+  }, [sessionUserId, supabase, refreshExercises, startLoading, endLoadingSuccess, endLoadingError]);
 
   const handleToggleFavorite = useCallback(async (exercise: FetchedExerciseDefinition) => {
     if (!sessionUserId) {
@@ -362,7 +365,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
     const isCurrentlyFavorited = isUserOwned ? exercise.is_favorite : exercise.is_favorited_by_current_user;
     const newFavoriteStatus = !isCurrentlyFavorited;
 
-    const toastId = toast.loading(newFavoriteStatus ? "Adding to favourites..." : "Removing from favourites...");
+    startLoading(newFavoriteStatus ? "Adding to favourites..." : "Removing from favourites..."); // NEW: Use global loading
 
     try {
       if (isUserOwned) {
@@ -373,14 +376,14 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
           .eq('user_id', sessionUserId);
 
         if (error) throw error;
-        toast.success(newFavoriteStatus ? "Added to favourites!" : "Removed from favourites.", { id: toastId });
+        endLoadingSuccess(newFavoriteStatus ? "Added to favourites!" : "Removed from favourites."); // NEW: Use global success
       } else { // Global exercise
         if (newFavoriteStatus) {
           const { error } = await supabase
             .from('user_global_favorites')
             .insert({ user_id: sessionUserId, exercise_id: exercise.id as string }); // Cast to string
           if (error) throw error;
-          toast.success("Added to favourites!", { id: toastId });
+          endLoadingSuccess("Added to favourites!"); // NEW: Use global success
         } else {
           const { error } = await supabase
             .from('user_global_favorites')
@@ -388,15 +391,15 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
             .eq('user_id', sessionUserId)
             .eq('exercise_id', exercise.id as string); // Cast to string
           if (error) throw error;
-          toast.success("Removed from favourites.", { id: toastId });
+          endLoadingSuccess("Removed from favourites."); // NEW: Use global success
         }
       }
       refreshExercises(); // Trigger revalidation after favorite change
     } catch (err: any) {
       console.error("Failed to toggle favourite status:", err);
-      toast.error("Failed to update favourite status.", { id: toastId });
+      endLoadingError("Failed to update favourite status."); // NEW: Use global error
     }
-  }, [sessionUserId, supabase, refreshExercises]);
+  }, [sessionUserId, supabase, refreshExercises, startLoading, endLoadingSuccess, endLoadingError]);
 
   const handleOptimisticAdd = useCallback((exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => {
     setExerciseWorkoutsMap(prev => {
@@ -435,7 +438,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       return;
     }
 
-    const toastId = toast.loading("Removing exercise from workout...");
+    startLoading("Removing exercise from workout..."); // NEW: Use global loading
 
     try {
       const { error } = await supabase
@@ -447,13 +450,13 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       if (error) {
         throw new Error(error.message);
       }
-      toast.success("Exercise removed from workout successfully!", { id: toastId });
+      endLoadingSuccess("Exercise removed from workout successfully!"); // NEW: Use global success
       refreshTPaths(); // Trigger revalidation of T-Paths after removal
     } catch (err: any) {
       console.error("Failed to remove exercise from workout:", err);
-      toast.error("Failed to remove exercise from workout.", { id: toastId });
+      endLoadingError("Failed to remove exercise from workout."); // NEW: Use global error
     }
-  }, [sessionUserId, supabase, refreshTPaths]);
+  }, [sessionUserId, supabase, refreshTPaths, startLoading, endLoadingSuccess, endLoadingError]);
 
   return {
     globalExercises,

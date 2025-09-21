@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"; // Add DialogTrigger
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -9,6 +9,7 @@ import { useSession } from "@/components/session-context-provider";
 import { Tables } from '@/types/supabase';
 import { RefreshCcw, Sparkles } from "lucide-react";
 import { LoadingOverlay } from '../loading-overlay';
+import { useGlobalStatus } from '@/contexts'; // NEW: Import useGlobalStatus
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -21,6 +22,7 @@ interface ExerciseSwapDialogProps {
 
 export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap }: ExerciseSwapDialogProps) => {
   const { session, supabase } = useSession();
+  const { startLoading, endLoadingSuccess, endLoadingError } = useGlobalStatus(); // NEW: Use global status
   const [availableExercises, setAvailableExercises] = useState<ExerciseDefinition[]>([]);
   const [selectedNewExerciseId, setSelectedNewExerciseId] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -31,25 +33,28 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
 
     setLoading(true);
     try {
+      // Fetch all exercises (user-owned and global) that match criteria
       const { data: allMatchingExercises, error: fetchError } = await supabase
         .from('exercise_definitions')
-        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url')
-        .or(`user_id.eq.${session.user.id},user_id.is.null`)
-        .eq('main_muscle', currentExercise.main_muscle)
-        .eq('type', currentExercise.type)
-        .neq('id', currentExercise.id)
+        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url') // Specify all columns required by ExerciseDefinition
+        .or(`user_id.eq.${session.user.id},user_id.is.null`) // User's own or global
+        .eq('main_muscle', currentExercise.main_muscle) // Suggest exercises for the same main muscle
+        .eq('type', currentExercise.type) // Suggest exercises of the same type (weight, timed, cardio)
+        .neq('id', currentExercise.id) // Exclude the current exercise
         .order('name', { ascending: true });
 
       if (fetchError) throw fetchError;
 
       // Filter out global exercises if a user-owned copy already exists
+      // This logic is now for display purposes in the dropdown, not for preventing adoption.
       const userOwnedExerciseLibraryIds = new Set(
         allMatchingExercises
           .filter(ex => ex.user_id === session.user.id && ex.library_id)
           .map(ex => ex.library_id)
       );
 
-      const filteredExercises = (allMatchingExercises as ExerciseDefinition[]).filter(ex => {
+      const filteredExercises = (allMatchingExercises as ExerciseDefinition[]).filter(ex => { // Explicitly cast
+        // If it's a global exercise and the user already has a custom version of it, don't show the global one in the dropdown.
         if (ex.user_id === null && ex.library_id && userOwnedExerciseLibraryIds.has(ex.library_id)) {
           return false;
         }
@@ -68,7 +73,7 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
   useEffect(() => {
     if (open) {
       fetchAvailableExercises();
-      setSelectedNewExerciseId("");
+      setSelectedNewExerciseId(""); // Reset selection when opening
     }
   }, [open, session, supabase, currentExercise]);
 
@@ -85,10 +90,10 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
       // Directly use the newExercise, no adoption needed.
       onSwap(newExercise);
       onOpenChange(false);
-      console.log(`Swapped with ${newExercise.name}`); // Replaced toast.success
+      endLoadingSuccess(`Swapped with ${newExercise.name}`); // NEW: Use global success
     } catch (err: any) {
       console.error("Failed to swap exercise:", err);
-      toast.info("Failed to swap exercise.");
+      endLoadingError("Failed to swap exercise."); // NEW: Use global error
     }
   };
 
@@ -98,6 +103,7 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
       return;
     }
     setGeneratingAi(true);
+    startLoading("Generating AI Suggestion..."); // NEW: Use global loading
     try {
       const { data, error } = await supabase.functions.invoke('generate-exercise-suggestion', {
         body: {
@@ -119,14 +125,16 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
 
       const newAiExercise = data.newExercise;
       if (newAiExercise) {
+        // Add the newly generated exercise to the list of available exercises
         setAvailableExercises(prev => [...prev, newAiExercise]);
-        console.log("AI generated a new exercise suggestion!"); // Replaced toast.success
+        endLoadingSuccess("AI generated a new exercise suggestion!"); // NEW: Use global success
       } else {
         toast.info("AI did not return a valid exercise.");
+        endLoadingError("AI did not return a valid exercise."); // NEW: Use global error
       }
     } catch (err: any) {
       console.error("Failed to generate AI suggestion:", err);
-      toast.info("Failed to generate AI suggestion.");
+      endLoadingError("Failed to generate AI suggestion."); // NEW: Use global error
     } finally {
       setGeneratingAi(false);
     }
@@ -171,9 +179,9 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
               <Button onClick={handleConfirmSwap} disabled={!selectedNewExerciseId || loading || generatingAi}>
                 <RefreshCcw className="h-4 w-4 mr-2" /> Confirm Swap
               </Button>
-              <Button
-                variant="outline"
-                onClick={handleGenerateAiSuggestion}
+              <Button 
+                variant="outline" 
+                onClick={handleGenerateAiSuggestion} 
                 disabled={generatingAi}
               >
                 <Sparkles className="h-4 w-4 mr-2" />
@@ -183,11 +191,6 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
           )}
         </div>
       </DialogContent>
-      <LoadingOverlay
-        isOpen={generatingAi}
-        title="Generating AI Suggestion"
-        description="Please wait while the AI suggests a new exercise."
-      />
     </Dialog>
   );
 };

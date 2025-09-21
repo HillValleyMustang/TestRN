@@ -13,6 +13,7 @@ import { Tables, Profile } from '@/types/supabase';
 import { useGym } from '@/components/gym-context-provider';
 import { AddGymDialog } from './add-gym-dialog';
 import { ManageGymWorkoutsExercisesDialog } from './gym-exercise-manager'; // Import the NEW component
+import { useGlobalStatus } from '@/contexts'; // NEW: Import useGlobalStatus
 
 type Gym = Tables<'gyms'>;
 
@@ -25,6 +26,7 @@ interface GymManagementSectionProps {
 export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymManagementSectionProps) => {
   const { session, supabase } = useSession();
   const { userGyms, activeGym, refreshGyms } = useGym(); // Use userGyms and activeGym from context
+  const { startLoading, endLoadingSuccess, endLoadingError } = useGlobalStatus(); // NEW: Use global status
   const [loading, setLoading] = useState(true); // Keep local loading for dialogs/actions
 
   // State for dialogs
@@ -45,12 +47,13 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
   const handleRenameGym = async () => {
     if (!session || !selectedGym || !newGymName.trim()) return;
 
-    setLoading(true); // Set loading for the rename operation
+    setLoading(true); // Set local loading for the rename operation
+    startLoading(`Renaming "${selectedGym.name}"...`); // NEW: Use global loading
     try {
       const { error } = await supabase.from('gyms').update({ name: newGymName }).eq('id', selectedGym.id);
       if (error) throw error;
 
-      toast.success("Gym renamed successfully!");
+      endLoadingSuccess("Gym renamed successfully!"); // NEW: Use global success
       onDataChange(); // Trigger parent refresh
       refreshGyms(); // Refresh the gym context
       setIsRenameDialogOpen(false);
@@ -58,9 +61,9 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
       setSelectedGym(null);
     } catch (err: any) {
       console.error("Failed to rename gym:", err.message);
-      toast.error("Failed to rename gym.");
+      endLoadingError("Failed to rename gym."); // NEW: Use global error
     } finally {
-      setLoading(false); // Clear loading
+      setLoading(false); // Clear local loading
     }
   };
 
@@ -74,7 +77,8 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
       return;
     }
 
-    setLoading(true); // Set loading for the delete operation
+    setLoading(true); // Set local loading for the delete operation
+    startLoading(`Deleting "${selectedGym.name}"...`); // NEW: Use global loading
     try {
       if (selectedGym.id === profile.active_gym_id) {
         const nextActiveGym = userGyms.find(g => g.id !== selectedGym.id); // Use userGyms
@@ -85,14 +89,14 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
       const { error } = await supabase.from('gyms').delete().eq('id', selectedGym.id);
       if (error) throw error;
 
-      toast.success(`Gym "${selectedGym.name}" deleted.`);
+      endLoadingSuccess(`Gym "${selectedGym.name}" deleted.`); // NEW: Use global success
       onDataChange(); // Trigger parent refresh
       refreshGyms(); // Refresh the gym context
     } catch (err: any) {
       console.error("Failed to delete gym:", err.message);
-      toast.error("Failed to delete gym.");
+      endLoadingError("Failed to delete gym."); // NEW: Use global error
     } finally {
-      setLoading(false); // Clear loading
+      setLoading(false); // Clear local loading
       setSelectedGym(null);
     }
   };
@@ -100,8 +104,8 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
   const handleConfirmDeleteLastGym = async () => {
     if (!session || !selectedGym || !profile?.active_t_path_id) return;
     setIsLastGymWarningOpen(false);
-    setLoading(true); // Set loading for the delete operation
-    const toastId = toast.loading("Resetting workout plan and deleting gym...");
+    setLoading(true); // Set local loading for the delete operation
+    startLoading("Resetting workout plan and deleting gym..."); // NEW: Use global loading
 
     try {
       const response = await fetch(`/api/generate-t-path`, {
@@ -117,14 +121,14 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
       const { error: profileError } = await supabase.from('profiles').update({ active_gym_id: null }).eq('id', session.user.id);
       if (profileError) throw profileError;
 
-      toast.success("Last gym deleted and workout plan reset to defaults.", { id: toastId });
+      endLoadingSuccess("Last gym deleted and workout plan reset to defaults."); // NEW: Use global success
       onDataChange(); // Trigger parent refresh
       refreshGyms(); // Refresh the gym context
     } catch (err: any) {
       console.error("Failed to delete last gym:", err.message);
-      toast.error("Failed to delete last gym.", { id: toastId });
+      endLoadingError("Failed to delete last gym."); // NEW: Use global error
     } finally {
-      setLoading(false); // Clear loading
+      setLoading(false); // Clear local loading
       setSelectedGym(null);
     }
   };

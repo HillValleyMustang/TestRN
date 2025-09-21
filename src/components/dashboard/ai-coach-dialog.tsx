@@ -10,6 +10,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { LoadingOverlay } from '../loading-overlay';
 import { Tables } from '@/types/supabase';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useGlobalStatus } from '@/contexts'; // NEW: Import useGlobalStatus
 
 type AiCoachUsageLog = Tables<'ai_coach_usage_logs'>;
 
@@ -20,8 +21,9 @@ interface AiCoachDialogProps {
 
 export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
   const { supabase, session } = useSession();
+  const { startLoading, endLoadingSuccess, endLoadingError } = useGlobalStatus(); // NEW: Use global status
   const [analysis, setAnalysis] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // Keep local loading for button disabled state
   const [usageCount, setUsageCount] = useState(0);
   const AI_COACH_DAILY_LIMIT = 2;
 
@@ -62,8 +64,9 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
       return;
     }
 
-    setLoading(true);
+    setLoading(true); // Set local loading
     setAnalysis("");
+    startLoading("Generating AI Analysis..."); // NEW: Use global loading
     try {
       const { data, error } = await supabase.functions.invoke('ai-coach');
 
@@ -76,14 +79,15 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
       }
 
       setAnalysis(data.analysis);
+      endLoadingSuccess("AI analysis complete!"); // NEW: Use global success
       
       await fetchUsageData(); // Re-fetch the count from the database
       
     } catch (err: any) {
       console.error("AI Coach error:", err);
-      toast.info("Failed to get AI analysis.");
+      endLoadingError("Failed to get AI analysis."); // NEW: Use global error
     } finally {
-      setLoading(false);
+      setLoading(false); // Clear local loading
     }
   };
 

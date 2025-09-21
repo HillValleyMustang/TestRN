@@ -8,6 +8,7 @@ import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { Tables } from '@/types/supabase';
 import { LoadingOverlay } from '../loading-overlay';
+import { useGlobalStatus } from '@/contexts'; // NEW: Import useGlobalStatus
 
 type Gym = Tables<'gyms'>;
 
@@ -21,6 +22,7 @@ interface CopyGymSetupDialogProps {
 
 export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, onCopySuccess }: CopyGymSetupDialogProps) => {
   const { session } = useSession();
+  const { startLoading, endLoadingSuccess, endLoadingError } = useGlobalStatus(); // NEW: Use global status
   const [selectedSourceGymId, setSelectedSourceGymId] = useState<string>("");
   const [isCopying, setIsCopying] = useState(false);
 
@@ -30,6 +32,7 @@ export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, 
       return;
     }
     setIsCopying(true);
+    startLoading(`Copying setup to "${targetGym.name}"...`); // NEW: Use global loading
     try {
       const response = await fetch('/api/copy-gym-setup', {
         method: 'POST',
@@ -49,11 +52,11 @@ export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, 
       // CRITICAL FIX: Await the data refresh before closing the dialog and showing success.
       await onCopySuccess();
 
-      toast.success(`Successfully copied setup to "${targetGym.name}"!`);
+      endLoadingSuccess(`Successfully copied setup to "${targetGym.name}"!`); // NEW: Use global success
       onOpenChange(false);
     } catch (err: any) {
       console.error("Failed to copy gym setup:", err.message);
-      toast.error("Failed to copy gym setup.");
+      endLoadingError("Failed to copy gym setup."); // NEW: Use global error
     } finally {
       setIsCopying(false);
     }

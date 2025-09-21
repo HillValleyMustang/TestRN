@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Info, Check, Sparkles } from "lucide-react";
 import { LoadingOverlay } from '../loading-overlay';
 import { Badge } from "@/components/ui/badge";
+import { useGlobalStatus } from '@/contexts'; // NEW: Import useGlobalStatus
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -22,10 +23,20 @@ interface ExerciseSubstitutionDialogProps {
 
 // Helper function to get YouTube embed URL
 const getYouTubeEmbedUrl = (url: string | null | undefined): string | null => {
-  if (!url) return null;
+  if (!url) {
+    console.log("[getYouTubeEmbedUrl] Input URL is null or undefined.");
+    return null;
+  }
+  console.log(`[getYouTubeEmbedUrl] Processing URL: ${url}`);
   const regExp = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([\w-]{11})(?:\S+)?/;
   const match = url.match(regExp);
-  return match && match[1] ? `https://www.youtube.com/embed/${match[1]}` : null;
+  if (match && match[1]) {
+    const embedUrl = `https://www.youtube.com/embed/${match[1]}`;
+    console.log(`[getYouTubeEmbedUrl] Extracted video ID: ${match[1]}, Embed URL: ${embedUrl}`);
+    return embedUrl;
+  }
+  console.log(`[getYouTubeEmbedUrl] No YouTube video ID found in URL: ${url}`);
+  return null;
 };
 
 export const ExerciseSubstitutionDialog = ({
@@ -35,6 +46,7 @@ export const ExerciseSubstitutionDialog = ({
   onSubstitute
 }: ExerciseSubstitutionDialogProps) => {
   const { session, supabase } = useSession();
+  const { startLoading, endLoadingSuccess, endLoadingError } = useGlobalStatus(); // NEW: Use global status
   const [substitutions, setSubstitutions] = useState<ExerciseDefinition[]>([]);
   const [loading, setLoading] = useState(true);
   const [generatingAi, setGeneratingAi] = useState(false);
@@ -91,10 +103,10 @@ export const ExerciseSubstitutionDialog = ({
     try {
       onSubstitute(exercise);
       onOpenChange(false);
-      console.log(`Substituted with ${exercise.name}`); // Replaced toast.success
+      endLoadingSuccess(`Substituted with ${exercise.name}`); // NEW: Use global success
     } catch (err: any) {
       console.error("Failed to substitute exercise:", err);
-      toast.info("Failed to substitute exercise.");
+      endLoadingError("Failed to substitute exercise."); // NEW: Use global error
     }
   };
 
@@ -109,6 +121,7 @@ export const ExerciseSubstitutionDialog = ({
     }
 
     setGeneratingAi(true);
+    startLoading("Generating AI Suggestion..."); // NEW: Use global loading
     try {
       const { data, error } = await supabase.functions.invoke('generate-exercise-suggestion', {
         body: {
@@ -127,21 +140,23 @@ export const ExerciseSubstitutionDialog = ({
 
       if (data.error) {
         toast.info(data.error);
+        endLoadingError(data.error); // NEW: Use global error for AI specific errors
         return;
       }
 
       const newAiExercise = data.newExercise;
       if (newAiExercise) {
         setSubstitutions(prev => [...prev, newAiExercise]);
-        console.log("AI generated a new exercise suggestion!"); // Replaced toast.success
+        endLoadingSuccess("AI generated a new exercise suggestion!"); // NEW: Use global success
         setNewlyGeneratedExerciseIds(prev => new Set(prev).add(newAiExercise.id));
         setAiGenerationCount(prev => prev + 1);
       } else {
         toast.info("AI did not return a valid exercise.");
+        endLoadingError("AI did not return a valid exercise."); // NEW: Use global error
       }
     } catch (err: any) {
       console.error("Failed to generate AI suggestion:", err);
-      toast.info("Failed to generate AI suggestion.");
+      endLoadingError("Failed to generate AI suggestion."); // NEW: Use global error
     } finally {
       setGeneratingAi(false);
     }

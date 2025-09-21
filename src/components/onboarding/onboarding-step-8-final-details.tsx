@@ -9,6 +9,7 @@ import { Info } from 'lucide-react';
 import { BodyFatInfoModal } from './body-fat-info-modal';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"; // Import Card components
 import { cn } from '@/lib/utils'; // Import cn for conditional classes
+import { useGlobalStatus } from '@/contexts'; // NEW: Import useGlobalStatus
 
 interface OnboardingStep8Props {
   consentGiven: boolean;
@@ -31,7 +32,7 @@ export const OnboardingStep8_FinalDetails = ({
   setConsentGiven,
   handleSubmit,
   handleBack,
-  loading,
+  loading, // Keep local loading for button disabled state
   fullName,
   setFullName,
   heightCm,

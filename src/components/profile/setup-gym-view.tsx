@@ -9,6 +9,7 @@ import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { useSession } from '@/components/session-context-provider';
 import { CopyGymSetupDialog } from './copy-gym-setup-dialog';
+import { useGlobalStatus } from '@/contexts'; // NEW: Import useGlobalStatus
 
 type Gym = Tables<'gyms'>;
 
@@ -19,8 +20,10 @@ interface SetupGymViewProps {
 
 export const SetupGymView = ({ gym, onClose }: SetupGymViewProps) => {
   const { session, supabase } = useSession();
+  const { startLoading, endLoadingSuccess, endLoadingError } = useGlobalStatus(); // NEW: Use global status
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
   const [sourceGyms, setSourceGyms] = useState<Gym[]>([]);
+  const [loading, setLoading] = useState(false); // Keep local loading for button disabled state
 
   useEffect(() => {
     const fetchOtherGyms = async () => {
@@ -40,44 +43,44 @@ export const SetupGymView = ({ gym, onClose }: SetupGymViewProps) => {
     fetchOtherGyms();
   }, [session, supabase, gym.id]);
 
-  const handleSetupOption = async (option: 'copy' | 'defaults' | 'empty') => {
-    switch (option) {
-      case 'copy':
-        if (sourceGyms.length > 0) {
-          setIsCopyDialogOpen(true);
-        } else {
-          toast.info("You don't have any other gyms to copy from.");
-        }
-        break;
-      case 'defaults':
-        if (!session) {
-          toast.error("You must be logged in.");
-          return;
-        }
-        const toastId = toast.loading("Setting up with app defaults...");
-        try {
-          const response = await fetch('/api/setup-default-gym', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({ gymId: gym.id }),
-          });
-          const data = await response.json();
-          if (!response.ok) {
-            throw new Error(data.error || 'Failed to set up default gym.');
-          }
-          toast.success(`"${gym.name}" is being set up with default workouts.`, { id: toastId });
-          onClose();
-        } catch (err: any) {
-          toast.error(`Failed to set up default gym: ${err.message}`, { id: toastId });
-        }
-        break;
-      case 'empty':
-        toast.success(`"${gym.name}" is ready! You can add exercises manually.`);
-        onClose();
-        break;
+  const handleSetupDefaults = async () => {
+    if (!session) {
+      toast.error("You must be logged in.");
+      return;
+    }
+    setLoading(true); // Set local loading
+    startLoading(`Setting up "${gym.name}" with app defaults...`); // NEW: Use global loading
+    try {
+      const response = await fetch('/api/setup-default-gym', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ gymId: gym.id }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to set up default gym.');
+      }
+      endLoadingSuccess(`"${gym.name}" is being set up with default workouts.`); // NEW: Use global success
+      onClose();
+    } catch (err: any) {
+      endLoadingError(`Failed to set up default gym: ${err.message}`); // NEW: Use global error
+    } finally {
+      setLoading(false); // Clear local loading
+    }
+  };
+
+  const handleSetupOption = (option: 'copy' | 'defaults' | 'empty') => {
+    if (option === 'copy') {
+      setIsCopyDialogOpen(true);
+    } else if (option === 'defaults') {
+      handleSetupDefaults();
+    } else if (option === 'empty') {
+      // For 'empty', we just close the dialog and consider it set up.
+      // The gym already exists, and no T-Path is created, which is a valid state.
+      onClose();
     }
   };
 

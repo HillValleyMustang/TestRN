@@ -8,6 +8,7 @@ import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { LoadingOverlay } from '../loading-overlay';
+import { useGlobalStatus } from '@/contexts'; // NEW: Import useGlobalStatus
 
 interface AiSessionAnalysisCardProps {
   sessionId: string;
@@ -15,8 +16,9 @@ interface AiSessionAnalysisCardProps {
 
 export const AiSessionAnalysisCard = ({ sessionId }: AiSessionAnalysisCardProps) => {
   const { session, supabase } = useSession();
+  const { startLoading, endLoadingSuccess, endLoadingError } = useGlobalStatus(); // NEW: Use global status
   const [analysis, setAnalysis] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // Keep local loading for button disabled state
   const [usageCount, setUsageCount] = useState(0);
   const AI_COACH_DAILY_LIMIT = 2;
 
@@ -61,7 +63,8 @@ export const AiSessionAnalysisCard = ({ sessionId }: AiSessionAnalysisCardProps)
       return;
     }
 
-    setLoading(true);
+    setLoading(true); // Set local loading
+    startLoading("Generating AI Analysis..."); // NEW: Use global loading
     try {
       const { data, error } = await supabase.functions.invoke('ai-coach', {
         body: { sessionId },
@@ -79,13 +82,14 @@ export const AiSessionAnalysisCard = ({ sessionId }: AiSessionAnalysisCardProps)
       }
 
       setAnalysis(data.analysis);
+      endLoadingSuccess("AI analysis complete!"); // NEW: Use global success
       await fetchUsageData(); // Re-fetch the count from the database
       
     } catch (err: any) {
       console.error("AI Coach error:", err);
-      toast.error("Failed to get AI analysis: " + err.message);
+      endLoadingError("Failed to get AI analysis: " + err.message); // NEW: Use global error
     } finally {
-      setLoading(false);
+      setLoading(false); // Clear local loading
     }
   };
 

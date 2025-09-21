@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { ScrollArea } from '../ui/scroll-area';
 import { Badge } from '../ui/badge';
 import { Tables } from '@/types/supabase'; // Import Tables
+import { useGlobalStatus } from '@/contexts'; // NEW: Import useGlobalStatus
 
 interface Notification {
   id: string;
@@ -30,6 +31,7 @@ interface UserAlert {
 
 export function NotificationBell() {
   const { session, supabase } = useSession();
+  const { startLoading, endLoadingSuccess, endLoadingError } = useGlobalStatus(); // NEW: Use global status
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [userAlerts, setUserAlerts] = useState<UserAlert[]>([]); // New state for user alerts
   const [unreadCount, setUnreadCount] = useState(0);
@@ -87,6 +89,7 @@ export function NotificationBell() {
       return;
     }
 
+    startLoading("Marking all as read..."); // NEW: Use global loading
     let hasError = false;
 
     // Mark global notifications as read
@@ -114,9 +117,9 @@ export function NotificationBell() {
     }
 
     if (hasError) {
-      toast.error("Failed to mark some notifications as read.");
+      endLoadingError("Failed to mark some notifications as read."); // NEW: Use global error
     } else {
-      toast.success("All notifications marked as read.");
+      endLoadingSuccess("All notifications marked as read."); // NEW: Use global success
       fetchNotifications(); // Refresh the list
       setOpen(false);
     }

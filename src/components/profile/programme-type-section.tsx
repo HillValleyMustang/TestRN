@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { LoadingOverlay } from '../loading-overlay';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useFormContext } from 'react-hook-form'; // Import useFormContext
+import { useGlobalStatus } from '@/contexts'; // NEW: Import useGlobalStatus
 
 interface ProgrammeTypeSectionProps {
   isEditing: boolean;
@@ -20,9 +21,10 @@ interface ProgrammeTypeSectionProps {
 
 export const ProgrammeTypeSection = ({ isEditing, onDataChange, profile }: ProgrammeTypeSectionProps) => {
   const { session, supabase } = useSession();
+  const { startLoading, endLoadingSuccess, endLoadingError } = useGlobalStatus(); // NEW: Use global status
   const [isWarningOpen, setIsWarningOpen] = useState(false);
   const [pendingProgrammeType, setPendingProgrammeType] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // Keep local saving for button disabled state
   const form = useFormContext(); // Use context
 
   const currentProgrammeType = profile?.programme_type || '';
@@ -38,7 +40,8 @@ export const ProgrammeTypeSection = ({ isEditing, onDataChange, profile }: Progr
   const confirmChange = async () => {
     if (!session || !pendingProgrammeType) return;
     setIsWarningOpen(false);
-    setIsSaving(true);
+    setIsSaving(true); // Set local saving
+    startLoading("Updating Programme Type..."); // NEW: Use global loading
 
     try {
       const { error: profileError } = await supabase
@@ -62,13 +65,13 @@ export const ProgrammeTypeSection = ({ isEditing, onDataChange, profile }: Progr
         throw new Error(errorData.error || "Failed to start plan regeneration.");
       }
 
-      toast.success("Programme type updated! Your workout plans are regenerating in the background.");
+      endLoadingSuccess("Programme type updated! Your workout plans are regenerating in the background."); // NEW: Use global success
       onDataChange();
     } catch (err: any) {
       console.error("Failed to update programme type and regenerate plans:", err);
-      toast.error("Failed to update programme type.");
+      endLoadingError("Failed to update programme type."); // NEW: Use global error
     } finally {
-      setIsSaving(false);
+      setIsSaving(false); // Clear local saving
       setPendingProgrammeType(null);
     }
   };

@@ -41,22 +41,22 @@ export default {
   				foreground: 'hsl(var(--accent-foreground))'
   			},
   			destructive: {
-  				DEFAULT: 'hsl(var(--destructive))',
-  				foreground: 'hsl(var(--destructive-foreground))'
+  				DEFAULT: '0 84.2% 60.2%',
+  				foreground: '0 0% 98%'
   			},
         action: {
           DEFAULT: 'hsl(var(--action-primary))',
           foreground: 'hsl(var(--action-primary-foreground))'
         },
-  			border: 'hsl(var(--border))',
-  			input: 'hsl(var(--input))',
-  			ring: 'hsl(var(--ring))',
+  			border: '0 0% 89.8%',
+  			input: '0 0% 89.8%',
+  			ring: '0 0% 3.9%',
   			chart: {
-  				'1': 'hsl(var(--chart-1))',
-  				'2': 'hsl(var(--chart-2))',
-  				'3': 'hsl(var(--chart-3))',
-  				'4': 'hsl(var(--chart-4))',
-  				'5': 'hsl(var(--chart-5))'
+  				'1': '12 76% 61%',
+  				'2': '173 58% 39%',
+  				'3': '197 37% 24%',
+  				'4': '43 74% 66%',
+  				'5': '27 87% 67%'
   			},
   			sidebar: {
   				DEFAULT: 'hsl(var(--sidebar-background))',
@@ -105,11 +105,18 @@ export default {
           from: { opacity: '0', transform: 'translateY(20px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
         },
+        'ellipsis-pulse': { // NEW: Ellipsis animation
+          '0%': { content: '""' },
+          '33%': { content: '"."' },
+          '66%': { content: '".."' },
+          '100%': { content: '"..."' },
+        },
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out',
         'fade-in-slide-up': 'fade-in-slide-up 0.6s ease-out forwards',
+        'ellipsis-pulse': 'ellipsis-pulse 1.5s infinite step-end', // NEW: Ellipsis animation
   		},
       boxShadow: {
         'workout-pill-selected': '0 8px 20px -6px rgba(0, 0, 0, 0.2)', // A subtle, diffused shadow

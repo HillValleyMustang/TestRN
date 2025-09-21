@@ -9,6 +9,7 @@ import { useEffect } from "react";
 import { UnsavedChangesDialog } from "@/components/workout-flow/unsaved-changes-dialog";
 import { EditWorkoutExercisesDialog } from "@/components/manage-t-paths/edit-workout-exercises-dialog";
 import { GymContextProvider } from "@/components/gym-context-provider";
+import { GlobalStatusProvider } from "@/contexts"; // NEW: Import GlobalStatusProvider
 
 // This component now consumes the context provided by WorkoutFlowProvider
 function AppLayoutContent({ children }: { children: React.ReactNode }) {
@@ -72,7 +73,9 @@ export default function AppLayout({
   return (
     <GymContextProvider>
       <WorkoutFlowProvider>
-        <AppLayoutContent>{children}</AppLayoutContent>
+        <GlobalStatusProvider> {/* NEW: GlobalStatusProvider wraps AppLayoutContent */}
+          <AppLayoutContent>{children}</AppLayoutContent>
+        </GlobalStatusProvider>
       </WorkoutFlowProvider>
     </GymContextProvider>
   );
