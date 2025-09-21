@@ -80,41 +80,42 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
     const newActiveGym = userGyms.find(g => g.id === gymId);
     if (!newActiveGym) return;
 
+    const previousActiveGym = activeGym; // Store previous state for rollback
     setActiveGym(newActiveGym); // Optimistic update
 
-    // Find the main T-Path for the new gym
-    const { data: tPathForGym, error: tPathError } = await supabase
-      .from('t_paths')
-      .select('id')
-      .eq('gym_id', gymId)
-      .eq('user_id', session.user.id)
-      .is('parent_t_path_id', null)
-      .single();
+    try {
+      const response = await fetch('/api/switch-active-gym', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ gymId }),
+      });
 
-    if (tPathError && tPathError.code !== 'PGRST116') {
-      toast.error("Could not find workout plan for this gym.");
-      fetchGymData(); // Revert optimistic UI change
-      return;
-    }
+      const data = await response.json();
 
-    const newActiveTPathId = tPathForGym ? tPathForGym.id : null;
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to switch active gym.');
+      }
 
-    // Update BOTH active_gym_id and active_t_path_id in the profile
-    const { data: updatedProfile, error } = await supabase
-      .from('profiles')
-      .update({ active_gym_id: gymId, active_t_path_id: newActiveTPathId })
-      .eq('id', session.user.id)
-      .select()
-      .single();
+      // On success, we need to refresh the profile data to get the new active_t_path_id
+      // The useWorkoutDataFetcher hook will see the updated profile from Dexie and re-process everything.
+      const { data: updatedProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+      
+      if (profileError) throw profileError;
 
-    if (error) {
-      toast.error("Failed to switch active gym.");
-      fetchGymData(); // Revert optimistic update
-    } else {
-      // On success, update the local Dexie cache to trigger reactivity elsewhere
       if (updatedProfile) {
         await db.profiles_cache.put(updatedProfile);
       }
+      
+    } catch (error: any) {
+      toast.error(error.message || "Failed to switch active gym.");
+      setActiveGym(previousActiveGym); // Rollback optimistic update
     }
   };
 

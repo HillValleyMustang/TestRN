@@ -2,15 +2,15 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const { oldTPathId, newTPathId } = await request.json();
+    const { gymId } = await request.json();
     
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) {
       return NextResponse.json({ error: 'Authorization header missing' }, { status: 401 });
     }
 
-    const SUPABASE_PROJECT_ID = 'mgbfevrzrbjjiajkqpti';
-    const EDGE_FUNCTION_URL = `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/disassociate-tpath-exercises`;
+    const SUPABASE_PROJECT_ID = 'mgbfevrzrbjjiajkqpti'; 
+    const EDGE_FUNCTION_URL = `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/switch-active-gym`;
 
     const edgeFunctionResponse = await fetch(EDGE_FUNCTION_URL, {
       method: 'POST',
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
         'Content-Type': 'application/json',
         'Authorization': authHeader,
       },
-      body: JSON.stringify({ oldTPathId, newTPathId }),
+      body: JSON.stringify({ gymId }),
     });
 
     const data = await edgeFunctionResponse.json();
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error('Error switching T-Path:', error);
+    console.error('Error in /api/switch-active-gym route:', error);
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
