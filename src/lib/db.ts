@@ -123,7 +123,7 @@ export interface LocalTPathExercise extends Tables<'t_path_exercises'> {
   created_at: string; // Must be non-null for local cache
 }
 // NEW: LocalUserAchievement
-export interface LocalUserAchievement extends UserAchievementsRow {
+export interface LocalUserAchievement extends Tables<'user_achievements'> {
   id: string;
   user_id: string;
   achievement_id: string;

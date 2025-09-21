@@ -5,7 +5,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { Tables, WorkoutExercise, WorkoutWithLastCompleted, GroupedTPath, LocalUserAchievement, Profile, FetchedExerciseDefinition } from '@/types/supabase'; // Import centralized types, including Profile and FetchedExerciseDefinition
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
-import { db, LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise } from '@/lib/db';
+import { db, LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise, LocalGym } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
 
 type TPath = Tables<'t_paths'>;
@@ -115,6 +115,18 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     sessionUserId: session?.user.id ?? null,
   });
 
+  // NEW: Use the caching hook for Gyms
+  const { refresh: refreshGyms } = useCacheAndRevalidate<LocalGym>({
+    cacheTable: 'gyms_cache',
+    supabaseQuery: useCallback(async (client: SupabaseClient) => {
+      if (!session?.user.id) return { data: [], error: null };
+      return client.from('gyms').select('*').eq('user_id', session.user.id);
+    }, [session?.user.id]),
+    queryKey: 'user_gyms_for_workout_data_fetcher',
+    supabase,
+    sessionUserId: session?.user.id ?? null,
+  });
+
   const refreshAllData = useCallback(async () => {
     console.log("[useWorkoutDataFetcher] refreshAllData triggered.");
     await Promise.all([
@@ -123,9 +135,10 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       refreshProfile(),
       refreshTPathExercises(),
       refreshAchievements(),
+      refreshGyms(), // NEW: Refresh gyms
     ]);
     console.log("[useWorkoutDataFetcher] All data refreshes completed.");
-  }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, refreshAchievements]);
+  }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, refreshAchievements, refreshGyms]);
 
   // Effect to process cached data and then trigger enrichment
   useEffect(() => {
