@@ -227,7 +227,7 @@ export const useWorkoutSessionState = ({ allAvailableExercises, workoutExercises
     };
 
     loadDraftsForActiveWorkout();
-  }, [session?.user.id, activeWorkout, currentSessionId, allAvailableExercises, workoutExercisesCache, _resetLocalState, setExercisesForSession, setExercisesWithSets, setCompletedExercises, setCurrentSessionId, setSessionStartTime, setExpandedExerciseCards]);
+  }, [session?.user.id, activeWorkout, currentSessionId, allAvailableExercises, workoutExercisesCache]);
 
   const toggleExerciseCardExpansion = useCallback((exerciseId: string) => {
     setExpandedExerciseCards(prev => ({
