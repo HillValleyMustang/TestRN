@@ -6,9 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ChevronLeft, ChevronRight, Home } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher';
 
 export const GymToggle = () => {
   const { userGyms, activeGym, switchActiveGym, loadingGyms } = useGym();
+  const { refreshProfile } = useWorkoutDataFetcher(); // Get the refresh function
 
   if (loadingGyms) {
     return <Skeleton className="h-12 w-48" />;
@@ -20,14 +22,23 @@ export const GymToggle = () => {
 
   const currentIndex = userGyms.findIndex(g => g.id === activeGym.id);
 
+  const handleSwitch = async (newIndex: number) => {
+    const success = await switchActiveGym(userGyms[newIndex].id);
+    if (success) {
+      // On successful switch, manually trigger a profile refresh.
+      // This ensures useWorkoutDataFetcher gets the new active_t_path_id immediately.
+      refreshProfile();
+    }
+  };
+
   const handlePrev = () => {
     const prevIndex = (currentIndex - 1 + userGyms.length) % userGyms.length;
-    switchActiveGym(userGyms[prevIndex].id);
+    handleSwitch(prevIndex);
   };
 
   const handleNext = () => {
     const nextIndex = (currentIndex + 1) % userGyms.length;
-    switchActiveGym(userGyms[nextIndex].id);
+    handleSwitch(nextIndex);
   };
 
   return (

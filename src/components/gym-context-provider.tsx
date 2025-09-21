@@ -4,123 +4,100 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/components/session-context-provider';
-import { Tables } from '@/types/supabase';
+import { Tables, Profile } from '@/types/supabase';
 import { toast } from 'sonner';
-import { db } from '@/lib/db'; // Import db
+import { db, LocalGym } from '@/lib/db';
+import { useCacheAndRevalidate } from '@/hooks/use-cache-and-revalidate';
 
 type Gym = Tables<'gyms'>;
-type Profile = Tables<'profiles'>;
 
 interface GymContextType {
   userGyms: Gym[];
   activeGym: Gym | null;
-  switchActiveGym: (gymId: string) => Promise<void>;
+  switchActiveGym: (gymId: string) => Promise<boolean>; // Returns success status
   loadingGyms: boolean;
-  refreshGyms: () => Promise<void>; // Added refresh function
+  refreshGyms: () => void;
 }
 
 const GymContext = createContext<GymContextType | undefined>(undefined);
 
 export const GymContextProvider = ({ children }: { children: React.ReactNode }) => {
   const { session } = useSession();
-  const [userGyms, setUserGyms] = useState<Gym[]>([]);
   const [activeGym, setActiveGym] = useState<Gym | null>(null);
-  const [loadingGyms, setLoadingGyms] = useState(true);
 
-  const fetchGymData = useCallback(async () => {
-    if (!session) {
-      setLoadingGyms(false);
-      return;
-    }
-    setLoadingGyms(true);
-    try {
-      // Fetch all user's gyms
-      const { data: gymsData, error: gymsError } = await supabase
-        .from('gyms')
-        .select('*')
-        .eq('user_id', session.user.id);
-      if (gymsError) throw gymsError;
-      setUserGyms(gymsData || []);
+  const { data: cachedGyms, loading: loadingGyms, error: gymsError, refresh: refreshGyms } = useCacheAndRevalidate<LocalGym>({
+    cacheTable: 'gyms_cache',
+    supabaseQuery: useCallback(async (client: SupabaseClient) => {
+      if (!session?.user.id) return { data: [], error: null };
+      return client.from('gyms').select('*').eq('user_id', session.user.id);
+    }, [session?.user.id]),
+    queryKey: 'user_gyms',
+    supabase,
+    sessionUserId: session?.user.id ?? null,
+  });
 
-      // Fetch user's profile to find out which gym is active
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('active_gym_id')
-        .eq('id', session.user.id)
-        .single();
-      if (profileError && profileError.code !== 'PGRST116') throw profileError;
-
-      const activeGymIdFromProfile = profileData?.active_gym_id;
-      
-      let newActiveGym: Gym | null = null;
-      if (gymsData && gymsData.length > 0) {
-        if (activeGymIdFromProfile) {
-          newActiveGym = gymsData.find(g => g.id === activeGymIdFromProfile) || null;
-        }
-        // If no active gym in profile, or if it wasn't found, default to the first one
-        if (!newActiveGym) {
-          newActiveGym = gymsData[0];
-        }
-      }
-      setActiveGym(newActiveGym);
-
-    } catch (error: any) {
-      toast.error("Failed to load gym data: " + error.message);
-    } finally {
-      setLoadingGyms(false);
-    }
-  }, [session, supabase]);
+  const { data: cachedProfile, refresh: refreshProfile } = useCacheAndRevalidate<Profile>({
+    cacheTable: 'profiles_cache',
+    supabaseQuery: useCallback(async (client) => {
+      if (!session?.user.id) return { data: [], error: null };
+      return client.from('profiles').select('*').eq('id', session.user.id);
+    }, [session?.user.id]),
+    queryKey: 'user_profile_for_gym_context',
+    supabase,
+    sessionUserId: session?.user.id ?? null,
+  });
 
   useEffect(() => {
-    fetchGymData();
-  }, [fetchGymData]);
+    if (gymsError) {
+      toast.error("Failed to load gym data.");
+      console.error("GymContext Error:", gymsError);
+    }
+  }, [gymsError]);
 
-  const switchActiveGym = async (gymId: string) => {
-    if (!session) return;
-    const newActiveGym = userGyms.find(g => g.id === gymId);
-    if (!newActiveGym) return;
+  useEffect(() => {
+    const profile = cachedProfile?.[0];
+    const gyms = cachedGyms || [];
+    if (profile && gyms.length > 0) {
+      const activeGymId = profile.active_gym_id;
+      let newActiveGym = activeGymId ? gyms.find(g => g.id === activeGymId) : null;
+      if (!newActiveGym) {
+        newActiveGym = gyms[0];
+      }
+      setActiveGym(newActiveGym || null);
+    } else {
+      setActiveGym(null);
+    }
+  }, [cachedGyms, cachedProfile]);
 
-    const previousActiveGym = activeGym; // Store previous state for rollback
+  const switchActiveGym = async (gymId: string): Promise<boolean> => {
+    if (!session) return false;
+    const newActiveGym = (cachedGyms || []).find(g => g.id === gymId);
+    if (!newActiveGym) return false;
+
+    const previousActiveGym = activeGym;
     setActiveGym(newActiveGym); // Optimistic update
 
     try {
       const response = await fetch('/api/switch-active-gym', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
         body: JSON.stringify({ gymId }),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to switch active gym.');
-      }
-
-      // On success, we need to refresh the profile data to get the new active_t_path_id
-      // The useWorkoutDataFetcher hook will see the updated profile from Dexie and re-process everything.
-      const { data: updatedProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
+      if (!response.ok) throw new Error(data.error || 'Failed to switch active gym.');
       
-      if (profileError) throw profileError;
-
-      if (updatedProfile) {
-        await db.profiles_cache.put(updatedProfile);
-      }
-      
+      // On success, trigger a refresh of the profile to get the new active_t_path_id
+      refreshProfile();
+      return true;
     } catch (error: any) {
       toast.error(error.message || "Failed to switch active gym.");
-      setActiveGym(previousActiveGym); // Rollback optimistic update
+      setActiveGym(previousActiveGym); // Rollback
+      return false;
     }
   };
 
   return (
-    <GymContext.Provider value={{ userGyms, activeGym, switchActiveGym, loadingGyms, refreshGyms: fetchGymData }}>
+    <GymContext.Provider value={{ userGyms: cachedGyms || [], activeGym, switchActiveGym, loadingGyms, refreshGyms }}>
       {children}
     </GymContext.Provider>
   );
