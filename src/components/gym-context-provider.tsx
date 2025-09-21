@@ -34,6 +34,7 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
     }
     setLoadingGyms(true);
     try {
+      // Fetch all user's gyms
       const { data: gymsData, error: gymsError } = await supabase
         .from('gyms')
         .select('*')
@@ -41,6 +42,7 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
       if (gymsError) throw gymsError;
       setUserGyms(gymsData || []);
 
+      // Fetch user's profile to find out which gym is active
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('active_gym_id')
@@ -53,56 +55,14 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
       let newActiveGym: Gym | null = null;
       if (gymsData && gymsData.length > 0) {
         if (activeGymIdFromProfile) {
-          // Try to find the gym specified in the profile
           newActiveGym = gymsData.find(g => g.id === activeGymIdFromProfile) || null;
         }
-        // If no active_gym_id in profile, or if the gym wasn't found, default to the first gym
+        // If no active gym in profile, or if it wasn't found, default to the first one
         if (!newActiveGym) {
           newActiveGym = gymsData[0];
         }
       }
       setActiveGym(newActiveGym);
-
-      // NEW: After determining the active gym, find its associated main T-Path
-      let newActiveTPathId: string | null = null;
-      if (newActiveGym) {
-        const { data: tPathForGym, error: tPathError } = await supabase
-          .from('t_paths')
-          .select('id')
-          .eq('gym_id', newActiveGym.id)
-          .eq('user_id', session.user.id)
-          .is('parent_t_path_id', null)
-          .single();
-
-        if (tPathError && tPathError.code !== 'PGRST116') {
-          console.error("Error fetching main T-Path for active gym:", tPathError);
-        } else if (tPathForGym) {
-          newActiveTPathId = tPathForGym.id;
-        }
-      }
-
-      // NEW: Update the profile's active_t_path_id if it's different
-      const { data: currentProfile, error: currentProfileError } = await supabase
-        .from('profiles')
-        .select('active_t_path_id')
-        .eq('id', session.user.id)
-        .single();
-
-      if (currentProfileError && currentProfileError.code !== 'PGRST116') {
-        console.error("Error fetching current profile for T-Path check:", currentProfileError);
-      } else if (currentProfile?.active_t_path_id !== newActiveTPathId) {
-        const { data: updatedProfile, error: updateProfileError } = await supabase
-          .from('profiles')
-          .update({ active_gym_id: newActiveGym?.id || null, active_t_path_id: newActiveTPathId }) // Ensure active_gym_id is also updated
-          .eq('id', session.user.id)
-          .select()
-          .single();
-        if (updateProfileError) {
-          console.error("Error updating active_t_path_id in profile:", updateProfileError);
-        } else if (updatedProfile) {
-          await db.profiles_cache.put(updatedProfile); // Update local cache
-        }
-      }
 
     } catch (error: any) {
       toast.error("Failed to load gym data: " + error.message);
@@ -139,6 +99,7 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
 
     const newActiveTPathId = tPathForGym ? tPathForGym.id : null;
 
+    // Update BOTH active_gym_id and active_t_path_id in the profile
     const { data: updatedProfile, error } = await supabase
       .from('profiles')
       .update({ active_gym_id: gymId, active_t_path_id: newActiveTPathId })
@@ -148,8 +109,7 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
 
     if (error) {
       toast.error("Failed to switch active gym.");
-      // Revert optimistic update
-      fetchGymData();
+      fetchGymData(); // Revert optimistic update
     } else {
       // On success, update the local Dexie cache to trigger reactivity elsewhere
       if (updatedProfile) {
