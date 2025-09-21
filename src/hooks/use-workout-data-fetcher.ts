@@ -36,8 +36,6 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
 
   const [groupedTPaths, setGroupedTPaths] = useState<GroupedTPath[]>([]);
   const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, WorkoutExercise[]>>({});
-  const [loadingData, setLoadingData] = useState(true);
-  const [dataError, setDataError] = useState<string | null>(null);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const prevStatusRef = useRef<string | null>(null);
@@ -104,6 +102,10 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     sessionUserId: session?.user.id ?? null,
   });
 
+  // FIX: Derive loading and error states instead of setting them in an effect
+  const loadingData = useMemo(() => loadingExercises || loadingTPaths || loadingProfile || loadingTPathExercises || loadingAchievements, [loadingExercises, loadingTPaths, loadingProfile, loadingTPathExercises, loadingAchievements]);
+  const dataError = useMemo(() => exercisesError || tPathsError || profileError || tPathExercisesError || achievementsError, [exercisesError, tPathsError, profileError, tPathExercisesError, achievementsError]);
+
   const allAvailableExercises = useMemo(() => {
     return (cachedExercises || []).map(ex => ({
       ...ex,
@@ -127,41 +129,18 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   // Effect to process cached data and then trigger enrichment
   useEffect(() => {
     const processAndEnrichData = async () => {
-      const isLoading = loadingExercises || loadingTPaths || loadingProfile || loadingTPathExercises || loadingAchievements;
-      const anyError = exercisesError || tPathsError || profileError || tPathExercisesError || achievementsError;
-
-      if (isLoading) {
-        setLoadingData(true);
-        return;
-      }
-
-      if (anyError) {
-        setDataError(anyError);
-        setLoadingData(false);
-        console.error("[useWorkoutDataFetcher] Data fetching error:", anyError);
-        toast.error("Failed to load workout data from cache.");
-        return;
-      }
-
       if (!session?.user.id || !cachedProfile || cachedProfile.length === 0) {
         setGroupedTPaths([]);
         setWorkoutExercisesCache({});
-        setLoadingData(false);
         return;
       }
       
       const currentProfile = cachedProfile[0];
-      console.log(`[useWorkoutDataFetcher] processAndEnrichData: Current Profile active_gym_id: ${currentProfile.active_gym_id}, active_t_path_id: ${currentProfile.active_t_path_id}`);
-      console.log(`[useWorkoutDataFetcher] processAndEnrichData: Cached TPaths count: ${(cachedTPaths || []).length}`);
-      console.log(`[useWorkoutDataFetcher] processAndEnrichData: Cached TPathExercises count: ${(cachedTPathExercises || []).length}`);
-
       const userMainTPaths = (cachedTPaths || []).filter(tp => tp.user_id === session.user.id && !tp.parent_t_path_id);
-      console.log(`[useWorkoutDataFetcher] processAndEnrichData: User Main TPaths found: ${userMainTPaths.length}`);
       
       if (userMainTPaths.length === 0) {
         setGroupedTPaths([]);
         setWorkoutExercisesCache({});
-        setLoadingData(false);
         return;
       }
 
@@ -209,28 +188,23 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
           })
         );
         setGroupedTPaths(newGroupedTPaths);
-
-        const activeTPathGroup = currentProfile.active_t_path_id ? newGroupedTPaths.find(group => group.mainTPath.id === currentProfile.active_t_path_id) : null;
-        console.log(`[useWorkoutDataFetcher] processAndEnrichData: Final activeTPathGroup found: ${activeTPathGroup ? activeTPathGroup.mainTPath.template_name : 'null'}`);
-
       } catch (enrichError: any) {
         console.error("[useWorkoutDataFetcher] Failed to enrich workout data:", enrichError);
         toast.error("Could not load workout completion dates.");
       }
-
-      setLoadingData(false);
-      setDataError(null);
     };
 
-    processAndEnrichData();
+    // This condition ensures the processing logic only runs once all data is loaded and ready.
+    if (!loadingData && !dataError) {
+      processAndEnrichData();
+    } else if (dataError) {
+      console.error("[useWorkoutDataFetcher] Data fetching error:", dataError);
+      toast.error("Failed to load workout data from cache.");
+    }
   }, [
-    session, supabase,
-    cachedExercises, exercisesError,
-    cachedTPaths, tPathsError,
-    cachedProfile, profileError,
-    cachedTPathExercises, tPathExercisesError,
-    cachedAchievements, achievementsError,
-    loadingExercises, loadingTPaths, loadingProfile, loadingTPathExercises, loadingAchievements,
+    session?.user.id, supabase,
+    cachedExercises, cachedTPaths, cachedProfile, cachedTPathExercises, cachedAchievements,
+    loadingData, dataError
   ]);
 
   useEffect(() => {
