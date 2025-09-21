@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Tables, GroupedTPath, FetchedExerciseDefinition } from '@/types/supabase'; // Import GroupedTPath, FetchedExerciseDefinition
@@ -302,7 +302,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     }));
   }, [setExpandedExerciseCards]);
 
-  return {
+  return useMemo(() => ({
     activeWorkout,
     exercisesForSession,
     exercisesWithSets,
@@ -321,7 +321,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     setCompletedExercises,
     resetWorkoutSession,
     markExerciseAsCompleted,
-    addExerciseToSession, // Expose addExerciseToSession
+    addExerciseToSession,
     removeExerciseFromSession,
     substituteExercise,
     updateExerciseSets,
@@ -335,7 +335,7 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     handleConfirmLeave,
     handleCancelLeave,
     promptBeforeNavigation,
-    allAvailableExercises: allAvailableExercises, // Expose allAvailableExercises directly
+    allAvailableExercises,
     updateSessionStartTime,
     isEditWorkoutDialogOpen,
     selectedWorkoutToEdit,
@@ -345,8 +345,20 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     toggleExerciseCardExpansion,
     refreshProfile,
     refreshAchievements,
-    isGeneratingPlan, // Return the new state
-    profile, // Expose profile
-    pendingWorkoutIdToSelect, // Expose the pending state
-  };
+    isGeneratingPlan,
+    profile,
+    pendingWorkoutIdToSelect,
+  }), [
+    activeWorkout, exercisesForSession, exercisesWithSets, currentSessionId, sessionStartTime,
+    completedExercises, isCreatingSession, isWorkoutActive, hasUnsavedChanges, expandedExerciseCards,
+    setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId,
+    setSessionStartTime, setCompletedExercises, resetWorkoutSession, markExerciseAsCompleted,
+    addExerciseToSession, removeExerciseFromSession, substituteExercise, updateExerciseSets,
+    selectWorkout, loadingData, groupedTPaths, createWorkoutSessionInDb, finishWorkoutSession,
+    refreshAllData, showUnsavedChangesDialog, handleConfirmLeave, handleCancelLeave,
+    promptBeforeNavigation, allAvailableExercises, updateSessionStartTime, isEditWorkoutDialogOpen,
+    selectedWorkoutToEdit, handleOpenEditWorkoutDialog, handleEditWorkoutSaveSuccess,
+    setIsEditWorkoutDialogOpen, toggleExerciseCardExpansion, refreshProfile, refreshAchievements,
+    isGeneratingPlan, profile, pendingWorkoutIdToSelect
+  ]);
 };

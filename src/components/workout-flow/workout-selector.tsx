@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
 import { PlusCircle, Dumbbell, Settings, Sparkles } from 'lucide-react';
 import { Tables, WorkoutWithLastCompleted, GroupedTPath, SetLogState, WorkoutExercise, FetchedExerciseDefinition, Profile } from '@/types/supabase';
 import { cn, formatTimeAgo, getPillStyles } from '@/lib/utils';

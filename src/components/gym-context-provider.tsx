@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/components/session-context-provider';
@@ -41,7 +41,7 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
 
   const { data: cachedProfile, refresh: refreshProfile } = useCacheAndRevalidate<Profile>({
     cacheTable: 'profiles_cache',
-    supabaseQuery: useCallback(async (client) => {
+    supabaseQuery: useCallback(async (client: SupabaseClient) => {
       if (!session?.user.id) return { data: [], error: null };
       return client.from('profiles').select('*').eq('id', session.user.id);
     }, [session?.user.id]),
@@ -75,7 +75,7 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
     }
   }, [cachedGyms, cachedProfile]);
 
-  const switchActiveGym = async (gymId: string): Promise<boolean> => {
+  const switchActiveGym = useCallback(async (gymId: string): Promise<boolean> => {
     if (!session) return false;
     const newActiveGym = (cachedGyms || []).find(g => g.id === gymId);
     if (!newActiveGym) return false;
@@ -106,10 +106,20 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
       setActiveGym(previousActiveGym); // Rollback
       return false;
     }
-  };
+  }, [session, cachedGyms, activeGym, refreshProfile, refreshTPaths, refreshTPathExercises]);
+
+  const contextValue = useMemo(() => ({
+    userGyms: cachedGyms || [],
+    activeGym,
+    switchActiveGym,
+    loadingGyms,
+    refreshGyms,
+    refreshTPaths,
+    refreshTPathExercises
+  }), [cachedGyms, activeGym, switchActiveGym, loadingGyms, refreshGyms, refreshTPaths, refreshTPathExercises]);
 
   return (
-    <GymContext.Provider value={{ userGyms: cachedGyms || [], activeGym, switchActiveGym, loadingGyms, refreshGyms, refreshTPaths, refreshTPathExercises }}>
+    <GymContext.Provider value={contextValue}>
       {children}
     </GymContext.Provider>
   );
