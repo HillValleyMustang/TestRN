@@ -8,6 +8,7 @@ import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { Tables } from '@/types/supabase';
 import { LoadingOverlay } from '../loading-overlay';
+import { useGym } from '@/components/gym-context-provider'; // Import useGym
 
 type Gym = Tables<'gyms'>;
 
@@ -21,23 +22,17 @@ interface CopyGymSetupDialogProps {
 
 export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, onCopySuccess }: CopyGymSetupDialogProps) => {
   const { session } = useSession();
+  const { switchActiveGym } = useGym(); // Get the function from context
   const [selectedSourceGymId, setSelectedSourceGymId] = useState<string>("");
   const [isCopying, setIsCopying] = useState(false);
 
   const handleCopySetup = async () => {
-    console.log("[CopyGymSetupDialog] handleCopySetup called.");
-    console.log("[CopyGymSetupDialog] Session:", session);
-    console.log("[CopyGymSetupDialog] Selected Source Gym ID:", selectedSourceGymId);
-
     if (!session || !selectedSourceGymId) {
       toast.error("Please select a gym to copy from.");
-      console.log("[CopyGymSetupDialog] Validation failed: No session or source gym selected.");
       return;
     }
-    console.log("[CopyGymSetupDialog] Validation passed. Proceeding to set loading state.");
     setIsCopying(true);
     try {
-      console.log("[CopyGymSetupDialog] Making fetch request to /api/copy-gym-setup...");
       const response = await fetch('/api/copy-gym-setup', {
         method: 'POST',
         headers: {
@@ -48,18 +43,17 @@ export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, 
       });
 
       const data = await response.json();
-      console.log("[CopyGymSetupDialog] API response received. Status:", response.status, "Data:", data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to copy gym setup.');
       }
 
-      // NEW: Informative toast message
-      toast.success(`Successfully copied setup to "${targetGym.name}"! Your workout plan is now being generated in the background.`);
-      onCopySuccess();
+      toast.success(`Successfully copied setup to "${targetGym.name}"!`);
+      onCopySuccess(); // Refresh data first
+      await switchActiveGym(targetGym.id); // Then explicitly switch to the new gym
       onOpenChange(false);
     } catch (err: any) {
-      console.error("[CopyGymSetupDialog] Failed to copy gym setup:", err.message);
+      console.error("Failed to copy gym setup:", err.message);
       toast.error("Failed to copy gym setup.");
     } finally {
       setIsCopying(false);
@@ -73,7 +67,7 @@ export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, 
           <DialogHeader>
             <DialogTitle>Copy Setup to "{targetGym.name}"</DialogTitle>
             <DialogDescription>
-              Select an existing gym to copy its exercise list from.
+              Select an existing gym to copy its exercise list and workout plan from.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
