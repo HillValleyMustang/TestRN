@@ -142,9 +142,8 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
   };
 
   const handleAddSuccess = () => {
-    fetchGyms();
-    onDataChange();
-    refreshGyms();
+    // Removed fetchGyms() and onDataChange() to simplify and avoid potential race conditions
+    refreshGyms(); // This should be sufficient to trigger revalidation and UI update
   };
 
   return (
