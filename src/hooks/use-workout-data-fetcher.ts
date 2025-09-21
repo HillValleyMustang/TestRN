@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { Tables, WorkoutExercise, WorkoutWithLastCompleted, GroupedTPath, LocalUserAchievement, Profile, FetchedExerciseDefinition } from '@/types/supabase';
@@ -18,7 +18,6 @@ const PPL_ORDER = ['Push', 'Pull', 'Legs'];
 
 interface UseWorkoutDataFetcherReturn {
   allAvailableExercises: FetchedExerciseDefinition[];
-  setAllAvailableExercises: React.Dispatch<React.SetStateAction<FetchedExerciseDefinition[]>>;
   groupedTPaths: GroupedTPath[];
   workoutExercisesCache: Record<string, WorkoutExercise[]>;
   loadingData: boolean;
@@ -35,7 +34,6 @@ interface UseWorkoutDataFetcherReturn {
 export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const { session, supabase } = useSession();
 
-  const [allAvailableExercises, setAllAvailableExercises] = useState<FetchedExerciseDefinition[]>([]);
   const [groupedTPaths, setGroupedTPaths] = useState<GroupedTPath[]>([]);
   const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, WorkoutExercise[]>>({});
   const [loadingData, setLoadingData] = useState(true);
@@ -106,6 +104,14 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     sessionUserId: session?.user.id ?? null,
   });
 
+  const allAvailableExercises = useMemo(() => {
+    return (cachedExercises || []).map(ex => ({
+      ...ex,
+      id: ex.id,
+      is_favorited_by_current_user: false,
+    }));
+  }, [cachedExercises]);
+
   const refreshAllData = useCallback(async () => {
     console.log("[useWorkoutDataFetcher] refreshAllData triggered.");
     await Promise.all([
@@ -143,12 +149,6 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
         setLoadingData(false);
         return;
       }
-
-      setAllAvailableExercises((cachedExercises || []).map(ex => ({
-        ...ex,
-        id: ex.id,
-        is_favorited_by_current_user: false,
-      })));
       
       const currentProfile = cachedProfile[0];
       console.log(`[useWorkoutDataFetcher] processAndEnrichData: Current Profile active_gym_id: ${currentProfile.active_gym_id}, active_t_path_id: ${currentProfile.active_t_path_id}`);
@@ -287,7 +287,6 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
 
   return {
     allAvailableExercises,
-    setAllAvailableExercises,
     groupedTPaths,
     workoutExercisesCache,
     loadingData,

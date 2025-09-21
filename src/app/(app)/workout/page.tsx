@@ -69,7 +69,6 @@ export default function WorkoutPage() {
         finishWorkoutSession={handleFinishAndShowSummary}
         isQuickStart={isQuickStart}
         allAvailableExercises={workoutFlowManager.allAvailableExercises}
-        setAllAvailableExercises={workoutFlowManager.setAllAvailableExercises}
         updateSessionStartTime={workoutFlowManager.updateSessionStartTime}
       />
       <WorkoutProgressBar

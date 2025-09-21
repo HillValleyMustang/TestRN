@@ -55,7 +55,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     refreshAllData,
     refreshProfile,
     refreshAchievements,
-    setAllAvailableExercises, // Destructure setAllAvailableExercises
     isGeneratingPlan, // Get the new state
     profile, // Get profile from the data fetcher
   } = useWorkoutDataFetcher();
@@ -337,7 +336,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     handleCancelLeave,
     promptBeforeNavigation,
     allAvailableExercises: allAvailableExercises, // Expose allAvailableExercises directly
-    setAllAvailableExercises, // Expose setAllAvailableExercises
     updateSessionStartTime,
     isEditWorkoutDialogOpen,
     selectedWorkoutToEdit,
@@ -349,5 +347,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     refreshAchievements,
     isGeneratingPlan, // Return the new state
     profile, // Expose profile
+    pendingWorkoutIdToSelect, // Expose the pending state
   };
 };

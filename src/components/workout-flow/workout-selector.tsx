@@ -30,7 +30,6 @@ interface WorkoutSelectorProps {
   exercisesForSession: WorkoutExercise[];
   exercisesWithSets: Record<string, SetLogState[]>;
   allAvailableExercises: FetchedExerciseDefinition[];
-  setAllAvailableExercises: React.Dispatch<React.SetStateAction<FetchedExerciseDefinition[]>>;
   currentSessionId: string | null;
   sessionStartTime: Date | null;
   completedExercises: Set<string>;
@@ -95,7 +94,6 @@ export const WorkoutSelector = ({
   exercisesForSession,
   exercisesWithSets,
   allAvailableExercises,
-  setAllAvailableExercises,
   currentSessionId,
   sessionStartTime,
   completedExercises,
@@ -210,7 +208,6 @@ export const WorkoutSelector = ({
       } else {
         console.log(`'${exercise.name}' added to My Exercises!`);
         finalExerciseToAdd = insertedExercise as ExerciseDefinition;
-        setAllAvailableExercises((prev: FetchedExerciseDefinition[]) => [...prev, insertedExercise as FetchedExerciseDefinition]);
       }
 
       if (finalExerciseToAdd) {
@@ -230,7 +227,7 @@ export const WorkoutSelector = ({
     } finally {
       setIsAiSaving(false);
     }
-  }, [session, supabase, setAllAvailableExercises, addExerciseToSession, refreshAllData]);
+  }, [session, supabase, addExerciseToSession, refreshAllData]);
 
   const handleAddAiExerciseToWorkoutOnly = useCallback(async (exercise: Partial<FetchedExerciseDefinition>) => {
     if (!session) {
@@ -278,7 +275,6 @@ export const WorkoutSelector = ({
           }
         } else {
           finalExerciseToAdd = insertedExercise as ExerciseDefinition;
-          setAllAvailableExercises((prev: FetchedExerciseDefinition[]) => [...prev, insertedExercise as FetchedExerciseDefinition]);
         }
       }
 
@@ -299,7 +295,7 @@ export const WorkoutSelector = ({
     } finally {
       setIsAiSaving(false);
     }
-  }, [session, supabase, allAvailableExercises, setAllAvailableExercises, addExerciseToSession, refreshAllData]);
+  }, [session, supabase, allAvailableExercises, addExerciseToSession, refreshAllData]);
 
 
   const totalExercises = exercisesForSession.length;
