@@ -95,68 +95,68 @@ export const GlobalExerciseList = ({
           <ScrollArea>
             <ul className="space-y-2 w-full">
               {exercises.map((ex) => (
-                <li key={ex.id} className="flex items-center justify-between py-1 px-2 border rounded-md w-full">
-                  <div className="flex flex-col flex-auto min-w-0 py-1 px-1"> {/* Changed to flex-auto, added py-1 px-1 */}
-                    <p className="font-medium text-base whitespace-normal">{ex.name}</p>
-                    <p className="text-sm text-muted-foreground whitespace-normal mt-1">{ex.main_muscle}</p> {/* Added mt-1 */}
-                    
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {exerciseGymsMap[ex.id as string]?.length > 0 && (
-                        exerciseGymsMap[ex.id as string].map(gymName => (
-                          <Badge key={gymName} variant="secondary" className="text-xs">
-                            <Home className="h-3 w-3 mr-1" />
-                            {gymName}
-                          </Badge>
-                        ))
-                      )}
-                      {exerciseWorkoutsMap[ex.id as string]?.length > 0 && (
-                        exerciseWorkoutsMap[ex.id as string].map(workout => (
-                          <div key={workout.id} className="flex items-center gap-1">
-                            <WorkoutBadge 
-                              workoutName={workout.name}
-                            >
-                              {workout.name}
-                            </WorkoutBadge>
-                            {workout.isBonus && (
-                              <WorkoutBadge workoutName="Bonus">
-                                Bonus
-                              </WorkoutBadge>
-                            )}
-                          </div>
-                        ))
-                      )}
+                <li key={ex.id} className="flex flex-col py-1 px-2 border rounded-md w-full"> {/* Changed to flex-col */}
+                  <div className="flex justify-between items-start w-full"> {/* Row 1: Exercise Name */}
+                    <p className="font-medium text-base whitespace-normal flex-grow min-w-0">{ex.name}</p>
+                  </div>
+                  <div className="flex justify-between items-center w-full mt-1"> {/* Row 2: Muscle Group | Buttons */}
+                    <p className="text-sm text-muted-foreground whitespace-normal flex-grow min-w-0">{ex.main_muscle}</p>
+                    <div className="flex gap-1 flex-shrink-0">
+                      <Button variant="ghost" size="icon" title="More Info" onClick={(e) => handleOpenInfoDialog(ex, e)}>
+                        <Info className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={(e) => handleToggleFavoriteClick(ex, e)} 
+                        title={ex.is_favorited_by_current_user ? "Unfavourite" : "Favourite"}
+                      >
+                        <Heart className={cn("h-4 w-4", ex.is_favorited_by_current_user ? "fill-red-500 text-red-500" : "text-muted-foreground")} />
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" title="More Options">
+                            <Menu className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onSelect={() => handleOpenAddTPathDialog(ex)}>
+                            <PlusCircle className="h-4 w-4 mr-2" /> Add to T-Path
+                          </DropdownMenuItem>
+                          {userGyms.length > 0 && (
+                            <DropdownMenuItem onSelect={() => handleOpenManageGymsDialog(ex)}>
+                              <Home className="h-4 w-4 mr-2" /> Manage Gyms
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
-                  {/* Action buttons group */}
-                  <div className="flex gap-1 flex-shrink-0">
-                    <Button variant="ghost" size="icon" title="More Info" onClick={(e) => handleOpenInfoDialog(ex, e)}>
-                      <Info className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={(e) => handleToggleFavoriteClick(ex, e)} 
-                      title={ex.is_favorited_by_current_user ? "Unfavourite" : "Favourite"}
-                    >
-                      <Heart className={cn("h-4 w-4", ex.is_favorited_by_current_user ? "fill-red-500 text-red-500" : "text-muted-foreground")} />
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" title="More Options">
-                          <Menu className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => handleOpenAddTPathDialog(ex)}>
-                          <PlusCircle className="h-4 w-4 mr-2" /> Add to T-Path
-                        </DropdownMenuItem>
-                        {userGyms.length > 0 && (
-                          <DropdownMenuItem onSelect={() => handleOpenManageGymsDialog(ex)}>
-                            <Home className="h-4 w-4 mr-2" /> Manage Gyms
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                  <div className="mt-2 flex flex-wrap gap-2 w-full"> {/* Row 3: Badges */}
+                    {exerciseGymsMap[ex.id as string]?.length > 0 && (
+                      exerciseGymsMap[ex.id as string].map(gymName => (
+                        <Badge key={gymName} variant="secondary" className="text-xs">
+                          <Home className="h-3 w-3 mr-1" />
+                          {gymName}
+                        </Badge>
+                      ))
+                    )}
+                    {exerciseWorkoutsMap[ex.id as string]?.length > 0 && (
+                      exerciseWorkoutsMap[ex.id as string].map(workout => (
+                        <div key={workout.id} className="flex items-center gap-1">
+                          <WorkoutBadge 
+                            workoutName={workout.name}
+                          >
+                            {workout.name}
+                          </WorkoutBadge>
+                          {workout.isBonus && (
+                            <WorkoutBadge workoutName="Bonus">
+                              Bonus
+                            </WorkoutBadge>
+                          )}
+                        </div>
+                      ))
+                    )}
                   </div>
                 </li>
               ))}
