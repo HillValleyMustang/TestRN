@@ -26,7 +26,7 @@ function getExerciseCounts(sessionLength: string | null | undefined): { main: nu
     case '30-45': return { main: 5, bonus: 3 };
     case '45-60': return { main: 7, bonus: 2 };
     case '60-90': return { main: 10, bonus: 2 };
-    default: return { main: 5, bonus: 3 }; // Default to 30-45 mins
+    default: return { main: 5, bonus: 3 };
   }
 }
 
@@ -192,7 +192,7 @@ serve(async (req: Request) => {
     const { data: gym, error: gymError } = await supabaseServiceRoleClient.from('gyms').select('id').eq('id', gymId).eq('user_id', user.id).single();
     if (gymError || !gym) throw new Error('Gym not found or user does not own it.');
 
-    const { data: profile, error: profileError } = await supabaseServiceRoleClient.from('profiles').select('programme_type, preferred_session_length, primary_goal, preferred_muscles, health_notes').eq('id', user.id).single();
+    const { data: profile, error: profileError } = await supabaseServiceRoleClient.from('profiles').select('programme_type, preferred_session_length, primary_goal, preferred_muscles, health_notes, active_gym_id').eq('id', user.id).single();
     if (profileError || !profile) throw new Error('User profile not found.');
     if (!profile.programme_type) throw new Error('User has no core programme type set.');
 
@@ -205,9 +205,10 @@ serve(async (req: Request) => {
 
     await generateWorkoutPlanForTPath(supabaseServiceRoleClient, user.id, newTPath.id, profile.preferred_session_length, gymId);
 
-    // IMPORTANT: Remove the update to active_t_path_id here.
-    // The client-side GymContextProvider will handle setting the active_t_path_id based on the active_gym_id.
-    // await supabaseServiceRoleClient.from('profiles').update({ active_t_path_id: newTPath.id }).eq('id', userId);
+    // If the gym being configured is the user's active gym, update their active T-Path
+    if (profile.active_gym_id === gymId) {
+      await supabaseServiceRoleClient.from('profiles').update({ active_t_path_id: newTPath.id }).eq('id', userId);
+    }
 
     await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'completed', t_path_generation_error: null }).eq('id', userId);
 

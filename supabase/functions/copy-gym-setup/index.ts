@@ -46,6 +46,11 @@ serve(async (req: Request) => {
       throw rpcError;
     }
 
+    // Handle case where source gym had no plan to copy
+    if (!newMainTPathId) {
+      throw new Error("The source gym does not have a valid workout plan to copy.");
+    }
+
     // Update profile to make the new gym and its new workout plan active
     await supabaseServiceRoleClient
       .from('profiles')
