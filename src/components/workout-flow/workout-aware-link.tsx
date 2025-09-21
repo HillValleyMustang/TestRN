@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import React, { useCallback, useContext, createContext } from 'react';
+import React, { useCallback, useContext, createContext, useMemo } from 'react';
 
 interface WorkoutNavigationContextType {
   // promptBeforeNavigation now returns a Promise<boolean>
@@ -12,8 +12,13 @@ interface WorkoutNavigationContextType {
 const WorkoutNavigationContext = createContext<WorkoutNavigationContextType | undefined>(undefined);
 
 export const WorkoutNavigationProvider = ({ children, promptBeforeNavigation }: { children: React.ReactNode; promptBeforeNavigation: (path: string) => Promise<boolean>; }) => {
+  // Memoize the context value to prevent unnecessary re-renders of consumers
+  const contextValue = useMemo(() => ({
+    promptBeforeNavigation
+  }), [promptBeforeNavigation]);
+
   return (
-    <WorkoutNavigationContext.Provider value={{ promptBeforeNavigation }}>
+    <WorkoutNavigationContext.Provider value={contextValue}>
       {children}
     </WorkoutNavigationContext.Provider>
   );
