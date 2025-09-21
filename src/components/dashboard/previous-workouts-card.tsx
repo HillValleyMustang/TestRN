@@ -1,126 +1,26 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from '@/components/session-context-provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { History, ArrowRight, Eye, Dumbbell, Timer } from 'lucide-react';
-import { Tables, WorkoutSessionWithAggregatedDetails } from '@/types/supabase'; // Import WorkoutSessionWithAggregatedDetails
-import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatTimeAgo, getWorkoutColorClass, cn } from '@/lib/utils';
-import { db, LocalWorkoutSession, LocalSetLog, LocalExerciseDefinition } from '@/lib/db';
-
-type WorkoutSession = Tables<'workout_sessions'>;
-type SetLog = Tables<'set_logs'>;
-type ExerciseDefinition = Tables<'exercise_definitions'>;
-
-// Removed local WorkoutSessionWithDetails definition, now using centralized type
+import { useWorkoutHistory } from '@/hooks/data/useWorkoutHistory'; // Import the new hook
 
 interface PreviousWorkoutsCardProps {
-  onViewSummary: (sessionId: string) => void; // New prop to open the summary modal
+  onViewSummary: (sessionId: string) => void;
 }
 
 export const PreviousWorkoutsCard = ({ onViewSummary }: PreviousWorkoutsCardProps) => {
-  const { session, supabase } = useSession();
   const router = useRouter();
-  const [recentSessions, setRecentSessions] = useState<WorkoutSessionWithAggregatedDetails[]>([]); // Use centralized type
-  const [loading, setLoading] = useState(true);
+  const { sessions, isLoading, error } = useWorkoutHistory(); // Use the new centralized hook
 
-  useEffect(() => {
-    const fetchRecentWorkouts = async () => {
-      if (!session) return;
-      
-      setLoading(true);
-      try {
-        // 1. Fetch recent workout sessions
-        const { data: sessionsData, error: sessionsError } = await supabase
-          .from('workout_sessions')
-          .select('id, template_name, session_date, duration_string, completed_at, created_at, rating, t_path_id, user_id')
-          .eq('user_id', session.user.id)
-          .not('completed_at', 'is', null) // Only show completed workouts
-          .order('session_date', { ascending: false })
-          .limit(3);
-
-        if (sessionsError) throw sessionsError;
-
-        // Store fetched sessions in IndexedDB
-        if (sessionsData && sessionsData.length > 0) {
-          await db.workout_sessions.bulkPut(sessionsData as LocalWorkoutSession[]);
-        }
-
-        const sessionIds = (sessionsData || []).map(s => s.id);
-
-        // 2. Fetch set logs for these sessions
-        const { data: setLogsData, error: setLogsError } = await supabase
-          .from('set_logs')
-          .select('id, session_id, exercise_id, weight_kg, reps, reps_l, reps_r, time_seconds, is_pb, created_at')
-          .in('session_id', sessionIds);
-
-        if (setLogsError) throw setLogsError;
-
-        // Store fetched set logs in IndexedDB
-        if (setLogsData && setLogsData.length > 0) {
-          await db.set_logs.bulkPut(setLogsData as LocalSetLog[]);
-        }
-
-        // 3. Collect all unique exercise IDs from these set logs
-        const exerciseIds = new Set<string>();
-        (setLogsData || []).forEach(log => {
-          if (log.exercise_id) {
-            exerciseIds.add(log.exercise_id);
-          }
-        });
-
-        // 4. Fetch exercise definitions for these exercises (if not already in cache)
-        const existingExerciseDefs = await db.exercise_definitions_cache.where('id').anyOf(Array.from(exerciseIds)).toArray();
-        const existingExerciseDefIds = new Set(existingExerciseDefs.map(ex => ex.id));
-        const missingExerciseIds = Array.from(exerciseIds).filter(id => !existingExerciseDefIds.has(id));
-
-        if (missingExerciseIds.length > 0) {
-          const { data: missingExerciseDefs, error: missingDefsError } = await supabase
-            .from('exercise_definitions')
-            .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url')
-            .in('id', missingExerciseIds);
-          
-          if (missingDefsError) throw missingDefsError;
-          if (missingExerciseDefs && missingExerciseDefs.length > 0) {
-            await db.exercise_definitions_cache.bulkPut(missingExerciseDefs as LocalExerciseDefinition[]);
-          }
-        }
-
-        const sessionsWithDetails: WorkoutSessionWithAggregatedDetails[] = await Promise.all( // Use centralized type
-          (sessionsData || []).map(async (sessionItem) => {
-            // Count unique exercise_ids from the fetched setLogsData
-            const uniqueExerciseCount = new Set(
-              (setLogsData || [])
-                .filter(log => log.session_id === sessionItem.id && log.exercise_id)
-                .map(log => log.exercise_id)
-            ).size;
-
-            return {
-              ...sessionItem,
-              exercise_count: uniqueExerciseCount,
-              total_volume_kg: 0, // Placeholder, not calculated here
-              has_prs: false, // Placeholder, not calculated here
-            };
-          })
-        );
-        setRecentSessions(sessionsWithDetails);
-      } catch (err: any) {
-        console.error("Failed to load previous workouts:", err);
-        toast.info("Failed to load previous workouts.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRecentWorkouts();
-  }, [session, supabase]);
+  const recentSessions = sessions.slice(0, 3);
 
   const handleViewSummaryClick = (sessionId: string) => {
-    onViewSummary(sessionId); // Use the callback prop
+    onViewSummary(sessionId);
   };
 
   return (
@@ -132,12 +32,14 @@ export const PreviousWorkoutsCard = ({ onViewSummary }: PreviousWorkoutsCardProp
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {loading ? (
+        {isLoading ? (
           <div className="space-y-2">
             <Skeleton className="h-16 w-full" />
             <Skeleton className="h-16 w-full" />
             <Skeleton className="h-16 w-full" />
           </div>
+        ) : error ? (
+          <p className="text-destructive text-center">Error: {error}</p>
         ) : recentSessions.length === 0 ? (
           <p className="text-muted-foreground">No previous workouts found. Complete a workout to see it here!</p>
         ) : (
