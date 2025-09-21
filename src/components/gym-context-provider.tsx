@@ -60,14 +60,10 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
     if (profile && gyms.length > 0) {
       const activeGymId = profile.active_gym_id;
       let newActiveGym = activeGymId ? gyms.find(g => g.id === activeGymId) : null;
-      // If active_gym_id is null or points to a non-existent gym, default to the first available gym
       if (!newActiveGym) {
         newActiveGym = gyms[0];
       }
       setActiveGym(newActiveGym || null);
-    } else if (gyms.length > 0) {
-      // If no profile yet, but gyms exist, default to the first gym
-      setActiveGym(gyms[0]);
     } else {
       setActiveGym(null);
     }

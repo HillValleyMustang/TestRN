@@ -24,7 +24,7 @@ interface GymManagementSectionProps {
 
 export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymManagementSectionProps) => {
   const { session, supabase } = useSession();
-  const { userGyms, activeGym, refreshGyms, loadingGyms } = useGym(); // Use userGyms and activeGym from context
+  const { userGyms, activeGym, refreshGyms } = useGym(); // Use userGyms and activeGym from context
   const [loading, setLoading] = useState(true); // Keep local loading for dialogs/actions
 
   // State for dialogs
@@ -39,8 +39,8 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
 
   // Set local loading state based on userGyms availability
   useEffect(() => {
-    setLoading(loadingGyms);
-  }, [loadingGyms]);
+    setLoading(userGyms === undefined);
+  }, [userGyms]);
 
   const handleRenameGym = async () => {
     if (!session || !selectedGym || !newGymName.trim()) return;

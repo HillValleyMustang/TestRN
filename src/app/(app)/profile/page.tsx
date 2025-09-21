@@ -142,17 +142,6 @@ export default function ProfilePage() {
     sessionUserId: session?.user.id ?? null,
   });
 
-  const { refresh: refreshGymsCache } = useCacheAndRevalidate<Tables<'gyms'>>({
-    cacheTable: 'gyms_cache',
-    supabaseQuery: useCallback(async (client) => {
-      if (!session?.user.id) return { data: [], error: null };
-      return client.from('gyms').select('*').eq('user_id', session.user.id);
-    }, [session?.user.id]),
-    queryKey: 'gyms_profile_page',
-    supabase,
-    sessionUserId: session?.user.id ?? null,
-  });
-
   const totalWorkoutsCount = useLiveQuery(async () => {
     if (!session?.user.id) return 0;
     const count = await db.workout_sessions
@@ -180,25 +169,18 @@ export default function ProfilePage() {
   const lastSavedSessionLengthRef = useRef<string | null>(null);
 
   const refreshProfileData = useCallback(async () => {
-    console.log("[ProfilePage] refreshProfileData called.");
-    await Promise.all([
-      refreshProfileCache(),
-      refreshAchievementsCache(),
-      refreshTPathsCache(),
-      refreshTPathExercisesCache(),
-      refreshGymsCache(), // NEW: Refresh gyms cache
-    ]);
-    console.log("[ProfilePage] All caches refreshed.");
-  }, [refreshProfileCache, refreshAchievementsCache, refreshTPathsCache, refreshTPathExercisesCache, refreshGymsCache]);
+    await refreshProfileCache();
+    await refreshAchievementsCache();
+    await refreshTPathsCache();
+    await refreshTPathExercisesCache();
+  }, [refreshProfileCache, refreshAchievementsCache, refreshTPathsCache, refreshTPathExercisesCache]);
 
   useEffect(() => {
     if (loadingProfile || loadingAchievements || !session?.user.id) {
-      console.log("[ProfilePage] useEffect for profile data: Loading or no session. Skipping form reset.");
       return;
     }
 
     if (profile) {
-      console.log("[ProfilePage] useEffect for profile data: Profile loaded. Resetting form.");
       lastSavedSessionLengthRef.current = profile.preferred_session_length;
 
       form.reset({
@@ -222,7 +204,6 @@ export default function ProfilePage() {
       }
 
     } else {
-      console.log("[ProfilePage] useEffect for profile data: Profile is null. Resetting form to defaults.");
       form.reset();
       lastSavedSessionLengthRef.current = null;
       setAiCoachUsageToday(0);
@@ -231,12 +212,10 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!session) {
-      console.log("[ProfilePage] No session, redirecting to login.");
       router.push('/login');
       return;
     }
     
-    console.log("[ProfilePage] Initial load or session change. Refreshing all profile data.");
     refreshProfileData(); 
 
     const tabParam = searchParams.get('tab');
@@ -299,20 +278,15 @@ export default function ProfilePage() {
   const fitnessLevel = getFitnessLevel();
 
   async function onSubmit(values: z.infer<typeof profileSchema>) {
-    if (!session || !profile) {
-      toast.error("User session or profile data missing.");
-      return;
-    }
+    if (!session || !profile) return;
 
     // Check if the form has been modified
     if (!form.formState.isDirty) {
-      console.log("[ProfilePage] Form not dirty. Exiting edit mode.");
       setIsEditing(false); // Just exit edit mode
       return;
     }
 
     setIsSaving(true);
-    console.log("[ProfilePage] Submitting profile changes.");
 
     const oldSessionLength = lastSavedSessionLengthRef.current;
     const newSessionLength = values.preferred_session_length;
@@ -332,7 +306,6 @@ export default function ProfilePage() {
     
     const { error } = await supabase.from('profiles').update(updateData).eq('id', session.user.id);
     if (error) {
-      console.error("[ProfilePage] Failed to update profile:", error.message);
       toast.error("Failed to update profile.");
       setIsSaving(false);
       return;
@@ -342,7 +315,6 @@ export default function ProfilePage() {
     lastSavedSessionLengthRef.current = newSessionLength ?? null;
 
     if (sessionLengthChanged && profile.active_t_path_id) {
-      console.log("[ProfilePage] Session length changed. Initiating T-Path regeneration.");
       try {
         const response = await fetch(`/api/generate-t-path`, {
           method: 'POST',
@@ -360,16 +332,13 @@ export default function ProfilePage() {
           const errorText = await response.text();
           throw new Error(`Failed to initiate T-Path workout regeneration: ${errorText}`);
         }
-        console.log("[ProfilePage] T-Path regeneration initiated successfully.");
       } catch (err: any) {
-        console.error("[ProfilePage] Error initiating workout plan update:", err);
         toast.error("Error initiating workout plan update.");
       }
     }
     await refreshProfileData();
     setIsEditing(false);
     setIsSaving(false);
-    console.log("[ProfilePage] Profile submission complete.");
   }
 
   const handleAchievementClick = (achievement: { id: string; name: string; icon: string }) => {
@@ -378,7 +347,6 @@ export default function ProfilePage() {
   };
 
   const handleSignOut = async () => {
-    console.log("[ProfilePage] Signing out.");
     await supabase.auth.signOut();
     router.push('/login');
   };
@@ -418,14 +386,8 @@ export default function ProfilePage() {
     emblaApi && emblaApi.scrollNext();
   }, [emblaApi]);
 
-  if (loadingProfile || loadingAchievements) {
-    console.log("[ProfilePage] Rendering skeleton: loadingProfile=", loadingProfile, "loadingAchievements=", loadingAchievements);
-    return <div className="p-4"><Skeleton className="h-screen w-full" /></div>;
-  }
-  if (!profile) {
-    console.log("[ProfilePage] Rendering 'Could not load profile': profile is null, loadingProfile is false.");
-    return <div className="p-4">Could not load profile. Please try refreshing the page.</div>;
-  }
+  if (loadingProfile || loadingAchievements) return <div className="p-4"><Skeleton className="h-screen w-full" /></div>;
+  if (!profile) return <div className="p-4">Could not load profile.</div>;
 
   const userInitial = profile.first_name ? profile.first_name[0].toUpperCase() : (session?.user.email ? session.user.email[0].toUpperCase() : '?');
 
