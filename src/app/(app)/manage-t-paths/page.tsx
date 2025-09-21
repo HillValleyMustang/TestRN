@@ -21,7 +21,7 @@ type TPath = Tables<'t_paths'>;
 export default function ManageTPathsPage() {
   const { session, supabase } = useSession();
   const router = useRouter();
-  const { activeGym, loadingGyms, switchActiveGym } = useGym(); // Destructure switchActiveGym
+  const { activeGym, loadingGyms } = useGym();
   const { groupedTPaths, loadingData, refreshAllData, profile } = useWorkoutDataFetcher(); // Destructure profile here
 
   const [isEditWorkoutDialogOpen, setIsEditWorkoutDialogOpen] = useState(false);
@@ -71,7 +71,7 @@ export default function ManageTPathsPage() {
           </CardContent>
         </Card>
       ) : !isGymConfigured ? (
-        <SetupGymPlanPrompt gym={activeGym} onSetupSuccess={refreshAllData} profile={profile} refreshAllData={refreshAllData} switchActiveGym={switchActiveGym} />
+        <SetupGymPlanPrompt gym={activeGym} onSetupSuccess={refreshAllData} profile={profile} />
       ) : (
         <ActiveTPathWorkoutsList
           activeTPathName={activeTPathGroup.mainTPath.template_name}

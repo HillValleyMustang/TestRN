@@ -140,93 +140,26 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
     await refreshAllData();
   }, [isWorkoutActive, hasUnsavedChanges, activeWorkout?.id, resetWorkoutSession, setPendingNavigationPath, setShowUnsavedChangesDialog, refreshAllData]);
 
-  // Use a ref to hold the current activeWorkout value without making it a dependency
-  const activeWorkoutRef = useRef(activeWorkout);
   useEffect(() => {
-    activeWorkoutRef.current = activeWorkout;
-  }, [activeWorkout]);
-
-  // Effect to automatically select a default workout when context changes
-  useEffect(() => {
-    console.log(`[AutoSelectEffect] Running. loadingData=${loadingData}, profile=${!!profile}, activeGym=${!!activeGym}, groupedTPaths.length=${groupedTPaths.length}, pendingWorkoutIdToSelect=${pendingWorkoutIdToSelect}`);
-
-    // Only run if data is loaded, profile and active gym exist, and there are T-Paths
-    if (loadingData || !profile || !activeGym || groupedTPaths.length === 0) {
-      console.log("[AutoSelectEffect] Early exit due to loading or missing data.");
+    if (loadingData || !pendingWorkoutIdToSelect) {
       return;
     }
 
-    // If there's already a pending selection, let that process.
-    // This prevents auto-selection from overriding a user's click or quick-start.
-    if (pendingWorkoutIdToSelect) {
-      console.log(`[AutoSelectEffect] Pending selection already exists (${pendingWorkoutIdToSelect}), skipping auto-selection.`);
+    if (groupedTPaths.length === 0 && pendingWorkoutIdToSelect !== 'ad-hoc') {
+      return;
+    }
+    if (Object.keys(workoutExercisesCache).length === 0 && pendingWorkoutIdToSelect !== 'ad-hoc') {
       return;
     }
 
-    const activeTPathGroupForGym = groupedTPaths.find(group => group.mainTPath.gym_id === activeGym.id);
-    const currentActiveWorkoutId = activeWorkoutRef.current?.id; // Use ref here to avoid dependency loop
-
-    if (activeTPathGroupForGym) {
-      // If the current active workout is not part of this active T-Path group,
-      // or if there's no active workout at all, set the first child workout as pending.
-      if (!currentActiveWorkoutId || !activeTPathGroupForGym.childWorkouts.some(cw => cw.id === currentActiveWorkoutId)) {
-        if (activeTPathGroupForGym.childWorkouts.length > 0) {
-          console.log(`[AutoSelectEffect] Auto-selecting first workout for active gym: ${activeTPathGroupForGym.childWorkouts[0].template_name} (${activeTPathGroupForGym.childWorkouts[0].id})`);
-          setPendingWorkoutIdToSelect(activeTPathGroupForGym.childWorkouts[0].id);
-        } else {
-          // If no child workouts in the active T-Path, ensure no workout is active.
-          // This will trigger the reset in the other useEffect.
-          console.log(`[AutoSelectEffect] No child workouts in active T-Path, setting pendingWorkoutIdToSelect to null.`);
-          setPendingWorkoutIdToSelect(null);
-        }
-      } else {
-        console.log(`[AutoSelectEffect] Current active workout (${currentActiveWorkoutId}) is consistent with active T-Path, no auto-selection needed.`);
-      }
-    } else {
-      // If the active gym has no configured T-Path, ensure no workout is active.
-      if (currentActiveWorkoutId) { // Only set to null if there's currently an active workout
-        console.log(`[AutoSelectEffect] Active gym has no configured T-Path, setting pendingWorkoutIdToSelect to null.`);
-        setPendingWorkoutIdToSelect(null);
-      } else {
-        console.log(`[AutoSelectEffect] Active gym has no configured T-Path and no workout is active, no change needed.`);
-      }
-    }
-  }, [
-    loadingData,
-    profile,
-    activeGym,
-    groupedTPaths,
-    pendingWorkoutIdToSelect,
-    setPendingWorkoutIdToSelect,
-    // activeWorkout is NOT a dependency here, using activeWorkoutRef.current instead
-  ]);
-
-
-  useEffect(() => {
     const performSelection = async () => {
-      console.log(`[performSelection] Effect triggered. loadingData=${loadingData}, pendingWorkoutIdToSelect=${pendingWorkoutIdToSelect}`);
-
-      if (loadingData || pendingWorkoutIdToSelect === undefined) { // pendingWorkoutIdToSelect can be null, but not undefined
-        console.log(`[performSelection] Early exit: loadingData=${loadingData}, pendingWorkoutIdToSelect=${pendingWorkoutIdToSelect}`);
-        return;
-      }
-      
-      console.log(`[performSelection] Processing pendingWorkoutIdToSelect: ${pendingWorkoutIdToSelect}`);
-
-      // Explicitly reset all workout-related states before setting new ones
-      setActiveWorkout(null);
-      setExercisesForSession([]);
-      setExercisesWithSets({});
-      setCurrentSessionId(null);
-      setSessionStartTime(null);
-      setCompletedExercises(new Set());
-      setExpandedExerciseCards({});
-
       if (pendingWorkoutIdToSelect === 'ad-hoc') {
         const adHocWorkout: TPath = { id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: new Date().toISOString(), version: null, settings: null, progression_settings: null, parent_t_path_id: null, gym_id: null };
         setActiveWorkout(adHocWorkout);
         setExercisesForSession([]);
-        console.log("[performSelection] Set Ad-Hoc workout.");
+        setExercisesWithSets({});
+        setCurrentSessionId(null);
+        setSessionStartTime(null);
       } else if (pendingWorkoutIdToSelect) {
         const selectedWorkout = groupedTPaths
           .flatMap(group => group.childWorkouts)
@@ -266,24 +199,29 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
           
           setActiveWorkout(selectedWorkout);
           setExercisesForSession(exercisesForThisWorkout);
-          console.log(`[performSelection] Set workout: ${selectedWorkout.template_name} with ${exercisesForThisWorkout.length} exercises.`);
+          setExercisesWithSets({});
+          setCurrentSessionId(null);
+          setSessionStartTime(null);
         } else {
           toast.info("Selected workout not found. Starting Ad-Hoc workout.");
           setActiveWorkout({ id: 'ad-hoc', template_name: 'Ad Hoc Workout', is_bonus: false, user_id: null, created_at: new Date().toISOString(), version: null, settings: null, progression_settings: null, parent_t_path_id: null, gym_id: null });
           setExercisesForSession([]);
-          console.log("[performSelection] Selected workout not found, defaulted to Ad-Hoc.");
+          setExercisesWithSets({});
+          setCurrentSessionId(null);
+          setSessionStartTime(null);
         }
-      } else { // pendingWorkoutIdToSelect is null
+      } else {
         setActiveWorkout(null);
         setExercisesForSession([]);
-        console.log("[performSelection] pendingWorkoutIdToSelect is null, resetting active workout.");
+        setExercisesWithSets({});
+        setCurrentSessionId(null);
+        setSessionStartTime(null);
       }
-      setPendingWorkoutIdToSelect(null); // Clear pending selection after processing
-      console.log("[performSelection] Cleared pendingWorkoutIdToSelect.");
+      setPendingWorkoutIdToSelect(null);
     };
 
     performSelection();
-  }, [loadingData, pendingWorkoutIdToSelect, groupedTPaths, workoutExercisesCache, setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId, setSessionStartTime, setCompletedExercises, setExpandedExerciseCards, activeGym, supabase]);
+  }, [loadingData, pendingWorkoutIdToSelect, groupedTPaths, workoutExercisesCache, setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCurrentSessionId, setSessionStartTime, activeGym, supabase]);
 
 
   const handleEditWorkoutSaveSuccess = useCallback(async () => {
@@ -297,7 +235,6 @@ export const useWorkoutFlowManager = ({ initialWorkoutId, router }: UseWorkoutFl
 
   useEffect(() => {
     if (initialWorkoutId && groupedTPaths.length > 0 && !activeWorkout && !pendingWorkoutIdToSelect) {
-      console.log(`[InitialWorkoutIdEffect] Setting pendingWorkoutIdToSelect from URL: ${initialWorkoutId}`);
       setPendingWorkoutIdToSelect(initialWorkoutId);
     }
   }, [initialWorkoutId, groupedTPaths, activeWorkout, pendingWorkoutIdToSelect]);

@@ -8,7 +8,6 @@ import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { Tables } from '@/types/supabase';
 import { SetupGymView } from './setup-gym-view';
-import { useGym } from '@/components/gym-context-provider'; // Import useGym
 
 type Gym = Tables<'gyms'>;
 
@@ -17,12 +16,10 @@ interface AddGymDialogProps {
   onOpenChange: (open: boolean) => void;
   onSaveSuccess: () => void; // To refresh the parent list
   gymCount: number;
-  refreshAllData: () => void; // NEW: Add refreshAllData prop
 }
 
-export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount, refreshAllData }: AddGymDialogProps) => {
+export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount }: AddGymDialogProps) => {
   const { session, supabase } = useSession();
-  const { switchActiveGym } = useGym(); // NEW: Get switchActiveGym from context
   const [step, setStep] = useState<'name' | 'configure'>('name');
   const [newGymName, setNewGymName] = useState("");
   const [createdGym, setCreatedGym] = useState<Gym | null>(null);
@@ -59,9 +56,6 @@ export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount, refr
       setCreatedGym(insertedGym);
       setStep('configure');
       onSaveSuccess(); // Refresh the list in the background
-      // NEW: After successful gym creation, refresh all data and switch to the new gym
-      await refreshAllData();
-      await switchActiveGym(insertedGym.id);
     } catch (err: any) {
       console.error("Failed to add gym:", err.message);
       toast.error("Failed to add gym.");
@@ -98,12 +92,7 @@ export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount, refr
           </>
         )}
         {step === 'configure' && createdGym && (
-          <SetupGymView 
-            gym={createdGym} 
-            onClose={handleClose} 
-            refreshAllData={refreshAllData} // NEW: Pass refreshAllData
-            switchActiveGym={switchActiveGym} // NEW: Pass switchActiveGym
-          />
+          <SetupGymView gym={createdGym} onClose={handleClose} />
         )}
       </DialogContent>
     </Dialog>

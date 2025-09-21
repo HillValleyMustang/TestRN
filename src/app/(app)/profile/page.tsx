@@ -27,7 +27,6 @@ import { PointsExplanationModal } from '@/components/profile/points-explanation-
 import { achievementsList } from '@/lib/achievements';
 import { LoadingOverlay } from '@/components/loading-overlay';
 import { FloatingSaveEditButton } from '@/components/profile/floating-save-edit-button';
-import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher'; // Import useWorkoutDataFetcher
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
@@ -143,9 +142,6 @@ export default function ProfilePage() {
     sessionUserId: session?.user.id ?? null,
   });
 
-  // Fetch refreshAllData from useWorkoutDataFetcher
-  const { refreshAllData } = useWorkoutDataFetcher();
-
   const totalWorkoutsCount = useLiveQuery(async () => {
     if (!session?.user.id) return 0;
     const count = await db.workout_sessions
@@ -177,8 +173,7 @@ export default function ProfilePage() {
     await refreshAchievementsCache();
     await refreshTPathsCache();
     await refreshTPathExercisesCache();
-    refreshAllData(); // Also refresh all data in workout data fetcher
-  }, [refreshProfileCache, refreshAchievementsCache, refreshTPathsCache, refreshTPathExercisesCache, refreshAllData]);
+  }, [refreshProfileCache, refreshAchievementsCache, refreshTPathsCache, refreshTPathExercisesCache]);
 
   useEffect(() => {
     if (loadingProfile || loadingAchievements || !session?.user.id) {
@@ -461,7 +456,6 @@ export default function ProfilePage() {
                       onSubmit={onSubmit}
                       profile={profile}
                       onDataChange={refreshProfileData}
-                      refreshAllData={refreshAllData}
                     />
                   </FormProvider>
                 </div>

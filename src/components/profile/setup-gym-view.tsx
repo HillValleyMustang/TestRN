@@ -9,22 +9,18 @@ import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { useSession } from '@/components/session-context-provider';
 import { CopyGymSetupDialog } from './copy-gym-setup-dialog';
-import { useGym } from '@/components/gym-context-provider'; // NEW: Import useGym
 
 type Gym = Tables<'gyms'>;
 
 interface SetupGymViewProps {
   gym: Gym;
   onClose: () => void;
-  refreshAllData: () => void; // NEW: Add refreshAllData prop
-  switchActiveGym: (gymId: string) => Promise<void>; // NEW: Add switchActiveGym prop
 }
 
-export const SetupGymView = ({ gym, onClose, refreshAllData, switchActiveGym }: SetupGymViewProps) => {
+export const SetupGymView = ({ gym, onClose }: SetupGymViewProps) => {
   const { session, supabase } = useSession();
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
   const [sourceGyms, setSourceGyms] = useState<Gym[]>([]);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchOtherGyms = async () => {
@@ -58,7 +54,6 @@ export const SetupGymView = ({ gym, onClose, refreshAllData, switchActiveGym }: 
           toast.error("You must be logged in.");
           return;
         }
-        setLoading(true);
         const toastId = toast.loading("Setting up with app defaults...");
         try {
           const response = await fetch('/api/setup-default-gym', {
@@ -74,20 +69,13 @@ export const SetupGymView = ({ gym, onClose, refreshAllData, switchActiveGym }: 
             throw new Error(data.error || 'Failed to set up default gym.');
           }
           toast.success(`"${gym.name}" is being set up with default workouts.`, { id: toastId });
-          // NEW: Refresh all data and then switch to the new gym
-          await refreshAllData();
-          await switchActiveGym(gym.id);
           onClose();
         } catch (err: any) {
           toast.error(`Failed to set up default gym: ${err.message}`, { id: toastId });
-        } finally {
-          setLoading(false);
         }
         break;
       case 'empty':
         toast.success(`"${gym.name}" is ready! You can add exercises manually.`);
-        // NEW: Just switch to the gym, no plan generation needed
-        await switchActiveGym(gym.id);
         onClose();
         break;
     }
@@ -137,8 +125,6 @@ export const SetupGymView = ({ gym, onClose, refreshAllData, switchActiveGym }: 
           targetGym={gym}
           sourceGyms={sourceGyms}
           onCopySuccess={onClose} // Close the main setup view on success
-          refreshAllData={refreshAllData} // NEW: Pass refreshAllData
-          switchActiveGym={switchActiveGym} // NEW: Pass switchActiveGym
         />
       )}
     </>

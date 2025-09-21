@@ -20,10 +20,9 @@ interface GymManagementSectionProps {
   isEditing: boolean;
   profile: Profile | null;
   onDataChange: () => void; // Callback to refresh parent data
-  refreshAllData: () => void; // NEW: Add refreshAllData prop
 }
 
-export const GymManagementSection = ({ isEditing, profile, onDataChange, refreshAllData }: GymManagementSectionProps) => {
+export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymManagementSectionProps) => {
   const { session, supabase } = useSession();
   const { refreshGyms } = useGym();
   const [gyms, setGyms] = useState<Gym[]>([]);
@@ -91,7 +90,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange, refresh
 
     try {
       if (selectedGym.id === profile.active_gym_id) {
-        const nextActiveGym = gyms.find((g: Gym) => g.id !== selectedGym.id);
+        const nextActiveGym = gyms.find(g => g.id !== selectedGym.id);
         if (nextActiveGym) {
           await supabase.from('profiles').update({ active_gym_id: nextActiveGym.id }).eq('id', session.user.id);
         }
@@ -164,7 +163,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange, refresh
             <p>Loading gyms...</p>
           ) : (
             <ul className="space-y-2">
-              {gyms.map((gym: Gym) => (
+              {gyms.map(gym => (
                 <li key={gym.id} className="flex items-center justify-between p-2 border rounded-md">
                   <span className="font-medium">{gym.name}</span>
                   {isEditing && (
@@ -197,7 +196,6 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange, refresh
         onOpenChange={setIsAddGymDialogOpen}
         onSaveSuccess={handleAddSuccess}
         gymCount={gyms.length}
-        refreshAllData={refreshAllData}
       />
 
       <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
@@ -259,7 +257,6 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange, refresh
           refreshGyms();
         }}
         profile={profile} // NEW: Pass profile
-        refreshAllData={refreshAllData}
       />
     </>
   );
