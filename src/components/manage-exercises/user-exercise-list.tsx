@@ -147,8 +147,8 @@ export const UserExerciseList = ({
             <ul className="space-y-2 w-full"> {/* Added w-full here */}
               {exercises.map((ex) => (
                 <li key={ex.id} className="flex items-center justify-between py-1 px-2 border rounded-md w-full"> {/* Added w-full here */}
-                  <div className="flex flex-col flex-grow min-w-0 flex-basis-0"> {/* Changed flex-1 to flex-grow, added flex-basis-0 */}
-                    <p className="font-medium text-base whitespace-normal">{ex.name}</p> {/* Removed leading-tight */}
+                  <div className="flex flex-col flex-auto py-1 px-1 min-w-0"> {/* Changed to flex-auto */}
+                    <p className="font-medium text-base whitespace-normal">{ex.name}</p>
                     <p className="text-sm text-muted-foreground leading-tight whitespace-normal">{ex.main_muscle}</p>
                     
                     <div className="mt-2 flex flex-wrap gap-2">
