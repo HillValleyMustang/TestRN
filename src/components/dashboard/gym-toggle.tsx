@@ -42,7 +42,7 @@ export const GymToggle = () => {
   };
 
   return (
-    <Card className="p-0 border rounded-xl bg-card shadow-sm">
+    <Card className="p-0 border rounded-xl bg-card shadow-sm w-full max-w-xs mx-auto"> {/* Added w-full max-w-xs mx-auto for mobile centering */}
       <CardContent className="p-2 flex items-center justify-between gap-2">
         <Button variant="ghost" size="icon" onClick={handlePrev} className="h-8 w-8">
           <ChevronLeft className="h-5 w-5" />

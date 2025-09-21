@@ -19,13 +19,14 @@ const mobileNavLinks = [
   { href: "/workout-history", label: "History", icon: History },
   { href: "/activity-logs", label: "Activities", icon: BarChart3 },
   { href: "/manage-exercises", label: "Exercises", icon: Dumbbell },
-  { href: "/manage-t-paths", label: "Paths", icon: LayoutTemplate },
+  { href: "/manage-t-paths", label: "Management", icon: LayoutTemplate }, // CHANGED LABEL
   { href: "/profile", label: "Profile", icon: User },
   { href: "/workout", label: "Workout", icon: Dumbbell }, // Moved workout here for consistent styling
 ];
 
 export function Header({ isGeneratingPlan }: { isGeneratingPlan: boolean }) {
   const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false); // NEW: State for sheet
   const isScrolled = useScrollPosition();
   const pathname = usePathname(); // Get current pathname
 
@@ -36,7 +37,7 @@ export function Header({ isGeneratingPlan }: { isGeneratingPlan: boolean }) {
         "transition-all duration-300 ease-in-out",
         isScrolled ? "bg-background/80 backdrop-blur-md border-b-transparent" : "bg-background border-b"
       )}>
-        <Sheet>
+        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}> {/* Bind state */}
           <SheetTrigger asChild>
             <Button size="icon" variant="outline" className="sm:hidden">
               <span>
@@ -60,6 +61,7 @@ export function Header({ isGeneratingPlan }: { isGeneratingPlan: boolean }) {
                         ? "bg-action text-action-foreground font-semibold shadow-md" 
                         : "text-foreground hover:bg-muted"
                     )}
+                    onClick={() => setIsSheetOpen(false)} // NEW: Close sheet on click
                   >
                     <Icon className={cn("h-4 w-4", isActive ? "text-action-foreground" : "text-primary")} /> {/* Reduced h/w */}
                     {link.label}
@@ -70,7 +72,10 @@ export function Header({ isGeneratingPlan }: { isGeneratingPlan: boolean }) {
               <Button 
                 variant="default" 
                 className="flex items-center gap-2 px-2 py-1.5 rounded-lg justify-start text-lg font-medium bg-primary text-primary-foreground hover:bg-primary/90" // Styled as a primary button
-                onClick={() => setIsActivityLogOpen(true)}
+                onClick={() => {
+                  setIsActivityLogOpen(true);
+                  setIsSheetOpen(false); // NEW: Close sheet on click
+                }}
               >
                 <Plus className="h-4 w-4 text-primary-foreground" /> {/* Reduced h/w */}
                 Log Activity
