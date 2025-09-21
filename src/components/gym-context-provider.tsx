@@ -8,6 +8,7 @@ import { Tables, Profile } from '@/types/supabase';
 import { toast } from 'sonner';
 import { db, LocalGym } from '@/lib/db';
 import { useCacheAndRevalidate } from '@/hooks/use-cache-and-revalidate';
+import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher'; // Import the hook
 
 type Gym = Tables<'gyms'>;
 
@@ -17,6 +18,8 @@ interface GymContextType {
   switchActiveGym: (gymId: string) => Promise<boolean>; // Returns success status
   loadingGyms: boolean;
   refreshGyms: () => void;
+  refreshTPaths: () => void; // NEW: Add to context type
+  refreshTPathExercises: () => void; // NEW: Add to context type
 }
 
 const GymContext = createContext<GymContextType | undefined>(undefined);
@@ -46,6 +49,9 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
     supabase,
     sessionUserId: session?.user.id ?? null,
   });
+
+  // NEW: Get refresh functions from useWorkoutDataFetcher
+  const { refreshTPaths, refreshTPathExercises } = useWorkoutDataFetcher();
 
   useEffect(() => {
     if (gymsError) {
@@ -87,7 +93,13 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
       if (!response.ok) throw new Error(data.error || 'Failed to switch active gym.');
       
       // On success, trigger a refresh of the profile to get the new active_t_path_id
-      refreshProfile();
+      // AND explicitly refresh T-Paths and T-Path Exercises
+      await Promise.all([
+        refreshProfile(),
+        refreshTPaths(), // Use the refreshed function
+        refreshTPathExercises(), // Use the refreshed function
+      ]);
+
       return true;
     } catch (error: any) {
       toast.error(error.message || "Failed to switch active gym.");
@@ -97,7 +109,7 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
   };
 
   return (
-    <GymContext.Provider value={{ userGyms: cachedGyms || [], activeGym, switchActiveGym, loadingGyms, refreshGyms }}>
+    <GymContext.Provider value={{ userGyms: cachedGyms || [], activeGym, switchActiveGym, loadingGyms, refreshGyms, refreshTPaths, refreshTPathExercises }}>
       {children}
     </GymContext.Provider>
   );

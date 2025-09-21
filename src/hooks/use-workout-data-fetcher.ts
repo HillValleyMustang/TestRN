@@ -26,6 +26,8 @@ interface UseWorkoutDataFetcherReturn {
   profile: Profile | null; // Expose the user's profile
   refreshProfile: () => void; // Expose refresh for profile
   refreshAchievements: () => void; // Expose refresh for achievements
+  refreshTPaths: () => void; // NEW: Expose refreshTPaths
+  refreshTPathExercises: () => void; // NEW: Expose refreshTPathExercises
   isGeneratingPlan: boolean; // Expose the new state
 }
 
@@ -153,14 +155,16 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
         return;
       }
 
-      // NEW: Explicitly refresh T-Paths and T-Path Exercises when profile changes
-      // This ensures that when active_gym_id or active_t_path_id in profile changes,
-      // the related T-Path data is also fresh.
-      console.log("[useWorkoutDataFetcher] Profile changed, explicitly refreshing T-Paths and T-Path Exercises caches.");
-      await Promise.all([
-        refreshTPaths(),
-        refreshTPathExercises(),
-      ]);
+      // --- REMOVED THE EXPLICIT REFRESH CALLS HERE ---
+      // The individual useCacheAndRevalidate hooks for TPaths and TPathExercises
+      // should already be reacting to sessionUserId changes (which happens when profile refreshes).
+      // We want to ensure we're using the *latest* data from these caches.
+      // console.log("[useWorkoutDataFetcher] Profile changed, explicitly refreshing T-Paths and T-Path Exercises caches.");
+      // await Promise.all([
+      //   refreshTPaths(),
+      //   refreshTPathExercises(),
+      // ]);
+      // --- END REMOVAL ---
 
       setAllAvailableExercises((cachedExercises || []).map(ex => ({
         ...ex,
@@ -168,7 +172,13 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
         is_favorited_by_current_user: false,
       })));
       
+      const currentProfile = cachedProfile[0]; // Get the actual profile object
+      console.log(`[useWorkoutDataFetcher] processAndEnrichData: Current Profile active_gym_id: ${currentProfile.active_gym_id}, active_t_path_id: ${currentProfile.active_t_path_id}`);
+      console.log(`[useWorkoutDataFetcher] processAndEnrichData: Cached TPaths count: ${(cachedTPaths || []).length}`);
+      console.log(`[useWorkoutDataFetcher] processAndEnrichData: Cached TPathExercises count: ${(cachedTPathExercises || []).length}`);
+
       const userMainTPaths = (cachedTPaths || []).filter(tp => tp.user_id === session.user.id && !tp.parent_t_path_id);
+      console.log(`[useWorkoutDataFetcher] processAndEnrichData: User Main TPaths found: ${userMainTPaths.length}`);
       
       if (userMainTPaths.length === 0) {
         setGroupedTPaths([]);
@@ -221,6 +231,10 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
           })
         );
         setGroupedTPaths(newGroupedTPaths);
+
+        const activeTPathGroup = currentProfile.active_t_path_id ? newGroupedTPaths.find(group => group.mainTPath.id === currentProfile.active_t_path_id) : null;
+        console.log(`[useWorkoutDataFetcher] processAndEnrichData: Final activeTPathGroup found: ${activeTPathGroup ? activeTPathGroup.mainTPath.template_name : 'null'}`);
+
       } catch (enrichError: any) {
         console.error("[useWorkoutDataFetcher] Failed to enrich workout data:", enrichError);
         toast.error("Could not load workout completion dates.");
@@ -233,12 +247,14 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     processAndEnrichData();
   }, [
     session, supabase,
-    cachedExercises, loadingExercises, exercisesError,
-    cachedTPaths, loadingTPaths, tPathsError,
-    cachedProfile, loadingProfile, profileError, // cachedProfile is the trigger
-    cachedTPathExercises, loadingTPathExercises, tPathExercisesError,
-    cachedAchievements, loadingAchievements, achievementsError,
-    refreshTPaths, refreshTPathExercises // Add refresh functions to dependencies
+    cachedExercises, exercisesError,
+    cachedTPaths, tPathsError, // These are now direct dependencies
+    cachedProfile, profileError,
+    cachedTPathExercises, tPathExercisesError, // These are now direct dependencies
+    cachedAchievements, achievementsError,
+    loadingExercises, loadingTPaths, loadingProfile, loadingTPathExercises, loadingAchievements,
+    // Removed refreshTPaths, refreshTPathExercises from dependencies as they are not called inside this useEffect.
+    // Their updates to IndexedDB will cause cachedTPaths/cachedTPathExercises to update, triggering this useEffect.
   ]);
 
   useEffect(() => {
@@ -304,6 +320,8 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     profile: cachedProfile?.[0] || null,
     refreshProfile,
     refreshAchievements,
+    refreshTPaths, // NEW: Expose refreshTPaths
+    refreshTPathExercises, // NEW: Expose refreshTPathExercises
     isGeneratingPlan,
   };
 };
