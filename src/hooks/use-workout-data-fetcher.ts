@@ -202,7 +202,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
             if (tPathSettings?.tPathType === 'ppl') {
               enrichedChildWorkouts.sort((a, b) => PPL_ORDER.indexOf(a.template_name) - PPL_ORDER.indexOf(b.template_name));
             } else if (tPathSettings?.tPathType === 'ulul') {
-              enrichedChildWorkouts.sort((a, b) => ULUL_ORDER.indexOf(a.template_name) - ULUL_ORDER.indexOf(b.template_name));
+              enrichedChildWorkouts.sort((a, b) => ULUL_ORDER.indexOf(a.template_name) - PPL_ORDER.indexOf(b.template_name));
             }
 
             return { mainTPath, childWorkouts: enrichedChildWorkouts };
