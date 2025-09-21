@@ -13,54 +13,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Dumbbell, History, Trash2, CalendarDays, Timer, ListChecks } from 'lucide-react';
 import { formatTimeAgo, getWorkoutColorClass, cn } from '@/lib/utils';
-import { formatTime } from '@/lib/unit-conversions'; // Corrected import path for formatTime
-import { db } from '@/lib/db';
+import { formatTime } from '@/lib/unit-conversions';
+import { useWorkoutPerformanceData } from '@/hooks/data/useWorkoutPerformanceData'; // Import the new hook
 
 type WorkoutSession = Tables<'workout_sessions'>;
-type SetLog = Tables<'set_logs'>;
-type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 interface WorkoutPerformanceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-// Helper to get the start of the week (Monday)
-const getStartOfWeek = (date: Date): Date => {
-  const d = new Date(date);
-  const day = d.getDay(); // Sunday - 0, Monday - 1, ..., Saturday - 6
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
-  d.setDate(diff);
-  d.setHours(0, 0, 0, 0);
-  d.setMinutes(0, 0, 0);
-  d.setSeconds(0);
-  d.setMilliseconds(0);
-  return d;
-};
-
-// Muscle group categorization
-const UPPER_BODY_MUSCLES = new Set([
-  'Pectorals', 'Deltoids', 'Lats', 'Traps', 'Biceps', 'Triceps', 'Forearms'
-]);
-const LOWER_BODY_MUSCLES = new Set([
-  'Quadriceps', 'Hamstrings', 'Glutes', 'Calves', 'Abdominals', 'Core' // Including Core in Lower Body for this context
-]);
-
-const categorizeMuscle = (muscle: string): 'upper' | 'lower' | 'other' => {
-  const cleanedMuscle = muscle.trim();
-  if (UPPER_BODY_MUSCLES.has(cleanedMuscle)) return 'upper';
-  if (LOWER_BODY_MUSCLES.has(cleanedMuscle)) return 'lower';
-  return 'other';
-};
-
-interface WeeklyVolumeChartProps {
-  bodyPart: 'upper' | 'lower';
-  data: { date: string; volume: number; isCurrentWeek: boolean }[];
-  totalVolume: number;
-  loading: boolean;
-}
-
-const WeeklyBodyPartVolumeChart = ({ bodyPart, data, totalVolume, loading }: WeeklyVolumeChartProps) => {
+const WeeklyBodyPartVolumeChart = ({ bodyPart, data, totalVolume, loading }: { bodyPart: 'upper' | 'lower', data: any[], totalVolume: number, loading: boolean }) => {
   if (loading) {
     return <p className="text-muted-foreground text-center py-4">Loading volume data...</p>;
   }
@@ -99,13 +62,7 @@ const WeeklyBodyPartVolumeChart = ({ bodyPart, data, totalVolume, loading }: Wee
   );
 };
 
-interface WeeklyMuscleBreakdownChartProps {
-  bodyPart: 'upper' | 'lower';
-  data: { muscle: string; sets: number }[];
-  loading: boolean;
-}
-
-const WeeklyMuscleBreakdownChart = ({ bodyPart, data, loading }: WeeklyMuscleBreakdownChartProps) => {
+const WeeklyMuscleBreakdownChart = ({ bodyPart, data, loading }: { bodyPart: 'upper' | 'lower', data: any[], loading: boolean }) => {
   if (loading) {
     return <p className="text-muted-foreground text-center py-4">Loading muscle breakdown...</p>;
   }
@@ -139,13 +96,7 @@ const WeeklyMuscleBreakdownChart = ({ bodyPart, data, loading }: WeeklyMuscleBre
   );
 };
 
-interface RecentWorkoutSessionsListProps {
-  sessions: WorkoutSession[];
-  onDeleteSession: (sessionId: string, templateName: string | null) => void;
-  loading: boolean;
-}
-
-const RecentWorkoutSessionsList = ({ sessions, onDeleteSession, loading }: RecentWorkoutSessionsListProps) => {
+const RecentWorkoutSessionsList = ({ sessions, onDeleteSession, loading }: { sessions: WorkoutSession[], onDeleteSession: (sessionId: string, templateName: string | null) => void, loading: boolean }) => {
   if (loading) {
     return <p className="text-muted-foreground text-center py-4">Loading recent sessions...</p>;
   }
@@ -177,7 +128,7 @@ const RecentWorkoutSessionsList = ({ sessions, onDeleteSession, loading }: Recen
                     </div>
                     <Button
                       variant="destructive"
-                      size="icon" // Changed to icon size
+                      size="icon"
                       onClick={() => onDeleteSession(sessionItem.id, sessionItem.template_name)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -196,143 +147,24 @@ const RecentWorkoutSessionsList = ({ sessions, onDeleteSession, loading }: Recen
 export const WorkoutPerformanceModal = ({ open, onOpenChange }: WorkoutPerformanceModalProps) => {
   const { session, supabase } = useSession();
   const [activeTab, setActiveTab] = useState<'upper' | 'lower'>('upper');
-  const [loading, setLoading] = useState(true);
-  const [weeklyVolumeData, setWeeklyVolumeData] = useState<{ upper: any[]; lower: any[] }>({ upper: [], lower: [] });
-  const [weeklyMuscleBreakdown, setWeeklyMuscleBreakdown] = useState<{ upper: any[]; lower: any[] }>({ upper: [], lower: [] });
-  const [recentSessions, setRecentSessions] = useState<WorkoutSession[]>([]);
-  const [totalUpperVolume, setTotalUpperVolume] = useState(0);
-  const [totalLowerVolume, setTotalLowerVolume] = useState(0);
-
-  const fetchPerformanceData = useCallback(async () => {
-    if (!session) return;
-    setLoading(true);
-
-    try {
-      const today = new Date();
-      const currentWeekStart = getStartOfWeek(today);
-      const fourWeeksAgo = new Date(currentWeekStart);
-      fourWeeksAgo.setDate(currentWeekStart.getDate() - 3 * 7); // Start of 4 weeks ago
-
-      // Fetch all relevant data
-      const { data: setLogsData, error: setLogsError } = await supabase
-        .from('set_logs')
-        .select(`
-          id, weight_kg, reps, exercise_id,
-          exercise_definitions (name, main_muscle, type),
-          workout_sessions (session_date, user_id)
-        `)
-        .eq('workout_sessions.user_id', session.user.id)
-        .gte('workout_sessions.session_date', fourWeeksAgo.toISOString())
-        .order('created_at', { ascending: true });
-
-      if (setLogsError) throw setLogsError;
-
-      const { data: recentSessionsData, error: sessionsError } = await supabase
-        .from('workout_sessions')
-        .select('id, template_name, session_date, duration_string, completed_at, created_at, rating, t_path_id, user_id')
-        .eq('user_id', session.user.id)
-        .not('completed_at', 'is', null)
-        .order('session_date', { ascending: false })
-        .limit(5);
-
-      if (sessionsError) throw sessionsError;
-      setRecentSessions(recentSessionsData || []);
-
-      // Process data for charts
-      const upperVolumeMap = new Map<string, number>();
-      const lowerVolumeMap = new Map<string, number>();
-      const upperMuscleSetsMap = new Map<string, number>();
-      const lowerMuscleSetsMap = new Map<string, number>();
-
-      let currentUpperVolume = 0;
-      let currentLowerVolume = 0;
-
-      (setLogsData || []).forEach((log: any) => {
-        const exerciseDef = log.exercise_definitions;
-        const workoutSession = log.workout_sessions;
-
-        if (exerciseDef?.type === 'weight' && log.weight_kg && log.reps && workoutSession?.session_date) {
-          const date = new Date(workoutSession.session_date);
-          const weekStart = getStartOfWeek(date);
-          const weekKey = weekStart.toISOString().split('T')[0];
-          const volume = (log.weight_kg || 0) * (log.reps || 0);
-
-          const mainMuscles = exerciseDef.main_muscle.split(',').map((m: string) => m.trim());
-          let isUpper = false;
-          let isLower = false;
-
-          mainMuscles.forEach((muscle: string) => {
-            const category = categorizeMuscle(muscle);
-            if (category === 'upper') isUpper = true;
-            if (category === 'lower') isLower = true;
-          });
-
-          if (isUpper) {
-            upperVolumeMap.set(weekKey, (upperVolumeMap.get(weekKey) || 0) + volume);
-            if (weekStart.getTime() === currentWeekStart.getTime()) {
-              currentUpperVolume += volume;
-              mainMuscles.forEach((muscle: string) => {
-                if (categorizeMuscle(muscle) === 'upper') {
-                  upperMuscleSetsMap.set(muscle, (upperMuscleSetsMap.get(muscle) || 0) + 1);
-                }
-              });
-            }
-          }
-          if (isLower) {
-            lowerVolumeMap.set(weekKey, (lowerVolumeMap.get(weekKey) || 0) + volume);
-            if (weekStart.getTime() === currentWeekStart.getTime()) {
-              currentLowerVolume += volume;
-              mainMuscles.forEach((muscle: string) => {
-                if (categorizeMuscle(muscle) === 'lower') {
-                  lowerMuscleSetsMap.set(muscle, (lowerMuscleSetsMap.get(muscle) || 0) + 1);
-                }
-              });
-            }
-          }
-        }
-      });
-
-      setTotalUpperVolume(currentUpperVolume);
-      setTotalLowerVolume(currentLowerVolume);
-
-      // Generate data for the last 4 weeks for volume charts
-      const volumeChartDataUpper = [];
-      const volumeChartDataLower = [];
-      for (let i = 3; i >= 0; i--) {
-        const weekDate = new Date(currentWeekStart);
-        weekDate.setDate(currentWeekStart.getDate() - i * 7);
-        const weekKey = weekDate.toISOString().split('T')[0];
-        volumeChartDataUpper.push({
-          date: weekKey,
-          volume: upperVolumeMap.get(weekKey) || 0,
-          isCurrentWeek: weekDate.getTime() === currentWeekStart.getTime(),
-        });
-        volumeChartDataLower.push({
-          date: weekKey,
-          volume: lowerVolumeMap.get(weekKey) || 0,
-          isCurrentWeek: weekDate.getTime() === currentWeekStart.getTime(),
-        });
-      }
-
-      setWeeklyVolumeData({ upper: volumeChartDataUpper, lower: volumeChartDataLower });
-      setWeeklyMuscleBreakdown({
-        upper: Array.from(upperMuscleSetsMap.entries()).map(([muscle, sets]) => ({ muscle, sets })).sort((a, b) => b.sets - a.sets),
-        lower: Array.from(lowerMuscleSetsMap.entries()).map(([muscle, sets]) => ({ muscle, sets })).sort((a, b) => b.sets - a.sets),
-      });
-
-    } catch (err: any) {
-      toast.error("Failed to load workout performance data: " + err.message);
-      console.error("Error fetching workout performance data:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [session, supabase]);
+  
+  // Use the new centralized hook for all data and state
+  const {
+    weeklyVolumeData,
+    weeklyMuscleBreakdown,
+    recentSessions,
+    totalUpperVolume,
+    totalLowerVolume,
+    loading,
+    error,
+    refresh,
+  } = useWorkoutPerformanceData();
 
   useEffect(() => {
-    if (open) {
-      fetchPerformanceData();
+    if (error) {
+      toast.error("Failed to load workout performance data: " + error);
     }
-  }, [open, fetchPerformanceData]);
+  }, [error]);
 
   const handleDeleteSession = async (sessionId: string, templateName: string | null) => {
     if (!confirm(`Are you sure you want to delete the workout session "${templateName || 'Ad Hoc Workout'}"? This action cannot be undone.`)) {
@@ -350,7 +182,7 @@ export const WorkoutPerformanceModal = ({ open, onOpenChange }: WorkoutPerforman
         throw new Error(error.message);
       }
       toast.success("Workout session deleted successfully!");
-      fetchPerformanceData(); // Re-fetch data after deletion
+      refresh(); // Re-fetch data after deletion using the hook's refresh function
     } catch (err: any) {
       console.error("Failed to delete workout session:", err);
       toast.error("Failed to delete workout session: " + err.message);
