@@ -40,7 +40,7 @@ serve(async (req: Request) => {
     // Find the main T-Path associated with the target gym for this user
     const { data: tPathForGym, error: tPathError } = await supabaseServiceRoleClient
       .from('t_paths')
-      .select('id')
+      .select('id, template_name, gym_id, user_id, parent_t_path_id') // Select more fields for debugging
       .eq('gym_id', gymId)
       .eq('user_id', user.id)
       .is('parent_t_path_id', null) // Ensure it's a main plan
@@ -51,6 +51,7 @@ serve(async (req: Request) => {
       console.error(`Error finding T-Path for gym ${gymId}:`, tPathError.message);
       throw tPathError;
     }
+    console.log(`[switch-active-gym] Found T-Path for gym ${gymId}:`, tPathForGym); // ADD THIS LOG
 
     const newActiveTPathId = tPathForGym ? tPathForGym.id : null;
 

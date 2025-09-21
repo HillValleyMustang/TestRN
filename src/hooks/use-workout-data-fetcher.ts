@@ -153,6 +153,15 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
         return;
       }
 
+      // NEW: Explicitly refresh T-Paths and T-Path Exercises when profile changes
+      // This ensures that when active_gym_id or active_t_path_id in profile changes,
+      // the related T-Path data is also fresh.
+      console.log("[useWorkoutDataFetcher] Profile changed, explicitly refreshing T-Paths and T-Path Exercises caches.");
+      await Promise.all([
+        refreshTPaths(),
+        refreshTPathExercises(),
+      ]);
+
       setAllAvailableExercises((cachedExercises || []).map(ex => ({
         ...ex,
         id: ex.id,
@@ -226,9 +235,10 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     session, supabase,
     cachedExercises, loadingExercises, exercisesError,
     cachedTPaths, loadingTPaths, tPathsError,
-    cachedProfile, loadingProfile, profileError,
+    cachedProfile, loadingProfile, profileError, // cachedProfile is the trigger
     cachedTPathExercises, loadingTPathExercises, tPathExercisesError,
-    cachedAchievements, loadingAchievements, achievementsError
+    cachedAchievements, loadingAchievements, achievementsError,
+    refreshTPaths, refreshTPathExercises // Add refresh functions to dependencies
   ]);
 
   useEffect(() => {
