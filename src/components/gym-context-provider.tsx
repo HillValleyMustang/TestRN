@@ -63,6 +63,47 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
       }
       setActiveGym(newActiveGym);
 
+      // NEW: After determining the active gym, find its associated main T-Path
+      let newActiveTPathId: string | null = null;
+      if (newActiveGym) {
+        const { data: tPathForGym, error: tPathError } = await supabase
+          .from('t_paths')
+          .select('id')
+          .eq('gym_id', newActiveGym.id)
+          .eq('user_id', session.user.id)
+          .is('parent_t_path_id', null)
+          .single();
+
+        if (tPathError && tPathError.code !== 'PGRST116') {
+          console.error("Error fetching main T-Path for active gym:", tPathError);
+        } else if (tPathForGym) {
+          newActiveTPathId = tPathForGym.id;
+        }
+      }
+
+      // NEW: Update the profile's active_t_path_id if it's different
+      const { data: currentProfile, error: currentProfileError } = await supabase
+        .from('profiles')
+        .select('active_t_path_id')
+        .eq('id', session.user.id)
+        .single();
+
+      if (currentProfileError && currentProfileError.code !== 'PGRST116') {
+        console.error("Error fetching current profile for T-Path check:", currentProfileError);
+      } else if (currentProfile?.active_t_path_id !== newActiveTPathId) {
+        const { data: updatedProfile, error: updateProfileError } = await supabase
+          .from('profiles')
+          .update({ active_gym_id: newActiveGym?.id || null, active_t_path_id: newActiveTPathId }) // Ensure active_gym_id is also updated
+          .eq('id', session.user.id)
+          .select()
+          .single();
+        if (updateProfileError) {
+          console.error("Error updating active_t_path_id in profile:", updateProfileError);
+        } else if (updatedProfile) {
+          await db.profiles_cache.put(updatedProfile); // Update local cache
+        }
+      }
+
     } catch (error: any) {
       toast.error("Failed to load gym data: " + error.message);
     } finally {

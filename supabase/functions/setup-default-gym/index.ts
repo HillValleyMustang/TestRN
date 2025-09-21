@@ -26,7 +26,7 @@ function getExerciseCounts(sessionLength: string | null | undefined): { main: nu
     case '30-45': return { main: 5, bonus: 3 };
     case '45-60': return { main: 7, bonus: 2 };
     case '60-90': return { main: 10, bonus: 2 };
-    default: return { main: 5, bonus: 3 };
+    default: return { main: 5, bonus: 3 }; // Default to 30-45 mins
   }
 }
 
@@ -204,6 +204,10 @@ serve(async (req: Request) => {
     if (newTPathError) throw newTPathError;
 
     await generateWorkoutPlanForTPath(supabaseServiceRoleClient, user.id, newTPath.id, profile.preferred_session_length, gymId);
+
+    // IMPORTANT: Remove the update to active_t_path_id here.
+    // The client-side GymContextProvider will handle setting the active_t_path_id based on the active_gym_id.
+    // await supabaseServiceRoleClient.from('profiles').update({ active_t_path_id: newTPath.id }).eq('id', userId);
 
     await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'completed', t_path_generation_error: null }).eq('id', userId);
 
