@@ -15,14 +15,15 @@ import { useGym } from "@/components/gym-context-provider";
 import { UnconfiguredGymPrompt } from "@/components/prompts/unconfigured-gym-prompt";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SetupGymPlanPrompt } from "@/components/manage-t-paths/setup-gym-plan-prompt";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select components
 
 type TPath = Tables<'t_paths'>;
 
 export default function ManageTPathsPage() {
   const { session, supabase } = useSession();
   const router = useRouter();
-  const { activeGym, loadingGyms } = useGym();
-  const { groupedTPaths, loadingData, refreshAllData, profile } = useWorkoutDataFetcher(); // Destructure profile here
+  const { userGyms, activeGym, switchActiveGym, loadingGyms } = useGym(); // Get gym context
+  const { groupedTPaths, loadingData, refreshAllData, profile } = useWorkoutDataFetcher();
 
   const [isEditWorkoutDialogOpen, setIsEditWorkoutDialogOpen] = useState(false);
   const [selectedWorkoutToEdit, setSelectedWorkoutToEdit] = useState<{ id: string; name: string } | null>(null);
@@ -44,6 +45,12 @@ export default function ManageTPathsPage() {
     setIsEditWorkoutDialogOpen(false);
   };
 
+  const handleGymSelectChange = async (gymId: string) => {
+    if (gymId !== activeGym?.id) {
+      await switchActiveGym(gymId);
+    }
+  };
+
   if (loadingData || loadingGyms) {
     return (
       <div className="flex flex-col gap-4 p-2 sm:p-4">
@@ -60,6 +67,22 @@ export default function ManageTPathsPage() {
         <p className="text-muted-foreground">
           Configure the workouts for your active gym: <span className="font-semibold text-primary">{activeGym?.name || '...'}</span>
         </p>
+        {userGyms.length > 1 && (
+          <div className="mt-4">
+            <Select onValueChange={handleGymSelectChange} value={activeGym?.id || ''}>
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="Select a gym" />
+              </SelectTrigger>
+              <SelectContent>
+                {userGyms.map(gym => (
+                  <SelectItem key={gym.id} value={gym.id}>
+                    {gym.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </header>
       
       {!activeGym ? (
