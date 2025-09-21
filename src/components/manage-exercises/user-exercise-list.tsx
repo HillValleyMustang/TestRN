@@ -144,12 +144,12 @@ export const UserExerciseList = ({
           <p className="text-muted-foreground">You haven't created any custom exercises yet.</p>
         ) : (
           <ScrollArea>
-            <ul className="space-y-2">
+            <ul className="space-y-2 w-full"> {/* Added w-full here */}
               {exercises.map((ex) => (
-                <li key={ex.id} className="flex items-center justify-between py-1 px-2 border rounded-md">
-                  <div className="flex-1 py-1 px-1 min-w-0"> {/* Added px-1 and min-w-0 */}
-                    <p className="font-medium text-base leading-tight whitespace-normal">{ex.name}</p> {/* Exercise name, text-base, whitespace-normal */}
-                    <p className="text-sm text-muted-foreground leading-tight whitespace-normal">{ex.main_muscle}</p> {/* Muscle group on new line, text-sm, whitespace-normal */}
+                <li key={ex.id} className="flex items-center justify-between py-1 px-2 border rounded-md w-full"> {/* Added w-full here */}
+                  <div className="flex flex-col flex-grow min-w-0 flex-basis-0"> {/* Changed flex-1 to flex-grow, added flex-basis-0 */}
+                    <p className="font-medium text-base whitespace-normal">{ex.name}</p> {/* Removed leading-tight */}
+                    <p className="text-sm text-muted-foreground leading-tight whitespace-normal">{ex.main_muscle}</p>
                     
                     <div className="mt-2 flex flex-wrap gap-2">
                       {exerciseGymsMap[ex.id as string]?.length > 0 && (
@@ -179,7 +179,7 @@ export const UserExerciseList = ({
                     </div>
                   </div>
                   {/* Action buttons group */}
-                  <div className="flex gap-1 flex-shrink-0"> {/* Added flex-shrink-0 */}
+                  <div className="flex gap-1 flex-shrink-0">
                     <Button variant="ghost" size="icon" title="More Info" onClick={(e) => handleOpenInfoDialog(ex, e)}>
                       <Info className="h-4 w-4" />
                     </Button>
