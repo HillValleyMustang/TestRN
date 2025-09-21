@@ -1,128 +1,15 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
-import { useSession } from '@/components/session-context-provider';
-import { Tables } from '@/types/supabase';
-import { toast } from 'sonner';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { formatWeight } from '@/lib/unit-conversions';
-
-type WorkoutSession = Tables<'workout_sessions'>;
-type SetLog = Tables<'set_logs'>;
-type ExerciseDefinition = Tables<'exercise_definitions'>;
-
-// Define a type for SetLog with joined ExerciseDefinition and WorkoutSession, including necessary IDs
-type SetLogWithExerciseAndSession = Pick<SetLog, 'id' | 'weight_kg' | 'reps' | 'exercise_id' | 'session_id'> & {
-  exercise_definitions: Pick<ExerciseDefinition, 'type'> | null; // Expecting a single object or null
-  workout_sessions: Pick<WorkoutSession, 'session_date' | 'user_id'> | null; // Expecting a single object or null
-};
-
-interface ChartData {
-  date: string;
-  volume: number;
-}
-
-// Helper function to get the start of the week (Monday)
-const getStartOfWeek = (date: Date): Date => {
-  const d = new Date(date);
-  const day = d.getDay(); // Sunday - 0, Monday - 1, ..., Saturday - 6
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
-  d.setDate(diff);
-  d.setHours(0, 0, 0, 0);
-  d.setMinutes(0, 0, 0);
-  d.setSeconds(0);
-  d.setMilliseconds(0);
-  return d;
-};
+import { useWeeklyVolumeData } from '@/hooks/data/useWeeklyVolumeData';
 
 export const WeeklyVolumeChart = () => {
-  const { session, supabase } = useSession();
-  const [chartData, setChartData] = useState<ChartData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { chartData, isLoading, error } = useWeeklyVolumeData();
 
-  useEffect(() => {
-    const fetchWeeklyVolume = async () => {
-      if (!session) {
-        console.log("[WeeklyVolumeChart] No session, skipping data fetch.");
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
-      setError(null);
-      try {
-        console.log(`[WeeklyVolumeChart] Fetching set logs for user: ${session.user.id}`);
-        const { data: setLogsData, error: setLogsError } = await supabase
-          .from('set_logs')
-          .select(`
-            id, weight_kg, reps, exercise_id, session_id,
-            exercise_definitions (type),
-            workout_sessions (session_date, user_id)
-          `)
-          .eq('workout_sessions.user_id', session.user.id)
-          .not('exercise_id', 'is', null)
-          .not('session_id', 'is', null)
-          .order('created_at', { ascending: true });
-
-        if (setLogsError) {
-          console.error("[WeeklyVolumeChart] Error fetching set logs:", setLogsError.message);
-          throw new Error(setLogsError.message);
-        }
-
-        console.log("[WeeklyVolumeChart] Raw set logs data:", setLogsData);
-
-        // Aggregate volume by week
-        const weeklyVolumeMap = new Map<string, number>(); // 'YYYY-MM-DD (start of week)' -> total volume
-
-        // Correctly type the log object within the loop and access nested properties safely
-        (setLogsData as unknown as Array<SetLogWithExerciseAndSession>).forEach(log => {
-          const exerciseDef = log.exercise_definitions; // This is now correctly typed as an object or null
-          const workoutSession = log.workout_sessions; // This is now correctly typed as an object or null
-
-          const exerciseType = exerciseDef?.type; 
-          const sessionDate = workoutSession?.session_date; 
-          
-          console.log(`[WeeklyVolumeChart] SetLog ID: ${log.id}, Exercise ID: ${log.exercise_id}, Session ID: ${log.session_id}`);
-          console.log(`[WeeklyVolumeChart] Full Exercise Def Object:`, exerciseDef);
-          console.log(`[WeeklyVolumeChart] Full Workout Session Object:`, workoutSession);
-          console.log(`[WeeklyVolumeChart] Extracted: type=${exerciseType}, date=${sessionDate}, weight=${log.weight_kg}, reps=${log.reps}`);
-
-          if (exerciseType === 'weight' && log.weight_kg && log.reps && sessionDate) {
-            const date = new Date(sessionDate);
-            const startOfWeek = getStartOfWeek(date);
-            const weekKey = startOfWeek.toISOString().split('T')[0]; // Use start of week as key
-
-            const volume = (log.weight_kg || 0) * (log.reps || 0);
-            weeklyVolumeMap.set(weekKey, (weeklyVolumeMap.get(weekKey) || 0) + volume);
-            console.log(`[WeeklyVolumeChart] Added volume ${volume} to week ${weekKey}. Current week total: ${weeklyVolumeMap.get(weekKey)}`);
-          }
-        });
-
-        console.log("[WeeklyVolumeChart] Weekly volume map:", weeklyVolumeMap);
-
-        // Convert map to array of objects for Recharts, sorted by date
-        const sortedChartData = Array.from(weeklyVolumeMap.entries())
-          .map(([date, volume]) => ({ date, volume }))
-          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-        console.log("[WeeklyVolumeChart] Final sorted chart data:", sortedChartData);
-        setChartData(sortedChartData);
-
-      } catch (err: any) {
-        console.error("[WeeklyVolumeChart] Failed to load weekly volume chart:", err);
-        toast.info("Failed to load weekly volume chart.");
-        setError(err.message || "Failed to load weekly volume chart.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchWeeklyVolume();
-  }, [session, supabase]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <Card className="h-[350px] flex items-center justify-center">
         <p className="text-muted-foreground">Loading chart data...</p>
