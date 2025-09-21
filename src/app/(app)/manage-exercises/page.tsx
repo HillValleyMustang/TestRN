@@ -17,6 +17,7 @@ import { Card } from "@/components/ui/card";
 import useEmblaCarousel from 'embla-carousel-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
+import { cn } from '@/lib/utils'; // Import cn for conditional classes
 
 // Import modular components
 import { GlobalExerciseList } from "@/components/manage-exercises/global-exercise-list";
@@ -192,8 +193,24 @@ export default function ManageExercisesPage() {
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <div className="flex items-center justify-between p-4 border-b">
               <TabsList className="grid grid-cols-2 h-9 flex-grow max-w-[calc(100%-60px)]">
-                <TabsTrigger value="my-exercises">My Exercises</TabsTrigger>
-                <TabsTrigger value="global-library">Global Library</TabsTrigger>
+                <TabsTrigger 
+                  value="my-exercises"
+                  className={cn(
+                    "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm",
+                    "data-[state=active]:font-semibold"
+                  )}
+                >
+                  My Exercises
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="global-library"
+                  className={cn(
+                    "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm",
+                    "data-[state=active]:font-semibold"
+                  )}
+                >
+                  Global Library
+                </TabsTrigger>
               </TabsList>
               <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
                 <SheetTrigger asChild>

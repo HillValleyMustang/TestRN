@@ -74,8 +74,7 @@ export default function DashboardPage() {
   }, [session, router, supabase]);
 
   const isGymConfigured = useMemo(() => {
-    // If still loading workout data, we can't definitively say if the gym is configured.
-    // Assume it's not configured *yet* if loading, to prevent premature display of content.
+    // Only determine if gym is configured once all workout data has finished loading.
     if (loadingWorkoutData) return false; 
     if (!activeGym || groupedTPaths.length === 0) return false;
     return groupedTPaths.some(group => group.mainTPath.gym_id === activeGym.id);
@@ -118,7 +117,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {activeGym && !isGymConfigured && !loadingWorkoutData ? ( // Only show prompt if not loading and not configured
+      {activeGym && !isGymConfigured ? ( // Only show prompt if activeGym exists and is not configured
         <UnconfiguredGymPrompt gymName={activeGym.name} />
       ) : (
         <>
