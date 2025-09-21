@@ -22,7 +22,7 @@ interface UseWorkoutDataFetcherReturn {
   workoutExercisesCache: Record<string, WorkoutExercise[]>;
   loadingData: boolean;
   dataError: string | null;
-  refreshAllData: () => void;
+  refreshAllData: () => Promise<void>; // Changed to return a Promise
   profile: Profile | null; // Expose the user's profile
   refreshProfile: () => void; // Expose refresh for profile
   refreshAchievements: () => void; // Expose refresh for achievements
@@ -115,13 +115,16 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     sessionUserId: session?.user.id ?? null,
   });
 
-  const refreshAllData = useCallback(() => {
+  const refreshAllData = useCallback(async () => {
     console.log("[useWorkoutDataFetcher] refreshAllData triggered.");
-    refreshExercises();
-    refreshTPaths();
-    refreshProfile();
-    refreshTPathExercises();
-    refreshAchievements(); // Refresh achievements
+    await Promise.all([
+      refreshExercises(),
+      refreshTPaths(),
+      refreshProfile(),
+      refreshTPathExercises(),
+      refreshAchievements(),
+    ]);
+    console.log("[useWorkoutDataFetcher] All data refreshes completed.");
   }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, refreshAchievements]);
 
   // Effect to process cached data and then trigger enrichment

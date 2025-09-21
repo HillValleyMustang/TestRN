@@ -124,7 +124,7 @@ export const SetupGymView = ({ gym, onClose }: SetupGymViewProps) => {
           onOpenChange={setIsCopyDialogOpen}
           targetGym={gym}
           sourceGyms={sourceGyms}
-          onCopySuccess={onClose} // Close the main setup view on success
+          onCopySuccess={async () => onClose()} // Close the main setup view on success
         />
       )}
     </>

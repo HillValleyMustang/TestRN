@@ -88,7 +88,7 @@ export const SetupGymPlanPrompt = ({ gym, onSetupSuccess, profile }: SetupGymPla
         onOpenChange={setIsCopyDialogOpen}
         targetGym={gym}
         sourceGyms={sourceGyms}
-        onCopySuccess={onSetupSuccess}
+        onCopySuccess={async () => onSetupSuccess()}
       />
     </>
   );

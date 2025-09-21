@@ -16,7 +16,7 @@ interface CopyGymSetupDialogProps {
   onOpenChange: (open: boolean) => void;
   targetGym: Gym;
   sourceGyms: Gym[];
-  onCopySuccess: () => void;
+  onCopySuccess: () => Promise<void>; // Changed to return a Promise
 }
 
 export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, onCopySuccess }: CopyGymSetupDialogProps) => {
@@ -25,19 +25,12 @@ export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, 
   const [isCopying, setIsCopying] = useState(false);
 
   const handleCopySetup = async () => {
-    console.log("[CopyGymSetupDialog] handleCopySetup called.");
-    console.log("[CopyGymSetupDialog] Session:", session);
-    console.log("[CopyGymSetupDialog] Selected Source Gym ID:", selectedSourceGymId);
-
     if (!session || !selectedSourceGymId) {
       toast.error("Please select a gym to copy from.");
-      console.log("[CopyGymSetupDialog] Validation failed: No session or source gym selected.");
       return;
     }
-    console.log("[CopyGymSetupDialog] Validation passed. Proceeding to set loading state.");
     setIsCopying(true);
     try {
-      console.log("[CopyGymSetupDialog] Making fetch request to /api/copy-gym-setup...");
       const response = await fetch('/api/copy-gym-setup', {
         method: 'POST',
         headers: {
@@ -48,18 +41,18 @@ export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, 
       });
 
       const data = await response.json();
-      console.log("[CopyGymSetupDialog] API response received. Status:", response.status, "Data:", data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to copy gym setup.');
       }
 
-      // NEW: Informative toast message
-      toast.success(`Successfully copied setup to "${targetGym.name}"! Your workout plan is now being generated in the background.`);
-      onCopySuccess();
+      // CRITICAL FIX: Await the data refresh before closing the dialog and showing success.
+      await onCopySuccess();
+
+      toast.success(`Successfully copied setup to "${targetGym.name}"!`);
       onOpenChange(false);
     } catch (err: any) {
-      console.error("[CopyGymSetupDialog] Failed to copy gym setup:", err.message);
+      console.error("Failed to copy gym setup:", err.message);
       toast.error("Failed to copy gym setup.");
     } finally {
       setIsCopying(false);
