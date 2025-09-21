@@ -40,7 +40,8 @@ export default function WorkoutPage() {
     if (initialWorkoutId && !workoutFlowManager.activeWorkout && !workoutFlowManager.loading) {
       workoutFlowManager.selectWorkout(initialWorkoutId);
     }
-  }, [initialWorkoutId, workoutFlowManager.activeWorkout, workoutFlowManager.loading, workoutFlowManager.selectWorkout]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialWorkoutId, workoutFlowManager.activeWorkout, workoutFlowManager.loading]);
 
 
   return (
