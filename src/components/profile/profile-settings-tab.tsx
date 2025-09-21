@@ -1,7 +1,6 @@
 "use client";
 
 import React from 'react';
-import { Button } from '@/components/ui/button';
 import { FormProvider, UseFormReturn } from 'react-hook-form'; // Import FormProvider
 import { LogOut } from 'lucide-react';
 import { PersonalInfoForm } from './personal-info-form';
@@ -11,6 +10,7 @@ import { AICoachUsageSection } from './ai-coach-usage-section';
 import { DataExportSection } from './data-export-section';
 import { GymManagementSection } from './gym-management-section';
 import { Tables, Profile } from '@/types/supabase';
+import { Button } from '@/components/ui/button'; // Import Button
 
 type TPath = Tables<'t_paths'>;
 
@@ -24,6 +24,7 @@ interface ProfileSettingsTabProps {
   onSubmit: (values: any) => Promise<void>;
   profile: Profile | null;
   onDataChange: () => void;
+  refreshAllData: () => void; // NEW: Add refreshAllData prop
 }
 
 export const ProfileSettingsTab = ({
@@ -36,6 +37,7 @@ export const ProfileSettingsTab = ({
   onSubmit,
   profile,
   onDataChange,
+  refreshAllData, // Destructure new prop
 }: ProfileSettingsTabProps) => {
   return (
     <FormProvider {...form}>
@@ -44,7 +46,7 @@ export const ProfileSettingsTab = ({
           <PersonalInfoForm isEditing={isEditing} mainMuscleGroups={mainMuscleGroups} />
           <WorkoutPreferencesForm isEditing={isEditing} />
           <ProgrammeTypeSection profile={profile} isEditing={isEditing} onDataChange={onDataChange} />
-          <GymManagementSection isEditing={isEditing} profile={profile} onDataChange={onDataChange} />
+          <GymManagementSection isEditing={isEditing} profile={profile} onDataChange={onDataChange} refreshAllData={refreshAllData} />
           <AICoachUsageSection aiCoachUsageToday={aiCoachUsageToday} AI_COACH_DAILY_LIMIT={AI_COACH_DAILY_LIMIT} />
           <DataExportSection />
         </form>

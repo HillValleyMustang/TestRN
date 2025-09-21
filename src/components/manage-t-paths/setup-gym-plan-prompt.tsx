@@ -15,9 +15,11 @@ interface SetupGymPlanPromptProps {
   gym: Gym;
   onSetupSuccess: () => void;
   profile: Profile | null; // NEW: Added profile prop
+  refreshAllData: () => void; // NEW: Add refreshAllData prop
+  switchActiveGym: (gymId: string) => Promise<void>; // NEW: Add switchActiveGym prop
 }
 
-export const SetupGymPlanPrompt = ({ gym, onSetupSuccess, profile }: SetupGymPlanPromptProps) => {
+export const SetupGymPlanPrompt = ({ gym, onSetupSuccess, profile, refreshAllData, switchActiveGym }: SetupGymPlanPromptProps) => {
   const { session, supabase } = useSession();
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
   const [sourceGyms, setSourceGyms] = useState<Gym[]>([]);
@@ -54,6 +56,8 @@ export const SetupGymPlanPrompt = ({ gym, onSetupSuccess, profile }: SetupGymPla
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to set up default gym.');
       toast.success(`"${gym.name}" is being set up with default workouts.`, { id: toastId });
+      await refreshAllData(); // Refresh all data after setup
+      await switchActiveGym(gym.id); // Explicitly switch to the new gym
       onSetupSuccess();
     } catch (err: any) {
       toast.error(`Failed to set up default gym: ${err.message}`, { id: toastId });
@@ -89,6 +93,8 @@ export const SetupGymPlanPrompt = ({ gym, onSetupSuccess, profile }: SetupGymPla
         targetGym={gym}
         sourceGyms={sourceGyms}
         onCopySuccess={onSetupSuccess}
+        refreshAllData={refreshAllData}
+        switchActiveGym={switchActiveGym}
       />
     </>
   );

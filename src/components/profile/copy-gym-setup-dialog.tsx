@@ -18,11 +18,12 @@ interface CopyGymSetupDialogProps {
   targetGym: Gym;
   sourceGyms: Gym[];
   onCopySuccess: () => void;
+  refreshAllData: () => void; // NEW: Add refreshAllData prop
+  switchActiveGym: (gymId: string) => Promise<void>; // NEW: Add switchActiveGym prop
 }
 
-export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, onCopySuccess }: CopyGymSetupDialogProps) => {
+export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, onCopySuccess, refreshAllData, switchActiveGym }: CopyGymSetupDialogProps) => {
   const { session } = useSession();
-  const { switchActiveGym } = useGym(); // Get the function from context
   const [selectedSourceGymId, setSelectedSourceGymId] = useState<string>("");
   const [isCopying, setIsCopying] = useState(false);
 
@@ -49,8 +50,10 @@ export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, 
       }
 
       toast.success(`Successfully copied setup to "${targetGym.name}"!`);
-      onCopySuccess(); // Refresh data first
-      await switchActiveGym(targetGym.id); // Then explicitly switch to the new gym
+      onCopySuccess(); // Refresh parent data (e.g., gym list)
+      // NEW: Refresh all data and then explicitly switch to the new gym
+      await refreshAllData();
+      await switchActiveGym(targetGym.id);
       onOpenChange(false);
     } catch (err: any) {
       console.error("Failed to copy gym setup:", err.message);

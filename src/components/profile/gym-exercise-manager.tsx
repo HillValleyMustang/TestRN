@@ -24,7 +24,7 @@ import { arrayMove } from '@dnd-kit/sortable';
 import { SortableGymExerciseList } from './gym-exercise-manager/sortable-gym-exercise-list';
 import { SortableGymExerciseItem } from './gym-exercise-manager/sortable-gym-exercise-item';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-
+import { useGym } from '../gym-context-provider'; // Import useGym
 
 type Gym = Tables<'gyms'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -53,6 +53,7 @@ interface ManageGymWorkoutsExercisesDialogProps {
 
 export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSaveSuccess, profile }: ManageGymWorkoutsExercisesDialogProps) => {
   const { session, supabase } = useSession();
+  const { refreshAllData, switchActiveGym } = useGym(); // NEW: Get refreshAllData and switchActiveGym from useGym
   const [mainTPath, setMainTPath] = useState<TPath | null>(null);
   const [childWorkouts, setChildWorkouts] = useState<TPath[]>([]);
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
@@ -453,7 +454,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
               <p className="text-muted-foreground text-center">Loading gym workout data...</p>
             ) : !mainTPath ? (
               <div className="text-center text-muted-foreground">
-                <SetupGymPlanPrompt gym={gym} onSetupSuccess={refreshDialogData} profile={profile} />
+                <SetupGymPlanPrompt gym={gym} onSetupSuccess={refreshDialogData} profile={profile} refreshAllData={refreshAllData} switchActiveGym={switchActiveGym} />
               </div>
             ) : (
               <>

@@ -20,9 +20,10 @@ interface GymManagementSectionProps {
   isEditing: boolean;
   profile: Profile | null;
   onDataChange: () => void; // Callback to refresh parent data
+  refreshAllData: () => void; // NEW: Add refreshAllData prop
 }
 
-export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymManagementSectionProps) => {
+export const GymManagementSection = ({ isEditing, profile, onDataChange, refreshAllData }: GymManagementSectionProps) => {
   const { session, supabase } = useSession();
   const { refreshGyms } = useGym();
   const [gyms, setGyms] = useState<Gym[]>([]);
@@ -196,6 +197,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
         onOpenChange={setIsAddGymDialogOpen}
         onSaveSuccess={handleAddSuccess}
         gymCount={gyms.length}
+        refreshAllData={refreshAllData}
       />
 
       <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
