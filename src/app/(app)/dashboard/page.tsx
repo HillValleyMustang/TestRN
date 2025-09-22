@@ -16,6 +16,8 @@ import { GymToggle } from '@/components/dashboard/gym-toggle';
 import { useGym } from '@/components/gym-context-provider';
 import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher';
 import { UnconfiguredGymPrompt } from '@/components/prompts/unconfigured-gym-prompt';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 type Profile = Tables<'profiles'>;
 
@@ -23,12 +25,10 @@ export default function DashboardPage() {
   const { session, supabase } = useSession();
   const router = useRouter();
   const { userGyms, activeGym, loadingGyms } = useGym();
-  const { groupedTPaths, loadingData: loadingWorkoutData } = useWorkoutDataFetcher();
+  const { groupedTPaths, loadingData: loadingWorkoutData, profile, loadingData: loadingProfile } = useWorkoutDataFetcher();
   
   const [welcomeName, setWelcomeName] = useState<string>('');
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState(true);
-
+  
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [summarySessionId, setSummarySessionId] = useState<string | null>(null);
 
@@ -43,35 +43,14 @@ export default function DashboardPage() {
       return;
     }
 
-    const checkOnboardingStatus = async () => {
-      setLoadingProfile(true);
-      try {
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (profileError && profileError.code !== 'PGRST116') throw profileError;
-        if (!profileData) {
-          router.push('/onboarding');
-          return;
-        }
-
-        setProfile(profileData as Profile);
-        const name = profileData.full_name || profileData.first_name || 'Athlete';
-        setWelcomeName(name);
-
-      } catch (err: any) {
-        console.error("Error checking onboarding status:", err);
-        toast.error("Error loading dashboard."); // Changed to toast.error
-      } finally {
-        setLoadingProfile(false);
-      }
-    };
-
-    checkOnboardingStatus();
-  }, [session, router, supabase]);
+    if (profile) {
+      const name = profile.full_name || profile.first_name || 'Athlete';
+      setWelcomeName(name);
+    } else if (!loadingProfile) {
+      // If not loading and still no profile, they need to onboard
+      router.push('/onboarding');
+    }
+  }, [session, router, profile, loadingProfile]);
 
   const isGymConfigured = useMemo(() => {
     if (loadingWorkoutData || !activeGym) return false; 
@@ -96,6 +75,28 @@ export default function DashboardPage() {
 
   if (!session) return null;
 
+  // After loading, if there's still no active gym, prompt user to create one.
+  if (!activeGym) {
+    return (
+      <div className="flex flex-col gap-6 p-2 sm:p-4">
+        <header className="animate-fade-in-slide-up">
+          <h1 className="text-4xl font-bold tracking-tight">Welcome, {welcomeName}</h1>
+        </header>
+        <Card>
+          <CardHeader>
+            <CardTitle>Get Started</CardTitle>
+            <CardDescription>
+              You don't have any gyms set up yet. Go to your profile to add your first gym and create a workout plan.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => router.push('/profile')}>Go to Profile Settings</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6 p-2 sm:p-4">
       <header className="animate-fade-in-slide-up" style={{ animationDelay: '0s' }}>
@@ -113,7 +114,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {activeGym && !isGymConfigured ? (
+      {!isGymConfigured ? (
         <UnconfiguredGymPrompt gymName={activeGym.name} />
       ) : (
         <>

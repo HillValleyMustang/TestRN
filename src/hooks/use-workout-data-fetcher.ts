@@ -45,6 +45,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const prevStatusRef = useRef<string | null>(null);
   const [tempStatusMessage, setTempStatusMessage] = useState<{ message: string; type: 'added' | 'removed' | 'success' } | null>(null);
   const [exerciseWorkoutsMap, setExerciseWorkoutsMap] = useState<Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>>({}); // ADDED STATE
+  const [isProcessingDerivedData, setIsProcessingDerivedData] = useState(true);
 
   const { data: cachedExercises, loading: loadingExercises, error: exercisesError, refresh: refreshExercises } = useCacheAndRevalidate<LocalExerciseDefinition>({
     cacheTable: 'exercise_definitions_cache',
@@ -152,7 +153,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     }
   }, [liveCachedGymExercises]);
 
-  const loadingData = useMemo(() => loadingExercises || loadingTPaths || loadingProfile || loadingTPathExercises || loadingAchievements || loadingUserGyms || loadingGymExercises, [loadingExercises, loadingTPaths, loadingProfile, loadingTPathExercises, loadingAchievements, loadingUserGyms, loadingGymExercises]);
+  const baseLoading = useMemo(() => loadingExercises || loadingTPaths || loadingProfile || loadingTPathExercises || loadingAchievements || loadingUserGyms || loadingGymExercises, [loadingExercises, loadingTPaths, loadingProfile, loadingTPathExercises, loadingAchievements, loadingUserGyms, loadingGymExercises]);
   const dataError = useMemo(() => exercisesError || tPathsError || profileError || tPathExercisesError || achievementsError || userGymsError || gymExercisesError, [exercisesError, tPathsError, profileError, tPathExercisesError, achievementsError, userGymsError, gymExercisesError]);
 
   const allAvailableExercises = useMemo(() => (cachedExercises || []).map(ex => ({ ...ex, id: ex.id, is_favorited_by_current_user: false, movement_type: ex.movement_type, movement_pattern: ex.movement_pattern })), [cachedExercises]);
@@ -175,10 +176,9 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     return newExerciseGymsMap;
   }, [cachedUserGyms, cachedGymExercises]);
 
-  // NEW: useEffect to calculate exerciseWorkoutsMap
   useEffect(() => {
     const calculateExerciseWorkoutsMap = async () => {
-      if (loadingData || dataError || !session?.user.id || !cachedTPaths || !cachedTPathExercises || !profile) {
+      if (baseLoading || dataError || !session?.user.id || !cachedTPaths || !cachedTPathExercises || !profile) {
         setExerciseWorkoutsMap({});
         return;
       }
@@ -256,11 +256,11 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       setExerciseWorkoutsMap(newMap);
     };
     calculateExerciseWorkoutsMap();
-  }, [loadingData, dataError, session?.user.id, cachedTPaths, cachedTPathExercises, profile, cachedExercises, supabase]);
+  }, [baseLoading, dataError, session?.user.id, cachedTPaths, cachedTPathExercises, profile, cachedExercises, supabase]);
 
 
   const workoutExercisesCache = useMemo(() => {
-    if (loadingData || dataError || !session?.user.id) return {};
+    if (baseLoading || dataError || !session?.user.id) return {};
     const exerciseDefMap = new Map<string, ExerciseDefinition>();
     (cachedExercises || []).forEach(def => exerciseDefMap.set(def.id, def as ExerciseDefinition));
     const newWorkoutExercisesCache: Record<string, WorkoutExercise[]> = {};
@@ -278,16 +278,21 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       newWorkoutExercisesCache[workout.id] = exercisesForWorkout;
     }
     return newWorkoutExercisesCache;
-  }, [cachedExercises, cachedTPaths, cachedTPathExercises, session?.user.id, loadingData, dataError]);
+  }, [cachedExercises, cachedTPaths, cachedTPathExercises, session?.user.id, baseLoading, dataError]);
 
   const [groupedTPaths, setGroupedTPaths] = useState<GroupedTPath[]>([]);
 
   useEffect(() => {
     const enrichAndSetGroupedTPaths = async () => {
-      if (loadingData || dataError || !session?.user.id || !cachedTPaths) {
+      if (baseLoading || dataError || !session?.user.id || !cachedTPaths) {
         setGroupedTPaths([]);
+        if (!baseLoading) {
+          setIsProcessingDerivedData(false);
+        }
         return;
       }
+
+      setIsProcessingDerivedData(true);
       const userMainTPaths = (cachedTPaths || []).filter(tp => tp.user_id === session.user.id && !tp.parent_t_path_id);
       const allChildWorkouts = (cachedTPaths || []).filter(tp => tp.user_id === session.user.id && tp.parent_t_path_id);
       try {
@@ -320,10 +325,12 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       } catch (enrichError: any) {
         console.error("[WorkoutDataFetcher] Failed to enrich workout data:", enrichError);
         toast.error("Could not load workout completion dates.");
+      } finally {
+        setIsProcessingDerivedData(false);
       }
     };
     enrichAndSetGroupedTPaths();
-  }, [session?.user.id, supabase, cachedTPaths, loadingData, dataError]);
+  }, [session?.user.id, supabase, cachedTPaths, baseLoading, dataError]);
 
   const refreshAllData = useCallback(async () => {
     await Promise.all([
@@ -378,7 +385,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     allAvailableExercises,
     groupedTPaths,
     workoutExercisesCache,
-    loadingData,
+    loadingData: baseLoading || isProcessingDerivedData,
     dataError,
     refreshAllData,
     profile: profile || null,
