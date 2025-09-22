@@ -27,7 +27,7 @@ export const MainMuscleSelect = ({
   return (
     <FormField control={form.control} name="main_muscles" render={({ field }) => (
       <FormItem>
-        <FormLabel className="font-bold">Main Muscle Group(s) <span className="font-normal">(Optional)</span></FormLabel> {/* Unbolded (Optional) */}
+        <FormLabel className="font-bold">Main Muscle Group(s)</FormLabel> {/* Removed (Optional) */}
         <Popover>
           <PopoverTrigger asChild>
             <Button

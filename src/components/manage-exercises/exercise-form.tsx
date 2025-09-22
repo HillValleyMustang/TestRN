@@ -51,8 +51,8 @@ type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 const exerciseSchema = z.object({
   name: z.string().min(1, "Exercise name is required."),
-  main_muscles: z.array(z.string()).min(1, "At least one main muscle group is required."),
-  type: z.array(z.enum(["weight", "timed"])).min(1, "At least one exercise type is required."),
+  main_muscles: z.array(z.string()).min(1, "At least one main muscle group is required."), // Made required
+  type: z.array(z.enum(["weight", "timed", "bodyweight"])).min(1, "At least one exercise type is required."), // Added 'bodyweight'
   category: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
   pro_tip: z.string().optional().nullable(),
@@ -110,14 +110,14 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
       form.reset({
         name: editingExercise.name,
         main_muscles: muscleGroups,
-        type: editingExercise.type ? [editingExercise.type] as ("weight" | "timed")[] : [],
+        type: editingExercise.type ? [editingExercise.type] as ("weight" | "timed" | "bodyweight")[] : [], // Updated type
         category: editingExercise.category || null,
-        description: editingExercise.description || null, // Fixed typo here
+        description: editingExercise.description || null,
         pro_tip: editingExercise.pro_tip || null,
         video_url: editingExercise.video_url || null,
       });
       setSelectedMuscles(muscleGroups);
-      setSelectedTypes(editingExercise.type ? [editingExercise.type] as ("weight" | "timed")[] : []);
+      setSelectedTypes(editingExercise.type ? [editingExercise.type] as ("weight" | "timed" | "bodyweight")[] : []); // Updated type
       setIsExpanded(true);
     } else {
       form.reset();
@@ -127,7 +127,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
     }
   }, [editingExercise, form]);
 
-  const handleTypeChange = (type: "weight" | "timed") => {
+  const handleTypeChange = (type: "weight" | "timed" | "bodyweight") => { // Updated type
     form.setValue("type", [type]);
     setSelectedTypes([type]);
   };
@@ -148,17 +148,17 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
 
   async function onSubmit(values: z.infer<typeof exerciseSchema>) {
     if (!session) {
-      toast.error("You must be logged in to manage exercises."); // Changed to toast.error
+      toast.error("You must be logged in to manage exercises.");
       return;
     }
 
     if (!values.type || values.type.length === 0) {
-      toast.error("Please select at least one exercise type."); // Changed to toast.error
+      toast.error("Please select at least one exercise type.");
       return;
     }
 
     if (!values.main_muscles || values.main_muscles.length === 0) {
-      toast.error("Please select at least one main muscle group."); // Changed to toast.error
+      toast.error("Please select at least one main muscle group.");
       return;
     }
 
@@ -182,9 +182,9 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
 
       if (error) {
         console.error("Failed to update exercise:", error.message);
-        toast.error("Failed to update exercise."); // Changed to toast.error
+        toast.error("Failed to update exercise.");
       } else {
-        toast.success("Exercise updated successfully!"); // Changed to toast.success
+        toast.success("Exercise updated successfully!");
         onCancelEdit();
         onSaveSuccess();
         setIsExpanded(false);
@@ -199,9 +199,9 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
       }]).select('id').single();
       if (error) {
         console.error("Failed to add exercise:", error.message);
-        toast.error("Failed to add exercise."); // Changed to toast.error
+        toast.error("Failed to add exercise.");
       } else {
-        toast.success("Exercise added successfully!"); // Changed to toast.success
+        toast.success("Exercise added successfully!");
         form.reset();
         setSelectedMuscles([]);
         setSelectedTypes([]);
