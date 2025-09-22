@@ -76,7 +76,6 @@ export default function ManageExercisesPage() {
     userGyms: workoutFlowManager.userGyms, // NEW: Pass from workoutFlowManager
     exerciseGymsMap: workoutFlowManager.exerciseGymsMap, // NEW: Pass from workoutFlowManager
     availableMuscleGroups: workoutFlowManager.availableMuscleGroups, // NEW: Pass from workoutFlowManager
-    setExerciseGymsMap: workoutFlowManager.setExerciseGymsMap, // NEW: Pass setter
   });
 
   // AI-related states

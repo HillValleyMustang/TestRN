@@ -160,6 +160,13 @@ export interface LocalActivityLog extends Tables<'activity_logs'> {
   created_at: string;
 }
 
+// NEW: LocalGymExercise - uses composite key
+export interface LocalGymExercise extends Tables<'gym_exercises'> {
+  gym_id: string;
+  exercise_id: string;
+  created_at: string;
+}
+
 
 export class AppDatabase extends Dexie {
   workout_sessions!: Table<LocalWorkoutSession, string>;
@@ -175,7 +182,7 @@ export class AppDatabase extends Dexie {
   user_alerts!: Table<LocalUserAlert, string>; // NEW: User Alerts table
   gyms_cache!: Table<LocalGym, string>; // NEW: Gyms cache table
   activity_logs!: Table<LocalActivityLog, string>; // NEW: Activity Logs cache table
-  gym_exercises_cache!: Table<Tables<'gym_exercises'>, [string, string]>; // NEW: Cache gym_exercises
+  gym_exercises_cache!: Table<LocalGymExercise, [string, string]>; // NEW: Cache gym_exercises with composite key
 
   constructor() {
     super('WorkoutTrackerDB');

@@ -5,9 +5,10 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { Tables, WorkoutExercise, WorkoutWithLastCompleted, GroupedTPath, LocalUserAchievement, Profile, FetchedExerciseDefinition } from '@/types/supabase';
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
-import { db, LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise } from '@/lib/db';
+import { db, LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise, LocalGymExercise } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
 import { useUserProfile } from '@/hooks/data/useUserProfile';
+import { useLiveQuery } from 'dexie-react-hooks'; // Import useLiveQuery
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -98,21 +99,59 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     sessionUserId: session?.user.id ?? null,
   });
 
-  // NEW: Fetch gym_exercises links
-  const { data: cachedGymExercises, loading: loadingGymExercises, error: gymExercisesError, refresh: refreshGymExercises } = useCacheAndRevalidate<Tables<'gym_exercises'>>({
-    cacheTable: 'gym_exercises_cache',
-    supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!session?.user.id) return { data: [], error: null };
-      const { data: userGymsData, error: userGymsError } = await client.from('gyms').select('id').eq('user_id', session.user.id);
-      if (userGymsError) return { data: [], error: userGymsError };
+  // NEW: Manual fetching and caching for gym_exercises due to composite primary key
+  const [cachedGymExercises, setCachedGymExercises] = useState<LocalGymExercise[] | null>(null);
+  const [loadingGymExercises, setLoadingGymExercises] = useState(true);
+  const [gymExercisesError, setGymExercisesError] = useState<string | null>(null);
+
+  const fetchGymExercises = useCallback(async () => {
+    if (!session?.user.id) {
+      setCachedGymExercises([]);
+      setLoadingGymExercises(false);
+      return;
+    }
+    setLoadingGymExercises(true);
+    setGymExercisesError(null);
+    try {
+      const { data: userGymsData, error: userGymsError } = await supabase.from('gyms').select('id').eq('user_id', session.user.id);
+      if (userGymsError) throw new Error(userGymsError.message || "Failed to fetch user gyms for gym exercises.");
       const gymIds = (userGymsData || []).map(g => g.id);
-      if (gymIds.length === 0) return { data: [], error: null };
-      return client.from('gym_exercises').select('id, exercise_id, gym_id, created_at').in('gym_id', gymIds); // Select 'id' and 'created_at' here
-    }, [session?.user.id]),
-    queryKey: 'gym_exercises_fetcher',
-    supabase,
-    sessionUserId: session?.user.id ?? null,
-  });
+      if (gymIds.length === 0) {
+        setCachedGymExercises([]);
+        return;
+      }
+      const { data, error } = await supabase.from('gym_exercises').select('gym_id, exercise_id, created_at').in('gym_id', gymIds);
+      if (error) throw new Error(error.message || "Failed to fetch gym exercises.");
+      
+      await db.transaction('rw', db.gym_exercises_cache, async () => {
+        await db.gym_exercises_cache.clear();
+        await db.gym_exercises_cache.bulkPut(data || []);
+      });
+      setCachedGymExercises(data || []);
+    } catch (err: any) {
+      console.error("[WorkoutDataFetcher] Error fetching gym exercises:", err);
+      setGymExercisesError(err.message || "Failed to load gym exercises.");
+      toast.error(`Failed to load gym exercises: ${err.message}`);
+    } finally {
+      setLoadingGymExercises(false);
+    }
+  }, [session?.user.id, supabase]);
+
+  useEffect(() => {
+    fetchGymExercises();
+  }, [fetchGymExercises]);
+
+  // Use LiveQuery for gym_exercises_cache
+  const liveCachedGymExercises = useLiveQuery(async () => {
+    if (!session?.user.id) return [];
+    return db.gym_exercises_cache.toArray();
+  }, [session?.user.id]);
+
+  useEffect(() => {
+    if (liveCachedGymExercises !== undefined) {
+      setCachedGymExercises(liveCachedGymExercises);
+    }
+  }, [liveCachedGymExercises]);
 
 
   const loadingData = useMemo(() => loadingExercises || loadingTPaths || loadingProfile || loadingTPathExercises || loadingAchievements || loadingUserGyms || loadingGymExercises, [loadingExercises, loadingTPaths, loadingProfile, loadingTPathExercises, loadingAchievements, loadingUserGyms, loadingGymExercises]);
@@ -224,10 +263,10 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       refreshTPathExercises(),
       refreshAchievements(),
       refreshUserGyms(), // NEW: Refresh gyms
-      refreshGymExercises(), // NEW: Refresh gym exercises
+      fetchGymExercises(), // NEW: Call manual fetch for gym exercises
     ]);
     console.log("[WorkoutDataFetcher] All data refresh initiated.");
-  }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, refreshAchievements, refreshUserGyms, refreshGymExercises]);
+  }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, refreshAchievements, refreshUserGyms, fetchGymExercises]);
 
   useEffect(() => {
     const profileData = profile; // Use the profile from useUserProfile directly

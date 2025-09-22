@@ -71,7 +71,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         if (!exerciseDef) return null;
         return {
           ...exerciseDef,
-          id: exerciseDef.id,
+          id: exerciseDef.id!, // Non-null assertion
           name: exerciseDef.name,
           order_index: link.order_index,
           is_bonus_exercise: link.is_bonus_exercise || false,

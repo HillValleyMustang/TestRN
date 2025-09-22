@@ -40,7 +40,7 @@ export interface WorkoutExerciseWithDetails extends ExerciseDefinition {
   t_path_exercise_id: string;
 }
 
-type GymExerciseLink = { id: string; exercise_id: string; gym_id: string; created_at: string; }; // Updated to match DB
+type GymExerciseLink = { exercise_id: string; gym_id: string; };
 type TPathExerciseLink = { id: string; exercise_id: string; order_index: number; is_bonus_exercise: boolean | null; };
 
 
@@ -141,7 +141,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
           if (!exerciseDef) return null;
           return {
             ...exerciseDef,
-            id: exerciseDef.id, // Non-null assertion
+            id: exerciseDef.id!, // Non-null assertion
             name: exerciseDef.name,
             order_index: link.order_index,
             is_bonus_exercise: link.is_bonus_exercise || false,
@@ -211,7 +211,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
         currentMaxOrderIndex++;
         optimisticUpdates.push({
           ...exerciseDef,
-          id: exerciseDef.id, // Non-null assertion
+          id: exerciseDef.id!, // Non-null assertion
           name: exerciseDef.name,
           order_index: currentMaxOrderIndex,
           is_bonus_exercise: false,
@@ -501,7 +501,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
         open={showAddExercisesDialog}
         onOpenChange={setShowAddExercisesDialog}
         allExercises={fetchedAllAvailableExercises as ExerciseDefinition[]} // Cast with non-null assertion
-        exercisesInWorkout={[...coreExercises, ...bonusExercises].map(ex => ex.id)}
+        exercisesInWorkout={[...coreExercises, ...bonusExercises].map(ex => ex.id!)} // Non-null assertion
         muscleGroups={fetchedAvailableMuscleGroups} // Use fetchedAvailableMuscleGroups
         onAddExercises={handleAddExercisesToWorkout}
         addExerciseSourceFilter={addExerciseSourceFilter}

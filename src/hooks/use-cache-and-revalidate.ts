@@ -5,11 +5,21 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise, LocalUserAchievement, LocalGym, LocalActivityLog } from '@/lib/db'; // Import specific local types
+import { LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise, LocalUserAchievement, LocalGym, LocalActivityLog, LocalGymExercise } from '@/lib/db'; // Import specific local types
 
-type CacheTableName = 'exercise_definitions_cache' | 't_paths_cache' | 'profiles_cache' | 't_path_exercises_cache' | 'user_achievements_cache' | 'gyms_cache' | 'workout_sessions' | 'set_logs' | 'activity_logs';
+type CacheTableName = 'exercise_definitions_cache' | 't_paths_cache' | 'profiles_cache' | 't_path_exercises_cache' | 'user_achievements_cache' | 'gyms_cache' | 'workout_sessions' | 'set_logs' | 'activity_logs' | 'gym_exercises_cache';
 
-interface UseCacheAndRevalidateProps<T> {
+// Updated generic constraint to be more flexible for tables without a single 'id'
+type CacheItem = { 
+  id?: string | null; 
+  user_id?: string | null; 
+  template_id?: string | null; 
+  exercise_id?: string | null; 
+  gym_id?: string | null; 
+  created_at?: string | null; 
+};
+
+interface UseCacheAndRevalidateProps<T extends CacheItem> {
   cacheTable: CacheTableName;
   supabaseQuery: (supabase: SupabaseClient) => Promise<{ data: T[] | null; error: any }>;
   queryKey: string;
@@ -17,7 +27,7 @@ interface UseCacheAndRevalidateProps<T> {
   sessionUserId: string | null | undefined;
 }
 
-export function useCacheAndRevalidate<T extends { id: string; user_id?: string | null; template_id?: string; exercise_id?: string; created_at?: string | null }>( // Updated generic constraint
+export function useCacheAndRevalidate<T extends CacheItem>( // Updated generic constraint
   { cacheTable, supabaseQuery, queryKey, supabase, sessionUserId }: UseCacheAndRevalidateProps<T>
 ) {
   const [loading, setLoading] = useState(true);
@@ -35,9 +45,8 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
         return [];
       }
 
-      // If the table is one that doesn't have a user_id, just return everything.
-      // The consuming hook will be responsible for further filtering.
-      if (cacheTable === 't_path_exercises_cache') {
+      // Special handling for tables with composite keys or no user_id filter
+      if (cacheTable === 't_path_exercises_cache' || cacheTable === 'gym_exercises_cache') {
         console.log(`[useCacheAndRevalidate] ${queryKey}: Fetching all from IndexedDB (no user_id filter).`);
         return table.toArray();
       }
@@ -84,7 +93,7 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
         const table = db[cacheTable] as any;
         
         // NEW LOGGING: Check what data is being received from Supabase for gyms_cache
-        if (cacheTable === 'gyms_cache') {
+        if (cacheTable === 'gyms_cache' || cacheTable === 'gym_exercises_cache') {
           console.log(`[useCacheAndRevalidate] ${queryKey}: Remote data fetched for bulkPut:`, remoteData);
         }
         
@@ -105,7 +114,7 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
           }
           console.log(`[useCacheAndRevalidate] ${queryKey}: Transaction completed.`);
           // NEW: Log table contents immediately after transaction
-          if (cacheTable === 'gyms_cache' || cacheTable === 't_paths_cache' || cacheTable === 't_path_exercises_cache') {
+          if (cacheTable === 'gyms_cache' || cacheTable === 't_paths_cache' || cacheTable === 't_path_exercises_cache' || cacheTable === 'gym_exercises_cache') {
             const currentTableContents = await table.toArray();
             console.log(`[useCacheAndRevalidate] ${queryKey}: Current ${cacheTable} contents after transaction:`, currentTableContents);
           }
@@ -113,8 +122,12 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
       }
     } catch (err: any) {
       console.error(`[useCacheAndRevalidate] Error during ${queryKey} revalidation:`, err);
-      setError(err.message || `An unexpected error occurred during ${queryKey} revalidation.`);
-      toast.error(`Failed to refresh data for ${queryKey}.`); // Changed to toast.error
+      // More robust error message extraction
+      const errorMessage = (err && typeof err === 'object' && 'message' in err && err.message) 
+                           ? err.message 
+                           : (JSON.stringify(err) !== '{}' ? JSON.stringify(err) : `An unknown error occurred during ${queryKey} revalidation.`);
+      setError(errorMessage);
+      toast.error(`Failed to refresh data for ${queryKey}: ${errorMessage}`);
     } finally {
       setLoading(false);
       isRevalidatingRef.current = false; // Reset ref

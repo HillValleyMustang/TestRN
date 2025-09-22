@@ -184,19 +184,16 @@ export type Database = {
           created_at: string;
           exercise_id: string;
           gym_id: string;
-          id: string; // ADDED
         };
         Insert: {
           created_at?: string;
           exercise_id: string;
           gym_id: string;
-          id?: string; // ADDED
         };
         Update: {
           created_at?: string;
           exercise_id?: string;
           gym_id?: string;
-          id?: string; // ADDED
         };
         Relationships: [
           {

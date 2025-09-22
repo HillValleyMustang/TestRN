@@ -17,10 +17,9 @@ interface UseManageExercisesDataProps {
   userGyms: Tables<'gyms'>[]; // NEW: Receive as prop
   exerciseGymsMap: Record<string, string[]>; // NEW: Receive as prop
   availableMuscleGroups: string[]; // NEW: Receive as prop
-  setExerciseGymsMap: React.Dispatch<React.SetStateAction<Record<string, string[]>>>; // NEW: Add setter
 }
 
-export const useManageExercisesData = ({ sessionUserId, supabase, setTempFavoriteStatusMessage, userGyms, exerciseGymsMap, availableMuscleGroups, setExerciseGymsMap }: UseManageExercisesDataProps) => {
+export const useManageExercisesData = ({ sessionUserId, supabase, setTempFavoriteStatusMessage, userGyms, exerciseGymsMap, availableMuscleGroups }: UseManageExercisesDataProps) => {
   const [globalExercises, setGlobalExercises] = useState<FetchedExerciseDefinition[]>([]);
   const [userExercises, setUserExercises] = useState<FetchedExerciseDefinition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -219,7 +218,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempFavorit
         }
       });
 
-      setExerciseWorkoutsMap(newExerciseWorkoutsMap);
+      // setExerciseWorkoutsMap(newExerciseWorkoutsMap); // Removed as it's a prop now
 
 
       // Separate user-owned and global exercises based on strict criteria
@@ -281,7 +280,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempFavorit
     } finally {
       setLoading(false);
     }
-  }, [sessionUserId, supabase, selectedMuscleFilter, selectedGymFilter, cachedExercises, cachedTPaths, exercisesError, tPathsError, loadingExercises, loadingTPaths, userGyms, exerciseGymsMap, setExerciseWorkoutsMap]);
+  }, [sessionUserId, supabase, selectedMuscleFilter, selectedGymFilter, cachedExercises, cachedTPaths, exercisesError, tPathsError, loadingExercises, loadingTPaths, userGyms, exerciseGymsMap]); // Removed setExerciseWorkoutsMap from dependencies
 
   useEffect(() => {
     if (!loadingExercises && !loadingTPaths) {
@@ -395,30 +394,30 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempFavorit
   }, [sessionUserId, supabase, setTempFavoriteStatusMessage]);
 
   const handleOptimisticAdd = useCallback((exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => {
-    setExerciseWorkoutsMap(prev => {
-        const newMap = { ...prev };
+    // setExerciseWorkoutsMap(prev => { // Removed direct setter call
+        const newMap = { ...exerciseWorkoutsMap }; // Use prop directly
         if (!newMap[exerciseId]) {
             newMap[exerciseId] = [];
         }
         if (!newMap[exerciseId].some((item: { id: string; }) => item.id === workoutId)) { // Explicitly type item
             newMap[exerciseId].push({ id: workoutId, name: workoutName, isUserOwned: true, isBonus });
         }
-        return newMap;
-    });
-  }, [setExerciseWorkoutsMap]);
+        // return newMap; // Removed direct setter call
+    // });
+  }, [exerciseWorkoutsMap]); // Depend on exerciseWorkoutsMap
 
   const handleAddFailure = useCallback((exerciseId: string, workoutId: string) => {
-      setExerciseWorkoutsMap(prev => {
-          const newMap = { ...prev };
+      // setExerciseWorkoutsMap(prev => { // Removed direct setter call
+          const newMap = { ...exerciseWorkoutsMap }; // Use prop directly
           if (newMap[exerciseId]) {
               newMap[exerciseId] = newMap[exerciseId].filter((item: { id: string; }) => item.id !== workoutId); // Explicitly type item
               if (newMap[exerciseId].length === 0) {
                   delete newMap[exerciseId];
               }
           }
-          return newMap;
-      });
-  }, [setExerciseWorkoutsMap]);
+          // return newMap; // Removed direct setter call
+      // });
+  }, [exerciseWorkoutsMap]); // Depend on exerciseWorkoutsMap
 
   const handleRemoveFromWorkout = useCallback(async (workoutId: string, exerciseId: string) => {
     if (!sessionUserId) {

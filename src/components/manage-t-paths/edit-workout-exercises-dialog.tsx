@@ -15,7 +15,7 @@ import { WorkoutActionButtons } from "@/components/manage-t-paths/edit-workout-e
 import { ConfirmRemoveExerciseDialog } from "@/components/manage-t-paths/edit-workout-exercises/confirm-remove-exercise-dialog";
 import { AddAsBonusDialog } from "@/components/manage-t-paths/edit-workout-exercises/add-as-bonus-dialog";
 import { ConfirmResetDialog } from "@/components/manage-t-paths/edit-workout-exercises/confirm-reset-dialog";
-import { FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
+import { FetchedExerciseDefinition, ExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition and ExerciseDefinition
 
 interface EditWorkoutExercisesDialogProps {
   open: boolean;
