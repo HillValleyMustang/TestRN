@@ -146,7 +146,6 @@ export const WorkoutSelector = ({
   const [isAiSaving, setIsAiSaving] = useState(false);
 
   // NEW: Filter states for ad-hoc exercises
-  const [searchTerm, setSearchTerm] = useState("");
   const [muscleFilter, setMuscleFilter] = useState("all");
   const [gymFilter, setGymFilter] = useState("all");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
@@ -161,9 +160,8 @@ export const WorkoutSelector = ({
     return groupedTPaths.some(group => group.mainTPath.gym_id === activeGym.id);
   }, [activeGym, groupedTPaths]);
 
-  const filteredExercisesForAdHoc = useMemo(() => {
+  const exercisesForCombobox = useMemo(() => {
     if (!session) return [];
-    const lowerCaseSearchTerm = searchTerm.toLowerCase();
 
     return allAvailableExercises
       .filter(ex => {
@@ -187,13 +185,9 @@ export const WorkoutSelector = ({
         if (!showFavoritesOnly) return true;
         return ex.is_favorite || ex.is_favorited_by_current_user;
       })
-      .filter(ex => {
-        // Text search (now handled by Command component, but we keep it for consistency)
-        return ex.name!.toLowerCase().includes(lowerCaseSearchTerm);
-      })
       .filter(ex => !exercisesForSession.some(existingEx => existingEx.id === ex.id)); // Exclude already added
   }, [
-    allAvailableExercises, adHocExerciseSourceFilter, searchTerm,
+    allAvailableExercises, adHocExerciseSourceFilter,
     muscleFilter, gymFilter, showFavoritesOnly,
     exercisesForSession, session, exerciseGymsMap, userGyms
   ]);
@@ -479,15 +473,11 @@ export const WorkoutSelector = ({
                       </PopoverTrigger>
                       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                         <Command>
-                          <CommandInput
-                            placeholder="Search exercises..."
-                            value={searchTerm}
-                            onValueChange={setSearchTerm}
-                          />
+                          <CommandInput placeholder="Search exercises..." />
                           <CommandList>
                             <CommandEmpty>No exercise found.</CommandEmpty>
                             <CommandGroup>
-                              {filteredExercisesForAdHoc.map((exercise) => (
+                              {exercisesForCombobox.map((exercise) => (
                                 <CommandItem
                                   key={exercise.id}
                                   value={exercise.name!}
