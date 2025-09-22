@@ -115,6 +115,7 @@ export const ExerciseSubstitutionDialog = ({
           main_muscle: currentExercise.main_muscle,
           type: currentExercise.type,
           category: currentExercise.category,
+          saveScope: 'user', // Save as a user-owned exercise
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`,

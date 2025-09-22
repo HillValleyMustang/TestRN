@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { useSession } from "@/components/session-context-provider";
 import { Tables } from '@/types/supabase';
 import { RefreshCcw, Sparkles } from "lucide-react";
-import { LoadingOverlay } from '../loading-overlay';
+import { LoadingOverlay } from '@/components/loading-overlay'; // Corrected import path
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -33,7 +33,7 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
     try {
       const { data: allMatchingExercises, error: fetchError } = await supabase
         .from('exercise_definitions')
-        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url')
+        .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url, movement_type, movement_pattern') // Include new fields
         .or(`user_id.eq.${session.user.id},user_id.is.null`)
         .eq('main_muscle', currentExercise.main_muscle)
         .eq('type', currentExercise.type)
@@ -59,7 +59,7 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
       setAvailableExercises(filteredExercises || []);
     } catch (err: any) {
       console.error("Failed to fetch available exercises for swap:", err);
-      toast.info("Failed to load swap options.");
+      toast.error("Failed to load swap options.");
     } finally {
       setLoading(false);
     }
@@ -77,7 +77,7 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
   const handleConfirmSwap = async () => {
     const newExercise = availableExercises.find(ex => ex.id === selectedNewExerciseId);
     if (!newExercise) {
-      toast.info("Please select an exercise to swap with.");
+      toast.error("Please select an exercise to swap with.");
       return;
     }
 
@@ -85,16 +85,16 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
       // Directly use the newExercise, no adoption needed.
       onSwap(newExercise);
       onOpenChange(false);
-      console.log(`Swapped with ${newExercise.name}`); // Replaced toast.success
+      toast.success(`Swapped with ${newExercise.name}`);
     } catch (err: any) {
       console.error("Failed to swap exercise:", err);
-      toast.info("Failed to swap exercise.");
+      toast.error("Failed to swap exercise.");
     }
   };
 
   const handleGenerateAiSuggestion = async () => {
     if (!session) {
-      toast.info("You must be logged in to generate AI suggestions.");
+      toast.error("You must be logged in to generate AI suggestions.");
       return;
     }
     setGeneratingAi(true);
@@ -104,6 +104,7 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
           main_muscle: currentExercise.main_muscle,
           type: currentExercise.type,
           category: currentExercise.category,
+          saveScope: 'user', // Save as a user-owned exercise
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -120,13 +121,13 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
       const newAiExercise = data.newExercise;
       if (newAiExercise) {
         setAvailableExercises(prev => [...prev, newAiExercise]);
-        console.log("AI generated a new exercise suggestion!"); // Replaced toast.success
+        toast.success("AI generated a new exercise suggestion!");
       } else {
-        toast.info("AI did not return a valid exercise.");
+        toast.error("AI did not return a valid exercise.");
       }
     } catch (err: any) {
       console.error("Failed to generate AI suggestion:", err);
-      toast.info("Failed to generate AI suggestion.");
+      toast.error("Failed to generate AI suggestion.");
     } finally {
       setGeneratingAi(false);
     }

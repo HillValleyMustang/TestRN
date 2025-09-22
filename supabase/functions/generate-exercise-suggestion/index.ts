@@ -89,7 +89,7 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const { main_muscle, type, category } = await req.json();
+    const { main_muscle, type, category, saveScope = 'global' } = await req.json(); // Default to 'global'
 
     if (!main_muscle || !type) {
       return new Response(JSON.stringify({ error: 'Missing main_muscle or type parameters.' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -203,8 +203,8 @@ serve(async (req: Request) => {
         description: newExerciseData.description,
         pro_tip: newExerciseData.pro_tip,
         video_url: newExerciseData.video_url,
-        user_id: null, // Mark as a global exercise
-        library_id: newLibraryId, // Assign the unique AI-generated library ID
+        user_id: saveScope === 'user' ? user.id : null, // Use user.id if scope is 'user'
+        library_id: saveScope === 'user' ? null : newLibraryId, // Only set library_id for global
       })
       .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, movement_type, movement_pattern') // Specify columns
       .single();
