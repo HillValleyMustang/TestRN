@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWorkoutDataFetcher } from './use-workout-data-fetcher';
 import { useActiveWorkoutSession } from './data/useActiveWorkoutSession'; // Import the new data hook
+import { Tables } from '@/types/supabase'; // Import Tables for Gym type
 
 interface UseWorkoutFlowManagerProps {
   router: ReturnType<typeof useRouter>;
@@ -21,8 +22,12 @@ export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) =>
     refreshAchievements,
     isGeneratingPlan,
     profile,
-    tempFavoriteStatusMessage, // <-- Destructure here
-    setTempFavoriteStatusMessage, // <-- Destructure here
+    tempFavoriteStatusMessage,
+    setTempFavoriteStatusMessage,
+    // NEW: Destructure these from useWorkoutDataFetcher
+    availableMuscleGroups,
+    userGyms,
+    exerciseGymsMap,
   } = useWorkoutDataFetcher();
 
   const activeSession = useActiveWorkoutSession();
@@ -113,8 +118,12 @@ export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) =>
     refreshAchievements,
     isGeneratingPlan,
     profile,
-    tempFavoriteStatusMessage, // <-- Include here
-    setTempFavoriteStatusMessage, // <-- Include here
+    tempFavoriteStatusMessage,
+    setTempFavoriteStatusMessage,
+    // NEW: Include these in the context value
+    availableMuscleGroups,
+    userGyms,
+    exerciseGymsMap,
   }), [
     activeSession,
     selectWorkout,
@@ -135,7 +144,11 @@ export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) =>
     refreshAchievements,
     isGeneratingPlan,
     profile,
-    tempFavoriteStatusMessage, // <-- Add to dependencies
-    setTempFavoriteStatusMessage, // <-- Add to dependencies
+    tempFavoriteStatusMessage,
+    setTempFavoriteStatusMessage,
+    // NEW: Add to dependencies
+    availableMuscleGroups,
+    userGyms,
+    exerciseGymsMap,
   ]);
 };

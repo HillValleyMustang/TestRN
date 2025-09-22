@@ -6,7 +6,7 @@ import { Tables, FetchedExerciseDefinition } from "@/types/supabase";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import *as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -51,12 +51,14 @@ type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 const exerciseSchema = z.object({
   name: z.string().min(1, "Exercise name is required."),
-  main_muscles: z.array(z.string()).min(1, "At least one main muscle group is required."), // Made required
-  type: z.array(z.enum(["weight", "timed", "bodyweight"])).min(1, "At least one exercise type is required."), // Added 'bodyweight'
+  main_muscles: z.array(z.string()).min(1, "At least one main muscle group is required."),
+  type: z.array(z.enum(["weight", "timed", "bodyweight"])).min(1, "At least one exercise type is required."),
   category: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
   pro_tip: z.string().optional().nullable(),
   video_url: z.string().url("Must be a valid URL.").optional().or(z.literal('')).nullable(),
+  movement_type: z.enum(["compound", "isolation"]).optional().nullable(),
+  movement_pattern: z.enum(["Push", "Pull", "Legs", "Core"]).optional().nullable(),
 });
 
 interface ExerciseFormProps {
@@ -100,6 +102,8 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
       description: null,
       pro_tip: null,
       video_url: null,
+      movement_type: null,
+      movement_pattern: null,
     },
   });
 
@@ -110,14 +114,16 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
       form.reset({
         name: editingExercise.name,
         main_muscles: muscleGroups,
-        type: editingExercise.type ? [editingExercise.type] as ("weight" | "timed" | "bodyweight")[] : [], // Updated type
+        type: editingExercise.type ? [editingExercise.type] as ("weight" | "timed" | "bodyweight")[] : [],
         category: editingExercise.category || null,
         description: editingExercise.description || null,
         pro_tip: editingExercise.pro_tip || null,
         video_url: editingExercise.video_url || null,
+        movement_type: (editingExercise.movement_type as "compound" | "isolation" | null) || null, // Explicit cast
+        movement_pattern: (editingExercise.movement_pattern as "Push" | "Pull" | "Legs" | "Core" | null) || null, // Explicit cast
       });
       setSelectedMuscles(muscleGroups);
-      setSelectedTypes(editingExercise.type ? [editingExercise.type] as ("weight" | "timed" | "bodyweight")[] : []); // Updated type
+      setSelectedTypes(editingExercise.type ? [editingExercise.type] as ("weight" | "timed" | "bodyweight")[] : []);
       setIsExpanded(true);
     } else {
       form.reset();
@@ -127,7 +133,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
     }
   }, [editingExercise, form]);
 
-  const handleTypeChange = (type: "weight" | "timed" | "bodyweight") => { // Updated type
+  const handleTypeChange = (type: "weight" | "timed" | "bodyweight") => {
     form.setValue("type", [type]);
     setSelectedTypes([type]);
   };
@@ -170,6 +176,8 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
       description: values.description,
       pro_tip: values.pro_tip,
       video_url: values.video_url,
+      movement_type: values.movement_type,
+      movement_pattern: values.movement_pattern,
     };
 
     const isEditingUserOwned = editingExercise && editingExercise.user_id === session.user.id && editingExercise.library_id === null && editingExercise.id !== null;
@@ -270,6 +278,52 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
                 <ExerciseCategorySelect
                   form={form}
                   categoryOptions={categoryOptions}
+                />
+                
+                <FormField 
+                  control={form.control} 
+                  name="movement_type" 
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="font-bold">Movement Type <span className="font-normal text-sm">(Optional)</span></FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ''}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select movement type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="compound">Compound</SelectItem>
+                          <SelectItem value="isolation">Isolation</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} 
+                />
+
+                <FormField 
+                  control={form.control} 
+                  name="movement_pattern" 
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="font-bold">Movement Pattern <span className="font-normal text-sm">(Optional)</span></FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ''}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select movement pattern" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Push">Push</SelectItem>
+                          <SelectItem value="Pull">Pull</SelectItem>
+                          <SelectItem value="Legs">Legs</SelectItem>
+                          <SelectItem value="Core">Core</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} 
                 />
                 
                 <ExerciseDetailsTextareas form={form} />

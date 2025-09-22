@@ -175,10 +175,11 @@ export class AppDatabase extends Dexie {
   user_alerts!: Table<LocalUserAlert, string>; // NEW: User Alerts table
   gyms_cache!: Table<LocalGym, string>; // NEW: Gyms cache table
   activity_logs!: Table<LocalActivityLog, string>; // NEW: Activity Logs cache table
+  gym_exercises_cache!: Table<Tables<'gym_exercises'>, [string, string]>; // NEW: Cache gym_exercises
 
   constructor() {
     super('WorkoutTrackerDB');
-    this.version(12).stores({
+    this.version(13).stores({ // Increment version number
       workout_sessions: '&id, user_id, session_date, t_path_id, template_name',
       set_logs: '&id, session_id, exercise_id',
       sync_queue: '++id, timestamp',
@@ -191,7 +192,8 @@ export class AppDatabase extends Dexie {
       user_achievements_cache: '&id, user_id, achievement_id',
       user_alerts: '&id, user_id, created_at',
       gyms_cache: '&id, user_id',
-      activity_logs: '&id, user_id, log_date', // Added activity_logs schema
+      activity_logs: '&id, user_id, log_date',
+      gym_exercises_cache: '[gym_id+exercise_id]', // NEW: Define primary key for gym_exercises_cache
     });
   }
 }

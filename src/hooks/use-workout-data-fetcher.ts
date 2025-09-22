@@ -28,8 +28,12 @@ interface UseWorkoutDataFetcherReturn {
   refreshTPaths: () => void;
   refreshTPathExercises: () => void;
   isGeneratingPlan: boolean;
-  tempFavoriteStatusMessage: { message: string; type: 'added' | 'removed' } | null; // NEW
-  setTempFavoriteStatusMessage: (message: { message: string; type: 'added' | 'removed' } | null) => void; // NEW
+  tempFavoriteStatusMessage: { message: string; type: 'added' | 'removed' } | null;
+  setTempFavoriteStatusMessage: (message: { message: string; type: 'added' | 'removed' } | null) => void;
+  // NEW: Add these to the return type
+  availableMuscleGroups: string[];
+  userGyms: Tables<'gyms'>[];
+  exerciseGymsMap: Record<string, string[]>;
 }
 
 export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
@@ -37,7 +41,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const prevStatusRef = useRef<string | null>(null);
-  const [tempFavoriteStatusMessage, setTempFavoriteStatusMessage] = useState<{ message: string; type: 'added' | 'removed' } | null>(null); // NEW
+  const [tempFavoriteStatusMessage, setTempFavoriteStatusMessage] = useState<{ message: string; type: 'added' | 'removed' } | null>(null);
 
   const { data: cachedExercises, loading: loadingExercises, error: exercisesError, refresh: refreshExercises } = useCacheAndRevalidate<LocalExerciseDefinition>({
     cacheTable: 'exercise_definitions_cache',
@@ -82,10 +86,63 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     sessionUserId: session?.user.id ?? null,
   });
 
-  const loadingData = useMemo(() => loadingExercises || loadingTPaths || loadingProfile || loadingTPathExercises || loadingAchievements, [loadingExercises, loadingTPaths, loadingProfile, loadingTPathExercises, loadingAchievements]);
-  const dataError = useMemo(() => exercisesError || tPathsError || profileError || tPathExercisesError || achievementsError, [exercisesError, tPathsError, profileError, tPathExercisesError, achievementsError]);
+  // NEW: Fetch user gyms
+  const { data: cachedUserGyms, loading: loadingUserGyms, error: userGymsError, refresh: refreshUserGyms } = useCacheAndRevalidate<Tables<'gyms'>>({
+    cacheTable: 'gyms_cache',
+    supabaseQuery: useCallback(async (client: SupabaseClient) => {
+      if (!session?.user.id) return { data: [], error: null };
+      return client.from('gyms').select('*').eq('user_id', session.user.id);
+    }, [session?.user.id]),
+    queryKey: 'user_gyms_fetcher',
+    supabase,
+    sessionUserId: session?.user.id ?? null,
+  });
+
+  // NEW: Fetch gym_exercises links
+  const { data: cachedGymExercises, loading: loadingGymExercises, error: gymExercisesError, refresh: refreshGymExercises } = useCacheAndRevalidate<Tables<'gym_exercises'>>({
+    cacheTable: 'gym_exercises_cache',
+    supabaseQuery: useCallback(async (client: SupabaseClient) => {
+      if (!session?.user.id) return { data: [], error: null };
+      const { data: userGymsData, error: userGymsError } = await client.from('gyms').select('id').eq('user_id', session.user.id);
+      if (userGymsError) return { data: [], error: userGymsError };
+      const gymIds = (userGymsData || []).map(g => g.id);
+      if (gymIds.length === 0) return { data: [], error: null };
+      return client.from('gym_exercises').select('id, exercise_id, gym_id, created_at').in('gym_id', gymIds); // Select 'id' and 'created_at' here
+    }, [session?.user.id]),
+    queryKey: 'gym_exercises_fetcher',
+    supabase,
+    sessionUserId: session?.user.id ?? null,
+  });
+
+
+  const loadingData = useMemo(() => loadingExercises || loadingTPaths || loadingProfile || loadingTPathExercises || loadingAchievements || loadingUserGyms || loadingGymExercises, [loadingExercises, loadingTPaths, loadingProfile, loadingTPathExercises, loadingAchievements, loadingUserGyms, loadingGymExercises]);
+  const dataError = useMemo(() => exercisesError || tPathsError || profileError || tPathExercisesError || achievementsError || userGymsError || gymExercisesError, [exercisesError, tPathsError, profileError, tPathExercisesError, achievementsError, userGymsError, gymExercisesError]);
 
   const allAvailableExercises = useMemo(() => (cachedExercises || []).map(ex => ({ ...ex, id: ex.id, is_favorited_by_current_user: false, movement_type: ex.movement_type, movement_pattern: ex.movement_pattern })), [cachedExercises]);
+
+  // NEW: Calculate available muscle groups
+  const availableMuscleGroups = useMemo(() => {
+    return Array.from(new Set((cachedExercises || []).map(ex => ex.main_muscle))).sort();
+  }, [cachedExercises]);
+
+  // NEW: Calculate exerciseGymsMap
+  const exerciseGymsMap = useMemo(() => {
+    const newExerciseGymsMap: Record<string, string[]> = {};
+    const gymIdToNameMap = new Map<string, string>();
+    (cachedUserGyms || []).forEach(gym => gymIdToNameMap.set(gym.id, gym.name));
+
+    (cachedGymExercises || []).forEach(link => {
+      const gymName = gymIdToNameMap.get(link.gym_id);
+      if (gymName) {
+        if (!newExerciseGymsMap[link.exercise_id]) {
+          newExerciseGymsMap[link.exercise_id] = [];
+        }
+        newExerciseGymsMap[link.exercise_id].push(gymName);
+      }
+    });
+    return newExerciseGymsMap;
+  }, [cachedUserGyms, cachedGymExercises]);
+
 
   const workoutExercisesCache = useMemo(() => {
     console.log("[WorkoutDataFetcher] Recalculating workoutExercisesCache.");
@@ -166,9 +223,11 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       refreshProfile(),
       refreshTPathExercises(),
       refreshAchievements(),
+      refreshUserGyms(), // NEW: Refresh gyms
+      refreshGymExercises(), // NEW: Refresh gym exercises
     ]);
     console.log("[WorkoutDataFetcher] All data refresh initiated.");
-  }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, refreshAchievements]);
+  }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, refreshAchievements, refreshUserGyms, refreshGymExercises]);
 
   useEffect(() => {
     const profileData = profile; // Use the profile from useUserProfile directly
@@ -212,7 +271,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
-  }, [profile, refreshProfile, refreshAllData]); // Depend on 'profile' directly
+  }, [profile, refreshProfile, refreshAllData]);
 
   return {
     allAvailableExercises,
@@ -227,7 +286,11 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     refreshTPaths,
     refreshTPathExercises,
     isGeneratingPlan,
-    tempFavoriteStatusMessage, // NEW
-    setTempFavoriteStatusMessage, // NEW
+    tempFavoriteStatusMessage,
+    setTempFavoriteStatusMessage,
+    // NEW: Return these values
+    availableMuscleGroups,
+    userGyms: cachedUserGyms || [],
+    exerciseGymsMap,
   };
 };

@@ -11,15 +11,17 @@ import { Label } from "@/components/ui/label";
 import { PlusCircle, Search, Filter, XCircle } from 'lucide-react';
 import { Tables, FetchedExerciseDefinition } from '@/types/supabase';
 import { cn } from '@/lib/utils';
+import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher'; // NEW: Import useWorkoutDataFetcher
+import { useSession } from '@/components/session-context-provider'; // NEW: Import useSession
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 interface AddExercisesToWorkoutDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  allExercises: ExerciseDefinition[]; // All exercises available in the system
+  allExercises: ExerciseDefinition[]; // Now receives a pre-filtered list
   exercisesInWorkout: string[]; // IDs of exercises already in the current workout
-  muscleGroups: string[];
+  muscleGroups: string[]; // This prop is now redundant as we use the centralized data
   onAddExercises: (exerciseIds: string[]) => void;
   addExerciseSourceFilter: 'my-exercises' | 'global-library';
   setAddExerciseSourceFilter: (filter: 'my-exercises' | 'global-library') => void;
@@ -28,9 +30,9 @@ interface AddExercisesToWorkoutDialogProps {
 export const AddExercisesToWorkoutDialog = ({
   open,
   onOpenChange,
-  allExercises,
+  allExercises, // This is now the filtered list from useWorkoutDataFetcher
   exercisesInWorkout,
-  muscleGroups,
+  muscleGroups, // This prop is now redundant
   onAddExercises,
   addExerciseSourceFilter,
   setAddExerciseSourceFilter,
@@ -38,6 +40,15 @@ export const AddExercisesToWorkoutDialog = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [muscleFilter, setMuscleFilter] = useState("all");
   const [selectedExerciseIds, setSelectedExerciseIds] = useState<Set<string>>(new Set());
+  const { session } = useSession(); // NEW: Get session for user ID
+  // NEW: Consume data from useWorkoutDataFetcher
+  const {
+    allAvailableExercises: fetchedAllAvailableExercises,
+    availableMuscleGroups: fetchedAvailableMuscleGroups,
+    userGyms: fetchedUserGyms,
+    exerciseGymsMap: fetchedExerciseGymsMap,
+  } = useWorkoutDataFetcher();
+
 
   // Reset selected exercises when dialog opens/closes
   React.useEffect(() => {
@@ -49,11 +60,12 @@ export const AddExercisesToWorkoutDialog = ({
   }, [open]);
 
   const availableExercises = useMemo(() => {
+    if (!session) return []; // NEW: Ensure session exists
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    return allExercises
-      .filter(ex => !exercisesInWorkout.includes(ex.id)) // Exclude exercises already in workout
+    return fetchedAllAvailableExercises // Use fetchedAllAvailableExercises
+      .filter(ex => !exercisesInWorkout.includes(ex.id!)) // Exclude exercises already in workout, non-null assertion
       .filter(ex => { // Filter by source (My Exercises vs Global)
-        if (addExerciseSourceFilter === 'my-exercises') return ex.user_id !== null; // User-owned
+        if (addExerciseSourceFilter === 'my-exercises') return ex.user_id === session.user.id; // User-owned
         if (addExerciseSourceFilter === 'global-library') return ex.user_id === null; // Global
         return false;
       })
@@ -61,10 +73,10 @@ export const AddExercisesToWorkoutDialog = ({
         return muscleFilter === 'all' || ex.main_muscle === muscleFilter;
       })
       .filter(ex => { // Filter by search term
-        return ex.name.toLowerCase().includes(lowerCaseSearchTerm);
+        return ex.name!.toLowerCase().includes(lowerCaseSearchTerm); // Non-null assertion
       })
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [allExercises, exercisesInWorkout, addExerciseSourceFilter, muscleFilter, searchTerm]);
+      .sort((a, b) => a.name!.localeCompare(b.name!)); // Non-null assertion
+  }, [fetchedAllAvailableExercises, exercisesInWorkout, addExerciseSourceFilter, muscleFilter, searchTerm, session]); // Depend on fetchedAllAvailableExercises and session
 
   const handleToggleSelect = (exerciseId: string, isChecked: boolean) => {
     setSelectedExerciseIds(prev => {
@@ -134,7 +146,7 @@ export const AddExercisesToWorkoutDialog = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Muscle Groups</SelectItem>
-                {muscleGroups.map(muscle => <SelectItem key={muscle} value={muscle}>{muscle}</SelectItem>)}
+                {fetchedAvailableMuscleGroups.map(muscle => <SelectItem key={muscle} value={muscle}>{muscle}</SelectItem>)} {/* Use fetchedAvailableMuscleGroups */}
               </SelectContent>
             </Select>
           </div>
@@ -146,14 +158,14 @@ export const AddExercisesToWorkoutDialog = ({
             ) : (
               <ul className="space-y-1">
                 {availableExercises.map(ex => (
-                  <li key={ex.id} className="flex items-center justify-between p-2 text-sm hover:bg-accent rounded-md">
+                  <li key={ex.id!} className="flex items-center justify-between p-2 text-sm hover:bg-accent rounded-md">
                     <div className="flex items-center gap-2">
                       <Checkbox
-                        id={`add-exercise-${ex.id}`}
-                        checked={selectedExerciseIds.has(ex.id)}
-                        onCheckedChange={(checked) => handleToggleSelect(ex.id, !!checked)}
+                        id={`add-exercise-${ex.id!}`}
+                        checked={selectedExerciseIds.has(ex.id!)}
+                        onCheckedChange={(checked) => handleToggleSelect(ex.id!, !!checked)}
                       />
-                      <Label htmlFor={`add-exercise-${ex.id}`} className="font-medium cursor-pointer">
+                      <Label htmlFor={`add-exercise-${ex.id!}`} className="font-medium cursor-pointer">
                         {ex.name}
                       </Label>
                     </div>

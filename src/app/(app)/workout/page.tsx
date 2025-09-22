@@ -81,6 +81,10 @@ export default function WorkoutPage() {
         allAvailableExercises={workoutFlowManager.allAvailableExercises}
         updateSessionStartTime={workoutFlowManager.updateSessionStartTime}
         completedExercises={workoutFlowManager.completedExercises} // Explicitly pass as Set<string>
+        userGyms={workoutFlowManager.userGyms} // NEW
+        exerciseGymsMap={workoutFlowManager.exerciseGymsMap} // NEW
+        availableMuscleGroups={workoutFlowManager.availableMuscleGroups} // NEW
+        profile={workoutFlowManager.profile} // Pass profile prop
       />
       <WorkoutProgressBar
         exercisesForSession={workoutFlowManager.exercisesForSession}

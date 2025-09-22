@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useSession } from "@/components/session-context-provider";
 import { Tables, FetchedExerciseDefinition } from '@/types/supabase';
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher'; // NEW: Import useWorkoutDataFetcher
 
 type Gym = Tables<'gyms'>;
 
@@ -25,11 +26,14 @@ export const ManageExerciseGymsDialog = ({
   open,
   onOpenChange,
   exercise,
-  userGyms,
+  userGyms, // This prop is now redundant as we use the centralized data
   initialSelectedGymIds,
   onSaveSuccess,
 }: ManageExerciseGymsDialogProps) => {
   const { session, supabase } = useSession();
+  // NEW: Consume userGyms from useWorkoutDataFetcher
+  const { userGyms: fetchedUserGyms, refreshAllData } = useWorkoutDataFetcher();
+
   const [selectedGymIds, setSelectedGymIds] = useState<Set<string>>(initialSelectedGymIds);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -80,6 +84,7 @@ export const ManageExerciseGymsDialog = ({
 
       toast.success(`Gym associations for "${exercise.name}" updated.`);
       onSaveSuccess();
+      refreshAllData(); // NEW: Refresh all data after saving changes
       onOpenChange(false);
     } catch (err: any) {
       console.error("Failed to update gym associations:", err);
@@ -100,10 +105,10 @@ export const ManageExerciseGymsDialog = ({
         </DialogHeader>
         <ScrollArea className="max-h-64 py-4">
           <div className="space-y-3">
-            {userGyms.length === 0 ? (
+            {fetchedUserGyms.length === 0 ? ( // Use fetchedUserGyms
               <p className="text-muted-foreground text-sm">You haven't created any gyms yet. Go to your profile settings to add one.</p>
             ) : (
-              userGyms.map(gym => (
+              fetchedUserGyms.map(gym => ( // Use fetchedUserGyms
                 <div key={gym.id} className="flex items-center space-x-2">
                   <Checkbox
                     id={`gym-${gym.id}`}
@@ -120,7 +125,7 @@ export const ManageExerciseGymsDialog = ({
         </ScrollArea>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSaveChanges} disabled={isSaving || userGyms.length === 0}>
+          <Button onClick={handleSaveChanges} disabled={isSaving || fetchedUserGyms.length === 0}> {/* Use fetchedUserGyms */}
             {isSaving ? "Saving..." : "Save Changes"}
           </Button>
         </DialogFooter>

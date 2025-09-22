@@ -29,8 +29,8 @@ import { AnalyseGymDialog } from "@/components/manage-exercises/exercise-form/an
 import { SaveAiExercisePrompt } from "@/components/workout-flow/save-ai-exercise-prompt";
 import { toast } from "sonner";
 import { EditExerciseDialog } from "@/components/manage-exercises/edit-exercise-dialog";
-import { Badge } from "@/components/ui/badge"; // Import Badge
-import { cn } from "@/lib/utils"; // Import cn
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { useWorkoutFlow } from "@/components/workout-flow/workout-flow-context-provider"; // NEW
 
 export default function ManageExercisesPage() {
@@ -73,6 +73,10 @@ export default function ManageExercisesPage() {
     sessionUserId: session?.user.id ?? null,
     supabase,
     setTempFavoriteStatusMessage: workoutFlowManager.setTempFavoriteStatusMessage, // NEW
+    userGyms: workoutFlowManager.userGyms, // NEW: Pass from workoutFlowManager
+    exerciseGymsMap: workoutFlowManager.exerciseGymsMap, // NEW: Pass from workoutFlowManager
+    availableMuscleGroups: workoutFlowManager.availableMuscleGroups, // NEW: Pass from workoutFlowManager
+    setExerciseGymsMap: workoutFlowManager.setExerciseGymsMap, // NEW: Pass setter
   });
 
   // AI-related states
@@ -288,7 +292,7 @@ export default function ManageExercisesPage() {
                           onAddSuccess={refreshExercises}
                           onOptimisticAdd={handleOptimisticAdd}
                           onAddFailure={handleAddFailure}
-                          totalCount={totalUserExercisesCount} // NEW
+                          totalCount={totalUserExercisesCount}
                         />
                       </div>
                     </TabsContent>
@@ -308,7 +312,7 @@ export default function ManageExercisesPage() {
                           onAddSuccess={refreshExercises}
                           onOptimisticAdd={handleOptimisticAdd}
                           onAddFailure={handleAddFailure}
-                          totalCount={totalGlobalExercisesCount} // NEW
+                          totalCount={totalGlobalExercisesCount}
                         />
                       </div>
                     </TabsContent>

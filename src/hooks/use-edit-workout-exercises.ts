@@ -5,6 +5,8 @@ import { useSession } from "@/components/session-context-provider";
 import { Tables } from "@/types/supabase";
 import { toast } from "sonner";
 import { LocalExerciseDefinition } from '@/lib/db'; // Import LocalExerciseDefinition
+import { useWorkoutDataFetcher } from "./use-workout-data-fetcher"; // NEW: Import useWorkoutDataFetcher
+import { PostgrestResponse } from '@supabase/supabase-js'; // Import PostgrestResponse
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type Profile = Tables<'profiles'>;
@@ -25,17 +27,22 @@ interface UseEditWorkoutExercisesProps {
 
 export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseEditWorkoutExercisesProps) => {
   const { session, supabase } = useSession();
+  // NEW: Consume data from useWorkoutDataFetcher
+  const {
+    allAvailableExercises: fetchedAllAvailableExercises,
+    userGyms: fetchedUserGyms,
+    exerciseGymsMap: fetchedExerciseGymsMap,
+    availableMuscleGroups: fetchedAvailableMuscleGroups,
+    refreshAllData, // To trigger a full refresh if needed
+  } = useWorkoutDataFetcher();
+
 
   const [exercises, setExercises] = useState<WorkoutExerciseWithDetails[]>([]);
-  const [allAvailableExercises, setAllAvailableExercises] = useState<ExerciseDefinition[]>([]);
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [addExerciseFilter, setAddExerciseFilter] = useState<'my-exercises' | 'global-library'>('my-exercises');
-  const [mainMuscleGroups, setMainMuscleGroups] = useState<string[]>([]);
   const [selectedMuscleFilter, setSelectedMuscleFilter] = useState<string>('all');
-  const [userGyms, setUserGyms] = useState<Tables<'gyms'>[]>([]);
-  const [exerciseToGymIdsMap, setExerciseToGymIdsMap] = useState<Record<string, string[]>>({});
   const [selectedGymFilter, setSelectedGymFilter] = useState<string>('all');
 
   const [showConfirmRemoveDialog, setShowConfirmRemoveDialog] = useState(false);
@@ -50,39 +57,16 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     if (!session || !workoutId) return;
     setLoading(true);
     try {
-      // Fetch all necessary data in parallel
-      const [tpeRes, allExRes, gymsRes] = await Promise.all([
-        supabase.from('t_path_exercises').select('id, exercise_id, order_index, is_bonus_exercise').eq('template_id', workoutId).order('order_index', { ascending: true }),
-        supabase.from('exercise_definitions').select('*').or(`user_id.eq.${session.user.id},user_id.is.null`).order('name', { ascending: true }),
-        supabase.from('gyms').select('*').eq('user_id', session.user.id),
-      ]);
-
+      // Fetch only t_path_exercises for this specific workout
+      const tpeRes: PostgrestResponse<Tables<'t_path_exercises'>[]> = await supabase.from('t_path_exercises').select('id, exercise_id, order_index, is_bonus_exercise').eq('template_id', workoutId).order('order_index', { ascending: true });
       if (tpeRes.error) throw tpeRes.error;
-      if (allExRes.error) throw allExRes.error;
-      if (gymsRes.error) throw gymsRes.error;
 
       const tPathExercisesLinks = tpeRes.data || [];
-      const allExercisesData = allExRes.data || [];
-      const gymsData = gymsRes.data || [];
-      setUserGyms(gymsData);
-
-      const gymIds = gymsData.map(g => g.id);
-      const { data: gymExercisesData, error: gymExError } = await supabase.from('gym_exercises').select('exercise_id, gym_id').in('gym_id', gymIds);
-      if (gymExError) throw gymExError;
-
-      const newExerciseToGymIdsMap: Record<string, string[]> = {};
-      (gymExercisesData || []).forEach(link => {
-        if (!newExerciseToGymIdsMap[link.exercise_id]) {
-          newExerciseToGymIdsMap[link.exercise_id] = [];
-        }
-        newExerciseToGymIdsMap[link.exercise_id].push(link.gym_id);
-      });
-      setExerciseToGymIdsMap(newExerciseToGymIdsMap);
-
-      const exerciseDefMap = new Map<string, ExerciseDefinition>();
-      allExercisesData.forEach(def => exerciseDefMap.set(def.id, def as ExerciseDefinition));
       
-      const fetchedExercises = tPathExercisesLinks.map(link => {
+      const exerciseDefMap = new Map<string, ExerciseDefinition>();
+      fetchedAllAvailableExercises.forEach(def => exerciseDefMap.set(def.id as string, def as ExerciseDefinition));
+      
+      const fetchedExercises = tPathExercisesLinks.map((link: Tables<'t_path_exercises'>) => { // Explicitly type link
         const exerciseDef = exerciseDefMap.get(link.exercise_id);
         if (!exerciseDef) return null;
         return {
@@ -96,8 +80,6 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       }).filter(Boolean) as WorkoutExerciseWithDetails[];
 
       setExercises(fetchedExercises);
-      setAllAvailableExercises(allExercisesData as ExerciseDefinition[]);
-      setMainMuscleGroups(Array.from(new Set(allExercisesData.map(ex => ex.main_muscle))).sort());
 
     } catch (err: any) {
       console.error("Failed to load workout exercises:", JSON.stringify(err, null, 2));
@@ -105,7 +87,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     } finally {
       setLoading(false);
     }
-  }, [session, supabase, workoutId]);
+  }, [session, supabase, workoutId, fetchedAllAvailableExercises]); // Depend on fetchedAllAvailableExercises
 
   useEffect(() => {
     if (open) {
@@ -115,7 +97,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
 
   const filteredExercisesForDropdown = useMemo(() => {
     if (!session) return [];
-    return allAvailableExercises
+    return fetchedAllAvailableExercises
       .filter(ex => { // Source filter
         if (addExerciseFilter === 'my-exercises') return ex.user_id === session.user.id;
         if (addExerciseFilter === 'global-library') return ex.user_id === null;
@@ -126,11 +108,11 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       })
       .filter(ex => { // Gym filter
         if (selectedGymFilter === 'all') return true;
-        const exerciseGyms = exerciseToGymIdsMap[ex.id] || [];
-        return exerciseGyms.includes(selectedGymFilter);
+        const exerciseGyms = fetchedExerciseGymsMap[ex.id as string] || []; // Use fetchedExerciseGymsMap
+        return exerciseGyms.includes(fetchedUserGyms.find(g => g.id === selectedGymFilter)?.name || ''); // Use fetchedUserGyms
       })
       .filter(ex => !exercises.some(existingEx => existingEx.id === ex.id)); // Exclude already added
-  }, [allAvailableExercises, addExerciseFilter, selectedMuscleFilter, selectedGymFilter, exercises, exerciseToGymIdsMap, session]);
+  }, [fetchedAllAvailableExercises, addExerciseFilter, selectedMuscleFilter, selectedGymFilter, exercises, fetchedExerciseGymsMap, fetchedUserGyms, session]);
 
   const handleDragEnd = useCallback((event: any) => {
     const { active, over } = event;
@@ -156,7 +138,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     setShowAddAsBonusDialog(false);
 
     try {
-      const finalExerciseId = exerciseToAddDetails.id;
+      const finalExerciseId = exerciseToAddDetails.id!; // Non-null assertion
       const newOrderIndex = exercises.length > 0 ? Math.max(...exercises.map(e => e.order_index)) + 1 : 0;
       const tempTPathExerciseId = `temp-${Date.now()}`;
       const newExerciseWithDetails: WorkoutExerciseWithDetails = {
@@ -194,6 +176,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       toast.success(`'${exerciseToAddDetails.name}' added to workout as ${isBonus ? 'Bonus' : 'Core'}!`); // Changed to toast.success
       setSelectedExerciseToAdd("");
       setExerciseToAddDetails(null);
+      refreshAllData(); // Refresh all data after adding an exercise
     } catch (err: any) {
       console.error("Error adding exercise:", JSON.stringify(err, null, 2));
       let errorMessage = "An unexpected error occurred.";
@@ -208,21 +191,21 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     } finally {
       setIsSaving(false);
     }
-  }, [session, supabase, workoutId, exercises, exerciseToAddDetails]);
+  }, [session, supabase, workoutId, exercises, exerciseToAddDetails, refreshAllData]);
 
   const handleSelectAndPromptBonus = useCallback(() => {
     if (!selectedExerciseToAdd) {
-      toast.error("Please select an exercise to add."); // Changed to toast.error
+      toast.error("Please select an exercise to add."); // Added toast.error
       return;
     }
-    const exercise = allAvailableExercises.find(e => e.id === selectedExerciseToAdd);
+    const exercise = fetchedAllAvailableExercises.find(e => e.id === selectedExerciseToAdd);
     if (exercise) {
       setExerciseToAddDetails(exercise);
       setShowAddAsBonusDialog(true);
     } else {
       toast.error("Selected exercise not found in available exercises."); // Added toast.error
     }
-  }, [selectedExerciseToAdd, allAvailableExercises]);
+  }, [selectedExerciseToAdd, fetchedAllAvailableExercises]);
 
   const handleRemoveExerciseClick = useCallback((exerciseId: string, tPathExerciseId: string, name: string) => {
     setExerciseToRemove({ exerciseId, tPathExerciseId, name });
@@ -251,6 +234,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         throw error;
       }
       toast.success("Exercise removed from workout!"); // Changed to toast.success
+      refreshAllData(); // Refresh all data after removing an exercise
     } catch (err: any) {
       console.error("Failed to remove exercise:", JSON.stringify(err, null, 2));
       toast.error("Failed to remove exercise."); // Changed to toast.error
@@ -258,7 +242,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       setIsSaving(false);
       setExerciseToRemove(null);
     }
-  }, [exercises, exerciseToRemove, supabase]);
+  }, [exercises, exerciseToRemove, supabase, refreshAllData]);
 
   const handleToggleBonusStatus = useCallback(async (exercise: WorkoutExerciseWithDetails) => {
     if (!session) {
@@ -280,6 +264,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
 
       if (error) throw error;
       toast.success(`'${exercise.name}' is now a ${newBonusStatus ? 'Bonus' : 'Core'} exercise!`); // Changed to toast.success
+      refreshAllData(); // Refresh all data after toggling bonus status
     } catch (err: any) {
       console.error("Error toggling bonus status:", JSON.stringify(err, null, 2));
       toast.error("Failed to toggle bonus status."); // Changed to toast.error
@@ -289,7 +274,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     } finally {
       setIsSaving(false);
     }
-  }, [session, supabase]);
+  }, [session, supabase, refreshAllData]);
 
   const handleResetToDefaults = useCallback(async () => {
     if (!session) {
@@ -330,13 +315,14 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       toast.success("Workout exercises reset to defaults!"); // Changed to toast.success
       onSaveSuccess();
       fetchWorkoutData();
+      refreshAllData(); // Refresh all data after resetting to defaults
     } catch (err: any) {
       console.error("Error resetting exercises:", err);
       toast.error("Failed to reset exercises."); // Changed to toast.error
     } finally {
       setIsSaving(false);
     }
-  }, [session, supabase, workoutId, onSaveSuccess, fetchWorkoutData]);
+  }, [session, supabase, workoutId, onSaveSuccess, fetchWorkoutData, refreshAllData]);
 
   const handleSaveOrder = useCallback(async () => {
     setIsSaving(true);
@@ -352,17 +338,18 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       if (error) throw error;
       toast.success("Workout order saved successfully!"); // Changed to toast.success
       onSaveSuccess();
+      refreshAllData(); // Refresh all data after saving order
     } catch (err: any) {
       console.error("Error saving order:", JSON.stringify(err, null, 2));
       toast.error("Failed to save workout order."); // Changed to toast.error
     } finally {
       setIsSaving(false);
     }
-  }, [exercises, supabase, onSaveSuccess]);
+  }, [exercises, supabase, onSaveSuccess, refreshAllData]);
 
   return {
     exercises,
-    allAvailableExercises,
+    allAvailableExercises: fetchedAllAvailableExercises, // Use the fetched data
     filteredExercisesForDropdown,
     selectedExerciseToAdd,
     setSelectedExerciseToAdd,
@@ -370,10 +357,10 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     isSaving,
     addExerciseFilter,
     setAddExerciseFilter,
-    mainMuscleGroups,
+    mainMuscleGroups: fetchedAvailableMuscleGroups, // Use the fetched data
     selectedMuscleFilter,
     setSelectedMuscleFilter,
-    userGyms,
+    userGyms: fetchedUserGyms, // Use the fetched data
     selectedGymFilter,
     setSelectedGymFilter,
     showConfirmRemoveDialog,

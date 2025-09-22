@@ -24,6 +24,7 @@ import { arrayMove } from '@dnd-kit/sortable';
 import { SortableGymExerciseList } from './gym-exercise-manager/sortable-gym-exercise-list';
 import { SortableGymExerciseItem } from './gym-exercise-manager/sortable-gym-exercise-item';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher'; // NEW: Import useWorkoutDataFetcher
 
 
 type Gym = Tables<'gyms'>;
@@ -39,7 +40,7 @@ export interface WorkoutExerciseWithDetails extends ExerciseDefinition {
   t_path_exercise_id: string;
 }
 
-type GymExerciseLink = { exercise_id: string; gym_id: string; };
+type GymExerciseLink = { id: string; exercise_id: string; gym_id: string; created_at: string; }; // Updated to match DB
 type TPathExerciseLink = { id: string; exercise_id: string; order_index: number; is_bonus_exercise: boolean | null; };
 
 
@@ -53,17 +54,23 @@ interface ManageGymWorkoutsExercisesDialogProps {
 
 export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSaveSuccess, profile }: ManageGymWorkoutsExercisesDialogProps) => {
   const { session, supabase } = useSession();
+  // NEW: Consume data from useWorkoutDataFetcher
+  const {
+    allAvailableExercises: fetchedAllAvailableExercises,
+    groupedTPaths,
+    availableMuscleGroups: fetchedAvailableMuscleGroups,
+    refreshAllData,
+  } = useWorkoutDataFetcher();
+
   const [mainTPath, setMainTPath] = useState<TPath | null>(null);
   const [childWorkouts, setChildWorkouts] = useState<TPath[]>([]);
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
   const [coreExercises, setCoreExercises] = useState<WorkoutExerciseWithDetails[]>([]);
   const [bonusExercises, setBonusExercises] = useState<WorkoutExerciseWithDetails[]>([]);
-  const [allExercises, setAllExercises] = useState<ExerciseDefinition[]>([]);
   const [exerciseIdsInGym, setExerciseIdsInGym] = useState<Set<string>>(new Set());
   
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [muscleGroups, setMuscleGroups] = useState<string[]>([]);
   const [addExerciseSourceFilter, setAddExerciseSourceFilter] = useState<'my-exercises' | 'global-library'>('my-exercises');
 
   const [showAddExercisesDialog, setShowAddExercisesDialog] = useState(false);
@@ -86,30 +93,12 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
     }
     setLoading(true);
     try {
-      const activeTPathId = profile.active_t_path_id;
-
-      let mainTPathData: TPath | null = null;
-      if (activeTPathId) {
-        const { data, error } = await supabase
-          .from('t_paths')
-          .select('*')
-          .eq('id', activeTPathId)
-          .eq('gym_id', gym.id)
-          .eq('user_id', session.user.id)
-          .is('parent_t_path_id', null)
-          .single();
-
-        if (error && error.code !== 'PGRST116') {
-          throw error;
-        }
-        mainTPathData = data;
-      }
-      
+      // Find the main T-Path for the current gym
+      const mainTPathData = groupedTPaths.find(group => group.mainTPath.gym_id === gym.id)?.mainTPath || null;
       setMainTPath(mainTPathData);
 
       if (!mainTPathData) {
         setChildWorkouts([]);
-        setAllExercises([]);
         setCoreExercises([]);
         setBonusExercises([]);
         setExerciseIdsInGym(new Set());
@@ -125,14 +114,6 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
         .order('template_name', { ascending: true });
       if (childWorkoutsError) throw childWorkoutsError;
       setChildWorkouts(childWorkoutsData || []);
-
-      const { data: allExRes, error: allExError } = await supabase
-        .from('exercise_definitions')
-        .select('*')
-        .or(`user_id.eq.${session.user.id},user_id.is.null`);
-      if (allExError) throw allExError;
-      setAllExercises(allExRes || []);
-      setMuscleGroups(Array.from(new Set((allExRes || []).map(ex => ex.main_muscle))).sort());
 
       const { data: gymExRes, error: gymExError } = await supabase
         .from('gym_exercises')
@@ -153,14 +134,14 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
         if (tpeError) throw tpeError;
 
         const exerciseDefMap = new Map<string, ExerciseDefinition>();
-        (allExRes || []).forEach(def => exerciseDefMap.set(def.id, def as ExerciseDefinition));
+        fetchedAllAvailableExercises.forEach(def => exerciseDefMap.set(def.id as string, def as ExerciseDefinition));
 
         const fetchedExercises = (tpeRes || []).map((link: TPathExerciseLink) => {
           const exerciseDef = exerciseDefMap.get(link.exercise_id);
           if (!exerciseDef) return null;
           return {
             ...exerciseDef,
-            id: exerciseDef.id,
+            id: exerciseDef.id, // Non-null assertion
             name: exerciseDef.name,
             order_index: link.order_index,
             is_bonus_exercise: link.is_bonus_exercise || false,
@@ -182,7 +163,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
     } finally {
       setLoading(false);
     }
-  }, [session, supabase, gym, profile, selectedWorkoutId]);
+  }, [session, supabase, gym, profile, selectedWorkoutId, groupedTPaths, fetchedAllAvailableExercises]); // Depend on groupedTPaths and fetchedAllAvailableExercises
 
   const refreshDialogData = useCallback(() => {
     fetchData();
@@ -199,9 +180,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       setSelectedWorkoutId(null);
       setCoreExercises([]);
       setBonusExercises([]);
-      setAllExercises([]);
       setExerciseIdsInGym(new Set());
-      setMuscleGroups([]);
       setAddExerciseSourceFilter('my-exercises');
       setHasUnsavedChanges(false); // Reset on close
     }
@@ -219,7 +198,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       let currentMaxOrderIndex = [...coreExercises, ...bonusExercises].length > 0 ? Math.max(...[...coreExercises, ...bonusExercises].map(e => e.order_index)) : -1;
 
       for (const exerciseId of exerciseIds) {
-        const exerciseDef = allExercises.find(ex => ex.id === exerciseId);
+        const exerciseDef = fetchedAllAvailableExercises.find(ex => ex.id === exerciseId);
         if (!exerciseDef) {
           console.warn(`Exercise definition not found for ID: ${exerciseId}, skipping.`);
           continue;
@@ -232,7 +211,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
         currentMaxOrderIndex++;
         optimisticUpdates.push({
           ...exerciseDef,
-          id: exerciseDef.id,
+          id: exerciseDef.id, // Non-null assertion
           name: exerciseDef.name,
           order_index: currentMaxOrderIndex,
           is_bonus_exercise: false,
@@ -272,6 +251,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
 
       toast.success(`Added ${exerciseIds.length} exercise(s) to workout!`);
       onSaveSuccess();
+      refreshAllData(); // Refresh all data after adding exercises
     } catch (err: any) {
       toast.error("Failed to add exercises to workout.");
       console.error("Error adding exercises to workout:", err);
@@ -280,7 +260,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
     } finally {
       setIsSaving(false);
     }
-  }, [session, supabase, gym, selectedWorkoutId, coreExercises, bonusExercises, allExercises, exerciseIdsInGym, onSaveSuccess]);
+  }, [session, supabase, gym, selectedWorkoutId, coreExercises, bonusExercises, fetchedAllAvailableExercises, exerciseIdsInGym, onSaveSuccess, refreshAllData]);
 
 
   const handleRemoveExerciseClick = useCallback((exerciseId: string) => {
@@ -319,6 +299,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
 
       toast.success(`'${exerciseToRemove.name}' removed from workout.`);
       onSaveSuccess();
+      refreshAllData(); // Refresh all data after removing an exercise
     } catch (err: any) {
       toast.error("Failed to remove exercise from workout.");
       console.error("Error removing exercise from workout:", err);
@@ -326,7 +307,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       setIsSaving(false);
       setExerciseToRemove(null);
     }
-  }, [session, supabase, selectedWorkoutId, coreExercises, bonusExercises, exerciseToRemove, onSaveSuccess]);
+  }, [session, supabase, selectedWorkoutId, coreExercises, bonusExercises, exerciseToRemove, onSaveSuccess, refreshAllData]);
 
   const handleWorkoutSelectChange = useCallback((newWorkoutId: string) => {
     setSelectedWorkoutId(newWorkoutId);
@@ -405,13 +386,14 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       toast.success("Exercise order and status updated!");
       setHasUnsavedChanges(false);
       onSaveSuccess();
+      refreshAllData(); // Refresh all data after saving changes
     } catch (err: any) {
       toast.error("Failed to save exercise order/status.");
       console.error("Error saving exercise order/status:", err);
     } finally {
       setIsSaving(false);
     }
-  }, [session, supabase, selectedWorkoutId, coreExercises, bonusExercises, hasUnsavedChanges, onSaveSuccess]);
+  }, [session, supabase, selectedWorkoutId, coreExercises, bonusExercises, hasUnsavedChanges, onSaveSuccess, refreshAllData]);
 
   const handleCloseDialog = useCallback(() => {
     if (hasUnsavedChanges) {
@@ -518,9 +500,9 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       <AddExercisesToWorkoutDialog
         open={showAddExercisesDialog}
         onOpenChange={setShowAddExercisesDialog}
-        allExercises={allExercises}
+        allExercises={fetchedAllAvailableExercises as ExerciseDefinition[]} // Cast with non-null assertion
         exercisesInWorkout={[...coreExercises, ...bonusExercises].map(ex => ex.id)}
-        muscleGroups={muscleGroups}
+        muscleGroups={fetchedAvailableMuscleGroups} // Use fetchedAvailableMuscleGroups
         onAddExercises={handleAddExercisesToWorkout}
         addExerciseSourceFilter={addExerciseSourceFilter}
         setAddExerciseSourceFilter={setAddExerciseSourceFilter}

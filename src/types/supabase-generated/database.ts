@@ -132,8 +132,8 @@ export type Database = {
           library_id: string | null;
           is_favorite: boolean | null;
           icon_url: string | null;
-          movement_type: string | null; // ADDED
-          movement_pattern: string | null; // ADDED
+          movement_type: string | null;
+          movement_pattern: string | null;
         };
         Insert: {
           category?: string | null;
@@ -149,8 +149,8 @@ export type Database = {
           library_id?: string | null;
           is_favorite?: boolean | null;
           icon_url?: string | null;
-          movement_type?: string | null; // ADDED
-          movement_pattern?: string | null; // ADDED
+          movement_type?: string | null;
+          movement_pattern?: string | null;
         };
         Update: {
           category?: string | null;
@@ -166,8 +166,8 @@ export type Database = {
           library_id?: string | null;
           is_favorite?: boolean | null;
           icon_url?: string | null;
-          movement_type?: string | null; // ADDED
-          movement_pattern?: string | null; // ADDED
+          movement_type?: string | null;
+          movement_pattern?: string | null;
         };
         Relationships: [
           {
@@ -184,16 +184,19 @@ export type Database = {
           created_at: string;
           exercise_id: string;
           gym_id: string;
+          id: string; // ADDED
         };
         Insert: {
           created_at?: string;
           exercise_id: string;
           gym_id: string;
+          id?: string; // ADDED
         };
         Update: {
           created_at?: string;
           exercise_id?: string;
           gym_id?: string;
+          id?: string; // ADDED
         };
         Relationships: [
           {

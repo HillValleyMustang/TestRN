@@ -41,10 +41,10 @@ export const EditWorkoutExercisesDialog = ({
     isSaving,
     addExerciseFilter,
     setAddExerciseFilter,
-    mainMuscleGroups,
+    mainMuscleGroups, // NEW: Now comes from useEditWorkoutExercises
     selectedMuscleFilter,
     setSelectedMuscleFilter,
-    userGyms,
+    userGyms, // NEW: Now comes from useEditWorkoutExercises
     selectedGymFilter,
     setSelectedGymFilter,
     showConfirmRemoveDialog,
@@ -89,7 +89,7 @@ export const EditWorkoutExercisesDialog = ({
           ) : (
             <div className="space-y-6 w-full">
               <AddExerciseSection
-                allAvailableExercises={filteredExercisesForDropdown}
+                allAvailableExercises={filteredExercisesForDropdown as ExerciseDefinition[]} // Cast with non-null assertion
                 exercisesInWorkout={exercises}
                 selectedExerciseToAdd={selectedExerciseToAdd}
                 setSelectedExerciseToAdd={setSelectedExerciseToAdd}
