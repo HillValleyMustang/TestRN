@@ -306,41 +306,42 @@ export default function ProfilePage() {
     const sessionLengthChanged = oldSessionLength !== newSessionLength;
     console.log(`[ProfilePage] Session length changed: ${sessionLengthChanged} (Old: ${oldSessionLength}, New: ${newSessionLength})`);
 
-    // Proceed with update if form is dirty OR if session length has explicitly changed
-    if (!form.formState.isDirty && !sessionLengthChanged) {
-      console.log("[ProfilePage] Form is not dirty and session length has not changed, exiting edit mode.");
-      setIsEditing(false); // Just exit edit mode
-      return;
-    }
-
+    // Always set saving state when onSubmit is called
     setIsSaving(true);
 
-    const nameParts = values.full_name.split(' ');
-    const firstName = nameParts.shift() || '';
-    const lastName = nameParts.join(' ');
+    // Only update profile in DB if form is dirty
+    if (form.formState.isDirty) {
+      const nameParts = values.full_name.split(' ');
+      const firstName = nameParts.shift() || '';
+      const lastName = nameParts.join(' ');
 
-    const updateData: ProfileUpdate = {
-      ...values,
-      first_name: firstName,
-      last_name: lastName,
-      preferred_muscles: values.preferred_muscles?.join(', ') || null,
-      updated_at: new Date().toISOString()
-    };
-    
-    console.log("[ProfilePage] Attempting to update profile with data:", updateData);
-    const { error } = await supabase.from('profiles').update(updateData).eq('id', session.user.id);
-    if (error) {
-      console.error("[ProfilePage] Failed to update profile:", error);
-      toast.error("Failed to update profile.");
-      setIsSaving(false);
-      return;
+      const updateData: ProfileUpdate = {
+        ...values,
+        first_name: firstName,
+        last_name: lastName,
+        preferred_muscles: values.preferred_muscles?.join(', ') || null,
+        updated_at: new Date().toISOString()
+      };
+      
+      console.log("[ProfilePage] Attempting to update profile with data:", updateData);
+      const { error } = await supabase.from('profiles').update(updateData).eq('id', session.user.id);
+      if (error) {
+        console.error("[ProfilePage] Failed to update profile:", error);
+        toast.error("Failed to update profile.");
+        setIsSaving(false);
+        return;
+      }
+      toast.success("Profile updated successfully!");
+      lastSavedSessionLengthRef.current = newSessionLength ?? null; // Update ref only on successful DB write
+    } else {
+      console.log("[ProfilePage] Form is not dirty, skipping profile DB update.");
+      toast.info("No profile changes to save.");
     }
 
-    toast.success("Profile updated successfully!");
-    lastSavedSessionLengthRef.current = newSessionLength ?? null;
-
-    if (sessionLengthChanged && profile.active_t_path_id) {
-      console.log(`[ProfilePage] Session length changed and active T-Path exists (${profile.active_t_path_id}). Initiating workout plan update.`);
+    // Always trigger plan regeneration if currently in editing mode AND an active T-Path exists.
+    // The backend function is idempotent and will only regenerate if necessary.
+    if (isEditing && profile.active_t_path_id) {
+      console.log(`[ProfilePage] Initiating workout plan update because in editing mode and active T-Path exists. Active T-Path: ${profile.active_t_path_id}.`);
       try {
         const response = await fetch(`/api/generate-t-path`, {
           method: 'POST',
@@ -364,8 +365,13 @@ export default function ProfilePage() {
         console.error("[ProfilePage] Error initiating workout plan update:", err);
         toast.error("Error initiating workout plan update.");
       }
+    } else if (!profile.active_t_path_id) {
+      console.log("[ProfilePage] No active T-Path, skipping workout plan regeneration.");
+    } else {
+      console.log("[ProfilePage] Not in editing mode or no active T-Path, skipping workout plan regeneration.");
     }
-    console.log("[ProfilePage] Refreshing profile data after save.");
+
+    console.log("[ProfilePage] Refreshing profile data after save/regeneration trigger.");
     await refreshProfileData();
     setIsEditing(false);
     setIsSaving(false);
