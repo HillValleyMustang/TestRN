@@ -25,7 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'; // Import ToggleGroup
 import { Label } from '@/components/ui/label'; // Import Label
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList, CommandInput } from '@/components/ui/command'; // Added CommandInput
 
 type TPath = Tables<'t_paths'>;
 // Removed local ExerciseDefinition type as it's now imported from @/types/supabase
@@ -187,12 +187,12 @@ export const WorkoutSelector = ({
         return ex.is_favorite || ex.is_favorited_by_current_user;
       })
       .filter(ex => {
-        // Text search (now handled by Command component, but we keep it for consistency)
-        return ex.name!.toLowerCase().includes(searchTerm.toLowerCase()); // Ensure search term is also lowercased
+        // Text search
+        return ex.name!.toLowerCase().includes(searchTerm.toLowerCase());
       })
-      .sort((a, b) => a.name!.localeCompare(b.name!)); // Sort alphabetically
+      .sort((a, b) => a.name!.localeCompare(b.name!));
   }, [
-    allAvailableExercises, adHocExerciseSourceFilter, searchTerm, // Added searchTerm here
+    allAvailableExercises, adHocExerciseSourceFilter, searchTerm,
     muscleFilter, gymFilter, showFavoritesOnly,
     exercisesForSession, session, exerciseGymsMap, userGyms
   ]);
