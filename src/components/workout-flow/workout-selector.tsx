@@ -4,7 +4,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Dumbbell, Settings, Sparkles } from 'lucide-react';
-import { Tables, WorkoutWithLastCompleted, GroupedTPath, SetLogState, WorkoutExercise, FetchedExerciseDefinition, Profile } from '@/types/supabase';
+import { Tables, WorkoutWithLastCompleted, GroupedTPath, SetLogState, WorkoutExercise, FetchedExerciseDefinition, Profile, ExerciseDefinition } from '@/types/supabase';
 import { cn, formatTimeAgo, getPillStyles } from '@/lib/utils';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { WorkoutBadge } from '../workout-badge';
@@ -23,7 +23,7 @@ import { UnconfiguredGymPrompt } from '@/components/prompts/unconfigured-gym-pro
 import { useGym } from '@/components/gym-context-provider';
 
 type TPath = Tables<'t_paths'>;
-type ExerciseDefinition = Tables<'exercise_definitions'>;
+// Removed local ExerciseDefinition type as it's now imported from @/types/supabase
 
 interface WorkoutSelectorProps {
   activeWorkout: TPath | null;
@@ -159,7 +159,7 @@ export const WorkoutSelector = ({
 
   const handleAddExercise = () => {
     if (!selectedExerciseToAdd) {
-      toast.error("Please select an exercise to add."); // Added toast.error
+      toast.error("Please select an exercise to add.");
       return;
     }
     const exercise = allAvailableExercises.find((ex: FetchedExerciseDefinition) => ex.id === selectedExerciseToAdd);
@@ -167,7 +167,7 @@ export const WorkoutSelector = ({
       addExerciseToSession(exercise as ExerciseDefinition); 
       setSelectedExerciseToAdd("");
     } else {
-      toast.error("Selected exercise not found."); // Added toast.error
+      toast.error("Selected exercise not found.");
     }
   };
 
@@ -182,7 +182,7 @@ export const WorkoutSelector = ({
 
   const handleSaveAiExerciseToMyExercises = useCallback(async (exercise: Partial<FetchedExerciseDefinition>) => {
     if (!session) {
-      toast.error("You must be logged in to save exercises."); // Changed to toast.error
+      toast.error("You must be logged in to save exercises.");
       return;
     }
     setIsAiSaving(true);
@@ -201,11 +201,13 @@ export const WorkoutSelector = ({
         library_id: null,
         is_favorite: false,
         created_at: new Date().toISOString(),
+        movement_type: exercise.movement_type, // Include movement_type
+        movement_pattern: exercise.movement_pattern, // Include movement_pattern
       }]).select('*').single();
 
       if (insertError) {
         if (insertError.code === '23505') {
-          toast.error(`You already have a custom exercise named "${exercise.name}".`); // Changed to toast.error
+          toast.error(`You already have a custom exercise named "${exercise.name}".`);
         } else {
           throw insertError;
         }
@@ -216,7 +218,7 @@ export const WorkoutSelector = ({
 
       if (finalExerciseToAdd) {
         await addExerciseToSession(finalExerciseToAdd);
-        toast.success(`'${finalExerciseToAdd.name}' added to current workout!`); // Changed to toast.success
+        toast.success(`'${finalExerciseToAdd.name}' added to current workout!`);
       } else {
         throw new Error("Could not find the exercise to add to workout.");
       }
@@ -227,7 +229,7 @@ export const WorkoutSelector = ({
 
     } catch (err: any) {
       console.error("Failed to save AI identified exercise and add to workout:", err);
-      toast.error("Failed to save exercise."); // Changed to toast.error
+      toast.error("Failed to save exercise.");
     } finally {
       setIsAiSaving(false);
     }
@@ -235,7 +237,7 @@ export const WorkoutSelector = ({
 
   const handleAddAiExerciseToWorkoutOnly = useCallback(async (exercise: Partial<FetchedExerciseDefinition>) => {
     if (!session) {
-      toast.error("You must be logged in to add exercises."); // Changed to toast.error
+      toast.error("You must be logged in to add exercises.");
       return;
     }
     setIsAiSaving(true);
@@ -263,11 +265,13 @@ export const WorkoutSelector = ({
           library_id: null,
           is_favorite: false,
           created_at: new Date().toISOString(),
+          movement_type: exercise.movement_type, // Include movement_type
+          movement_pattern: exercise.movement_pattern, // Include movement_pattern
         }]).select('*').single();
 
         if (insertError) {
           if (insertError.code === '23505') {
-            toast.error(`You already have a custom exercise named "${exercise.name}".`); // Changed to toast.error
+            toast.error(`You already have a custom exercise named "${exercise.name}".`);
             const existingUserExercise = allAvailableExercises.find(ex => ex.name?.trim().toLowerCase() === exercise.name?.trim().toLowerCase() && ex.user_id === session.user.id);
             if (existingUserExercise) {
               finalExerciseToAdd = existingUserExercise as ExerciseDefinition;
@@ -284,7 +288,7 @@ export const WorkoutSelector = ({
 
       if (finalExerciseToAdd) {
         await addExerciseToSession(finalExerciseToAdd);
-        toast.success(`'${finalExerciseToAdd.name}' added to current workout!`); // Changed to toast.success
+        toast.success(`'${finalExerciseToAdd.name}' added to current workout!`);
       } else {
         throw new Error("Could not find or create the exercise to add to workout.");
       }
@@ -295,7 +299,7 @@ export const WorkoutSelector = ({
 
     } catch (err: any) {
       console.error("Failed to add AI identified exercise to workout only:", err);
-      toast.error("Failed to add exercise."); // Changed to toast.error
+      toast.error("Failed to add exercise.");
     } finally {
       setIsAiSaving(false);
     }

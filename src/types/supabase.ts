@@ -83,8 +83,9 @@ export type UserAlert = UserAlertsRow;
 export type AiCoachUsageLog = AiCoachUsageLogsRow;
 
 // Centralized FetchedExerciseDefinition for consistency across manage-exercises components
-export interface FetchedExerciseDefinition extends Omit<Tables<'exercise_definitions'>, 'id'> {
-  id: string | null; // Allow null for new exercises (e.g., when creating from global)
+// It now explicitly extends ExerciseDefinitionsRow to ensure movement_type and movement_pattern are present.
+export interface FetchedExerciseDefinition extends ExerciseDefinitionsRow {
+  id: string | null; // Override id to be nullable
   is_favorited_by_current_user?: boolean; // For global exercises favorited by user
   duplicate_status?: 'none' | 'global' | 'my-exercises'; // NEW: Add duplicate status
   existing_id?: string | null; // ID of the duplicate exercise if found
@@ -125,4 +126,7 @@ export interface WorkoutExerciseWithDetails extends ExerciseDefinitionsRow {
 }
 
 // Export the full ExerciseDefinitionsRow as ExerciseDefinition
-export type ExerciseDefinition = ExerciseDefinitionsRow;
+export type ExerciseDefinition = ExerciseDefinitionsRow & {
+  movement_type: string | null;
+  movement_pattern: string | null;
+};
