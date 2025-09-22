@@ -29,7 +29,7 @@ export const useActiveWorkoutSession = () => {
   const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [expandedExerciseCards, setExpandedExerciseCards] = useState<Record<string, boolean>>({});
-  const [isWorkoutSessionStarted, setIsWorkoutSessionStarted] = useState(false); // NEW STATE
+  const [isWorkoutSessionStarted, setIsWorkoutSessionStarted] = useState<boolean>(false); // NEW STATE
 
   const isWorkoutActive = useMemo(() => !!activeWorkout, [activeWorkout]);
   const hasUnsavedChanges = useMemo(() => {
@@ -247,65 +247,6 @@ export const useActiveWorkoutSession = () => {
     setExpandedExerciseCards(prev => ({ ...prev, [exerciseId]: !prev[exerciseId] }));
   }, [setExpandedExerciseCards]);
 
-  // The useEffect for reactivity
-  useEffect(() => {
-    const refreshActiveWorkoutExercises = async () => {
-      console.log("[ActiveWorkoutSession] Reactivity useEffect triggered.");
-      if (!activeWorkout || activeWorkout.id === 'ad-hoc') {
-        console.log("[ActiveWorkoutSession] No active workout or it's ad-hoc, skipping reactivity update.");
-        return;
-      }
-
-      const newExercisesFromCache = workoutExercisesCache[activeWorkout.id];
-      console.log(`[ActiveWorkoutSession] Active workout ID: ${activeWorkout.id}, Name: ${activeWorkout.template_name}`);
-      console.log("[ActiveWorkoutSession] New exercises from cache (raw):", newExercisesFromCache?.map(e => e.name));
-
-      if (!newExercisesFromCache) {
-        console.log("[ActiveWorkoutSession] No new exercises found in cache for active workout, skipping update.");
-        return;
-      }
-
-      let filteredNewExercises = newExercisesFromCache;
-
-      if (activeGym) {
-        try {
-          const { data: gymLinks, error: gymLinksError } = await supabase.from('gym_exercises').select('exercise_id').eq('gym_id', activeGym.id);
-          if (gymLinksError) throw gymLinksError;
-          const { data: allLinks, error: allLinksError } = await supabase.from('gym_exercises').select('exercise_id');
-          if (allLinksError) throw allLinksError;
-
-          const availableIds = new Set((gymLinks || []).map(l => l.exercise_id));
-          const allLinkedIds = new Set((allLinks || []).map(l => l.exercise_id));
-          filteredNewExercises = newExercisesFromCache.filter(ex => !allLinkedIds.has(ex.id) || availableIds.has(ex.id));
-          console.log("[ActiveWorkoutSession] New exercises after gym filtering:", filteredNewExercises.map(e => e.name));
-        } catch (error) {
-          console.error("[ActiveWorkoutSession] Error filtering exercises by active gym in reactivity effect:", error);
-          toast.error("Failed to update workout exercises based on active gym.");
-          return;
-        }
-      }
-
-      const currentIds = exercisesForSession.map(e => e.id).sort().join(',');
-      const newIds = filteredNewExercises.map(e => e.id).sort().join(',');
-
-      console.log(`[ActiveWorkoutSession] Current exercise IDs in state: ${currentIds}`);
-      console.log(`[ActiveWorkoutSession] New exercise IDs from filtered cache: ${newIds}`);
-
-      if (currentIds !== newIds) {
-        console.log("[ActiveWorkoutSession] Detected change in exercise IDs. Updating session exercises.");
-        toast.info(`Your workout '${activeWorkout.template_name}' has been updated.`);
-        setExercisesForSession(filteredNewExercises);
-        const initialSets = Object.fromEntries(filteredNewExercises.map(ex => [ex.id, Array.from({ length: DEFAULT_INITIAL_SETS }, () => ({ id: null, created_at: null, session_id: currentSessionId, exercise_id: ex.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null }))]));
-        setExercisesWithSets(initialSets);
-        setCompletedExercises(new Set());
-        setExpandedExerciseCards(Object.fromEntries(filteredNewExercises.map(ex => [ex.id, false]))); // Changed to false for collapsed by default
-      } else {
-        console.log("[ActiveWorkoutSession] No change in exercise IDs. Skipping update.");
-      }
-    };
-    refreshActiveWorkoutExercises();
-  }, [activeWorkout, workoutExercisesCache, activeGym, supabase, currentSessionId]); // Removed exercisesForSession from dependencies
-
   return {
     activeWorkout,
     exercisesForSession,
@@ -328,6 +269,10 @@ export const useActiveWorkoutSession = () => {
     substituteExercise,
     toggleExerciseCardExpansion,
     updateSessionStartTime: (timestamp: string) => setSessionStartTime(new Date(timestamp)),
-    isWorkoutSessionStarted, // EXPOSE NEW STATE
+    isWorkoutSessionStarted,
+    setExercisesForSession,
+    setExercisesWithSets,
+    setCompletedExercises,
+    setExpandedExerciseCards,
   };
 };

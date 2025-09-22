@@ -13,14 +13,14 @@ type TPath = Tables<'t_paths'>;
 interface UseManageExercisesDataProps {
   sessionUserId: string | null;
   supabase: SupabaseClient;
-  setTempFavoriteStatusMessage: (message: { message: string; type: 'added' | 'removed' } | null) => void;
+  setTempActionStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'info'; icon?: 'heart' | 'check' } | null) => void;
   userGyms: Tables<'gyms'>[];
   exerciseGymsMap: Record<string, string[]>;
   availableMuscleGroups: string[];
   exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>;
 }
 
-export const useManageExercisesData = ({ sessionUserId, supabase, setTempFavoriteStatusMessage, userGyms, exerciseGymsMap, availableMuscleGroups, exerciseWorkoutsMap }: UseManageExercisesDataProps) => {
+export const useManageExercisesData = ({ sessionUserId, supabase, setTempActionStatusMessage, userGyms, exerciseGymsMap, availableMuscleGroups, exerciseWorkoutsMap }: UseManageExercisesDataProps) => {
   const [globalExercises, setGlobalExercises] = useState<FetchedExerciseDefinition[]>([]);
   const [userExercises, setUserExercises] = useState<FetchedExerciseDefinition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -182,8 +182,8 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempFavorit
       setGlobalExercises(prev => prev.map(ex => ex.id === exercise.id ? updatedExercise : ex));
     }
 
-    setTempFavoriteStatusMessage({ message: newFavoriteStatus ? "Added" : "Removed", type: newFavoriteStatus ? 'added' : 'removed' });
-    setTimeout(() => setTempFavoriteStatusMessage(null), 3000);
+    setTempActionStatusMessage({ message: newFavoriteStatus ? "Added" : "Removed", type: newFavoriteStatus ? 'added' : 'removed', icon: 'heart' });
+    setTimeout(() => setTempActionStatusMessage(null), 3000);
 
     try {
       if (isUserOwned) {
@@ -207,7 +207,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempFavorit
         setGlobalExercises(prev => prev.map(ex => ex.id === exercise.id ? exercise : ex));
       }
     }
-  }, [sessionUserId, supabase, setTempFavoriteStatusMessage]);
+  }, [sessionUserId, supabase, setTempActionStatusMessage]);
 
   const handleOptimisticAdd = useCallback((exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => {
     refreshExercises(); // Refresh to get latest data

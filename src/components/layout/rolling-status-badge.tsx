@@ -61,10 +61,10 @@ const StatusInfoModal = () => (
 
 interface RollingStatusBadgeProps {
   isGeneratingPlan: boolean;
-  tempFavoriteStatusMessage: { message: string; type: 'added' | 'removed' } | null; // NEW
+  tempActionStatusMessage: { message: string; type: 'added' | 'removed' | 'info'; icon?: 'heart' | 'check' } | null;
 }
 
-export function RollingStatusBadge({ isGeneratingPlan, tempFavoriteStatusMessage }: RollingStatusBadgeProps) { // NEW PROP
+export function RollingStatusBadge({ isGeneratingPlan, tempActionStatusMessage }: RollingStatusBadgeProps) {
   const { session, supabase } = useSession();
   const { isOnline } = useSyncManager(); // Get isOnline status
   const [status, setStatus] = useState<string | null>(null);
@@ -108,17 +108,25 @@ export function RollingStatusBadge({ isGeneratingPlan, tempFavoriteStatusMessage
     }
   }, [session, supabase, isOnline]); // Added isOnline to dependencies
 
-  // NEW: Prioritize tempFavoriteStatusMessage
-  if (tempFavoriteStatusMessage) {
+  if (tempActionStatusMessage) {
+    let Icon = Heart;
+    let colorClass = tempActionStatusMessage.type === 'added' ? 'bg-green-500 text-white' : 'bg-red-500 text-white';
+    if (tempActionStatusMessage.type === 'info') {
+      colorClass = 'bg-blue-500 text-white';
+    }
+    if (tempActionStatusMessage.icon === 'check') {
+      Icon = CheckCircle;
+    }
+
     return (
       <Badge
         className={cn(
           "flex items-center gap-1 px-3 py-1 text-sm font-semibold transition-opacity duration-300",
-          tempFavoriteStatusMessage.type === 'added' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+          colorClass
         )}
       >
-        <Heart className="h-4 w-4" />
-        <span>{tempFavoriteStatusMessage.message}</span>
+        <Icon className="h-4 w-4" />
+        <span>{tempActionStatusMessage.message}</span>
       </Badge>
     );
   }
