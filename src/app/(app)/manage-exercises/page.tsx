@@ -60,6 +60,8 @@ export default function ManageExercisesPage() {
     handleRemoveFromWorkout,
     refreshExercises,
     refreshTPaths,
+    totalUserExercisesCount, // NEW
+    totalGlobalExercisesCount, // NEW
   } = useManageExercisesData({ sessionUserId: session?.user.id ?? null, supabase });
 
   // AI-related states
@@ -272,6 +274,7 @@ export default function ManageExercisesPage() {
                           onAddSuccess={refreshExercises}
                           onOptimisticAdd={handleOptimisticAdd}
                           onAddFailure={handleAddFailure}
+                          totalCount={totalUserExercisesCount} // NEW
                         />
                       </div>
                     </TabsContent>
@@ -291,6 +294,7 @@ export default function ManageExercisesPage() {
                           onAddSuccess={refreshExercises}
                           onOptimisticAdd={handleOptimisticAdd}
                           onAddFailure={handleAddFailure}
+                          totalCount={totalGlobalExercisesCount} // NEW
                         />
                       </div>
                     </TabsContent>

@@ -27,6 +27,10 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
   const [userGyms, setUserGyms] = useState<Tables<'gyms'>[]>([]);
   const [selectedGymFilter, setSelectedGymFilter] = useState<string>('all');
 
+  // NEW STATES for total counts
+  const [totalUserExercisesCount, setTotalUserExercisesCount] = useState(0);
+  const [totalGlobalExercisesCount, setTotalGlobalExercisesCount] = useState(0);
+
   // Define Supabase query functions for caching hook
   const fetchExercisesSupabase = useCallback(async (client: SupabaseClient) => {
     // Fetch all exercises (user-owned and global)
@@ -266,6 +270,10 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
         // is considered an "adopted" duplicate and will not be displayed in either list.
       });
 
+      // NEW: Set total counts before applying filters
+      setTotalUserExercisesCount(userOwnedExercisesList.length);
+      setTotalGlobalExercisesCount(globalExercisesList.length);
+
       const allUniqueMuscles = Array.from(new Set((cachedExercises || []).map(ex => ex.main_muscle))).sort();
       setAvailableMuscleGroups(allUniqueMuscles);
 
@@ -482,5 +490,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
     handleRemoveFromWorkout,
     refreshExercises, // Expose refresh functions
     refreshTPaths,
+    totalUserExercisesCount, // NEW: Expose total counts
+    totalGlobalExercisesCount, // NEW: Expose total counts
   };
 };

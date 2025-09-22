@@ -34,6 +34,7 @@ interface GlobalExerciseListProps {
   onAddSuccess: () => void;
   onOptimisticAdd: (exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => void; // Added
   onAddFailure: (exerciseId: string, workoutId: string) => void; // Added
+  totalCount: number; // NEW PROP
 }
 
 export const GlobalExerciseList = ({
@@ -48,6 +49,7 @@ export const GlobalExerciseList = ({
   onAddSuccess,
   onOptimisticAdd, // Destructured
   onAddFailure, // Destructured
+  totalCount, // NEW
 }: GlobalExerciseListProps) => {
   const [isAddTPathDialogOpen, setIsAddTPathDialogOpen] = useState(false);
   const [selectedExerciseForTPath, setSelectedExerciseForTPath] = useState<FetchedExerciseDefinition | null>(null);
@@ -79,89 +81,93 @@ export const GlobalExerciseList = ({
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        {/* Removed CardTitle: <CardTitle className="text-2xl font-semibold">Global Library</CardTitle> */}
-      </CardHeader>
-      <CardContent className="p-3">
+      <CardContent className="p-3"> {/* Removed CardHeader, moved content here */}
         {loading ? (
           <div className="space-y-2">
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
           </div>
-        ) : exercises.length === 0 ? (
-          <p className="text-muted-foreground">No global exercises found matching the filter.</p>
         ) : (
-          <ScrollArea>
-            <ul className="space-y-2 w-full">
-              {exercises.map((ex) => (
-                <li key={ex.id} className="flex flex-col py-1 px-2 border rounded-md w-full"> {/* Changed to flex-col */}
-                  <div className="flex justify-between items-start w-full"> {/* Row 1: Exercise Name */}
-                    <p className="font-medium text-base whitespace-normal flex-grow min-w-0">{ex.name}</p>
-                  </div>
-                  <div className="flex justify-between items-center w-full mt-1"> {/* Row 2: Muscle Group | Buttons */}
-                    <p className="text-sm text-muted-foreground whitespace-normal flex-grow min-w-0">{ex.main_muscle}</p>
-                    <div className="flex gap-1 flex-shrink-0">
-                      <Button variant="ghost" size="icon" title="More Info" onClick={(e) => handleOpenInfoDialog(ex, e)}>
-                        <Info className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={(e) => handleToggleFavoriteClick(ex, e)} 
-                        title={ex.is_favorited_by_current_user ? "Unfavourite" : "Favourite"}
-                      >
-                        <Heart className={cn("h-4 w-4", ex.is_favorited_by_current_user ? "fill-red-500 text-red-500" : "text-muted-foreground")} />
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" title="More Options">
-                            <Menu className="h-4 w-4" />
+          <>
+            <p className="text-center text-sm text-muted-foreground mb-4">
+              Showing {exercises.length} of {totalCount} exercises
+            </p>
+            {exercises.length === 0 ? (
+              <p className="text-muted-foreground">No global exercises found matching the filter.</p>
+            ) : (
+              <ScrollArea>
+                <ul className="space-y-2 w-full">
+                  {exercises.map((ex) => (
+                    <li key={ex.id} className="flex flex-col py-1 px-2 border rounded-md w-full"> {/* Changed to flex-col */}
+                      <div className="flex justify-between items-start w-full"> {/* Row 1: Exercise Name */}
+                        <p className="font-medium text-base whitespace-normal flex-grow min-w-0">{ex.name}</p>
+                      </div>
+                      <div className="flex justify-between items-center w-full mt-1"> {/* Row 2: Muscle Group | Buttons */}
+                        <p className="text-sm text-muted-foreground whitespace-normal flex-grow min-w-0">{ex.main_muscle}</p>
+                        <div className="flex gap-1 flex-shrink-0">
+                          <Button variant="ghost" size="icon" title="More Info" onClick={(e) => handleOpenInfoDialog(ex, e)}>
+                            <Info className="h-4 w-4" />
                           </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onSelect={() => handleOpenAddTPathDialog(ex)}>
-                            <PlusCircle className="h-4 w-4 mr-2" /> Add to T-Path
-                          </DropdownMenuItem>
-                          {userGyms.length > 0 && (
-                            <DropdownMenuItem onSelect={() => handleOpenManageGymsDialog(ex)}>
-                              <Home className="h-4 w-4 mr-2" /> Manage Gyms
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-2 w-full"> {/* Row 3: Badges */}
-                    {exerciseGymsMap[ex.id as string]?.length > 0 && (
-                      exerciseGymsMap[ex.id as string].map(gymName => (
-                        <Badge key={gymName} variant="secondary" className="text-xs">
-                          <Home className="h-3 w-3 mr-1" />
-                          {gymName}
-                        </Badge>
-                      ))
-                    )}
-                    {exerciseWorkoutsMap[ex.id as string]?.length > 0 && (
-                      exerciseWorkoutsMap[ex.id as string].map(workout => (
-                        <div key={workout.id} className="flex items-center gap-1">
-                          <WorkoutBadge 
-                            workoutName={workout.name}
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={(e) => handleToggleFavoriteClick(ex, e)} 
+                            title={ex.is_favorited_by_current_user ? "Unfavourite" : "Favourite"}
                           >
-                            {workout.name}
-                          </WorkoutBadge>
-                          {workout.isBonus && (
-                            <WorkoutBadge workoutName="Bonus">
-                              Bonus
-                            </WorkoutBadge>
-                          )}
+                            <Heart className={cn("h-4 w-4", ex.is_favorited_by_current_user ? "fill-red-500 text-red-500" : "text-muted-foreground")} />
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" title="More Options">
+                                <Menu className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onSelect={() => handleOpenAddTPathDialog(ex)}>
+                                <PlusCircle className="h-4 w-4 mr-2" /> Add to T-Path
+                              </DropdownMenuItem>
+                              {userGyms.length > 0 && (
+                                <DropdownMenuItem onSelect={() => handleOpenManageGymsDialog(ex)}>
+                                  <Home className="h-4 w-4 mr-2" /> Manage Gyms
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
-                      ))
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </ScrollArea>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2 w-full"> {/* Row 3: Badges */}
+                        {exerciseGymsMap[ex.id as string]?.length > 0 && (
+                          exerciseGymsMap[ex.id as string].map(gymName => (
+                            <Badge key={gymName} variant="secondary" className="text-xs">
+                              <Home className="h-3 w-3 mr-1" />
+                              {gymName}
+                            </Badge>
+                          ))
+                        )}
+                        {exerciseWorkoutsMap[ex.id as string]?.length > 0 && (
+                          exerciseWorkoutsMap[ex.id as string].map(workout => (
+                            <div key={workout.id} className="flex items-center gap-1">
+                              <WorkoutBadge 
+                                workoutName={workout.name}
+                              >
+                                {workout.name}
+                              </WorkoutBadge>
+                              {workout.isBonus && (
+                                <WorkoutBadge workoutName="Bonus">
+                                  Bonus
+                                </WorkoutBadge>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </ScrollArea>
+            )}
+          </>
         )}
       </CardContent>
 
