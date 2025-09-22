@@ -11,28 +11,12 @@ interface UseWorkoutFlowManagerProps {
 }
 
 export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) => {
-  const {
-    allAvailableExercises,
-    groupedTPaths,
-    workoutExercisesCache,
-    loadingData,
-    dataError,
-    refreshAllData,
-    refreshProfile,
-    refreshAchievements,
-    isGeneratingPlan,
-    profile,
-    tempStatusMessage,
-    setTempStatusMessage,
-    availableMuscleGroups,
-    userGyms,
-    exerciseGymsMap,
-    exerciseWorkoutsMap, // Destructure the new map
-    refreshTPaths,
-    refreshTPathExercises,
-  } = useWorkoutDataFetcher();
+  const workoutData = useWorkoutDataFetcher();
 
-  const activeSession = useActiveWorkoutSession();
+  const activeSession = useActiveWorkoutSession({
+    groupedTPaths: workoutData.groupedTPaths,
+    workoutExercisesCache: workoutData.workoutExercisesCache,
+  });
 
   const [pendingNavigationPath, setPendingNavigationPath] = useState<string | null>(null);
   const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
@@ -48,11 +32,11 @@ export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) =>
 
   const handleEditWorkoutSaveSuccess = useCallback(async () => {
     setIsEditWorkoutDialogOpen(false);
-    await refreshAllData();
+    await workoutData.refreshAllData();
     if (activeSession.activeWorkout?.id) {
       await activeSession.selectWorkout(activeSession.activeWorkout.id);
     }
-  }, [activeSession, refreshAllData]);
+  }, [activeSession, workoutData]);
 
   const selectWorkout = useCallback(async (workoutId: string | null) => {
     if (activeSession.isWorkoutActive && activeSession.hasUnsavedChanges) {
@@ -103,76 +87,46 @@ export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) =>
   // NEW: Create a wrapped substituteExercise function
   const substituteExercise = useCallback(async (oldExerciseId: string, newExercise: WorkoutExercise) => {
     await activeSession.substituteExercise(oldExerciseId, newExercise);
-    setTempStatusMessage({ message: 'Added!', type: 'success' });
-    setTimeout(() => setTempStatusMessage(null), 3000);
-  }, [activeSession, setTempStatusMessage]);
+    workoutData.setTempStatusMessage({ message: 'Added!', type: 'success' });
+    setTimeout(() => workoutData.setTempStatusMessage(null), 3000);
+  }, [activeSession, workoutData]);
 
   // NEW: Create a wrapped removeExerciseFromSession function
   const removeExerciseFromSession = useCallback(async (exerciseId: string) => {
     await activeSession.removeExerciseFromSession(exerciseId);
-    setTempStatusMessage({ message: 'Removed!', type: 'removed' });
-    setTimeout(() => setTempStatusMessage(null), 3000);
-  }, [activeSession, setTempStatusMessage]);
+    workoutData.setTempStatusMessage({ message: 'Removed!', type: 'removed' });
+    setTimeout(() => workoutData.setTempStatusMessage(null), 3000);
+  }, [activeSession, workoutData]);
 
   return useMemo(() => ({
+    ...workoutData,
     ...activeSession,
-    substituteExercise, // Override with the wrapped function
-    removeExerciseFromSession, // Override with the wrapped function
-    selectWorkout,
-    loading: loadingData,
-    groupedTPaths,
-    refreshAllData,
-    showUnsavedChangesDialog,
+    selectWorkout, // Overridden version
+    substituteExercise, // Overridden version
+    removeExerciseFromSession, // Overridden version
+    promptBeforeNavigation,
     handleConfirmLeave,
     handleCancelLeave,
-    promptBeforeNavigation,
-    allAvailableExercises,
+    showUnsavedChangesDialog,
     isEditWorkoutDialogOpen,
     selectedWorkoutToEdit,
     handleOpenEditWorkoutDialog,
     handleEditWorkoutSaveSuccess,
     setIsEditWorkoutDialogOpen,
-    refreshProfile,
-    refreshAchievements,
-    refreshTPaths,
-    refreshTPathExercises,
-    isGeneratingPlan,
-    profile,
-    tempStatusMessage,
-    setTempStatusMessage,
-    availableMuscleGroups,
-    userGyms,
-    exerciseGymsMap,
-    exerciseWorkoutsMap, // Pass it through
   }), [
+    workoutData,
     activeSession,
+    selectWorkout,
     substituteExercise,
     removeExerciseFromSession,
-    selectWorkout,
-    loadingData,
-    groupedTPaths,
-    refreshAllData,
-    showUnsavedChangesDialog,
+    promptBeforeNavigation,
     handleConfirmLeave,
     handleCancelLeave,
-    promptBeforeNavigation,
-    allAvailableExercises,
+    showUnsavedChangesDialog,
     isEditWorkoutDialogOpen,
     selectedWorkoutToEdit,
     handleOpenEditWorkoutDialog,
     handleEditWorkoutSaveSuccess,
     setIsEditWorkoutDialogOpen,
-    refreshProfile,
-    refreshAchievements,
-    refreshTPaths,
-    refreshTPathExercises,
-    isGeneratingPlan,
-    profile,
-    tempStatusMessage,
-    setTempStatusMessage,
-    availableMuscleGroups,
-    userGyms,
-    exerciseGymsMap,
-    exerciseWorkoutsMap, // Add to dependencies
   ]);
 };

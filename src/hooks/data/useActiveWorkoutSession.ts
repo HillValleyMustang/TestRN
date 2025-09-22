@@ -3,11 +3,11 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
-import { Tables, SetLogState, WorkoutExercise, ExerciseDefinition } from '@/types/supabase';
+import { Tables, SetLogState, WorkoutExercise, ExerciseDefinition, GroupedTPath } from '@/types/supabase';
 import { db, addToSyncQueue, LocalWorkoutSession } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
-import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher';
 import { useGym } from '@/components/gym-context-provider';
+import { supabase } from '@/integrations/supabase/client';
 
 const DEFAULT_INITIAL_SETS = 3;
 
@@ -20,7 +20,12 @@ const hasUserInput = (set: SetLogState): boolean => {
          (set.time_seconds !== null && set.time_seconds > 0);
 };
 
-export const useActiveWorkoutSession = () => {
+interface UseActiveWorkoutSessionProps {
+  groupedTPaths: GroupedTPath[];
+  workoutExercisesCache: Record<string, WorkoutExercise[]>;
+}
+
+export const useActiveWorkoutSession = ({ groupedTPaths, workoutExercisesCache }: UseActiveWorkoutSessionProps) => {
   const [activeWorkout, setActiveWorkout] = useState<Tables<'t_paths'> | null>(null);
   const [exercisesForSession, setExercisesForSession] = useState<WorkoutExercise[]>([]);
   const [exercisesWithSets, setExercisesWithSets] = useState<Record<string, SetLogState[]>>({});
@@ -50,9 +55,8 @@ export const useActiveWorkoutSession = () => {
     setIsWorkoutSessionStarted(false); // RESET NEW STATE
   }, []);
 
-  const { session, supabase } = useSession();
+  const { session } = useSession();
   const { activeGym } = useGym();
-  const { workoutExercisesCache, groupedTPaths } = useWorkoutDataFetcher();
 
   const resetWorkoutSession = useCallback(async () => {
     console.log("[ActiveWorkoutSession] resetWorkoutSession called.");
@@ -115,7 +119,7 @@ export const useActiveWorkoutSession = () => {
       toast.error("Selected workout not found.");
       console.error("[ActiveWorkoutSession] Error: Selected workout not found for ID:", workoutId);
     }
-  }, [resetWorkoutSession, groupedTPaths, workoutExercisesCache, activeGym, supabase, setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCompletedExercises, setExpandedExerciseCards]);
+  }, [resetWorkoutSession, groupedTPaths, workoutExercisesCache, activeGym, supabase]);
 
   const createWorkoutSessionInDb = useCallback(async (templateName: string, firstSetTimestamp: string): Promise<string> => {
     console.log(`[ActiveWorkoutSession] createWorkoutSessionInDb called for template: ${templateName}, timestamp: ${firstSetTimestamp}`);
@@ -151,7 +155,7 @@ export const useActiveWorkoutSession = () => {
     } finally {
       setIsCreatingSession(false);
     }
-  }, [session, activeWorkout, setIsCreatingSession, setCurrentSessionId, setSessionStartTime, setIsWorkoutSessionStarted]);
+  }, [session, activeWorkout]);
 
   const finishWorkoutSession = useCallback(async (): Promise<string | null> => {
     console.log("[ActiveWorkoutSession] finishWorkoutSession called.");
@@ -197,13 +201,13 @@ export const useActiveWorkoutSession = () => {
   const updateExerciseSets = useCallback((exerciseId: string, newSets: SetLogState[]) => {
     console.log(`[ActiveWorkoutSession] updateExerciseSets called for exerciseId: ${exerciseId}`);
     setExercisesWithSets(prev => ({ ...prev, [exerciseId]: newSets }));
-  }, [setExercisesWithSets]);
+  }, []);
 
   const markExerciseAsCompleted = useCallback((exerciseId: string) => {
     console.log(`[ActiveWorkoutSession] markExerciseAsCompleted called for exerciseId: ${exerciseId}`);
     setCompletedExercises((prev: Set<string>) => new Set(prev).add(exerciseId));
     setExpandedExerciseCards(prev => ({ ...prev, [exerciseId]: false }));
-  }, [setCompletedExercises, setExpandedExerciseCards]);
+  }, []);
 
   const addExerciseToSession = useCallback(async (exercise: ExerciseDefinition) => {
     console.log(`[ActiveWorkoutSession] addExerciseToSession called for exercise: ${exercise.name}`);
@@ -216,7 +220,7 @@ export const useActiveWorkoutSession = () => {
     updateExerciseSets(exercise.id, newSets);
     setExpandedExerciseCards(prev => ({ ...prev, [exercise.id]: false })); // Changed to false for collapsed by default
     console.log(`[ActiveWorkoutSession] Exercise ${exercise.name} added to session.`);
-  }, [exercisesForSession, currentSessionId, updateExerciseSets, setExercisesForSession, setExpandedExerciseCards]);
+  }, [exercisesForSession, currentSessionId, updateExerciseSets]);
 
   const removeExerciseFromSession = useCallback(async (exerciseId: string) => {
     console.log(`[ActiveWorkoutSession] removeExerciseFromSession called for exerciseId: ${exerciseId}`);
@@ -225,7 +229,7 @@ export const useActiveWorkoutSession = () => {
     setCompletedExercises((prev: Set<string>) => { const newCompleted = new Set(prev); newCompleted.delete(exerciseId); return newCompleted; });
     setExpandedExerciseCards(prev => { const newExpanded = { ...prev }; delete newExpanded[exerciseId]; return newExpanded; });
     console.log(`[ActiveWorkoutSession] Exercise ${exerciseId} removed from session.`);
-  }, [setExercisesForSession, setExercisesWithSets, setCompletedExercises, setExpandedExerciseCards]);
+  }, []);
 
   const substituteExercise = useCallback(async (oldExerciseId: string, newExercise: WorkoutExercise) => {
     console.log(`[ActiveWorkoutSession] substituteExercise called: old=${oldExerciseId}, new=${newExercise.name}`);
@@ -240,12 +244,12 @@ export const useActiveWorkoutSession = () => {
     setCompletedExercises((prev: Set<string>) => { const newCompleted = new Set(prev); newCompleted.delete(oldExerciseId); return newCompleted; });
     setExpandedExerciseCards(prev => { const newExpanded = { ...prev }; delete newExpanded[oldExerciseId]; newExpanded[newExercise.id] = false; return newExpanded; }); // Changed to false for collapsed by default
     console.log(`[ActiveWorkoutSession] Exercise ${oldExerciseId} substituted with ${newExercise.name}.`);
-  }, [exercisesForSession, currentSessionId, updateExerciseSets, setExercisesForSession, setExercisesWithSets, setCompletedExercises, setExpandedExerciseCards]);
+  }, [exercisesForSession, currentSessionId, updateExerciseSets]);
 
   const toggleExerciseCardExpansion = useCallback((exerciseId: string) => {
     console.log(`[ActiveWorkoutSession] toggleExerciseCardExpansion called for exerciseId: ${exerciseId}`);
     setExpandedExerciseCards(prev => ({ ...prev, [exerciseId]: !prev[exerciseId] }));
-  }, [setExpandedExerciseCards]);
+  }, []);
 
   // The useEffect for reactivity
   useEffect(() => {
@@ -305,7 +309,7 @@ export const useActiveWorkoutSession = () => {
     refreshActiveWorkoutExercises();
   }, [activeWorkout, workoutExercisesCache, activeGym, supabase, currentSessionId]); // Removed exercisesForSession from dependencies
 
-  return {
+  return useMemo(() => ({
     activeWorkout,
     exercisesForSession,
     exercisesWithSets,
@@ -328,5 +332,27 @@ export const useActiveWorkoutSession = () => {
     toggleExerciseCardExpansion,
     updateSessionStartTime: (timestamp: string) => setSessionStartTime(new Date(timestamp)),
     isWorkoutSessionStarted, // EXPOSE NEW STATE
-  };
+  }), [
+    activeWorkout,
+    exercisesForSession,
+    exercisesWithSets,
+    currentSessionId,
+    sessionStartTime,
+    completedExercises,
+    isCreatingSession,
+    isWorkoutActive,
+    hasUnsavedChanges,
+    expandedExerciseCards,
+    selectWorkout,
+    resetWorkoutSession,
+    createWorkoutSessionInDb,
+    finishWorkoutSession,
+    updateExerciseSets,
+    markExerciseAsCompleted,
+    addExerciseToSession,
+    removeExerciseFromSession,
+    substituteExercise,
+    toggleExerciseCardExpansion,
+    isWorkoutSessionStarted,
+  ]);
 };

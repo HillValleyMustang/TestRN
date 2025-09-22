@@ -74,7 +74,7 @@ export default function WorkoutPage() {
       <WorkoutSelector
         key={workoutFlowManager.activeWorkout?.id || 'no-workout'}
         {...workoutFlowManager}
-        loadingWorkoutFlow={workoutFlowManager.loading}
+        loadingWorkoutFlow={workoutFlowManager.loadingData}
         createWorkoutSessionInDb={workoutFlowManager.createWorkoutSessionInDb}
         finishWorkoutSession={handleFinishAndShowSummary}
         isQuickStart={isQuickStart}
