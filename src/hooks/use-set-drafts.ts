@@ -56,7 +56,7 @@ export const useSetDrafts = ({
     try {
       const fetchedDrafts = await db.draft_set_logs
         .where('exercise_id').equals(exerciseId)
-        .filter(draft => draft.session_id === currentSessionId)
+        // Removed the filter by session_id here to always fetch all drafts for the exercise
         .sortBy('set_index');
       return fetchedDrafts;
     } catch (error) {
@@ -64,7 +64,7 @@ export const useSetDrafts = ({
       toast.error("Failed to load local set drafts.");
       return [];
     }
-  }, [exerciseId, currentSessionId]);
+  }, [exerciseId]); // currentSessionId is no longer a dependency here
 
   const [sets, setSets] = useState<SetLogState[]>([]);
   const loadingDrafts = drafts === undefined;
@@ -74,9 +74,9 @@ export const useSetDrafts = ({
       return;
     }
     try {
+      // Check for existing drafts for this exercise, regardless of session_id
       const existingDraftsCheck = await db.draft_set_logs
         .where('exercise_id').equals(exerciseId)
-        .filter(draft => draft.session_id === currentSessionId)
         .count();
 
       if (existingDraftsCheck > 0) {
@@ -91,7 +91,7 @@ export const useSetDrafts = ({
           is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
         };
         draftPayloads.push({
-          exercise_id: exerciseId, set_index: i, session_id: currentSessionId,
+          exercise_id: exerciseId, set_index: i, session_id: newSet.session_id, // Use newSet.session_id (which is currentSessionId)
           weight_kg: newSet.weight_kg, reps: newSet.reps, reps_l: newSet.reps_l, reps_r: newSet.reps_r, time_seconds: newSet.time_seconds,
           isSaved: false, set_log_id: null,
           is_pb: false,
@@ -102,7 +102,7 @@ export const useSetDrafts = ({
       console.error(`Error creating initial draft sets for exercise ${exerciseId}:`, error);
       toast.error("Failed to create initial local set drafts.");
     }
-  }, [exerciseId, currentSessionId]);
+  }, [exerciseId, currentSessionId]); // currentSessionId is a dependency here because it's used in the payload
 
   const fetchLastSets = useCallback(async () => {
     if (!session || !isValidId(exerciseId)) return new Map<string, GetLastExerciseSetsForExerciseReturns>();
@@ -130,6 +130,24 @@ export const useSetDrafts = ({
       return new Map<string, GetLastExerciseSetsForExerciseReturns>();
     }
   }, [session, supabase, exerciseId, exerciseName]);
+
+  // NEW: Effect to update session_id for existing drafts when currentSessionId becomes available
+  useEffect(() => {
+    const updateDraftSessionIds = async () => {
+      if (currentSessionId && drafts && drafts.length > 0) {
+        const draftsToUpdate = drafts.filter(d => d.session_id === null);
+        if (draftsToUpdate.length > 0) {
+          console.log(`[useSetDrafts] Updating ${draftsToUpdate.length} drafts to new session_id: ${currentSessionId}`);
+          await db.transaction('rw', db.draft_set_logs, async () => {
+            for (const draft of draftsToUpdate) {
+              await db.draft_set_logs.update([draft.exercise_id, draft.set_index], { session_id: currentSessionId });
+            }
+          });
+        }
+      }
+    };
+    updateDraftSessionIds();
+  }, [currentSessionId, drafts]); // Depend on currentSessionId and drafts
 
   useEffect(() => {
     const processAndSetSets = async () => {
@@ -171,9 +189,8 @@ export const useSetDrafts = ({
         if (sets.length > 0) {
           // Do nothing, preserve state to avoid wipe
         } else {
-          if (currentSessionId === null) {
-            await createInitialDrafts();
-          }
+          // This block will now correctly trigger initial drafts if none exist for the exercise
+          await createInitialDrafts();
         }
       }
     };
@@ -219,7 +236,7 @@ export const useSetDrafts = ({
   }, [exerciseId]);
 
   const addDraft = useCallback(async (newSet: SetLogState) => {
-    const newSetIndex = sets.length;
+    const newSetIndex = drafts ? drafts.length : 0; // Use drafts.length for the new index
     if (!isValidDraftKey(exerciseId, newSetIndex)) {
       console.error(`Invalid draft key for addDraft: exerciseId=${exerciseId}, newSetIndex=${newSetIndex}`);
       toast.error("Failed to add local set draft: invalid key.");
@@ -236,7 +253,7 @@ export const useSetDrafts = ({
       console.error(`Error adding draft set log for exercise ${exerciseId}, set ${newSetIndex}:`, error);
       toast.error("Failed to add local set draft.");
     }
-  }, [exerciseId, currentSessionId, sets.length]);
+  }, [exerciseId, currentSessionId, drafts]); // Depend on drafts for length
 
   const deleteDraft = useCallback(async (setIndex: number) => {
     if (!isValidDraftKey(exerciseId, setIndex)) {
@@ -246,6 +263,18 @@ export const useSetDrafts = ({
     }
     try {
       await db.draft_set_logs.delete([exerciseId, setIndex]);
+      // After deleting, re-index the remaining drafts to maintain sequential order
+      const remainingDrafts = await db.draft_set_logs.where('exercise_id').equals(exerciseId).sortBy('set_index');
+      await db.transaction('rw', db.draft_set_logs, async () => {
+        for (let i = 0; i < remainingDrafts.length; i++) {
+          const draft = remainingDrafts[i];
+          if (draft.set_index !== i) {
+            // Delete old entry and create new with correct index
+            await db.draft_set_logs.delete([draft.exercise_id, draft.set_index]);
+            await db.draft_set_logs.put({ ...draft, set_index: i });
+          }
+        }
+      });
     } catch (error) {
       console.error(`Error deleting draft set log for exercise ${exerciseId}, set ${setIndex}:`, error);
       toast.error("Failed to delete local set draft.");
