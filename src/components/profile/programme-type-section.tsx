@@ -110,6 +110,9 @@ export const ProgrammeTypeSection = ({ profile, onDataChange, setIsSaving }: Pro
             </Button>
           )}
         </CardHeader>
+        <CardDescription className="px-6 pb-4 text-sm text-muted-foreground">
+          Changing your programme type will delete and regenerate the workout plans for ALL of your gyms to match the new structure.
+        </CardDescription>
         <CardContent className="pt-6">
           <FormField
             control={form.control}
