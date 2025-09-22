@@ -21,7 +21,7 @@ const hasUserInput = (set: SetLogState): boolean => {
 };
 
 export const useActiveWorkoutSession = () => {
-  // State management previously in use-core-workout-session-state
+  // State management is now directly within this hook
   const [activeWorkout, setActiveWorkout] = useState<Tables<'t_paths'> | null>(null);
   const [exercisesForSession, setExercisesForSession] = useState<WorkoutExercise[]>([]);
   const [exercisesWithSets, setExercisesWithSets] = useState<Record<string, SetLogState[]>>({});
@@ -148,47 +148,47 @@ export const useActiveWorkoutSession = () => {
   }, [currentSessionId, sessionStartTime, session, activeWorkout, supabase, resetWorkoutSession]);
 
   const updateExerciseSets = useCallback((exerciseId: string, newSets: SetLogState[]) => {
-    setExercisesWithSets((prev: Record<string, SetLogState[]>) => ({ ...prev, [exerciseId]: newSets }));
+    setExercisesWithSets(prev => ({ ...prev, [exerciseId]: newSets }));
   }, [setExercisesWithSets]);
 
   const markExerciseAsCompleted = useCallback((exerciseId: string) => {
-    setCompletedExercises((prev: Set<string>) => new Set(prev).add(exerciseId));
-    setExpandedExerciseCards((prev: Record<string, boolean>) => ({ ...prev, [exerciseId]: false }));
+    setCompletedExercises(prev => new Set(prev).add(exerciseId));
+    setExpandedExerciseCards(prev => ({ ...prev, [exerciseId]: false }));
   }, [setCompletedExercises, setExpandedExerciseCards]);
 
   const addExerciseToSession = useCallback(async (exercise: Tables<'exercise_definitions'>) => {
-    if (exercisesForSession.some((ex: WorkoutExercise) => ex.id === exercise.id)) {
+    if (exercisesForSession.some(ex => ex.id === exercise.id)) {
       toast.info(`'${exercise.name}' is already in this session.`);
       return;
     }
-    setExercisesForSession((prev: WorkoutExercise[]) => [{ ...exercise, is_bonus_exercise: false }, ...prev]);
+    setExercisesForSession(prev => [{ ...exercise, is_bonus_exercise: false }, ...prev]);
     const newSets = Array.from({ length: DEFAULT_INITIAL_SETS }, () => ({ id: null, created_at: null, session_id: currentSessionId, exercise_id: exercise.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null }));
     updateExerciseSets(exercise.id, newSets);
-    setExpandedExerciseCards((prev: Record<string, boolean>) => ({ ...prev, [exercise.id]: true }));
+    setExpandedExerciseCards(prev => ({ ...prev, [exercise.id]: true }));
   }, [exercisesForSession, currentSessionId, updateExerciseSets, setExercisesForSession, setExpandedExerciseCards]);
 
   const removeExerciseFromSession = useCallback(async (exerciseId: string) => {
-    setExercisesForSession((prev: WorkoutExercise[]) => prev.filter((ex: WorkoutExercise) => ex.id !== exerciseId));
-    setExercisesWithSets((prev: Record<string, SetLogState[]>) => { const newSets = { ...prev }; delete newSets[exerciseId]; return newSets; });
-    setCompletedExercises((prev: Set<string>) => { const newCompleted = new Set(prev); newCompleted.delete(exerciseId); return newCompleted; });
-    setExpandedExerciseCards((prev: Record<string, boolean>) => { const newExpanded = { ...prev }; delete newExpanded[exerciseId]; return newExpanded; });
+    setExercisesForSession(prev => prev.filter(ex => ex.id !== exerciseId));
+    setExercisesWithSets(prev => { const newSets = { ...prev }; delete newSets[exerciseId]; return newSets; });
+    setCompletedExercises(prev => { const newCompleted = new Set(prev); newCompleted.delete(exerciseId); return newCompleted; });
+    setExpandedExerciseCards(prev => { const newExpanded = { ...prev }; delete newExpanded[exerciseId]; return newExpanded; });
   }, [setExercisesForSession, setExercisesWithSets, setCompletedExercises, setExpandedExerciseCards]);
 
   const substituteExercise = useCallback(async (oldExerciseId: string, newExercise: WorkoutExercise) => {
-    if (exercisesForSession.some((ex: WorkoutExercise) => ex.id === newExercise.id)) {
+    if (exercisesForSession.some(ex => ex.id === newExercise.id)) {
       toast.info(`'${newExercise.name}' is already in this session.`);
       return;
     }
-    setExercisesForSession((prev: WorkoutExercise[]) => prev.map((ex: WorkoutExercise) => ex.id === oldExerciseId ? newExercise : ex));
+    setExercisesForSession(prev => prev.map(ex => ex.id === oldExerciseId ? newExercise : ex));
     const newSets = Array.from({ length: DEFAULT_INITIAL_SETS }, () => ({ id: null, created_at: null, session_id: currentSessionId, exercise_id: newExercise.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null }));
     updateExerciseSets(newExercise.id, newSets);
-    setExercisesWithSets((prev: Record<string, SetLogState[]>) => { const newSets = { ...prev }; delete newSets[oldExerciseId]; return newSets; });
-    setCompletedExercises((prev: Set<string>) => { const newCompleted = new Set(prev); newCompleted.delete(oldExerciseId); return newCompleted; });
-    setExpandedExerciseCards((prev: Record<string, boolean>) => { const newExpanded = { ...prev }; delete newExpanded[oldExerciseId]; newExpanded[newExercise.id] = true; return newExpanded; });
+    setExercisesWithSets(prev => { const newSets = { ...prev }; delete newSets[oldExerciseId]; return newSets; });
+    setCompletedExercises(prev => { const newCompleted = new Set(prev); newCompleted.delete(oldExerciseId); return newCompleted; });
+    setExpandedExerciseCards(prev => { const newExpanded = { ...prev }; delete newExpanded[oldExerciseId]; newExpanded[newExercise.id] = true; return newExpanded; });
   }, [exercisesForSession, currentSessionId, updateExerciseSets, setExercisesForSession, setExercisesWithSets, setCompletedExercises, setExpandedExerciseCards]);
 
   const toggleExerciseCardExpansion = useCallback((exerciseId: string) => {
-    setExpandedExerciseCards((prev: Record<string, boolean>) => ({ ...prev, [exerciseId]: !prev[exerciseId] }));
+    setExpandedExerciseCards(prev => ({ ...prev, [exerciseId]: !prev[exerciseId] }));
   }, [setExpandedExerciseCards]);
 
   // The new useEffect for reactivity
@@ -205,7 +205,7 @@ export const useActiveWorkoutSession = () => {
           newExercisesFromCache = newExercisesFromCache.filter(ex => !allLinkedIds.has(ex.id) || availableIds.has(ex.id));
         }
 
-        const currentIds = exercisesForSession.map((e: WorkoutExercise) => e.id).sort().join(',');
+        const currentIds = exercisesForSession.map(e => e.id).sort().join(',');
         const newIds = newExercisesFromCache.map(e => e.id).sort().join(',');
 
         if (currentIds !== newIds) {
