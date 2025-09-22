@@ -210,16 +210,6 @@ export default function ManageExercisesPage() {
                 <TabsTrigger value="global-library">Global Library</TabsTrigger>
               </TabsList>
               <div className="flex items-center gap-2">
-                <div className="relative hidden sm:block">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Search exercises..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full rounded-lg bg-background pl-8 sm:w-[200px]"
-                  />
-                </div>
                 <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
                   <SheetTrigger asChild>
                     <Button variant="outline" size="sm" className="h-8 gap-1">
@@ -232,17 +222,6 @@ export default function ManageExercisesPage() {
                       <SheetTitle>Filter Exercises</SheetTitle>
                     </SheetHeader>
                     <div className="py-4 space-y-4">
-                      <div className="relative sm:hidden">
-                        <Label>Search</Label>
-                        <Search className="absolute left-2.5 top-8 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="search"
-                          placeholder="Search exercises..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full rounded-lg bg-background pl-8 mt-1"
-                        />
-                      </div>
                       <div>
                         <Label>Filter by Muscle Group</Label>
                         <Select onValueChange={setSelectedMuscleFilter} value={selectedMuscleFilter}>
@@ -282,6 +261,19 @@ export default function ManageExercisesPage() {
               </div>
             </div>
             
+            <div className="px-4 pt-4">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search exercises..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full rounded-lg bg-background pl-8"
+                />
+              </div>
+            </div>
+
             <div className="relative">
               <div className="overflow-hidden" ref={emblaRef}>
                 <div className="flex">
