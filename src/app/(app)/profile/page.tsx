@@ -153,7 +153,7 @@ export default function ProfilePage() {
       return count;
     } catch (error) {
       console.error("[ProfilePage] Error fetching total workouts count from IndexedDB:", error);
-      toast.error("Failed to load total workouts count."); // Added toast.error
+      toast.error("Failed to load total workouts count.");
       return 0;
     }
   }, [session?.user.id]) || 0;
@@ -174,7 +174,7 @@ export default function ProfilePage() {
       return uniqueExerciseInstances.size;
     } catch (error) {
       console.error("[ProfilePage] Error fetching total exercises count from IndexedDB:", error);
-      toast.error("Failed to load total exercises count."); // Added toast.error
+      toast.error("Failed to load total exercises count.");
       return 0;
     }
   }, [session?.user.id]) || 0;
@@ -297,23 +297,23 @@ export default function ProfilePage() {
     console.log("[ProfilePage] onSubmit called with values:", values);
     if (!session || !profile) {
       console.error("[ProfilePage] Cannot save profile: session or profile data missing.");
-      toast.error("Cannot save profile: session or profile data missing."); // Added toast.error
+      toast.error("Cannot save profile: session or profile data missing.");
       return;
     }
-
-    // Check if the form has been modified
-    if (!form.formState.isDirty) {
-      console.log("[ProfilePage] Form is not dirty, exiting edit mode.");
-      setIsEditing(false); // Just exit edit mode
-      return;
-    }
-
-    setIsSaving(true);
 
     const oldSessionLength = lastSavedSessionLengthRef.current;
     const newSessionLength = values.preferred_session_length;
     const sessionLengthChanged = oldSessionLength !== newSessionLength;
     console.log(`[ProfilePage] Session length changed: ${sessionLengthChanged} (Old: ${oldSessionLength}, New: ${newSessionLength})`);
+
+    // Proceed with update if form is dirty OR if session length has explicitly changed
+    if (!form.formState.isDirty && !sessionLengthChanged) {
+      console.log("[ProfilePage] Form is not dirty and session length has not changed, exiting edit mode.");
+      setIsEditing(false); // Just exit edit mode
+      return;
+    }
+
+    setIsSaving(true);
 
     const nameParts = values.full_name.split(' ');
     const firstName = nameParts.shift() || '';
@@ -331,7 +331,7 @@ export default function ProfilePage() {
     const { error } = await supabase.from('profiles').update(updateData).eq('id', session.user.id);
     if (error) {
       console.error("[ProfilePage] Failed to update profile:", error);
-      toast.error("Failed to update profile."); // Changed to toast.error
+      toast.error("Failed to update profile.");
       setIsSaving(false);
       return;
     }
@@ -362,7 +362,7 @@ export default function ProfilePage() {
         console.log("[ProfilePage] Successfully initiated T-Path workout regeneration API call.");
       } catch (err: any) {
         console.error("[ProfilePage] Error initiating workout plan update:", err);
-        toast.error("Error initiating workout plan update."); // Changed to toast.error
+        toast.error("Error initiating workout plan update.");
       }
     }
     console.log("[ProfilePage] Refreshing profile data after save.");

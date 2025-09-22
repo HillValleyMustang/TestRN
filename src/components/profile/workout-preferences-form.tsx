@@ -40,7 +40,10 @@ export const WorkoutPreferencesForm = ({ isEditing }: WorkoutPreferencesFormProp
         <FormField control={form.control} name="preferred_session_length" render={({ field }) => (
           <FormItem>
             <FormLabel>Preferred Session Length</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value || ''} disabled={!isEditing}>
+            <Select onValueChange={(value) => {
+              console.log("[WorkoutPreferencesForm] Preferred Session Length changed to:", value);
+              field.onChange(value);
+            }} value={field.value || ''} disabled={!isEditing}>
               <FormControl><SelectTrigger><SelectValue placeholder="Select length" /></SelectTrigger></FormControl>
               <SelectContent>
                 <SelectItem value="15-30">15-30 mins</SelectItem>

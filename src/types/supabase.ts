@@ -122,14 +122,11 @@ export interface GroupedTPath {
 }
 
 // NEW: WorkoutExerciseWithDetails type for exercises in a workout template
-export interface WorkoutExerciseWithDetails extends Omit<ExerciseDefinitionsRow, 'id'> {
-  id: string; // Ensure ID is always present
-  name: string; // Ensure name is always present
+export interface WorkoutExerciseWithDetails extends ExerciseDefinitionsRow {
+  // ExerciseDefinitionsRow already has id: string, name: string, movement_type, movement_pattern
   order_index: number;
   is_bonus_exercise: boolean;
   t_path_exercise_id: string; // ID from t_path_exercises table
-  movement_type: string | null; // Explicitly add these
-  movement_pattern: string | null; // Explicitly add these
 }
 
 // Export the full ExerciseDefinitionsRow as ExerciseDefinition

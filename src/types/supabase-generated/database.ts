@@ -78,6 +78,21 @@ export type Database = {
           },
         ];
       };
+      app_metadata: {
+        Row: {
+          id: string;
+          last_source_sync_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          last_source_sync_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          last_source_sync_at?: string | null;
+        };
+        Relationships: [];
+      };
       body_fat_reference_images: {
         Row: {
           id: string;
@@ -117,6 +132,8 @@ export type Database = {
           library_id: string | null;
           is_favorite: boolean | null;
           icon_url: string | null;
+          movement_type: string | null; // ADDED
+          movement_pattern: string | null; // ADDED
         };
         Insert: {
           category?: string | null;
@@ -132,6 +149,8 @@ export type Database = {
           library_id?: string | null;
           is_favorite?: boolean | null;
           icon_url?: string | null;
+          movement_type?: string | null; // ADDED
+          movement_pattern?: string | null; // ADDED
         };
         Update: {
           category?: string | null;
@@ -147,6 +166,8 @@ export type Database = {
           library_id?: string | null;
           is_favorite?: boolean | null;
           icon_url?: string | null;
+          movement_type?: string | null; // ADDED
+          movement_pattern?: string | null; // ADDED
         };
         Relationships: [
           {

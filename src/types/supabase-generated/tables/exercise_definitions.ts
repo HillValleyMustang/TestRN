@@ -14,8 +14,8 @@ export type ExerciseDefinitionsRow = {
   library_id: string | null;
   is_favorite: boolean | null;
   icon_url: string | null;
-  movement_type: string | null;
-  movement_pattern: string | null;
+  movement_type: string | null; // ADDED
+  movement_pattern: string | null; // ADDED
 };
 export type ExerciseDefinitionsInsert = {
   category?: string | null;
@@ -31,8 +31,8 @@ export type ExerciseDefinitionsInsert = {
   library_id?: string | null;
   is_favorite?: boolean | null;
   icon_url?: string | null;
-  movement_type?: string | null;
-  movement_pattern?: string | null;
+  movement_type?: string | null; // ADDED
+  movement_pattern?: string | null; // ADDED
 };
 export type ExerciseDefinitionsUpdate = {
   category?: string | null;
@@ -48,6 +48,6 @@ export type ExerciseDefinitionsUpdate = {
   library_id?: string | null;
   is_favorite?: boolean | null;
   icon_url?: string | null;
-  movement_type?: string | null;
-  movement_pattern?: string | null;
+  movement_type?: string | null; // ADDED
+  movement_pattern?: string | null; // ADDED
 };
