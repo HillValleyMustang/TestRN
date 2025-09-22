@@ -8,7 +8,7 @@ import { Dumbbell, Clock } from 'lucide-react';
 import { Tables, WorkoutWithLastCompleted, Profile, GroupedTPath } from '@/types/supabase';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { cn, getWorkoutColorClass } from '@/lib/utils';
+import { cn, getWorkoutColorClass, getExerciseCounts } from '@/lib/utils';
 import { useUserProfile } from '@/hooks/data/useUserProfile';
 import { useWorkoutPlans } from '@/hooks/data/useWorkoutPlans';
 
@@ -22,7 +22,7 @@ export const NextWorkoutCard = () => {
   const router = useRouter();
   const { session } = useSession();
   const { profile, isLoading: loadingProfile, error: profileError } = useUserProfile();
-  const { groupedTPaths, isLoading: loadingPlans, error: plansError } = useWorkoutPlans();
+  const { groupedTPaths, workoutExercisesCache, isLoading: loadingPlans, error: plansError } = useWorkoutPlans();
   
   const [mainTPath, setMainTPath] = useState<TPath | null>(null);
   const [nextWorkout, setNextWorkout] = useState<WorkoutWithLastCompleted | null>(null);
@@ -37,13 +37,6 @@ export const NextWorkoutCard = () => {
       if (loadingData || dataError || !session || !profile || !groupedTPaths) return;
 
       const activeMainTPathId = profile?.active_t_path_id;
-      const preferredSessionLength = profile?.preferred_session_length;
-
-      if (preferredSessionLength) {
-        setEstimatedDuration(`${preferredSessionLength} minutes`);
-      } else {
-        setEstimatedDuration('N/A');
-      }
 
       if (!activeMainTPathId) {
         setMainTPath(null);
@@ -97,10 +90,41 @@ export const NextWorkoutCard = () => {
       }
       
       setNextWorkout(nextWorkoutToSuggest);
+
+      // NEW DYNAMIC DURATION LOGIC
+      if (nextWorkoutToSuggest) {
+        const preferredSessionLength = profile?.preferred_session_length;
+        if (preferredSessionLength) {
+          const [minTimeStr, maxTimeStr] = preferredSessionLength.split('-');
+          const minTime = parseInt(minTimeStr, 10);
+          const maxTime = parseInt(maxTimeStr, 10);
+
+          const defaultCounts = getExerciseCounts(preferredSessionLength);
+          const defaultMainExerciseCount = defaultCounts.main;
+
+          const exercisesInWorkout = workoutExercisesCache[nextWorkoutToSuggest.id] || [];
+          const currentMainExerciseCount = exercisesInWorkout.filter(ex => !ex.is_bonus_exercise).length;
+
+          const countDifference = currentMainExerciseCount - defaultMainExerciseCount;
+          const timeAdjustment = countDifference * 5;
+
+          const newMinTime = Math.max(5, minTime + timeAdjustment);
+          const newMaxTime = Math.max(10, maxTime + timeAdjustment);
+
+          setEstimatedDuration(`${newMinTime}-${newMaxTime} minutes`);
+        } else {
+          // Fallback if no preferred length is set
+          const exercisesInWorkout = workoutExercisesCache[nextWorkoutToSuggest.id] || [];
+          const totalExercises = exercisesInWorkout.length;
+          setEstimatedDuration(`~${totalExercises * 5} minutes`);
+        }
+      } else {
+        setEstimatedDuration('N/A');
+      }
     };
 
     determineNextWorkout();
-  }, [session, groupedTPaths, loadingData, dataError, profile]);
+  }, [session, groupedTPaths, loadingData, dataError, profile, workoutExercisesCache]);
 
   if (loadingData) {
     return (

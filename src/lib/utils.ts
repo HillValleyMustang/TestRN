@@ -92,6 +92,17 @@ export function getMaxMinutes(sessionLength: string | null | undefined): number 
   }
 }
 
+// NEW: Helper to get default exercise counts from sessionLength string
+export function getExerciseCounts(sessionLength: string | null | undefined): { main: number; bonus: number } {
+  switch (sessionLength) {
+    case '15-30': return { main: 3, bonus: 3 };
+    case '30-45': return { main: 5, bonus: 3 };
+    case '45-60': return { main: 7, bonus: 2 };
+    case '60-90': return { main: 10, bonus: 2 };
+    default: return { main: 5, bonus: 3 }; // Default if unknown or null
+  }
+}
+
 // New utility function to format time ago
 export const formatTimeAgo = (date: Date | null): string => {
   if (!date) return 'Never';
