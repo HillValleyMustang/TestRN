@@ -9,9 +9,10 @@ import { useFormContext } from 'react-hook-form'; // Import useFormContext
 
 interface WorkoutPreferencesFormProps {
   isEditing: boolean;
+  isSaving: boolean; // New prop
 }
 
-export const WorkoutPreferencesForm = ({ isEditing }: WorkoutPreferencesFormProps) => {
+export const WorkoutPreferencesForm = ({ isEditing, isSaving }: WorkoutPreferencesFormProps) => {
   const form = useFormContext(); // Use context
 
   return (
@@ -25,7 +26,7 @@ export const WorkoutPreferencesForm = ({ isEditing }: WorkoutPreferencesFormProp
         <FormField control={form.control} name="primary_goal" render={({ field }) => (
           <FormItem>
             <FormLabel>Primary Goal</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value || ''} disabled={!isEditing}>
+            <Select onValueChange={field.onChange} value={field.value || ''} disabled={!isEditing || isSaving}>
               <FormControl><SelectTrigger><SelectValue placeholder="Select your goal" /></SelectTrigger></FormControl>
               <SelectContent>
                 <SelectItem value="muscle_gain">Muscle Gain</SelectItem>
@@ -39,7 +40,7 @@ export const WorkoutPreferencesForm = ({ isEditing }: WorkoutPreferencesFormProp
         <FormField control={form.control} name="preferred_session_length" render={({ field }) => (
           <FormItem>
             <FormLabel>Preferred Session Length</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value || ''} disabled={!isEditing}>
+            <Select onValueChange={field.onChange} value={field.value || ''} disabled={!isEditing || isSaving}>
               <FormControl><SelectTrigger><SelectValue placeholder="Select length" /></SelectTrigger></FormControl>
               <SelectContent>
                 <SelectItem value="15-30">15-30 mins</SelectItem>

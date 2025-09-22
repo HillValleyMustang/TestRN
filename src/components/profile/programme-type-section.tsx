@@ -62,10 +62,12 @@ export const ProgrammeTypeSection = ({ isEditing, onDataChange, profile }: Progr
       }
 
       toast.success("Programme type updated! Your workout plans are regenerating in the background.");
+      form.setValue('programme_type', pendingProgrammeType, { shouldDirty: true }); // Update form state
       onDataChange();
     } catch (err: any) {
       console.error("Failed to update programme type and regenerate plans:", err);
       toast.error("Failed to update programme type.");
+      form.setValue('programme_type', currentProgrammeType); // Revert on error
     } finally {
       setIsSaving(false);
       setPendingProgrammeType(null);
@@ -101,7 +103,7 @@ export const ProgrammeTypeSection = ({ isEditing, onDataChange, profile }: Progr
                     handleValueChange(value);
                   }}
                   value={field.value || ''}
-                  disabled={!isEditing}
+                  disabled={!isEditing || isSaving}
                 >
                   <FormControl>
                     <SelectTrigger>

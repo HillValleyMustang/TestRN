@@ -280,13 +280,13 @@ export default function ProfilePage() {
   async function onSubmit(values: z.infer<typeof profileSchema>) {
     if (!session || !profile) return;
 
-    // Check if the form has been modified
     if (!form.formState.isDirty) {
-      setIsEditing(false); // Just exit edit mode
+      setIsEditing(false);
       return;
     }
 
     setIsSaving(true);
+    const toastId = toast.loading("Saving profile...");
 
     const oldSessionLength = lastSavedSessionLengthRef.current;
     const newSessionLength = values.preferred_session_length;
@@ -305,14 +305,16 @@ export default function ProfilePage() {
     };
     
     const { error } = await supabase.from('profiles').update(updateData).eq('id', session.user.id);
+    
     if (error) {
-      toast.error("Failed to update profile.");
+      toast.error("Failed to update profile.", { id: toastId });
       setIsSaving(false);
       return;
     }
 
-    toast.success("Profile updated successfully!");
+    toast.success("Profile updated successfully!", { id: toastId });
     lastSavedSessionLengthRef.current = newSessionLength ?? null;
+    form.reset(values); // Immediately reset the form with the new values to update the UI
 
     if (sessionLengthChanged && profile.active_t_path_id) {
       try {
@@ -332,11 +334,13 @@ export default function ProfilePage() {
           const errorText = await response.text();
           throw new Error(`Failed to initiate T-Path workout regeneration: ${errorText}`);
         }
+        // The global loading overlay will handle feedback from here
       } catch (err: any) {
         toast.error("Error initiating workout plan update.");
       }
     }
-    await refreshProfileData();
+    
+    await refreshProfileData(); // Sync cache in the background
     setIsEditing(false);
     setIsSaving(false);
   }
@@ -449,6 +453,7 @@ export default function ProfilePage() {
                     <ProfileSettingsTab
                       form={form}
                       isEditing={isEditing}
+                      isSaving={isSaving}
                       mainMuscleGroups={mainMuscleGroups}
                       aiCoachUsageToday={aiCoachUsageToday}
                       AI_COACH_DAILY_LIMIT={AI_COACH_DAILY_LIMIT}
@@ -495,9 +500,9 @@ export default function ProfilePage() {
         onOpenChange={setIsPointsExplanationOpen}
       />
       <LoadingOverlay 
-        isOpen={isSaving} 
+        isOpen={isSaving && !profile?.active_t_path_id} // Only show this if not triggering a full plan regen
         title="Saving Profile" 
-        description="Please wait while we update your profile and workout plan." 
+        description="Please wait while we update your profile." 
       />
       <FloatingSaveEditButton 
         isEditing={isEditing} 

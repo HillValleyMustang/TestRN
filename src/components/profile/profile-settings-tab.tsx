@@ -17,6 +17,7 @@ type TPath = Tables<'t_paths'>;
 interface ProfileSettingsTabProps {
   form: UseFormReturn<any>;
   isEditing: boolean;
+  isSaving: boolean; // New prop
   mainMuscleGroups: string[];
   aiCoachUsageToday: number;
   AI_COACH_DAILY_LIMIT: number;
@@ -29,6 +30,7 @@ interface ProfileSettingsTabProps {
 export const ProfileSettingsTab = ({
   form,
   isEditing,
+  isSaving, // Destructure new prop
   mainMuscleGroups,
   aiCoachUsageToday,
   AI_COACH_DAILY_LIMIT,
@@ -41,8 +43,8 @@ export const ProfileSettingsTab = ({
     <FormProvider {...form}>
       <div className="mt-6 space-y-6 border-none p-0">
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <PersonalInfoForm isEditing={isEditing} mainMuscleGroups={mainMuscleGroups} />
-          <WorkoutPreferencesForm isEditing={isEditing} />
+          <PersonalInfoForm isEditing={isEditing} isSaving={isSaving} mainMuscleGroups={mainMuscleGroups} />
+          <WorkoutPreferencesForm isEditing={isEditing} isSaving={isSaving} />
           <ProgrammeTypeSection profile={profile} isEditing={isEditing} onDataChange={onDataChange} />
           <GymManagementSection isEditing={isEditing} profile={profile} onDataChange={onDataChange} />
           <AICoachUsageSection aiCoachUsageToday={aiCoachUsageToday} AI_COACH_DAILY_LIMIT={AI_COACH_DAILY_LIMIT} />
