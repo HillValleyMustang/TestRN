@@ -160,11 +160,6 @@ export interface LocalActivityLog extends Tables<'activity_logs'> {
   created_at: string;
 }
 
-// NEW: LocalGymExercise with synthetic ID
-export interface LocalGymExercise extends Tables<'gym_exercises'> {
-  id: string; // Synthetic ID for Dexie
-}
-
 
 export class AppDatabase extends Dexie {
   workout_sessions!: Table<LocalWorkoutSession, string>;
@@ -180,7 +175,6 @@ export class AppDatabase extends Dexie {
   user_alerts!: Table<LocalUserAlert, string>; // NEW: User Alerts table
   gyms_cache!: Table<LocalGym, string>; // NEW: Gyms cache table
   activity_logs!: Table<LocalActivityLog, string>; // NEW: Activity Logs cache table
-  gym_exercises_cache!: Table<LocalGymExercise, string>; // NEW: Gym Exercises cache table
 
   constructor() {
     super('WorkoutTrackerDB');
@@ -198,7 +192,6 @@ export class AppDatabase extends Dexie {
       user_alerts: '&id, user_id, created_at',
       gyms_cache: '&id, user_id',
       activity_logs: '&id, user_id, log_date', // Added activity_logs schema
-      gym_exercises_cache: '&id', // NEW: Primary key is the synthetic ID
     });
   }
 }

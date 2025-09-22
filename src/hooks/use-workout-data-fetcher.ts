@@ -5,7 +5,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { Tables, WorkoutExercise, WorkoutWithLastCompleted, GroupedTPath, LocalUserAchievement, Profile, FetchedExerciseDefinition } from '@/types/supabase';
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
-import { db, LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise, LocalGym, LocalGymExercise } from '@/lib/db'; // Import LocalGym and LocalGymExercise
+import { db, LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
 import { useUserProfile } from '@/hooks/data/useUserProfile';
 
@@ -28,9 +28,8 @@ interface UseWorkoutDataFetcherReturn {
   refreshTPaths: () => void;
   refreshTPathExercises: () => void;
   isGeneratingPlan: boolean;
-  tempFavoriteStatusMessage: { message: string; type: 'added' | 'removed' } | null;
-  setTempFavoriteStatusMessage: (message: { message: string; type: 'added' | 'removed' } | null) => void;
-  exerciseGymsMap: Record<string, string[]>; // NEW: Add exerciseGymsMap to return type
+  tempFavoriteStatusMessage: { message: string; type: 'added' | 'removed' } | null; // NEW
+  setTempFavoriteStatusMessage: (message: { message: string; type: 'added' | 'removed' } | null) => void; // NEW
 }
 
 export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
@@ -38,8 +37,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const prevStatusRef = useRef<string | null>(null);
-  const [tempFavoriteStatusMessage, setTempFavoriteStatusMessage] = useState<{ message: string; type: 'added' | 'removed' } | null>(null);
-  const [exerciseGymsMap, setExerciseGymsMap] = useState<Record<string, string[]>>({}); // NEW: State for exerciseGymsMap
+  const [tempFavoriteStatusMessage, setTempFavoriteStatusMessage] = useState<{ message: string; type: 'added' | 'removed' } | null>(null); // NEW
 
   const { data: cachedExercises, loading: loadingExercises, error: exercisesError, refresh: refreshExercises } = useCacheAndRevalidate<LocalExerciseDefinition>({
     cacheTable: 'exercise_definitions_cache',
@@ -64,11 +62,8 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     cacheTable: 't_path_exercises_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
       if (!session?.user.id) return { data: [], error: null };
-      const { data: userTPaths, error: tPathsError } = await client.from('t_paths').select('id').eq('user_id', session.user.id);
-      if (tPathsError) throw tPathsError; // Throw error if fetching t_paths fails
-      if (!userTPaths) return { data: [], error: null };
-      const tpathIds = userTPaths.map(p => p.id);
-      return client.from('t_path_exercises').select('*').in('template_id', tpathIds);
+      const { data, error } = await client.from('t_path_exercises').select('id, exercise_id, template_id, order_index, is_bonus_exercise, created_at');
+      return { data: data || [], error };
     }, [session?.user.id]),
     queryKey: 'all_t_path_exercises',
     supabase,
@@ -87,43 +82,8 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     sessionUserId: session?.user.id ?? null,
   });
 
-  // NEW: Fetch user gyms
-  const { data: cachedGyms, loading: loadingGyms, error: gymsError, refresh: refreshGyms } = useCacheAndRevalidate<LocalGym>({
-    cacheTable: 'gyms_cache',
-    supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!session?.user.id) return { data: [], error: null };
-      return client.from('gyms').select('*').eq('user_id', session.user.id);
-    }, [session?.user.id]),
-    queryKey: 'user_gyms_for_data_fetcher',
-    supabase,
-    sessionUserId: session?.user.id ?? null,
-  });
-
-  // NEW: Fetch gym_exercises links
-  const { data: cachedGymExercises, loading: loadingGymExercises, error: gymExercisesError, refresh: refreshGymExercises } = useCacheAndRevalidate<LocalGymExercise>({
-    cacheTable: 'gym_exercises_cache',
-    supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!session?.user.id) return { data: [], error: null };
-      const { data: userGymsData, error: userGymsError } = await client.from('gyms').select('id').eq('user_id', session.user.id);
-      if (userGymsError) return { data: [], error: userGymsError };
-      const gymIds = (userGymsData || []).map(g => g.id);
-      const { data: rawGymExercises, error } = await client.from('gym_exercises').select('exercise_id, gym_id').in('gym_id', gymIds);
-      
-      // Map to LocalGymExercise by creating a synthetic ID
-      const mappedData: LocalGymExercise[] = (rawGymExercises || []).map(item => ({
-        ...item,
-        id: `${item.gym_id}-${item.exercise_id}` // Create a unique ID
-      }));
-      return { data: mappedData, error };
-    }, [session?.user.id]),
-    queryKey: 'gym_exercises_for_data_fetcher',
-    supabase,
-    sessionUserId: session?.user.id ?? null,
-  });
-
-
-  const loadingData = useMemo(() => loadingExercises || loadingTPaths || loadingProfile || loadingTPathExercises || loadingAchievements || loadingGyms || loadingGymExercises, [loadingExercises, loadingTPaths, loadingProfile, loadingTPathExercises, loadingAchievements, loadingGyms, loadingGymExercises]);
-  const dataError = useMemo(() => exercisesError || tPathsError || profileError || tPathExercisesError || achievementsError || gymsError || gymExercisesError, [exercisesError, tPathsError, profileError, tPathExercisesError, achievementsError, gymsError, gymExercisesError]);
+  const loadingData = useMemo(() => loadingExercises || loadingTPaths || loadingProfile || loadingTPathExercises || loadingAchievements, [loadingExercises, loadingTPaths, loadingProfile, loadingTPathExercises, loadingAchievements]);
+  const dataError = useMemo(() => exercisesError || tPathsError || profileError || tPathExercisesError || achievementsError, [exercisesError, tPathsError, profileError, tPathExercisesError, achievementsError]);
 
   const allAvailableExercises = useMemo(() => (cachedExercises || []).map(ex => ({ ...ex, id: ex.id, is_favorited_by_current_user: false, movement_type: ex.movement_type, movement_pattern: ex.movement_pattern })), [cachedExercises]);
 
@@ -198,31 +158,6 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     enrichAndSetGroupedTPaths();
   }, [session?.user.id, supabase, cachedTPaths, loadingData, dataError]);
 
-  // NEW: Effect to calculate exerciseGymsMap
-  useEffect(() => {
-    if (loadingData || dataError || !session?.user.id || !cachedGyms || !cachedGymExercises) {
-      setExerciseGymsMap({});
-      return;
-    }
-
-    const gymIdToNameMap = new Map<string, string>();
-    (cachedGyms || []).forEach(gym => gymIdToNameMap.set(gym.id, gym.name));
-
-    const newExerciseGymsMap: Record<string, string[]> = {};
-    (cachedGymExercises || []).forEach(link => {
-      const gymName = gymIdToNameMap.get(link.gym_id);
-      if (gymName) {
-        if (!newExerciseGymsMap[link.exercise_id]) {
-          newExerciseGymsMap[link.exercise_id] = [];
-        }
-        newExerciseGymsMap[link.exercise_id].push(gymName);
-      }
-    });
-    setExerciseGymsMap(newExerciseGymsMap);
-    console.log("[WorkoutDataFetcher] Exercise Gyms Map updated:", newExerciseGymsMap);
-  }, [session?.user.id, cachedGyms, cachedGymExercises, loadingData, dataError]);
-
-
   const refreshAllData = useCallback(async () => {
     console.log("[WorkoutDataFetcher] refreshAllData called.");
     await Promise.all([
@@ -231,11 +166,9 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       refreshProfile(),
       refreshTPathExercises(),
       refreshAchievements(),
-      refreshGyms(), // NEW: Refresh gyms
-      refreshGymExercises(), // NEW: Refresh gym exercises
     ]);
     console.log("[WorkoutDataFetcher] All data refresh initiated.");
-  }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, refreshAchievements, refreshGyms, refreshGymExercises]);
+  }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, refreshAchievements]);
 
   useEffect(() => {
     const profileData = profile; // Use the profile from useUserProfile directly
@@ -294,8 +227,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     refreshTPaths,
     refreshTPathExercises,
     isGeneratingPlan,
-    tempFavoriteStatusMessage,
-    setTempFavoriteStatusMessage,
-    exerciseGymsMap, // NEW: Return exerciseGymsMap
+    tempFavoriteStatusMessage, // NEW
+    setTempFavoriteStatusMessage, // NEW
   };
 };
