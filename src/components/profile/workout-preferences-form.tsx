@@ -42,7 +42,7 @@ export const WorkoutPreferencesForm = ({ isEditing }: WorkoutPreferencesFormProp
             <FormLabel>Preferred Session Length</FormLabel>
             <Select onValueChange={(value) => {
               console.log("[WorkoutPreferencesForm] Preferred Session Length changed to:", value);
-              field.onChange(value);
+              form.setValue(field.name, value, { shouldDirty: true }); // Force dirty state
             }} value={field.value || ''} disabled={!isEditing}>
               <FormControl><SelectTrigger><SelectValue placeholder="Select length" /></SelectTrigger></FormControl>
               <SelectContent>

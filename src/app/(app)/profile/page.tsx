@@ -179,8 +179,6 @@ export default function ProfilePage() {
     }
   }, [session?.user.id]) || 0;
 
-  const lastSavedSessionLengthRef = useRef<string | null>(null);
-
   const refreshProfileData = useCallback(async () => {
     console.log("[ProfilePage] refreshProfileData called.");
     await refreshProfileCache();
@@ -195,7 +193,6 @@ export default function ProfilePage() {
     }
 
     if (profile) {
-      lastSavedSessionLengthRef.current = profile.preferred_session_length;
       console.log("[ProfilePage] Profile data loaded, setting form defaults:", profile);
 
       form.reset({
@@ -220,7 +217,6 @@ export default function ProfilePage() {
 
     } else {
       form.reset();
-      lastSavedSessionLengthRef.current = null;
       setAiCoachUsageToday(0);
       console.log("[ProfilePage] No profile data found, resetting form.");
     }
@@ -301,11 +297,6 @@ export default function ProfilePage() {
       return;
     }
 
-    const oldSessionLength = lastSavedSessionLengthRef.current;
-    const newSessionLength = values.preferred_session_length;
-    const sessionLengthChanged = oldSessionLength !== newSessionLength;
-    console.log(`[ProfilePage] Session length changed: ${sessionLengthChanged} (Old: ${oldSessionLength}, New: ${newSessionLength})`);
-
     // Always set saving state when onSubmit is called
     setIsSaving(true);
 
@@ -332,14 +323,12 @@ export default function ProfilePage() {
         return;
       }
       toast.success("Profile updated successfully!");
-      lastSavedSessionLengthRef.current = newSessionLength ?? null; // Update ref only on successful DB write
     } else {
       console.log("[ProfilePage] Form is not dirty, skipping profile DB update.");
       toast.info("No profile changes to save.");
     }
 
     // Always trigger plan regeneration if currently in editing mode AND an active T-Path exists.
-    // The backend function is idempotent and will only regenerate if necessary.
     if (isEditing && profile.active_t_path_id) {
       console.log(`[ProfilePage] Initiating workout plan update because in editing mode and active T-Path exists. Active T-Path: ${profile.active_t_path_id}.`);
       try {
@@ -351,7 +340,7 @@ export default function ProfilePage() {
           },
           body: JSON.stringify({ 
             tPathId: profile.active_t_path_id,
-            preferred_session_length: newSessionLength
+            preferred_session_length: values.preferred_session_length // Use the value from the form
           })
         });
 
