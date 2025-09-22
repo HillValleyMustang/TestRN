@@ -73,6 +73,8 @@ export interface LocalExerciseDefinition extends Tables<'exercise_definitions'> 
   is_favorite: boolean | null;
   category: string | null; // Added category
   created_at: string; // Must be non-null for local cache
+  movement_type: string | null; // NEW: Added movement_type
+  movement_pattern: string | null; // NEW: Added movement_pattern
 }
 export interface LocalTPath extends Tables<'t_paths'> {
   id: string;

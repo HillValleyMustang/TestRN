@@ -31,12 +31,14 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
       // If no user, return empty array immediately.
       // This prevents trying to read from a potentially closed/deleted DB.
       if (sessionUserId === undefined || sessionUserId === null) {
+        console.log(`[useCacheAndRevalidate] ${queryKey}: No sessionUserId, returning empty array from IndexedDB.`);
         return [];
       }
 
       // If the table is one that doesn't have a user_id, just return everything.
       // The consuming hook will be responsible for further filtering.
       if (cacheTable === 't_path_exercises_cache') {
+        console.log(`[useCacheAndRevalidate] ${queryKey}: Fetching all from IndexedDB (no user_id filter).`);
         return table.toArray();
       }
 
@@ -47,6 +49,7 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
         // This is correct for exercises and t_paths
         return item.user_id === null || item.user_id === sessionUserId;
       }).toArray();
+      console.log(`[useCacheAndRevalidate] ${queryKey}: Fetched ${filteredData.length} items from IndexedDB for user ${sessionUserId}.`);
       return filteredData;
     },
     [cacheTable, sessionUserId],
@@ -54,19 +57,26 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
   );
 
   const fetchDataAndRevalidate = useCallback(async () => {
-    if (isRevalidatingRef.current) return;
+    console.log(`[useCacheAndRevalidate] ${queryKey}: fetchDataAndRevalidate called.`);
+    if (isRevalidatingRef.current) {
+      console.log(`[useCacheAndRevalidate] ${queryKey}: Already revalidating, skipping.`);
+      return;
+    }
 
     // Crucial check: If no user, do not proceed with fetching from Supabase or writing to IndexedDB.
     // The `useLiveQuery` above already handles returning an empty array for the UI.
     if (sessionUserId === null || sessionUserId === undefined) {
+      console.log(`[useCacheAndRevalidate] ${queryKey}: No sessionUserId, skipping Supabase fetch and IndexedDB write.`);
       setLoading(false); // Ensure loading state is cleared if we bail out
       return;
     }
 
     isRevalidatingRef.current = true; // Set ref
     setError(null);
+    setLoading(true); // Ensure loading is true when starting revalidation
 
     try {
+      console.log(`[useCacheAndRevalidate] ${queryKey}: Fetching remote data from Supabase.`);
       const { data: remoteData, error: remoteError } = await supabaseQuery(supabase);
       if (remoteError) throw remoteError;
 
@@ -86,6 +96,8 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
             if (remoteData.length > 0) {
               await table.put(remoteData[0]);
               console.log(`[useCacheAndRevalidate] ${queryKey}: Profile put.`);
+            } else {
+              console.log(`[useCacheAndRevalidate] ${queryKey}: No profile data to put.`);
             }
           } else {
             await table.bulkPut(remoteData);
@@ -93,29 +105,32 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
           }
           console.log(`[useCacheAndRevalidate] ${queryKey}: Transaction completed.`);
           // NEW: Log table contents immediately after transaction
-          if (cacheTable === 'gyms_cache') {
+          if (cacheTable === 'gyms_cache' || cacheTable === 't_paths_cache' || cacheTable === 't_path_exercises_cache') {
             const currentTableContents = await table.toArray();
-            console.log(`[useCacheAndRevalidate] ${queryKey}: Current gyms_cache contents after transaction:`, currentTableContents);
+            console.log(`[useCacheAndRevalidate] ${queryKey}: Current ${cacheTable} contents after transaction:`, currentTableContents);
           }
         });
       }
     } catch (err: any) {
-      console.error(`Error during ${queryKey} revalidation:`, err);
+      console.error(`[useCacheAndRevalidate] Error during ${queryKey} revalidation:`, err);
       setError(err.message || `An unexpected error occurred during ${queryKey} revalidation.`);
       toast.error(`Failed to refresh data for ${queryKey}.`); // Changed to toast.error
     } finally {
       setLoading(false);
       isRevalidatingRef.current = false; // Reset ref
+      console.log(`[useCacheAndRevalidate] ${queryKey}: fetchDataAndRevalidate finished. Loading: ${false}, Error: ${error}`);
     }
   }, [supabase, supabaseQuery, queryKey, cacheTable, sessionUserId]); // sessionUserId is a dependency here.
 
   useEffect(() => {
     // This useEffect will trigger fetchDataAndRevalidate when sessionUserId changes.
     // The fetchDataAndRevalidate itself now handles the null/undefined sessionUserId case.
+    console.log(`[useCacheAndRevalidate] ${queryKey}: useEffect for sessionUserId triggered. Calling fetchDataAndRevalidate.`);
     fetchDataAndRevalidate();
   }, [fetchDataAndRevalidate]);
 
   const refresh = useCallback(() => {
+    console.log(`[useCacheAndRevalidate] ${queryKey}: Manual refresh called.`);
     fetchDataAndRevalidate();
   }, [fetchDataAndRevalidate]);
 

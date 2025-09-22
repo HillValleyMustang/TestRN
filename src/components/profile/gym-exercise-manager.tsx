@@ -67,7 +67,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
   const [addExerciseSourceFilter, setAddExerciseSourceFilter] = useState<'my-exercises' | 'global-library'>('my-exercises');
 
   const [showAddExercisesDialog, setShowAddExercisesDialog] = useState(false);
-  const [selectedExerciseForInfo, setSelectedExerciseForInfo] = useState<ExerciseDefinition | null>(null);
+  const [selectedExerciseForInfo, setSelectedExerciseForInfo] = useState<FetchedExerciseDefinition | null>(null);
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
 
   const [showConfirmRemoveDialog, setShowConfirmRemoveDialog] = useState(false);
@@ -230,13 +230,6 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
         }
 
         currentMaxOrderIndex++;
-        exercisesToInsert.push({
-          template_id: selectedWorkoutId,
-          exercise_id: exerciseId,
-          order_index: currentMaxOrderIndex,
-          is_bonus_exercise: false,
-        });
-
         optimisticUpdates.push({
           ...exerciseDef,
           id: exerciseDef.id,
@@ -244,6 +237,12 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
           order_index: currentMaxOrderIndex,
           is_bonus_exercise: false,
           t_path_exercise_id: `temp-${Date.now()}-${exerciseId}`,
+        });
+        exercisesToInsert.push({
+          template_id: selectedWorkoutId,
+          exercise_id: exerciseId,
+          order_index: currentMaxOrderIndex,
+          is_bonus_exercise: false,
         });
       }
 

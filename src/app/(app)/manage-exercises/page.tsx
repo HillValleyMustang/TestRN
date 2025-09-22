@@ -27,7 +27,7 @@ import { useManageExercisesData } from '@/hooks/use-manage-exercises-data';
 import { AnalyseGymButton } from "@/components/manage-exercises/exercise-form/analyze-gym-button";
 import { AnalyseGymDialog } from "@/components/manage-exercises/exercise-form/analyze-gym-dialog";
 import { SaveAiExercisePrompt } from "@/components/workout-flow/save-ai-exercise-prompt";
-import { toast } from "sonner";
+import { toast } => "sonner";
 import { EditExerciseDialog } from "@/components/manage-exercises/edit-exercise-dialog";
 
 export default function ManageExercisesPage() {
@@ -163,17 +163,17 @@ export default function ManageExercisesPage() {
       user_id: session?.user.id || null,
       is_favorite: false,
       library_id: exercise.library_id || null,
-      // Explicitly cast potentially undefined values to string | null
       created_at: exercise.created_at ?? null,
       description: exercise.description ?? null,
       pro_tip: exercise.pro_tip ?? null,
       category: exercise.category ?? null,
       video_url: exercise.video_url ?? null,
-      icon_url: exercise.icon_url ?? null, // Fix for icon_url
-      // Ensure name, main_muscle, type are explicitly string
+      icon_url: exercise.icon_url ?? null,
       name: exercise.name || '',
       main_muscle: exercise.main_muscle || '',
-      type: exercise.type || 'weight', // Default to 'weight' if undefined
+      type: exercise.type || 'weight',
+      movement_type: exercise.movement_type ?? null, // Add this
+      movement_pattern: exercise.movement_pattern ?? null, // Add this
     };
     handleEditClick(exerciseToEdit);
     setShowSaveAiExercisePrompt(false);
@@ -329,6 +329,7 @@ export default function ManageExercisesPage() {
         onOpenChange={setShowSaveAiExercisePrompt}
         exercise={aiIdentifiedExercise}
         onSaveToMyExercises={handleSaveAiExerciseToMyExercises}
+        // Removed onAddOnlyToCurrentWorkout as it's not applicable in this context
         context="manage-exercises"
         onEditExercise={handleEditIdentifiedExercise}
         isSaving={isAiSaving}

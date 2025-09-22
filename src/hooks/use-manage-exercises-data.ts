@@ -32,7 +32,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
     // Fetch all exercises (user-owned and global)
     return client
       .from('exercise_definitions')
-      .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url')
+      .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url, movement_type, movement_pattern')
       .order('name', { ascending: true });
   }, []); // Removed sessionUserId from dependencies as we fetch all and filter client-side
 
@@ -252,12 +252,14 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
       (cachedExercises || []).forEach(ex => {
         // User-owned exercises must have user_id matching session and library_id must be null
         if (ex.user_id === sessionUserId && ex.library_id === null) {
-          userOwnedExercisesList.push({ ...ex, id: ex.id, is_favorite: !!ex.is_favorite });
+          userOwnedExercisesList.push({ ...ex, id: ex.id, is_favorite: !!ex.is_favorite, movement_type: ex.movement_type, movement_pattern: ex.movement_pattern });
         } else if (ex.user_id === null) { // Global exercises must have user_id === null
           globalExercisesList.push({
             ...ex,
             id: ex.id,
-            is_favorited_by_current_user: favoritedGlobalExerciseIds.has(ex.id)
+            is_favorited_by_current_user: favoritedGlobalExerciseIds.has(ex.id),
+            movement_type: ex.movement_type,
+            movement_pattern: ex.movement_pattern,
           });
         }
         // Any other combination (e.g., user_id === sessionUserId && library_id !== null)

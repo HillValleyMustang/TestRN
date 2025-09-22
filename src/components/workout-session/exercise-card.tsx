@@ -304,7 +304,7 @@ export const ExerciseCard = ({
                             type="number"
                             step="0.1"
                             placeholder="kg"
-                            value={convertWeight(set.weight_kg, 'kg', preferredWeightUnit as 'kg' | 'lbs') ?? ''}
+                            value={convertWeight(set.weight_kg, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') ?? ''}
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange(setIndex, 'weight_kg', e.target.value)}
                             disabled={set.isSaved}
                             className="w-20 text-center h-8 text-xs"
@@ -436,7 +436,7 @@ export const ExerciseCard = ({
         currentExercise={exercise}
         onSwap={(newExercise) => {
           if (onSubstituteExercise) {
-            onSubstituteExercise(exercise.id, { ...newExercise, is_bonus_exercise: exercise.is_bonus_exercise });
+            onSubstituteExercise(exercise.id, { ...newExercise, is_bonus_exercise: exercise.is_bonus_exercise, movement_type: newExercise.movement_type, movement_pattern: newExercise.movement_pattern });
           }
           setShowSwapDialog(false);
         }}
@@ -453,7 +453,7 @@ export const ExerciseCard = ({
         }}
         onSubstitute={(newExercise) => {
           if (onSubstituteExercise) {
-            onSubstituteExercise(exercise.id, { ...newExercise, is_bonus_exercise: exercise.is_bonus_exercise });
+            onSubstituteExercise(exercise.id, { ...newExercise, is_bonus_exercise: exercise.is_bonus_exercise, movement_type: newExercise.movement_type, movement_pattern: newExercise.movement_pattern });
           }
           setShowCantDoDialog(false);
         }}

@@ -55,7 +55,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const { profile, isLoading: loadingProfile, error: profileError, refresh: refreshProfile } = useUserProfile();
   const cachedProfile = profile ? [profile] : null;
 
-  const { data: cachedTPathExercises, loading: loadingTPathExercises, error: tPathExercisesError, refresh: refreshTPathExercises } = useCacheAndRevalidate<LocalTPathExercise>({
+  const { data: cachedTPathExercises, loading: loadingTPathExercises, error: tPathExercisesError, refresh: refreshTPathExercises } = useCacheAndRevalidate<Tables<'t_path_exercises'>>({
     cacheTable: 't_path_exercises_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
       if (!session?.user.id) return { data: [], error: null };
@@ -82,9 +82,10 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const loadingData = useMemo(() => loadingExercises || loadingTPaths || loadingProfile || loadingTPathExercises || loadingAchievements, [loadingExercises, loadingTPaths, loadingProfile, loadingTPathExercises, loadingAchievements]);
   const dataError = useMemo(() => exercisesError || tPathsError || profileError || tPathExercisesError || achievementsError, [exercisesError, tPathsError, profileError, tPathExercisesError, achievementsError]);
 
-  const allAvailableExercises = useMemo(() => (cachedExercises || []).map(ex => ({ ...ex, id: ex.id, is_favorited_by_current_user: false })), [cachedExercises]);
+  const allAvailableExercises = useMemo(() => (cachedExercises || []).map(ex => ({ ...ex, id: ex.id, is_favorited_by_current_user: false, movement_type: ex.movement_type, movement_pattern: ex.movement_pattern })), [cachedExercises]);
 
   const workoutExercisesCache = useMemo(() => {
+    console.log("[useWorkoutDataFetcher] Recalculating workoutExercisesCache.");
     if (loadingData || dataError || !session?.user.id) return {};
     const exerciseDefMap = new Map<string, ExerciseDefinition>();
     (cachedExercises || []).forEach(def => exerciseDefMap.set(def.id, def as ExerciseDefinition));
@@ -102,6 +103,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
         .filter(Boolean) as WorkoutExercise[];
       newWorkoutExercisesCache[workout.id] = exercisesForWorkout;
     }
+    console.log("[useWorkoutDataFetcher] New workoutExercisesCache:", newWorkoutExercisesCache);
     return newWorkoutExercisesCache;
   }, [cachedExercises, cachedTPaths, cachedTPathExercises, session?.user.id, loadingData, dataError]);
 
@@ -109,8 +111,10 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
 
   useEffect(() => {
     const enrichAndSetGroupedTPaths = async () => {
+      console.log("[useWorkoutDataFetcher] enrichAndSetGroupedTPaths triggered.");
       if (loadingData || dataError || !session?.user.id || !cachedTPaths) {
         setGroupedTPaths([]);
+        console.log("[useWorkoutDataFetcher] Skipping enrichAndSetGroupedTPaths due to loading, error, or missing data.");
         return;
       }
       const userMainTPaths = (cachedTPaths || []).filter(tp => tp.user_id === session.user.id && !tp.parent_t_path_id);
@@ -142,6 +146,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
           })
         );
         setGroupedTPaths(newGroupedTPaths);
+        console.log("[useWorkoutDataFetcher] Grouped T-Paths updated:", newGroupedTPaths);
       } catch (enrichError: any) {
         console.error("[useWorkoutDataFetcher] Failed to enrich workout data:", enrichError);
         toast.error("Could not load workout completion dates.");
@@ -151,6 +156,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   }, [session?.user.id, supabase, cachedTPaths, loadingData, dataError]);
 
   const refreshAllData = useCallback(async () => {
+    console.log("[useWorkoutDataFetcher] refreshAllData called.");
     await Promise.all([
       refreshExercises(),
       refreshTPaths(),
@@ -158,36 +164,40 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       refreshTPathExercises(),
       refreshAchievements(),
     ]);
+    console.log("[useWorkoutDataFetcher] All data refresh initiated.");
   }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, refreshAchievements]);
 
   useEffect(() => {
     const profileData = cachedProfile?.[0];
     const status = profileData?.t_path_generation_status;
+    console.log(`[useWorkoutDataFetcher] Profile generation status changed: ${prevStatusRef.current} -> ${status}`);
+
     const stopPolling = (finalStatus?: 'completed' | 'failed') => {
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
         pollingRef.current = null;
+        console.log("[useWorkoutDataFetcher] Polling stopped.");
       }
       setIsGeneratingPlan(false);
       if (finalStatus === 'completed') {
         toast.success("Your new workout plan is ready!");
+        console.log("[useWorkoutDataFetcher] Plan generation completed, refreshing all data.");
         refreshAllData();
       } else if (finalStatus === 'failed') {
         toast.error("Workout plan generation failed.", { // Changed to toast.error
           description: profileData?.t_path_generation_error || "An unknown error occurred.",
         });
+        console.error("[useWorkoutDataFetcher] Plan generation failed:", profileData?.t_path_generation_error);
       }
     };
     if (status === 'in_progress') {
       if (!pollingRef.current) {
         setIsGeneratingPlan(true);
         pollingRef.current = setInterval(() => refreshProfile(), 3000);
+        console.log("[useWorkoutDataFetcher] Polling started for plan generation status.");
       }
     } else if (prevStatusRef.current === 'in_progress' && (status === 'completed' || status === 'failed')) {
       stopPolling(status);
-    } else if (prevStatusRef.current !== 'completed' && status === 'completed') {
-      refreshAllData();
-      stopPolling();
     } else {
       stopPolling();
     }

@@ -15,6 +15,7 @@ import { WorkoutActionButtons } from "@/components/manage-t-paths/edit-workout-e
 import { ConfirmRemoveExerciseDialog } from "@/components/manage-t-paths/edit-workout-exercises/confirm-remove-exercise-dialog";
 import { AddAsBonusDialog } from "@/components/manage-t-paths/edit-workout-exercises/add-as-bonus-dialog";
 import { ConfirmResetDialog } from "@/components/manage-t-paths/edit-workout-exercises/confirm-reset-dialog";
+import { FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
 
 interface EditWorkoutExercisesDialogProps {
   open: boolean;
@@ -65,9 +66,9 @@ export const EditWorkoutExercisesDialog = ({
   } = useEditWorkoutExercises({ workoutId, onSaveSuccess, open });
 
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
-  const [selectedExerciseForInfo, setSelectedExerciseForInfo] = useState<typeof exercises[0] | null>(null);
+  const [selectedExerciseForInfo, setSelectedExerciseForInfo] = useState<FetchedExerciseDefinition | null>(null);
 
-  const handleOpenInfoDialog = (exercise: typeof exercises[0]) => {
+  const handleOpenInfoDialog = (exercise: FetchedExerciseDefinition) => {
     setSelectedExerciseForInfo(exercise);
     setIsInfoDialogOpen(true);
   };

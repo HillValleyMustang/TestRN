@@ -47,7 +47,7 @@ export type ProfileUpdate = TablesUpdate<'profiles'>;
 
 // Define a type for set logs joined with exercise definitions, including is_pb
 export type SetLogWithExercise = Pick<Tables<'set_logs'>, 'id' | 'weight_kg' | 'reps' | 'reps_l' | 'reps_r' | 'time_seconds' | 'is_pb' | 'created_at' | 'exercise_id' | 'session_id'> & {
-  exercise_definitions: Pick<Tables<'exercise_definitions'>, 'id' | 'name' | 'main_muscle' | 'type' | 'category'> | null;
+  exercise_definitions: Pick<ExerciseDefinitionsRow, 'id' | 'name' | 'main_muscle' | 'type' | 'category' | 'movement_type' | 'movement_pattern'> | null;
   // Added fields for progressive overload comparison
   last_session_weight_kg?: number | null;
   last_session_reps?: number | null;
@@ -57,10 +57,13 @@ export type SetLogWithExercise = Pick<Tables<'set_logs'>, 'id' | 'weight_kg' | '
 };
 
 // New type for exercises when fetched as part of a workout, including bonus status
-export type WorkoutExercise = Tables<'exercise_definitions'> & {
+export interface WorkoutExercise extends Omit<ExerciseDefinitionsRow, 'id'> {
+  id: string; // Must be non-null
   is_bonus_exercise: boolean;
   icon_url: string | null; // Added icon_url
-};
+  movement_type: string | null; // Explicitly add these
+  movement_pattern: string | null; // Explicitly add these
+}
 
 // New type for user_exercise_prs table
 export type UserExercisePR = Tables<'user_exercise_prs'>;
@@ -84,11 +87,13 @@ export type AiCoachUsageLog = AiCoachUsageLogsRow;
 
 // Centralized FetchedExerciseDefinition for consistency across manage-exercises components
 // It now explicitly extends ExerciseDefinitionsRow to ensure movement_type and movement_pattern are present.
-export interface FetchedExerciseDefinition extends ExerciseDefinitionsRow {
+export interface FetchedExerciseDefinition extends Omit<ExerciseDefinitionsRow, 'id'> {
   id: string | null; // Override id to be nullable
   is_favorited_by_current_user?: boolean; // For global exercises favorited by user
   duplicate_status?: 'none' | 'global' | 'my-exercises'; // NEW: Add duplicate status
   existing_id?: string | null; // ID of the duplicate exercise if found
+  movement_type: string | null; // Explicitly add these
+  movement_pattern: string | null; // Explicitly add these
 }
 
 // Centralized type for workouts with last completed date
@@ -117,12 +122,14 @@ export interface GroupedTPath {
 }
 
 // NEW: WorkoutExerciseWithDetails type for exercises in a workout template
-export interface WorkoutExerciseWithDetails extends ExerciseDefinitionsRow {
+export interface WorkoutExerciseWithDetails extends Omit<ExerciseDefinitionsRow, 'id'> {
   id: string; // Ensure ID is always present
   name: string; // Ensure name is always present
   order_index: number;
   is_bonus_exercise: boolean;
   t_path_exercise_id: string; // ID from t_path_exercises table
+  movement_type: string | null; // Explicitly add these
+  movement_pattern: string | null; // Explicitly add these
 }
 
 // Export the full ExerciseDefinitionsRow as ExerciseDefinition

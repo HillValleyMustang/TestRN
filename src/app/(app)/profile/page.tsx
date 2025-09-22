@@ -152,7 +152,7 @@ export default function ProfilePage() {
         .count();
       return count;
     } catch (error) {
-      console.error("Error fetching total workouts count from IndexedDB:", error);
+      console.error("[ProfilePage] Error fetching total workouts count from IndexedDB:", error);
       toast.error("Failed to load total workouts count."); // Added toast.error
       return 0;
     }
@@ -173,7 +173,7 @@ export default function ProfilePage() {
       });
       return uniqueExerciseInstances.size;
     } catch (error) {
-      console.error("Error fetching total exercises count from IndexedDB:", error);
+      console.error("[ProfilePage] Error fetching total exercises count from IndexedDB:", error);
       toast.error("Failed to load total exercises count."); // Added toast.error
       return 0;
     }
@@ -182,6 +182,7 @@ export default function ProfilePage() {
   const lastSavedSessionLengthRef = useRef<string | null>(null);
 
   const refreshProfileData = useCallback(async () => {
+    console.log("[ProfilePage] refreshProfileData called.");
     await refreshProfileCache();
     await refreshAchievementsCache();
     await refreshTPathsCache();
@@ -195,6 +196,7 @@ export default function ProfilePage() {
 
     if (profile) {
       lastSavedSessionLengthRef.current = profile.preferred_session_length;
+      console.log("[ProfilePage] Profile data loaded, setting form defaults:", profile);
 
       form.reset({
         full_name: [profile.first_name, profile.last_name].filter(Boolean).join(' '),
@@ -220,6 +222,7 @@ export default function ProfilePage() {
       form.reset();
       lastSavedSessionLengthRef.current = null;
       setAiCoachUsageToday(0);
+      console.log("[ProfilePage] No profile data found, resetting form.");
     }
   }, [profile, loadingProfile, loadingAchievements, session?.user.id, form, supabase, setAiCoachUsageToday]);
 
@@ -291,13 +294,16 @@ export default function ProfilePage() {
   const fitnessLevel = getFitnessLevel();
 
   async function onSubmit(values: z.infer<typeof profileSchema>) {
+    console.log("[ProfilePage] onSubmit called with values:", values);
     if (!session || !profile) {
+      console.error("[ProfilePage] Cannot save profile: session or profile data missing.");
       toast.error("Cannot save profile: session or profile data missing."); // Added toast.error
       return;
     }
 
     // Check if the form has been modified
     if (!form.formState.isDirty) {
+      console.log("[ProfilePage] Form is not dirty, exiting edit mode.");
       setIsEditing(false); // Just exit edit mode
       return;
     }
@@ -307,6 +313,7 @@ export default function ProfilePage() {
     const oldSessionLength = lastSavedSessionLengthRef.current;
     const newSessionLength = values.preferred_session_length;
     const sessionLengthChanged = oldSessionLength !== newSessionLength;
+    console.log(`[ProfilePage] Session length changed: ${sessionLengthChanged} (Old: ${oldSessionLength}, New: ${newSessionLength})`);
 
     const nameParts = values.full_name.split(' ');
     const firstName = nameParts.shift() || '';
@@ -320,9 +327,10 @@ export default function ProfilePage() {
       updated_at: new Date().toISOString()
     };
     
+    console.log("[ProfilePage] Attempting to update profile with data:", updateData);
     const { error } = await supabase.from('profiles').update(updateData).eq('id', session.user.id);
     if (error) {
-      console.error("Failed to update profile:", error);
+      console.error("[ProfilePage] Failed to update profile:", error);
       toast.error("Failed to update profile."); // Changed to toast.error
       setIsSaving(false);
       return;
@@ -332,6 +340,7 @@ export default function ProfilePage() {
     lastSavedSessionLengthRef.current = newSessionLength ?? null;
 
     if (sessionLengthChanged && profile.active_t_path_id) {
+      console.log(`[ProfilePage] Session length changed and active T-Path exists (${profile.active_t_path_id}). Initiating workout plan update.`);
       try {
         const response = await fetch(`/api/generate-t-path`, {
           method: 'POST',
@@ -347,13 +356,16 @@ export default function ProfilePage() {
 
         if (!response.ok) {
           const errorText = await response.text();
+          console.error("[ProfilePage] Failed to initiate T-Path workout regeneration API:", errorText);
           throw new Error(`Failed to initiate T-Path workout regeneration: ${errorText}`);
         }
+        console.log("[ProfilePage] Successfully initiated T-Path workout regeneration API call.");
       } catch (err: any) {
-        console.error("Error initiating workout plan update:", err);
+        console.error("[ProfilePage] Error initiating workout plan update:", err);
         toast.error("Error initiating workout plan update."); // Changed to toast.error
       }
     }
+    console.log("[ProfilePage] Refreshing profile data after save.");
     await refreshProfileData();
     setIsEditing(false);
     setIsSaving(false);
