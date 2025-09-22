@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useMemo, useCallback, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useWorkoutDataFetcher } from './use-workout-data-fetcher';
-import { useActiveWorkoutSession } from './data/useActiveWorkoutSession'; // Import the new data hook
-import { Tables } from '@/types/supabase'; // Import Tables for Gym type
+import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher';
+import { useActiveWorkoutSession } from './data/useActiveWorkoutSession';
+import { Tables } from '@/types/supabase';
 
 interface UseWorkoutFlowManagerProps {
   router: ReturnType<typeof useRouter>;
@@ -24,11 +24,10 @@ export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) =>
     profile,
     tempFavoriteStatusMessage,
     setTempFavoriteStatusMessage,
-    // NEW: Destructure these from useWorkoutDataFetcher
     availableMuscleGroups,
     userGyms,
     exerciseGymsMap,
-    exerciseWorkoutsMap, // Ensure this is destructured here
+    exerciseWorkoutsMap, // Destructure the new map
   } = useWorkoutDataFetcher();
 
   const activeSession = useActiveWorkoutSession();
@@ -121,11 +120,10 @@ export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) =>
     profile,
     tempFavoriteStatusMessage,
     setTempFavoriteStatusMessage,
-    // NEW: Include these in the context value
     availableMuscleGroups,
     userGyms,
     exerciseGymsMap,
-    exerciseWorkoutsMap, // ADDED: Ensure this is returned
+    exerciseWorkoutsMap, // Pass it through
   }), [
     activeSession,
     selectWorkout,
@@ -148,10 +146,9 @@ export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) =>
     profile,
     tempFavoriteStatusMessage,
     setTempFavoriteStatusMessage,
-    // NEW: Add to dependencies
     availableMuscleGroups,
     userGyms,
     exerciseGymsMap,
-    exerciseWorkoutsMap, // ADDED: Add to dependencies
+    exerciseWorkoutsMap, // Add to dependencies
   ]);
 };

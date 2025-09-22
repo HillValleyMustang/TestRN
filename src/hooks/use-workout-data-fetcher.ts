@@ -8,7 +8,8 @@ import { useCacheAndRevalidate } from './use-cache-and-revalidate';
 import { db, LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise, LocalGymExercise } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
 import { useUserProfile } from '@/hooks/data/useUserProfile';
-import { useLiveQuery } from 'dexie-react-hooks'; // Import useLiveQuery
+import { useLiveQuery } from 'dexie-react-hooks';
+import { getMaxMinutes } from '@/lib/utils'; // Import getMaxMinutes
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -31,10 +32,10 @@ interface UseWorkoutDataFetcherReturn {
   isGeneratingPlan: boolean;
   tempFavoriteStatusMessage: { message: string; type: 'added' | 'removed' } | null;
   setTempFavoriteStatusMessage: (message: { message: string; type: 'added' | 'removed' } | null) => void;
-  // NEW: Add these to the return type
   availableMuscleGroups: string[];
   userGyms: Tables<'gyms'>[];
   exerciseGymsMap: Record<string, string[]>;
+  exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>; // ADDED
 }
 
 export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
@@ -43,6 +44,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const prevStatusRef = useRef<string | null>(null);
   const [tempFavoriteStatusMessage, setTempFavoriteStatusMessage] = useState<{ message: string; type: 'added' | 'removed' } | null>(null);
+  const [exerciseWorkoutsMap, setExerciseWorkoutsMap] = useState<Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>>({}); // ADDED STATE
 
   const { data: cachedExercises, loading: loadingExercises, error: exercisesError, refresh: refreshExercises } = useCacheAndRevalidate<LocalExerciseDefinition>({
     cacheTable: 'exercise_definitions_cache',
@@ -87,7 +89,6 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     sessionUserId: session?.user.id ?? null,
   });
 
-  // NEW: Fetch user gyms
   const { data: cachedUserGyms, loading: loadingUserGyms, error: userGymsError, refresh: refreshUserGyms } = useCacheAndRevalidate<Tables<'gyms'>>({
     cacheTable: 'gyms_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
@@ -99,7 +100,6 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     sessionUserId: session?.user.id ?? null,
   });
 
-  // NEW: Manual fetching and caching for gym_exercises due to composite primary key
   const [cachedGymExercises, setCachedGymExercises] = useState<LocalGymExercise[] | null>(null);
   const [loadingGymExercises, setLoadingGymExercises] = useState(true);
   const [gymExercisesError, setGymExercisesError] = useState<string | null>(null);
@@ -141,7 +141,6 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     fetchGymExercises();
   }, [fetchGymExercises]);
 
-  // Use LiveQuery for gym_exercises_cache
   const liveCachedGymExercises = useLiveQuery(async () => {
     if (!session?.user.id) return [];
     return db.gym_exercises_cache.toArray();
@@ -153,18 +152,12 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     }
   }, [liveCachedGymExercises]);
 
-
   const loadingData = useMemo(() => loadingExercises || loadingTPaths || loadingProfile || loadingTPathExercises || loadingAchievements || loadingUserGyms || loadingGymExercises, [loadingExercises, loadingTPaths, loadingProfile, loadingTPathExercises, loadingAchievements, loadingUserGyms, loadingGymExercises]);
   const dataError = useMemo(() => exercisesError || tPathsError || profileError || tPathExercisesError || achievementsError || userGymsError || gymExercisesError, [exercisesError, tPathsError, profileError, tPathExercisesError, achievementsError, userGymsError, gymExercisesError]);
 
   const allAvailableExercises = useMemo(() => (cachedExercises || []).map(ex => ({ ...ex, id: ex.id, is_favorited_by_current_user: false, movement_type: ex.movement_type, movement_pattern: ex.movement_pattern })), [cachedExercises]);
+  const availableMuscleGroups = useMemo(() => Array.from(new Set((cachedExercises || []).map(ex => ex.main_muscle))).sort(), [cachedExercises]);
 
-  // NEW: Calculate available muscle groups
-  const availableMuscleGroups = useMemo(() => {
-    return Array.from(new Set((cachedExercises || []).map(ex => ex.main_muscle))).sort();
-  }, [cachedExercises]);
-
-  // NEW: Calculate exerciseGymsMap
   const exerciseGymsMap = useMemo(() => {
     const newExerciseGymsMap: Record<string, string[]> = {};
     const gymIdToNameMap = new Map<string, string>();
@@ -182,9 +175,91 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     return newExerciseGymsMap;
   }, [cachedUserGyms, cachedGymExercises]);
 
+  // NEW: useEffect to calculate exerciseWorkoutsMap
+  useEffect(() => {
+    const calculateExerciseWorkoutsMap = async () => {
+      if (loadingData || dataError || !session?.user.id || !cachedTPaths || !cachedTPathExercises || !profile) {
+        setExerciseWorkoutsMap({});
+        return;
+      }
+
+      const allTPaths = cachedTPaths || [];
+      const tPathExercisesData = cachedTPathExercises || [];
+      const activeTPathId = profile.active_t_path_id;
+      const preferredSessionLength = profile.preferred_session_length;
+      const maxAllowedMinutes = getMaxMinutes(preferredSessionLength);
+
+      let activeChildWorkoutIds: string[] = [];
+      let activeWorkoutNames: string[] = [];
+      if (activeTPathId) {
+        const activeMainTPath = allTPaths.find(tp => tp.id === activeTPathId);
+        if (activeMainTPath) {
+          const childWorkouts = allTPaths.filter(tp => tp.parent_t_path_id === activeMainTPath.id && tp.is_bonus);
+          activeChildWorkoutIds = childWorkouts.map(cw => cw.id);
+          activeWorkoutNames = childWorkouts.map(cw => cw.template_name);
+        }
+      }
+
+      const { data: structureData, error: structureError } = await supabase
+        .from('workout_exercise_structure')
+        .select('exercise_library_id, workout_name, min_session_minutes, bonus_for_time_group');
+      if (structureError) {
+        console.error("Error fetching workout structure for map:", structureError);
+        toast.error("Failed to load workout structure details.");
+        return;
+      }
+
+      const libraryIdToUuidMap = new Map<string, string>();
+      (cachedExercises || []).forEach(ex => {
+        if (ex.library_id) libraryIdToUuidMap.set(ex.library_id, ex.id);
+      });
+
+      const newMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]> = {};
+
+      tPathExercisesData.forEach(tpe => {
+        if (activeChildWorkoutIds.includes(tpe.template_id)) {
+          const workout = allTPaths.find(tp => tp.id === tpe.template_id);
+          if (workout) {
+            if (!newMap[tpe.exercise_id]) newMap[tpe.exercise_id] = [];
+            if (!newMap[tpe.exercise_id].some(item => item.id === workout.id)) {
+              newMap[tpe.exercise_id].push({
+                id: workout.id,
+                name: workout.template_name,
+                isUserOwned: workout.user_id === session.user.id,
+                isBonus: !!tpe.is_bonus_exercise,
+              });
+            }
+          }
+        }
+      });
+
+      (structureData || []).forEach(structure => {
+        if (activeWorkoutNames.includes(structure.workout_name)) {
+          const isIncludedAsMain = structure.min_session_minutes !== null && maxAllowedMinutes >= structure.min_session_minutes;
+          const isIncludedAsBonus = structure.bonus_for_time_group !== null && maxAllowedMinutes >= structure.bonus_for_time_group;
+          if (isIncludedAsMain || isIncludedAsBonus) {
+            const exerciseUuid = libraryIdToUuidMap.get(structure.exercise_library_id);
+            if (exerciseUuid) {
+              if (!newMap[exerciseUuid]) newMap[exerciseUuid] = [];
+              if (!newMap[exerciseUuid].some(item => item.name === structure.workout_name)) {
+                newMap[exerciseUuid].push({
+                  id: `global_${structure.workout_name}`,
+                  name: structure.workout_name,
+                  isUserOwned: false,
+                  isBonus: false,
+                });
+              }
+            }
+          }
+        }
+      });
+      setExerciseWorkoutsMap(newMap);
+    };
+    calculateExerciseWorkoutsMap();
+  }, [loadingData, dataError, session?.user.id, cachedTPaths, cachedTPathExercises, profile, cachedExercises, supabase]);
+
 
   const workoutExercisesCache = useMemo(() => {
-    console.log("[WorkoutDataFetcher] Recalculating workoutExercisesCache.");
     if (loadingData || dataError || !session?.user.id) return {};
     const exerciseDefMap = new Map<string, ExerciseDefinition>();
     (cachedExercises || []).forEach(def => exerciseDefMap.set(def.id, def as ExerciseDefinition));
@@ -202,7 +277,6 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
         .filter(Boolean) as WorkoutExercise[];
       newWorkoutExercisesCache[workout.id] = exercisesForWorkout;
     }
-    console.log("[WorkoutDataFetcher] New workoutExercisesCache:", newWorkoutExercisesCache);
     return newWorkoutExercisesCache;
   }, [cachedExercises, cachedTPaths, cachedTPathExercises, session?.user.id, loadingData, dataError]);
 
@@ -210,10 +284,8 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
 
   useEffect(() => {
     const enrichAndSetGroupedTPaths = async () => {
-      console.log("[WorkoutDataFetcher] enrichAndSetGroupedTPaths triggered.");
       if (loadingData || dataError || !session?.user.id || !cachedTPaths) {
         setGroupedTPaths([]);
-        console.log("[WorkoutDataFetcher] Skipping enrichAndSetGroupedTPaths due to loading, error, or missing data.");
         return;
       }
       const userMainTPaths = (cachedTPaths || []).filter(tp => tp.user_id === session.user.id && !tp.parent_t_path_id);
@@ -226,7 +298,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
               childWorkouts.map(async (workout) => {
                 try {
                   const { data: lastSessionDate, error: rpcError } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
-                  if (rpcError && rpcError.code !== 'PGRST116') throw rpcError; // Ignore no rows found
+                  if (rpcError && rpcError.code !== 'PGRST116') throw rpcError;
                   return { ...workout, last_completed_at: lastSessionDate?.[0]?.last_completed_at || null };
                 } catch (err) {
                   console.error(`[WorkoutDataFetcher] Error fetching last completed date for workout ${workout.id}:`, err);
@@ -245,7 +317,6 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
           })
         );
         setGroupedTPaths(newGroupedTPaths);
-        console.log("[WorkoutDataFetcher] Grouped T-Paths updated:", newGroupedTPaths);
       } catch (enrichError: any) {
         console.error("[WorkoutDataFetcher] Failed to enrich workout data:", enrichError);
         toast.error("Could not load workout completion dates.");
@@ -255,52 +326,43 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   }, [session?.user.id, supabase, cachedTPaths, loadingData, dataError]);
 
   const refreshAllData = useCallback(async () => {
-    console.log("[WorkoutDataFetcher] refreshAllData called.");
     await Promise.all([
       refreshExercises(),
       refreshTPaths(),
       refreshProfile(),
       refreshTPathExercises(),
       refreshAchievements(),
-      refreshUserGyms(), // NEW: Refresh gyms
-      fetchGymExercises(), // NEW: Call manual fetch for gym exercises
+      refreshUserGyms(),
+      fetchGymExercises(),
     ]);
-    console.log("[WorkoutDataFetcher] All data refresh initiated.");
   }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, refreshAchievements, refreshUserGyms, fetchGymExercises]);
 
   useEffect(() => {
-    const profileData = profile; // Use the profile from useUserProfile directly
+    const profileData = profile;
     const status = profileData?.t_path_generation_status;
-    console.log(`[WorkoutDataFetcher] Profile generation status changed: ${prevStatusRef.current} -> ${status}`);
-
     const stopPolling = (finalStatus?: 'completed' | 'failed') => {
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
         pollingRef.current = null;
-        console.log("[WorkoutDataFetcher] Polling stopped.");
       }
       setIsGeneratingPlan(false);
       if (finalStatus === 'completed') {
         toast.success("Your new workout plan is ready!");
-        console.log("[WorkoutDataFetcher] Plan generation completed, refreshing all data.");
         refreshAllData();
       } else if (finalStatus === 'failed') {
         toast.error("Workout plan generation failed.", {
           description: profileData?.t_path_generation_error || "An unknown error occurred.",
         });
-        console.error("[WorkoutDataFetcher] Plan generation failed:", profileData?.t_path_generation_error);
       }
     };
     if (status === 'in_progress') {
       if (!pollingRef.current) {
         setIsGeneratingPlan(true);
         pollingRef.current = setInterval(() => refreshProfile(), 3000);
-        console.log("[WorkoutDataFetcher] Polling started for plan generation status.");
       }
     } else if (prevStatusRef.current === 'in_progress' && (status === 'completed' || status === 'failed')) {
       stopPolling(status);
     } else if (prevStatusRef.current !== 'completed' && status === 'completed') {
-      console.log("[WorkoutDataFetcher] Status is 'completed' and was not 'in_progress' before. Triggering full refresh.");
       refreshAllData();
       stopPolling();
     } else {
@@ -327,9 +389,9 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     isGeneratingPlan,
     tempFavoriteStatusMessage,
     setTempFavoriteStatusMessage,
-    // NEW: Return these values
     availableMuscleGroups,
     userGyms: cachedUserGyms || [],
     exerciseGymsMap,
+    exerciseWorkoutsMap, // ADDED
   };
 };
