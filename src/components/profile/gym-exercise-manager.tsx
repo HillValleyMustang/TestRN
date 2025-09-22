@@ -490,7 +490,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
             )}
           </div>
           <DialogFooter className="flex flex-row justify-end gap-2 p-4 pt-2 border-t">
-            <Button variant="outline" onClick={handleCloseDialog} disabled={isSaving} size="sm">Close</Button>
+            <Button variant="outline" onClick={handleSaveChanges} disabled={isSaving || !hasUnsavedChanges} size="sm">Close</Button>
             <Button onClick={handleSaveChanges} disabled={isSaving || !hasUnsavedChanges} size="sm">Save Changes</Button>
           </DialogFooter>
         </DialogContent>

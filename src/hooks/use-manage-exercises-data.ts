@@ -17,6 +17,7 @@ interface UseManageExercisesDataProps {
   userGyms: Tables<'gyms'>[]; // NEW: Receive as prop
   exerciseGymsMap: Record<string, string[]>; // NEW: Receive as prop
   availableMuscleGroups: string[]; // NEW: Receive as prop
+  exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>; // NEW: Receive as prop
 }
 
 export const useManageExercisesData = ({ sessionUserId, supabase, setTempFavoriteStatusMessage, userGyms, exerciseGymsMap, availableMuscleGroups }: UseManageExercisesDataProps) => {

@@ -115,7 +115,15 @@ export type Database = {
           description?: string | null;
           created_at?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "body_fat_reference_images_id_fkey";
+            columns: ["id"];
+            isOneToOne: true;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       exercise_definitions: {
         Row: {

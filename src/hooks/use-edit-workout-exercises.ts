@@ -57,16 +57,14 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     if (!session || !workoutId) return;
     setLoading(true);
     try {
-      // Fetch only t_path_exercises for this specific workout
-      const tpeRes: PostgrestResponse<Tables<'t_path_exercises'>[]> = await supabase.from('t_path_exercises').select('id, exercise_id, order_index, is_bonus_exercise').eq('template_id', workoutId).order('order_index', { ascending: true });
-      if (tpeRes.error) throw tpeRes.error;
+      // Fetch only t_path_exercises for this specific workout, selecting all required columns
+      const { data: tPathExercisesLinks, error: tpeError } = await supabase.from('t_path_exercises').select('id, exercise_id, order_index, is_bonus_exercise, created_at, template_id').eq('template_id', workoutId).order('order_index', { ascending: true });
+      if (tpeError) throw tpeError;
 
-      const tPathExercisesLinks = tpeRes.data || [];
-      
       const exerciseDefMap = new Map<string, ExerciseDefinition>();
       fetchedAllAvailableExercises.forEach(def => exerciseDefMap.set(def.id as string, def as ExerciseDefinition));
       
-      const fetchedExercises = (tPathExercisesLinks as Tables<'t_path_exercises'>[]).map((link: Tables<'t_path_exercises'>) => { // Explicitly type link
+      const fetchedExercises = (tPathExercisesLinks || []).map((link: Tables<'t_path_exercises'>) => { // Explicitly type link
         const exerciseDef = exerciseDefMap.get(link.exercise_id);
         if (!exerciseDef) return null;
         return {
