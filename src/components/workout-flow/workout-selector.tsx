@@ -22,10 +22,10 @@ import { UnconfiguredGymPrompt } from '@/components/prompts/unconfigured-gym-pro
 import { useGym } from '@/components/gym-context-provider';
 import { Input } from '@/components/ui/input'; // Import Input
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Import Select
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'; // Import ToggleGroup
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Import Tabs
 import { Label } from '@/components/ui/label'; // Import Label
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList, CommandInput } from '@/components/ui/command'; // Added CommandInput
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 type TPath = Tables<'t_paths'>;
 // Removed local ExerciseDefinition type as it's now imported from @/types/supabase
@@ -415,14 +415,12 @@ export const WorkoutSelector = ({
                 <div className="flex flex-col gap-3 mb-3">
                   {/* Filters */}
                   <div className="flex flex-wrap items-center gap-2">
-                    <ToggleGroup type="single" value={adHocExerciseSourceFilter} onValueChange={(value: 'my-exercises' | 'global-library') => setAdHocExerciseSourceFilter(value)} className="flex-grow">
-                      <ToggleGroupItem value="my-exercises" aria-label="My Exercises" className="flex-1 text-xs h-8">
-                        My Exercises
-                      </ToggleGroupItem>
-                      <ToggleGroupItem value="global-library" aria-label="Global Library" className="flex-1 text-xs h-8">
-                        Global Library
-                      </ToggleGroupItem>
-                    </ToggleGroup>
+                    <Tabs value={adHocExerciseSourceFilter} onValueChange={(value) => setAdHocExerciseSourceFilter(value as 'my-exercises' | 'global-library')} className="flex-grow">
+                      <TabsList className="grid w-full grid-cols-2 h-9">
+                        <TabsTrigger value="my-exercises" className="text-xs">My Exercises</TabsTrigger>
+                        <TabsTrigger value="global-library" className="text-xs">Global Library</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
                     <Select onValueChange={setMuscleFilter} value={muscleFilter}>
                       <SelectTrigger className="flex-1 h-8 text-xs min-w-[120px]">
                         <SelectValue placeholder="Muscle Group" />
