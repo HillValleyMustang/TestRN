@@ -108,7 +108,7 @@ export const useActiveWorkoutSession = () => {
       const initialSets = Object.fromEntries(exercises.map(ex => [ex.id, Array.from({ length: DEFAULT_INITIAL_SETS }, () => ({ id: null, created_at: null, session_id: null, exercise_id: ex.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null }))]));
       setExercisesWithSets(initialSets);
       setCompletedExercises(new Set());
-      setExpandedExerciseCards(Object.fromEntries(exercises.map(ex => [ex.id, true])));
+      setExpandedExerciseCards(Object.fromEntries(exercises.map(ex => [ex.id, false]))); // Changed to false for collapsed by default
     } else {
       toast.error("Selected workout not found.");
       console.error("[ActiveWorkoutSession] Error: Selected workout not found for ID:", workoutId);
@@ -211,7 +211,7 @@ export const useActiveWorkoutSession = () => {
     setExercisesForSession(prev => [{ ...exercise, is_bonus_exercise: false }, ...prev]);
     const newSets = Array.from({ length: DEFAULT_INITIAL_SETS }, () => ({ id: null, created_at: null, session_id: currentSessionId, exercise_id: exercise.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null }));
     updateExerciseSets(exercise.id, newSets);
-    setExpandedExerciseCards(prev => ({ ...prev, [exercise.id]: true }));
+    setExpandedExerciseCards(prev => ({ ...prev, [exercise.id]: false })); // Changed to false for collapsed by default
     console.log(`[ActiveWorkoutSession] Exercise ${exercise.name} added to session.`);
   }, [exercisesForSession, currentSessionId, updateExerciseSets, setExercisesForSession, setExpandedExerciseCards]);
 
@@ -235,7 +235,7 @@ export const useActiveWorkoutSession = () => {
     updateExerciseSets(newExercise.id, newSets);
     setExercisesWithSets(prev => { const newSets = { ...prev }; delete newSets[oldExerciseId]; return newSets; });
     setCompletedExercises((prev: Set<string>) => { const newCompleted = new Set(prev); newCompleted.delete(oldExerciseId); return newCompleted; });
-    setExpandedExerciseCards(prev => { const newExpanded = { ...prev }; delete newExpanded[oldExerciseId]; newExpanded[newExercise.id] = true; return newExpanded; });
+    setExpandedExerciseCards(prev => { const newExpanded = { ...prev }; delete newExpanded[oldExerciseId]; newExpanded[newExercise.id] = false; return newExpanded; }); // Changed to false for collapsed by default
     console.log(`[ActiveWorkoutSession] Exercise ${oldExerciseId} substituted with ${newExercise.name}.`);
   }, [exercisesForSession, currentSessionId, updateExerciseSets, setExercisesForSession, setExercisesWithSets, setCompletedExercises, setExpandedExerciseCards]);
 
@@ -295,7 +295,7 @@ export const useActiveWorkoutSession = () => {
         const initialSets = Object.fromEntries(filteredNewExercises.map(ex => [ex.id, Array.from({ length: DEFAULT_INITIAL_SETS }, () => ({ id: null, created_at: null, session_id: currentSessionId, exercise_id: ex.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null }))]));
         setExercisesWithSets(initialSets);
         setCompletedExercises(new Set());
-        setExpandedExerciseCards(Object.fromEntries(filteredNewExercises.map(ex => [ex.id, true])));
+        setExpandedExerciseCards(Object.fromEntries(filteredNewExercises.map(ex => [ex.id, false]))); // Changed to false for collapsed by default
       } else {
         console.log("[ActiveWorkoutSession] No change in exercise IDs. Skipping update.");
       }
