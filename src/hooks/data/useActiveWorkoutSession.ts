@@ -233,36 +233,35 @@ export const useActiveWorkoutSession = () => {
       toast.info(`'${newExercise.name}' is already in this session.`);
       return;
     }
-    
-    // 1. Update the main exercise list, preserving order
-    setExercisesForSession(prev => prev.map(ex => ex.id === oldExerciseId ? newExercise : ex));
-    
-    // 2. Create new sets for the new exercise
-    const newSetsForNewExercise = Array.from({ length: DEFAULT_INITIAL_SETS }, () => ({ id: null, created_at: null, session_id: currentSessionId, exercise_id: newExercise.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null }));
-    
-    // 3. Update the sets map in a single, atomic operation
-    setExercisesWithSets(prev => {
-      const newSetsState = { ...prev };
-      delete newSetsState[oldExerciseId]; // Remove old exercise sets
-      newSetsState[newExercise.id] = newSetsForNewExercise; // Add new exercise sets
-      return newSetsState;
-    });
 
-    // 4. Update completed and expanded states
-    setCompletedExercises((prev: Set<string>) => {
-      const newCompleted = new Set(prev);
-      newCompleted.delete(oldExerciseId);
-      return newCompleted;
-    });
-    setExpandedExerciseCards(prev => {
-      const newExpanded = { ...prev };
-      delete newExpanded[oldExerciseId];
-      newExpanded[newExercise.id] = false; // Start collapsed
-      return newExpanded;
-    });
+    const oldExerciseIndex = exercisesForSession.findIndex(ex => ex.id === oldExerciseId);
+    if (oldExerciseIndex === -1) {
+      console.error(`[ActiveWorkoutSession] substituteExercise failed: Could not find old exercise with ID ${oldExerciseId} in the current session.`);
+      toast.error("Failed to substitute exercise: original exercise not found.");
+      return;
+    }
+
+    const newExercisesForSession = [...exercisesForSession];
+    newExercisesForSession[oldExerciseIndex] = newExercise;
+
+    const newExercisesWithSets = { ...exercisesWithSets };
+    delete newExercisesWithSets[oldExerciseId];
+    newExercisesWithSets[newExercise.id] = Array.from({ length: DEFAULT_INITIAL_SETS }, () => ({ id: null, created_at: null, session_id: currentSessionId, exercise_id: newExercise.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null }));
+
+    const newCompletedExercises = new Set(completedExercises);
+    newCompletedExercises.delete(oldExerciseId);
+
+    const newExpandedExerciseCards = { ...expandedExerciseCards };
+    delete newExpandedExerciseCards[oldExerciseId];
+    newExpandedExerciseCards[newExercise.id] = false;
+
+    setExercisesForSession(newExercisesForSession);
+    setExercisesWithSets(newExercisesWithSets);
+    setCompletedExercises(newCompletedExercises);
+    setExpandedExerciseCards(newExpandedExerciseCards);
     
     console.log(`[ActiveWorkoutSession] Exercise ${oldExerciseId} substituted with ${newExercise.name}.`);
-  }, [exercisesForSession, currentSessionId, setExercisesForSession, setExercisesWithSets, setCompletedExercises, setExpandedExerciseCards]);
+  }, [exercisesForSession, currentSessionId, exercisesWithSets, completedExercises, expandedExerciseCards]);
 
   const toggleExerciseCardExpansion = useCallback((exerciseId: string) => {
     console.log(`[ActiveWorkoutSession] toggleExerciseCardExpansion called for exerciseId: ${exerciseId}`);
