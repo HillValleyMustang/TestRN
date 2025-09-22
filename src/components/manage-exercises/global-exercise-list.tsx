@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { ManageExerciseGymsDialog } from "./manage-exercise-gyms-dialog";
+import { ExerciseListInfoDialog } from "./exercise-list-info-dialog"; // NEW IMPORT
 
 // Removed local FetchedExerciseDefinition definition
 
@@ -58,6 +59,9 @@ export const GlobalExerciseList = ({
   const [isManageGymsDialogOpen, setIsManageGymsDialogOpen] = useState(false);
   const [selectedExerciseForGyms, setSelectedExerciseForGyms] = useState<FetchedExerciseDefinition | null>(null);
 
+  // NEW: State for the explainer dialog
+  const [isExplainerDialogOpen, setIsExplainerDialogOpen] = useState(false);
+
   const handleOpenAddTPathDialog = (exercise: FetchedExerciseDefinition) => {
     setSelectedExerciseForTPath(exercise);
     setIsAddTPathDialogOpen(true);
@@ -90,9 +94,14 @@ export const GlobalExerciseList = ({
           </div>
         ) : (
           <>
-            <p className="text-center text-sm text-muted-foreground mb-4">
-              Showing {exercises.length} of {totalCount} exercises
-            </p>
+            <div className="flex items-center justify-between mb-4"> {/* NEW: Flex container for text and button */}
+              <p className="text-sm text-muted-foreground">
+                Showing {exercises.length} of {totalCount} exercises
+              </p>
+              <Button variant="ghost" size="icon" onClick={() => setIsExplainerDialogOpen(true)} title="How to use this page">
+                <Info className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            </div>
             {exercises.length === 0 ? (
               <p className="text-muted-foreground">No global exercises found matching the filter.</p>
             ) : (
@@ -207,6 +216,13 @@ export const GlobalExerciseList = ({
             onSaveSuccess={onAddSuccess}
         />
       )}
+
+      {/* NEW: Explainer Dialog */}
+      <ExerciseListInfoDialog
+        open={isExplainerDialogOpen}
+        onOpenChange={setIsExplainerDialogOpen}
+        type="global-library"
+      />
     </Card>
   );
 };

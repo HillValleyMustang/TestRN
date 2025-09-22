@@ -31,6 +31,7 @@ import {
 import { EditExerciseDialog } from "./edit-exercise-dialog"; // Import the new dialog
 import { Badge } from "@/components/ui/badge";
 import { ManageExerciseGymsDialog } from "./manage-exercise-gyms-dialog";
+import { ExerciseListInfoDialog } from "./exercise-list-info-dialog"; // NEW IMPORT
 
 // Removed local FetchedExerciseDefinition definition
 
@@ -81,6 +82,9 @@ export const UserExerciseList = ({
   // State for the new EditExerciseDialog
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [exerciseToEdit, setExerciseToEdit] = useState<FetchedExerciseDefinition | null>(null);
+
+  // NEW: State for the explainer dialog
+  const [isExplainerDialogOpen, setIsExplainerDialogOpen] = useState(false);
 
   const handleOpenAddTPathDialog = (exercise: FetchedExerciseDefinition, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -139,9 +143,14 @@ export const UserExerciseList = ({
           </div>
         ) : (
           <>
-            <p className="text-center text-sm text-muted-foreground mb-4">
-              Showing {exercises.length} of {totalCount} exercises
-            </p>
+            <div className="flex items-center justify-between mb-4"> {/* NEW: Flex container for text and button */}
+              <p className="text-sm text-muted-foreground">
+                Showing {exercises.length} of {totalCount} exercises
+              </p>
+              <Button variant="ghost" size="icon" onClick={() => setIsExplainerDialogOpen(true)} title="How to use this page">
+                <Info className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            </div>
             {exercises.length === 0 ? (
               <p className="text-muted-foreground">You haven't created any custom exercises yet.</p>
             ) : (
@@ -270,6 +279,13 @@ export const UserExerciseList = ({
         onOpenChange={handleEditDialogClose}
         exercise={exerciseToEdit}
         onSaveSuccess={handleEditDialogSaveSuccess}
+      />
+
+      {/* NEW: Explainer Dialog */}
+      <ExerciseListInfoDialog
+        open={isExplainerDialogOpen}
+        onOpenChange={setIsExplainerDialogOpen}
+        type="my-exercises"
       />
     </Card>
   );
