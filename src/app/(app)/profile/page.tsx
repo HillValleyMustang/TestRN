@@ -183,9 +183,10 @@ export default function ProfilePage() {
     }
 
     if (profile) {
+      console.log("[ProfilePage] useEffect: Profile data fetched:", profile); // NEW LOG
       lastSavedSessionLengthRef.current = profile.preferred_session_length;
 
-      form.reset({
+      const resetValues = {
         full_name: [profile.first_name, profile.last_name].filter(Boolean).join(' '),
         height_cm: profile.height_cm,
         weight_kg: profile.weight_kg,
@@ -195,7 +196,10 @@ export default function ProfilePage() {
         preferred_session_length: profile.preferred_session_length as "15-30" | "30-45" | "45-60" | "60-90" | null,
         preferred_muscles: profile.preferred_muscles ? profile.preferred_muscles.split(',').map((m: string) => m.trim()) : [],
         programme_type: profile.programme_type as "ulul" | "ppl" | null,
-      });
+      };
+      form.reset(resetValues);
+      console.log("[ProfilePage] useEffect: Form reset with values:", resetValues); // NEW LOG
+      console.log("[ProfilePage] useEffect: Form values after reset:", form.getValues()); // NEW LOG
 
       if (profile.last_ai_coach_use_at) {
         const lastUsedDate = new Date(profile.last_ai_coach_use_at).toDateString();
@@ -279,10 +283,19 @@ export default function ProfilePage() {
 
   const fitnessLevel = getFitnessLevel();
 
+  const handleEditToggle = useCallback(() => {
+    setIsEditing(prev => {
+      console.log("[ProfilePage] handleEditToggle: Toggling isEditing from", prev, "to", !prev); // NEW LOG
+      return !prev;
+    });
+  }, []);
+
   async function onSubmit(values: z.infer<typeof profileSchema>) {
     console.log("[ProfilePage] onSubmit: Function called.");
     console.log("[ProfilePage] onSubmit: Current form values:", values);
-    console.log("[ProfilePage] onSubmit: Is form dirty?", form.formState.isDirty);
+    console.log("[ProfilePage] onSubmit: Is form dirty (at start)?", form.formState.isDirty); // NEW LOG
+    console.log("[ProfilePage] onSubmit: Dirty fields:", form.formState.dirtyFields); // NEW LOG
+    console.log("[ProfilePage] onSubmit: Default values:", form.formState.defaultValues); // NEW LOG
 
     if (!session || !profile) {
       console.log("[ProfilePage] onSubmit: Session or profile not available. Exiting.");
@@ -297,9 +310,9 @@ export default function ProfilePage() {
     }
 
     setIsSaving(true);
-    const toastId = toast.loading("Saving profile...", { duration: 99999 }); // Keep toast open indefinitely
+    let toastId = toast.loading("Saving profile..."); // Declare with let and initialize
 
-    try {
+    try { 
       const oldSessionLength = lastSavedSessionLengthRef.current;
       const newSessionLength = values.preferred_session_length;
       const sessionLengthChanged = oldSessionLength !== newSessionLength;
@@ -364,7 +377,7 @@ export default function ProfilePage() {
       setIsEditing(false);
       console.log("[ProfilePage] onSubmit: Profile save process completed successfully.");
 
-    } catch (err: any) {
+    } catch (err: any) { 
       console.error("[ProfilePage] onSubmit: Unhandled error during save process:", err);
       toast.error(err.message || "An unexpected error occurred during profile update.", { id: toastId });
     } finally {
@@ -428,7 +441,7 @@ export default function ProfilePage() {
       <div className="p-2 sm:p-4 max-w-4xl mx-auto">
         <ProfileHeader
           isEditing={isEditing}
-          onEditToggle={() => setIsEditing(prev => !prev)}
+          onEditToggle={handleEditToggle}
           onSave={form.handleSubmit(onSubmit)}
           isSaving={isSaving}
         />
