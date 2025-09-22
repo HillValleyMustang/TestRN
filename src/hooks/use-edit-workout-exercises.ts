@@ -66,7 +66,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       const exerciseDefMap = new Map<string, ExerciseDefinition>();
       fetchedAllAvailableExercises.forEach(def => exerciseDefMap.set(def.id as string, def as ExerciseDefinition));
       
-      const fetchedExercises = tPathExercisesLinks.map((link: Tables<'t_path_exercises'>) => { // Explicitly type link
+      const fetchedExercises = (tPathExercisesLinks as Tables<'t_path_exercises'>[]).map((link: Tables<'t_path_exercises'>) => { // Explicitly type link
         const exerciseDef = exerciseDefMap.get(link.exercise_id);
         if (!exerciseDef) return null;
         return {
@@ -200,7 +200,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     }
     const exercise = fetchedAllAvailableExercises.find(e => e.id === selectedExerciseToAdd);
     if (exercise) {
-      setExerciseToAddDetails(exercise);
+      setExerciseToAddDetails(exercise as ExerciseDefinition); // Cast to ExerciseDefinition
       setShowAddAsBonusDialog(true);
     } else {
       toast.error("Selected exercise not found in available exercises."); // Added toast.error

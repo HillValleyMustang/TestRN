@@ -394,30 +394,16 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempFavorit
   }, [sessionUserId, supabase, setTempFavoriteStatusMessage]);
 
   const handleOptimisticAdd = useCallback((exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => {
-    // setExerciseWorkoutsMap(prev => { // Removed direct setter call
-        const newMap = { ...exerciseWorkoutsMap }; // Use prop directly
-        if (!newMap[exerciseId]) {
-            newMap[exerciseId] = [];
-        }
-        if (!newMap[exerciseId].some((item: { id: string; }) => item.id === workoutId)) { // Explicitly type item
-            newMap[exerciseId].push({ id: workoutId, name: workoutName, isUserOwned: true, isBonus });
-        }
-        // return newMap; // Removed direct setter call
-    // });
-  }, [exerciseWorkoutsMap]); // Depend on exerciseWorkoutsMap
+    // This function should not directly modify exerciseWorkoutsMap.
+    // It should trigger a refresh of all data to re-calculate the map.
+    refreshTPaths(); // Refresh TPaths to ensure new links are picked up
+  }, [refreshTPaths]);
 
   const handleAddFailure = useCallback((exerciseId: string, workoutId: string) => {
-      // setExerciseWorkoutsMap(prev => { // Removed direct setter call
-          const newMap = { ...exerciseWorkoutsMap }; // Use prop directly
-          if (newMap[exerciseId]) {
-              newMap[exerciseId] = newMap[exerciseId].filter((item: { id: string; }) => item.id !== workoutId); // Explicitly type item
-              if (newMap[exerciseId].length === 0) {
-                  delete newMap[exerciseId];
-              }
-          }
-          // return newMap; // Removed direct setter call
-      // });
-  }, [exerciseWorkoutsMap]); // Depend on exerciseWorkoutsMap
+    // This function should not directly modify exerciseWorkoutsMap.
+    // It should trigger a refresh of all data to re-calculate the map.
+    refreshTPaths(); // Refresh TPaths to ensure failed links are not shown
+  }, [refreshTPaths]);
 
   const handleRemoveFromWorkout = useCallback(async (workoutId: string, exerciseId: string) => {
     if (!sessionUserId) {
