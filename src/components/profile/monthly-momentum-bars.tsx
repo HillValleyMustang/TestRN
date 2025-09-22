@@ -70,7 +70,10 @@ export const MonthlyMomentumBars = ({ profile }: MonthlyMomentumBarsProps) => {
             .eq('id', profile.active_t_path_id)
             .single();
 
-          if (tPathError) console.error("Error fetching active T-Path settings:", tPathError);
+          if (tPathError) {
+            console.error("Error fetching active T-Path settings:", tPathError);
+            toast.error("Failed to load active workout plan settings."); // Added toast.error
+          }
           else if (activeTPath?.settings && typeof activeTPath.settings === 'object' && 'tPathType' in activeTPath.settings) {
             const tPathType = (activeTPath.settings as { tPathType: string }).tPathType;
             setRequiredWorkoutsPerWeek(tPathType === 'ulul' ? 4 : 3);
@@ -102,7 +105,7 @@ export const MonthlyMomentumBars = ({ profile }: MonthlyMomentumBarsProps) => {
         console.log("Processed Weekly Workout Data Map (UTC keys):", newWeeklyWorkoutData); // Log the map
 
       } catch (err: any) {
-        toast.error("Failed to load monthly workout data: " + err.message);
+        toast.error("Failed to load monthly workout data: " + err.message); // Changed to toast.error
         console.error("Error fetching monthly workout data:", err);
       } finally {
         setLoading(false);
@@ -169,52 +172,52 @@ export const MonthlyMomentumBars = ({ profile }: MonthlyMomentumBarsProps) => {
                   <div className="flex-1 h-full bg-gray-100" /> // Empty gray bar for quarters with no data
                 ) : (
                   weeksInQuarter.map((week, weekIndex) => (
-                    <div
-                      key={weekIndex}
-                      className={cn("flex-1 h-full", week.colorClass)}
-                      title={`${week.date.toLocaleDateString()} - Workouts: ${week.workoutCount}`}
-                    />
-                  ))
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CalendarDays className="h-5 w-5" /> Monthly Momentum
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">Loading monthly momentum...</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <CalendarDays className="h-5 w-5" /> Monthly Momentum
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Workout consistency for {currentYear} based on your active T-Path.
-        </p>
-      </CardHeader>
-      <CardContent>
-        {renderYearMomentum()}
-        <p className="text-sm text-muted-foreground mt-4 text-center">
-          Green shades indicate workout consistency. Darker green means more workouts completed relative to your active T-Path.
-        </p>
-      </CardContent>
-    </Card>
-  );
-};
+                        <div
+                          key={weekIndex}
+                          className={cn("flex-1 h-full", week.colorClass)}
+                          title={`${week.date.toLocaleDateString()} - Workouts: ${week.workoutCount}`}
+                        />
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      };
+    
+      if (loading) {
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CalendarDays className="h-5 w-5" /> Monthly Momentum
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Loading monthly momentum...</p>
+            </CardContent>
+          </Card>
+        );
+      }
+    
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5" /> Monthly Momentum
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Workout consistency for {currentYear} based on your active T-Path.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {renderYearMomentum()}
+            <p className="text-sm text-muted-foreground mt-4 text-center">
+              Green shades indicate workout consistency. Darker green means more workouts completed relative to your active T-Path.
+            </p>
+          </CardContent>
+        </Card>
+      );
+    };

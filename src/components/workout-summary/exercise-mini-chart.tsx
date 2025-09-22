@@ -103,7 +103,7 @@ export const ExerciseMiniChart = ({ exerciseId, exerciseType, currentSessionId }
       } catch (err: any) {
         console.error("Failed to fetch exercise history for mini-chart:", err);
         setError(err.message || "Failed to load exercise mini-chart.");
-        // toast.error(err.message || "Failed to load exercise mini-chart."); // Suppress toast for mini-chart errors
+        toast.error(err.message || "Failed to load exercise mini-chart."); // Added toast.error
       } finally {
         setLoading(false);
       }

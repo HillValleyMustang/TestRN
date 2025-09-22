@@ -46,7 +46,8 @@ export const useSetActions = ({
 
   const handleAddSet = useCallback(async () => {
     if (!isValidId(exerciseId)) {
-      toast.info("Cannot add set: exercise information is incomplete.");
+      console.error("Cannot add set: exercise information is incomplete.");
+      toast.error("Cannot add set: exercise information is incomplete."); // Changed to toast.error
       return;
     }
     if (sets.length >= MAX_SETS) {
@@ -67,10 +68,15 @@ export const useSetActions = ({
 
   const handleInputChange = useCallback(async (setIndex: number, field: NumericSetLogFields, value: string) => {
     if (!isValidId(exerciseId)) {
-      toast.info("Cannot update set: exercise information is incomplete.");
+      console.error("Cannot update set: exercise information is incomplete.");
+      toast.error("Cannot update set: exercise information is incomplete."); // Changed to toast.error
       return;
     }
-    if (!sets[setIndex]) return;
+    if (!sets[setIndex]) {
+      console.error(`Set at index ${setIndex} not found for input change.`);
+      toast.error("Failed to update set: set not found."); // Added toast.error
+      return;
+    }
 
     let parsedValue: number | null = parseFloat(value);
     if (isNaN(parsedValue)) parsedValue = null;
@@ -87,10 +93,15 @@ export const useSetActions = ({
 
   const handleEditSet = useCallback(async (setIndex: number) => {
     if (!isValidId(exerciseId)) {
-      toast.info("Cannot edit set: exercise information is incomplete.");
+      console.error("Cannot edit set: exercise information is incomplete.");
+      toast.error("Cannot edit set: exercise information is incomplete."); // Changed to toast.error
       return;
     }
-    if (!sets[setIndex]) return;
+    if (!sets[setIndex]) {
+      console.error(`Set at index ${setIndex} not found for edit.`);
+      toast.error("Failed to edit set: set not found."); // Added toast.error
+      return;
+    }
 
     await updateDraft(setIndex, { isSaved: false }); // Mark as unsaved to allow editing
     console.log(`[useSetActions] handleEditSet: Set ${setIndex + 1} marked for edit. Draft updated.`);
@@ -98,15 +109,20 @@ export const useSetActions = ({
 
   const handleDeleteSet = useCallback(async (setIndex: number) => {
     if (!isValidId(exerciseId)) {
-      toast.info("Cannot delete set: exercise information is incomplete.");
+      console.error("Cannot delete set: exercise information is incomplete.");
+      toast.error("Cannot delete set: exercise information is incomplete."); // Changed to toast.error
       return;
     }
-    if (!sets[setIndex]) return;
+    if (!sets[setIndex]) {
+      console.error(`Set at index ${setIndex} not found for delete.`);
+      toast.error("Failed to delete set: set not found."); // Added toast.error
+      return;
+    }
 
     const setToDelete = sets[setIndex];
     
     await deleteDraft(setIndex);
-    console.log("Set removed."); // Replaced toast.success
+    toast.success("Set removed."); // Changed to toast.success
 
     if (setToDelete.id) {
       // If the set was already saved to DB, queue its deletion

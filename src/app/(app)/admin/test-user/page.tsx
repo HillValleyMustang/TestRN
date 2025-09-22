@@ -21,14 +21,14 @@ export default function TestUserPage() {
 
       if (error) {
         console.error("Error creating test user:", error.message);
-        toast.info("Error creating test user.");
+        toast.error("Error creating test user."); // Changed to toast.error
         return;
       }
 
-      console.log("Test user created successfully!"); // Replaced toast.success
+      toast.success("Test user created successfully!"); // Changed to toast.success
     } catch (error: any) {
       console.error("Error:", error.message);
-      toast.info("Error creating test user.");
+      toast.error("Error creating test user."); // Changed to toast.error
     } finally {
       setLoading(false);
     }

@@ -7,6 +7,7 @@ import { Sparkles, Save, PlusCircle, Edit } from "lucide-react"; // Added Edit i
 import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { LoadingOverlay } from "../loading-overlay";
+import { toast } from 'sonner'; // Import toast
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 

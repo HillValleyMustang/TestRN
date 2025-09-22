@@ -49,7 +49,7 @@ export const usePersonalRecordsData = () => {
       const errorMessage = err.message || "Failed to load personal bests.";
       console.error("Failed to load personal bests:", err);
       setError(errorMessage);
-      toast.error(errorMessage);
+      toast.error(errorMessage); // Changed to toast.error
     } finally {
       setIsLoading(false);
     }

@@ -14,6 +14,7 @@ import { User, ChevronDown, X, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFormContext } from 'react-hook-form'; // Import useFormContext
 import { BodyFatInfoModal } from '../onboarding/body-fat-info-modal';
+import { toast } from 'sonner'; // Import toast
 
 interface PersonalInfoFormProps {
   isEditing: boolean;

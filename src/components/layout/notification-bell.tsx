@@ -63,8 +63,8 @@ export function NotificationBell() {
       setNotifications(allNotifications as Notification[]); // Cast back to Notification[] for combined list
       setUnreadCount(allNotifications.filter(n => !n.is_read).length);
     } catch (error: any) {
-      toast.error("Failed to fetch notifications: " + error.message);
       console.error("Error fetching notifications:", error);
+      toast.error("Failed to fetch notifications: " + error.message); // Changed to toast.error
     } finally {
       setLoading(false);
     }
@@ -77,7 +77,10 @@ export function NotificationBell() {
   }, [session, fetchNotifications]);
 
   const handleMarkAllAsRead = async () => {
-    if (!session) return;
+    if (!session) {
+      toast.error("You must be logged in to mark notifications as read."); // Added toast.error
+      return;
+    }
 
     const unreadGlobalNotifications = notifications.filter(n => !n.is_read && n.type !== 'system_error' && n.type !== 'achievement_error');
     const unreadUserAlerts = notifications.filter(n => !n.is_read && (n.type === 'system_error' || n.type === 'achievement_error'));
@@ -114,7 +117,7 @@ export function NotificationBell() {
     }
 
     if (hasError) {
-      toast.error("Failed to mark some notifications as read.");
+      toast.error("Failed to mark some notifications as read."); // Changed to toast.error
     } else {
       toast.success("All notifications marked as read.");
       fetchNotifications(); // Refresh the list

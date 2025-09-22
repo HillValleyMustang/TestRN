@@ -133,7 +133,7 @@ export const WorkoutSummaryModal = ({ open, onOpenChange, sessionId }: WorkoutSu
         }
       } catch (err: any) {
         setError(err.message || "Failed to load workout summary. Please try again.");
-        toast.info("Failed to load workout summary.");
+        toast.error("Failed to load workout summary."); // Changed to toast.error
       } finally {
         setLoading(false);
       }

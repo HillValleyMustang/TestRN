@@ -43,7 +43,10 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
   }, [userGyms]);
 
   const handleRenameGym = async () => {
-    if (!session || !selectedGym || !newGymName.trim()) return;
+    if (!session || !selectedGym || !newGymName.trim()) {
+      toast.error("Gym name cannot be empty."); // Added toast.error
+      return;
+    }
 
     setLoading(true); // Set loading for the rename operation
     try {
@@ -58,14 +61,17 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
       setSelectedGym(null);
     } catch (err: any) {
       console.error("Failed to rename gym:", err.message);
-      toast.error("Failed to rename gym.");
+      toast.error("Failed to rename gym."); // Changed to toast.error
     } finally {
       setLoading(false); // Clear loading
     }
   };
 
   const handleDeleteGym = async () => {
-    if (!session || !selectedGym || !profile) return;
+    if (!session || !selectedGym || !profile) {
+      toast.error("Cannot delete gym: session or profile data missing."); // Added toast.error
+      return;
+    }
 
     setIsDeleteDialogOpen(false);
 
@@ -79,7 +85,8 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
       if (selectedGym.id === profile.active_gym_id) {
         const nextActiveGym = userGyms.find(g => g.id !== selectedGym.id); // Use userGyms
         if (nextActiveGym) {
-          await supabase.from('profiles').update({ active_gym_id: nextActiveGym.id }).eq('id', session.user.id);
+          const { error: updateProfileError } = await supabase.from('profiles').update({ active_gym_id: nextActiveGym.id }).eq('id', session.user.id);
+          if (updateProfileError) throw updateProfileError;
         }
       }
       const { error } = await supabase.from('gyms').delete().eq('id', selectedGym.id);
@@ -90,7 +97,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
       refreshGyms(); // Refresh the gym context
     } catch (err: any) {
       console.error("Failed to delete gym:", err.message);
-      toast.error("Failed to delete gym.");
+      toast.error("Failed to delete gym."); // Changed to toast.error
     } finally {
       setLoading(false); // Clear loading
       setSelectedGym(null);
@@ -98,7 +105,10 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
   };
 
   const handleConfirmDeleteLastGym = async () => {
-    if (!session || !selectedGym || !profile?.active_t_path_id) return;
+    if (!session || !selectedGym || !profile?.active_t_path_id) {
+      toast.error("Cannot delete last gym: session, selected gym, or active T-Path data missing."); // Added toast.error
+      return;
+    }
     setIsLastGymWarningOpen(false);
     setLoading(true); // Set loading for the delete operation
     const toastId = toast.loading("Resetting workout plan and deleting gym...");
@@ -122,7 +132,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
       refreshGyms(); // Refresh the gym context
     } catch (err: any) {
       console.error("Failed to delete last gym:", err.message);
-      toast.error("Failed to delete last gym.", { id: toastId });
+      toast.error("Failed to delete last gym.", { id: toastId }); // Changed to toast.error
     } finally {
       setLoading(false); // Clear loading
       setSelectedGym(null);

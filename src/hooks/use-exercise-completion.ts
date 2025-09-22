@@ -78,7 +78,11 @@ export const useExerciseCompletion = ({
       toast.error("Cannot complete exercise: exercise information is incomplete.");
       return { success: false, isNewPR: false };
     }
-    if (!sets) return { success: false, isNewPR: false };
+    if (!sets) {
+      console.error("Error: Sets data is null or undefined when trying to complete exercise.");
+      toast.error("Cannot complete exercise: no set data found."); // Added toast.error
+      return { success: false, isNewPR: false };
+    }
 
     let currentSessionIdToUse = currentSessionId;
 
@@ -94,6 +98,7 @@ export const useExerciseCompletion = ({
         currentSessionIdToUse = newSessionId;
         console.log(`[useExerciseCompletion] handleCompleteExercise: New session created with ID: ${currentSessionIdToUse}`);
       } catch (err) {
+        console.error("Failed to start workout session:", err);
         toast.error("Failed to start workout session. Please try again.");
         return { success: false, isNewPR: false };
       }
@@ -108,7 +113,12 @@ export const useExerciseCompletion = ({
       const hasDataForSet = hasUserInput(currentSet);
 
       if (hasDataForSet && !currentSet.isSaved) {
-        const { isNewPR, updatedPR } = await checkAndSaveSetPR(currentSet, session!.user.id, localCurrentExercisePR); // Pass local PR state
+        if (!session?.user.id) { // Ensure session.user.id is available for PR check
+          console.error("Session user ID is missing for PR check.");
+          hasError = true;
+          break;
+        }
+        const { isNewPR, updatedPR } = await checkAndSaveSetPR(currentSet, session.user.id, localCurrentExercisePR); // Pass local PR state
         if (isNewPR) anySetIsPR = true;
         localCurrentExercisePR = updatedPR; // Update local PR state for next iteration
         console.log(`[useExerciseCompletion] handleCompleteExercise: Processing set ${i + 1}. isNewPR=${isNewPR}, anySetIsPR (cumulative)=${anySetIsPR}`);
@@ -140,6 +150,7 @@ export const useExerciseCompletion = ({
 
     if (hasError) {
       console.error(`[useExerciseCompletion] handleCompleteExercise: Encountered errors while saving sets.`);
+      toast.error("Failed to save some sets. Please check your inputs."); // Added toast.error
       return { success: false, isNewPR: false };
     }
 

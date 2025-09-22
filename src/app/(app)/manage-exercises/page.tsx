@@ -117,7 +117,7 @@ export default function ManageExercisesPage() {
 
   const handleSaveAiExerciseToMyExercises = useCallback(async (exercise: Partial<FetchedExerciseDefinition>) => {
     if (!session) {
-      toast.error("You must be logged in to save exercises.");
+      toast.error("You must be logged in to save exercises."); // Changed to toast.error
       return;
     }
     setIsAiSaving(true);
@@ -138,7 +138,7 @@ export default function ManageExercisesPage() {
 
       if (error) {
         if (error.code === '23505') {
-          toast.info("This exercise already exists in your custom exercises.");
+          toast.error("This exercise already exists in your custom exercises."); // Changed to toast.error
         } else {
           throw error;
         }
@@ -150,7 +150,7 @@ export default function ManageExercisesPage() {
       }
     } catch (err: any) {
       console.error("Failed to save AI identified exercise:", err);
-      toast.error("Failed to save exercise.");
+      toast.error("Failed to save exercise."); // Changed to toast.error
     } finally {
       setIsAiSaving(false);
     }

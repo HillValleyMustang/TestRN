@@ -25,8 +25,12 @@ export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, 
   const [isCopying, setIsCopying] = useState(false);
 
   const handleCopySetup = async () => {
-    if (!session || !selectedSourceGymId) {
-      toast.error("Please select a gym to copy from.");
+    if (!session) {
+      toast.error("You must be logged in to copy gym setup."); // Added toast.error
+      return;
+    }
+    if (!selectedSourceGymId) {
+      toast.error("Please select a gym to copy from."); // Changed to toast.error
       return;
     }
     setIsCopying(true);
@@ -53,7 +57,7 @@ export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, 
       onOpenChange(false);
     } catch (err: any) {
       console.error("Failed to copy gym setup:", err.message);
-      toast.error("Failed to copy gym setup.");
+      toast.error("Failed to copy gym setup."); // Changed to toast.error
     } finally {
       setIsCopying(false);
     }

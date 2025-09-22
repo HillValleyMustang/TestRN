@@ -50,7 +50,10 @@ export const ManageExerciseGymsDialog = ({
   };
 
   const handleSaveChanges = async () => {
-    if (!session || !exercise.id) return;
+    if (!session || !exercise.id) {
+      toast.error("Cannot save changes: session or exercise ID missing."); // Added toast.error
+      return;
+    }
     setIsSaving(true);
 
     const gymsToAdd = [...selectedGymIds].filter(id => !initialSelectedGymIds.has(id));
@@ -80,7 +83,7 @@ export const ManageExerciseGymsDialog = ({
       onOpenChange(false);
     } catch (err: any) {
       console.error("Failed to update gym associations:", err);
-      toast.error("Failed to update gym associations.");
+      toast.error("Failed to update gym associations."); // Changed to toast.error
     } finally {
       setIsSaving(false);
     }

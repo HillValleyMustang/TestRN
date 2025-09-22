@@ -73,7 +73,10 @@ export const WeeklyMomentumBars = ({ profile }: WeeklyMomentumBarsProps) => {
             .eq('id', profile.active_t_path_id)
             .single();
 
-          if (tPathError) console.error("Error fetching active T-Path settings:", tPathError);
+          if (tPathError) {
+            console.error("Error fetching active T-Path settings:", tPathError);
+            toast.error("Failed to load active workout plan settings."); // Added toast.error
+          }
           else if (activeTPath?.settings && typeof activeTPath.settings === 'object' && 'tPathType' in activeTPath.settings) {
             const tPathType = (activeTPath.settings as { tPathType: string }).tPathType;
             setRequiredWorkoutsPerWeek(tPathType === 'ulul' ? 4 : 3);

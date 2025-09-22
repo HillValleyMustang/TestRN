@@ -33,6 +33,7 @@ export const SetupGymView = ({ gym, onClose }: SetupGymViewProps) => {
 
       if (error) {
         console.error("Failed to fetch other gyms for copying:", error);
+        toast.error("Failed to load other gyms for copying."); // Added toast.error
       } else {
         setSourceGyms(data || []);
       }
@@ -51,7 +52,7 @@ export const SetupGymView = ({ gym, onClose }: SetupGymViewProps) => {
         break;
       case 'defaults':
         if (!session) {
-          toast.error("You must be logged in.");
+          toast.error("You must be logged in."); // Changed to toast.error
           return;
         }
         const toastId = toast.loading("Setting up with app defaults...");
@@ -71,7 +72,8 @@ export const SetupGymView = ({ gym, onClose }: SetupGymViewProps) => {
           toast.success(`"${gym.name}" is being set up with default workouts.`, { id: toastId });
           onClose();
         } catch (err: any) {
-          toast.error(`Failed to set up default gym: ${err.message}`, { id: toastId });
+          console.error("Failed to set up default gym:", err.message);
+          toast.error(`Failed to set up default gym: ${err.message}`, { id: toastId }); // Changed to toast.error
         }
         break;
       case 'empty':

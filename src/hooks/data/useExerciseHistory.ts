@@ -61,7 +61,7 @@ export const useExerciseHistory = ({ exerciseId }: UseExerciseHistoryProps) => {
     } catch (err: any) {
       console.error("Failed to fetch exercise history:", err);
       setError("Failed to load exercise history.");
-      toast.error("Failed to load exercise history.");
+      toast.error("Failed to load exercise history."); // Changed to toast.error
     } finally {
       setLoading(false);
     }

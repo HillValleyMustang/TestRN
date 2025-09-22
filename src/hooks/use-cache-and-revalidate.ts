@@ -102,7 +102,7 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
     } catch (err: any) {
       console.error(`Error during ${queryKey} revalidation:`, err);
       setError(err.message || `An unexpected error occurred during ${queryKey} revalidation.`);
-      toast.info(`Failed to refresh data for ${queryKey}.`); // Replaced toast.error
+      toast.error(`Failed to refresh data for ${queryKey}.`); // Changed to toast.error
     } finally {
       setLoading(false);
       isRevalidatingRef.current = false; // Reset ref

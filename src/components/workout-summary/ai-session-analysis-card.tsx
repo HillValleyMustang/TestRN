@@ -42,6 +42,7 @@ export const AiSessionAnalysisCard = ({ sessionId }: AiSessionAnalysisCardProps)
       
     } catch (err: any) {
       console.error("Failed to fetch AI coach usage data:", err);
+      toast.error("Failed to load AI coach usage data."); // Added toast.error
     }
   }, [session, supabase]);
 
@@ -53,11 +54,11 @@ export const AiSessionAnalysisCard = ({ sessionId }: AiSessionAnalysisCardProps)
 
   const handleAnalyse = async () => {
     if (!session) {
-      toast.error("You must be logged in to use the AI coach.");
+      toast.error("You must be logged in to use the AI coach."); // Changed to toast.error
       return;
     }
     if (usageCount >= AI_COACH_DAILY_LIMIT) {
-      toast.error(`You've reached the limit of ${AI_COACH_DAILY_LIMIT} AI coach uses per day.`);
+      toast.error(`You've reached the limit of ${AI_COACH_DAILY_LIMIT} AI coach uses per day.`); // Changed to toast.error
       return;
     }
 
@@ -83,7 +84,7 @@ export const AiSessionAnalysisCard = ({ sessionId }: AiSessionAnalysisCardProps)
       
     } catch (err: any) {
       console.error("AI Coach error:", err);
-      toast.error("Failed to get AI analysis: " + err.message);
+      toast.error("Failed to get AI analysis: " + err.message); // Changed to toast.error
     } finally {
       setLoading(false);
     }

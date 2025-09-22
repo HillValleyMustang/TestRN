@@ -30,7 +30,8 @@ export const useProgressionSuggestion = ({
 
   const getProgressionSuggestion = useCallback(async (currentSetsLength: number, internalSessionId: string | null): Promise<{ newSets: SetLogState[] | null; message: string }> => {
     if (!supabase) {
-      toast.info("Supabase client not available.");
+      console.error("[useProgressionSuggestion] Supabase client not available.");
+      toast.error("Error: Supabase client not available for progression suggestion."); // Changed to toast.error
       return { newSets: null, message: "Error: Supabase client not available." };
     }
 
@@ -135,7 +136,7 @@ export const useProgressionSuggestion = ({
 
     } catch (err: any) {
       console.error("Failed to generate progression suggestion:", err);
-      toast.info("Failed to generate suggestion.");
+      toast.error("Failed to generate suggestion."); // Changed to toast.error
       return { newSets: null, message: "Failed to generate suggestion." };
     }
   }, [exerciseId, exerciseType, exerciseCategory, supabase, preferredWeightUnit]);

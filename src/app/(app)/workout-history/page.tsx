@@ -51,7 +51,7 @@ export default function WorkoutHistoryPage() {
       await fetchWorkoutHistory(); // Re-fetch history using the hook's refresh function
     } catch (err: any) {
       console.error("Failed to delete workout session:", err);
-      toast.info("Failed to delete workout session.");
+      toast.error("Failed to delete workout session."); // Changed to toast.error
     }
   };
 

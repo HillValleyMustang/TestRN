@@ -148,10 +148,15 @@ export const useExerciseSets = ({
 
   const handleSuggestProgression = useCallback(async () => {
     if (!isValidId(exerciseId)) {
-      toast.error("Cannot suggest progression: exercise information is incomplete.");
+      console.error("Cannot suggest progression: exercise information is incomplete.");
+      toast.error("Cannot suggest progression: exercise information is incomplete."); // Changed to toast.error
       return;
     }
-    if (!sets) return;
+    if (!sets) {
+      console.error("Sets data is null or undefined when trying to suggest progression.");
+      toast.error("Cannot suggest progression: no set data found."); // Added toast.error
+      return;
+    }
 
     const { newSets, message } = await getProgressionSuggestion(sets.length, currentSessionId);
     if (newSets) {

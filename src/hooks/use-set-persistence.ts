@@ -28,23 +28,23 @@ export const useSetPersistence = ({
     // Validation logic remains the same
     if (exerciseType === 'weight') {
       if (set.weight_kg === null || set.weight_kg <= 0) {
-        toast.info(`Set ${setIndex + 1}: Please enter a valid positive weight.`);
+        toast.error(`Set ${setIndex + 1}: Please enter a valid positive weight.`); // Changed to toast.error
         return { savedSet: null };
       }
       if (exerciseCategory === 'Unilateral') {
         if (set.reps_l === null || set.reps_r === null || set.reps_l < 0 || set.reps_r < 0) {
-          toast.info(`Set ${setIndex + 1}: Please enter valid positive reps for both left and right sides.`);
+          toast.error(`Set ${setIndex + 1}: Please enter valid positive reps for both left and right sides.`); // Changed to toast.error
           return { savedSet: null };
         }
       } else {
         if (set.reps === null || set.reps <= 0) {
-          toast.info(`Set ${setIndex + 1}: Please enter valid positive reps.`);
+          toast.error(`Set ${setIndex + 1}: Please enter valid positive reps.`); // Changed to toast.error
           return { savedSet: null };
         }
       }
     } else if (exerciseType === 'timed') {
       if (set.time_seconds === null || set.time_seconds <= 0) {
-        toast.info(`Set ${setIndex + 1}: Please enter a valid positive time in seconds.`);
+        toast.error(`Set ${setIndex + 1}: Please enter a valid positive time in seconds.`); // Changed to toast.error
         return { savedSet: null };
       }
     }
@@ -74,7 +74,7 @@ export const useSetPersistence = ({
       return { savedSet: { ...set, ...setLogData, isSaved: true } };
     } catch (error: any) {
       console.error(`[useSetPersistence] ERROR saving set ${setIndex + 1} locally:`, error);
-      toast.info(`Failed to save set ${setIndex + 1} locally.`);
+      toast.error(`Failed to save set ${setIndex + 1} locally.`); // Changed to toast.error
       return { savedSet: null };
     }
   }, [exerciseId, exerciseType, exerciseCategory, supabase, preferredWeightUnit]);
@@ -86,7 +86,8 @@ export const useSetPersistence = ({
       toast.info("Set removed. Will sync deletion when online.");
       return true;
     } catch (error: any) {
-      toast.info("Failed to remove set locally.");
+      console.error(`[useSetPersistence] ERROR deleting set ${setId} locally:`, error);
+      toast.error("Failed to remove set locally."); // Changed to toast.error
       return false;
     }
   }, [supabase]);

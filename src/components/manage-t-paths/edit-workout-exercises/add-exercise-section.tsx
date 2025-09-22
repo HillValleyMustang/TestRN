@@ -7,6 +7,7 @@ import { Tables } from "@/types/supabase";
 import { WorkoutExerciseWithDetails } from "@/hooks/use-edit-workout-exercises";
 import { ExerciseSelectionDropdown } from '@/components/shared/exercise-selection-dropdown';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from 'sonner'; // Import toast
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type Gym = Tables<'gyms'>;

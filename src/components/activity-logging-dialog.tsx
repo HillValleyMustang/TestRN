@@ -96,6 +96,7 @@ export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
 
       if (error && error.code !== 'PGRST116') {
         console.error("Error fetching user profile for distance unit:", error);
+        toast.error("Failed to load user preferences."); // Added toast.error
       } else if (profileData) {
         setPreferredDistanceUnit(profileData.preferred_distance_unit || 'km');
       }
@@ -115,14 +116,14 @@ export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
 
   async function onSubmit(values: z.infer<typeof cyclingSchema>) {
     if (!session) {
-      toast.info("You must be logged in to log activities.");
+      toast.error("You must be logged in to log activities."); // Changed to toast.error
       return;
     }
 
     // Convert input distance to KM for storage and PB comparison
     const distanceInKm = convertDistance(values.distance, preferredDistanceUnit as 'km' | 'miles', 'km');
     if (distanceInKm === null) {
-      toast.info("Invalid distance value.");
+      toast.error("Invalid distance value."); // Changed to toast.error
       return;
     }
 
@@ -151,6 +152,7 @@ export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
       }
     } catch (err) {
       console.error("Error checking cycling PB:", err);
+      toast.error("Failed to check personal best for cycling."); // Added toast.error
     }
 
     const newLog: TablesInsert<'activity_logs'> = {
@@ -167,9 +169,9 @@ export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
 
     if (error) {
       console.error("Failed to log cycling activity:", error.message);
-      toast.info("Failed to log cycling activity.");
+      toast.error("Failed to log cycling activity."); // Changed to toast.error
     } else {
-      console.log("Cycling activity logged successfully!"); // Replaced toast.success
+      toast.success("Cycling activity logged successfully!"); // Replaced console.log
       form.reset();
       onLogSuccess();
     }
@@ -206,6 +208,7 @@ export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
 
       if (error && error.code !== 'PGRST116') {
         console.error("Error fetching user profile for distance unit:", error);
+        toast.error("Failed to load user preferences."); // Added toast.error
       } else if (profileData) {
         setPreferredDistanceUnit(profileData.preferred_distance_unit || 'km');
       }
@@ -225,13 +228,13 @@ export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
 
   async function onSubmit(values: z.infer<typeof runningSchema>) {
     if (!session) {
-      toast.info("You must be logged in to log activities.");
+      toast.error("You must be logged in to log activities."); // Changed to toast.error
       return;
     }
 
     const distanceInKm = convertDistance(values.distance, preferredDistanceUnit as 'km' | 'miles', 'km');
     if (distanceInKm === null) {
-      toast.info("Invalid distance value.");
+      toast.error("Invalid distance value."); // Changed to toast.error
       return;
     }
 
@@ -259,6 +262,7 @@ export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
       }
     } catch (err) {
       console.error("Error checking running PB:", err);
+      toast.error("Failed to check personal best for running."); // Added toast.error
     }
 
     const newLog: TablesInsert<'activity_logs'> = {
@@ -275,9 +279,9 @@ export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
 
     if (error) {
       console.error("Failed to log running activity:", error.message);
-      toast.info("Failed to log running activity.");
+      toast.error("Failed to log running activity."); // Changed to toast.error
     } else {
-      console.log("Running activity logged successfully!"); // Replaced toast.success
+      toast.success("Running activity logged successfully!"); // Replaced console.log
       form.reset();
       onLogSuccess();
     }
@@ -312,7 +316,7 @@ export const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) 
 
   async function onSubmit(values: z.infer<typeof swimmingSchema>) {
     if (!session) {
-      toast.info("You must be logged in to log activities.");
+      toast.error("You must be logged in to log activities."); // Changed to toast.error
       return;
     }
 
@@ -336,6 +340,7 @@ export const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) 
       isPB = previousLengths.every(prevLen => totalLengths > prevLen);
     } catch (err) {
       console.error("Error checking swimming PB:", err);
+      toast.error("Failed to check personal best for swimming."); // Added toast.error
     }
 
     const newLog: TablesInsert<'activity_logs'> = {
@@ -352,9 +357,9 @@ export const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) 
 
     if (error) {
       console.error("Failed to log swimming activity:", error.message);
-      toast.info("Failed to log swimming activity.");
+      toast.error("Failed to log swimming activity."); // Changed to toast.error
     } else {
-      console.log("Swimming activity logged successfully!"); // Replaced toast.success
+      toast.success("Swimming activity logged successfully!"); // Replaced console.log
       form.reset();
       onLogSuccess();
     }
@@ -384,7 +389,7 @@ export const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =>
 
   async function onSubmit(values: z.infer<typeof tennisSchema>) {
     if (!session) {
-      toast.info("You must be logged in to log activities.");
+      toast.error("You must be logged in to log activities."); // Changed to toast.error
       return;
     }
 
@@ -404,6 +409,7 @@ export const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =>
       isPB = previousDurations.every(prevDur => durationMinutes > prevDur);
     } catch (err) {
       console.error("Error checking tennis PB:", err);
+      toast.error("Failed to check personal best for tennis."); // Added toast.error
     }
 
     const newLog: TablesInsert<'activity_logs'> = {
@@ -420,9 +426,9 @@ export const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =>
 
     if (error) {
       console.error("Failed to log tennis activity:", error.message);
-      toast.info("Failed to log tennis activity.");
+      toast.error("Failed to log tennis activity."); // Changed to toast.error
     } else {
-      console.log("Tennis activity logged successfully!"); // Replaced toast.success
+      toast.success("Tennis activity logged successfully!"); // Replaced console.log
       form.reset();
       onLogSuccess();
     }

@@ -90,7 +90,7 @@ export default function ManageTPathsPage() {
           <CardHeader><CardTitle>No Active Gym</CardTitle></CardHeader>
           <CardContent>
             <p className="text-muted-foreground">Please add a gym in your profile settings to begin.</p>
-            <Button onClick={() => router.push('/profile?tab=settings&edit=true')} className="mt-4">Go to Profile Settings</Button>
+            <Button onClick={() => router.push('/profile')} className="mt-4">Go to Profile Settings</Button>
           </CardContent>
         </Card>
       ) : !isGymConfigured ? (

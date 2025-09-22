@@ -6,6 +6,7 @@ import { Tables, WorkoutSessionWithAggregatedDetails } from '@/types/supabase';
 import { useCacheAndRevalidate } from '@/hooks/use-cache-and-revalidate';
 import { db, LocalWorkoutSession, LocalSetLog, LocalExerciseDefinition } from '@/lib/db';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { toast } from 'sonner'; // Import toast
 
 /**
  * A centralized hook to fetch and process the user's entire workout history.
@@ -65,6 +66,8 @@ export const useWorkoutHistory = () => {
     if (anyError) {
       setError(anyError);
       setSessions([]);
+      console.error("Error loading workout history data:", anyError); // Added console.error
+      toast.error("Failed to load workout history."); // Added toast.error
       return;
     }
 

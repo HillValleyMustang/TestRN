@@ -86,6 +86,7 @@ export const ExerciseCard = ({
 
       if (error && error.code !== 'PGRST116') {
         console.error("Error fetching user profile for units/rest time:", error);
+        toast.error("Failed to load user preferences."); // Added toast.error
       } else if (profileData) {
         setPreferredWeightUnit(profileData.preferred_weight_unit || 'kg');
         setDefaultRestTime(profileData.default_rest_time_seconds || 60);

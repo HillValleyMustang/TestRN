@@ -135,6 +135,7 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
             .single();
           if (profileError && profileError.code !== 'PGRST116') {
             console.error("Error fetching profile for streak:", profileError);
+            toast.error("Failed to load user streak data."); // Added toast.error
           } else if (profileData) {
             setCurrentStreak(profileData.current_streak || 0);
           }
@@ -189,7 +190,7 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
 
         } catch (err: any) {
           console.error("Failed to fetch activity dates:", err);
-          toast.error("Failed to load activity data: " + err.message);
+          toast.error("Failed to load activity data: " + err.message); // Changed to toast.error
         } finally {
           setLoading(false);
         }

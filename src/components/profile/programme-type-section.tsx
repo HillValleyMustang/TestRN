@@ -36,7 +36,11 @@ export const ProgrammeTypeSection = ({ isEditing, onDataChange, profile }: Progr
   };
 
   const confirmChange = async () => {
-    if (!session || !pendingProgrammeType) return;
+    if (!session || !pendingProgrammeType) {
+      console.error("Error: Session or pending programme type missing for confirmation.");
+      toast.error("Cannot confirm change: session or programme type missing."); // Added toast.error
+      return;
+    }
     setIsWarningOpen(false);
     setIsSaving(true);
 
@@ -66,7 +70,7 @@ export const ProgrammeTypeSection = ({ isEditing, onDataChange, profile }: Progr
       onDataChange();
     } catch (err: any) {
       console.error("Failed to update programme type and regenerate plans:", err);
-      toast.error("Failed to update programme type.");
+      toast.error("Failed to update programme type."); // Changed to toast.error
     } finally {
       setIsSaving(false);
       setPendingProgrammeType(null);

@@ -71,10 +71,15 @@ export const useSetSaver = ({
     console.log(`[useSetSaver] handleSaveSet called for setIndex: ${setIndex}. Initial currentSessionId: ${currentSessionId}`);
 
     if (!isValidId(exerciseId)) {
-      toast.info("Cannot save set: exercise information is incomplete.");
+      console.error("Cannot save set: exercise information is incomplete.");
+      toast.error("Cannot save set: exercise information is incomplete.");
       return;
     }
-    if (!sets[setIndex]) return;
+    if (!sets[setIndex]) {
+      console.error(`Set at index ${setIndex} not found for saving.`);
+      toast.error("Failed to save set: set not found.");
+      return;
+    }
 
     let currentSet = { ...sets[setIndex] }; // Create a mutable copy
 
@@ -92,7 +97,8 @@ export const useSetSaver = ({
         console.log(`[useSetSaver] New sessionId generated: ${sessionIdToUse}`);
         currentSet.session_id = newSessionId; // IMPORTANT: Update session_id in the currentSet copy
       } catch (err) {
-        toast.info("Failed to start workout session.");
+        console.error("Failed to start workout session:", err);
+        toast.error("Failed to start workout session.");
         return;
       }
     } else {
@@ -100,14 +106,14 @@ export const useSetSaver = ({
       currentSet.session_id = sessionIdToUse; // Ensure it's set even if not new
     }
 
-    let isNewSetPR = false;
+    let isNewSetPR = false; // Declare isNewSetPR here
     let localCurrentExercisePR: UserExercisePR | null = exercisePR;
     if (session?.user.id) {
       // Pass the updated currentSet to PR check
-      const { isNewPR, updatedPR } = await checkAndSaveSetPR(currentSet, session.user.id, localCurrentExercisePR);
-      isNewSetPR = isNewPR;
-      localCurrentExercisePR = updatedPR;
-      console.log(`[useSetSaver] handleSaveSet: Set ${setIndex + 1} PR check result: isNewPR=${isNewPR}, updatedPR=`, updatedPR);
+      const { isNewPR: currentSetIsNewPR, updatedPR } = await checkAndSaveSetPR(currentSet, session.user.id, localCurrentExercisePR);
+      if (currentSetIsNewPR) isNewSetPR = true; // Assign to declared variable
+      localCurrentExercisePR = updatedPR; // Update local PR state for next iteration
+      console.log(`[useSetSaver] handleSaveSet: Set ${setIndex + 1} PR check result: isNewPR=${currentSetIsNewPR}, updatedPR=`, updatedPR);
     }
 
     // Pass the updated currentSet to saveSetToDb
@@ -127,7 +133,7 @@ export const useSetSaver = ({
       });
       console.log(`[useSetSaver] handleSaveSet: Set ${setIndex + 1} saved locally with is_pb=${savedSet.is_pb}. Draft updated.`);
     } else {
-      toast.info(`Failed to save set ${setIndex + 1}. Please try again.`);
+      toast.error(`Failed to save set ${setIndex + 1}. Please try again.`);
       await updateDraft(setIndex, { isSaved: false }); // Rollback saved status
       console.log(`[useSetSaver] handleSaveSet: Set ${setIndex + 1} failed to save. Draft rolled back.`);
     }

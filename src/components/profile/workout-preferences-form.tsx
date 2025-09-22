@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dumbbell } from 'lucide-react';
 import { useFormContext } from 'react-hook-form'; // Import useFormContext
+import { toast } from 'sonner'; // Import toast
 
 interface WorkoutPreferencesFormProps {
   isEditing: boolean;

@@ -47,6 +47,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
       
     } catch (err: any) {
       console.error("Failed to fetch AI coach usage data:", err);
+      toast.error("Failed to load AI coach usage data."); // Added toast.error
     }
   }, [session, supabase]);
 
@@ -58,7 +59,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
 
   const handleAnalyse = async () => {
     if (usageCount >= AI_COACH_DAILY_LIMIT) {
-      toast.info(`You've reached the limit of ${AI_COACH_DAILY_LIMIT} AI coach uses per day.`);
+      toast.error(`You've reached the limit of ${AI_COACH_DAILY_LIMIT} AI coach uses per day.`); // Changed to toast.error
       return;
     }
 
@@ -81,7 +82,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
       
     } catch (err: any) {
       console.error("AI Coach error:", err);
-      toast.info("Failed to get AI analysis.");
+      toast.error("Failed to get AI analysis."); // Changed to toast.error
     } finally {
       setLoading(false);
     }

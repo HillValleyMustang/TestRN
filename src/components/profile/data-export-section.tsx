@@ -19,7 +19,7 @@ export const DataExportSection = () => {
 
   const exportDataToCsv = async () => {
     if (!session) {
-      toast.error("You must be logged in to export data.");
+      toast.error("You must be logged in to export data."); // Changed to toast.error
       return;
     }
 

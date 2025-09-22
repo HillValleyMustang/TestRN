@@ -38,6 +38,7 @@ export const useSetPRLogic = ({ exerciseId, exerciseType, supabase }: UseSetPRLo
 
       if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
         console.error(`[useSetPRLogic] Error fetching exercise PB for ${exerciseId}:`, error);
+        toast.error(`Failed to load personal best for ${exerciseId}.`); // Changed to toast.error
         setExercisePR(null);
       } else if (data && data.length > 0) {
         setExercisePR(data[0] as UserExercisePR); // Take the first (and only) record
@@ -105,7 +106,7 @@ export const useSetPRLogic = ({ exerciseId, exerciseType, supabase }: UseSetPRLo
 
       if (upsertError) {
         console.error(`[useSetPRLogic] Error saving set PB for ${exerciseId}:`, upsertError);
-        toast.info("Failed to update personal best.");
+        toast.error("Failed to update personal best."); // Changed to toast.error
         return { isNewPR: false, updatedPR: currentPRState }; // Return original if error
       }
       setExercisePR(updatedPR as UserExercisePR); // Update internal state

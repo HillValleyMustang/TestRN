@@ -55,12 +55,12 @@ export const ExerciseInfoDialog = ({ open, onOpenChange, exercise, trigger, exer
 
   const handleRemoveFromWorkoutClick = async (workoutId: string) => {
     if (!session) {
-      toast.info("You must be logged in to remove exercises from workouts.");
+      toast.error("You must be logged in to remove exercises from workouts."); // Changed to toast.error
       return;
     }
     if (onRemoveFromWorkout) {
       if (exercise.id === null) {
-        toast.info("Cannot remove exercise: invalid exercise ID.");
+        toast.error("Cannot remove exercise: invalid exercise ID."); // Changed to toast.error
         return;
       }
       onRemoveFromWorkout(workoutId, exercise.id);
@@ -80,7 +80,7 @@ export const ExerciseInfoDialog = ({ open, onOpenChange, exercise, trigger, exer
   };
 
   const embedVideoUrl = getYouTubeEmbedUrl(exercise.video_url);
-  // Only allow deletion if the exercise is user-created and not a global exercise
+  // Only allow deletion if the exercise is user-created and not a global one
   const canDeleteExercise = session && exercise.user_id === session.user.id && exercise.library_id === null && onDeleteExercise;
 
   return (

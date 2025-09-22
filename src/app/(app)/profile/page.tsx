@@ -132,7 +132,8 @@ export default function ProfilePage() {
     cacheTable: 't_path_exercises_cache',
     supabaseQuery: useCallback(async (client) => {
       if (!session?.user.id) return { data: [], error: null };
-      const { data: userTPaths } = await client.from('t_paths').select('id').eq('user_id', session.user.id);
+      const { data: userTPaths, error: tPathsError } = await client.from('t_paths').select('id').eq('user_id', session.user.id);
+      if (tPathsError) throw tPathsError; // Throw error if fetching t_paths fails
       if (!userTPaths) return { data: [], error: null };
       const tpathIds = userTPaths.map(p => p.id);
       return client.from('t_path_exercises').select('*').in('template_id', tpathIds);
@@ -144,26 +145,38 @@ export default function ProfilePage() {
 
   const totalWorkoutsCount = useLiveQuery(async () => {
     if (!session?.user.id) return 0;
-    const count = await db.workout_sessions
-      .where('user_id').equals(session.user.id)
-      .and(s => s.completed_at !== null)
-      .count();
-    return count;
+    try {
+      const count = await db.workout_sessions
+        .where('user_id').equals(session.user.id)
+        .and(s => s.completed_at !== null)
+        .count();
+      return count;
+    } catch (error) {
+      console.error("Error fetching total workouts count from IndexedDB:", error);
+      toast.error("Failed to load total workouts count."); // Added toast.error
+      return 0;
+    }
   }, [session?.user.id]) || 0;
 
   const totalExercisesCount = useLiveQuery(async () => {
     if (!session?.user.id) return 0;
-    const uniqueExerciseInstances = new Set<string>();
-    const setLogs = await db.set_logs.toArray();
-    const workoutSessions = await db.workout_sessions.toArray();
-    const userSessionIds = new Set(workoutSessions.filter(ws => ws.user_id === session.user.id && ws.completed_at !== null).map(ws => ws.id));
+    try {
+      const uniqueExerciseInstances = new Set<string>();
+      const setLogs = await db.set_logs.toArray();
+      const workoutSessions = await db.workout_sessions.toArray();
+      const userSessionIds = new Set(workoutSessions.filter(ws => ws.user_id === session.user.id && ws.completed_at !== null).map(ws => ws.id));
 
-    setLogs.forEach(sl => {
-      if (sl.session_id && userSessionIds.has(sl.session_id) && sl.exercise_id) {
-        uniqueExerciseInstances.add(`${sl.session_id}-${sl.exercise_id}`);
-      }
-    });
-    return uniqueExerciseInstances.size;
+      setLogs.forEach(sl => {
+        if (sl.session_id && userSessionIds.has(sl.session_id) && sl.exercise_id) {
+          uniqueExerciseInstances.add(`${sl.session_id}-${sl.exercise_id}`);
+        }
+      });
+      return uniqueExerciseInstances.size;
+    } catch (error) {
+      console.error("Error fetching total exercises count from IndexedDB:", error);
+      toast.error("Failed to load total exercises count."); // Added toast.error
+      return 0;
+    }
   }, [session?.user.id]) || 0;
 
   const lastSavedSessionLengthRef = useRef<string | null>(null);
@@ -278,7 +291,10 @@ export default function ProfilePage() {
   const fitnessLevel = getFitnessLevel();
 
   async function onSubmit(values: z.infer<typeof profileSchema>) {
-    if (!session || !profile) return;
+    if (!session || !profile) {
+      toast.error("Cannot save profile: session or profile data missing."); // Added toast.error
+      return;
+    }
 
     // Check if the form has been modified
     if (!form.formState.isDirty) {
@@ -306,7 +322,8 @@ export default function ProfilePage() {
     
     const { error } = await supabase.from('profiles').update(updateData).eq('id', session.user.id);
     if (error) {
-      toast.error("Failed to update profile.");
+      console.error("Failed to update profile:", error);
+      toast.error("Failed to update profile."); // Changed to toast.error
       setIsSaving(false);
       return;
     }
@@ -333,7 +350,8 @@ export default function ProfilePage() {
           throw new Error(`Failed to initiate T-Path workout regeneration: ${errorText}`);
         }
       } catch (err: any) {
-        toast.error("Error initiating workout plan update.");
+        console.error("Error initiating workout plan update:", err);
+        toast.error("Error initiating workout plan update."); // Changed to toast.error
       }
     }
     await refreshProfileData();

@@ -27,7 +27,7 @@ export const useActiveWorkoutSession = () => {
   const [exercisesWithSets, setExercisesWithSets] = useState<Record<string, SetLogState[]>>({});
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
-  const [completedExercises, _setCompletedExercises] = useState<Set<string>>(new Set()); // Renamed setter
+  const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set()); // Corrected setter name
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [expandedExerciseCards, setExpandedExerciseCards] = useState<Record<string, boolean>>({});
 
@@ -43,7 +43,7 @@ export const useActiveWorkoutSession = () => {
     setExercisesWithSets({});
     setCurrentSessionId(null);
     setSessionStartTime(null);
-    _setCompletedExercises(new Set()); // Updated call
+    setCompletedExercises(new Set()); // Corrected setter name
     setIsCreatingSession(false);
     setExpandedExerciseCards({});
   }, []);
@@ -55,10 +55,15 @@ export const useActiveWorkoutSession = () => {
 
   const resetWorkoutSession = useCallback(async () => {
     if (session?.user.id) {
-      const allDrafts = await db.draft_set_logs.toArray();
-      const userDraftKeys = allDrafts.map(draft => [draft.exercise_id, draft.set_index] as [string, number]);
-      if (userDraftKeys.length > 0) {
-        await db.draft_set_logs.bulkDelete(userDraftKeys);
+      try {
+        const allDrafts = await db.draft_set_logs.toArray();
+        const userDraftKeys = allDrafts.map(draft => [draft.exercise_id, draft.set_index] as [string, number]);
+        if (userDraftKeys.length > 0) {
+          await db.draft_set_logs.bulkDelete(userDraftKeys);
+        }
+      } catch (error) {
+        console.error("Error clearing draft set logs:", error);
+        toast.error("Failed to clear local workout drafts.");
       }
     }
     _resetLocalState();
@@ -77,25 +82,37 @@ export const useActiveWorkoutSession = () => {
     if (selectedWorkout) {
       let exercises = workoutExercisesCache[selectedWorkout.id] || [];
       if (activeGym) {
-        const { data: gymLinks } = await supabase.from('gym_exercises').select('exercise_id').eq('gym_id', activeGym.id);
-        const { data: allLinks } = await supabase.from('gym_exercises').select('exercise_id');
-        const availableIds = new Set((gymLinks || []).map(l => l.exercise_id));
-        const allLinkedIds = new Set((allLinks || []).map(l => l.exercise_id));
-        exercises = exercises.filter(ex => !allLinkedIds.has(ex.id) || availableIds.has(ex.id));
+        try {
+          const { data: gymLinks, error: gymLinksError } = await supabase.from('gym_exercises').select('exercise_id').eq('gym_id', activeGym.id);
+          if (gymLinksError) throw gymLinksError;
+          const { data: allLinks, error: allLinksError } = await supabase.from('gym_exercises').select('exercise_id');
+          if (allLinksError) throw allLinksError;
+
+          const availableIds = new Set((gymLinks || []).map(l => l.exercise_id));
+          const allLinkedIds = new Set((allLinks || []).map(l => l.exercise_id));
+          exercises = exercises.filter(ex => !allLinkedIds.has(ex.id) || availableIds.has(ex.id));
+        } catch (error) {
+          console.error("Error filtering exercises by active gym:", error);
+          toast.error("Failed to filter exercises by active gym.");
+        }
       }
       setActiveWorkout(selectedWorkout);
       setExercisesForSession(exercises);
       const initialSets = Object.fromEntries(exercises.map(ex => [ex.id, Array.from({ length: DEFAULT_INITIAL_SETS }, () => ({ id: null, created_at: null, session_id: null, exercise_id: ex.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null }))]));
       setExercisesWithSets(initialSets);
-      _setCompletedExercises(new Set()); // Updated call
+      setCompletedExercises(new Set()); // Corrected setter name
       setExpandedExerciseCards(Object.fromEntries(exercises.map(ex => [ex.id, true])));
     } else {
-      toast.info("Selected workout not found.");
+      toast.error("Selected workout not found.");
+      console.error("Error: Selected workout not found for ID:", workoutId);
     }
-  }, [resetWorkoutSession, groupedTPaths, workoutExercisesCache, activeGym, supabase, setActiveWorkout, setExercisesForSession, setExercisesWithSets, _setCompletedExercises, setExpandedExerciseCards]);
+  }, [resetWorkoutSession, groupedTPaths, workoutExercisesCache, activeGym, supabase, setActiveWorkout, setExercisesForSession, setExercisesWithSets, setCompletedExercises, setExpandedExerciseCards]);
 
   const createWorkoutSessionInDb = useCallback(async (templateName: string, firstSetTimestamp: string): Promise<string> => {
-    if (!session) throw new Error("User not authenticated.");
+    if (!session) {
+      console.error("Error: User not authenticated when trying to create workout session.");
+      throw new Error("User not authenticated.");
+    }
     setIsCreatingSession(true);
     try {
       const newSessionId = uuidv4();
@@ -115,6 +132,10 @@ export const useActiveWorkoutSession = () => {
       setCurrentSessionId(newSessionId);
       setSessionStartTime(new Date(firstSetTimestamp));
       return newSessionId;
+    } catch (error) {
+      console.error("Error creating workout session in DB:", error);
+      toast.error("Failed to start workout session.");
+      throw error; // Re-throw to be caught by calling function
     } finally {
       setIsCreatingSession(false);
     }
@@ -122,7 +143,8 @@ export const useActiveWorkoutSession = () => {
 
   const finishWorkoutSession = useCallback(async (): Promise<string | null> => {
     if (!currentSessionId || !sessionStartTime || !session || !activeWorkout) {
-      toast.info("Workout session not properly started.");
+      console.error("Error: Workout session not properly started or missing data for finishing.");
+      toast.error("Workout session not properly started.");
       return null;
     }
     const endTime = new Date();
@@ -142,7 +164,8 @@ export const useActiveWorkoutSession = () => {
       const finishedSessionId = currentSessionId;
       await resetWorkoutSession();
       return finishedSessionId;
-    } catch (err: any) {
+    } catch (error) {
+      console.error("Error finishing workout session:", error);
       toast.error("Failed to save workout duration.");
       return null;
     }
@@ -153,9 +176,9 @@ export const useActiveWorkoutSession = () => {
   }, [setExercisesWithSets]);
 
   const markExerciseAsCompleted = useCallback((exerciseId: string) => {
-    _setCompletedExercises((prev: Set<string>) => new Set(prev).add(exerciseId)); // Updated call and typed prev
+    setCompletedExercises((prev: Set<string>) => new Set(prev).add(exerciseId)); // Explicitly typed prev
     setExpandedExerciseCards(prev => ({ ...prev, [exerciseId]: false }));
-  }, [_setCompletedExercises, setExpandedExerciseCards]);
+  }, [setCompletedExercises, setExpandedExerciseCards]);
 
   const addExerciseToSession = useCallback(async (exercise: ExerciseDefinition) => {
     if (exercisesForSession.some(ex => ex.id === exercise.id)) {
@@ -171,9 +194,9 @@ export const useActiveWorkoutSession = () => {
   const removeExerciseFromSession = useCallback(async (exerciseId: string) => {
     setExercisesForSession(prev => prev.filter(ex => ex.id !== exerciseId));
     setExercisesWithSets(prev => { const newSets = { ...prev }; delete newSets[exerciseId]; return newSets; });
-    _setCompletedExercises((prev: Set<string>) => { const newCompleted = new Set(prev); newCompleted.delete(exerciseId); return newCompleted; }); // Updated call and typed prev
+    setCompletedExercises((prev: Set<string>) => { const newCompleted = new Set(prev); newCompleted.delete(exerciseId); return newCompleted; }); // Explicitly typed prev
     setExpandedExerciseCards(prev => { const newExpanded = { ...prev }; delete newExpanded[exerciseId]; return newExpanded; });
-  }, [setExercisesForSession, setExercisesWithSets, _setCompletedExercises, setExpandedExerciseCards]);
+  }, [setExercisesForSession, setExercisesWithSets, setCompletedExercises, setExpandedExerciseCards]);
 
   const substituteExercise = useCallback(async (oldExerciseId: string, newExercise: WorkoutExercise) => {
     if (exercisesForSession.some(ex => ex.id === newExercise.id)) {
@@ -184,9 +207,9 @@ export const useActiveWorkoutSession = () => {
     const newSets = Array.from({ length: DEFAULT_INITIAL_SETS }, () => ({ id: null, created_at: null, session_id: currentSessionId, exercise_id: newExercise.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null }));
     updateExerciseSets(newExercise.id, newSets);
     setExercisesWithSets(prev => { const newSets = { ...prev }; delete newSets[oldExerciseId]; return newSets; });
-    _setCompletedExercises((prev: Set<string>) => { const newCompleted = new Set(prev); newCompleted.delete(oldExerciseId); return newCompleted; }); // Updated call and typed prev
+    setCompletedExercises((prev: Set<string>) => { const newCompleted = new Set(prev); newCompleted.delete(oldExerciseId); return newCompleted; }); // Explicitly typed prev
     setExpandedExerciseCards(prev => { const newExpanded = { ...prev }; delete newExpanded[oldExerciseId]; newExpanded[newExercise.id] = true; return newExpanded; });
-  }, [exercisesForSession, currentSessionId, updateExerciseSets, setExercisesForSession, setExercisesWithSets, _setCompletedExercises, setExpandedExerciseCards]);
+  }, [exercisesForSession, currentSessionId, updateExerciseSets, setExercisesForSession, setExercisesWithSets, setCompletedExercises, setExpandedExerciseCards]);
 
   const toggleExerciseCardExpansion = useCallback((exerciseId: string) => {
     setExpandedExerciseCards(prev => ({ ...prev, [exerciseId]: !prev[exerciseId] }));
@@ -199,11 +222,19 @@ export const useActiveWorkoutSession = () => {
         let newExercisesFromCache = workoutExercisesCache[activeWorkout.id];
         
         if (activeGym) {
-          const { data: gymLinks } = await supabase.from('gym_exercises').select('exercise_id').eq('gym_id', activeGym.id);
-          const { data: allLinks } = await supabase.from('gym_exercises').select('exercise_id');
-          const availableIds = new Set((gymLinks || []).map(l => l.exercise_id));
-          const allLinkedIds = new Set((allLinks || []).map(l => l.exercise_id));
-          newExercisesFromCache = newExercisesFromCache.filter(ex => !allLinkedIds.has(ex.id) || availableIds.has(ex.id));
+          try {
+            const { data: gymLinks, error: gymLinksError } = await supabase.from('gym_exercises').select('exercise_id').eq('gym_id', activeGym.id);
+            if (gymLinksError) throw gymLinksError;
+            const { data: allLinks, error: allLinksError } = await supabase.from('gym_exercises').select('exercise_id');
+            if (allLinksError) throw allLinksError;
+
+            const availableIds = new Set((gymLinks || []).map(l => l.exercise_id));
+            const allLinkedIds = new Set((allLinks || []).map(l => l.exercise_id));
+            newExercisesFromCache = newExercisesFromCache.filter(ex => !allLinkedIds.has(ex.id) || availableIds.has(ex.id));
+          } catch (error) {
+            console.error("Error filtering exercises by active gym in reactivity effect:", error);
+            toast.error("Failed to update workout exercises based on active gym.");
+          }
         }
 
         const currentIds = exercisesForSession.map(e => e.id).sort().join(',');
@@ -214,13 +245,13 @@ export const useActiveWorkoutSession = () => {
           setExercisesForSession(newExercisesFromCache);
           const initialSets = Object.fromEntries(newExercisesFromCache.map(ex => [ex.id, Array.from({ length: DEFAULT_INITIAL_SETS }, () => ({ id: null, created_at: null, session_id: currentSessionId, exercise_id: ex.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null }))]));
           setExercisesWithSets(initialSets);
-          _setCompletedExercises(new Set()); // Updated call
+          setCompletedExercises(new Set()); // Corrected setter name
           setExpandedExerciseCards(Object.fromEntries(newExercisesFromCache.map(ex => [ex.id, true])));
         }
       }
     };
     refreshActiveWorkoutExercises();
-  }, [activeWorkout, workoutExercisesCache, exercisesForSession, activeGym, supabase, setExercisesForSession, setExercisesWithSets, _setCompletedExercises, setExpandedExerciseCards, currentSessionId]);
+  }, [activeWorkout, workoutExercisesCache, exercisesForSession, activeGym, supabase, setExercisesForSession, setExercisesWithSets, setCompletedExercises, setExpandedExerciseCards, currentSessionId]);
 
   return {
     activeWorkout,

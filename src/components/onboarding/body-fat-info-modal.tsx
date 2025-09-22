@@ -39,7 +39,7 @@ export const BodyFatInfoModal = ({ open, onOpenChange }: BodyFatInfoModalProps) 
       } catch (err: any) {
         console.error("Failed to fetch body fat reference images:", err);
         setError(err.message || "Failed to load body fat reference images.");
-        toast.error(err.message || "Failed to load body fat reference images.");
+        toast.error(err.message || "Failed to load body fat reference images."); // Changed to toast.error
       } finally {
         setLoading(false);
       }

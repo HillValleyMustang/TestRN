@@ -128,7 +128,10 @@ export const useOnboardingForm = () => {
   }, [currentStep, equipmentMethod]);
 
   const handleSubmit = useCallback(async (fullName: string, heightCm: number, weightKg: number, bodyFatPct: number | null) => {
-    if (!session) return;
+    if (!session) {
+      toast.error("You must be logged in to complete onboarding."); // Added toast.error
+      return;
+    }
     setLoading(true);
 
     try {
@@ -169,7 +172,7 @@ export const useOnboardingForm = () => {
 
     } catch (error: any) {
       console.error("Onboarding failed:", error.message);
-      toast.error("Onboarding failed: " + error.message);
+      toast.error("Onboarding failed: " + error.message); // Changed to toast.error
     } finally {
       setLoading(false);
     }

@@ -11,6 +11,7 @@ import { AICoachUsageSection } from './ai-coach-usage-section';
 import { DataExportSection } from './data-export-section';
 import { GymManagementSection } from './gym-management-section';
 import { Tables, Profile } from '@/types/supabase';
+import { toast } from 'sonner'; // Import toast
 
 type TPath = Tables<'t_paths'>;
 

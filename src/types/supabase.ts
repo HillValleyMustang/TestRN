@@ -1,6 +1,6 @@
 /**
  * This file contains custom application-specific types and re-exports
- * the core Supabase database types from the generated modular structure.
+ * the core Supabase database types.
  *
  * To regenerate the core database types, run:
  * `supabase gen types typescript --local > src/types/supabase-generated/database.ts`
@@ -20,7 +20,7 @@ import type { BodyFatReferenceImagesRow } from "./supabase-generated/tables/body
 import type { UserAlertsRow } from "./supabase-generated/tables/user_alerts";
 import type { ExerciseDefinitionsRow } from "./supabase-generated/tables/exercise_definitions"; // Import ExerciseDefinitionsRow
 
-export type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums, GetLastExerciseSetsForExerciseReturns, GetTotalCompletedExerciseInstancesArgs, GetTotalCompletedExerciseInstancesReturns, ExerciseDefinitionsRow as ExerciseDefinition }; // Export new RPC types and ExerciseDefinition
+export type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums, GetLastExerciseSetsForExerciseReturns, GetTotalCompletedExerciseInstancesArgs, GetTotalCompletedExerciseInstancesReturns };
 
 // --- Custom Types ---
 // These are application-specific types that extend or combine Supabase-generated types.
@@ -123,3 +123,6 @@ export interface WorkoutExerciseWithDetails extends ExerciseDefinitionsRow {
   is_bonus_exercise: boolean;
   t_path_exercise_id: string; // ID from t_path_exercises table
 }
+
+// Export the full ExerciseDefinitionsRow as ExerciseDefinition
+export type ExerciseDefinition = ExerciseDefinitionsRow;

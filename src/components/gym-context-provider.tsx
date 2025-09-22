@@ -55,7 +55,7 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     if (gymsError) {
-      toast.error("Failed to load gym data.");
+      toast.error("Failed to load gym data."); // Changed to toast.error
       console.error("GymContext Error:", gymsError);
     }
   }, [gymsError]);
@@ -76,9 +76,17 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
   }, [cachedGyms, cachedProfile]);
 
   const switchActiveGym = useCallback(async (gymId: string): Promise<boolean> => {
-    if (!session) return false;
+    if (!session) {
+      console.error("Error: User not authenticated when trying to switch active gym.");
+      toast.error("You must be logged in to switch active gym."); // Added toast.error
+      return false;
+    }
     const newActiveGym = (cachedGyms || []).find(g => g.id === gymId);
-    if (!newActiveGym) return false;
+    if (!newActiveGym) {
+      console.error("Error: New active gym not found in cached gyms.");
+      toast.error("Selected gym not found."); // Added toast.error
+      return false;
+    }
 
     const previousActiveGym = activeGym;
     setActiveGym(newActiveGym); // Optimistic update
@@ -102,7 +110,8 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
 
       return true;
     } catch (error: any) {
-      toast.error(error.message || "Failed to switch active gym.");
+      console.error("Error switching active gym:", error.message);
+      toast.error(error.message || "Failed to switch active gym."); // Changed to toast.error
       setActiveGym(previousActiveGym); // Rollback
       return false;
     }

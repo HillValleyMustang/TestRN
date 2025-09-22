@@ -71,6 +71,7 @@ export default function ActivityLogsPage() {
 
       if (profileError && profileError.code !== 'PGRST116') {
         console.error("Error fetching user profile for distance unit:", profileError);
+        toast.error("Failed to load user preferences."); // Added toast.error
       } else if (profileData) {
         setPreferredDistanceUnit(profileData.preferred_distance_unit || 'km');
       }
@@ -101,7 +102,7 @@ export default function ActivityLogsPage() {
       } catch (err: any) {
         console.error("Failed to fetch activity logs:", err);
         setError(err.message || "Failed to load activity logs. Please try again.");
-        toast.error(err.message || "Failed to load activity logs.");
+        toast.error(err.message || "Failed to load activity logs."); // Changed to toast.error
       } finally {
         setLoading(false);
       }

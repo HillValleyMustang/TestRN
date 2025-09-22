@@ -30,7 +30,7 @@ export const CantDoToggle = ({ open, onOpenChange, exercise, onRemove, onSubstit
   const handleRemove = () => {
     onOpenChange(false); // Close current dialog
     onRemove();
-    console.log(`Removed ${exercise.name} from this workout`); // Replaced toast.success
+    toast.success(`Removed ${exercise.name} from this workout`); // Changed to toast.success
   };
 
   return (

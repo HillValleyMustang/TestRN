@@ -148,17 +148,17 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
 
   async function onSubmit(values: z.infer<typeof exerciseSchema>) {
     if (!session) {
-      toast.info("You must be logged in to manage exercises.");
+      toast.error("You must be logged in to manage exercises."); // Changed to toast.error
       return;
     }
 
     if (!values.type || values.type.length === 0) {
-      toast.info("Please select at least one exercise type.");
+      toast.error("Please select at least one exercise type."); // Changed to toast.error
       return;
     }
 
     if (!values.main_muscles || values.main_muscles.length === 0) {
-      toast.info("Please select at least one main muscle group.");
+      toast.error("Please select at least one main muscle group."); // Changed to toast.error
       return;
     }
 
@@ -182,9 +182,9 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
 
       if (error) {
         console.error("Failed to update exercise:", error.message);
-        toast.info("Failed to update exercise.");
+        toast.error("Failed to update exercise."); // Changed to toast.error
       } else {
-        console.log("Exercise updated successfully!"); // Replaced toast.success
+        toast.success("Exercise updated successfully!"); // Changed to toast.success
         onCancelEdit();
         onSaveSuccess();
         setIsExpanded(false);
@@ -199,9 +199,9 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
       }]).select('id').single();
       if (error) {
         console.error("Failed to add exercise:", error.message);
-        toast.info("Failed to add exercise.");
+        toast.error("Failed to add exercise."); // Changed to toast.error
       } else {
-        console.log("Exercise added successfully!"); // Replaced toast.success
+        toast.success("Exercise added successfully!"); // Changed to toast.success
         form.reset();
         setSelectedMuscles([]);
         setSelectedTypes([]);

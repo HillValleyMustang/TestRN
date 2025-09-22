@@ -69,7 +69,7 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
         setUserWorkouts(data as TPath[] || []); // Explicitly cast
       } catch (err: any) {
         console.error("Failed to fetch user workouts:", err);
-        toast.info("Failed to load your workouts.");
+        toast.error("Failed to load your workouts."); // Changed to toast.error
       } finally {
         setLoading(false);
       }
@@ -85,7 +85,7 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
 
   const handleAddToWorkout = async () => {
     if (!session || !selectedWorkoutId) {
-      toast.info("Please select a workout.");
+      toast.error("Please select a workout."); // Changed to toast.error
       return;
     }
 
@@ -96,7 +96,7 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
       // Optimistic update: Update UI immediately
       // We use the original exercise.id directly, as no adoption is happening.
       if (exercise.id === null) {
-        toast.info("Cannot add exercise: invalid exercise ID.");
+        toast.error("Cannot add exercise: invalid exercise ID."); // Changed to toast.error
         setIsAdding(false);
         return;
       }
@@ -127,19 +127,19 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
 
       if (insertError) {
         if (insertError.code === '23505') { // Unique violation code
-          toast.info("This exercise is already in the selected workout.");
+          toast.error("This exercise is already in the selected workout."); // Changed to toast.error
         } else {
           throw insertError;
         }
         onAddFailure(exercise.id, selectedWorkoutId); // Rollback on error
       } else {
-        console.log(`'${exercise.name}' added to workout!`); // Replaced toast.success
+        toast.success(`'${exercise.name}' added to workout!`); // Changed to toast.success
         onAddSuccess(); // Notify parent to refresh data
         onOpenChange(false);
       }
     } catch (err: any) {
       console.error("Failed to add exercise to workout:", err);
-      toast.info("Failed to add exercise.");
+      toast.error("Failed to add exercise."); // Changed to toast.error
       if (exercise.id) { // Only call onAddFailure if exercise.id is not null
         onAddFailure(exercise.id, selectedWorkoutId); // Rollback on error
       }

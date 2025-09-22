@@ -121,9 +121,15 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
             let childWorkouts = allChildWorkouts.filter(tp => tp.parent_t_path_id === mainTPath.id);
             const enrichedChildWorkouts = await Promise.all(
               childWorkouts.map(async (workout) => {
-                const { data: lastSessionDate, error: rpcError } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
-                if (rpcError) console.error(`Error fetching last completed date for workout ${workout.id}:`, rpcError);
-                return { ...workout, last_completed_at: lastSessionDate?.[0]?.last_completed_at || null };
+                try {
+                  const { data: lastSessionDate, error: rpcError } = await supabase.rpc('get_last_workout_date_for_t_path', { p_t_path_id: workout.id });
+                  if (rpcError && rpcError.code !== 'PGRST116') throw rpcError; // Ignore no rows found
+                  return { ...workout, last_completed_at: lastSessionDate?.[0]?.last_completed_at || null };
+                } catch (err) {
+                  console.error(`[useWorkoutDataFetcher] Error fetching last completed date for workout ${workout.id}:`, err);
+                  toast.error(`Failed to load last completion date for workout ${workout.template_name}.`); // Changed to toast.error
+                  return { ...workout, last_completed_at: null };
+                }
               })
             );
             const tPathSettings = mainTPath.settings as { tPathType?: string };
@@ -167,7 +173,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
         toast.success("Your new workout plan is ready!");
         refreshAllData();
       } else if (finalStatus === 'failed') {
-        toast.error("Workout plan generation failed.", {
+        toast.error("Workout plan generation failed.", { // Changed to toast.error
           description: profileData?.t_path_generation_error || "An unknown error occurred.",
         });
       }

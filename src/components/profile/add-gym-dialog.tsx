@@ -37,9 +37,16 @@ export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount }: Ad
   };
 
   const handleNameSubmit = async () => {
-    if (!session || !newGymName.trim()) return;
+    if (!session) {
+      toast.error("You must be logged in to add a gym."); // Added toast.error
+      return;
+    }
+    if (!newGymName.trim()) {
+      toast.error("Gym name cannot be empty."); // Added toast.error
+      return;
+    }
     if (gymCount >= 3) {
-      toast.error("You can have a maximum of 3 gyms.");
+      toast.error("You can have a maximum of 3 gyms."); // Added toast.error
       return;
     }
 
@@ -58,7 +65,7 @@ export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount }: Ad
       onSaveSuccess(); // Refresh the list in the background
     } catch (err: any) {
       console.error("Failed to add gym:", err.message);
-      toast.error("Failed to add gym.");
+      toast.error("Failed to add gym."); // Changed to toast.error
     } finally {
       setIsSaving(false);
     }

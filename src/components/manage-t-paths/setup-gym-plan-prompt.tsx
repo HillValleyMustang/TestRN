@@ -34,6 +34,7 @@ export const SetupGymPlanPrompt = ({ gym, onSetupSuccess, profile }: SetupGymPla
 
       if (error) {
         console.error("Failed to fetch other gyms for copying:", error);
+        toast.error("Failed to load other gyms for copying."); // Added toast.error
       } else {
         setSourceGyms(data || []);
       }
@@ -42,7 +43,10 @@ export const SetupGymPlanPrompt = ({ gym, onSetupSuccess, profile }: SetupGymPla
   }, [session, supabase, gym.id]);
 
   const handleSetupDefaults = async () => {
-    if (!session) return;
+    if (!session) {
+      toast.error("You must be logged in to set up defaults."); // Added toast.error
+      return;
+    }
     setLoading(true);
     const toastId = toast.loading("Setting up with app defaults...");
     try {
@@ -56,7 +60,8 @@ export const SetupGymPlanPrompt = ({ gym, onSetupSuccess, profile }: SetupGymPla
       toast.success(`"${gym.name}" is being set up with default workouts.`, { id: toastId });
       onSetupSuccess();
     } catch (err: any) {
-      toast.error(`Failed to set up default gym: ${err.message}`, { id: toastId });
+      console.error("Failed to set up default gym:", err.message);
+      toast.error(`Failed to set up default gym: ${err.message}`, { id: toastId }); // Changed to toast.error
     } finally {
       setLoading(false);
     }
