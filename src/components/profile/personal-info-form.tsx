@@ -17,11 +17,10 @@ import { BodyFatInfoModal } from '../onboarding/body-fat-info-modal';
 
 interface PersonalInfoFormProps {
   isEditing: boolean;
-  isSaving: boolean; // New prop
   mainMuscleGroups: string[];
 }
 
-export const PersonalInfoForm = ({ isEditing, isSaving, mainMuscleGroups }: PersonalInfoFormProps) => {
+export const PersonalInfoForm = ({ isEditing, mainMuscleGroups }: PersonalInfoFormProps) => {
   const [isBodyFatInfoModalOpen, setIsBodyFatInfoModalOpen] = useState(false);
   const form = useFormContext(); // Use context
 
@@ -37,7 +36,7 @@ export const PersonalInfoForm = ({ isEditing, isSaving, mainMuscleGroups }: Pers
           <FormField control={form.control} name="full_name" render={({ field }) => (
             <FormItem className="sm:col-span-2">
               <FormLabel>Preferred Name</FormLabel>
-              <FormControl><Input {...field} disabled={!isEditing || isSaving} className="text-sm" /></FormControl>
+              <FormControl><Input {...field} disabled={!isEditing} className="text-sm" /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
@@ -45,14 +44,14 @@ export const PersonalInfoForm = ({ isEditing, isSaving, mainMuscleGroups }: Pers
             <FormField control={form.control} name="height_cm" render={({ field }) => (
               <FormItem className="flex-1">
                 <FormLabel>Height (cm)</FormLabel>
-                <FormControl><Input type="number" inputMode="numeric" step="1" {...field} value={field.value ?? ''} disabled={!isEditing || isSaving} className="max-w-[120px] text-sm" /></FormControl>
+                <FormControl><Input type="number" inputMode="numeric" step="1" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px] text-sm" /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
             <FormField control={form.control} name="weight_kg" render={({ field }) => (
               <FormItem className="flex-1">
                 <FormLabel>Weight (kg)</FormLabel>
-                <FormControl><Input type="number" step="1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing || isSaving} className="max-w-[120px] text-sm" /></FormControl>
+                <FormControl><Input type="number" step="1" inputMode="numeric" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px] text-sm" /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
@@ -61,11 +60,11 @@ export const PersonalInfoForm = ({ isEditing, isSaving, mainMuscleGroups }: Pers
             <FormItem>
               <div className="flex items-center gap-2 mb-1">
                 <FormLabel>Body Fat (%)</FormLabel>
-                <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsBodyFatInfoModalOpen(true)} disabled={!isEditing || isSaving}>
+                <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsBodyFatInfoModalOpen(true)}>
                   <Info className="h-4 w-4 text-muted-foreground" />
                 </Button>
               </div>
-              <FormControl><Input type="number" inputMode="numeric" step="1" {...field} value={field.value ?? ''} disabled={!isEditing || isSaving} className="max-w-[120px] text-sm" /></FormControl>
+              <FormControl><Input type="number" inputMode="numeric" step="1" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px] text-sm" /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
@@ -82,7 +81,7 @@ export const PersonalInfoForm = ({ isEditing, isSaving, mainMuscleGroups }: Pers
                       "w-full justify-between text-sm",
                       !field.value?.length && "text-muted-foreground"
                     )}
-                    disabled={!isEditing || isSaving}
+                    disabled={!isEditing}
                   >
                     <span className="flex items-center justify-between w-full">
                       <div className="flex flex-wrap gap-1">
@@ -157,7 +156,7 @@ export const PersonalInfoForm = ({ isEditing, isSaving, mainMuscleGroups }: Pers
           <FormField control={form.control} name="health_notes" render={({ field }) => (
             <FormItem className="sm:col-span-2">
               <FormLabel>Health Notes / Constraints (Optional)</FormLabel>
-              <FormControl><Textarea {...field} value={field.value ?? ''} disabled={!isEditing || isSaving} placeholder="Any injuries, health conditions, or limitations..." className="text-sm" /></FormControl>
+              <FormControl><Textarea {...field} value={field.value ?? ''} disabled={!isEditing} placeholder="Any injuries, health conditions, or limitations..." className="text-sm" /></FormControl>
               <p className="text-sm text-muted-foreground mt-1">
                 Share any relevant health information or limitations for the AI Coach to consider when generating advice.
               </p>

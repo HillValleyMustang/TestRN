@@ -54,9 +54,9 @@ const profileSchema = z.object({
     .optional().nullable(),
   primary_goal: z.string().optional().nullable(),
   health_notes: z.string().optional().nullable(),
-  preferred_session_length: z.enum(["15-30", "30-45", "45-60", "60-90"]).optional().nullable(),
+  preferred_session_length: z.string().optional().nullable(),
   preferred_muscles: z.array(z.string()).optional().nullable(),
-  programme_type: z.enum(["ulul", "ppl"]).optional().nullable(),
+  programme_type: z.string().optional().nullable(), // Added programme_type
 });
 
 export default function ProfilePage() {
@@ -169,12 +169,10 @@ export default function ProfilePage() {
   const lastSavedSessionLengthRef = useRef<string | null>(null);
 
   const refreshProfileData = useCallback(async () => {
-    console.log("[ProfilePage] refreshProfileData: Initiating full data refresh.");
     await refreshProfileCache();
     await refreshAchievementsCache();
     await refreshTPathsCache();
     await refreshTPathExercisesCache();
-    console.log("[ProfilePage] refreshProfileData: Full data refresh completed.");
   }, [refreshProfileCache, refreshAchievementsCache, refreshTPathsCache, refreshTPathExercisesCache]);
 
   useEffect(() => {
@@ -183,23 +181,19 @@ export default function ProfilePage() {
     }
 
     if (profile) {
-      console.log("[ProfilePage] useEffect: Profile data fetched:", profile); // NEW LOG
       lastSavedSessionLengthRef.current = profile.preferred_session_length;
 
-      const resetValues = {
+      form.reset({
         full_name: [profile.first_name, profile.last_name].filter(Boolean).join(' '),
         height_cm: profile.height_cm,
         weight_kg: profile.weight_kg,
         body_fat_pct: profile.body_fat_pct,
         primary_goal: profile.primary_goal,
         health_notes: profile.health_notes,
-        preferred_session_length: profile.preferred_session_length as "15-30" | "30-45" | "45-60" | "60-90" | null,
+        preferred_session_length: profile.preferred_session_length,
         preferred_muscles: profile.preferred_muscles ? profile.preferred_muscles.split(',').map((m: string) => m.trim()) : [],
-        programme_type: profile.programme_type as "ulul" | "ppl" | null,
-      };
-      form.reset(resetValues);
-      console.log("[ProfilePage] useEffect: Form reset with values:", resetValues); // NEW LOG
-      console.log("[ProfilePage] useEffect: Form values after reset:", form.getValues()); // NEW LOG
+        programme_type: profile.programme_type, // Added programme_type
+      });
 
       if (profile.last_ai_coach_use_at) {
         const lastUsedDate = new Date(profile.last_ai_coach_use_at).toDateString();
@@ -283,107 +277,68 @@ export default function ProfilePage() {
 
   const fitnessLevel = getFitnessLevel();
 
-  const handleEditToggle = useCallback(() => {
-    setIsEditing(prev => {
-      console.log("[ProfilePage] handleEditToggle: Toggling isEditing from", prev, "to", !prev); // NEW LOG
-      return !prev;
-    });
-  }, []);
-
   async function onSubmit(values: z.infer<typeof profileSchema>) {
-    console.log("[ProfilePage] onSubmit: Function called.");
-    console.log("[ProfilePage] onSubmit: Current form values:", values);
-    console.log("[ProfilePage] onSubmit: Is form dirty (at start)?", form.formState.isDirty); // NEW LOG
-    console.log("[ProfilePage] onSubmit: Dirty fields:", form.formState.dirtyFields); // NEW LOG
-    console.log("[ProfilePage] onSubmit: Default values:", form.formState.defaultValues); // NEW LOG
+    if (!session || !profile) return;
 
-    if (!session || !profile) {
-      console.log("[ProfilePage] onSubmit: Session or profile not available. Exiting.");
-      toast.error("User session or profile data missing. Please log in again.");
-      return;
-    }
-
+    // Check if the form has been modified
     if (!form.formState.isDirty) {
-      console.log("[ProfilePage] onSubmit: Form is not dirty. Exiting edit mode.");
-      setIsEditing(false);
+      setIsEditing(false); // Just exit edit mode
       return;
     }
 
     setIsSaving(true);
-    let toastId = toast.loading("Saving profile..."); // Declare with let and initialize
 
-    try { 
-      const oldSessionLength = lastSavedSessionLengthRef.current;
-      const newSessionLength = values.preferred_session_length;
-      const sessionLengthChanged = oldSessionLength !== newSessionLength;
-      console.log(`[ProfilePage] onSubmit: Session length changed: ${sessionLengthChanged} (Old: ${oldSessionLength}, New: ${newSessionLength})`);
+    const oldSessionLength = lastSavedSessionLengthRef.current;
+    const newSessionLength = values.preferred_session_length;
+    const sessionLengthChanged = oldSessionLength !== newSessionLength;
 
-      const nameParts = values.full_name.split(' ');
-      const firstName = nameParts.shift() || '';
-      const lastName = nameParts.join(' ');
+    const nameParts = values.full_name.split(' ');
+    const firstName = nameParts.shift() || '';
+    const lastName = nameParts.join(' ');
 
-      const updateData: ProfileUpdate = {
-        ...values,
-        first_name: firstName,
-        last_name: lastName,
-        preferred_muscles: values.preferred_muscles?.join(', ') || null,
-        updated_at: new Date().toISOString()
-      };
-      console.log("[ProfilePage] onSubmit: Data to update in Supabase:", updateData);
-      
-      const { error: updateError } = await supabase.from('profiles').update(updateData).eq('id', session.user.id);
-      
-      if (updateError) {
-        console.error("[ProfilePage] onSubmit: Supabase update failed:", updateError);
-        toast.error("Failed to update profile.", { id: toastId });
-        return; // Exit early on Supabase error
-      }
-
-      console.log("[ProfilePage] onSubmit: Profile updated successfully in Supabase.");
-      toast.success("Profile updated successfully!", { id: toastId });
-      lastSavedSessionLengthRef.current = newSessionLength ?? null;
-      form.reset(values); // Immediately reset the form with the new values to update the UI
-
-      if (sessionLengthChanged && profile.active_t_path_id) {
-        console.log("[ProfilePage] onSubmit: Session length changed, initiating T-Path regeneration.");
-        try {
-          const response = await fetch(`/api/generate-t-path`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session.access_token}`
-            },
-            body: JSON.stringify({ 
-              tPathId: profile.active_t_path_id,
-              preferred_session_length: newSessionLength
-            })
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error("[ProfilePage] onSubmit: T-Path regeneration API failed:", errorText);
-            throw new Error(`Failed to initiate T-Path workout regeneration: ${errorText}`);
-          }
-          console.log("[ProfilePage] onSubmit: T-Path regeneration API call successful.");
-          // The global loading overlay will handle feedback from here
-        } catch (err: any) {
-          console.error("[ProfilePage] onSubmit: Error during T-Path regeneration API call:", err);
-          toast.error("Error initiating workout plan update.");
-        }
-      }
-      
-      console.log("[ProfilePage] onSubmit: Refreshing profile data cache.");
-      await refreshProfileData(); // Sync cache in the background
-      setIsEditing(false);
-      console.log("[ProfilePage] onSubmit: Profile save process completed successfully.");
-
-    } catch (err: any) { 
-      console.error("[ProfilePage] onSubmit: Unhandled error during save process:", err);
-      toast.error(err.message || "An unexpected error occurred during profile update.", { id: toastId });
-    } finally {
+    const updateData: ProfileUpdate = {
+      ...values,
+      first_name: firstName,
+      last_name: lastName,
+      preferred_muscles: values.preferred_muscles?.join(', ') || null,
+      updated_at: new Date().toISOString()
+    };
+    
+    const { error } = await supabase.from('profiles').update(updateData).eq('id', session.user.id);
+    if (error) {
+      toast.error("Failed to update profile.");
       setIsSaving(false);
-      console.log("[ProfilePage] onSubmit: setIsSaving set to false.");
+      return;
     }
+
+    toast.success("Profile updated successfully!");
+    lastSavedSessionLengthRef.current = newSessionLength ?? null;
+
+    if (sessionLengthChanged && profile.active_t_path_id) {
+      try {
+        const response = await fetch(`/api/generate-t-path`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({ 
+            tPathId: profile.active_t_path_id,
+            preferred_session_length: newSessionLength
+          })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Failed to initiate T-Path workout regeneration: ${errorText}`);
+        }
+      } catch (err: any) {
+        toast.error("Error initiating workout plan update.");
+      }
+    }
+    await refreshProfileData();
+    setIsEditing(false);
+    setIsSaving(false);
   }
 
   const handleAchievementClick = (achievement: { id: string; name: string; icon: string }) => {
@@ -441,7 +396,7 @@ export default function ProfilePage() {
       <div className="p-2 sm:p-4 max-w-4xl mx-auto">
         <ProfileHeader
           isEditing={isEditing}
-          onEditToggle={handleEditToggle}
+          onEditToggle={() => setIsEditing(prev => !prev)}
           onSave={form.handleSubmit(onSubmit)}
           isSaving={isSaving}
         />
@@ -450,7 +405,7 @@ export default function ProfilePage() {
           <Avatar className="w-24 h-24 mx-auto mb-4 ring-4 ring-primary/20">
             <AvatarFallback className="text-4xl font-bold">{userInitial}</AvatarFallback>
           </Avatar>
-          <h1 className="text-3xl font-bold">{profile.full_name || `${profile.first_name} ${profile.last_name}`}</h1>
+          <h1 className="text-3xl font-bold">{profile.first_name} {profile.last_name}</h1>
           <div className="flex items-center justify-center space-x-2 mt-2">
             <span className={cn("px-3 py-1 rounded-full text-xs font-bold !text-white", fitnessLevel.color)}>{fitnessLevel.level}</span>
             <span className="text-muted-foreground text-sm">•</span>
@@ -494,7 +449,6 @@ export default function ProfilePage() {
                     <ProfileSettingsTab
                       form={form}
                       isEditing={isEditing}
-                      isSaving={isSaving}
                       mainMuscleGroups={mainMuscleGroups}
                       aiCoachUsageToday={aiCoachUsageToday}
                       AI_COACH_DAILY_LIMIT={AI_COACH_DAILY_LIMIT}
@@ -541,9 +495,9 @@ export default function ProfilePage() {
         onOpenChange={setIsPointsExplanationOpen}
       />
       <LoadingOverlay 
-        isOpen={isSaving && !profile?.active_t_path_id} // Only show this if not triggering a full plan regen
+        isOpen={isSaving} 
         title="Saving Profile" 
-        description="Please wait while we update your profile." 
+        description="Please wait while we update your profile and workout plan." 
       />
       <FloatingSaveEditButton 
         isEditing={isEditing} 

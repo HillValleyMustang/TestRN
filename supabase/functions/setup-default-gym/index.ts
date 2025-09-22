@@ -33,6 +33,7 @@ interface WorkoutExerciseStructure {
 }
 
 // --- Utility Functions ---
+// Inlined helper function from src/lib/utils.ts
 function getMaxMinutes(sessionLength: string | null | undefined): number {
   switch (sessionLength) {
     case '15-30': return 30;
@@ -270,7 +271,9 @@ async function generateWorkoutPlanForTPath(
 }
 
 serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
 
   const supabaseServiceRoleClient = createClient(
     // @ts-ignore
@@ -288,59 +291,43 @@ serve(async (req: Request) => {
     if (userError || !user) throw new Error('Unauthorized');
     userId = user.id;
 
-    const { gymName, equipmentMethod } = await req.json(); // equipmentMethod is already here
+    await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'in_progress', t_path_generation_error: null }).eq('id', userId);
 
-    const { data: profile, error: profileError } = await supabaseServiceRoleClient
-      .from('profiles')
-      .select('programme_type, preferred_session_length, primary_goal, preferred_muscles, health_notes')
-      .eq('id', user.id)
-      .single();
+    const { gymId } = await req.json();
+    if (!gymId) throw new Error('gymId is required.');
+
+    const { data: gym, error: gymError } = await supabaseServiceRoleClient.from('gyms').select('id').eq('id', gymId).eq('user_id', user.id).single();
+    if (gymError || !gym) throw new Error('Gym not found or user does not own it.');
+
+    const { data: profile, error: profileError } = await supabaseServiceRoleClient.from('profiles').select('programme_type, preferred_session_length, primary_goal, preferred_muscles, health_notes, active_gym_id').eq('id', user.id).single();
     if (profileError || !profile) throw new Error('User profile not found.');
     if (!profile.programme_type) throw new Error('User has no core programme type set.');
 
-    const { data: newGym, error: gymError } = await supabaseServiceRoleClient
-      .from('gyms')
-      .insert({ user_id: user.id, name: gymName })
-      .select('id')
-      .single();
-    if (gymError) throw gymError;
-
-    const newTPathTemplateName = profile.programme_type === 'ulul' ? '4-Day Upper/Lower' : '3-Day Push/Pull/Legs';
+    const tPathTemplateName = profile.programme_type === 'ulul' ? '4-Day Upper/Lower' : '3-Day Push/Pull/Legs';
     const { data: newTPath, error: newTPathError } = await supabaseServiceRoleClient
       .from('t_paths')
-      .insert({
-        user_id: user.id,
-        gym_id: newGym.id,
-        template_name: newTPathTemplateName,
-        settings: {
-          tPathType: profile.programme_type,
-          experience: 'intermediate', // Hardcoded, might be an issue if user changes it
-          goalFocus: profile.primary_goal,
-          preferredMuscles: profile.preferred_muscles,
-          constraints: profile.health_notes,
-          equipmentMethod: equipmentMethod, // Use the provided equipmentMethod
-        },
-        is_bonus: false,
-        parent_t_path_id: null
-      })
-      .select('id')
-      .single();
+      .insert({ user_id: user.id, gym_id: gymId, template_name: tPathTemplateName, settings: { tPathType: profile.programme_type, experience: 'intermediate', goalFocus: profile.primary_goal, preferredMuscles: profile.preferred_muscles, constraints: profile.health_notes, equipmentMethod: 'skip' }, is_bonus: false, parent_t_path_id: null })
+      .select('id').single();
     if (newTPathError) throw newTPathError;
 
-    // Determine useStaticDefaults based on the equipmentMethod
-    const useStaticDefaults = equipmentMethod === 'skip';
+    await generateWorkoutPlanForTPath(supabaseServiceRoleClient, user.id, newTPath.id, profile.preferred_session_length, gymId, true); // Pass true for useStaticDefaults
 
-    await generateWorkoutPlanForTPath(supabaseServiceRoleClient, user.id, newTPath.id, profile.preferred_session_length, newGym.id, useStaticDefaults);
+    // If the gym being configured is the user's active gym, update their active T-Path
+    if (profile.active_gym_id === gymId) {
+      await supabaseServiceRoleClient.from('profiles').update({ active_t_path_id: newTPath.id }).eq('id', user.id);
+    }
 
-    await supabaseServiceRoleClient.from('profiles').update({ active_gym_id: newGym.id, active_t_path_id: newTPath.id }).eq('id', user.id);
+    await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'completed', t_path_generation_error: null }).eq('id', userId);
 
-    return new Response(JSON.stringify({ message: 'Default gym and workout plan created successfully.' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ message: `Successfully initiated default workout plan generation for new gym.` }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
 
   } catch (error) {
     const message = error instanceof Error ? error.message : "An unknown error occurred";
     console.error("Error in setup-default-gym edge function:", message);
     if (userId) {
-      // Optionally update profile status to failed if needed
+      await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'failed', t_path_generation_error: message }).eq('id', userId);
     }
     return new Response(JSON.stringify({ error: message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
