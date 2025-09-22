@@ -24,7 +24,12 @@ const mobileNavLinks = [
   { href: "/workout", label: "Workout", icon: Dumbbell }, // Moved workout here for consistent styling
 ];
 
-export function Header({ isGeneratingPlan }: { isGeneratingPlan: boolean }) {
+interface HeaderProps {
+  isGeneratingPlan: boolean;
+  tempFavoriteStatusMessage: { message: string; type: 'added' | 'removed' } | null; // NEW
+}
+
+export function Header({ isGeneratingPlan, tempFavoriteStatusMessage }: HeaderProps) { // NEW PROP
   const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false); // NEW: State for sheet
   const isScrolled = useScrollPosition();
@@ -84,7 +89,10 @@ export function Header({ isGeneratingPlan }: { isGeneratingPlan: boolean }) {
           </SheetContent>
         </Sheet>
         <div className="relative ml-auto flex flex-1 items-center justify-end gap-2 md:grow-0">
-          <RollingStatusBadge isGeneratingPlan={isGeneratingPlan} />
+          <RollingStatusBadge 
+            isGeneratingPlan={isGeneratingPlan} 
+            tempFavoriteStatusMessage={tempFavoriteStatusMessage} // NEW
+          />
           <NotificationBell />
           <UserNav />
         </div>

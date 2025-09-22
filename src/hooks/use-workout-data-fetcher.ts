@@ -28,6 +28,8 @@ interface UseWorkoutDataFetcherReturn {
   refreshTPaths: () => void;
   refreshTPathExercises: () => void;
   isGeneratingPlan: boolean;
+  tempFavoriteStatusMessage: { message: string; type: 'added' | 'removed' } | null; // NEW
+  setTempFavoriteStatusMessage: (message: { message: string; type: 'added' | 'removed' } | null) => void; // NEW
 }
 
 export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
@@ -35,6 +37,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const prevStatusRef = useRef<string | null>(null);
+  const [tempFavoriteStatusMessage, setTempFavoriteStatusMessage] = useState<{ message: string; type: 'added' | 'removed' } | null>(null); // NEW
 
   const { data: cachedExercises, loading: loadingExercises, error: exercisesError, refresh: refreshExercises } = useCacheAndRevalidate<LocalExerciseDefinition>({
     cacheTable: 'exercise_definitions_cache',
@@ -224,5 +227,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     refreshTPaths,
     refreshTPathExercises,
     isGeneratingPlan,
+    tempFavoriteStatusMessage, // NEW
+    setTempFavoriteStatusMessage, // NEW
   };
 };

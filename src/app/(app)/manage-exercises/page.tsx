@@ -31,6 +31,7 @@ import { toast } from "sonner";
 import { EditExerciseDialog } from "@/components/manage-exercises/edit-exercise-dialog";
 import { Badge } from "@/components/ui/badge"; // Import Badge
 import { cn } from "@/lib/utils"; // Import cn
+import { useWorkoutFlow } from "@/components/workout-flow/workout-flow-context-provider"; // NEW
 
 export default function ManageExercisesPage() {
   const { session, supabase } = useSession();
@@ -39,8 +40,9 @@ export default function ManageExercisesPage() {
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
 
-  // NEW STATE for favorite status pill
-  const [favoriteStatusPill, setFavoriteStatusPill] = useState<{ message: string; type: 'added' | 'removed' } | null>(null);
+  // REMOVED: favoriteStatusPill state and its useEffect
+
+  const workoutFlowManager = useWorkoutFlow(); // NEW: Get workoutFlowManager
 
   const {
     globalExercises,
@@ -70,9 +72,7 @@ export default function ManageExercisesPage() {
   } = useManageExercisesData({
     sessionUserId: session?.user.id ?? null,
     supabase,
-    onShowFavoriteStatusPill: useCallback((message, type) => {
-      setFavoriteStatusPill({ message, type });
-    }, []),
+    setTempFavoriteStatusMessage: workoutFlowManager.setTempFavoriteStatusMessage, // NEW
   });
 
   // AI-related states
@@ -114,15 +114,7 @@ export default function ManageExercisesPage() {
     emblaApi && emblaApi.scrollNext();
   }, [emblaApi]);
 
-  // Effect to hide the favorite status pill after a few seconds
-  useEffect(() => {
-    if (favoriteStatusPill) {
-      const timer = setTimeout(() => {
-        setFavoriteStatusPill(null);
-      }, 3000); // Disappear after 3 seconds
-      return () => clearTimeout(timer);
-    }
-  }, [favoriteStatusPill]);
+  // REMOVED: Effect to hide the favorite status pill after a few seconds
 
   // AI Gym Analysis Handlers for Manage Exercises page
   const handleExerciseIdentified = useCallback((exercises: Partial<FetchedExerciseDefinition>[], duplicate_status: 'none' | 'global' | 'my-exercises') => {
@@ -211,16 +203,7 @@ export default function ManageExercisesPage() {
       <div className="flex flex-col gap-4 p-2 sm:p-4">
         <header className="mb-4 text-center relative"> {/* Added relative for absolute positioning */}
           <h1 className="text-3xl font-bold">Manage Exercises</h1>
-          {favoriteStatusPill && (
-            <Badge
-              className={cn(
-                "absolute top-0 right-0 mt-2 mr-2 px-3 py-1 text-sm font-semibold transition-opacity duration-300",
-                favoriteStatusPill.type === 'added' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-              )}
-            >
-              {favoriteStatusPill.message}
-            </Badge>
-          )}
+          {/* REMOVED: favoriteStatusPill rendering */}
         </header>
         
         <Card>

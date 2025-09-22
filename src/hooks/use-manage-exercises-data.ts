@@ -13,10 +13,10 @@ type TPath = Tables<'t_paths'>;
 interface UseManageExercisesDataProps {
   sessionUserId: string | null;
   supabase: SupabaseClient;
-  onShowFavoriteStatusPill: (message: string, type: 'added' | 'removed') => void; // NEW PROP
+  setTempFavoriteStatusMessage: (message: { message: string; type: 'added' | 'removed' } | null) => void; // NEW
 }
 
-export const useManageExercisesData = ({ sessionUserId, supabase, onShowFavoriteStatusPill }: UseManageExercisesDataProps) => {
+export const useManageExercisesData = ({ sessionUserId, supabase, setTempFavoriteStatusMessage }: UseManageExercisesDataProps) => {
   const [globalExercises, setGlobalExercises] = useState<FetchedExerciseDefinition[]>([]);
   const [userExercises, setUserExercises] = useState<FetchedExerciseDefinition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -388,7 +388,8 @@ export const useManageExercisesData = ({ sessionUserId, supabase, onShowFavorite
     }
 
     // Show status pill
-    onShowFavoriteStatusPill(newFavoriteStatus ? "Added" : "Removed", newFavoriteStatus ? 'added' : 'removed');
+    setTempFavoriteStatusMessage({ message: newFavoriteStatus ? "Added to favourites!" : "Removed from favourites!", type: newFavoriteStatus ? 'added' : 'removed' });
+    setTimeout(() => setTempFavoriteStatusMessage(null), 3000); // Hide after 3 seconds
 
     try {
       if (isUserOwned) {
@@ -414,9 +415,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, onShowFavorite
           if (error) throw error;
         }
       }
-      // No full refresh needed here, as optimistic update handles it.
-      // If there was a complex derivation of `is_favorited_by_current_user` that couldn't be optimistically updated,
-      // we might need a targeted refresh for `user_global_favorites` cache.
+      refreshExercises(); // Trigger revalidation after favorite change
     } catch (err: any) {
       console.error("Failed to toggle favourite status:", err);
       toast.error("Failed to update favourite status.");
@@ -427,7 +426,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, onShowFavorite
         setGlobalExercises(prev => prev.map(ex => ex.id === exercise.id ? exercise : ex));
       }
     }
-  }, [sessionUserId, supabase, onShowFavoriteStatusPill]);
+  }, [sessionUserId, supabase, setTempFavoriteStatusMessage, refreshExercises]);
 
   const handleOptimisticAdd = useCallback((exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => {
     setExerciseWorkoutsMap(prev => {

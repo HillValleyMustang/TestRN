@@ -21,6 +21,8 @@ export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) =>
     refreshAchievements,
     isGeneratingPlan,
     profile,
+    tempFavoriteStatusMessage, // <-- Destructure here
+    setTempFavoriteStatusMessage, // <-- Destructure here
   } = useWorkoutDataFetcher();
 
   const activeSession = useActiveWorkoutSession();
@@ -111,6 +113,8 @@ export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) =>
     refreshAchievements,
     isGeneratingPlan,
     profile,
+    tempFavoriteStatusMessage, // <-- Include here
+    setTempFavoriteStatusMessage, // <-- Include here
   }), [
     activeSession,
     selectWorkout,
@@ -131,5 +135,7 @@ export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) =>
     refreshAchievements,
     isGeneratingPlan,
     profile,
+    tempFavoriteStatusMessage, // <-- Add to dependencies
+    setTempFavoriteStatusMessage, // <-- Add to dependencies
   ]);
 };

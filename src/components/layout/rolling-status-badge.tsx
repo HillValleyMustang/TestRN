@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from '@/components/session-context-provider';
 import { Badge } from "@/components/ui/badge";
-import { Flame, Dumbbell, CheckCircle, Clock, AlertCircle, WifiOff, Loader2 } from "lucide-react"; // Added WifiOff and Loader2
+import { Flame, Dumbbell, CheckCircle, Clock, AlertCircle, WifiOff, Loader2, Heart } from "lucide-react"; // Added WifiOff, Loader2, Heart
 import { cn } from '@/lib/utils';
 import { useSyncManager } from '@/hooks/use-sync-manager'; // Import useSyncManager
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'; // Import Dialog components
@@ -59,7 +59,12 @@ const StatusInfoModal = () => (
   </DialogContent>
 );
 
-export function RollingStatusBadge({ isGeneratingPlan }: { isGeneratingPlan: boolean }) {
+interface RollingStatusBadgeProps {
+  isGeneratingPlan: boolean;
+  tempFavoriteStatusMessage: { message: string; type: 'added' | 'removed' } | null; // NEW
+}
+
+export function RollingStatusBadge({ isGeneratingPlan, tempFavoriteStatusMessage }: RollingStatusBadgeProps) { // NEW PROP
   const { session, supabase } = useSession();
   const { isOnline } = useSyncManager(); // Get isOnline status
   const [status, setStatus] = useState<string | null>(null);
@@ -102,6 +107,21 @@ export function RollingStatusBadge({ isGeneratingPlan }: { isGeneratingPlan: boo
       setLoading(false);
     }
   }, [session, supabase, isOnline]); // Added isOnline to dependencies
+
+  // NEW: Prioritize tempFavoriteStatusMessage
+  if (tempFavoriteStatusMessage) {
+    return (
+      <Badge
+        className={cn(
+          "flex items-center gap-1 px-3 py-1 text-sm font-semibold transition-opacity duration-300",
+          tempFavoriteStatusMessage.type === 'added' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+        )}
+      >
+        <Heart className="h-4 w-4" />
+        <span>{tempFavoriteStatusMessage.message}</span>
+      </Badge>
+    );
+  }
 
   if (isGeneratingPlan) {
     return (
