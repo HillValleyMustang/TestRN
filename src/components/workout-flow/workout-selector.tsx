@@ -55,6 +55,7 @@ interface WorkoutSelectorProps {
   handleEditWorkoutSaveSuccess: () => void;
   setIsEditWorkoutDialogOpen: (isOpen: boolean) => void;
   profile: Profile | null; // Add profile prop
+  isWorkoutSessionStarted: boolean; // NEW PROP
 }
 
 const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName: string): Omit<WorkoutPillProps, 'isSelected' | 'onClick'> => {
@@ -119,6 +120,7 @@ export const WorkoutSelector = ({
   handleEditWorkoutSaveSuccess,
   setIsEditWorkoutDialogOpen,
   profile, // Destructure profile prop
+  isWorkoutSessionStarted, // NEW PROP
 }: WorkoutSelectorProps) => {
   const { supabase, session } = useSession();
   const { activeGym } = useGym();

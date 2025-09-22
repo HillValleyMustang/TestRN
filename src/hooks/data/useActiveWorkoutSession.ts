@@ -29,6 +29,7 @@ export const useActiveWorkoutSession = () => {
   const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [expandedExerciseCards, setExpandedExerciseCards] = useState<Record<string, boolean>>({});
+  const [isWorkoutSessionStarted, setIsWorkoutSessionStarted] = useState(false); // NEW STATE
 
   const isWorkoutActive = useMemo(() => !!activeWorkout, [activeWorkout]);
   const hasUnsavedChanges = useMemo(() => {
@@ -46,6 +47,7 @@ export const useActiveWorkoutSession = () => {
     setCompletedExercises(new Set());
     setIsCreatingSession(false);
     setExpandedExerciseCards({});
+    setIsWorkoutSessionStarted(false); // RESET NEW STATE
   }, []);
 
   const { session, supabase } = useSession();
@@ -139,6 +141,7 @@ export const useActiveWorkoutSession = () => {
       await addToSyncQueue('create', 'workout_sessions', sessionData);
       setCurrentSessionId(newSessionId);
       setSessionStartTime(new Date(firstSetTimestamp));
+      setIsWorkoutSessionStarted(true); // SET NEW STATE TO TRUE
       console.log(`[ActiveWorkoutSession] New workout session created in DB and IndexedDB: ${newSessionId}`);
       return newSessionId;
     } catch (error) {
@@ -148,7 +151,7 @@ export const useActiveWorkoutSession = () => {
     } finally {
       setIsCreatingSession(false);
     }
-  }, [session, activeWorkout, setIsCreatingSession, setCurrentSessionId, setSessionStartTime]);
+  }, [session, activeWorkout, setIsCreatingSession, setCurrentSessionId, setSessionStartTime, setIsWorkoutSessionStarted]);
 
   const finishWorkoutSession = useCallback(async (): Promise<string | null> => {
     console.log("[ActiveWorkoutSession] finishWorkoutSession called.");
@@ -325,5 +328,6 @@ export const useActiveWorkoutSession = () => {
     substituteExercise,
     toggleExerciseCardExpansion,
     updateSessionStartTime: (timestamp: string) => setSessionStartTime(new Date(timestamp)),
+    isWorkoutSessionStarted, // EXPOSE NEW STATE
   };
 };

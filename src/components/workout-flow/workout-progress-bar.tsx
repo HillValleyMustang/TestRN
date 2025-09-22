@@ -9,13 +9,13 @@ import { Dumbbell } from 'lucide-react';
 interface WorkoutProgressBarProps {
   exercisesForSession: WorkoutExercise[];
   completedExercises: Set<string>;
-  isWorkoutActive: boolean;
+  isWorkoutSessionStarted: boolean; // NEW PROP
 }
 
 export const WorkoutProgressBar = ({
   exercisesForSession,
   completedExercises,
-  isWorkoutActive,
+  isWorkoutSessionStarted, // USE NEW PROP
 }: WorkoutProgressBarProps) => {
   const totalExercises = exercisesForSession.length;
   const completedCount = completedExercises.size;
@@ -25,8 +25,8 @@ export const WorkoutProgressBar = ({
     return (completedCount / totalExercises) * 100;
   }, [completedCount, totalExercises]);
 
-  if (!isWorkoutActive || totalExercises === 0) {
-    return null; // Don't render if no workout is active or no exercises
+  if (!isWorkoutSessionStarted || totalExercises === 0) { // USE NEW PROP FOR VISIBILITY
+    return null; // Don't render if workout session hasn't started or no exercises
   }
 
   return (
@@ -34,7 +34,7 @@ export const WorkoutProgressBar = ({
       className={cn(
         "fixed bottom-0 left-0 right-0 z-40 p-4 bg-background/80 backdrop-blur-md border-t",
         "transition-transform duration-500 ease-out",
-        isWorkoutActive ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
+        isWorkoutSessionStarted ? "translate-y-0 opacity-100" : "translate-y-full opacity-0" // Use new prop for animation
       )}
     >
       <div className="max-w-2xl mx-auto flex items-center gap-4">
