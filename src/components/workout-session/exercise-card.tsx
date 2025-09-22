@@ -86,7 +86,7 @@ export const ExerciseCard = ({
 
       if (error && error.code !== 'PGRST116') {
         console.error("Error fetching user profile for units/rest time:", error);
-        toast.error("Failed to load user preferences."); // Added toast.error
+        toast.error("Failed to load user preferences.");
       } else if (profileData) {
         setPreferredWeightUnit(profileData.preferred_weight_unit || 'kg');
         setDefaultRestTime(profileData.default_rest_time_seconds || 60);
@@ -304,7 +304,7 @@ export const ExerciseCard = ({
                             type="number"
                             step="0.1"
                             placeholder="kg"
-                            value={convertWeight(set.weight_kg, 'kg', preferredWeightUnit as 'kg' | 'lbs'), preferredWeightUnit as 'kg' | 'lbs') ?? ''}
+                            value={convertWeight(set.weight_kg, 'kg', preferredWeightUnit as 'kg' | 'lbs') ?? ''}
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange(setIndex, 'weight_kg', e.target.value)}
                             disabled={set.isSaved}
                             className="w-20 text-center h-8 text-xs"

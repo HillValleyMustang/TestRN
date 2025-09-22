@@ -103,7 +103,9 @@ export const WorkoutSummaryModal = ({ open, onOpenChange, sessionId }: WorkoutSu
               name: exerciseDef.name, 
               main_muscle: exerciseDef.main_muscle, 
               type: exerciseDef.type, 
-              category: exerciseDef.category 
+              category: exerciseDef.category,
+              movement_type: exerciseDef.movement_type, // ADDED
+              movement_pattern: exerciseDef.movement_pattern // ADDED
             } : null 
           });
         });
@@ -126,14 +128,14 @@ export const WorkoutSummaryModal = ({ open, onOpenChange, sessionId }: WorkoutSu
           newlyUnlockedAchievements.forEach(achievementId => {
             const displayInfo = ACHIEVEMENT_DISPLAY_INFO[achievementId];
             if (displayInfo) {
-              toast.info(`Congrats! Achievement Unlocked: ${displayInfo.name}! ${displayInfo.icon}`); // Changed to toast.info
+              toast.info(`Congrats! Achievement Unlocked: ${displayInfo.name}! ${displayInfo.icon}`);
             }
           });
           setHasShownAchievementToasts(true); // Mark as shown
         }
       } catch (err: any) {
         setError(err.message || "Failed to load workout summary. Please try again.");
-        toast.error("Failed to load workout summary."); // Changed to toast.error
+        toast.error("Failed to load workout summary.");
       } finally {
         setLoading(false);
       }

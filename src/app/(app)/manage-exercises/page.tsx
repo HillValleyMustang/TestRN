@@ -27,7 +27,7 @@ import { useManageExercisesData } from '@/hooks/use-manage-exercises-data';
 import { AnalyseGymButton } from "@/components/manage-exercises/exercise-form/analyze-gym-button";
 import { AnalyseGymDialog } from "@/components/manage-exercises/exercise-form/analyze-gym-dialog";
 import { SaveAiExercisePrompt } from "@/components/workout-flow/save-ai-exercise-prompt";
-import { toast } => "sonner";
+import { toast } from "sonner";
 import { EditExerciseDialog } from "@/components/manage-exercises/edit-exercise-dialog";
 
 export default function ManageExercisesPage() {
@@ -134,6 +134,8 @@ export default function ManageExercisesPage() {
         library_id: null,
         is_favorite: false,
         created_at: new Date().toISOString(),
+        movement_type: exercise.movement_type, // Add this
+        movement_pattern: exercise.movement_pattern, // Add this
       }]).select('id').single();
 
       if (error) {

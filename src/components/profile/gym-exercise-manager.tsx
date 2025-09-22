@@ -333,7 +333,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
   }, []);
 
   const handleOpenInfoDialog = (exercise: WorkoutExerciseWithDetails) => {
-    setSelectedExerciseForInfo(exercise);
+    setSelectedExerciseForInfo(exercise as FetchedExerciseDefinition);
     setIsInfoDialogOpen(true);
   };
 

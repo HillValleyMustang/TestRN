@@ -8,7 +8,7 @@ import { ExerciseInfoDialog } from "@/components/exercise-info-dialog";
 import { WorkoutBadge } from "@/components/workout-badge";
 
 // Import new modular components and hook
-import { useEditWorkoutExercises } from "@/hooks/use-edit-workout-exercises";
+import { useEditWorkoutExercises, WorkoutExerciseWithDetails } from "@/hooks/use-edit-workout-exercises";
 import { AddExerciseSection } from "@/components/manage-t-paths/edit-workout-exercises/add-exercise-section";
 import { SortableExerciseList } from "@/components/manage-t-paths/edit-workout-exercises/sortable-exercise-list";
 import { WorkoutActionButtons } from "@/components/manage-t-paths/edit-workout-exercises/workout-action-buttons";
@@ -68,8 +68,9 @@ export const EditWorkoutExercisesDialog = ({
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
   const [selectedExerciseForInfo, setSelectedExerciseForInfo] = useState<FetchedExerciseDefinition | null>(null);
 
-  const handleOpenInfoDialog = (exercise: FetchedExerciseDefinition) => {
-    setSelectedExerciseForInfo(exercise);
+  const handleOpenInfoDialog = (exercise: WorkoutExerciseWithDetails) => {
+    // Cast WorkoutExerciseWithDetails to FetchedExerciseDefinition for ExerciseInfoDialog
+    setSelectedExerciseForInfo(exercise as FetchedExerciseDefinition);
     setIsInfoDialogOpen(true);
   };
 
