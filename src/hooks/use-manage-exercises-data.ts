@@ -29,6 +29,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempFavorit
   const [selectedGymFilter, setSelectedGymFilter] = useState<string>('all');
   const [totalUserExercisesCount, setTotalUserExercisesCount] = useState(0);
   const [totalGlobalExercisesCount, setTotalGlobalExercisesCount] = useState(0);
+  const [searchTerm, setSearchTerm] = useState(""); // NEW
 
   const fetchExercisesSupabase = useCallback(async (client: SupabaseClient) => {
     return client
@@ -103,6 +104,13 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempFavorit
         finalGlobalExercises = finalGlobalExercises.filter(ex => ex.id && exerciseIdsInSelectedGym.has(ex.id));
       }
 
+      // NEW: Search term filter
+      if (searchTerm.trim() !== "") {
+        const lowerCaseSearchTerm = searchTerm.toLowerCase();
+        finalUserExercises = finalUserExercises.filter(ex => ex.name.toLowerCase().includes(lowerCaseSearchTerm));
+        finalGlobalExercises = finalGlobalExercises.filter(ex => ex.name.toLowerCase().includes(lowerCaseSearchTerm));
+      }
+
       finalUserExercises.sort((a, b) => a.name.localeCompare(b.name));
       finalGlobalExercises.sort((a, b) => a.name.localeCompare(b.name));
 
@@ -115,7 +123,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempFavorit
     } finally {
       setLoading(false);
     }
-  }, [sessionUserId, supabase, selectedMuscleFilter, selectedGymFilter, cachedExercises, exercisesError, loadingExercises, userGyms, exerciseGymsMap]);
+  }, [sessionUserId, supabase, selectedMuscleFilter, selectedGymFilter, cachedExercises, exercisesError, loadingExercises, userGyms, exerciseGymsMap, searchTerm]); // Add searchTerm
 
   useEffect(() => {
     if (!loadingExercises) {
@@ -255,5 +263,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempFavorit
     refreshTPaths: () => {}, // Placeholder, not needed here anymore
     totalUserExercisesCount,
     totalGlobalExercisesCount,
+    searchTerm, // NEW
+    setSearchTerm, // NEW
   };
 };

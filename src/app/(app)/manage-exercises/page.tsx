@@ -12,11 +12,12 @@ import {
 } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Filter, ChevronLeft, ChevronRight } from "lucide-react";
+import { Filter, ChevronLeft, ChevronRight, Search } from "lucide-react"; // Added Search
 import { Card } from "@/components/ui/card";
 import useEmblaCarousel from 'embla-carousel-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input"; // Added Input
 
 // Import modular components
 import { GlobalExerciseList } from "@/components/manage-exercises/global-exercise-list";
@@ -39,8 +40,6 @@ export default function ManageExercisesPage() {
   const [activeTab, setActiveTab] = useState("my-exercises");
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
-
-  // REMOVED: favoriteStatusPill state and its useEffect
 
   const workoutFlowManager = useWorkoutFlow(); // NEW: Get workoutFlowManager
 
@@ -67,24 +66,25 @@ export default function ManageExercisesPage() {
     handleRemoveFromWorkout,
     refreshExercises,
     refreshTPaths,
-    totalUserExercisesCount, // NEW
-    totalGlobalExercisesCount, // NEW
+    totalUserExercisesCount,
+    totalGlobalExercisesCount,
+    searchTerm, // NEW
+    setSearchTerm, // NEW
   } = useManageExercisesData({
     sessionUserId: session?.user.id ?? null,
     supabase,
-    setTempFavoriteStatusMessage: workoutFlowManager.setTempFavoriteStatusMessage, // NEW
-    userGyms: workoutFlowManager.userGyms, // NEW: Pass from workoutFlowManager
-    exerciseGymsMap: workoutFlowManager.exerciseGymsMap, // NEW: Pass from workoutFlowManager
-    availableMuscleGroups: workoutFlowManager.availableMuscleGroups, // NEW: Pass from workoutFlowManager
-    exerciseWorkoutsMap: workoutFlowManager.exerciseWorkoutsMap, // NEW: Pass from workoutFlowManager
+    setTempFavoriteStatusMessage: workoutFlowManager.setTempFavoriteStatusMessage,
+    userGyms: workoutFlowManager.userGyms,
+    exerciseGymsMap: workoutFlowManager.exerciseGymsMap,
+    availableMuscleGroups: workoutFlowManager.availableMuscleGroups,
+    exerciseWorkoutsMap: workoutFlowManager.exerciseWorkoutsMap,
   });
 
   // AI-related states
   const [showAnalyseGymDialog, setShowAnalyseGymDialog] = useState(false);
   const [showSaveAiExercisePrompt, setShowSaveAiExercisePrompt] = useState(false);
-  const [aiIdentifiedExercise, setAiIdentifiedExercise] = useState<Partial<FetchedExerciseDefinition> | null>(null); // Use FetchedExerciseDefinition
+  const [aiIdentifiedExercise, setAiIdentifiedExercise] = useState<Partial<FetchedExerciseDefinition> | null>(null);
   const [isAiSaving, setIsAiSaving] = useState(false);
-  // Removed aiDuplicateStatus state as it's now part of aiIdentifiedExercise
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
@@ -118,16 +118,9 @@ export default function ManageExercisesPage() {
     emblaApi && emblaApi.scrollNext();
   }, [emblaApi]);
 
-  // REMOVED: Effect to hide the favorite status pill after a few seconds
-
-  // AI Gym Analysis Handlers for Manage Exercises page
   const handleExerciseIdentified = useCallback((exercises: Partial<FetchedExerciseDefinition>[], duplicate_status: 'none' | 'global' | 'my-exercises') => {
-    // For manage-exercises, we typically want to process one by one or show a list.
-    // For now, let's assume we only care about the first identified exercise for the prompt.
-    // If multiple are identified, the user would need to go through them one by one.
     if (exercises.length > 0) {
-      setAiIdentifiedExercise(exercises[0]); // Take the first one, which now includes duplicate_status
-      // No need to set aiDuplicateStatus separately
+      setAiIdentifiedExercise(exercises[0]);
       setShowSaveAiExercisePrompt(true);
     } else {
       toast.info("No exercises were identified from the photos.");
@@ -136,7 +129,7 @@ export default function ManageExercisesPage() {
 
   const handleSaveAiExerciseToMyExercises = useCallback(async (exercise: Partial<FetchedExerciseDefinition>) => {
     if (!session) {
-      toast.error("You must be logged in to save exercises."); // Changed to toast.error
+      toast.error("You must be logged in to save exercises.");
       return;
     }
     setIsAiSaving(true);
@@ -153,13 +146,13 @@ export default function ManageExercisesPage() {
         library_id: null,
         is_favorite: false,
         created_at: new Date().toISOString(),
-        movement_type: exercise.movement_type, // Add this
-        movement_pattern: exercise.movement_pattern, // Add this
+        movement_type: exercise.movement_type,
+        movement_pattern: exercise.movement_pattern,
       }]).select('id').single();
 
       if (error) {
         if (error.code === '23505') {
-          toast.error("This exercise already exists in your custom exercises."); // Changed to toast.error
+          toast.error("This exercise already exists in your custom exercises.");
         } else {
           throw error;
         }
@@ -171,7 +164,7 @@ export default function ManageExercisesPage() {
       }
     } catch (err: any) {
       console.error("Failed to save AI identified exercise:", err);
-      toast.error("Failed to save exercise."); // Changed to toast.error
+      toast.error("Failed to save exercise.");
     } finally {
       setIsAiSaving(false);
     }
@@ -193,8 +186,8 @@ export default function ManageExercisesPage() {
       name: exercise.name || '',
       main_muscle: exercise.main_muscle || '',
       type: exercise.type || 'weight',
-      movement_type: exercise.movement_type ?? null, // Add this
-      movement_pattern: exercise.movement_pattern ?? null, // Add this
+      movement_type: exercise.movement_type ?? null,
+      movement_pattern: exercise.movement_pattern ?? null,
     };
     handleEditClick(exerciseToEdit);
     setShowSaveAiExercisePrompt(false);
@@ -205,66 +198,88 @@ export default function ManageExercisesPage() {
   return (
     <>
       <div className="flex flex-col gap-4 p-2 sm:p-4">
-        <header className="mb-4 text-center relative"> {/* Added relative for absolute positioning */}
+        <header className="mb-4 text-center relative">
           <h1 className="text-3xl font-bold">Manage Exercises</h1>
-          {/* REMOVED: favoriteStatusPill rendering */}
         </header>
         
         <Card>
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <div className="flex items-center justify-between p-4 border-b">
-              <TabsList className="grid grid-cols-2 h-9 flex-grow max-w-[calc(100%-60px)]">
+              <TabsList className="grid grid-cols-2 h-9">
                 <TabsTrigger value="my-exercises">My Exercises</TabsTrigger>
                 <TabsTrigger value="global-library">Global Library</TabsTrigger>
               </TabsList>
-              <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 gap-1 ml-2">
-                    <Filter className="h-4 w-4" />
-                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Filter</span>
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="bottom" className="h-fit max-h-[80vh]">
-                  <SheetHeader>
-                    <SheetTitle>Filter Exercises</SheetTitle>
-                  </SheetHeader>
-                  <div className="py-4 space-y-4">
-                    <div>
-                      <Label>Filter by Muscle Group</Label>
-                      <Select onValueChange={setSelectedMuscleFilter} value={selectedMuscleFilter}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Filter by Muscle" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Muscle Groups</SelectItem>
-                          <SelectItem value="favorites">Favourites</SelectItem>
-                          {availableMuscleGroups.map(muscle => (
-                            <SelectItem key={muscle} value={muscle}>
-                              {muscle}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+              <div className="flex items-center gap-2">
+                <div className="relative hidden sm:block">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Search exercises..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full rounded-lg bg-background pl-8 sm:w-[200px]"
+                  />
+                </div>
+                <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
+                  <SheetTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 gap-1">
+                      <Filter className="h-4 w-4" />
+                      <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Filter</span>
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="bottom" className="h-fit max-h-[80vh]">
+                    <SheetHeader>
+                      <SheetTitle>Filter Exercises</SheetTitle>
+                    </SheetHeader>
+                    <div className="py-4 space-y-4">
+                      <div className="relative sm:hidden">
+                        <Label>Search</Label>
+                        <Search className="absolute left-2.5 top-8 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="search"
+                          placeholder="Search exercises..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="w-full rounded-lg bg-background pl-8 mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label>Filter by Muscle Group</Label>
+                        <Select onValueChange={setSelectedMuscleFilter} value={selectedMuscleFilter}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Filter by Muscle" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Muscle Groups</SelectItem>
+                            <SelectItem value="favorites">Favourites</SelectItem>
+                            {availableMuscleGroups.map(muscle => (
+                              <SelectItem key={muscle} value={muscle}>
+                                {muscle}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Filter by Gym</Label>
+                        <Select onValueChange={setSelectedGymFilter} value={selectedGymFilter}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Filter by Gym" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Gyms</SelectItem>
+                            {userGyms.map(gym => (
+                              <SelectItem key={gym.id} value={gym.id}>
+                                {gym.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                    <div>
-                      <Label>Filter by Gym</Label>
-                      <Select onValueChange={setSelectedGymFilter} value={selectedGymFilter}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Filter by Gym" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Gyms</SelectItem>
-                          {userGyms.map(gym => (
-                            <SelectItem key={gym.id} value={gym.id}>
-                              {gym.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </SheetContent>
-              </Sheet>
+                  </SheetContent>
+                </Sheet>
+              </div>
             </div>
             
             <div className="relative">
@@ -353,7 +368,6 @@ export default function ManageExercisesPage() {
         onOpenChange={setShowSaveAiExercisePrompt}
         exercise={aiIdentifiedExercise}
         onSaveToMyExercises={handleSaveAiExerciseToMyExercises}
-        // Removed onAddOnlyToCurrentWorkout as it's not applicable in this context
         context="manage-exercises"
         onEditExercise={handleEditIdentifiedExercise}
         isSaving={isAiSaving}
