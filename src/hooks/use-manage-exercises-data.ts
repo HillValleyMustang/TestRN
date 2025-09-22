@@ -20,7 +20,7 @@ interface UseManageExercisesDataProps {
   exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>; // NEW: Receive as prop
 }
 
-export const useManageExercisesData = ({ sessionUserId, supabase, setTempFavoriteStatusMessage, userGyms, exerciseGymsMap, availableMuscleGroups }: UseManageExercisesDataProps) => {
+export const useManageExercisesData = ({ sessionUserId, supabase, setTempFavoriteStatusMessage, userGyms, exerciseGymsMap, availableMuscleGroups, exerciseWorkoutsMap }: UseManageExercisesDataProps) => {
   const [globalExercises, setGlobalExercises] = useState<FetchedExerciseDefinition[]>([]);
   const [userExercises, setUserExercises] = useState<FetchedExerciseDefinition[]>([]);
   const [loading, setLoading] = useState(true);

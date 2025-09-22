@@ -28,6 +28,7 @@ export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) =>
     availableMuscleGroups,
     userGyms,
     exerciseGymsMap,
+    exerciseWorkoutsMap, // Ensure this is destructured here
   } = useWorkoutDataFetcher();
 
   const activeSession = useActiveWorkoutSession();
@@ -124,6 +125,7 @@ export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) =>
     availableMuscleGroups,
     userGyms,
     exerciseGymsMap,
+    exerciseWorkoutsMap, // ADDED: Ensure this is returned
   }), [
     activeSession,
     selectWorkout,
@@ -150,5 +152,6 @@ export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) =>
     availableMuscleGroups,
     userGyms,
     exerciseGymsMap,
+    exerciseWorkoutsMap, // ADDED: Add to dependencies
   ]);
 };
