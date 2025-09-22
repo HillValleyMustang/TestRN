@@ -405,7 +405,7 @@ export default function ProfilePage() {
           <Avatar className="w-24 h-24 mx-auto mb-4 ring-4 ring-primary/20">
             <AvatarFallback className="text-4xl font-bold">{userInitial}</AvatarFallback>
           </Avatar>
-          <h1 className="text-3xl font-bold">{profile.first_name} {profile.last_name}</h1>
+          <h1 className="text-3xl font-bold">{profile.full_name || `${profile.first_name} ${profile.last_name}`}</h1>
           <div className="flex items-center justify-center space-x-2 mt-2">
             <span className={cn("px-3 py-1 rounded-full text-xs font-bold !text-white", fitnessLevel.color)}>{fitnessLevel.level}</span>
             <span className="text-muted-foreground text-sm">•</span>

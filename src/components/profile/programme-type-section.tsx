@@ -37,7 +37,6 @@ export const ProgrammeTypeSection = ({ isEditing, onDataChange, profile }: Progr
 
   const confirmChange = async () => {
     if (!session || !pendingProgrammeType) return;
-    setIsWarningOpen(false);
     setIsSaving(true);
 
     try {

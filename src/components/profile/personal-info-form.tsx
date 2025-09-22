@@ -60,7 +60,7 @@ export const PersonalInfoForm = ({ isEditing, mainMuscleGroups }: PersonalInfoFo
             <FormItem>
               <div className="flex items-center gap-2 mb-1">
                 <FormLabel>Body Fat (%)</FormLabel>
-                <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsBodyFatInfoModalOpen(true)}>
+                <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsBodyFatInfoModalOpen(true)} disabled={!isEditing}>
                   <Info className="h-4 w-4 text-muted-foreground" />
                 </Button>
               </div>

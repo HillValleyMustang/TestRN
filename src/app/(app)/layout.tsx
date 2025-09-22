@@ -9,6 +9,7 @@ import { useEffect } from "react";
 import { UnsavedChangesDialog } from "@/components/workout-flow/unsaved-changes-dialog";
 import { EditWorkoutExercisesDialog } from "@/components/manage-t-paths/edit-workout-exercises-dialog";
 import { GymContextProvider } from "@/components/gym-context-provider";
+import { LoadingOverlay } from "@/components/loading-overlay"; // NEW: Import LoadingOverlay
 
 // This component now consumes the context provided by WorkoutFlowProvider
 function AppLayoutContent({ children }: { children: React.ReactNode }) {
@@ -59,6 +60,12 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
           onSaveSuccess={workoutFlowManager.handleEditWorkoutSaveSuccess}
         />
       )}
+      {/* NEW: Global LoadingOverlay for plan generation */}
+      <LoadingOverlay 
+        isOpen={workoutFlowManager.isGeneratingPlan} 
+        title="Updating Workout Plans" 
+        description="Please wait while your workout plans are being regenerated to reflect your new preferences." 
+      />
     </>
   );
 }
