@@ -80,7 +80,7 @@ export const GlobalExerciseList = ({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className="text-2xl font-semibold">Global Exercise Library</CardTitle>
+        <CardTitle className="text-2xl font-semibold">Global Library</CardTitle>
       </CardHeader>
       <CardContent className="p-3">
         {loading ? (

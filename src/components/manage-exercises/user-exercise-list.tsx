@@ -121,7 +121,7 @@ export const UserExerciseList = ({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className="text-2xl font-semibold">My Custom Exercises</CardTitle>
+        <CardTitle className="text-2xl font-semibold">Add New Exercise</CardTitle>
       </CardHeader>
       <CardContent className="p-3">
         <div className="mb-6">
@@ -133,7 +133,6 @@ export const UserExerciseList = ({
           />
         </div>
 
-        <h3 className="text-lg font-semibold mb-4">My Exercises</h3>
         {loading ? (
           <div className="space-y-2">
             <Skeleton className="h-10 w-full" />
