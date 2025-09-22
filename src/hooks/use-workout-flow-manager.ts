@@ -161,13 +161,21 @@ export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) =>
         console.log("[ActiveWorkoutSession] Detected change in exercise IDs. Updating session exercises.");
         const prevIds = new Set(prevExercisesRef.current.map(e => e.id));
         const newIdsSet = new Set(filteredNewExercises.map(e => e.id));
-        let message = "Workout Updated";
+        let message = "Updated!";
         if (newIdsSet.size > prevIds.size) {
-          message = "Exercise Added";
+          message = "Added!";
         } else if (newIdsSet.size < prevIds.size) {
-          message = "Exercise Removed";
+          message = "Removed!";
         }
-        setTempActionStatusMessage({ message, type: 'info', icon: 'check' });
+        
+        let type: 'added' | 'removed' | 'info' = 'info';
+        if (newIdsSet.size > prevIds.size) {
+            type = 'added';
+        } else if (newIdsSet.size < prevIds.size) {
+            type = 'removed';
+        }
+
+        setTempActionStatusMessage({ message, type, icon: 'check' });
         setTimeout(() => setTempActionStatusMessage(null), 3000);
         setExercisesForSession(filteredNewExercises);
         const initialSets = Object.fromEntries(filteredNewExercises.map(ex => [ex.id, Array.from({ length: 3 }, () => ({ id: null, created_at: null, session_id: currentSessionId, exercise_id: ex.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null }))]));
