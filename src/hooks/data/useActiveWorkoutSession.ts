@@ -293,7 +293,6 @@ export const useActiveWorkoutSession = () => {
 
       if (currentIds !== newIds) {
         console.log("[ActiveWorkoutSession] Detected change in exercise IDs. Updating session exercises.");
-        toast.info(`Your workout '${activeWorkout.template_name}' has been updated.`);
         setExercisesForSession(filteredNewExercises);
         const initialSets = Object.fromEntries(filteredNewExercises.map(ex => [ex.id, Array.from({ length: DEFAULT_INITIAL_SETS }, () => ({ id: null, created_at: null, session_id: currentSessionId, exercise_id: ex.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null }))]));
         setExercisesWithSets(initialSets);

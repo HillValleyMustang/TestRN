@@ -73,7 +73,7 @@ export default function ManageExercisesPage() {
   } = useManageExercisesData({
     sessionUserId: session?.user.id ?? null,
     supabase,
-    setTempFavoriteStatusMessage: workoutFlowManager.setTempFavoriteStatusMessage,
+    setTempStatusMessage: workoutFlowManager.setTempStatusMessage,
     userGyms: workoutFlowManager.userGyms,
     exerciseGymsMap: workoutFlowManager.exerciseGymsMap,
     availableMuscleGroups: workoutFlowManager.availableMuscleGroups,

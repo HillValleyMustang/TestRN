@@ -26,10 +26,10 @@ const mobileNavLinks = [
 
 interface HeaderProps {
   isGeneratingPlan: boolean;
-  tempFavoriteStatusMessage: { message: string; type: 'added' | 'removed' } | null; // NEW
+  tempStatusMessage: { message: string; type: 'added' | 'removed' | 'success' } | null; // NEW
 }
 
-export function Header({ isGeneratingPlan, tempFavoriteStatusMessage }: HeaderProps) { // NEW PROP
+export function Header({ isGeneratingPlan, tempStatusMessage }: HeaderProps) { // NEW PROP
   const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false); // NEW: State for sheet
   const isScrolled = useScrollPosition();
@@ -91,7 +91,7 @@ export function Header({ isGeneratingPlan, tempFavoriteStatusMessage }: HeaderPr
         <div className="relative ml-auto flex flex-1 items-center justify-end gap-2 md:grow-0">
           <RollingStatusBadge 
             isGeneratingPlan={isGeneratingPlan} 
-            tempFavoriteStatusMessage={tempFavoriteStatusMessage} // NEW
+            tempStatusMessage={tempStatusMessage} // NEW
           />
           <NotificationBell />
           <UserNav />

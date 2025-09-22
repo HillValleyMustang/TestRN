@@ -61,10 +61,10 @@ const StatusInfoModal = () => (
 
 interface RollingStatusBadgeProps {
   isGeneratingPlan: boolean;
-  tempFavoriteStatusMessage: { message: string; type: 'added' | 'removed' } | null; // NEW
+  tempStatusMessage: { message: string; type: 'added' | 'removed' | 'success' } | null; // NEW
 }
 
-export function RollingStatusBadge({ isGeneratingPlan, tempFavoriteStatusMessage }: RollingStatusBadgeProps) { // NEW PROP
+export function RollingStatusBadge({ isGeneratingPlan, tempStatusMessage }: RollingStatusBadgeProps) { // NEW PROP
   const { session, supabase } = useSession();
   const { isOnline } = useSyncManager(); // Get isOnline status
   const [status, setStatus] = useState<string | null>(null);
@@ -108,17 +108,19 @@ export function RollingStatusBadge({ isGeneratingPlan, tempFavoriteStatusMessage
     }
   }, [session, supabase, isOnline]); // Added isOnline to dependencies
 
-  // NEW: Prioritize tempFavoriteStatusMessage
-  if (tempFavoriteStatusMessage) {
+  // NEW: Prioritize tempStatusMessage
+  if (tempStatusMessage) {
+    const isSuccess = tempStatusMessage.type === 'success';
+    const isAdded = tempStatusMessage.type === 'added';
     return (
       <Badge
         className={cn(
           "flex items-center gap-1 px-3 py-1 text-sm font-semibold transition-opacity duration-300",
-          tempFavoriteStatusMessage.type === 'added' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+          isSuccess || isAdded ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
         )}
       >
-        <Heart className="h-4 w-4" />
-        <span>{tempFavoriteStatusMessage.message}</span>
+        {isSuccess ? <CheckCircle className="h-4 w-4" /> : <Heart className="h-4 w-4" />}
+        <span>{tempStatusMessage.message}</span>
       </Badge>
     );
   }

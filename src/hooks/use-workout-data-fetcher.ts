@@ -30,8 +30,8 @@ interface UseWorkoutDataFetcherReturn {
   refreshTPaths: () => void;
   refreshTPathExercises: () => void;
   isGeneratingPlan: boolean;
-  tempFavoriteStatusMessage: { message: string; type: 'added' | 'removed' } | null;
-  setTempFavoriteStatusMessage: (message: { message: string; type: 'added' | 'removed' } | null) => void;
+  tempStatusMessage: { message: string; type: 'added' | 'removed' | 'success' } | null;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' } | null) => void;
   availableMuscleGroups: string[];
   userGyms: Tables<'gyms'>[];
   exerciseGymsMap: Record<string, string[]>;
@@ -43,7 +43,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const prevStatusRef = useRef<string | null>(null);
-  const [tempFavoriteStatusMessage, setTempFavoriteStatusMessage] = useState<{ message: string; type: 'added' | 'removed' } | null>(null);
+  const [tempStatusMessage, setTempStatusMessage] = useState<{ message: string; type: 'added' | 'removed' | 'success' } | null>(null);
   const [exerciseWorkoutsMap, setExerciseWorkoutsMap] = useState<Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>>({}); // ADDED STATE
 
   const { data: cachedExercises, loading: loadingExercises, error: exercisesError, refresh: refreshExercises } = useCacheAndRevalidate<LocalExerciseDefinition>({
@@ -387,8 +387,8 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     refreshTPaths,
     refreshTPathExercises,
     isGeneratingPlan,
-    tempFavoriteStatusMessage,
-    setTempFavoriteStatusMessage,
+    tempStatusMessage,
+    setTempStatusMessage,
     availableMuscleGroups,
     userGyms: cachedUserGyms || [],
     exerciseGymsMap,
