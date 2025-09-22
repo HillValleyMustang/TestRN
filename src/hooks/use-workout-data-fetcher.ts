@@ -344,9 +344,8 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     ]);
   }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, refreshAchievements, refreshUserGyms, fetchGymExercises]);
 
+  const status = profile?.t_path_generation_status;
   useEffect(() => {
-    const profileData = profile;
-    const status = profileData?.t_path_generation_status;
     const stopPolling = (finalStatus?: 'completed' | 'failed') => {
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
@@ -358,7 +357,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
         refreshAllData();
       } else if (finalStatus === 'failed') {
         toast.error("Workout plan generation failed.", {
-          description: profileData?.t_path_generation_error || "An unknown error occurred.",
+          description: profile?.t_path_generation_error || "An unknown error occurred.",
         });
       }
     };
@@ -379,7 +378,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
-  }, [profile, refreshProfile, refreshAllData]);
+  }, [status, refreshProfile, refreshAllData, profile?.t_path_generation_error]);
 
   return {
     allAvailableExercises,
