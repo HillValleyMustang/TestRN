@@ -80,10 +80,11 @@ export default function WorkoutPage() {
         isQuickStart={isQuickStart}
         allAvailableExercises={workoutFlowManager.allAvailableExercises}
         updateSessionStartTime={workoutFlowManager.updateSessionStartTime}
+        completedExercises={workoutFlowManager.completedExercises} // Explicitly pass as Set<string>
       />
       <WorkoutProgressBar
         exercisesForSession={workoutFlowManager.exercisesForSession}
-        completedExercises={workoutFlowManager.completedExercises}
+        completedExercises={workoutFlowManager.completedExercises} // Explicitly pass as Set<string>
         isWorkoutActive={workoutFlowManager.isWorkoutActive}
       />
       <WorkoutSummaryModal

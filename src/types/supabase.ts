@@ -20,7 +20,7 @@ import type { BodyFatReferenceImagesRow } from "./supabase-generated/tables/body
 import type { UserAlertsRow } from "./supabase-generated/tables/user_alerts";
 import type { ExerciseDefinitionsRow } from "./supabase-generated/tables/exercise_definitions"; // Import ExerciseDefinitionsRow
 
-export type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums, GetLastExerciseSetsForExerciseReturns, GetTotalCompletedExerciseInstancesArgs, GetTotalCompletedExerciseInstancesReturns }; // Export new RPC types
+export type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums, GetLastExerciseSetsForExerciseReturns, GetTotalCompletedExerciseInstancesArgs, GetTotalCompletedExerciseInstancesReturns, ExerciseDefinitionsRow as ExerciseDefinition }; // Export new RPC types and ExerciseDefinition
 
 // --- Custom Types ---
 // These are application-specific types that extend or combine Supabase-generated types.
