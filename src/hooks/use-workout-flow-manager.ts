@@ -4,7 +4,7 @@ import React, { createContext, useContext, useMemo, useCallback, useState, useRe
 import { useRouter } from 'next/navigation';
 import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher';
 import { useActiveWorkoutSession } from './data/useActiveWorkoutSession';
-import { Tables } from '@/types/supabase';
+import { Tables, WorkoutExercise } from '@/types/supabase';
 
 interface UseWorkoutFlowManagerProps {
   router: ReturnType<typeof useRouter>;
@@ -98,8 +98,24 @@ export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) =>
     setPendingNavigationPath(null);
   }, []);
 
+  // NEW: Create a wrapped substituteExercise function
+  const substituteExercise = useCallback(async (oldExerciseId: string, newExercise: WorkoutExercise) => {
+    await activeSession.substituteExercise(oldExerciseId, newExercise);
+    setTempStatusMessage({ message: 'Added!', type: 'success' });
+    setTimeout(() => setTempStatusMessage(null), 3000);
+  }, [activeSession, setTempStatusMessage]);
+
+  // NEW: Create a wrapped removeExerciseFromSession function
+  const removeExerciseFromSession = useCallback(async (exerciseId: string) => {
+    await activeSession.removeExerciseFromSession(exerciseId);
+    setTempStatusMessage({ message: 'Removed!', type: 'removed' });
+    setTimeout(() => setTempStatusMessage(null), 3000);
+  }, [activeSession, setTempStatusMessage]);
+
   return useMemo(() => ({
     ...activeSession,
+    substituteExercise, // Override with the wrapped function
+    removeExerciseFromSession, // Override with the wrapped function
     selectWorkout,
     loading: loadingData,
     groupedTPaths,
@@ -126,6 +142,8 @@ export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) =>
     exerciseWorkoutsMap, // Pass it through
   }), [
     activeSession,
+    substituteExercise,
+    removeExerciseFromSession,
     selectWorkout,
     loadingData,
     groupedTPaths,
