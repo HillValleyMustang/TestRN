@@ -54,9 +54,9 @@ const profileSchema = z.object({
     .optional().nullable(),
   primary_goal: z.string().optional().nullable(),
   health_notes: z.string().optional().nullable(),
-  preferred_session_length: z.string().optional().nullable(),
+  preferred_session_length: z.enum(["15-30", "30-45", "45-60", "60-90"]).optional().nullable(),
   preferred_muscles: z.array(z.string()).optional().nullable(),
-  programme_type: z.string().optional().nullable(), // Added programme_type
+  programme_type: z.enum(["ulul", "ppl"]).optional().nullable(),
 });
 
 export default function ProfilePage() {
@@ -190,9 +190,9 @@ export default function ProfilePage() {
         body_fat_pct: profile.body_fat_pct,
         primary_goal: profile.primary_goal,
         health_notes: profile.health_notes,
-        preferred_session_length: profile.preferred_session_length,
+        preferred_session_length: profile.preferred_session_length as "15-30" | "30-45" | "45-60" | "60-90" | null,
         preferred_muscles: profile.preferred_muscles ? profile.preferred_muscles.split(',').map((m: string) => m.trim()) : [],
-        programme_type: profile.programme_type, // Added programme_type
+        programme_type: profile.programme_type as "ulul" | "ppl" | null,
       });
 
       if (profile.last_ai_coach_use_at) {
@@ -314,7 +314,7 @@ export default function ProfilePage() {
 
     toast.success("Profile updated successfully!", { id: toastId });
     lastSavedSessionLengthRef.current = newSessionLength ?? null;
-    form.reset(values); // Immediately reset the form with the new values to update the UI
+    form.reset(values);
 
     if (sessionLengthChanged && profile.active_t_path_id) {
       try {
@@ -334,13 +334,12 @@ export default function ProfilePage() {
           const errorText = await response.text();
           throw new Error(`Failed to initiate T-Path workout regeneration: ${errorText}`);
         }
-        // The global loading overlay will handle feedback from here
       } catch (err: any) {
         toast.error("Error initiating workout plan update.");
       }
     }
     
-    await refreshProfileData(); // Sync cache in the background
+    await refreshProfileData();
     setIsEditing(false);
     setIsSaving(false);
   }
