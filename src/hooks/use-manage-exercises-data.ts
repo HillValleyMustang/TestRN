@@ -13,9 +13,10 @@ type TPath = Tables<'t_paths'>;
 interface UseManageExercisesDataProps {
   sessionUserId: string | null;
   supabase: SupabaseClient;
+  onShowFavoriteStatusPill: (message: string, type: 'added' | 'removed') => void; // NEW PROP
 }
 
-export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExercisesDataProps) => {
+export const useManageExercisesData = ({ sessionUserId, supabase, onShowFavoriteStatusPill }: UseManageExercisesDataProps) => {
   const [globalExercises, setGlobalExercises] = useState<FetchedExerciseDefinition[]>([]);
   const [userExercises, setUserExercises] = useState<FetchedExerciseDefinition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -373,41 +374,60 @@ export const useManageExercisesData = ({ sessionUserId, supabase }: UseManageExe
     const isCurrentlyFavorited = isUserOwned ? exercise.is_favorite : exercise.is_favorited_by_current_user;
     const newFavoriteStatus = !isCurrentlyFavorited;
 
-    const toastId = toast.loading(newFavoriteStatus ? "Adding to favourites..." : "Removing from favourites...");
+    // Optimistic UI update
+    const updatedExercise = {
+      ...exercise,
+      is_favorite: isUserOwned ? newFavoriteStatus : exercise.is_favorite,
+      is_favorited_by_current_user: !isUserOwned ? newFavoriteStatus : exercise.is_favorited_by_current_user,
+    };
+
+    if (isUserOwned) {
+      setUserExercises(prev => prev.map(ex => ex.id === exercise.id ? updatedExercise : ex));
+    } else {
+      setGlobalExercises(prev => prev.map(ex => ex.id === exercise.id ? updatedExercise : ex));
+    }
+
+    // Show status pill
+    onShowFavoriteStatusPill(newFavoriteStatus ? "Added" : "Removed", newFavoriteStatus ? 'added' : 'removed');
 
     try {
       if (isUserOwned) {
         const { error } = await supabase
           .from('exercise_definitions')
           .update({ is_favorite: newFavoriteStatus })
-          .eq('id', exercise.id as string) // Cast to string as id can be null
+          .eq('id', exercise.id as string)
           .eq('user_id', sessionUserId);
 
         if (error) throw error;
-        toast.success(newFavoriteStatus ? "Added to favourites!" : "Removed from favourites.", { id: toastId });
       } else { // Global exercise
         if (newFavoriteStatus) {
           const { error } = await supabase
             .from('user_global_favorites')
-            .insert({ user_id: sessionUserId, exercise_id: exercise.id as string }); // Cast to string
+            .insert({ user_id: sessionUserId, exercise_id: exercise.id as string });
           if (error) throw error;
-          toast.success("Added to favourites!", { id: toastId });
         } else {
           const { error } = await supabase
             .from('user_global_favorites')
             .delete()
             .eq('user_id', sessionUserId)
-            .eq('exercise_id', exercise.id as string); // Cast to string
+            .eq('exercise_id', exercise.id as string);
           if (error) throw error;
-          toast.success("Removed from favourites.", { id: toastId });
         }
       }
-      refreshExercises(); // Trigger revalidation after favorite change
+      // No full refresh needed here, as optimistic update handles it.
+      // If there was a complex derivation of `is_favorited_by_current_user` that couldn't be optimistically updated,
+      // we might need a targeted refresh for `user_global_favorites` cache.
     } catch (err: any) {
       console.error("Failed to toggle favourite status:", err);
-      toast.error("Failed to update favourite status.", { id: toastId });
+      toast.error("Failed to update favourite status.");
+      // Rollback optimistic update on error
+      if (isUserOwned) {
+        setUserExercises(prev => prev.map(ex => ex.id === exercise.id ? exercise : ex));
+      } else {
+        setGlobalExercises(prev => prev.map(ex => ex.id === exercise.id ? exercise : ex));
+      }
     }
-  }, [sessionUserId, supabase, refreshExercises]);
+  }, [sessionUserId, supabase, onShowFavoriteStatusPill]);
 
   const handleOptimisticAdd = useCallback((exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => {
     setExerciseWorkoutsMap(prev => {

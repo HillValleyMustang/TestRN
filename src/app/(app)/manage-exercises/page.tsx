@@ -29,6 +29,8 @@ import { AnalyseGymDialog } from "@/components/manage-exercises/exercise-form/an
 import { SaveAiExercisePrompt } from "@/components/workout-flow/save-ai-exercise-prompt";
 import { toast } from "sonner";
 import { EditExerciseDialog } from "@/components/manage-exercises/edit-exercise-dialog";
+import { Badge } from "@/components/ui/badge"; // Import Badge
+import { cn } from "@/lib/utils"; // Import cn
 
 export default function ManageExercisesPage() {
   const { session, supabase } = useSession();
@@ -36,6 +38,9 @@ export default function ManageExercisesPage() {
   const [activeTab, setActiveTab] = useState("my-exercises");
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
+
+  // NEW STATE for favorite status pill
+  const [favoriteStatusPill, setFavoriteStatusPill] = useState<{ message: string; type: 'added' | 'removed' } | null>(null);
 
   const {
     globalExercises,
@@ -62,7 +67,13 @@ export default function ManageExercisesPage() {
     refreshTPaths,
     totalUserExercisesCount, // NEW
     totalGlobalExercisesCount, // NEW
-  } = useManageExercisesData({ sessionUserId: session?.user.id ?? null, supabase });
+  } = useManageExercisesData({
+    sessionUserId: session?.user.id ?? null,
+    supabase,
+    onShowFavoriteStatusPill: useCallback((message, type) => {
+      setFavoriteStatusPill({ message, type });
+    }, []),
+  });
 
   // AI-related states
   const [showAnalyseGymDialog, setShowAnalyseGymDialog] = useState(false);
@@ -102,6 +113,16 @@ export default function ManageExercisesPage() {
   const scrollNext = useCallback(() => {
     emblaApi && emblaApi.scrollNext();
   }, [emblaApi]);
+
+  // Effect to hide the favorite status pill after a few seconds
+  useEffect(() => {
+    if (favoriteStatusPill) {
+      const timer = setTimeout(() => {
+        setFavoriteStatusPill(null);
+      }, 3000); // Disappear after 3 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [favoriteStatusPill]);
 
   // AI Gym Analysis Handlers for Manage Exercises page
   const handleExerciseIdentified = useCallback((exercises: Partial<FetchedExerciseDefinition>[], duplicate_status: 'none' | 'global' | 'my-exercises') => {
@@ -188,8 +209,18 @@ export default function ManageExercisesPage() {
   return (
     <>
       <div className="flex flex-col gap-4 p-2 sm:p-4">
-        <header className="mb-4 text-center">
+        <header className="mb-4 text-center relative"> {/* Added relative for absolute positioning */}
           <h1 className="text-3xl font-bold">Manage Exercises</h1>
+          {favoriteStatusPill && (
+            <Badge
+              className={cn(
+                "absolute top-0 right-0 mt-2 mr-2 px-3 py-1 text-sm font-semibold transition-opacity duration-300",
+                favoriteStatusPill.type === 'added' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+              )}
+            >
+              {favoriteStatusPill.message}
+            </Badge>
+          )}
         </header>
         
         <Card>
