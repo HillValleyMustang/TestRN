@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Dumbbell, Settings, Sparkles, Search, Heart, Home, Filter } from 'lucide-react'; // Added Search, Heart, Home, Filter
+import { PlusCircle, Dumbbell, Settings, Sparkles, Search, Heart, Home, Filter, ChevronsUpDown, Check } from 'lucide-react'; // Added Search, Heart, Home, Filter, ChevronsUpDown, Check
 import { Tables, WorkoutWithLastCompleted, GroupedTPath, SetLogState, WorkoutExercise, FetchedExerciseDefinition, Profile, ExerciseDefinition } from '@/types/supabase';
 import { cn, formatTimeAgo, getPillStyles } from '@/lib/utils';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
@@ -12,7 +12,6 @@ import { LoadingOverlay } from '../loading-overlay';
 import { useSession } from '@/components/session-context-provider';
 import { WorkoutPill, WorkoutPillProps } from '@/components/workout-flow/workout-pill';
 import { EditWorkoutExercisesDialog } from '../manage-t-paths/edit-workout-exercises-dialog';
-import { ExerciseSelectionDropdown } from '@/components/shared/exercise-selection-dropdown';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { WorkoutAwareLink } from './workout-aware-link';
@@ -25,6 +24,8 @@ import { Input } from '@/components/ui/input'; // Import Input
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Import Select
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'; // Import ToggleGroup
 import { Label } from '@/components/ui/label'; // Import Label
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 type TPath = Tables<'t_paths'>;
 // Removed local ExerciseDefinition type as it's now imported from @/types/supabase
@@ -149,6 +150,7 @@ export const WorkoutSelector = ({
   const [muscleFilter, setMuscleFilter] = useState("all");
   const [gymFilter, setGymFilter] = useState("all");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [isComboboxOpen, setIsComboboxOpen] = useState(false);
 
 
   const activeTPathId = profile?.active_t_path_id;
@@ -186,7 +188,7 @@ export const WorkoutSelector = ({
         return ex.is_favorite || ex.is_favorited_by_current_user;
       })
       .filter(ex => {
-        // Text search
+        // Text search (now handled by Command component, but we keep it for consistency)
         return ex.name!.toLowerCase().includes(lowerCaseSearchTerm);
       })
       .filter(ex => !exercisesForSession.some(existingEx => existingEx.id === ex.id)); // Exclude already added
@@ -412,20 +414,8 @@ export const WorkoutSelector = ({
               <section className="mb-6 p-4 border rounded-lg bg-card">
                 <h3 className="text-lg font-semibold mb-3">Add Exercises</h3>
                 <div className="flex flex-col gap-3 mb-3">
-                  {/* Text Search */}
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search exercises..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-9 text-sm"
-                    />
-                  </div>
-
                   {/* Filters */}
                   <div className="flex flex-wrap items-center gap-2">
-                    {/* Source Filter */}
                     <ToggleGroup type="single" value={adHocExerciseSourceFilter} onValueChange={(value: 'my-exercises' | 'global-library') => setAdHocExerciseSourceFilter(value)} className="flex-grow">
                       <ToggleGroupItem value="my-exercises" aria-label="My Exercises" className="flex-1 text-xs h-8">
                         My Exercises
@@ -434,8 +424,6 @@ export const WorkoutSelector = ({
                         Global Library
                       </ToggleGroupItem>
                     </ToggleGroup>
-
-                    {/* Muscle Filter */}
                     <Select onValueChange={setMuscleFilter} value={muscleFilter}>
                       <SelectTrigger className="flex-1 h-8 text-xs min-w-[120px]">
                         <SelectValue placeholder="Muscle Group" />
@@ -449,8 +437,6 @@ export const WorkoutSelector = ({
                         ))}
                       </SelectContent>
                     </Select>
-
-                    {/* Gym Filter */}
                     <Select onValueChange={setGymFilter} value={gymFilter} disabled={userGyms.length === 0}>
                       <SelectTrigger className="flex-1 h-8 text-xs min-w-[100px]">
                         <SelectValue placeholder="Gym" />
@@ -464,8 +450,6 @@ export const WorkoutSelector = ({
                         ))}
                       </SelectContent>
                     </Select>
-
-                    {/* Favorites Toggle */}
                     <Button
                       variant={showFavoritesOnly ? "default" : "outline"}
                       size="icon"
@@ -477,14 +461,55 @@ export const WorkoutSelector = ({
                     </Button>
                   </div>
 
-                  {/* Exercise Selection Dropdown */}
+                  {/* Combobox and Add Button */}
                   <div className="flex gap-2">
-                    <ExerciseSelectionDropdown
-                      exercises={filteredExercisesForAdHoc as ExerciseDefinition[]}
-                      selectedExerciseId={selectedExerciseToAdd}
-                      setSelectedExerciseId={setSelectedExerciseToAdd}
-                      placeholder="Select exercise to add"
-                    />
+                    <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={isComboboxOpen}
+                          className="w-full justify-between font-normal"
+                        >
+                          {selectedExerciseToAdd
+                            ? allAvailableExercises.find(ex => ex.id === selectedExerciseToAdd)?.name
+                            : "Select exercise..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                        <Command>
+                          <CommandInput
+                            placeholder="Search exercises..."
+                            value={searchTerm}
+                            onValueChange={setSearchTerm}
+                          />
+                          <CommandList>
+                            <CommandEmpty>No exercise found.</CommandEmpty>
+                            <CommandGroup>
+                              {filteredExercisesForAdHoc.map((exercise) => (
+                                <CommandItem
+                                  key={exercise.id}
+                                  value={exercise.name!}
+                                  onSelect={() => {
+                                    setSelectedExerciseToAdd(exercise.id!);
+                                    setIsComboboxOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      selectedExerciseToAdd === exercise.id ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {exercise.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     <Button onClick={handleAddExercise} disabled={!selectedExerciseToAdd} className="flex-shrink-0">
                       <PlusCircle className="h-4 w-4" />
                     </Button>
