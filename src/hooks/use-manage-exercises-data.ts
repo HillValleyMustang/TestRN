@@ -387,8 +387,8 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempFavorit
       setGlobalExercises(prev => prev.map(ex => ex.id === exercise.id ? updatedExercise : ex));
     }
 
-    // Show status pill
-    setTempFavoriteStatusMessage({ message: newFavoriteStatus ? "Added to favourites!" : "Removed from favourites!", type: newFavoriteStatus ? 'added' : 'removed' });
+    // Show status pill with concise message
+    setTempFavoriteStatusMessage({ message: newFavoriteStatus ? "Added" : "Removed", type: newFavoriteStatus ? 'added' : 'removed' });
     setTimeout(() => setTempFavoriteStatusMessage(null), 3000); // Hide after 3 seconds
 
     try {
@@ -415,7 +415,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempFavorit
           if (error) throw error;
         }
       }
-      refreshExercises(); // Trigger revalidation after favorite change
+      // IMPORTANT: Removed refreshExercises() here to prevent page refresh
     } catch (err: any) {
       console.error("Failed to toggle favourite status:", err);
       toast.error("Failed to update favourite status.");
@@ -426,7 +426,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempFavorit
         setGlobalExercises(prev => prev.map(ex => ex.id === exercise.id ? exercise : ex));
       }
     }
-  }, [sessionUserId, supabase, setTempFavoriteStatusMessage, refreshExercises]);
+  }, [sessionUserId, supabase, setTempFavoriteStatusMessage]);
 
   const handleOptimisticAdd = useCallback((exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => {
     setExerciseWorkoutsMap(prev => {
