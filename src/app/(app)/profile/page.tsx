@@ -188,25 +188,57 @@ export default function ProfilePage() {
   }, [refreshProfileCache, refreshAchievementsCache, refreshTPathsCache, refreshTPathExercisesCache]);
 
   useEffect(() => {
-    if (loadingProfile || loadingAchievements || !session?.user.id) {
+    if (!session?.user.id || loadingProfile) {
+      // If no user or still loading profile, do nothing.
+      // The form will retain its previous state or initial default values.
       return;
     }
 
     if (profile) {
-      console.log("[ProfilePage] Profile data loaded, setting form defaults:", profile);
+      const profileFullName = [profile.first_name, profile.last_name].filter(Boolean).join(' ');
+      const profilePreferredMuscles = profile.preferred_muscles ? profile.preferred_muscles.split(',').map((m: string) => m.trim()) : [];
 
-      form.reset({
-        full_name: [profile.first_name, profile.last_name].filter(Boolean).join(' '),
-        height_cm: profile.height_cm,
-        weight_kg: profile.weight_kg,
-        body_fat_pct: profile.body_fat_pct,
-        primary_goal: profile.primary_goal,
-        health_notes: profile.health_notes,
-        preferred_session_length: profile.preferred_session_length,
-        preferred_muscles: profile.preferred_muscles ? profile.preferred_muscles.split(',').map((m: string) => m.trim()) : [],
-        programme_type: profile.programme_type, // Added programme_type
-      });
+      // Get current form values to compare with profile data
+      const currentFormValues = form.getValues();
 
+      // Check if form needs to be reset/updated based on profile data
+      // This prevents unnecessary resets that could clear user input if they're actively editing
+      const isFormPopulated = form.formState.isDirty || Object.keys(currentFormValues).some(key => 
+        currentFormValues[key as keyof typeof currentFormValues] !== undefined && 
+        currentFormValues[key as keyof typeof currentFormValues] !== null && 
+        currentFormValues[key as keyof typeof currentFormValues] !== ''
+      );
+
+      const needsUpdate = 
+        !isFormPopulated || // If form is empty/not yet populated, always update
+        currentFormValues.full_name !== profileFullName ||
+        currentFormValues.height_cm !== profile.height_cm ||
+        currentFormValues.weight_kg !== profile.weight_kg ||
+        currentFormValues.body_fat_pct !== profile.body_fat_pct ||
+        currentFormValues.primary_goal !== profile.primary_goal ||
+        currentFormValues.health_notes !== profile.health_notes ||
+        currentFormValues.preferred_session_length !== profile.preferred_session_length ||
+        currentFormValues.programme_type !== profile.programme_type ||
+        JSON.stringify(currentFormValues.preferred_muscles) !== JSON.stringify(profilePreferredMuscles);
+
+      if (needsUpdate) {
+        console.log("[ProfilePage] Profile data loaded and form needs update. Resetting form defaults:", profile);
+        form.reset({
+          full_name: profileFullName,
+          height_cm: profile.height_cm,
+          weight_kg: profile.weight_kg,
+          body_fat_pct: profile.body_fat_pct,
+          primary_goal: profile.primary_goal,
+          health_notes: profile.health_notes,
+          preferred_session_length: profile.preferred_session_length,
+          preferred_muscles: profilePreferredMuscles,
+          programme_type: profile.programme_type,
+        });
+      } else {
+        console.log("[ProfilePage] Profile data loaded, and form values match. Skipping reset.");
+      }
+
+      // Update AI coach usage
       if (profile.last_ai_coach_use_at) {
         const lastUsedDate = new Date(profile.last_ai_coach_use_at).toDateString();
         const today = new Date().toDateString();
@@ -214,13 +246,15 @@ export default function ProfilePage() {
       } else {
         setAiCoachUsageToday(0);
       }
-
     } else {
+      // If profile is null (e.g., after sign-out or initial load before data arrives),
+      // ensure the form is reset to its initial empty state.
+      // This is important for a clean slate if a user logs out or if there's no profile.
+      console.log("[ProfilePage] Profile is null or not yet loaded. Resetting form to initial defaults.");
       form.reset();
       setAiCoachUsageToday(0);
-      console.log("[ProfilePage] No profile data found, resetting form.");
     }
-  }, [profile, loadingProfile, loadingAchievements, session?.user.id, form, supabase, setAiCoachUsageToday]);
+  }, [profile, loadingProfile, session?.user.id, form]);
 
   useEffect(() => {
     if (!session) {
