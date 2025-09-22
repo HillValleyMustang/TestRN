@@ -169,10 +169,12 @@ export default function ProfilePage() {
   const lastSavedSessionLengthRef = useRef<string | null>(null);
 
   const refreshProfileData = useCallback(async () => {
+    console.log("[ProfilePage] refreshProfileData: Initiating full data refresh.");
     await refreshProfileCache();
     await refreshAchievementsCache();
     await refreshTPathsCache();
     await refreshTPathExercisesCache();
+    console.log("[ProfilePage] refreshProfileData: Full data refresh completed.");
   }, [refreshProfileCache, refreshAchievementsCache, refreshTPathsCache, refreshTPathExercisesCache]);
 
   useEffect(() => {
@@ -278,70 +280,97 @@ export default function ProfilePage() {
   const fitnessLevel = getFitnessLevel();
 
   async function onSubmit(values: z.infer<typeof profileSchema>) {
-    if (!session || !profile) return;
+    console.log("[ProfilePage] onSubmit: Function called.");
+    console.log("[ProfilePage] onSubmit: Current form values:", values);
+    console.log("[ProfilePage] onSubmit: Is form dirty?", form.formState.isDirty);
+
+    if (!session || !profile) {
+      console.log("[ProfilePage] onSubmit: Session or profile not available. Exiting.");
+      toast.error("User session or profile data missing. Please log in again.");
+      return;
+    }
 
     if (!form.formState.isDirty) {
+      console.log("[ProfilePage] onSubmit: Form is not dirty. Exiting edit mode.");
       setIsEditing(false);
       return;
     }
 
     setIsSaving(true);
-    const toastId = toast.loading("Saving profile...");
+    const toastId = toast.loading("Saving profile...", { duration: 99999 }); // Keep toast open indefinitely
 
-    const oldSessionLength = lastSavedSessionLengthRef.current;
-    const newSessionLength = values.preferred_session_length;
-    const sessionLengthChanged = oldSessionLength !== newSessionLength;
+    try {
+      const oldSessionLength = lastSavedSessionLengthRef.current;
+      const newSessionLength = values.preferred_session_length;
+      const sessionLengthChanged = oldSessionLength !== newSessionLength;
+      console.log(`[ProfilePage] onSubmit: Session length changed: ${sessionLengthChanged} (Old: ${oldSessionLength}, New: ${newSessionLength})`);
 
-    const nameParts = values.full_name.split(' ');
-    const firstName = nameParts.shift() || '';
-    const lastName = nameParts.join(' ');
+      const nameParts = values.full_name.split(' ');
+      const firstName = nameParts.shift() || '';
+      const lastName = nameParts.join(' ');
 
-    const updateData: ProfileUpdate = {
-      ...values,
-      first_name: firstName,
-      last_name: lastName,
-      preferred_muscles: values.preferred_muscles?.join(', ') || null,
-      updated_at: new Date().toISOString()
-    };
-    
-    const { error } = await supabase.from('profiles').update(updateData).eq('id', session.user.id);
-    
-    if (error) {
-      toast.error("Failed to update profile.", { id: toastId });
-      setIsSaving(false);
-      return;
-    }
-
-    toast.success("Profile updated successfully!", { id: toastId });
-    lastSavedSessionLengthRef.current = newSessionLength ?? null;
-    form.reset(values);
-
-    if (sessionLengthChanged && profile.active_t_path_id) {
-      try {
-        const response = await fetch(`/api/generate-t-path`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({ 
-            tPathId: profile.active_t_path_id,
-            preferred_session_length: newSessionLength
-          })
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Failed to initiate T-Path workout regeneration: ${errorText}`);
-        }
-      } catch (err: any) {
-        toast.error("Error initiating workout plan update.");
+      const updateData: ProfileUpdate = {
+        ...values,
+        first_name: firstName,
+        last_name: lastName,
+        preferred_muscles: values.preferred_muscles?.join(', ') || null,
+        updated_at: new Date().toISOString()
+      };
+      console.log("[ProfilePage] onSubmit: Data to update in Supabase:", updateData);
+      
+      const { error: updateError } = await supabase.from('profiles').update(updateData).eq('id', session.user.id);
+      
+      if (updateError) {
+        console.error("[ProfilePage] onSubmit: Supabase update failed:", updateError);
+        toast.error("Failed to update profile.", { id: toastId });
+        return; // Exit early on Supabase error
       }
+
+      console.log("[ProfilePage] onSubmit: Profile updated successfully in Supabase.");
+      toast.success("Profile updated successfully!", { id: toastId });
+      lastSavedSessionLengthRef.current = newSessionLength ?? null;
+      form.reset(values); // Immediately reset the form with the new values to update the UI
+
+      if (sessionLengthChanged && profile.active_t_path_id) {
+        console.log("[ProfilePage] onSubmit: Session length changed, initiating T-Path regeneration.");
+        try {
+          const response = await fetch(`/api/generate-t-path`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({ 
+              tPathId: profile.active_t_path_id,
+              preferred_session_length: newSessionLength
+            })
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error("[ProfilePage] onSubmit: T-Path regeneration API failed:", errorText);
+            throw new Error(`Failed to initiate T-Path workout regeneration: ${errorText}`);
+          }
+          console.log("[ProfilePage] onSubmit: T-Path regeneration API call successful.");
+          // The global loading overlay will handle feedback from here
+        } catch (err: any) {
+          console.error("[ProfilePage] onSubmit: Error during T-Path regeneration API call:", err);
+          toast.error("Error initiating workout plan update.");
+        }
+      }
+      
+      console.log("[ProfilePage] onSubmit: Refreshing profile data cache.");
+      await refreshProfileData(); // Sync cache in the background
+      setIsEditing(false);
+      console.log("[ProfilePage] onSubmit: Profile save process completed successfully.");
+
+    } catch (err: any) {
+      console.error("[ProfilePage] onSubmit: Unhandled error during save process:", err);
+      toast.error(err.message || "An unexpected error occurred during profile update.", { id: toastId });
+    } finally {
+      setIsSaving(false);
+      console.log("[ProfilePage] onSubmit: setIsSaving set to false.");
     }
-    
-    await refreshProfileData();
-    setIsEditing(false);
-    setIsSaving(false);
   }
 
   const handleAchievementClick = (achievement: { id: string; name: string; icon: string }) => {
