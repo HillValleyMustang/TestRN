@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Home, PlusCircle, Edit, Trash2, Dumbbell } from 'lucide-react';
+import { Home, PlusCircle, Edit, Trash2, Dumbbell, Save, Loader2 } from 'lucide-react'; // Added Save, Loader2
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { Tables, Profile } from '@/types/supabase';
@@ -17,15 +17,16 @@ import { ManageGymWorkoutsExercisesDialog } from './gym-exercise-manager'; // Im
 type Gym = Tables<'gyms'>;
 
 interface GymManagementSectionProps {
-  isEditing: boolean;
   profile: Profile | null;
   onDataChange: () => void; // Callback to refresh parent data
+  setIsSaving: (isSaving: boolean) => void;
 }
 
-export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymManagementSectionProps) => {
+export const GymManagementSection = ({ profile, onDataChange, setIsSaving }: GymManagementSectionProps) => {
   const { session, supabase } = useSession();
   const { userGyms, activeGym, refreshGyms } = useGym(); // Use userGyms and activeGym from context
   const [loading, setLoading] = useState(true); // Keep local loading for dialogs/actions
+  const [isEditing, setIsEditing] = useState(false); // Local editing state for this section
 
   // State for dialogs
   const [isAddGymDialogOpen, setIsAddGymDialogOpen] = useState(false);
@@ -36,6 +37,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
 
   const [selectedGym, setSelectedGym] = useState<Gym | null>(null);
   const [newGymName, setNewGymName] = useState("");
+  const [isRenaming, setIsRenaming] = useState(false); // Local state for rename operation
 
   // Set local loading state based on userGyms availability
   useEffect(() => {
@@ -44,11 +46,12 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
 
   const handleRenameGym = async () => {
     if (!session || !selectedGym || !newGymName.trim()) {
-      toast.error("Gym name cannot be empty."); // Added toast.error
+      toast.error("Gym name cannot be empty.");
       return;
     }
 
-    setLoading(true); // Set loading for the rename operation
+    setIsRenaming(true); // Set local renaming state
+    setIsSaving(true); // Set global saving state
     try {
       const { error } = await supabase.from('gyms').update({ name: newGymName }).eq('id', selectedGym.id);
       if (error) throw error;
@@ -61,15 +64,16 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
       setSelectedGym(null);
     } catch (err: any) {
       console.error("Failed to rename gym:", err.message);
-      toast.error("Failed to rename gym."); // Changed to toast.error
+      toast.error("Failed to rename gym.");
     } finally {
-      setLoading(false); // Clear loading
+      setIsRenaming(false); // Clear local renaming state
+      setIsSaving(false); // Clear global saving state
     }
   };
 
   const handleDeleteGym = async () => {
     if (!session || !selectedGym || !profile) {
-      toast.error("Cannot delete gym: session or profile data missing."); // Added toast.error
+      toast.error("Cannot delete gym: session or profile data missing.");
       return;
     }
 
@@ -80,7 +84,7 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
       return;
     }
 
-    setLoading(true); // Set loading for the delete operation
+    setIsSaving(true); // Set global saving state
     try {
       if (selectedGym.id === profile.active_gym_id) {
         const nextActiveGym = userGyms.find(g => g.id !== selectedGym.id); // Use userGyms
@@ -97,20 +101,20 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
       refreshGyms(); // Refresh the gym context
     } catch (err: any) {
       console.error("Failed to delete gym:", err.message);
-      toast.error("Failed to delete gym."); // Changed to toast.error
+      toast.error("Failed to delete gym.");
     } finally {
-      setLoading(false); // Clear loading
+      setIsSaving(false); // Clear global saving state
       setSelectedGym(null);
     }
   };
 
   const handleConfirmDeleteLastGym = async () => {
     if (!session || !selectedGym || !profile?.active_t_path_id) {
-      toast.error("Cannot delete last gym: session, selected gym, or active T-Path data missing."); // Added toast.error
+      toast.error("Cannot delete last gym: session, selected gym, or active T-Path data missing.");
       return;
     }
     setIsLastGymWarningOpen(false);
-    setLoading(true); // Set loading for the delete operation
+    setIsSaving(true); // Set global saving state
     const toastId = toast.loading("Resetting workout plan and deleting gym...");
 
     try {
@@ -132,9 +136,9 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
       refreshGyms(); // Refresh the gym context
     } catch (err: any) {
       console.error("Failed to delete last gym:", err.message);
-      toast.error("Failed to delete last gym.", { id: toastId }); // Changed to toast.error
+      toast.error(`Failed to delete last gym: ${err.message}`, { id: toastId });
     } finally {
-      setLoading(false); // Clear loading
+      setIsSaving(false); // Clear global saving state
       setSelectedGym(null);
     }
   };
@@ -147,13 +151,19 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
   return (
     <>
       <Card className="bg-card">
-        <CardHeader className="border-b border-border/50 pb-4">
+        <CardHeader className="border-b border-border/50 pb-4 flex flex-row items-center justify-between"> {/* Adjusted for buttons */}
           <CardTitle className="flex items-center gap-2">
             <Home className="h-5 w-5 text-primary" /> My Gyms
           </CardTitle>
-          <CardDescription>
-            Manage your saved gyms. You can have up to 3.
-          </CardDescription>
+          {isEditing ? (
+            <Button onClick={() => setIsEditing(false)} size="sm" variant="outline">
+              <Save className="h-4 w-4 mr-2" /> Done
+            </Button>
+          ) : (
+            <Button onClick={() => setIsEditing(true)} size="sm" variant="outline">
+              <Edit className="h-4 w-4 mr-2" /> Edit
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="space-y-4 pt-6">
           {loading ? (
@@ -205,11 +215,15 @@ export const GymManagementSection = ({ isEditing, profile, onDataChange }: GymMa
               placeholder="e.g., Home Gym, Fitness First"
               value={newGymName}
               onChange={(e) => setNewGymName(e.target.value)}
+              disabled={isRenaming}
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRenameDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleRenameGym}>Save</Button>
+            <Button variant="outline" onClick={() => setIsRenameDialogOpen(false)} disabled={isRenaming}>Cancel</Button>
+            <Button onClick={handleRenameGym} disabled={isRenaming || !newGymName.trim()}>
+              {isRenaming ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              {isRenaming ? "Saving..." : "Save"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

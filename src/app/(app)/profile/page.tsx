@@ -19,14 +19,12 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { useCacheAndRevalidate } from '@/hooks/use-cache-and-revalidate';
 
-import { ProfileHeader } from '@/components/profile/profile-header';
 import { ProfileOverviewTab } from '@/components/profile/profile-overview-tab';
 import { ProfileStatsTab } from '@/components/profile/profile-stats-tab';
 import { ProfileSettingsTab } from '@/components/profile/profile-settings-tab';
 import { PointsExplanationModal } from '@/components/profile/points-explanation-modal';
 import { achievementsList } from '@/lib/achievements';
 import { LoadingOverlay } from '@/components/loading-overlay';
-import { FloatingSaveEditButton } from '@/components/profile/floating-save-edit-button';
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
@@ -63,8 +61,7 @@ export default function ProfilePage() {
   const { session, supabase } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // Still needed for LoadingOverlay
   const [aiCoachUsageToday, setAiCoachUsageToday] = useState(0);
   
   const [isAchievementDetailOpen, setIsAchievementDetailOpen] = useState(false);
@@ -189,8 +186,6 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!session?.user.id || loadingProfile) {
-      // If no user or still loading profile, do nothing.
-      // The form will retain its previous state or initial default values.
       return;
     }
 
@@ -198,19 +193,10 @@ export default function ProfilePage() {
       const profileFullName = [profile.first_name, profile.last_name].filter(Boolean).join(' ');
       const profilePreferredMuscles = profile.preferred_muscles ? profile.preferred_muscles.split(',').map((m: string) => m.trim()) : [];
 
-      // Get current form values to compare with profile data
       const currentFormValues = form.getValues();
 
-      // Check if form needs to be reset/updated based on profile data
-      // This prevents unnecessary resets that could clear user input if they're actively editing
-      const isFormPopulated = form.formState.isDirty || Object.keys(currentFormValues).some(key => 
-        currentFormValues[key as keyof typeof currentFormValues] !== undefined && 
-        currentFormValues[key as keyof typeof currentFormValues] !== null && 
-        currentFormValues[key as keyof typeof currentFormValues] !== ''
-      );
-
       const needsUpdate = 
-        !isFormPopulated || // If form is empty/not yet populated, always update
+        !form.formState.isDirty || // If form is not dirty, always update
         currentFormValues.full_name !== profileFullName ||
         currentFormValues.height_cm !== profile.height_cm ||
         currentFormValues.weight_kg !== profile.weight_kg ||
@@ -238,7 +224,6 @@ export default function ProfilePage() {
         console.log("[ProfilePage] Profile data loaded, and form values match. Skipping reset.");
       }
 
-      // Update AI coach usage
       if (profile.last_ai_coach_use_at) {
         const lastUsedDate = new Date(profile.last_ai_coach_use_at).toDateString();
         const today = new Date().toDateString();
@@ -247,9 +232,6 @@ export default function ProfilePage() {
         setAiCoachUsageToday(0);
       }
     } else {
-      // If profile is null (e.g., after sign-out or initial load before data arrives),
-      // ensure the form is reset to its initial empty state.
-      // This is important for a clean slate if a user logs out or if there's no profile.
       console.log("[ProfilePage] Profile is null or not yet loaded. Resetting form to initial defaults.");
       form.reset();
       setAiCoachUsageToday(0);
@@ -265,15 +247,8 @@ export default function ProfilePage() {
     refreshProfileData(); 
 
     const tabParam = searchParams.get('tab');
-    const editParam = searchParams.get('edit');
-
     if (tabParam) {
       setActiveTab(tabParam);
-    }
-    if (editParam === 'true') {
-      setIsEditing(true);
-    } else if (editParam === 'false') {
-      setIsEditing(false);
     }
   }, [session, router, refreshProfileData, searchParams]);
 
@@ -322,86 +297,6 @@ export default function ProfilePage() {
   }, [profile?.total_points]);
 
   const fitnessLevel = getFitnessLevel();
-
-  async function onSubmit(values: z.infer<typeof profileSchema>) {
-    console.log("[ProfilePage] onSubmit called with values:", values);
-    if (!session || !profile) {
-      console.error("[ProfilePage] Cannot save profile: session or profile data missing.");
-      toast.error("Cannot save profile: session or profile data missing.");
-      return;
-    }
-
-    // Always set saving state when onSubmit is called
-    setIsSaving(true);
-
-    // Always attempt to update profile in DB with current form values if in editing mode
-    if (isEditing) {
-      const nameParts = values.full_name.split(' ');
-      const firstName = nameParts.shift() || '';
-      const lastName = nameParts.join(' ');
-
-      const updateData: ProfileUpdate = {
-        ...values,
-        first_name: firstName,
-        last_name: lastName,
-        preferred_muscles: values.preferred_muscles?.join(', ') || null,
-        updated_at: new Date().toISOString()
-      };
-      
-      console.log("[ProfilePage] Attempting to update profile with data:", updateData);
-      const { error } = await supabase.from('profiles').update(updateData).eq('id', session.user.id);
-      if (error) {
-        console.error("[ProfilePage] Failed to update profile:", error);
-        toast.error("Failed to update profile.");
-        setIsSaving(false);
-        return;
-      }
-      toast.success("Profile updated successfully!");
-    } else {
-      console.log("[ProfilePage] Not in editing mode, skipping profile DB update.");
-      // This case should ideally not be hit if the save button is only visible in editing mode.
-      // If it is hit, it means the user clicked save without being in edit mode, or there's a UI bug.
-      toast.info("No profile changes to save.");
-    }
-
-    // Always trigger plan regeneration if currently in editing mode AND an active T-Path exists.
-    // The backend function is idempotent and will only regenerate if necessary.
-    if (isEditing && profile.active_t_path_id) {
-      console.log(`[ProfilePage] Initiating workout plan update because in editing mode and active T-Path exists. Active T-Path: ${profile.active_t_path_id}.`);
-      try {
-        const response = await fetch(`/api/generate-t-path`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({ 
-            tPathId: profile.active_t_path_id,
-            preferred_session_length: values.preferred_session_length // Use the value from the form
-          })
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("[ProfilePage] Failed to initiate T-Path workout regeneration API:", errorText);
-          throw new Error(`Failed to initiate T-Path workout regeneration: ${errorText}`);
-        }
-        console.log("[ProfilePage] Successfully initiated T-Path workout regeneration API call.");
-      } catch (err: any) {
-        console.error("[ProfilePage] Error initiating workout plan update:", err);
-        toast.error("Error initiating workout plan update.");
-      }
-    } else if (!profile.active_t_path_id) {
-      console.log("[ProfilePage] No active T-Path, skipping workout plan regeneration.");
-    } else {
-      console.log("[ProfilePage] Not in editing mode or no active T-Path, skipping workout plan regeneration.");
-    }
-
-    console.log("[ProfilePage] Refreshing profile data after save/regeneration trigger.");
-    await refreshProfileData();
-    setIsEditing(false);
-    setIsSaving(false);
-  }
 
   const handleAchievementClick = (achievement: { id: string; name: string; icon: string }) => {
     setSelectedAchievement(achievement);
@@ -456,12 +351,7 @@ export default function ProfilePage() {
   return (
     <>
       <div className="p-2 sm:p-4 max-w-4xl mx-auto">
-        <ProfileHeader
-          isEditing={isEditing}
-          onEditToggle={() => setIsEditing(prev => !prev)}
-          onSave={form.handleSubmit(onSubmit)}
-          isSaving={isSaving}
-        />
+        {/* Removed ProfileHeader */}
 
         <div className="text-center mb-8">
           <Avatar className="w-24 h-24 mx-auto mb-4 ring-4 ring-primary/20">
@@ -510,14 +400,13 @@ export default function ProfilePage() {
                   <FormProvider {...form}>
                     <ProfileSettingsTab
                       form={form}
-                      isEditing={isEditing}
                       mainMuscleGroups={mainMuscleGroups}
                       aiCoachUsageToday={aiCoachUsageToday}
                       AI_COACH_DAILY_LIMIT={AI_COACH_DAILY_LIMIT}
                       onSignOut={handleSignOut}
-                      onSubmit={onSubmit}
                       profile={profile}
                       onDataChange={refreshProfileData}
+                      setIsSaving={setIsSaving} // Pass setIsSaving down
                     />
                   </FormProvider>
                 </div>
@@ -561,11 +450,7 @@ export default function ProfilePage() {
         title="Saving Profile" 
         description="Please wait while we update your profile and workout plan." 
       />
-      <FloatingSaveEditButton 
-        isEditing={isEditing} 
-        onSave={form.handleSubmit(onSubmit)} 
-        isSaving={isSaving} 
-      />
+      {/* Removed FloatingSaveEditButton */}
     </>
   );
 }

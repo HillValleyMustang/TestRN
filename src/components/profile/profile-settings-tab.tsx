@@ -17,45 +17,55 @@ type TPath = Tables<'t_paths'>;
 
 interface ProfileSettingsTabProps {
   form: UseFormReturn<any>;
-  isEditing: boolean;
   mainMuscleGroups: string[];
   aiCoachUsageToday: number;
   AI_COACH_DAILY_LIMIT: number;
   onSignOut: () => void;
-  onSubmit: (values: any) => Promise<void>;
   profile: Profile | null;
   onDataChange: () => void;
+  setIsSaving: (isSaving: boolean) => void; // NEW: Pass setIsSaving down
 }
 
 export const ProfileSettingsTab = ({
   form,
-  isEditing,
   mainMuscleGroups,
   aiCoachUsageToday,
   AI_COACH_DAILY_LIMIT,
   onSignOut,
-  onSubmit,
   profile,
   onDataChange,
+  setIsSaving, // NEW
 }: ProfileSettingsTabProps) => {
   return (
-    <FormProvider {...form}>
-      <div className="mt-6 space-y-6 border-none p-0">
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <PersonalInfoForm isEditing={isEditing} mainMuscleGroups={mainMuscleGroups} />
-          <WorkoutPreferencesForm isEditing={isEditing} />
-          <ProgrammeTypeSection profile={profile} isEditing={isEditing} onDataChange={onDataChange} />
-          <GymManagementSection isEditing={isEditing} profile={profile} onDataChange={onDataChange} />
-          <AICoachUsageSection aiCoachUsageToday={aiCoachUsageToday} AI_COACH_DAILY_LIMIT={AI_COACH_DAILY_LIMIT} />
-          <DataExportSection />
-        </form>
-        
-        <div className="flex justify-end mt-6">
-          <Button type="button" variant="ghost" className="text-destructive hover:text-destructive" onClick={onSignOut}>
-            <LogOut className="h-4 w-4 mr-2" /> Sign Out
-          </Button>
-        </div>
+    <div className="mt-6 space-y-6 border-none p-0">
+      {/* Removed the <form> wrapper here, each section will manage its own submission */}
+      <PersonalInfoForm 
+        mainMuscleGroups={mainMuscleGroups} 
+        onDataChange={onDataChange} 
+        setIsSaving={setIsSaving} 
+      />
+      <WorkoutPreferencesForm 
+        onDataChange={onDataChange} 
+        setIsSaving={setIsSaving} 
+      />
+      <ProgrammeTypeSection 
+        profile={profile} 
+        onDataChange={onDataChange} 
+        setIsSaving={setIsSaving} 
+      />
+      <GymManagementSection 
+        profile={profile} 
+        onDataChange={onDataChange} 
+        setIsSaving={setIsSaving} 
+      />
+      <AICoachUsageSection aiCoachUsageToday={aiCoachUsageToday} AI_COACH_DAILY_LIMIT={AI_COACH_DAILY_LIMIT} />
+      <DataExportSection />
+      
+      <div className="flex justify-end mt-6">
+        <Button type="button" variant="ghost" className="text-destructive hover:text-destructive" onClick={onSignOut}>
+          <LogOut className="h-4 w-4 mr-2" /> Sign Out
+        </Button>
       </div>
-    </FormProvider>
+    </div>
   );
 };

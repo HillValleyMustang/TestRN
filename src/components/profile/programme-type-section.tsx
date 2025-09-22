@@ -4,32 +4,34 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { LayoutTemplate } from 'lucide-react';
+import { LayoutTemplate, Edit, Save, Loader2 } from 'lucide-react'; // Added Edit, Save, Loader2
 import { Tables, Profile } from '@/types/supabase';
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { LoadingOverlay } from '../loading-overlay';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useFormContext } from 'react-hook-form'; // Import useFormContext
+import { Button } from '@/components/ui/button'; // Import Button
 
 interface ProgrammeTypeSectionProps {
-  isEditing: boolean;
-  onDataChange: () => void;
   profile: Profile | null;
+  onDataChange: () => void;
+  setIsSaving: (isSaving: boolean) => void;
 }
 
-export const ProgrammeTypeSection = ({ isEditing, onDataChange, profile }: ProgrammeTypeSectionProps) => {
+export const ProgrammeTypeSection = ({ profile, onDataChange, setIsSaving }: ProgrammeTypeSectionProps) => {
   const { session, supabase } = useSession();
+  const [isEditing, setIsEditing] = useState(false); // Local editing state
   const [isWarningOpen, setIsWarningOpen] = useState(false);
   const [pendingProgrammeType, setPendingProgrammeType] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false); // Local state for regeneration loading
   const form = useFormContext(); // Use context
 
   const currentProgrammeType = profile?.programme_type || '';
 
   const handleValueChange = (newType: string) => {
-    // Only trigger the warning if in edit mode and the value actually changes
-    if (isEditing && newType !== currentProgrammeType) {
+    // Only trigger the warning if the value actually changes
+    if (newType !== currentProgrammeType) {
       setPendingProgrammeType(newType);
       setIsWarningOpen(true);
     }
@@ -38,11 +40,12 @@ export const ProgrammeTypeSection = ({ isEditing, onDataChange, profile }: Progr
   const confirmChange = async () => {
     if (!session || !pendingProgrammeType) {
       console.error("Error: Session or pending programme type missing for confirmation.");
-      toast.error("Cannot confirm change: session or programme type missing."); // Added toast.error
+      toast.error("Cannot confirm change: session or programme type missing.");
       return;
     }
     setIsWarningOpen(false);
-    setIsSaving(true);
+    setIsRegenerating(true); // Set local regenerating state
+    setIsSaving(true); // Set global saving state
 
     try {
       const { error: profileError } = await supabase
@@ -68,11 +71,13 @@ export const ProgrammeTypeSection = ({ isEditing, onDataChange, profile }: Progr
 
       toast.success("Programme type updated! Your workout plans are regenerating in the background.");
       onDataChange();
+      setIsEditing(false); // Exit editing mode
     } catch (err: any) {
       console.error("Failed to update programme type and regenerate plans:", err);
-      toast.error("Failed to update programme type."); // Changed to toast.error
+      toast.error("Failed to update programme type.");
     } finally {
-      setIsSaving(false);
+      setIsRegenerating(false); // Clear local regenerating state
+      setIsSaving(false); // Clear global saving state
       setPendingProgrammeType(null);
     }
   };
@@ -80,19 +85,30 @@ export const ProgrammeTypeSection = ({ isEditing, onDataChange, profile }: Progr
   const cancelChange = () => {
     setIsWarningOpen(false);
     setPendingProgrammeType(null);
-    form.setValue('programme_type', currentProgrammeType);
+    form.setValue('programme_type', currentProgrammeType); // Revert form value
   };
 
   return (
     <>
       <Card className="bg-card">
-        <CardHeader className="border-b border-border/50 pb-4">
+        <CardHeader className="border-b border-border/50 pb-4 flex flex-row items-center justify-between"> {/* Adjusted for buttons */}
           <CardTitle className="flex items-center gap-2">
             <LayoutTemplate className="h-5 w-5 text-primary" /> Core Programme Type
           </CardTitle>
-          <CardDescription>
-            This is your fitness progamme (or Transformation Path as we call it). Changing this will reset and regenerate the workout plans for ALL your gyms to match the new structure. You can always manage the gyms, workouts and/or exercises later.
-          </CardDescription>
+          {isEditing ? (
+            <Button onClick={form.handleSubmit(() => handleValueChange(form.getValues().programme_type))} size="sm" disabled={form.formState.isSubmitting || isRegenerating}>
+              {form.formState.isSubmitting || isRegenerating ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Save
+            </Button>
+          ) : (
+            <Button onClick={() => setIsEditing(true)} size="sm" variant="outline">
+              <Edit className="h-4 w-4 mr-2" /> Edit
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="pt-6">
           <FormField
@@ -103,10 +119,10 @@ export const ProgrammeTypeSection = ({ isEditing, onDataChange, profile }: Progr
                 <Select
                   onValueChange={(value) => {
                     field.onChange(value);
-                    handleValueChange(value);
+                    // The actual save/warning logic is now tied to the Save button
                   }}
                   value={field.value || ''}
-                  disabled={!isEditing}
+                  disabled={!isEditing || isRegenerating}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -141,7 +157,7 @@ export const ProgrammeTypeSection = ({ isEditing, onDataChange, profile }: Progr
       </AlertDialog>
 
       <LoadingOverlay 
-        isOpen={isSaving} 
+        isOpen={isRegenerating} // Use local state for this overlay
         title="Updating Programme" 
         description="Please wait while we regenerate all your workout plans..." 
       />

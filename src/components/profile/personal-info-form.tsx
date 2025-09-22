@@ -10,28 +10,92 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Button } from '@/components/ui/button';
-import { User, ChevronDown, X, Info } from 'lucide-react';
+import { User, ChevronDown, X, Info, Edit, Save, Loader2 } from 'lucide-react'; // Added Edit, Save, Loader2
 import { cn } from '@/lib/utils';
 import { useFormContext } from 'react-hook-form'; // Import useFormContext
 import { BodyFatInfoModal } from '../onboarding/body-fat-info-modal';
 import { toast } from 'sonner'; // Import toast
+import { useSession } from '@/components/session-context-provider'; // Import useSession
+import { ProfileUpdate } from '@/types/supabase'; // Import ProfileUpdate
+import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher'; // Import useWorkoutDataFetcher
 
 interface PersonalInfoFormProps {
-  isEditing: boolean;
   mainMuscleGroups: string[];
+  onDataChange: () => void;
+  setIsSaving: (isSaving: boolean) => void;
 }
 
-export const PersonalInfoForm = ({ isEditing, mainMuscleGroups }: PersonalInfoFormProps) => {
+export const PersonalInfoForm = ({ mainMuscleGroups, onDataChange, setIsSaving }: PersonalInfoFormProps) => {
   const [isBodyFatInfoModalOpen, setIsBodyFatInfoModalOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false); // Local editing state
   const form = useFormContext(); // Use context
+  const { session, supabase } = useSession();
+  const { profile } = useWorkoutDataFetcher(); // Get profile to check active_t_path_id
+
+  const handleSave = async () => {
+    if (!session || !profile) {
+      toast.error("Cannot save profile: session or profile data missing.");
+      return;
+    }
+
+    setIsSaving(true); // Set global saving state
+    try {
+      const values = form.getValues(); // Get current form values
+
+      const nameParts = values.full_name.split(' ');
+      const firstName = nameParts.shift() || '';
+      const lastName = nameParts.join(' ');
+
+      const updateData: ProfileUpdate = {
+        full_name: values.full_name,
+        first_name: firstName,
+        last_name: lastName,
+        height_cm: values.height_cm,
+        weight_kg: values.weight_kg,
+        body_fat_pct: values.body_fat_pct,
+        preferred_muscles: values.preferred_muscles?.join(', ') || null,
+        health_notes: values.health_notes,
+        updated_at: new Date().toISOString()
+      };
+      
+      const { error } = await supabase.from('profiles').update(updateData).eq('id', session.user.id);
+      if (error) {
+        console.error("Failed to update personal info:", error);
+        toast.error("Failed to update personal info.");
+        return;
+      }
+      toast.success("Personal info updated successfully!");
+      onDataChange(); // Refresh parent data
+      setIsEditing(false); // Exit editing mode
+    } catch (error: any) {
+      console.error("Error saving personal info:", error);
+      toast.error("Error saving personal info.");
+    } finally {
+      setIsSaving(false); // Clear global saving state
+    }
+  };
 
   return (
     <>
       <Card className="bg-card">
-        <CardHeader className="border-b border-border/50 pb-4">
+        <CardHeader className="border-b border-border/50 pb-4 flex flex-row items-center justify-between"> {/* Adjusted for buttons */}
           <CardTitle className="flex items-center gap-2">
             <User className="h-5 w-5 text-primary" /> Personal Info
           </CardTitle>
+          {isEditing ? (
+            <Button onClick={form.handleSubmit(handleSave)} size="sm" disabled={form.formState.isSubmitting}>
+              {form.formState.isSubmitting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Save
+            </Button>
+          ) : (
+            <Button onClick={() => setIsEditing(true)} size="sm" variant="outline">
+              <Edit className="h-4 w-4 mr-2" /> Edit
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-6">
           <FormField control={form.control} name="full_name" render={({ field }) => (
@@ -65,7 +129,7 @@ export const PersonalInfoForm = ({ isEditing, mainMuscleGroups }: PersonalInfoFo
                   <Info className="h-4 w-4 text-muted-foreground" />
                 </Button>
               </div>
-              <FormControl><Input type="number" inputMode="numeric" step="1" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px] text-sm" /></FormControl>
+              <FormControl><Input type="number" inputMode="numeric" step="1" min="0" max="100" {...field} value={field.value ?? ''} disabled={!isEditing} className="max-w-[120px] text-sm" /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
