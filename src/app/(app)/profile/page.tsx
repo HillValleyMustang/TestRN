@@ -300,8 +300,8 @@ export default function ProfilePage() {
     // Always set saving state when onSubmit is called
     setIsSaving(true);
 
-    // Only update profile in DB if form is dirty
-    if (form.formState.isDirty) {
+    // Always attempt to update profile in DB with current form values if in editing mode
+    if (isEditing) {
       const nameParts = values.full_name.split(' ');
       const firstName = nameParts.shift() || '';
       const lastName = nameParts.join(' ');
@@ -324,11 +324,14 @@ export default function ProfilePage() {
       }
       toast.success("Profile updated successfully!");
     } else {
-      console.log("[ProfilePage] Form is not dirty, skipping profile DB update.");
+      console.log("[ProfilePage] Not in editing mode, skipping profile DB update.");
+      // This case should ideally not be hit if the save button is only visible in editing mode.
+      // If it is hit, it means the user clicked save without being in edit mode, or there's a UI bug.
       toast.info("No profile changes to save.");
     }
 
     // Always trigger plan regeneration if currently in editing mode AND an active T-Path exists.
+    // The backend function is idempotent and will only regenerate if necessary.
     if (isEditing && profile.active_t_path_id) {
       console.log(`[ProfilePage] Initiating workout plan update because in editing mode and active T-Path exists. Active T-Path: ${profile.active_t_path_id}.`);
       try {
