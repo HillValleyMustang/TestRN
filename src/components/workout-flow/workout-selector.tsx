@@ -146,6 +146,7 @@ export const WorkoutSelector = ({
   const [isAiSaving, setIsAiSaving] = useState(false);
 
   // NEW: Filter states for ad-hoc exercises
+  const [searchTerm, setSearchTerm] = useState("");
   const [muscleFilter, setMuscleFilter] = useState("all");
   const [gymFilter, setGymFilter] = useState("all");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
@@ -185,9 +186,13 @@ export const WorkoutSelector = ({
         if (!showFavoritesOnly) return true;
         return ex.is_favorite || ex.is_favorited_by_current_user;
       })
-      .filter(ex => !exercisesForSession.some(existingEx => existingEx.id === ex.id)); // Exclude already added
+      .filter(ex => {
+        // Text search (now handled by Command component, but we keep it for consistency)
+        return ex.name!.toLowerCase().includes(searchTerm.toLowerCase()); // Ensure search term is also lowercased
+      })
+      .sort((a, b) => a.name!.localeCompare(b.name!)); // Sort alphabetically
   }, [
-    allAvailableExercises, adHocExerciseSourceFilter,
+    allAvailableExercises, adHocExerciseSourceFilter, searchTerm, // Added searchTerm here
     muscleFilter, gymFilter, showFavoritesOnly,
     exercisesForSession, session, exerciseGymsMap, userGyms
   ]);
@@ -473,7 +478,11 @@ export const WorkoutSelector = ({
                       </PopoverTrigger>
                       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                         <Command>
-                          <CommandInput placeholder="Search exercises..." />
+                          <CommandInput
+                            placeholder="Search exercises..."
+                            value={searchTerm}
+                            onValueChange={setSearchTerm} // Update searchTerm state
+                          />
                           <CommandList>
                             <CommandEmpty>No exercise found.</CommandEmpty>
                             <CommandGroup>
