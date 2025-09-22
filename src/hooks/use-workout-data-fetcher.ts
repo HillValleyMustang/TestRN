@@ -380,7 +380,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     };
   }, [status, refreshProfile, refreshAllData, profile?.t_path_generation_error]);
 
-  return {
+  return useMemo(() => ({
     allAvailableExercises,
     groupedTPaths,
     workoutExercisesCache,
@@ -398,6 +398,26 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     availableMuscleGroups,
     userGyms: cachedUserGyms || [],
     exerciseGymsMap,
-    exerciseWorkoutsMap, // ADDED
-  };
+    exerciseWorkoutsMap,
+  }), [
+    allAvailableExercises,
+    groupedTPaths,
+    workoutExercisesCache,
+    baseLoading,
+    isProcessingDerivedData,
+    dataError,
+    refreshAllData,
+    profile,
+    refreshProfile,
+    refreshAchievements,
+    refreshTPaths,
+    refreshTPathExercises,
+    isGeneratingPlan,
+    tempStatusMessage,
+    setTempStatusMessage,
+    availableMuscleGroups,
+    cachedUserGyms,
+    exerciseGymsMap,
+    exerciseWorkoutsMap,
+  ]);
 };

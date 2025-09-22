@@ -8,7 +8,7 @@ import { Tables, Profile } from '@/types/supabase';
 import { toast } from 'sonner';
 import { db, LocalGym } from '@/lib/db';
 import { useCacheAndRevalidate } from '@/hooks/use-cache-and-revalidate';
-import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher'; // Import the hook
+import { useWorkoutFlow } from '@/components/workout-flow/workout-flow-context-provider';
 
 type Gym = Tables<'gyms'>;
 
@@ -18,8 +18,6 @@ interface GymContextType {
   switchActiveGym: (gymId: string) => Promise<boolean>; // Returns success status
   loadingGyms: boolean;
   refreshGyms: () => void;
-  refreshTPaths: () => void; // NEW: Add to context type
-  refreshTPathExercises: () => void; // NEW: Add to context type
 }
 
 const GymContext = createContext<GymContextType | undefined>(undefined);
@@ -27,6 +25,7 @@ const GymContext = createContext<GymContextType | undefined>(undefined);
 export const GymContextProvider = ({ children }: { children: React.ReactNode }) => {
   const { session } = useSession();
   const [activeGym, setActiveGym] = useState<Gym | null>(null);
+  const { refreshTPaths, refreshTPathExercises } = useWorkoutFlow();
 
   const { data: cachedGyms, loading: loadingGyms, error: gymsError, refresh: refreshGyms } = useCacheAndRevalidate<LocalGym>({
     cacheTable: 'gyms_cache',
@@ -49,9 +48,6 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
     supabase,
     sessionUserId: session?.user.id ?? null,
   });
-
-  // NEW: Get refresh functions from useWorkoutDataFetcher
-  const { refreshTPaths, refreshTPathExercises } = useWorkoutDataFetcher();
 
   useEffect(() => {
     if (gymsError) {
@@ -100,12 +96,10 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to switch active gym.');
       
-      // On success, trigger a refresh of the profile to get the new active_t_path_id
-      // AND explicitly refresh T-Paths and T-Path Exercises
       await Promise.all([
         refreshProfile(),
-        refreshTPaths(), // Use the refreshed function
-        refreshTPathExercises(), // Use the refreshed function
+        refreshTPaths(),
+        refreshTPathExercises(),
       ]);
 
       return true;
@@ -123,9 +117,7 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
     switchActiveGym,
     loadingGyms,
     refreshGyms,
-    refreshTPaths,
-    refreshTPathExercises
-  }), [cachedGyms, activeGym, switchActiveGym, loadingGyms, refreshGyms, refreshTPaths, refreshTPathExercises]);
+  }), [cachedGyms, activeGym, switchActiveGym, loadingGyms, refreshGyms]);
 
   return (
     <GymContext.Provider value={contextValue}>

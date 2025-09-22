@@ -28,6 +28,8 @@ export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) =>
     userGyms,
     exerciseGymsMap,
     exerciseWorkoutsMap, // Destructure the new map
+    refreshTPaths,
+    refreshTPathExercises,
   } = useWorkoutDataFetcher();
 
   const activeSession = useActiveWorkoutSession();
@@ -132,6 +134,8 @@ export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) =>
     setIsEditWorkoutDialogOpen,
     refreshProfile,
     refreshAchievements,
+    refreshTPaths,
+    refreshTPathExercises,
     isGeneratingPlan,
     profile,
     tempStatusMessage,
@@ -160,6 +164,8 @@ export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) =>
     setIsEditWorkoutDialogOpen,
     refreshProfile,
     refreshAchievements,
+    refreshTPaths,
+    refreshTPathExercises,
     isGeneratingPlan,
     profile,
     tempStatusMessage,
