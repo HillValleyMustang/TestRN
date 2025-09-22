@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Dumbbell, Settings, Sparkles } from 'lucide-react';
+import { PlusCircle, Dumbbell, Settings, Sparkles, Heart, Filter } from 'lucide-react'; // Added Heart, Filter
 import { Tables, WorkoutWithLastCompleted, GroupedTPath, SetLogState, WorkoutExercise, FetchedExerciseDefinition, Profile, ExerciseDefinition } from '@/types/supabase';
 import { cn, formatTimeAgo, getPillStyles } from '@/lib/utils';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
@@ -21,6 +21,7 @@ import { AnalyseGymDialog } from "@/components/manage-exercises/exercise-form/an
 import { SaveAiExercisePrompt } from "@/components/workout-flow/save-ai-exercise-prompt";
 import { UnconfiguredGymPrompt } from '@/components/prompts/unconfigured-gym-prompt';
 import { useGym } from '@/components/gym-context-provider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // NEW
 
 type TPath = Tables<'t_paths'>;
 // Removed local ExerciseDefinition type as it's now imported from @/types/supabase
@@ -56,6 +57,8 @@ interface WorkoutSelectorProps {
   setIsEditWorkoutDialogOpen: (isOpen: boolean) => void;
   profile: Profile | null; // Add profile prop
   isWorkoutSessionStarted: boolean; // NEW PROP
+  userGyms: Tables<'gyms'>[]; // NEW PROP
+  exerciseGymsMap: Record<string, string[]>; // NEW PROP
 }
 
 const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName: string): Omit<WorkoutPillProps, 'isSelected' | 'onClick'> => {
@@ -121,11 +124,16 @@ export const WorkoutSelector = ({
   setIsEditWorkoutDialogOpen,
   profile, // Destructure profile prop
   isWorkoutSessionStarted, // NEW PROP
+  userGyms, // NEW PROP
+  exerciseGymsMap, // NEW PROP
 }: WorkoutSelectorProps) => {
   const { supabase, session } = useSession();
   const { activeGym } = useGym();
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
   const [adHocExerciseSourceFilter, setAdHocExerciseSourceFilter] = useState<'my-exercises' | 'global-library'>('my-exercises');
+  const [selectedMuscleFilter, setSelectedMuscleFilter] = useState<string>('all'); // NEW
+  const [selectedGymFilter, setSelectedGymFilter] = useState<string>('all'); // NEW
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false); // NEW
 
   const [showAnalyseGymDialog, setShowAnalyseGymDialog] = useState(false);
   const [showSaveAiExercisePrompt, setShowSaveAiExercisePrompt] = useState(false);
@@ -140,16 +148,43 @@ export const WorkoutSelector = ({
     return groupedTPaths.some(group => group.mainTPath.gym_id === activeGym.id);
   }, [activeGym, groupedTPaths]);
 
+  const mainMuscleGroups = useMemo(() => {
+    return Array.from(new Set(allAvailableExercises.map(ex => ex.main_muscle))).sort();
+  }, [allAvailableExercises]);
+
   const filteredExercisesForAdHoc = useMemo(() => {
     if (!session) return [];
     return allAvailableExercises
-      .filter(ex => {
+      .filter(ex => { // Source filter
         if (adHocExerciseSourceFilter === 'my-exercises') return ex.user_id === session.user.id;
         if (adHocExerciseSourceFilter === 'global-library') return ex.user_id === null;
         return false;
       })
-      .filter(ex => !exercisesForSession.some(existingEx => existingEx.id === ex.id));
-  }, [allAvailableExercises, adHocExerciseSourceFilter, exercisesForSession, session]);
+      .filter(ex => { // Muscle filter
+        return selectedMuscleFilter === 'all' || ex.main_muscle === selectedMuscleFilter;
+      })
+      .filter(ex => { // Gym filter
+        if (selectedGymFilter === 'all') return true;
+        const gymId = selectedGymFilter;
+        const exerciseGyms = exerciseGymsMap[ex.id as string] || [];
+        return exerciseGyms.includes(userGyms.find(g => g.id === gymId)?.name || ''); // Filter by gym name
+      })
+      .filter(ex => { // Favorites filter
+        if (!showFavoritesOnly) return true;
+        return (ex.user_id === session.user.id && ex.is_favorite) || (ex.user_id === null && ex.is_favorited_by_current_user);
+      })
+      .filter(ex => !exercisesForSession.some(existingEx => existingEx.id === ex.id)); // Exclude already added
+  }, [
+    allAvailableExercises, 
+    adHocExerciseSourceFilter, 
+    selectedMuscleFilter, 
+    selectedGymFilter, 
+    showFavoritesOnly, 
+    exercisesForSession, 
+    session, 
+    exerciseGymsMap, 
+    userGyms
+  ]);
 
   const handleWorkoutClick = (workoutId: string) => {
     selectWorkout(workoutId);
@@ -235,7 +270,7 @@ export const WorkoutSelector = ({
     } finally {
       setIsAiSaving(false);
     }
-  }, [session, supabase, addExerciseToSession, refreshAllData]);
+  }, [session, supabase, addExerciseToSession, refreshAllData, allAvailableExercises]);
 
   const handleAddAiExerciseToWorkoutOnly = useCallback(async (exercise: Partial<FetchedExerciseDefinition>) => {
     if (!session) {
@@ -367,12 +402,66 @@ export const WorkoutSelector = ({
               <section className="mb-6 p-4 border rounded-lg bg-card">
                 <h3 className="text-lg font-semibold mb-3">Add Exercises</h3>
                 <div className="flex flex-col sm:flex-row gap-3 mb-3">
-                  <ExerciseSelectionDropdown
-                    exercises={filteredExercisesForAdHoc as ExerciseDefinition[]}
-                    selectedExerciseId={selectedExerciseToAdd}
-                    setSelectedExerciseId={setSelectedExerciseToAdd}
-                    placeholder="Select exercise to add"
-                  />
+                  <div className="flex sm:w-1/3">
+                    <Button
+                      variant={adHocExerciseSourceFilter === 'my-exercises' ? 'secondary' : 'ghost'}
+                      onClick={() => setAdHocExerciseSourceFilter('my-exercises')}
+                      className="flex-1 h-9 text-xs"
+                    >
+                      My Exercises
+                    </Button>
+                    <Button
+                      variant={adHocExerciseSourceFilter === 'global-library' ? 'secondary' : 'ghost'}
+                      onClick={() => setAdHocExerciseSourceFilter('global-library')}
+                      className="flex-1 h-9 text-xs"
+                    >
+                      Global
+                    </Button>
+                  </div>
+                  <Select onValueChange={setSelectedMuscleFilter} value={selectedMuscleFilter}>
+                    <SelectTrigger className="w-full h-9 text-xs">
+                      <SelectValue placeholder="Filter by muscle" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Muscle Groups</SelectItem>
+                      {mainMuscleGroups.map(muscle => (
+                        <SelectItem key={muscle} value={muscle}>
+                          {muscle}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select onValueChange={setSelectedGymFilter} value={selectedGymFilter} disabled={userGyms.length === 0}>
+                    <SelectTrigger className="w-full h-9 text-xs">
+                      <SelectValue placeholder="Filter by gym" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Gyms</SelectItem>
+                      {userGyms.map(gym => (
+                        <SelectItem key={gym.id} value={gym.id}>
+                          {gym.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Button 
+                    variant={showFavoritesOnly ? 'secondary' : 'ghost'} 
+                    onClick={() => setShowFavoritesOnly(prev => !prev)}
+                    className="h-9 text-xs"
+                  >
+                    <Heart className={cn("h-4 w-4 mr-2", showFavoritesOnly ? "fill-red-500 text-red-500" : "text-muted-foreground")} />
+                    Favorites
+                  </Button>
+                  <div className="flex-1">
+                    <ExerciseSelectionDropdown
+                      exercises={filteredExercisesForAdHoc as ExerciseDefinition[]}
+                      selectedExerciseId={selectedExerciseToAdd}
+                      setSelectedExerciseId={setSelectedExerciseToAdd}
+                      placeholder="Select exercise to add"
+                    />
+                  </div>
                   <Button onClick={handleAddExercise} disabled={!selectedExerciseToAdd} className="flex-shrink-0">
                     <PlusCircle className="h-4 w-4" />
                   </Button>

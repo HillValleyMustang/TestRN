@@ -8,7 +8,8 @@ import { WorkoutSelector } from '@/components/workout-flow/workout-selector';
 import { WorkoutProgressBar } from '@/components/workout-flow/workout-progress-bar';
 import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal';
 import { GymToggle } from '@/components/dashboard/gym-toggle';
-import { useGym } from '@/components/gym-context-provider'; // NEW IMPORT
+import { useGym } from '@/components/gym-context-provider';
+import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher';
 
 export default function WorkoutPage() {
   const { session, supabase } = useSession();
@@ -20,7 +21,8 @@ export default function WorkoutPage() {
   // Use the context hook to get the shared state and functions
   const workoutFlowManager = useWorkoutFlow();
   const initialSelectionAttempted = useRef(false); // Ref to track if we've tried to select the initial workout
-  const { userGyms, loadingGyms } = useGym(); // NEW: Consume useGym
+  const { userGyms, loadingGyms } = useGym();
+  const { exerciseGymsMap } = useWorkoutDataFetcher(); // Destructure exerciseGymsMap here
 
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [summarySessionId, setSummarySessionId] = useState<string | null>(null);
@@ -80,12 +82,14 @@ export default function WorkoutPage() {
         isQuickStart={isQuickStart}
         allAvailableExercises={workoutFlowManager.allAvailableExercises}
         updateSessionStartTime={workoutFlowManager.updateSessionStartTime}
-        completedExercises={workoutFlowManager.completedExercises} // Explicitly pass as Set<string>
+        completedExercises={workoutFlowManager.completedExercises}
+        userGyms={userGyms}
+        exerciseGymsMap={exerciseGymsMap}
       />
       <WorkoutProgressBar
         exercisesForSession={workoutFlowManager.exercisesForSession}
-        completedExercises={workoutFlowManager.completedExercises} // Explicitly pass as Set<string>
-        isWorkoutSessionStarted={workoutFlowManager.isWorkoutSessionStarted} // USE NEW PROP
+        completedExercises={workoutFlowManager.completedExercises}
+        isWorkoutSessionStarted={workoutFlowManager.isWorkoutSessionStarted}
       />
       <WorkoutSummaryModal
         open={showSummaryModal}

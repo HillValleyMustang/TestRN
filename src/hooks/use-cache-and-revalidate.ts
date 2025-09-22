@@ -5,17 +5,9 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise, LocalUserAchievement, LocalGym, LocalActivityLog } from '@/lib/db'; // Import specific local types
+import { LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise, LocalUserAchievement, LocalGym, LocalActivityLog, LocalGymExercise } from '@/lib/db'; // Import specific local types
 
-type CacheTableName = 'exercise_definitions_cache' | 't_paths_cache' | 'profiles_cache' | 't_path_exercises_cache' | 'user_achievements_cache' | 'gyms_cache' | 'workout_sessions' | 'set_logs' | 'activity_logs';
-
-interface UseCacheAndRevalidateProps<T> {
-  cacheTable: CacheTableName;
-  supabaseQuery: (supabase: SupabaseClient) => Promise<{ data: T[] | null; error: any }>;
-  queryKey: string;
-  supabase: SupabaseClient;
-  sessionUserId: string | null | undefined;
-}
+type CacheTableName = 'exercise_definitions_cache' | 't_paths_cache' | 'profiles_cache' | 't_path_exercises_cache' | 'user_achievements_cache' | 'gyms_cache' | 'workout_sessions' | 'set_logs' | 'activity_logs' | 'gym_exercises_cache';
 
 export function useCacheAndRevalidate<T extends { id: string; user_id?: string | null; template_id?: string; exercise_id?: string; created_at?: string | null }>( // Updated generic constraint
   { cacheTable, supabaseQuery, queryKey, supabase, sessionUserId }: UseCacheAndRevalidateProps<T>
@@ -35,9 +27,9 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
         return [];
       }
 
-      // If the table is one that doesn't have a user_id, just return everything.
-      // The consuming hook will be responsible for further filtering.
-      if (cacheTable === 't_path_exercises_cache') {
+      // For tables that don't have a user_id or are already filtered by the supabaseQuery,
+      // just return all items from the local cache.
+      if (cacheTable === 't_path_exercises_cache' || cacheTable === 'gym_exercises_cache') {
         console.log(`[useCacheAndRevalidate] ${queryKey}: Fetching all from IndexedDB (no user_id filter).`);
         return table.toArray();
       }
@@ -84,7 +76,7 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
         const table = db[cacheTable] as any;
         
         // NEW LOGGING: Check what data is being received from Supabase for gyms_cache
-        if (cacheTable === 'gyms_cache') {
+        if (cacheTable === 'gyms_cache' || cacheTable === 'gym_exercises_cache') { // Added gym_exercises_cache
           console.log(`[useCacheAndRevalidate] ${queryKey}: Remote data fetched for bulkPut:`, remoteData);
         }
         
@@ -105,7 +97,7 @@ export function useCacheAndRevalidate<T extends { id: string; user_id?: string |
           }
           console.log(`[useCacheAndRevalidate] ${queryKey}: Transaction completed.`);
           // NEW: Log table contents immediately after transaction
-          if (cacheTable === 'gyms_cache' || cacheTable === 't_paths_cache' || cacheTable === 't_path_exercises_cache') {
+          if (cacheTable === 'gyms_cache' || cacheTable === 't_paths_cache' || cacheTable === 't_path_exercises_cache' || cacheTable === 'gym_exercises_cache') { // Added gym_exercises_cache
             const currentTableContents = await table.toArray();
             console.log(`[useCacheAndRevalidate] ${queryKey}: Current ${cacheTable} contents after transaction:`, currentTableContents);
           }
