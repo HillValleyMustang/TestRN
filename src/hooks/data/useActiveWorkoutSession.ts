@@ -233,14 +233,36 @@ export const useActiveWorkoutSession = () => {
       toast.info(`'${newExercise.name}' is already in this session.`);
       return;
     }
+    
+    // 1. Update the main exercise list, preserving order
     setExercisesForSession(prev => prev.map(ex => ex.id === oldExerciseId ? newExercise : ex));
-    const newSets = Array.from({ length: DEFAULT_INITIAL_SETS }, () => ({ id: null, created_at: null, session_id: currentSessionId, exercise_id: newExercise.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null }));
-    updateExerciseSets(newExercise.id, newSets);
-    setExercisesWithSets(prev => { const newSets = { ...prev }; delete newSets[oldExerciseId]; return newSets; });
-    setCompletedExercises((prev: Set<string>) => { const newCompleted = new Set(prev); newCompleted.delete(oldExerciseId); return newCompleted; });
-    setExpandedExerciseCards(prev => { const newExpanded = { ...prev }; delete newExpanded[oldExerciseId]; newExpanded[newExercise.id] = false; return newExpanded; }); // Changed to false for collapsed by default
+    
+    // 2. Create new sets for the new exercise
+    const newSetsForNewExercise = Array.from({ length: DEFAULT_INITIAL_SETS }, () => ({ id: null, created_at: null, session_id: currentSessionId, exercise_id: newExercise.id, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, is_pb: false, isSaved: false, isPR: false, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null }));
+    
+    // 3. Update the sets map in a single, atomic operation
+    setExercisesWithSets(prev => {
+      const newSetsState = { ...prev };
+      delete newSetsState[oldExerciseId]; // Remove old exercise sets
+      newSetsState[newExercise.id] = newSetsForNewExercise; // Add new exercise sets
+      return newSetsState;
+    });
+
+    // 4. Update completed and expanded states
+    setCompletedExercises((prev: Set<string>) => {
+      const newCompleted = new Set(prev);
+      newCompleted.delete(oldExerciseId);
+      return newCompleted;
+    });
+    setExpandedExerciseCards(prev => {
+      const newExpanded = { ...prev };
+      delete newExpanded[oldExerciseId];
+      newExpanded[newExercise.id] = false; // Start collapsed
+      return newExpanded;
+    });
+    
     console.log(`[ActiveWorkoutSession] Exercise ${oldExerciseId} substituted with ${newExercise.name}.`);
-  }, [exercisesForSession, currentSessionId, updateExerciseSets, setExercisesForSession, setExercisesWithSets, setCompletedExercises, setExpandedExerciseCards]);
+  }, [exercisesForSession, currentSessionId, setExercisesForSession, setExercisesWithSets, setCompletedExercises, setExpandedExerciseCards]);
 
   const toggleExerciseCardExpansion = useCallback((exerciseId: string) => {
     console.log(`[ActiveWorkoutSession] toggleExerciseCardExpansion called for exerciseId: ${exerciseId}`);
