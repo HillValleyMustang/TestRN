@@ -121,7 +121,7 @@ export const UserExerciseList = ({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className="text-2xl font-semibold">Add New Exercise</CardTitle>
+        {/* Removed CardTitle: <CardTitle className="text-2xl font-semibold">Add New Exercise</CardTitle> */}
       </CardHeader>
       <CardContent className="p-3">
         <div className="mb-6">
