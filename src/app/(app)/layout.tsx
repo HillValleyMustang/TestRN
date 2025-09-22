@@ -73,10 +73,10 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <WorkoutFlowProvider>
-      <GymContextProvider>
+    <GymContextProvider>
+      <WorkoutFlowProvider>
         <AppLayoutContent>{children}</AppLayoutContent>
-      </GymContextProvider>
-    </WorkoutFlowProvider>
+      </WorkoutFlowProvider>
+    </GymContextProvider>
   );
 }

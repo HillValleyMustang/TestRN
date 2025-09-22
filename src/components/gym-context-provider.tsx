@@ -8,7 +8,6 @@ import { Tables, Profile } from '@/types/supabase';
 import { toast } from 'sonner';
 import { db, LocalGym } from '@/lib/db';
 import { useCacheAndRevalidate } from '@/hooks/use-cache-and-revalidate';
-import { useWorkoutFlow } from '@/components/workout-flow/workout-flow-context-provider';
 
 type Gym = Tables<'gyms'>;
 
@@ -25,7 +24,6 @@ const GymContext = createContext<GymContextType | undefined>(undefined);
 export const GymContextProvider = ({ children }: { children: React.ReactNode }) => {
   const { session } = useSession();
   const [activeGym, setActiveGym] = useState<Gym | null>(null);
-  const { refreshTPaths, refreshTPathExercises } = useWorkoutFlow();
 
   const { data: cachedGyms, loading: loadingGyms, error: gymsError, refresh: refreshGyms } = useCacheAndRevalidate<LocalGym>({
     cacheTable: 'gyms_cache',
@@ -96,11 +94,8 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to switch active gym.');
       
-      await Promise.all([
-        refreshProfile(),
-        refreshTPaths(),
-        refreshTPathExercises(),
-      ]);
+      // Refreshing the profile is enough to trigger downstream updates
+      await refreshProfile();
 
       return true;
     } catch (error: any) {
@@ -109,7 +104,7 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
       setActiveGym(previousActiveGym); // Rollback
       return false;
     }
-  }, [session, cachedGyms, activeGym, refreshProfile, refreshTPaths, refreshTPathExercises]);
+  }, [session, cachedGyms, activeGym, refreshProfile]);
 
   const contextValue = useMemo(() => ({
     userGyms: cachedGyms || [],
