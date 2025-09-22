@@ -39,7 +39,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
           <Header 
             isGeneratingPlan={workoutFlowManager.isGeneratingPlan} 
-            tempActionStatusMessage={workoutFlowManager.tempActionStatusMessage} // NEW
+            tempFavoriteStatusMessage={workoutFlowManager.tempFavoriteStatusMessage} // NEW
           />
           <main className="flex-1 p-2 sm:px-4 sm:py-0 pb-20 sm:pb-2">{children}</main>
         </div>

@@ -20,16 +20,16 @@ const mobileNavLinks = [
   { href: "/activity-logs", label: "Activities", icon: BarChart3 },
   { href: "/manage-exercises", label: "Exercises", icon: Dumbbell },
   { href: "/manage-t-paths", label: "Management", icon: LayoutTemplate }, // CHANGED LABEL
-  { href: "/profile", label: "My Profile", icon: User },
+  { href: "/profile", label: "Profile", icon: User },
   { href: "/workout", label: "Workout", icon: Dumbbell }, // Moved workout here for consistent styling
 ];
 
 interface HeaderProps {
   isGeneratingPlan: boolean;
-  tempActionStatusMessage: { message: string; type: 'added' | 'removed' | 'info'; icon?: 'heart' | 'check' } | null;
+  tempFavoriteStatusMessage: { message: string; type: 'added' | 'removed' } | null; // NEW
 }
 
-export function Header({ isGeneratingPlan, tempActionStatusMessage }: HeaderProps) {
+export function Header({ isGeneratingPlan, tempFavoriteStatusMessage }: HeaderProps) { // NEW PROP
   const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false); // NEW: State for sheet
   const isScrolled = useScrollPosition();
@@ -91,7 +91,7 @@ export function Header({ isGeneratingPlan, tempActionStatusMessage }: HeaderProp
         <div className="relative ml-auto flex flex-1 items-center justify-end gap-2 md:grow-0">
           <RollingStatusBadge 
             isGeneratingPlan={isGeneratingPlan} 
-            tempActionStatusMessage={tempActionStatusMessage}
+            tempFavoriteStatusMessage={tempFavoriteStatusMessage} // NEW
           />
           <NotificationBell />
           <UserNav />

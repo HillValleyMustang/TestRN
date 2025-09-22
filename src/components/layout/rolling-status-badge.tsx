@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from '@/components/session-context-provider';
 import { Badge } from "@/components/ui/badge";
-import { Flame, Dumbbell, CheckCircle, Clock, AlertCircle, WifiOff, Loader2, Heart, XCircle, Info } from "lucide-react"; // Added XCircle, Info
+import { Flame, Dumbbell, CheckCircle, Clock, AlertCircle, WifiOff, Loader2, Heart } from "lucide-react"; // Added WifiOff, Loader2, Heart
 import { cn } from '@/lib/utils';
 import { useSyncManager } from '@/hooks/use-sync-manager'; // Import useSyncManager
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'; // Import Dialog components
@@ -61,10 +61,10 @@ const StatusInfoModal = () => (
 
 interface RollingStatusBadgeProps {
   isGeneratingPlan: boolean;
-  tempActionStatusMessage: { message: string; type: 'added' | 'removed' | 'info'; icon?: 'heart' | 'check' } | null;
+  tempFavoriteStatusMessage: { message: string; type: 'added' | 'removed' } | null; // NEW
 }
 
-export function RollingStatusBadge({ isGeneratingPlan, tempActionStatusMessage }: RollingStatusBadgeProps) {
+export function RollingStatusBadge({ isGeneratingPlan, tempFavoriteStatusMessage }: RollingStatusBadgeProps) { // NEW PROP
   const { session, supabase } = useSession();
   const { isOnline } = useSyncManager(); // Get isOnline status
   const [status, setStatus] = useState<string | null>(null);
@@ -108,32 +108,18 @@ export function RollingStatusBadge({ isGeneratingPlan, tempActionStatusMessage }
     }
   }, [session, supabase, isOnline]); // Added isOnline to dependencies
 
-  if (tempActionStatusMessage) {
-    let Icon = CheckCircle;
-    let colorClass = 'bg-green-100 text-green-700 border-green-300 dark:bg-green-800 dark:text-green-300 dark:border-green-700';
-
-    if (tempActionStatusMessage.type === 'removed') {
-      Icon = XCircle;
-      colorClass = 'bg-red-100 text-red-700 border-red-300 dark:bg-red-800 dark:text-red-300 dark:border-red-700';
-    } else if (tempActionStatusMessage.type === 'info') {
-      Icon = Info;
-      colorClass = 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-800 dark:text-blue-300 dark:border-blue-700';
-    }
-    
-    if (tempActionStatusMessage.icon === 'heart') {
-      Icon = Heart;
-    }
-
+  // NEW: Prioritize tempFavoriteStatusMessage
+  if (tempFavoriteStatusMessage) {
     return (
-      <Dialog>
-        <DialogTrigger asChild>
-          <Badge variant="outline" className={cn("flex items-center gap-1 px-3 py-1 text-sm font-semibold cursor-pointer transition-opacity duration-300", colorClass)}>
-            <Icon className="h-4 w-4" />
-            <span>{tempActionStatusMessage.message}</span>
-          </Badge>
-        </DialogTrigger>
-        <StatusInfoModal />
-      </Dialog>
+      <Badge
+        className={cn(
+          "flex items-center gap-1 px-3 py-1 text-sm font-semibold transition-opacity duration-300",
+          tempFavoriteStatusMessage.type === 'added' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+        )}
+      >
+        <Heart className="h-4 w-4" />
+        <span>{tempFavoriteStatusMessage.message}</span>
+      </Badge>
     );
   }
 
