@@ -28,7 +28,7 @@ export const ExerciseTypeSelector = ({
           )}
           onClick={() => handleTypeChange("weight")}
         >
-          <Dumbbell className={cn("h-6 w-6 mb-1", selectedTypes.includes("weight") ? "text-primary-foreground" : "text-muted-foreground")} /> {/* Changed to text-muted-foreground for unselected color */}
+          <Dumbbell className={cn("h-6 w-6 mb-1", selectedTypes.includes("weight") ? "text-primary-foreground" : "text-action")} /> {/* Changed to text-action */}
           <span className={cn("font-medium text-sm text-center leading-tight", selectedTypes.includes("weight") ? "text-primary-foreground" : "text-foreground")}>
             Weight Training
           </span>
@@ -40,7 +40,7 @@ export const ExerciseTypeSelector = ({
           )}
           onClick={() => handleTypeChange("timed")}
         >
-          <Timer className={cn("h-6 w-6 mb-1", selectedTypes.includes("timed") ? "text-primary-foreground" : "text-muted-foreground")} /> {/* Changed to text-muted-foreground for unselected color */}
+          <Timer className={cn("h-6 w-6 mb-1", selectedTypes.includes("timed") ? "text-primary-foreground" : "text-action")} /> {/* Changed to text-action */}
           <span className={cn("font-medium text-sm text-center leading-tight", selectedTypes.includes("timed") ? "text-primary-foreground" : "text-foreground")}>
             Timed <span className="text-[0.65rem]">(e.g. Plank)</span> {/* Extra small text */}
           </span>
@@ -52,7 +52,7 @@ export const ExerciseTypeSelector = ({
           )}
           onClick={() => handleTypeChange("bodyweight")}
         >
-          <Footprints className={cn("h-6 w-6 mb-1", selectedTypes.includes("bodyweight") ? "text-primary-foreground" : "text-muted-foreground")} /> {/* Changed to text-muted-foreground for unselected color */}
+          <Footprints className={cn("h-6 w-6 mb-1", selectedTypes.includes("bodyweight") ? "text-primary-foreground" : "text-action")} /> {/* Changed to text-action */}
           <span className={cn("font-medium text-sm text-center leading-tight", selectedTypes.includes("bodyweight") ? "text-primary-foreground" : "text-foreground")}>
             Body Weight <span className="text-[0.65rem]">(e.g. Press Ups)</span> {/* New text and extra small */}
           </span>
