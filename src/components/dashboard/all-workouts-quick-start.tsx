@@ -13,8 +13,10 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useGym } from '@/components/gym-context-provider'; // Import useGym
 import Link from 'next/link'; // Import Link
+import { CardContentPlaceholder } from '@/components/shared/card-content-placeholder'; // Import new component
 
 type TPath = Tables<'t_paths'>;
+type Gym = Tables<'gyms'>; // Import Gym type
 
 const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName: string): Omit<WorkoutPillProps, 'isSelected' | 'onClick'> => {
   const lowerTitle = workout.template_name.toLowerCase();
@@ -52,7 +54,7 @@ interface AllWorkoutsQuickStartProps {
   profile: Profile | null;
   groupedTPaths: GroupedTPath[];
   loadingPlans: boolean;
-  activeGym: Tables<'gyms'> | null;
+  activeGym: Gym | null;
   loadingGyms: boolean;
 }
 
@@ -64,11 +66,10 @@ export const AllWorkoutsQuickStart = ({
   loadingGyms,
 }: AllWorkoutsQuickStartProps) => {
   const router = useRouter();
-  const { profile: userProfile, isLoading: loadingProfile, error: profileError } = useUserProfile(); // Destructure profileError
-  const { groupedTPaths: allGroupedTPaths, isLoading: loadingPlansHook, error: plansError } = useWorkoutPlans(); // Use different names to avoid conflict
+  const { workoutExercisesCache, error: plansError } = useWorkoutPlans(); // Removed loadingPlans from here as it's a prop
 
-  const componentLoading = loadingProfile || loadingPlans || loadingPlansHook || loadingGyms; // Use internal loading states
-  const dataError = profileError || plansError;
+  const componentLoading = loadingPlans || loadingGyms; // Use internal loading states
+  const dataError = plansError;
 
   const activeTPathGroup = useMemo(() => {
     if (!profile || !profile.active_t_path_id || groupedTPaths.length === 0) {
@@ -118,34 +119,32 @@ export const AllWorkoutsQuickStart = ({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {componentLoading && isTrulyEmptyState ? (
-          // Skeleton for the "no data" state (text-like)
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-14 flex-1" />
-              <Skeleton className="h-10 w-10" />
+        <CardContentPlaceholder
+          isLoading={componentLoading}
+          hasActiveGym={!!activeGym}
+          isGymConfigured={isGymConfigured}
+          activeGymName={activeGym?.name || null}
+          hasWorkouts={!isTrulyEmptyState}
+          loadingSkeleton={
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-14 flex-1" />
+                <Skeleton className="h-10 w-10" />
+              </div>
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-14 flex-1" />
+                <Skeleton className="h-10 w-10" />
+              </div>
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-14 flex-1" />
+                <Skeleton className="h-10 w-10" />
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-14 flex-1" />
-              <Skeleton className="h-10 w-10" />
-            </div>
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-14 flex-1" />
-              <Skeleton className="h-10 w-10" />
-            </div>
-          </div>
-        ) : !activeGym ? (
-          <p className="text-muted-foreground">No active gym selected. Please set one in your profile.</p>
-        ) : !isGymConfigured ? (
-          <p className="text-muted-foreground">Your active gym "{activeGym.name}" has no workout plan. Go to <Link href="/manage-t-paths" className="text-primary underline">Manage T-Paths</Link> to set one up.</p>
-        ) : isTrulyEmptyState ? (
-          // Actual "no data" message
-          <p className="text-muted-foreground">No workouts found for your active Transformation Path. This might happen if your session length is too short for any workouts.</p>
-        ) : (
-          // Actual content when workouts are available
+          }
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {childWorkouts.map((workout: WorkoutWithLastCompleted) => {
-              const pillProps = mapWorkoutToPillProps(workout, activeMainTPath.template_name);
+              const pillProps = mapWorkoutToPillProps(workout, activeMainTPath!.template_name); // Non-null assertion as isTrulyEmptyState handles null
               return (
                 <div key={workout.id} className="flex items-center gap-2">
                   <WorkoutPill
@@ -165,7 +164,7 @@ export const AllWorkoutsQuickStart = ({
               );
             })}
           </div>
-        )}
+        </CardContentPlaceholder>
       </CardContent>
     </Card>
   );

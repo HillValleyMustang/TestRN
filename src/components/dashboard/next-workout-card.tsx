@@ -12,7 +12,9 @@ import { cn, getWorkoutColorClass, getExerciseCounts } from '@/lib/utils';
 import { useUserProfile } from '@/hooks/data/useUserProfile';
 import { useWorkoutPlans } from '@/hooks/data/useWorkoutPlans';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useGym } from '@/components/gym-context-provider'; // Import useGym
 import Link from 'next/link'; // Import Link
+import { CardContentPlaceholder } from '@/components/shared/card-content-placeholder'; // Import new component
 
 type TPath = Tables<'t_paths'>;
 type Gym = Tables<'gyms'>; // Import Gym type
@@ -176,28 +178,16 @@ export const NextWorkoutCard = ({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {componentLoading && isTrulyEmptyState ? (
-          // Skeleton for the "no data" state
+        <CardContentPlaceholder
+          isLoading={componentLoading}
+          hasActiveGym={!!activeGym}
+          isGymConfigured={isGymConfigured}
+          activeGymName={activeGym?.name || null}
+          hasWorkouts={!isTrulyEmptyState}
+        >
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <Skeleton className="h-6 w-48 mb-2" /> {/* Placeholder for workout name */}
-              <Skeleton className="h-4 w-32" /> {/* Placeholder for estimated duration */}
-              <Skeleton className="h-3 w-24 mt-1" /> {/* Placeholder for last workout */}
-            </div>
-            <Skeleton className="h-10 w-32" /> {/* Placeholder for the button */}
-          </div>
-        ) : !activeGym ? (
-          <p className="text-muted-foreground">No active gym selected. Please set one in your profile.</p>
-        ) : !isGymConfigured ? (
-          <p className="text-muted-foreground">Your active gym "{activeGym.name}" has no workout plan. Go to <Link href="/manage-t-paths" className="text-primary underline">Manage T-Paths</Link> to set one up.</p>
-        ) : isTrulyEmptyState ? (
-          // Actual "no data" message
-          <p className="text-muted-foreground">No active Transformation Path found or no workouts defined for your current session length. Complete onboarding or set one in your profile to get started.</p>
-        ) : (
-          // Actual content when a next workout is available
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h3 className="text-lg font-semibold">{nextWorkout.template_name}</h3>
+              <h3 className="text-lg font-semibold">{nextWorkout?.template_name}</h3>
               <div className="flex items-center gap-1 text-muted-foreground">
                 <Clock className="h-4 w-4" />
                 <span>Estimated {estimatedDuration}</span>
@@ -209,14 +199,14 @@ export const NextWorkoutCard = ({
               )}
             </div>
             <Button 
-              onClick={() => router.push(`/workout?workoutId=${nextWorkout.id}`)} 
-              className={cn("text-white", getWorkoutColorClass(nextWorkout.template_name, 'bg'))}
+              onClick={() => router.push(`/workout?workoutId=${nextWorkout?.id}`)} 
+              className={cn("text-white", getWorkoutColorClass(nextWorkout?.template_name || '', 'bg'))}
               size="lg"
             >
               Start Workout
             </Button>
           </div>
-        )}
+        </CardContentPlaceholder>
       </CardContent>
     </Card>
   );
