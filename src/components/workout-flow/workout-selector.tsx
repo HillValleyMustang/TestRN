@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useCallback, useMemo } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"; // Import CardContent
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Dumbbell, Settings, Sparkles, Search, Heart, Home, Filter, ChevronsUpDown, Check } from 'lucide-react'; // Added Search, Heart, Home, Filter, ChevronsUpDown, Check
+import { PlusCircle, Dumbbell, Settings, Sparkles, Search, Heart, Home, Filter, ChevronsUpDown, Check } from 'lucide-react';
 import { Tables, WorkoutWithLastCompleted, GroupedTPath, SetLogState, WorkoutExercise, FetchedExerciseDefinition, Profile, ExerciseDefinition } from '@/types/supabase';
 import { cn, formatTimeAgo, getPillStyles } from '@/lib/utils';
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
@@ -19,17 +19,16 @@ import { AnalyseGymButton } from "@/components/manage-exercises/exercise-form/an
 import { AnalyseGymDialog } from "@/components/manage-exercises/exercise-form/analyze-gym-dialog";
 import { SaveAiExercisePrompt } from "@/components/workout-flow/save-ai-exercise-prompt";
 import { useGym } from '@/components/gym-context-provider';
-import { Input } from '@/components/ui/input'; // Import Input
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Import Select
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Import Tabs
-import { Label } from '@/components/ui/label'; // Import Label
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { SetupGymPlanPrompt } from '../manage-t-paths/setup-gym-plan-prompt'; // Corrected import
-import { useRouter } from 'next/navigation'; // Import useRouter
+import { SetupGymPlanPrompt } from '../manage-t-paths/setup-gym-plan-prompt';
+import { useRouter } from 'next/navigation';
 
 type TPath = Tables<'t_paths'>;
-// Removed local ExerciseDefinition type as it's now imported from @/types/supabase
 
 interface WorkoutSelectorProps {
   activeWorkout: TPath | null;
@@ -60,9 +59,8 @@ interface WorkoutSelectorProps {
   handleOpenEditWorkoutDialog: (workoutId: string, workoutName: string) => void;
   handleEditWorkoutSaveSuccess: () => void;
   setIsEditWorkoutDialogOpen: (isOpen: boolean) => void;
-  profile: Profile | null; // Destructure profile prop
-  isWorkoutSessionStarted: boolean; // NEW PROP
-  // NEW: Add these props
+  profile: Profile | null;
+  isWorkoutSessionStarted: boolean;
   availableMuscleGroups: string[];
   userGyms: Tables<'gyms'>[];
   exerciseGymsMap: Record<string, string[]>;
@@ -129,16 +127,15 @@ export const WorkoutSelector = ({
   handleOpenEditWorkoutDialog,
   handleEditWorkoutSaveSuccess,
   setIsEditWorkoutDialogOpen,
-  profile, // Destructure profile prop
-  isWorkoutSessionStarted, // NEW PROP
-  // NEW: Destructure new props
+  profile,
+  isWorkoutSessionStarted,
   availableMuscleGroups,
   userGyms,
   exerciseGymsMap,
 }: WorkoutSelectorProps) => {
-  const { supabase, session, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
+  const { supabase, session, memoizedSessionUserId } = useSession();
   const { activeGym } = useGym();
-  const router = useRouter(); // Initialize useRouter
+  const router = useRouter();
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
   const [adHocExerciseSourceFilter, setAdHocExerciseSourceFilter] = useState<'my-exercises' | 'global-library'>('my-exercises');
 
@@ -147,13 +144,11 @@ export const WorkoutSelector = ({
   const [aiIdentifiedExercise, setAiIdentifiedExercise] = useState<Partial<FetchedExerciseDefinition> | null>(null);
   const [isAiSaving, setIsAiSaving] = useState(false);
 
-  // NEW: Filter states for ad-hoc exercises
   const [searchTerm, setSearchTerm] = useState("");
   const [muscleFilter, setMuscleFilter] = useState("all");
   const [gymFilter, setGymFilter] = useState("all");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [isComboboxOpen, setIsComboboxOpen] = useState(false);
-
 
   const activeTPathId = profile?.active_t_path_id;
   const activeTPathGroup = activeTPathId ? groupedTPaths.find(group => group.mainTPath.id === activeTPathId) : null;
@@ -164,32 +159,27 @@ export const WorkoutSelector = ({
   }, [activeGym, groupedTPaths]);
 
   const exercisesForCombobox = useMemo(() => {
-    if (!memoizedSessionUserId) return []; // Use memoized ID
+    if (!memoizedSessionUserId) return [];
 
     return allAvailableExercises
       .filter(ex => {
-        // Source filter
-        if (adHocExerciseSourceFilter === 'my-exercises') return ex.user_id === memoizedSessionUserId; // Use memoized ID
+        if (adHocExerciseSourceFilter === 'my-exercises') return ex.user_id === memoizedSessionUserId;
         if (adHocExerciseSourceFilter === 'global-library') return ex.user_id === null;
         return false;
       })
       .filter(ex => {
-        // Muscle filter
         return muscleFilter === 'all' || ex.main_muscle === muscleFilter;
       })
       .filter(ex => {
-        // Gym filter
         if (gymFilter === 'all') return true;
         const exerciseGyms = exerciseGymsMap[ex.id as string] || [];
         return exerciseGyms.includes(userGyms.find(g => g.id === gymFilter)?.name || '');
       })
       .filter(ex => {
-        // Favorites filter
         if (!showFavoritesOnly) return true;
         return ex.is_favorite || ex.is_favorited_by_current_user;
       })
       .filter(ex => {
-        // Text search
         return ex.name!.toLowerCase().includes(searchTerm.toLowerCase());
       })
       .sort((a, b) => a.name!.localeCompare(b.name!));
@@ -228,10 +218,10 @@ export const WorkoutSelector = ({
     } else {
       toast.info("No exercises were identified from the photos.");
     }
-  }, []);
+  }, [setAiIdentifiedExercise, setShowSaveAiExercisePrompt]);
 
   const handleSaveAiExerciseToMyExercises = useCallback(async (exercise: Partial<FetchedExerciseDefinition>) => {
-    if (!memoizedSessionUserId) { // Use memoized ID
+    if (!memoizedSessionUserId) {
       toast.error("You must be logged in to save exercises.");
       return;
     }
@@ -247,12 +237,12 @@ export const WorkoutSelector = ({
         description: exercise.description,
         pro_tip: exercise.pro_tip,
         video_url: exercise.video_url,
-        user_id: memoizedSessionUserId, // Use memoized ID
+        user_id: memoizedSessionUserId,
         library_id: null,
         is_favorite: false,
         created_at: new Date().toISOString(),
-        movement_type: exercise.movement_type, // Include movement_type
-        movement_pattern: exercise.movement_pattern, // Include movement_pattern
+        movement_type: exercise.movement_type,
+        movement_pattern: exercise.movement_pattern,
       }]).select('*').single();
 
       if (insertError) {
@@ -283,10 +273,10 @@ export const WorkoutSelector = ({
     } finally {
       setIsAiSaving(false);
     }
-  }, [memoizedSessionUserId, supabase, addExerciseToSession, refreshAllData]); // Depend on memoized ID
+  }, [memoizedSessionUserId, supabase, addExerciseToSession, refreshAllData, setShowSaveAiExercisePrompt, setAiIdentifiedExercise, setIsAiSaving]);
 
   const handleAddAiExerciseToWorkoutOnly = useCallback(async (exercise: Partial<FetchedExerciseDefinition>) => {
-    if (!memoizedSessionUserId) { // Use memoized ID
+    if (!memoizedSessionUserId) {
       toast.error("You must be logged in to add exercises.");
       return;
     }
@@ -296,7 +286,7 @@ export const WorkoutSelector = ({
 
       const existingExercise = allAvailableExercises.find(ex => 
         ex.name?.trim().toLowerCase() === exercise.name?.trim().toLowerCase() && 
-        (ex.user_id === memoizedSessionUserId || ex.user_id === null) // Use memoized ID
+        (ex.user_id === memoizedSessionUserId || ex.user_id === null)
       );
       if (existingExercise) {
         finalExerciseToAdd = existingExercise as ExerciseDefinition;
@@ -311,18 +301,18 @@ export const WorkoutSelector = ({
           description: exercise.description,
           pro_tip: exercise.pro_tip,
           video_url: exercise.video_url,
-          user_id: memoizedSessionUserId, // Use memoized ID
+          user_id: memoizedSessionUserId,
           library_id: null,
           is_favorite: false,
           created_at: new Date().toISOString(),
-          movement_type: exercise.movement_type, // Include movement_type
-          movement_pattern: exercise.movement_pattern, // Include movement_pattern
+          movement_type: exercise.movement_type,
+          movement_pattern: exercise.movement_pattern,
         }]).select('*').single();
 
         if (insertError) {
           if (insertError.code === '23505') {
             toast.error(`You already have a custom exercise named "${exercise.name}".`);
-            const existingUserExercise = allAvailableExercises.find(ex => ex.name?.trim().toLowerCase() === exercise.name?.trim().toLowerCase() && ex.user_id === memoizedSessionUserId); // Use memoized ID
+            const existingUserExercise = allAvailableExercises.find(ex => ex.name?.trim().toLowerCase() === exercise.name?.trim().toLowerCase() && ex.user_id === memoizedSessionUserId);
             if (existingUserExercise) {
               finalExerciseToAdd = existingUserExercise as ExerciseDefinition;
             } else {
@@ -353,7 +343,7 @@ export const WorkoutSelector = ({
     } finally {
       setIsAiSaving(false);
     }
-  }, [memoizedSessionUserId, supabase, allAvailableExercises, addExerciseToSession, refreshAllData]); // Depend on memoized ID
+  }, [memoizedSessionUserId, supabase, allAvailableExercises, addExerciseToSession, refreshAllData, setShowSaveAiExercisePrompt, setAiIdentifiedExercise, setIsAiSaving]);
 
 
   const totalExercises = exercisesForSession.length;
@@ -489,7 +479,7 @@ export const WorkoutSelector = ({
                           <CommandInput
                             placeholder="Search exercises..."
                             value={searchTerm}
-                            onValueChange={setSearchTerm} // Update searchTerm state
+                            onValueChange={setSearchTerm}
                           />
                           <CommandList>
                             <CommandEmpty>No exercise found.</CommandEmpty>
@@ -614,7 +604,7 @@ export const WorkoutSelector = ({
         open={showSaveAiExercisePrompt}
         onOpenChange={setShowSaveAiExercisePrompt}
         exercise={aiIdentifiedExercise}
-        onSaveToMyExercises={handleAddAiExerciseToMyExercises}
+        onSaveToMyExercises={handleSaveAiExerciseToMyExercises}
         onAddOnlyToCurrentWorkout={handleAddAiExerciseToWorkoutOnly}
         context="workout-flow"
         isSaving={isAiSaving}
