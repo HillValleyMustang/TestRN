@@ -179,7 +179,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   }, [cachedUserGyms, cachedGymExercises]);
 
   useEffect(() => {
-    const calculateExerciseWorkoutsMap = async () => {
+    const populateExerciseWorkoutsMap = async () => {
       if (baseLoading || dataError || !memoizedSessionUserId || !cachedTPaths || !cachedTPathExercises || !profile) { // Use memoized ID
         setExerciseWorkoutsMap({});
         return;
@@ -210,6 +210,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
         toast.error("Failed to load workout structure details.");
         return;
       }
+      const structure = structureData || [];
 
       const libraryIdToUuidMap = new Map<string, string>();
       (cachedExercises || []).forEach(ex => {
@@ -235,18 +236,18 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
         }
       });
 
-      (structureData || []).forEach(structure => {
-        if (activeWorkoutNames.includes(structure.workout_name)) {
-          const isIncludedAsMain = structure.min_session_minutes !== null && maxAllowedMinutes >= structure.min_session_minutes;
-          const isIncludedAsBonus = structure.bonus_for_time_group !== null && maxAllowedMinutes >= structure.bonus_for_time_group;
+      structure.forEach(s => {
+        if (activeWorkoutNames.includes(s.workout_name)) {
+          const isIncludedAsMain = s.min_session_minutes !== null && maxAllowedMinutes >= s.min_session_minutes;
+          const isIncludedAsBonus = s.bonus_for_time_group !== null && maxAllowedMinutes >= s.bonus_for_time_group;
           if (isIncludedAsMain || isIncludedAsBonus) {
-            const exerciseUuid = libraryIdToUuidMap.get(structure.exercise_library_id);
+            const exerciseUuid = libraryIdToUuidMap.get(s.exercise_library_id);
             if (exerciseUuid) {
               if (!newMap[exerciseUuid]) newMap[exerciseUuid] = [];
-              if (!newMap[exerciseUuid].some(item => item.name === structure.workout_name)) {
+              if (!newMap[exerciseUuid].some(item => item.name === s.workout_name)) {
                 newMap[exerciseUuid].push({
-                  id: `global_${structure.workout_name}`,
-                  name: structure.workout_name,
+                  id: `global_${s.workout_name}`, // Use a unique ID for global workouts
+                  name: s.workout_name,
                   isUserOwned: false,
                   isBonus: false,
                 });
@@ -255,10 +256,14 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
           }
         }
       });
-      setExerciseWorkoutsMap(newMap);
+      // Only update state if the map has actually changed to prevent re-renders
+      if (JSON.stringify(newMap) !== JSON.stringify(exerciseWorkoutsMap)) {
+        setExerciseWorkoutsMap(newMap);
+      }
     };
-    calculateExerciseWorkoutsMap();
-  }, [baseLoading, dataError, memoizedSessionUserId, cachedTPaths, cachedTPathExercises, profile, cachedExercises, supabase]); // Depend on memoized ID
+    populateExerciseWorkoutsMap();
+  }, [memoizedSessionUserId, profile, cachedTPaths, cachedTPathExercises, cachedExercises, supabase, baseLoading, dataError]); // Removed exerciseWorkoutsMap from dependencies
+
 
   const workoutExercisesCache = useMemo(() => {
     if (baseLoading || dataError || !memoizedSessionUserId) return {}; // Use memoized ID
