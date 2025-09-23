@@ -41,7 +41,7 @@ export const NextWorkoutCard = ({
   const { session } = useSession();
   const { workoutExercisesCache, error: plansError } = useWorkoutPlans();
   
-  const [mainTPath, setMainTPath] = useState<TPath | null>(null); // Keep mainTPath as state if it's used for other purposes
+  // Removed mainTPath useState, it will now be derived in useMemo
 
   const componentLoading = loadingPlans || loadingGyms;
   const dataError = plansError;
@@ -52,26 +52,29 @@ export const NextWorkoutCard = ({
     return groupedTPaths.some(group => group.mainTPath.gym_id === activeGym.id);
   }, [activeGym, groupedTPaths]);
 
-  // Derive nextWorkout, estimatedDuration, and lastWorkoutName using useMemo
-  const { nextWorkout, derivedEstimatedDuration, derivedLastWorkoutName } = useMemo(() => {
+  // Derive nextWorkout, estimatedDuration, lastWorkoutName, and mainTPath using useMemo
+  const { nextWorkout, derivedEstimatedDuration, derivedLastWorkoutName, derivedMainTPath } = useMemo(() => {
     let currentNextWorkout: WorkoutWithLastCompleted | null = null;
     let currentEstimatedDuration: string | null = null;
     let currentLastWorkoutName: string | null = null;
+    let currentMainTPath: TPath | null = null; // Now deriving mainTPath here
 
     if (dataError || !session || !profile || !groupedTPaths || !activeGym || componentLoading) {
       // If any critical data is missing or loading, return nulls
-      return { nextWorkout: null, derivedEstimatedDuration: null, derivedLastWorkoutName: null };
+      return { nextWorkout: null, derivedEstimatedDuration: null, derivedLastWorkoutName: null, derivedMainTPath: null };
     }
 
     const activeMainTPathId = profile?.active_t_path_id;
     if (!activeMainTPathId) {
-      return { nextWorkout: null, derivedEstimatedDuration: null, derivedLastWorkoutName: null };
+      return { nextWorkout: null, derivedEstimatedDuration: null, derivedLastWorkoutName: null, derivedMainTPath: null };
     }
 
     const foundGroup = groupedTPaths.find((group: GroupedTPath) => group.mainTPath.id === activeMainTPathId);
     if (!foundGroup || foundGroup.childWorkouts.length === 0) {
-      return { nextWorkout: null, derivedEstimatedDuration: null, derivedLastWorkoutName: null };
+      return { nextWorkout: null, derivedEstimatedDuration: null, derivedLastWorkoutName: null, derivedMainTPath: null };
     }
+
+    currentMainTPath = foundGroup.mainTPath; // Set mainTPath here
 
     const childWorkouts = foundGroup.childWorkouts;
     const workoutOrder = foundGroup.mainTPath.template_name.includes('Upper/Lower') ? ULUL_ORDER : PPL_ORDER;
@@ -131,23 +134,10 @@ export const NextWorkoutCard = ({
       }
     }
 
-    return { nextWorkout: currentNextWorkout, derivedEstimatedDuration: currentEstimatedDuration, derivedLastWorkoutName: currentLastWorkoutName };
+    return { nextWorkout: currentNextWorkout, derivedEstimatedDuration: currentEstimatedDuration, derivedLastWorkoutName: currentLastWorkoutName, derivedMainTPath: currentMainTPath };
   }, [session, groupedTPaths, dataError, profile, workoutExercisesCache, activeGym, componentLoading]);
 
-  // Update mainTPath state separately if needed for other logic, but not for rendering next workout details
-  useEffect(() => {
-    if (dataError || !session || !profile || !groupedTPaths || !activeGym || componentLoading) {
-      setMainTPath(null);
-      return;
-    }
-    const activeMainTPathId = profile?.active_t_path_id;
-    if (!activeMainTPathId) {
-      setMainTPath(null);
-      return;
-    }
-    const foundGroup = groupedTPaths.find((group: GroupedTPath) => group.mainTPath.id === activeMainTPathId);
-    setMainTPath(foundGroup?.mainTPath || null);
-  }, [session, groupedTPaths, dataError, profile, activeGym, componentLoading]);
+  // Removed the separate useEffect for mainTPath as it's now derived in useMemo
 
 
   if (dataError) {
@@ -167,7 +157,7 @@ export const NextWorkoutCard = ({
   }
 
   // Determine if we are in a "truly empty" state (no main T-Path or no next workout)
-  const isTrulyEmptyState = !mainTPath || !nextWorkout;
+  const isTrulyEmptyState = !derivedMainTPath || !nextWorkout; // Use derivedMainTPath here
 
   return (
     <Card>
