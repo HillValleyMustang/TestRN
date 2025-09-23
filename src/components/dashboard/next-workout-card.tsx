@@ -123,8 +123,8 @@ export const NextWorkoutCard = ({
       
       setNextWorkout(nextWorkoutToSuggest);
 
-      // Only calculate estimatedDuration if profile.preferred_session_length is available
-      if (nextWorkoutToSuggest && profile?.preferred_session_length) {
+      // Only calculate estimatedDuration if profile.preferred_session_length is available AND component is not loading
+      if (nextWorkoutToSuggest && profile?.preferred_session_length && !componentLoading) {
         const preferredSessionLength = profile.preferred_session_length;
         const [minTimeStr, maxTimeStr] = preferredSessionLength.split('-');
         const minTime = parseInt(minTimeStr, 10);
@@ -144,7 +144,7 @@ export const NextWorkoutCard = ({
 
         setEstimatedDuration(`${newMinTime}-${newMaxTime} minutes`);
       } else {
-        setEstimatedDuration(null); // Keep null if preferred_session_length is not ready
+        setEstimatedDuration(null); // Keep null if preferred_session_length is not ready or component is loading
       }
     };
 
