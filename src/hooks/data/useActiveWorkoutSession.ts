@@ -20,6 +20,15 @@ const hasUserInput = (set: SetLogState): boolean => {
          (set.time_seconds !== null && set.time_seconds > 0);
 };
 
+// Helper for deep comparison of Sets
+const areSetsEqual = (set1: Set<string>, set2: Set<string>): boolean => {
+  if (set1.size !== set2.size) return false;
+  for (const item of set1) {
+    if (!set2.has(item)) return false;
+  }
+  return true;
+};
+
 interface UseActiveWorkoutSessionProps {
   groupedTPaths: GroupedTPath[];
   workoutExercisesCache: Record<string, WorkoutExercise[]>;
@@ -31,7 +40,7 @@ export const useActiveWorkoutSession = ({ groupedTPaths, workoutExercisesCache }
   const [exercisesWithSets, setExercisesWithSets] = useState<Record<string, SetLogState[]>>({});
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
-  const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set()); // Corrected useState declaration
+  const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [expandedExerciseCards, setExpandedExerciseCards] = useState<Record<string, boolean>>({});
   const [isWorkoutSessionStarted, setIsWorkoutSessionStarted] = useState(false); // NEW STATE
@@ -119,8 +128,17 @@ export const useActiveWorkoutSession = ({ groupedTPaths, workoutExercisesCache }
         const { data: allLinks, error: allLinksError } = await supabase.from('gym_exercises').select('exercise_id');
         if (allLinksError) throw allLinksError;
 
-        setAvailableGymExerciseIds(new Set((gymLinks || []).map((l: { exercise_id: string }) => l.exercise_id)));
-        setAllGymExerciseIds(new Set((allLinks || []).map((l: { exercise_id: string }) => l.exercise_id)));
+        const newAvailableIds = new Set((gymLinks || []).map((l: { exercise_id: string }) => l.exercise_id));
+        const newAllLinkedIds = new Set((allLinks || []).map((l: { exercise_id: string }) => l.exercise_id));
+
+        // Deep compare Sets before updating state
+        if (!areSetsEqual(newAvailableIds, availableGymExerciseIds)) {
+          setAvailableGymExerciseIds(newAvailableIds);
+        }
+        if (!areSetsEqual(newAllLinkedIds, allGymExerciseIds)) {
+          setAllGymExerciseIds(newAllLinkedIds);
+        }
+
       } catch (error: any) {
         console.error("[ActiveWorkoutSession] Error fetching gym exercise links:", error);
         setGymLinksError(error.message || "Failed to load gym exercise links.");
