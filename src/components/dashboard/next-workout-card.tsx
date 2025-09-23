@@ -43,7 +43,7 @@ export const NextWorkoutCard = ({
   
   const [mainTPath, setMainTPath] = useState<TPath | null>(null);
   const [nextWorkout, setNextWorkout] = useState<WorkoutWithLastCompleted | null>(null);
-  const [estimatedDuration, setEstimatedDuration] = useState<string>('N/A');
+  const [estimatedDuration, setEstimatedDuration] = useState<string | null>(null); // Initialized to null
   const [lastWorkoutName, setLastWorkoutName] = useState<string | null>(null);
 
   const componentLoading = loadingPlans || loadingGyms; // Use internal loading states
@@ -57,7 +57,14 @@ export const NextWorkoutCard = ({
 
   useEffect(() => {
     const determineNextWorkout = () => {
-      if (dataError || !session || !profile || !groupedTPaths || !activeGym) return;
+      if (dataError || !session || !profile || !groupedTPaths || !activeGym) {
+        // If any critical data is missing, reset or keep null
+        setMainTPath(null);
+        setNextWorkout(null);
+        setLastWorkoutName(null);
+        setEstimatedDuration(null); // Ensure it's null if data is not ready
+        return;
+      }
 
       const activeMainTPathId = profile?.active_t_path_id;
 
@@ -65,6 +72,7 @@ export const NextWorkoutCard = ({
         setMainTPath(null);
         setNextWorkout(null);
         setLastWorkoutName(null);
+        setEstimatedDuration(null); // Ensure it's null if data is not ready
         return;
       }
 
@@ -74,6 +82,7 @@ export const NextWorkoutCard = ({
         setMainTPath(null);
         setNextWorkout(null);
         setLastWorkoutName(null);
+        setEstimatedDuration(null); // Ensure it's null if data is not ready
         return;
       }
 
@@ -114,35 +123,28 @@ export const NextWorkoutCard = ({
       
       setNextWorkout(nextWorkoutToSuggest);
 
-      // NEW DYNAMIC DURATION LOGIC
-      if (nextWorkoutToSuggest) {
-        const preferredSessionLength = profile?.preferred_session_length;
-        if (preferredSessionLength) {
-          const [minTimeStr, maxTimeStr] = preferredSessionLength.split('-');
-          const minTime = parseInt(minTimeStr, 10);
-          const maxTime = parseInt(maxTimeStr, 10);
+      // Only calculate estimatedDuration if profile.preferred_session_length is available
+      if (nextWorkoutToSuggest && profile?.preferred_session_length) {
+        const preferredSessionLength = profile.preferred_session_length;
+        const [minTimeStr, maxTimeStr] = preferredSessionLength.split('-');
+        const minTime = parseInt(minTimeStr, 10);
+        const maxTime = parseInt(maxTimeStr, 10);
 
-          const defaultCounts = getExerciseCounts(preferredSessionLength);
-          const defaultMainExerciseCount = defaultCounts.main;
+        const defaultCounts = getExerciseCounts(preferredSessionLength);
+        const defaultMainExerciseCount = defaultCounts.main;
 
-          const exercisesInWorkout = workoutExercisesCache[nextWorkoutToSuggest.id] || [];
-          const currentMainExerciseCount = exercisesInWorkout.filter(ex => !ex.is_bonus_exercise).length;
+        const exercisesInWorkout = workoutExercisesCache[nextWorkoutToSuggest.id] || [];
+        const currentMainExerciseCount = exercisesInWorkout.filter(ex => !ex.is_bonus_exercise).length;
 
-          const countDifference = currentMainExerciseCount - defaultMainExerciseCount;
-          const timeAdjustment = countDifference * 5;
+        const countDifference = currentMainExerciseCount - defaultMainExerciseCount;
+        const timeAdjustment = countDifference * 5;
 
-          const newMinTime = Math.max(5, minTime + timeAdjustment);
-          const newMaxTime = Math.max(10, maxTime + timeAdjustment);
+        const newMinTime = Math.max(5, minTime + timeAdjustment);
+        const newMaxTime = Math.max(10, maxTime + timeAdjustment);
 
-          setEstimatedDuration(`${newMinTime}-${newMaxTime} minutes`);
-        } else {
-          // Fallback if no preferred length is set
-          const exercisesInWorkout = workoutExercisesCache[nextWorkoutToSuggest.id] || [];
-          const totalExercises = exercisesInWorkout.length;
-          setEstimatedDuration(`~${totalExercises * 5} minutes`);
-        }
+        setEstimatedDuration(`${newMinTime}-${newMaxTime} minutes`);
       } else {
-        setEstimatedDuration('N/A');
+        setEstimatedDuration(null); // Keep null if preferred_session_length is not ready
       }
     };
 
@@ -206,7 +208,11 @@ export const NextWorkoutCard = ({
               <h3 className="text-lg font-semibold">{nextWorkout?.template_name}</h3>
               <div className="flex items-center gap-1 text-muted-foreground">
                 <Clock className="h-4 w-4" />
-                <span>Estimated {estimatedDuration}</span>
+                {estimatedDuration ? (
+                  <span>Estimated {estimatedDuration}</span>
+                ) : (
+                  <Skeleton className="h-4 w-24" /> // Skeleton for duration
+                )}
               </div>
               {lastWorkoutName && (
                 <p className="text-xs text-muted-foreground mt-1">
