@@ -15,7 +15,6 @@ import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summar
 import { GymToggle } from '@/components/dashboard/gym-toggle';
 import { useGym } from '@/components/gym-context-provider';
 import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher';
-import { UnconfiguredGymPrompt } from '@/components/prompts/unconfigured-gym-prompt';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -25,10 +24,9 @@ export default function DashboardPage() {
   const { session, supabase, memoizedSessionUserId } = useSession();
   const router = useRouter();
   const { userGyms, activeGym, loadingGyms } = useGym();
-  const { groupedTPaths, loadingData: loadingWorkoutData, profile, loadingData: loadingProfile } = useWorkoutDataFetcher();
+  const { groupedTPaths, loadingData: loadingWorkoutData, profile, loadingData: loadingProfile } = useWorkoutDataFetcher(); // Corrected destructuring
   
   const [welcomeName, setWelcomeName] = useState<string>('');
-  // Removed isInitialLoadComplete
 
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [summarySessionId, setSummarySessionId] = useState<string | null>(null);
@@ -47,20 +45,14 @@ export default function DashboardPage() {
     if (profile) {
       const name = profile.full_name || profile.first_name || 'Athlete';
       setWelcomeName(name);
-    } else if (!loadingProfile) {
-      // If not loading and still no profile, they need to onboard
+    } else if (!loadingProfile && !profile) { // If not loading and still no profile, they need to onboard
       router.push('/onboarding');
     }
   }, [memoizedSessionUserId, router, profile, loadingProfile]);
 
-  const isGymConfigured = useMemo(() => {
-    if (!activeGym || !groupedTPaths) return false; // Ensure activeGym and groupedTPaths are not null/undefined
-    return groupedTPaths.some(group => group.mainTPath.gym_id === activeGym.id);
-  }, [activeGym, groupedTPaths]);
-
   if (!memoizedSessionUserId) return null;
 
-  // Show full-page skeleton until initial load is complete
+  // Show full-page skeleton until profile is loaded
   if (loadingProfile || !profile) {
     return (
       <div className="flex flex-col gap-6 p-2 sm:p-4">
@@ -77,7 +69,7 @@ export default function DashboardPage() {
     );
   }
 
-  // After profile is loaded, render the dashboard structure
+  // Once profile is loaded, render the main dashboard content
   return (
     <div className="flex flex-col gap-6 p-2 sm:p-4">
       <header className="animate-fade-in-slide-up" style={{ animationDelay: '0s' }}>
@@ -95,33 +87,25 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Conditional rendering for UnconfiguredGymPrompt or main content */}
-      {!activeGym ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Get Started</CardTitle>
-            <CardDescription>
-              You don't have any gyms set up yet. Go to your profile to add your first gym and create a workout plan.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => router.push('/profile')}>Go to Profile Settings</Button>
-          </CardContent>
-        </Card>
-      ) : !isGymConfigured ? (
-        // This will now correctly show the prompt or its skeleton based on loadingWorkoutData
-        <UnconfiguredGymPrompt gymName={activeGym.name} />
-      ) : (
-        // Main dashboard content
-        <>
-          <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.1s' }}>
-            <NextWorkoutCard />
-          </div>
-          <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.15s' }}>
-            <AllWorkoutsQuickStart />
-          </div>
-        </>
-      )}
+      {/* These cards now handle their own internal loading/empty/unconfigured states */}
+      <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.1s' }}>
+        <NextWorkoutCard 
+          profile={profile}
+          groupedTPaths={groupedTPaths}
+          loadingPlans={loadingWorkoutData}
+          activeGym={activeGym}
+          loadingGyms={loadingGyms}
+        />
+      </div>
+      <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.15s' }}>
+        <AllWorkoutsQuickStart 
+          profile={profile}
+          groupedTPaths={groupedTPaths}
+          loadingPlans={loadingWorkoutData}
+          activeGym={activeGym}
+          loadingGyms={loadingGyms}
+        />
+      </div>
 
       <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.2s' }}>
         <ActionHub />

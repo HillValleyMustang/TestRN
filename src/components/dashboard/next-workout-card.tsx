@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSession } from '@/components/session-context-provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,31 +11,52 @@ import { useRouter } from 'next/navigation';
 import { cn, getWorkoutColorClass, getExerciseCounts } from '@/lib/utils';
 import { useUserProfile } from '@/hooks/data/useUserProfile';
 import { useWorkoutPlans } from '@/hooks/data/useWorkoutPlans';
-import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
+import { Skeleton } from '@/components/ui/skeleton';
+import Link from 'next/link'; // Import Link
 
 type TPath = Tables<'t_paths'>;
+type Gym = Tables<'gyms'>; // Import Gym type
 
 // Define the workout orders
 const ULUL_ORDER = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
 const PPL_ORDER = ['Push', 'Pull', 'Legs'];
 
-export const NextWorkoutCard = () => {
+interface NextWorkoutCardProps {
+  profile: Profile | null;
+  groupedTPaths: GroupedTPath[];
+  loadingPlans: boolean;
+  activeGym: Gym | null;
+  loadingGyms: boolean;
+}
+
+export const NextWorkoutCard = ({
+  profile,
+  groupedTPaths,
+  loadingPlans,
+  activeGym,
+  loadingGyms,
+}: NextWorkoutCardProps) => {
   const router = useRouter();
   const { session } = useSession();
-  const { profile, isLoading: loadingProfile, error: profileError } = useUserProfile();
-  const { groupedTPaths, workoutExercisesCache, isLoading: loadingPlans, error: plansError } = useWorkoutPlans();
+  const { workoutExercisesCache, error: plansError } = useWorkoutPlans(); // Removed loadingPlans from here as it's a prop
   
   const [mainTPath, setMainTPath] = useState<TPath | null>(null);
   const [nextWorkout, setNextWorkout] = useState<WorkoutWithLastCompleted | null>(null);
   const [estimatedDuration, setEstimatedDuration] = useState<string>('N/A');
   const [lastWorkoutName, setLastWorkoutName] = useState<string | null>(null);
 
-  const componentLoading = loadingProfile || loadingPlans; // Use internal loading states
-  const dataError = profileError || plansError;
+  const componentLoading = loadingPlans || loadingGyms; // Use internal loading states
+  const dataError = plansError; // profileError is handled by parent
+
+  // Determine if the active gym is configured
+  const isGymConfigured = useMemo(() => {
+    if (!activeGym || !groupedTPaths) return false;
+    return groupedTPaths.some(group => group.mainTPath.gym_id === activeGym.id);
+  }, [activeGym, groupedTPaths]);
 
   useEffect(() => {
     const determineNextWorkout = () => {
-      if (dataError || !session || !profile || !groupedTPaths) return; // Removed componentLoading from here
+      if (dataError || !session || !profile || !groupedTPaths || !activeGym) return;
 
       const activeMainTPathId = profile?.active_t_path_id;
 
@@ -125,7 +146,7 @@ export const NextWorkoutCard = () => {
     };
 
     determineNextWorkout();
-  }, [session, groupedTPaths, dataError, profile, workoutExercisesCache]);
+  }, [session, groupedTPaths, dataError, profile, workoutExercisesCache, activeGym, componentLoading]); // Added componentLoading to dependencies
 
   if (dataError) {
     return (
@@ -165,6 +186,10 @@ export const NextWorkoutCard = () => {
             </div>
             <Skeleton className="h-10 w-32" /> {/* Placeholder for the button */}
           </div>
+        ) : !activeGym ? (
+          <p className="text-muted-foreground">No active gym selected. Please set one in your profile.</p>
+        ) : !isGymConfigured ? (
+          <p className="text-muted-foreground">Your active gym "{activeGym.name}" has no workout plan. Go to <Link href="/manage-t-paths" className="text-primary underline">Manage T-Paths</Link> to set one up.</p>
         ) : isTrulyEmptyState ? (
           // Actual "no data" message
           <p className="text-muted-foreground">No active Transformation Path found or no workouts defined for your current session length. Complete onboarding or set one in your profile to get started.</p>

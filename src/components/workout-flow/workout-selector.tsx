@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useMemo } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"; // Import CardContent
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Dumbbell, Settings, Sparkles, Search, Heart, Home, Filter, ChevronsUpDown, Check } from 'lucide-react'; // Added Search, Heart, Home, Filter, ChevronsUpDown, Check
 import { Tables, WorkoutWithLastCompleted, GroupedTPath, SetLogState, WorkoutExercise, FetchedExerciseDefinition, Profile, ExerciseDefinition } from '@/types/supabase';
@@ -18,7 +18,6 @@ import { WorkoutAwareLink } from './workout-aware-link';
 import { AnalyseGymButton } from "@/components/manage-exercises/exercise-form/analyze-gym-button";
 import { AnalyseGymDialog } from "@/components/manage-exercises/exercise-form/analyze-gym-dialog";
 import { SaveAiExercisePrompt } from "@/components/workout-flow/save-ai-exercise-prompt";
-import { UnconfiguredGymPrompt } from '@/components/prompts/unconfigured-gym-prompt';
 import { useGym } from '@/components/gym-context-provider';
 import { Input } from '@/components/ui/input'; // Import Input
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Import Select
@@ -26,6 +25,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Import Ta
 import { Label } from '@/components/ui/label'; // Import Label
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { SetupGymPlanPrompt } from '../manage-t-paths/setup-gym-plan-prompt'; // Corrected import
+import { useRouter } from 'next/navigation'; // Import useRouter
 
 type TPath = Tables<'t_paths'>;
 // Removed local ExerciseDefinition type as it's now imported from @/types/supabase
@@ -137,6 +138,7 @@ export const WorkoutSelector = ({
 }: WorkoutSelectorProps) => {
   const { supabase, session, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const { activeGym } = useGym();
+  const router = useRouter(); // Initialize useRouter
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
   const [adHocExerciseSourceFilter, setAdHocExerciseSourceFilter] = useState<'my-exercises' | 'global-library'>('my-exercises');
 
@@ -362,8 +364,16 @@ export const WorkoutSelector = ({
         <div className="space-y-4">
           {loadingWorkoutFlow ? (
             <p className="text-muted-foreground text-center py-4">Loading Transformation Paths...</p>
-          ) : !isGymConfigured && activeGym ? (
-            <UnconfiguredGymPrompt gymName={activeGym.name} />
+          ) : !activeGym ? (
+            <Card>
+              <CardHeader><CardTitle>No Active Gym</CardTitle></CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Please add a gym in your profile settings to begin.</p>
+                <Button onClick={() => router.push('/profile')} className="mt-4">Go to Profile Settings</Button>
+              </CardContent>
+            </Card>
+          ) : !isGymConfigured ? (
+            <SetupGymPlanPrompt gym={activeGym} onSetupSuccess={refreshAllData} profile={profile} />
           ) : !activeTPathGroup ? (
             <p className="text-muted-foreground text-center py-4">
               No active Transformation Path found for this gym. Go to <WorkoutAwareLink href="/manage-t-paths" className="text-primary underline">Manage T-Paths</WorkoutAwareLink> to set one up.
@@ -604,7 +614,7 @@ export const WorkoutSelector = ({
         open={showSaveAiExercisePrompt}
         onOpenChange={setShowSaveAiExercisePrompt}
         exercise={aiIdentifiedExercise}
-        onSaveToMyExercises={handleSaveAiExerciseToMyExercises}
+        onSaveToMyExercises={handleAddAiExerciseToMyExercises}
         onAddOnlyToCurrentWorkout={handleAddAiExerciseToWorkoutOnly}
         context="workout-flow"
         isSaving={isAiSaving}

@@ -5,12 +5,14 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dumbbell, Play } from 'lucide-react';
-import { Tables, WorkoutWithLastCompleted } from '@/types/supabase';
+import { Tables, WorkoutWithLastCompleted, Profile, GroupedTPath } from '@/types/supabase'; // Import Profile and GroupedTPath
 import { WorkoutPill, WorkoutPillProps } from '@/components/workout-flow/workout-pill';
 import { useUserProfile } from '@/hooks/data/useUserProfile';
 import { useWorkoutPlans } from '@/hooks/data/useWorkoutPlans';
 import { cn } from '@/lib/utils';
-import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
+import { Skeleton } from '@/components/ui/skeleton';
+import { useGym } from '@/components/gym-context-provider'; // Import useGym
+import Link from 'next/link'; // Import Link
 
 type TPath = Tables<'t_paths'>;
 
@@ -46,12 +48,26 @@ const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName:
   };
 };
 
-export const AllWorkoutsQuickStart = () => {
-  const router = useRouter();
-  const { profile, isLoading: loadingProfile, error: profileError } = useUserProfile();
-  const { groupedTPaths, isLoading: loadingPlans, error: plansError } = useWorkoutPlans();
+interface AllWorkoutsQuickStartProps {
+  profile: Profile | null;
+  groupedTPaths: GroupedTPath[];
+  loadingPlans: boolean;
+  activeGym: Tables<'gyms'> | null;
+  loadingGyms: boolean;
+}
 
-  const componentLoading = loadingProfile || loadingPlans; // Use internal loading states
+export const AllWorkoutsQuickStart = ({
+  profile,
+  groupedTPaths,
+  loadingPlans,
+  activeGym,
+  loadingGyms,
+}: AllWorkoutsQuickStartProps) => {
+  const router = useRouter();
+  const { profile: userProfile, isLoading: loadingProfile, error: profileError } = useUserProfile(); // Destructure profileError
+  const { groupedTPaths: allGroupedTPaths, isLoading: loadingPlansHook, error: plansError } = useWorkoutPlans(); // Use different names to avoid conflict
+
+  const componentLoading = loadingProfile || loadingPlans || loadingPlansHook || loadingGyms; // Use internal loading states
   const dataError = profileError || plansError;
 
   const activeTPathGroup = useMemo(() => {
@@ -63,6 +79,12 @@ export const AllWorkoutsQuickStart = () => {
 
   const activeMainTPath = activeTPathGroup?.mainTPath;
   const childWorkouts = activeTPathGroup?.childWorkouts || [];
+
+  // Determine if the active gym is configured
+  const isGymConfigured = useMemo(() => {
+    if (!activeGym || !groupedTPaths) return false;
+    return groupedTPaths.some(group => group.mainTPath.gym_id === activeGym.id);
+  }, [activeGym, groupedTPaths]);
 
   const handleStartWorkout = (workoutId: string) => {
     router.push(`/workout?workoutId=${workoutId}`);
@@ -112,6 +134,10 @@ export const AllWorkoutsQuickStart = () => {
               <Skeleton className="h-10 w-10" />
             </div>
           </div>
+        ) : !activeGym ? (
+          <p className="text-muted-foreground">No active gym selected. Please set one in your profile.</p>
+        ) : !isGymConfigured ? (
+          <p className="text-muted-foreground">Your active gym "{activeGym.name}" has no workout plan. Go to <Link href="/manage-t-paths" className="text-primary underline">Manage T-Paths</Link> to set one up.</p>
         ) : isTrulyEmptyState ? (
           // Actual "no data" message
           <p className="text-muted-foreground">No workouts found for your active Transformation Path. This might happen if your session length is too short for any workouts.</p>

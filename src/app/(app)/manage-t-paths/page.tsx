@@ -12,10 +12,9 @@ import { LoadingOverlay } from "@/components/loading-overlay";
 import { EditWorkoutExercisesDialog } from "@/components/manage-t-paths/edit-workout-exercises-dialog";
 import { useWorkoutDataFetcher } from "@/hooks/use-workout-data-fetcher";
 import { useGym } from "@/components/gym-context-provider";
-import { UnconfiguredGymPrompt } from "@/components/prompts/unconfigured-gym-prompt";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SetupGymPlanPrompt } from "@/components/manage-t-paths/setup-gym-plan-prompt";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select components
+import { SetupGymPlanPrompt } from "@/components/manage-t-paths/setup-gym-plan-prompt"; // Corrected import
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type TPath = Tables<'t_paths'>;
 
