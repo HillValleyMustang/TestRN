@@ -35,7 +35,7 @@ export const NextWorkoutCard = () => {
 
   useEffect(() => {
     const determineNextWorkout = () => {
-      if (dataError || !session || !profile || !groupedTPaths) return; // Removed componentLoading from here
+      if (dataError || !session || !profile || !groupedTPaths) return;
 
       const activeMainTPathId = profile?.active_t_path_id;
 
@@ -127,23 +127,6 @@ export const NextWorkoutCard = () => {
     determineNextWorkout();
   }, [session, groupedTPaths, dataError, profile, workoutExercisesCache]);
 
-  // Show skeleton only if loading AND no data
-  if (componentLoading && (!profile || !groupedTPaths || !nextWorkout)) { 
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-center text-xl">
-            <Dumbbell className="h-5 w-5" />
-            Your Next Workout
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-24 w-full" />
-        </CardContent>
-      </Card>
-    );
-  }
-
   if (dataError) {
     return (
       <Card>
@@ -160,25 +143,6 @@ export const NextWorkoutCard = () => {
     );
   }
 
-  if (!mainTPath || !nextWorkout) { // If no main T-Path or next workout, show message
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-center text-xl">
-            <Dumbbell className="h-5 w-5" />
-            Your Next Workout
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">No active Transformation Path found or no workouts defined for your current session length. Complete onboarding or set one in your profile to get started.</p>
-          {!mainTPath && <Button onClick={() => router.push('/profile')} className="mt-4">Adjust Profile Settings</Button>}
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const workoutBgClass = getWorkoutColorClass(nextWorkout.template_name, 'bg');
-
   return (
     <Card>
       <CardHeader>
@@ -188,27 +152,40 @@ export const NextWorkoutCard = () => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h3 className="text-lg font-semibold">{nextWorkout.template_name}</h3>
-            <div className="flex items-center gap-1 text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              <span>Estimated {estimatedDuration}</span>
+        {componentLoading && (!profile || !groupedTPaths || !nextWorkout) ? (
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <Skeleton className="h-6 w-48 mb-2" />
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-24 mt-1" />
             </div>
-            {lastWorkoutName && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Last workout: {lastWorkoutName}
-              </p>
-            )}
+            <Skeleton className="h-10 w-32" />
           </div>
-          <Button 
-            onClick={() => router.push(`/workout?workoutId=${nextWorkout.id}`)} 
-            className={cn("text-white", workoutBgClass)}
-            size="lg"
-          >
-            Start Workout
-          </Button>
-        </div>
+        ) : !mainTPath || !nextWorkout ? (
+          <p className="text-muted-foreground">No active Transformation Path found or no workouts defined for your current session length. Complete onboarding or set one in your profile to get started.</p>
+        ) : (
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h3 className="text-lg font-semibold">{nextWorkout.template_name}</h3>
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <Clock className="h-4 w-4" />
+                <span>Estimated {estimatedDuration}</span>
+              </div>
+              {lastWorkoutName && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Last workout: {lastWorkoutName}
+                </p>
+              )}
+            </div>
+            <Button 
+              onClick={() => router.push(`/workout?workoutId=${nextWorkout.id}`)} 
+              className={cn("text-white", getWorkoutColorClass(nextWorkout.template_name, 'bg'))}
+              size="lg"
+            >
+              Start Workout
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

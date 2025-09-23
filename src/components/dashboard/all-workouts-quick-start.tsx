@@ -68,23 +68,6 @@ export const AllWorkoutsQuickStart = () => {
     router.push(`/workout?workoutId=${workoutId}`);
   };
 
-  // Show skeleton only if loading AND no data
-  if (componentLoading && (!profile || !groupedTPaths || !activeMainTPath || childWorkouts.length === 0)) { 
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-center text-xl">
-            <Dumbbell className="h-5 w-5" />
-            All Workouts
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-32 w-full" />
-        </CardContent>
-      </Card>
-    );
-  }
-
   if (dataError) {
     return (
       <Card>
@@ -101,54 +84,56 @@ export const AllWorkoutsQuickStart = () => {
     );
   }
 
-  if (!activeMainTPath || childWorkouts.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-center text-xl">
-            <Dumbbell className="h-5 w-5" />
-            All Workouts
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">No workouts found for your active Transformation Path. This might happen if your session length is too short for any workouts.</p>
-          <Button onClick={() => router.push('/profile')} className="mt-4">Adjust Session Length</Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-center text-xl">
           <Dumbbell className="h-5 w-5" />
-          Workouts in "{activeMainTPath.template_name}"
+          {activeMainTPath ? `Workouts in "${activeMainTPath.template_name}"` : "All Workouts"}
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {childWorkouts.map((workout: WorkoutWithLastCompleted) => {
-            const pillProps = mapWorkoutToPillProps(workout, activeMainTPath.template_name);
-            return (
-              <div key={workout.id} className="flex items-center gap-2">
-                <WorkoutPill
-                  {...pillProps}
-                  isSelected={false}
-                  onClick={() => {}}
-                  className="flex-1"
-                />
-                <Button 
-                  size="icon"
-                  onClick={() => handleStartWorkout(workout.id)}
-                  className="flex-shrink-0"
-                >
-                  <Play className="h-4 w-4" />
-                </Button>
-              </div>
-            );
-          })}
-        </div>
+        {componentLoading && (!profile || !groupedTPaths || !activeMainTPath || childWorkouts.length === 0) ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-14 flex-1" />
+              <Skeleton className="h-10 w-10" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-14 flex-1" />
+              <Skeleton className="h-10 w-10" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-14 flex-1" />
+              <Skeleton className="h-10 w-10" />
+            </div>
+          </div>
+        ) : !activeMainTPath || childWorkouts.length === 0 ? (
+          <p className="text-muted-foreground">No workouts found for your active Transformation Path. This might happen if your session length is too short for any workouts.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {childWorkouts.map((workout: WorkoutWithLastCompleted) => {
+              const pillProps = mapWorkoutToPillProps(workout, activeMainTPath.template_name);
+              return (
+                <div key={workout.id} className="flex items-center gap-2">
+                  <WorkoutPill
+                    {...pillProps}
+                    isSelected={false}
+                    onClick={() => {}}
+                    className="flex-1"
+                  />
+                  <Button 
+                    size="icon"
+                    onClick={() => handleStartWorkout(workout.id)}
+                    className="flex-shrink-0"
+                  >
+                    <Play className="h-4 w-4" />
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
