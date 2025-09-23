@@ -55,12 +55,14 @@ export default function DashboardPage() {
 
   // Effect to determine when the initial load of all critical data is complete
   useEffect(() => {
-    if (!loadingProfile && !loadingGyms && !loadingWorkoutData && profile !== undefined && activeGym !== undefined && groupedTPaths !== undefined) {
+    // isInitialLoadComplete is true when all critical data has been loaded at least once
+    // and is not in a loading state.
+    if (!loadingProfile && profile !== null && !loadingGyms && activeGym !== null && !loadingWorkoutData) {
       setIsInitialLoadComplete(true);
     } else {
       setIsInitialLoadComplete(false);
     }
-  }, [loadingProfile, loadingGyms, loadingWorkoutData, profile, activeGym, groupedTPaths]);
+  }, [loadingProfile, loadingGyms, loadingWorkoutData, profile, activeGym]);
 
   const isGymConfigured = useMemo(() => {
     if (!activeGym || !groupedTPaths) return false; // Ensure activeGym and groupedTPaths are not null/undefined
@@ -131,7 +133,19 @@ export default function DashboardPage() {
             <GymToggle />
           </div>
         )}
-        <UnconfiguredGymPrompt gymName={activeGym.name} />
+        {loadingWorkoutData ? ( // If workout data is still loading/revalidating, show skeleton for the prompt
+          <Card className="border-yellow-500 bg-yellow-50/50 dark:bg-yellow-950/20 mt-4">
+            <CardHeader>
+              <Skeleton className="h-6 w-3/4 mb-2" />
+              <Skeleton className="h-4 w-full" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-10 w-48" />
+            </CardContent>
+          </Card>
+        ) : (
+          <UnconfiguredGymPrompt gymName={activeGym.name} />
+        )}
         <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.2s' }}>
           <ActionHub />
         </div>

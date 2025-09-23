@@ -82,14 +82,21 @@ export const PreviousWorkoutsCard = ({ onViewSummary }: PreviousWorkoutsCardProp
                     </Button>
                   </div>
                   <CardContent className="pt-0 pb-3 px-3">
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Dumbbell className="h-3 w-3" /> {sessionItem.exercise_count} Exercises
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Timer className="h-3 w-3" /> {sessionItem.duration_string || 'N/A'}
-                      </span>
-                    </div>
+                    {isLoading ? ( // If individual session is loading (stale-while-revalidate)
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <Skeleton className="h-3 w-20" />
+                        <Skeleton className="h-3 w-16" />
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Dumbbell className="h-3 w-3" /> {sessionItem.exercise_count} Exercises
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Timer className="h-3 w-3" /> {sessionItem.duration_string || 'N/A'}
+                        </span>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );

@@ -35,7 +35,7 @@ export const NextWorkoutCard = () => {
 
   useEffect(() => {
     const determineNextWorkout = () => {
-      if (dataError || !session || !profile || !groupedTPaths) return; // Removed componentLoading from here
+      if (dataError || !session || !profile || !groupedTPaths) return;
 
       const activeMainTPathId = profile?.active_t_path_id;
 
@@ -143,6 +143,9 @@ export const NextWorkoutCard = () => {
     );
   }
 
+  // Determine if we are in a "truly empty" state (no main T-Path or no next workout)
+  const isTrulyEmptyState = !mainTPath || !nextWorkout;
+
   return (
     <Card>
       <CardHeader>
@@ -152,18 +155,19 @@ export const NextWorkoutCard = () => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {componentLoading && (!profile || !groupedTPaths || !nextWorkout) ? (
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <Skeleton className="h-6 w-48 mb-2" />
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-3 w-24 mt-1" />
-            </div>
-            <Skeleton className="h-10 w-32" />
+        {componentLoading && isTrulyEmptyState ? (
+          // Skeleton for the "no data" state
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-11/12" />
+            <Skeleton className="h-4 w-10/12" />
+            <Skeleton className="h-10 w-full mt-4" /> {/* Placeholder for the button */}
           </div>
-        ) : !mainTPath || !nextWorkout ? (
+        ) : isTrulyEmptyState ? (
+          // Actual "no data" message
           <p className="text-muted-foreground">No active Transformation Path found or no workouts defined for your current session length. Complete onboarding or set one in your profile to get started.</p>
         ) : (
+          // Actual content when a next workout is available
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <h3 className="text-lg font-semibold">{nextWorkout.template_name}</h3>

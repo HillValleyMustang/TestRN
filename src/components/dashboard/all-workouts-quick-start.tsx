@@ -84,6 +84,9 @@ export const AllWorkoutsQuickStart = () => {
     );
   }
 
+  // Determine if we are in a "truly empty" state
+  const isTrulyEmptyState = !activeMainTPath || childWorkouts.length === 0;
+
   return (
     <Card>
       <CardHeader>
@@ -93,42 +96,44 @@ export const AllWorkoutsQuickStart = () => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {componentLoading && (!profile || !groupedTPaths || !activeMainTPath || childWorkouts.length === 0) ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-14 flex-1" />
-              <Skeleton className="h-10 w-10" />
-            </div>
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-14 flex-1" />
-              <Skeleton className="h-10 w-10" />
-            </div>
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-14 flex-1" />
-              <Skeleton className="h-10 w-10" />
-            </div>
+        {componentLoading && isTrulyEmptyState ? (
+          // Skeleton for the "no data" state (text-like)
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-11/12" />
           </div>
-        ) : !activeMainTPath || childWorkouts.length === 0 ? (
+        ) : isTrulyEmptyState ? (
+          // Actual "no data" message
           <p className="text-muted-foreground">No workouts found for your active Transformation Path. This might happen if your session length is too short for any workouts.</p>
         ) : (
+          // Actual content when workouts are available
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {childWorkouts.map((workout: WorkoutWithLastCompleted) => {
               const pillProps = mapWorkoutToPillProps(workout, activeMainTPath.template_name);
               return (
                 <div key={workout.id} className="flex items-center gap-2">
-                  <WorkoutPill
-                    {...pillProps}
-                    isSelected={false}
-                    onClick={() => {}}
-                    className="flex-1"
-                  />
-                  <Button 
-                    size="icon"
-                    onClick={() => handleStartWorkout(workout.id)}
-                    className="flex-shrink-0"
-                  >
-                    <Play className="h-4 w-4" />
-                  </Button>
+                  {componentLoading ? ( // If individual pills are loading (stale-while-revalidate)
+                    <>
+                      <Skeleton className="h-14 flex-1" />
+                      <Skeleton className="h-10 w-10" />
+                    </>
+                  ) : (
+                    <>
+                      <WorkoutPill
+                        {...pillProps}
+                        isSelected={false}
+                        onClick={() => {}}
+                        className="flex-1"
+                      />
+                      <Button
+                        size="icon"
+                        onClick={() => handleStartWorkout(workout.id)}
+                        className="flex-shrink-0"
+                      >
+                        <Play className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
                 </div>
               );
             })}
