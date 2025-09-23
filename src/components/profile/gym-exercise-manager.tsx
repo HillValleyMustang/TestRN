@@ -500,9 +500,8 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       <AddExercisesToWorkoutDialog
         open={showAddExercisesDialog}
         onOpenChange={setShowAddExercisesDialog}
-        allExercises={fetchedAllAvailableExercises as ExerciseDefinition[]} // Cast with non-null assertion
+        // Removed allExercises, muscleGroups props
         exercisesInWorkout={[...coreExercises, ...bonusExercises].map(ex => ex.id!)} // Non-null assertion
-        muscleGroups={fetchedAvailableMuscleGroups} // Use fetchedAvailableMuscleGroups
         onAddExercises={handleAddExercisesToWorkout}
         addExerciseSourceFilter={addExerciseSourceFilter}
         setAddExerciseSourceFilter={setAddExerciseSourceFilter}

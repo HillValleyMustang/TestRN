@@ -159,6 +159,8 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const allAvailableExercises = useMemo(() => (cachedExercises || []).map(ex => ({ ...ex, id: ex.id, is_favorited_by_current_user: false, movement_type: ex.movement_type, movement_pattern: ex.movement_pattern })), [cachedExercises]);
   const availableMuscleGroups = useMemo(() => Array.from(new Set((cachedExercises || []).map(ex => ex.main_muscle))).sort(), [cachedExercises]);
 
+  const userGyms = useMemo(() => cachedUserGyms || [], [cachedUserGyms]);
+
   const exerciseGymsMap = useMemo(() => {
     const newExerciseGymsMap: Record<string, string[]> = {};
     const gymIdToNameMap = new Map<string, string>();
@@ -321,7 +323,10 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
             return { mainTPath, childWorkouts: enrichedChildWorkouts };
           })
         );
-        setGroupedTPaths(newGroupedTPaths);
+        // Deep compare before setting state to prevent unnecessary re-renders
+        if (JSON.stringify(newGroupedTPaths) !== JSON.stringify(groupedTPaths)) {
+          setGroupedTPaths(newGroupedTPaths);
+        }
       } catch (enrichError: any) {
         console.error("[WorkoutDataFetcher] Failed to enrich workout data:", enrichError);
         toast.error("Could not load workout completion dates.");
@@ -330,7 +335,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       }
     };
     enrichAndSetGroupedTPaths();
-  }, [session?.user.id, supabase, cachedTPaths, baseLoading, dataError]);
+  }, [session?.user.id, supabase, cachedTPaths, baseLoading, dataError, groupedTPaths]); // Added groupedTPaths to dependencies for deep comparison
 
   const refreshAllData = useCallback(async () => {
     await Promise.all([

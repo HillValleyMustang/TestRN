@@ -207,7 +207,6 @@ export const GlobalExerciseList = ({
             open={isManageGymsDialogOpen}
             onOpenChange={setIsManageGymsDialogOpen}
             exercise={selectedExerciseForGyms}
-            userGyms={userGyms}
             initialSelectedGymIds={new Set(
                 userGyms
                     .filter(gym => exerciseGymsMap[selectedExerciseForGyms.id as string]?.includes(gym.name))

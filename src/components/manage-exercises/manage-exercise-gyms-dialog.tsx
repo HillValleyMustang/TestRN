@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { useSession } from "@/components/session-context-provider";
 import { Tables, FetchedExerciseDefinition } from '@/types/supabase';
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher'; // NEW: Import useWorkoutDataFetcher
+import { useManageExercisesData } from '@/hooks/use-manage-exercises-data'; // NEW: Import useManageExercisesData
 
 type Gym = Tables<'gyms'>;
 
@@ -17,7 +17,7 @@ interface ManageExerciseGymsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   exercise: FetchedExerciseDefinition;
-  userGyms: Gym[];
+  // Removed userGyms prop
   initialSelectedGymIds: Set<string>;
   onSaveSuccess: () => void;
 }
@@ -26,13 +26,17 @@ export const ManageExerciseGymsDialog = ({
   open,
   onOpenChange,
   exercise,
-  userGyms, // This prop is now redundant as we use the centralized data
+  // Removed userGyms prop
   initialSelectedGymIds,
   onSaveSuccess,
 }: ManageExerciseGymsDialogProps) => {
   const { session, supabase } = useSession();
-  // NEW: Consume userGyms from useWorkoutDataFetcher
-  const { userGyms: fetchedUserGyms, refreshAllData } = useWorkoutDataFetcher();
+  // NEW: Consume userGyms from useManageExercisesData
+  const { userGyms: fetchedUserGyms, refreshExercises: refreshManageExercisesData } = useManageExercisesData({
+    sessionUserId: session?.user.id ?? null,
+    supabase,
+    setTempStatusMessage: () => {}, // Placeholder, not used here
+  });
 
   const [selectedGymIds, setSelectedGymIds] = useState<Set<string>>(initialSelectedGymIds);
   const [isSaving, setIsSaving] = useState(false);
@@ -84,7 +88,7 @@ export const ManageExerciseGymsDialog = ({
 
       toast.success(`Gym associations for "${exercise.name}" updated.`);
       onSaveSuccess();
-      refreshAllData(); // NEW: Refresh all data after saving changes
+      refreshManageExercisesData(); // NEW: Refresh all data after saving changes
       onOpenChange(false);
     } catch (err: any) {
       console.error("Failed to update gym associations:", err);

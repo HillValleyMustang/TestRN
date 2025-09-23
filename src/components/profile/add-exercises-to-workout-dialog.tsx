@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { PlusCircle, Search, Filter, XCircle } from 'lucide-react';
 import { Tables, FetchedExerciseDefinition } from '@/types/supabase';
 import { cn } from '@/lib/utils';
-import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher'; // NEW: Import useWorkoutDataFetcher
+import { useManageExercisesData } from '@/hooks/use-manage-exercises-data'; // NEW: Import useManageExercisesData
 import { useSession } from '@/components/session-context-provider'; // NEW: Import useSession
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -19,9 +19,8 @@ type ExerciseDefinition = Tables<'exercise_definitions'>;
 interface AddExercisesToWorkoutDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  allExercises: ExerciseDefinition[]; // Now receives a pre-filtered list
+  // Removed allExercises, muscleGroups props
   exercisesInWorkout: string[]; // IDs of exercises already in the current workout
-  muscleGroups: string[]; // This prop is now redundant as we use the centralized data
   onAddExercises: (exerciseIds: string[]) => void;
   addExerciseSourceFilter: 'my-exercises' | 'global-library';
   setAddExerciseSourceFilter: (filter: 'my-exercises' | 'global-library') => void;
@@ -30,9 +29,8 @@ interface AddExercisesToWorkoutDialogProps {
 export const AddExercisesToWorkoutDialog = ({
   open,
   onOpenChange,
-  allExercises, // This is now the filtered list from useWorkoutDataFetcher
+  // Removed allExercises, muscleGroups props
   exercisesInWorkout,
-  muscleGroups, // This prop is now redundant
   onAddExercises,
   addExerciseSourceFilter,
   setAddExerciseSourceFilter,
@@ -41,13 +39,18 @@ export const AddExercisesToWorkoutDialog = ({
   const [muscleFilter, setMuscleFilter] = useState("all");
   const [selectedExerciseIds, setSelectedExerciseIds] = useState<Set<string>>(new Set());
   const { session } = useSession(); // NEW: Get session for user ID
-  // NEW: Consume data from useWorkoutDataFetcher
+  // NEW: Consume data from useManageExercisesData
   const {
     allAvailableExercises: fetchedAllAvailableExercises,
     availableMuscleGroups: fetchedAvailableMuscleGroups,
     userGyms: fetchedUserGyms,
     exerciseGymsMap: fetchedExerciseGymsMap,
-  } = useWorkoutDataFetcher();
+    supabase: manageExercisesSupabase, // Renamed to avoid conflict with useSession's supabase
+  } = useManageExercisesData({
+    sessionUserId: session?.user.id ?? null,
+    supabase: session?.supabase, // Pass supabase from useSession
+    setTempStatusMessage: () => {}, // Placeholder, not used here
+  });
 
 
   // Reset selected exercises when dialog opens/closes
@@ -63,19 +66,19 @@ export const AddExercisesToWorkoutDialog = ({
     if (!session) return []; // NEW: Ensure session exists
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
     return fetchedAllAvailableExercises // Use fetchedAllAvailableExercises
-      .filter(ex => !exercisesInWorkout.includes(ex.id!)) // Exclude exercises already in workout, non-null assertion
-      .filter(ex => { // Filter by source (My Exercises vs Global)
+      .filter((ex: FetchedExerciseDefinition) => !exercisesInWorkout.includes(ex.id!)) // Exclude exercises already in workout, non-null assertion
+      .filter((ex: FetchedExerciseDefinition) => { // Filter by source (My Exercises vs Global)
         if (addExerciseSourceFilter === 'my-exercises') return ex.user_id === session.user.id; // User-owned
         if (addExerciseSourceFilter === 'global-library') return ex.user_id === null; // Global
         return false;
       })
-      .filter(ex => { // Filter by muscle group
+      .filter((ex: FetchedExerciseDefinition) => { // Filter by muscle group
         return muscleFilter === 'all' || ex.main_muscle === muscleFilter;
       })
-      .filter(ex => { // Filter by search term
+      .filter((ex: FetchedExerciseDefinition) => { // Filter by search term
         return ex.name!.toLowerCase().includes(lowerCaseSearchTerm); // Non-null assertion
       })
-      .sort((a, b) => a.name!.localeCompare(b.name!)); // Non-null assertion
+      .sort((a: FetchedExerciseDefinition, b: FetchedExerciseDefinition) => a.name!.localeCompare(b.name!)); // Non-null assertion
   }, [fetchedAllAvailableExercises, exercisesInWorkout, addExerciseSourceFilter, muscleFilter, searchTerm, session]); // Depend on fetchedAllAvailableExercises and session
 
   const handleToggleSelect = (exerciseId: string, isChecked: boolean) => {
@@ -157,7 +160,7 @@ export const AddExercisesToWorkoutDialog = ({
               <p className="text-muted-foreground text-center p-4 text-sm">No exercises found matching your criteria.</p>
             ) : (
               <ul className="space-y-1">
-                {availableExercises.map(ex => (
+                {availableExercises.map((ex: FetchedExerciseDefinition) => (
                   <li key={ex.id!} className="flex items-center justify-between p-2 text-sm hover:bg-accent rounded-md">
                     <div className="flex items-center gap-2">
                       <Checkbox

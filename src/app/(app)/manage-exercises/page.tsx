@@ -74,10 +74,7 @@ export default function ManageExercisesPage() {
     sessionUserId: session?.user.id ?? null,
     supabase,
     setTempStatusMessage: workoutFlowManager.setTempStatusMessage,
-    userGyms: workoutFlowManager.userGyms,
-    exerciseGymsMap: workoutFlowManager.exerciseGymsMap,
-    availableMuscleGroups: workoutFlowManager.availableMuscleGroups,
-    exerciseWorkoutsMap: workoutFlowManager.exerciseWorkoutsMap,
+    // Removed props that are now fetched internally by useManageExercisesData
   });
 
   // AI-related states

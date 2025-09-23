@@ -78,10 +78,6 @@ export const UserExerciseList = ({
   const [isManageGymsDialogOpen, setIsManageGymsDialogOpen] = useState(false);
   const [selectedExerciseForGyms, setSelectedExerciseForGyms] = useState<FetchedExerciseDefinition | null>(null);
 
-  // State for the new EditExerciseDialog
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [exerciseToEdit, setExerciseToEdit] = useState<FetchedExerciseDefinition | null>(null);
-
   // NEW: State for the explainer dialog
   const [isExplainerDialogOpen, setIsExplainerDialogOpen] = useState(false);
 
@@ -103,20 +99,19 @@ export const UserExerciseList = ({
   };
 
   const handleOpenEditDialog = (exercise: FetchedExerciseDefinition) => {
-    setExerciseToEdit(exercise);
-    setIsEditDialogOpen(true);
+    onEdit(exercise); // Call the parent's onEdit prop
   };
 
-  const handleEditDialogClose = () => {
-    setExerciseToEdit(null);
-    setIsEditDialogOpen(false);
-    onCancelEdit(); // Ensure parent state is reset
-  };
+  // This function is no longer needed here as editing state is managed by parent
+  // const handleEditDialogClose = () => {
+  //   onCancelEdit(); // Ensure parent state is reset
+  // };
 
-  const handleEditDialogSaveSuccess = () => {
-    onSaveSuccess(); // Trigger parent refresh
-    handleEditDialogClose(); // Close dialog and reset state
-  };
+  // This function is no longer needed here as editing state is managed by parent
+  // const handleEditDialogSaveSuccess = () => {
+  //   onSaveSuccess(); // Trigger parent refresh
+  //   handleEditDialogClose(); // Close dialog and reset state
+  // };
 
   const handleOpenManageGymsDialog = (exercise: FetchedExerciseDefinition) => {
     setSelectedExerciseForGyms(exercise);
@@ -262,7 +257,6 @@ export const UserExerciseList = ({
             open={isManageGymsDialogOpen}
             onOpenChange={setIsManageGymsDialogOpen}
             exercise={selectedExerciseForGyms}
-            userGyms={userGyms}
             initialSelectedGymIds={new Set(
                 userGyms
                     .filter(gym => exerciseGymsMap[selectedExerciseForGyms.id as string]?.includes(gym.name))
@@ -272,13 +266,15 @@ export const UserExerciseList = ({
         />
       )}
 
-      {/* New Edit Exercise Dialog */}
-      <EditExerciseDialog
-        open={isEditDialogOpen}
-        onOpenChange={handleEditDialogClose}
-        exercise={exerciseToEdit}
-        onSaveSuccess={handleEditDialogSaveSuccess}
-      />
+      {/* New Edit Exercise Dialog is now managed by the parent ManageExercisesPage */}
+      {/* {editingExercise && (
+        <EditExerciseDialog
+          open={!!editingExercise}
+          onOpenChange={handleEditDialogClose}
+          exercise={editingExercise}
+          onSaveSuccess={handleEditDialogSaveSuccess}
+        />
+      )} */}
 
       {/* NEW: Explainer Dialog */}
       <ExerciseListInfoDialog
