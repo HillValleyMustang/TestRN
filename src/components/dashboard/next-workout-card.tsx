@@ -168,9 +168,7 @@ export const NextWorkoutCard = ({
                 <Clock className="h-4 w-4" />
                 {derivedEstimatedDuration ? (
                   <span>Estimated {derivedEstimatedDuration}</span>
-                ) : (
-                  <Skeleton className="h-4 w-24" />
-                )}
+                ) : null}
               </div>
               {derivedLastWorkoutName && (
                 <p className="text-xs text-muted-foreground mt-1">
