@@ -44,7 +44,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
-  const prevStatusRef = useRef<string | null>(null); // Corrected initialization
+  const prevStatusRef = useRef<string | null>(null);
   const [tempStatusMessage, setTempStatusMessage] = useState<{ message: string; type: 'added' | 'removed' | 'success' } | null>(null);
   const [exerciseWorkoutsMap, setExerciseWorkoutsMap] = useState<Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>>({}); // ADDED STATE
   const [isProcessingDerivedData, setIsProcessingDerivedData] = useState(true);
@@ -184,28 +184,26 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     return newExerciseGymsMap;
   }, [cachedUserGyms, cachedGymExercises]);
 
-  // NEW: Derive availableGymExerciseIds and allGymExerciseIds here, using refs for stability
-  useEffect(() => {
-    if (!profile?.active_gym_id || !cachedGymExercises) {
-      if (availableGymExerciseIdsRef.current.size > 0) {
-        availableGymExerciseIdsRef.current = new Set();
-      }
-      if (allGymExerciseIdsRef.current.size > 0) {
-        allGymExerciseIdsRef.current = new Set();
-      }
-      return;
-    }
-
-    const newAvailableIds = new Set(cachedGymExercises.filter(link => link.gym_id === profile.active_gym_id).map(link => link.exercise_id));
-    const newAllLinkedIds = new Set(cachedGymExercises.map(link => link.exercise_id));
-
-    if (!areSetsEqual(newAvailableIds, availableGymExerciseIdsRef.current)) {
-      availableGymExerciseIdsRef.current = newAvailableIds;
-    }
-    if (!areSetsEqual(newAllLinkedIds, allGymExerciseIdsRef.current)) {
-      allGymExerciseIdsRef.current = newAllLinkedIds;
-    }
+  // NEW: Memoized derived sets
+  const derivedAvailableGymExerciseIds = useMemo(() => {
+    if (!profile?.active_gym_id || !cachedGymExercises) return new Set<string>();
+    return new Set(cachedGymExercises.filter(link => link.gym_id === profile.active_gym_id).map(link => link.exercise_id));
   }, [profile?.active_gym_id, cachedGymExercises]);
+
+  const derivedAllGymExerciseIds = useMemo(() => {
+    if (!cachedGymExercises) return new Set<string>();
+    return new Set(cachedGymExercises.map(link => link.exercise_id));
+  }, [cachedGymExercises]);
+
+  // Effect to update refs only when the *content* of the derived sets changes
+  useEffect(() => {
+    if (!areSetsEqual(derivedAvailableGymExerciseIds, availableGymExerciseIdsRef.current)) {
+      availableGymExerciseIdsRef.current = derivedAvailableGymExerciseIds;
+    }
+    if (!areSetsEqual(derivedAllGymExerciseIds, allGymExerciseIdsRef.current)) {
+      allGymExerciseIdsRef.current = derivedAllGymExerciseIds;
+    }
+  }, [derivedAvailableGymExerciseIds, derivedAllGymExerciseIds]); // Dependencies are the memoized derived sets
 
 
   const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, WorkoutExercise[]>>({}); // Make it a state
