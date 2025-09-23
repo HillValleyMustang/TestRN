@@ -61,8 +61,8 @@ export default function DashboardPage() {
 
   if (!memoizedSessionUserId) return null;
 
-  // After loading, if there's still no active gym, prompt user to create one.
-  if (!activeGym && !overallLoading) { // Only show this if not loading and no active gym
+  // Case 1: No active gym found after loading
+  if (!activeGym && !overallLoading) {
     return (
       <div className="flex flex-col gap-6 p-2 sm:p-4">
         <header className="animate-fade-in-slide-up">
@@ -83,6 +83,65 @@ export default function DashboardPage() {
     );
   }
 
+  // Case 2: Still loading, show a general loading state for the main content area
+  if (overallLoading) {
+    return (
+      <div className="flex flex-col gap-6 p-2 sm:p-4">
+        <header className="animate-fade-in-slide-up">
+          <h1 className="text-4xl font-bold tracking-tight">Welcome Back, {welcomeName}</h1>
+          <p className="text-muted-foreground mt-2">Ready to Train? Let's get Started!</p>
+        </header>
+        {!loadingGyms && userGyms.length > 1 && (
+          <div className="flex justify-center animate-fade-in-slide-up" style={{ animationDelay: '0.05s' }}>
+            <GymToggle />
+          </div>
+        )}
+        <Skeleton className="h-48 w-full animate-fade-in-slide-up" style={{ animationDelay: '0.1s' }} />
+        <Skeleton className="h-48 w-full animate-fade-in-slide-up" style={{ animationDelay: '0.15s' }} />
+        <Skeleton className="h-48 w-full animate-fade-in-slide-up" style={{ animationDelay: '0.2s' }} />
+        <Skeleton className="h-48 w-full animate-fade-in-slide-up" style={{ animationDelay: '0.3s' }} />
+        <Skeleton className="h-48 w-full animate-fade-in-slide-up" style={{ animationDelay: '0.4s' }} />
+      </div>
+    );
+  }
+
+  // Case 3: All data loaded, activeGym exists, but it's unconfigured
+  if (!isGymConfigured && activeGym) {
+    return (
+      <div className="flex flex-col gap-6 p-2 sm:p-4">
+        <header className="animate-fade-in-slide-up" style={{ animationDelay: '0s' }}>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-4xl font-bold tracking-tight">Welcome Back, {welcomeName}</h1>
+              <p className="text-muted-foreground mt-2">Ready to Train? Let's get Started!</p>
+            </div>
+          </div>
+        </header>
+        {!loadingGyms && userGyms.length > 1 && (
+          <div className="flex justify-center animate-fade-in-slide-up" style={{ animationDelay: '0.05s' }}>
+            <GymToggle />
+          </div>
+        )}
+        <UnconfiguredGymPrompt gymName={activeGym.name} />
+        <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.2s' }}>
+          <ActionHub />
+        </div>
+        <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.3s' }}>
+          <WeeklyVolumeChart />
+        </div>
+        <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.4s' }}>
+          <PreviousWorkoutsCard onViewSummary={handleViewSummary} />
+        </div>
+        <WorkoutSummaryModal
+          open={showSummaryModal}
+          onOpenChange={setShowSummaryModal}
+          sessionId={summarySessionId}
+        />
+      </div>
+    );
+  }
+
+  // Case 4: All data loaded, activeGym exists, and it's configured
   return (
     <div className="flex flex-col gap-6 p-2 sm:p-4">
       <header className="animate-fade-in-slide-up" style={{ animationDelay: '0s' }}>
@@ -100,18 +159,14 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {!isGymConfigured && activeGym ? ( // Only show prompt if activeGym exists but is not configured
-        <UnconfiguredGymPrompt gymName={activeGym.name} />
-      ) : (
-        <>
-          <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.1s' }}>
-            <NextWorkoutCard isLoading={overallLoading} />
-          </div>
-          <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.15s' }}>
-            <AllWorkoutsQuickStart isLoading={overallLoading} />
-          </div>
-        </>
-      )}
+      <>
+        <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.1s' }}>
+          <NextWorkoutCard />
+        </div>
+        <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.15s' }}>
+          <AllWorkoutsQuickStart />
+        </div>
+      </>
 
       <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.2s' }}>
         <ActionHub />

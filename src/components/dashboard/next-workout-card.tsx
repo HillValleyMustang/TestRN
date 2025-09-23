@@ -19,11 +19,7 @@ type TPath = Tables<'t_paths'>;
 const ULUL_ORDER = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
 const PPL_ORDER = ['Push', 'Pull', 'Legs'];
 
-interface NextWorkoutCardProps {
-  isLoading: boolean; // New prop
-}
-
-export const NextWorkoutCard = ({ isLoading }: NextWorkoutCardProps) => {
+export const NextWorkoutCard = () => { // Removed isLoading prop
   const router = useRouter();
   const { session } = useSession();
   const { profile, isLoading: loadingProfile, error: profileError } = useUserProfile();
@@ -34,11 +30,12 @@ export const NextWorkoutCard = ({ isLoading }: NextWorkoutCardProps) => {
   const [estimatedDuration, setEstimatedDuration] = useState<string>('N/A');
   const [lastWorkoutName, setLastWorkoutName] = useState<string | null>(null);
 
+  const componentLoading = loadingProfile || loadingPlans; // Use internal loading states
   const dataError = profileError || plansError;
 
   useEffect(() => {
     const determineNextWorkout = () => {
-      if (isLoading || dataError || !session || !profile || !groupedTPaths) return;
+      if (componentLoading || dataError || !session || !profile || !groupedTPaths) return;
 
       const activeMainTPathId = profile?.active_t_path_id;
 
@@ -128,9 +125,9 @@ export const NextWorkoutCard = ({ isLoading }: NextWorkoutCardProps) => {
     };
 
     determineNextWorkout();
-  }, [session, groupedTPaths, isLoading, dataError, profile, workoutExercisesCache]);
+  }, [session, groupedTPaths, componentLoading, dataError, profile, workoutExercisesCache]);
 
-  if (isLoading && !nextWorkout) { // Show skeleton only if loading AND no data
+  if (componentLoading && !nextWorkout) { // Show skeleton only if loading AND no data
     return (
       <Card>
         <CardHeader>

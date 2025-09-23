@@ -46,15 +46,12 @@ const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName:
   };
 };
 
-interface AllWorkoutsQuickStartProps {
-  isLoading: boolean; // New prop
-}
-
-export const AllWorkoutsQuickStart = ({ isLoading }: AllWorkoutsQuickStartProps) => {
+export const AllWorkoutsQuickStart = () => { // Removed isLoading prop
   const router = useRouter();
   const { profile, isLoading: loadingProfile, error: profileError } = useUserProfile();
   const { groupedTPaths, isLoading: loadingPlans, error: plansError } = useWorkoutPlans();
 
+  const componentLoading = loadingProfile || loadingPlans; // Use internal loading states
   const dataError = profileError || plansError;
 
   const activeTPathGroup = useMemo(() => {
@@ -71,7 +68,7 @@ export const AllWorkoutsQuickStart = ({ isLoading }: AllWorkoutsQuickStartProps)
     router.push(`/workout?workoutId=${workoutId}`);
   };
 
-  if (isLoading && (!activeMainTPath || childWorkouts.length === 0)) { // Show skeleton only if loading AND no data
+  if (componentLoading && (!activeMainTPath || childWorkouts.length === 0)) { // Show skeleton only if loading AND no data
     return (
       <Card>
         <CardHeader>
