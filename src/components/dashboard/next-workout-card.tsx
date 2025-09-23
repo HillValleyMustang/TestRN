@@ -162,19 +162,15 @@ export const NextWorkoutCard = ({
           <p className="text-muted-foreground text-center py-4">No active Transformation Path found or no workouts defined for your current session length. Complete onboarding or set one in your profile to get started.</p>
         ) : (
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h3 className="text-lg font-semibold">{nextWorkout?.template_name}</h3>
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <Clock className="h-4 w-4" />
-                {derivedEstimatedDuration ? (
-                  <span>Estimated {derivedEstimatedDuration}</span>
-                ) : null}
+            <div className="flex flex-col space-y-1">
+              <h3 className="text-lg font-semibold min-h-[1.75rem]">{nextWorkout?.template_name}</h3>
+              <div className="flex items-center gap-1 text-muted-foreground min-h-[1.25rem]">
+                {derivedEstimatedDuration && <Clock className="h-4 w-4" />}
+                {derivedEstimatedDuration && <span>Estimated {derivedEstimatedDuration}</span>}
               </div>
-              {derivedLastWorkoutName && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Last workout: {derivedLastWorkoutName}
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground min-h-[1rem]">
+                {derivedLastWorkoutName && `Last workout: ${derivedLastWorkoutName}`}
+              </p>
             </div>
             <Button 
               onClick={() => router.push(`/workout?workoutId=${nextWorkout?.id}`)} 
