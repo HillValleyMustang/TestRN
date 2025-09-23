@@ -41,16 +41,8 @@ export const NextWorkoutCard = ({
   const { session } = useSession();
   const { workoutExercisesCache, error: plansError } = useWorkoutPlans();
   
-  // Removed mainTPath useState, it will now be derived in useMemo
-
-  const componentLoading = loadingPlans || loadingGyms;
+  const isLoading = loadingPlans || loadingGyms;
   const dataError = plansError;
-
-  // Determine if the active gym is configured
-  const isGymConfigured = useMemo(() => {
-    if (!activeGym || !groupedTPaths) return false;
-    return groupedTPaths.some(group => group.mainTPath.gym_id === activeGym.id);
-  }, [activeGym, groupedTPaths]);
 
   // Derive nextWorkout, estimatedDuration, lastWorkoutName, and mainTPath using useMemo
   const { nextWorkout, derivedEstimatedDuration, derivedLastWorkoutName, derivedMainTPath } = useMemo(() => {
@@ -137,27 +129,12 @@ export const NextWorkoutCard = ({
     return { nextWorkout: currentNextWorkout, derivedEstimatedDuration: currentEstimatedDuration, derivedLastWorkoutName: currentLastWorkoutName, derivedMainTPath: currentMainTPath };
   }, [session, groupedTPaths, dataError, profile, workoutExercisesCache, activeGym]);
 
-  // Removed the separate useEffect for mainTPath as it's now derived in useMemo
+  const isGymConfigured = useMemo(() => {
+    if (!activeGym || !groupedTPaths) return false;
+    return groupedTPaths.some(group => group.mainTPath.gym_id === activeGym.id);
+  }, [activeGym, groupedTPaths]);
 
-
-  if (dataError) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-center text-xl">
-            <Dumbbell className="h-5 w-5" />
-            Your Next Workout
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-destructive">Error loading next workout: {dataError}</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Determine if we are in a "truly empty" state (no main T-Path or no next workout)
-  const isTrulyEmptyState = !derivedMainTPath || !nextWorkout; // Use derivedMainTPath here
+  const isTrulyEmptyState = !derivedMainTPath || !nextWorkout;
 
   return (
     <Card>
@@ -168,16 +145,17 @@ export const NextWorkoutCard = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="min-h-[120px] flex flex-col justify-center">
-        {componentLoading ? (
-          // Skeleton for the "no data" state
+        {isLoading ? (
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <Skeleton className="h-6 w-48 mb-2" /> {/* Placeholder for workout name */}
-              <Skeleton className="h-4 w-32" /> {/* Placeholder for estimated duration */}
-              <Skeleton className="h-3 w-24 mt-1" /> {/* Placeholder for last workout */}
+              <Skeleton className="h-6 w-48 mb-2" />
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-24 mt-1" />
             </div>
-            <Skeleton className="h-10 w-32" /> {/* Placeholder for the button */}
+            <Skeleton className="h-10 w-32" />
           </div>
+        ) : dataError ? (
+          <p className="text-destructive">Error loading next workout: {dataError}</p>
         ) : !activeGym ? (
           <div className="text-muted-foreground text-center py-4">
             <p className="mb-4">No active gym selected. Please set one in your profile.</p>
@@ -188,10 +166,8 @@ export const NextWorkoutCard = ({
             <p className="mb-4">Your active gym "{activeGym.name}" has no workout plan. Go to <Link href="/manage-t-paths" className="text-primary underline">Manage T-Paths</Link> to set one up.</p>
           </div>
         ) : isTrulyEmptyState ? (
-          // Actual "no data" message
           <p className="text-muted-foreground text-center py-4">No active Transformation Path found or no workouts defined for your current session length. Complete onboarding or set one in your profile to get started.</p>
         ) : (
-          // Actual content when a next workout is available
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <h3 className="text-lg font-semibold">{nextWorkout?.template_name}</h3>
@@ -200,7 +176,7 @@ export const NextWorkoutCard = ({
                 {derivedEstimatedDuration ? (
                   <span>Estimated {derivedEstimatedDuration}</span>
                 ) : (
-                  <Skeleton className="h-4 w-24" /> // Skeleton for duration
+                  <Skeleton className="h-4 w-24" />
                 )}
               </div>
               {derivedLastWorkoutName && (

@@ -69,10 +69,7 @@ export const AllWorkoutsQuickStart = ({
   dataError, // NEW: Destructure
 }: AllWorkoutsQuickStartProps) => {
   const router = useRouter();
-  // Removed: const { workoutExercisesCache, error: plansError } = useWorkoutPlans(); // Removed this hook call
-
-  const componentLoading = loadingPlans || loadingGyms; // Use internal loading states
-  // Removed: const dataError = plansError; // Now using prop
+  const isLoading = loadingPlans || loadingGyms;
 
   const activeTPathGroup = useMemo(() => {
     if (!profile || !profile.active_t_path_id || groupedTPaths.length === 0) {
@@ -94,23 +91,6 @@ export const AllWorkoutsQuickStart = ({
     router.push(`/workout?workoutId=${workoutId}`);
   };
 
-  if (dataError) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-center text-xl">
-            <Dumbbell className="h-5 w-5" />
-            All Workouts
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-destructive">Error loading workouts: {dataError}</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Determine if we are in a "truly empty" state
   const isTrulyEmptyState = !activeMainTPath || childWorkouts.length === 0;
 
   return (
@@ -121,9 +101,8 @@ export const AllWorkoutsQuickStart = ({
           {activeMainTPath ? `Workouts in "${activeMainTPath.template_name}"` : "All Workouts"}
         </CardTitle>
       </CardHeader>
-      <CardContent className="min-h-[120px] flex flex-col justify-center"> {/* Added min-h and flex styles */}
-        {componentLoading && isTrulyEmptyState ? (
-          // Skeleton for the "no data" state (text-like)
+      <CardContent className="min-h-[120px] flex flex-col justify-center">
+        {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="flex items-center gap-2">
               <Skeleton className="h-14 flex-1" />
@@ -138,15 +117,15 @@ export const AllWorkoutsQuickStart = ({
               <Skeleton className="h-10 w-10" />
             </div>
           </div>
+        ) : dataError ? (
+          <p className="text-destructive">Error loading workouts: {dataError}</p>
         ) : !activeGym ? (
           <p className="text-muted-foreground text-center py-4">No active gym selected. Please set one in your profile.</p>
         ) : !isGymConfigured ? (
           <p className="text-muted-foreground text-center py-4">Your active gym "{activeGym.name}" has no workout plan. Go to <Link href="/manage-t-paths" className="text-primary underline">Manage T-Paths</Link> to set one up.</p>
         ) : isTrulyEmptyState ? (
-          // Actual "no data" message
           <p className="text-muted-foreground text-center py-4">No workouts found for your active Transformation Path. This might happen if your session length is too short for any workouts.</p>
         ) : (
-          // Actual content when workouts are available
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {childWorkouts.map((workout: WorkoutWithLastCompleted) => {
               const pillProps = mapWorkoutToPillProps(workout, activeMainTPath!.template_name); // Non-null assertion as isTrulyEmptyState handles null
