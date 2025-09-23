@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 type Profile = Tables<'profiles'>;
 
 export default function DashboardPage() {
-  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
+  const { session, supabase, memoizedSessionUserId } = useSession();
   const router = useRouter();
   const { userGyms, activeGym, loadingGyms } = useGym();
   const { groupedTPaths, loadingData: loadingWorkoutData, profile, loadingData: loadingProfile } = useWorkoutDataFetcher();
@@ -38,7 +38,7 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    if (!memoizedSessionUserId) { // Use memoized ID
+    if (!memoizedSessionUserId) {
       router.push('/login');
       return;
     }
@@ -50,33 +50,19 @@ export default function DashboardPage() {
       // If not loading and still no profile, they need to onboard
       router.push('/onboarding');
     }
-  }, [memoizedSessionUserId, router, profile, loadingProfile]); // Depend on memoized ID
+  }, [memoizedSessionUserId, router, profile, loadingProfile]);
 
   const isGymConfigured = useMemo(() => {
     if (loadingWorkoutData || !activeGym) return false; 
     return groupedTPaths.some(group => group.mainTPath.gym_id === activeGym.id);
   }, [activeGym, groupedTPaths, loadingWorkoutData]);
 
-  const loading = loadingProfile || loadingGyms || loadingWorkoutData;
+  const overallLoading = loadingProfile || loadingGyms || loadingWorkoutData;
 
-  if (loading) {
-    return (
-      <div className="flex flex-col gap-6 p-2 sm:p-4">
-        <header>
-          <Skeleton className="h-10 w-3/4" />
-          <Skeleton className="h-4 w-1/2 mt-2" />
-        </header>
-        <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-80 w-full" />
-      </div>
-    );
-  }
-
-  if (!memoizedSessionUserId) return null; // Use memoized ID
+  if (!memoizedSessionUserId) return null;
 
   // After loading, if there's still no active gym, prompt user to create one.
-  if (!activeGym) {
+  if (!activeGym && !overallLoading) { // Only show this if not loading and no active gym
     return (
       <div className="flex flex-col gap-6 p-2 sm:p-4">
         <header className="animate-fade-in-slide-up">
@@ -114,15 +100,15 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {!isGymConfigured ? (
+      {!isGymConfigured && activeGym ? ( // Only show prompt if activeGym exists but is not configured
         <UnconfiguredGymPrompt gymName={activeGym.name} />
       ) : (
         <>
           <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.1s' }}>
-            <NextWorkoutCard />
+            <NextWorkoutCard isLoading={overallLoading} />
           </div>
           <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.15s' }}>
-            <AllWorkoutsQuickStart />
+            <AllWorkoutsQuickStart isLoading={overallLoading} />
           </div>
         </>
       )}

@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { cn, getWorkoutColorClass, getExerciseCounts } from '@/lib/utils';
 import { useUserProfile } from '@/hooks/data/useUserProfile';
 import { useWorkoutPlans } from '@/hooks/data/useWorkoutPlans';
+import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
 
 type TPath = Tables<'t_paths'>;
 
@@ -18,7 +19,11 @@ type TPath = Tables<'t_paths'>;
 const ULUL_ORDER = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
 const PPL_ORDER = ['Push', 'Pull', 'Legs'];
 
-export const NextWorkoutCard = () => {
+interface NextWorkoutCardProps {
+  isLoading: boolean; // New prop
+}
+
+export const NextWorkoutCard = ({ isLoading }: NextWorkoutCardProps) => {
   const router = useRouter();
   const { session } = useSession();
   const { profile, isLoading: loadingProfile, error: profileError } = useUserProfile();
@@ -29,12 +34,11 @@ export const NextWorkoutCard = () => {
   const [estimatedDuration, setEstimatedDuration] = useState<string>('N/A');
   const [lastWorkoutName, setLastWorkoutName] = useState<string | null>(null);
 
-  const loadingData = loadingProfile || loadingPlans;
   const dataError = profileError || plansError;
 
   useEffect(() => {
     const determineNextWorkout = () => {
-      if (loadingData || dataError || !session || !profile || !groupedTPaths) return;
+      if (isLoading || dataError || !session || !profile || !groupedTPaths) return;
 
       const activeMainTPathId = profile?.active_t_path_id;
 
@@ -124,9 +128,9 @@ export const NextWorkoutCard = () => {
     };
 
     determineNextWorkout();
-  }, [session, groupedTPaths, loadingData, dataError, profile, workoutExercisesCache]);
+  }, [session, groupedTPaths, isLoading, dataError, profile, workoutExercisesCache]);
 
-  if (loadingData) {
+  if (isLoading && !nextWorkout) { // Show skeleton only if loading AND no data
     return (
       <Card>
         <CardHeader>
@@ -136,7 +140,7 @@ export const NextWorkoutCard = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">Loading...</p>
+          <Skeleton className="h-24 w-full" />
         </CardContent>
       </Card>
     );
@@ -158,7 +162,7 @@ export const NextWorkoutCard = () => {
     );
   }
 
-  if (!mainTPath) {
+  if (!mainTPath || !nextWorkout) { // If no main T-Path or next workout, show message
     return (
       <Card>
         <CardHeader>
@@ -168,24 +172,8 @@ export const NextWorkoutCard = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">No active Transformation Path found. Complete onboarding or set one in your profile to get started.</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!nextWorkout) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-center text-xl">
-            <Dumbbell className="h-5 w-5" />
-            Your Next Workout
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">No workouts found for your active Transformation Path. This might happen if your session length is too short for any workouts.</p>
-          <Button onClick={() => router.push('/profile')} className="mt-4">Adjust Session Length</Button>
+          <p className="text-muted-foreground">No active Transformation Path found or no workouts defined for your current session length. Complete onboarding or set one in your profile to get started.</p>
+          {!mainTPath && <Button onClick={() => router.push('/profile')} className="mt-4">Adjust Profile Settings</Button>}
         </CardContent>
       </Card>
     );

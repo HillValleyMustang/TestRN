@@ -10,6 +10,7 @@ import { WorkoutPill, WorkoutPillProps } from '@/components/workout-flow/workout
 import { useUserProfile } from '@/hooks/data/useUserProfile';
 import { useWorkoutPlans } from '@/hooks/data/useWorkoutPlans';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
 
 type TPath = Tables<'t_paths'>;
 
@@ -45,12 +46,15 @@ const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName:
   };
 };
 
-export const AllWorkoutsQuickStart = () => {
+interface AllWorkoutsQuickStartProps {
+  isLoading: boolean; // New prop
+}
+
+export const AllWorkoutsQuickStart = ({ isLoading }: AllWorkoutsQuickStartProps) => {
   const router = useRouter();
   const { profile, isLoading: loadingProfile, error: profileError } = useUserProfile();
   const { groupedTPaths, isLoading: loadingPlans, error: plansError } = useWorkoutPlans();
 
-  const loadingData = loadingProfile || loadingPlans;
   const dataError = profileError || plansError;
 
   const activeTPathGroup = useMemo(() => {
@@ -67,7 +71,7 @@ export const AllWorkoutsQuickStart = () => {
     router.push(`/workout?workoutId=${workoutId}`);
   };
 
-  if (loadingData) {
+  if (isLoading && (!activeMainTPath || childWorkouts.length === 0)) { // Show skeleton only if loading AND no data
     return (
       <Card>
         <CardHeader>
@@ -77,7 +81,7 @@ export const AllWorkoutsQuickStart = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">Loading workouts...</p>
+          <Skeleton className="h-32 w-full" />
         </CardContent>
       </Card>
     );
