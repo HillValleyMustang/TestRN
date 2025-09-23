@@ -35,7 +35,7 @@ export const NextWorkoutCard = () => {
 
   useEffect(() => {
     const determineNextWorkout = () => {
-      if (dataError || !session || !profile || !groupedTPaths) return;
+      if (dataError || !session || !profile || !groupedTPaths) return; // Removed componentLoading from here
 
       const activeMainTPathId = profile?.active_t_path_id;
 
@@ -157,11 +157,13 @@ export const NextWorkoutCard = () => {
       <CardContent>
         {componentLoading && isTrulyEmptyState ? (
           // Skeleton for the "no data" state
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-11/12" />
-            <Skeleton className="h-4 w-10/12" />
-            <Skeleton className="h-10 w-full mt-4" /> {/* Placeholder for the button */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <Skeleton className="h-6 w-48 mb-2" /> {/* Placeholder for workout name */}
+              <Skeleton className="h-4 w-32" /> {/* Placeholder for estimated duration */}
+              <Skeleton className="h-3 w-24 mt-1" /> {/* Placeholder for last workout */}
+            </div>
+            <Skeleton className="h-10 w-32" /> {/* Placeholder for the button */}
           </div>
         ) : isTrulyEmptyState ? (
           // Actual "no data" message

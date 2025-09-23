@@ -98,9 +98,19 @@ export const AllWorkoutsQuickStart = () => {
       <CardContent>
         {componentLoading && isTrulyEmptyState ? (
           // Skeleton for the "no data" state (text-like)
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-11/12" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-14 flex-1" />
+              <Skeleton className="h-10 w-10" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-14 flex-1" />
+              <Skeleton className="h-10 w-10" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-14 flex-1" />
+              <Skeleton className="h-10 w-10" />
+            </div>
           </div>
         ) : isTrulyEmptyState ? (
           // Actual "no data" message
@@ -112,28 +122,19 @@ export const AllWorkoutsQuickStart = () => {
               const pillProps = mapWorkoutToPillProps(workout, activeMainTPath.template_name);
               return (
                 <div key={workout.id} className="flex items-center gap-2">
-                  {componentLoading ? ( // If individual pills are loading (stale-while-revalidate)
-                    <>
-                      <Skeleton className="h-14 flex-1" />
-                      <Skeleton className="h-10 w-10" />
-                    </>
-                  ) : (
-                    <>
-                      <WorkoutPill
-                        {...pillProps}
-                        isSelected={false}
-                        onClick={() => {}}
-                        className="flex-1"
-                      />
-                      <Button
-                        size="icon"
-                        onClick={() => handleStartWorkout(workout.id)}
-                        className="flex-shrink-0"
-                      >
-                        <Play className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
+                  <WorkoutPill
+                    {...pillProps}
+                    isSelected={false}
+                    onClick={() => {}}
+                    className="flex-1"
+                  />
+                  <Button 
+                    size="icon"
+                    onClick={() => handleStartWorkout(workout.id)}
+                    className="flex-shrink-0"
+                  >
+                    <Play className="h-4 w-4" />
+                  </Button>
                 </div>
               );
             })}
