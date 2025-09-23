@@ -81,7 +81,7 @@ export default function DashboardPage() {
           // No need to pass workoutExercisesCache here, it's accessed internally by NextWorkoutCard
         />
       </div>
-      <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.4s' }}>
+      <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.5s' }}>
         <AllWorkoutsQuickStart 
           profile={profile}
           groupedTPaths={groupedTPaths}
@@ -93,13 +93,13 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.6s' }}>
+      <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.7s' }}>
         <ActionHub />
       </div>
-      <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.75s' }}>
+      <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.85s' }}>
         <WeeklyVolumeChart />
       </div>
-      <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.9s' }}>
+      <div className="animate-fade-in-slide-up" style={{ animationDelay: '1s' }}>
         <PreviousWorkoutsCard onViewSummary={handleViewSummary} />
       </div>
       <WorkoutSummaryModal

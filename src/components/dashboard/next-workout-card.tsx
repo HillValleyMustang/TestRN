@@ -141,7 +141,7 @@ export const NextWorkoutCard = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-center text-xl">
           <Dumbbell className="h-5 w-5" />
-          Your Next Workout
+          {isLoading ? <Skeleton className="h-6 w-48" /> : "Your Next Workout"}
         </CardTitle>
       </CardHeader>
       <CardContent className="min-h-[120px] flex flex-col justify-center">

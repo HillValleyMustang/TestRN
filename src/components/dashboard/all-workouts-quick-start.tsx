@@ -98,7 +98,7 @@ export const AllWorkoutsQuickStart = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-center text-xl">
           <Dumbbell className="h-5 w-5" />
-          {activeMainTPath ? `Workouts in "${activeMainTPath.template_name}"` : "All Workouts"}
+          {isLoading ? <Skeleton className="h-6 w-48" /> : (activeMainTPath ? `Workouts in "${activeMainTPath.template_name}"` : "All Workouts")}
         </CardTitle>
       </CardHeader>
       <CardContent className="min-h-[120px] flex flex-col justify-center">
