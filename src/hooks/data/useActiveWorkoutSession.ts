@@ -80,6 +80,13 @@ export const useActiveWorkoutSession = ({ groupedTPaths, workoutExercisesCache, 
 
   const selectWorkout = useCallback(async (workoutId: string | null) => {
     console.log(`[ActiveWorkoutSession] selectWorkout called with workoutId: ${workoutId}`);
+
+    // NEW: If the selected workout is already active, do nothing.
+    if (activeWorkout?.id === workoutId) {
+      console.log(`[ActiveWorkoutSession] Workout ${workoutId} is already active. Skipping update.`);
+      return;
+    }
+
     await resetWorkoutSession();
     if (!workoutId) return;
 
@@ -97,7 +104,7 @@ export const useActiveWorkoutSession = ({ groupedTPaths, workoutExercisesCache, 
       toast.error("Selected workout not found.");
       console.error("[ActiveWorkoutSession] Error: Selected workout not found for ID:", workoutId);
     }
-  }, [resetWorkoutSession, groupedTPaths]);
+  }, [resetWorkoutSession, groupedTPaths, activeWorkout]); // Added activeWorkout to dependencies
 
   // Memoize filtered exercises to prevent unnecessary re-renders
   const filteredExercises = useMemo(() => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useSession } from '@/components/session-context-provider';
 import { Profile } from '@/types/supabase';
 import { useCacheAndRevalidate } from '@/hooks/use-cache-and-revalidate';
@@ -15,7 +15,7 @@ export const useUserProfile = () => {
   const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
 
   const { 
-    data: cachedProfile, 
+    data: cachedProfileArray, // Renamed to emphasize it's an array
     loading: isLoading, 
     error, 
     refresh 
@@ -31,7 +31,8 @@ export const useUserProfile = () => {
     sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
-  const profile = cachedProfile?.[0] || null;
+  // Use useMemo to ensure the 'profile' object itself is referentially stable
+  const profile = useMemo(() => cachedProfileArray?.[0] || null, [cachedProfileArray]);
 
   return { profile, isLoading, error, refresh };
 };
