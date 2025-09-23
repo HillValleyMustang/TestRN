@@ -26,7 +26,7 @@ interface UseEditWorkoutExercisesProps {
 }
 
 export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseEditWorkoutExercisesProps) => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   // NEW: Consume data from useWorkoutDataFetcher
   const {
     allAvailableExercises: fetchedAllAvailableExercises,
@@ -54,7 +54,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
   const [showConfirmResetDialog, setShowConfirmResetDialog] = useState(false);
 
   const fetchWorkoutData = useCallback(async () => {
-    if (!session || !workoutId) return;
+    if (!memoizedSessionUserId || !workoutId) return; // Use memoized ID
     setLoading(true);
     try {
       // Fetch only t_path_exercises for this specific workout, selecting all required columns
@@ -85,7 +85,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     } finally {
       setLoading(false);
     }
-  }, [session, supabase, workoutId, fetchedAllAvailableExercises]); // Depend on fetchedAllAvailableExercises
+  }, [memoizedSessionUserId, supabase, workoutId, fetchedAllAvailableExercises]); // Depend on memoized ID and fetchedAllAvailableExercises
 
   useEffect(() => {
     if (open) {
@@ -94,10 +94,10 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
   }, [open, fetchWorkoutData]);
 
   const filteredExercisesForDropdown = useMemo(() => {
-    if (!session) return [];
+    if (!memoizedSessionUserId) return []; // Use memoized ID
     return fetchedAllAvailableExercises
       .filter(ex => { // Source filter
-        if (addExerciseFilter === 'my-exercises') return ex.user_id === session.user.id;
+        if (addExerciseFilter === 'my-exercises') return ex.user_id === memoizedSessionUserId; // Use memoized ID
         if (addExerciseFilter === 'global-library') return ex.user_id === null;
         return false;
       })
@@ -110,7 +110,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         return exerciseGyms.includes(fetchedUserGyms.find(g => g.id === selectedGymFilter)?.name || ''); // Use fetchedUserGyms
       })
       .filter(ex => !exercises.some(existingEx => existingEx.id === ex.id)); // Exclude already added
-  }, [fetchedAllAvailableExercises, addExerciseFilter, selectedMuscleFilter, selectedGymFilter, exercises, fetchedExerciseGymsMap, fetchedUserGyms, session]);
+  }, [fetchedAllAvailableExercises, addExerciseFilter, selectedMuscleFilter, selectedGymFilter, exercises, fetchedExerciseGymsMap, fetchedUserGyms, memoizedSessionUserId]); // Depend on memoized ID
 
   const handleDragEnd = useCallback((event: any) => {
     const { active, over } = event;
@@ -127,7 +127,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
   }, []);
 
   const handleAddExerciseWithBonusStatus = useCallback(async (isBonus: boolean) => {
-    if (!exerciseToAddDetails || !session) {
+    if (!exerciseToAddDetails || !memoizedSessionUserId) { // Use memoized ID
       toast.error("Cannot add exercise: details or session missing."); // Added toast.error
       return;
     }
@@ -189,7 +189,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     } finally {
       setIsSaving(false);
     }
-  }, [session, supabase, workoutId, exercises, exerciseToAddDetails, refreshAllData]);
+  }, [memoizedSessionUserId, supabase, workoutId, exercises, exerciseToAddDetails, refreshAllData]); // Depend on memoized ID
 
   const handleSelectAndPromptBonus = useCallback(() => {
     if (!selectedExerciseToAdd) {
@@ -234,7 +234,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       toast.success("Exercise removed from workout!"); // Changed to toast.success
       refreshAllData(); // Refresh all data after removing an exercise
     } catch (err: any) {
-      console.error("Failed to remove exercise:", JSON.stringify(err, null, 2));
+      console.error("Error removing exercise:", JSON.stringify(err, null, 2));
       toast.error("Failed to remove exercise."); // Changed to toast.error
     } finally {
       setIsSaving(false);
@@ -243,7 +243,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
   }, [exercises, exerciseToRemove, supabase, refreshAllData]);
 
   const handleToggleBonusStatus = useCallback(async (exercise: WorkoutExerciseWithDetails) => {
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       toast.error("You must be logged in to toggle bonus status."); // Added toast.error
       return;
     }
@@ -272,10 +272,10 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     } finally {
       setIsSaving(false);
     }
-  }, [session, supabase, refreshAllData]);
+  }, [memoizedSessionUserId, supabase, refreshAllData]); // Depend on memoized ID
 
   const handleResetToDefaults = useCallback(async () => {
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       toast.error("You must be logged in to reset to defaults."); // Added toast.error
       return;
     }
@@ -287,7 +287,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         .from('t_paths')
         .select('parent_t_path_id')
         .eq('id', workoutId)
-        .eq('user_id', session.user.id)
+        .eq('user_id', memoizedSessionUserId) // Use memoized ID
         .single();
 
       if (childWorkoutError || !childWorkoutData || !childWorkoutData.parent_t_path_id) {
@@ -300,7 +300,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
+          'Authorization': `Bearer ${session?.access_token}`
         },
         body: JSON.stringify({ tPathId: parentTPathId })
       });
@@ -320,7 +320,7 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
     } finally {
       setIsSaving(false);
     }
-  }, [session, supabase, workoutId, onSaveSuccess, fetchWorkoutData, refreshAllData]);
+  }, [memoizedSessionUserId, session, supabase, workoutId, onSaveSuccess, fetchWorkoutData, refreshAllData]); // Depend on memoized ID
 
   const handleSaveOrder = useCallback(async () => {
     setIsSaving(true);

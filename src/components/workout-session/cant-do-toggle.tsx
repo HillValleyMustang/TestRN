@@ -21,6 +21,7 @@ interface CantDoToggleProps {
 
 export const CantDoToggle = ({ open, onOpenChange, exercise, onRemove, onSubstitute }: CantDoToggleProps) => {
   const [showSubstitutionDialog, setShowSubstitutionDialog] = React.useState(false);
+  const { memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
 
   const handleSubstitute = () => {
     onOpenChange(false); // Close current dialog

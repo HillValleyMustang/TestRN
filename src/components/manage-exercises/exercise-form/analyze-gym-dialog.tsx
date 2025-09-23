@@ -19,7 +19,7 @@ interface AnalyseGymDialogProps {
 }
 
 export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: AnalyseGymDialogProps) => {
-  const { session } = useSession();
+  const { session, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [imagePreviews, setImagePreviews] = useState<string[]>([]
 );
   const [base64Images, setBase64Images] = useState<string[]>([]);
@@ -79,7 +79,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
       toast.error("Please upload at least one image first."); // Changed to toast.error
       return;
     }
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       toast.error("You must be logged in to use this feature."); // Changed to toast.error
       return;
     }
@@ -90,7 +90,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${session?.access_token}`, // Use session?.access_token
         },
         body: JSON.stringify({ base64Images }),
       });

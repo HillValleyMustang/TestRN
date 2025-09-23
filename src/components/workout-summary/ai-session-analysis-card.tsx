@@ -14,14 +14,14 @@ interface AiSessionAnalysisCardProps {
 }
 
 export const AiSessionAnalysisCard = ({ sessionId }: AiSessionAnalysisCardProps) => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [analysis, setAnalysis] = useState("");
   const [loading, setLoading] = useState(false);
   const [usageCount, setUsageCount] = useState(0);
   const AI_COACH_DAILY_LIMIT = 2;
 
   const fetchUsageData = useCallback(async () => {
-    if (!session) return;
+    if (!memoizedSessionUserId) return; // Use memoized ID
     
     try {
       const today = new Date();
@@ -32,7 +32,7 @@ export const AiSessionAnalysisCard = ({ sessionId }: AiSessionAnalysisCardProps)
       const { count, error } = await supabase
         .from('ai_coach_usage_logs')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', session.user.id)
+        .eq('user_id', memoizedSessionUserId) // Use memoized ID
         .gte('used_at', today.toISOString())
         .lt('used_at', tomorrow.toISOString());
 
@@ -44,7 +44,7 @@ export const AiSessionAnalysisCard = ({ sessionId }: AiSessionAnalysisCardProps)
       console.error("Failed to fetch AI coach usage data:", err);
       toast.error("Failed to load AI coach usage data."); // Added toast.error
     }
-  }, [session, supabase]);
+  }, [memoizedSessionUserId, supabase]); // Depend on memoized ID
 
   useEffect(() => {
     if (session) {
@@ -53,7 +53,7 @@ export const AiSessionAnalysisCard = ({ sessionId }: AiSessionAnalysisCardProps)
   }, [session, fetchUsageData]);
 
   const handleAnalyse = async () => {
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       toast.error("You must be logged in to use the AI coach."); // Changed to toast.error
       return;
     }
@@ -67,7 +67,7 @@ export const AiSessionAnalysisCard = ({ sessionId }: AiSessionAnalysisCardProps)
       const { data, error } = await supabase.functions.invoke('ai-coach', {
         body: { sessionId },
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${session?.access_token}`, // Use session?.access_token
         },
       });
 

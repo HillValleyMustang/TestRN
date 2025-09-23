@@ -12,7 +12,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
  * It uses the caching layer to provide instant loads and offline support.
  */
 export const useUserProfile = () => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
 
   const { 
     data: cachedProfile, 
@@ -22,13 +22,13 @@ export const useUserProfile = () => {
   } = useCacheAndRevalidate<LocalProfile>({
     cacheTable: 'profiles_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!session?.user.id) return { data: [], error: null };
-      const { data, error } = await client.from('profiles').select('*').eq('id', session.user.id);
+      if (!memoizedSessionUserId) return { data: [], error: null }; // Use memoized ID
+      const { data, error } = await client.from('profiles').select('*').eq('id', memoizedSessionUserId); // Use memoized ID
       return { data: data || [], error };
-    }, [session?.user.id]),
+    }, [memoizedSessionUserId]), // Depend on memoized ID
     queryKey: 'user_profile_data_hook',
     supabase,
-    sessionUserId: session?.user.id ?? null,
+    sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
   const profile = cachedProfile?.[0] || null;

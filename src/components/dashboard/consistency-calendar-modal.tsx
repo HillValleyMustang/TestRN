@@ -101,14 +101,14 @@ const CustomDayContent = (props: CustomDayContentProps) => {
 
 
 export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCalendarModalProps) => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [loading, setLoading] = useState(true);
   const [activityMap, setActivityMap] = useState<Map<string, CalendarEvent[]>>(new Map()); // Map<YYYY-MM-DD, CalendarEvent[]>
   const [uniqueActivityTypes, setUniqueActivityTypes] = useState<Set<string>>(new Set());
   const [currentStreak, setCurrentStreak] = useState<number>(0); // State for current streak
 
   useEffect(() => {
-    if (open && session) {
+    if (open && memoizedSessionUserId) { // Use memoized ID
       const fetchActivityDates = async () => {
         setLoading(true);
         try {
@@ -116,7 +116,7 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
           const { data: workoutSessions, error: workoutError } = await supabase
             .from('workout_sessions')
             .select('session_date, template_name, created_at')
-            .eq('user_id', session.user.id)
+            .eq('user_id', memoizedSessionUserId) // Use memoized ID
             .not('completed_at', 'is', null); // Only completed workouts
           if (workoutError) throw workoutError;
 
@@ -124,14 +124,14 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
           const { data: activityLogs, error: activityError } = await supabase
             .from('activity_logs')
             .select('log_date, activity_type, created_at')
-            .eq('user_id', session.user.id);
+            .eq('user_id', memoizedSessionUserId); // Use memoized ID
           if (activityError) throw activityError;
 
           // Fetch profile for current streak
           const { data: profileData, error: profileError } = await supabase
             .from('profiles')
             .select('current_streak')
-            .eq('id', session.user.id)
+            .eq('id', memoizedSessionUserId) // Use memoized ID
             .single();
           if (profileError && profileError.code !== 'PGRST116') {
             console.error("Error fetching profile for streak:", profileError);
@@ -197,7 +197,7 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCale
       };
       fetchActivityDates();
     }
-  }, [open, session, supabase]);
+  }, [open, memoizedSessionUserId, supabase]); // Depend on memoized ID
 
   const calendarModifiers = useMemo(() => {
     const modifiers: Record<string, Date[]> = {};

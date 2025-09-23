@@ -24,7 +24,7 @@ interface AddExerciseToTPathDialogProps {
 }
 
 export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSuccess, onOptimisticAdd, onAddFailure }: AddExerciseToTPathDialogProps) => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [userWorkouts, setUserWorkouts] = useState<TPath[]>([]);
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -32,7 +32,7 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
 
   useEffect(() => {
     const fetchUserWorkouts = async () => {
-      if (!session) return;
+      if (!memoizedSessionUserId) return; // Use memoized ID
 
       setLoading(true);
       try {
@@ -40,7 +40,7 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('active_t_path_id')
-          .eq('id', session.user.id)
+          .eq('id', memoizedSessionUserId) // Use memoized ID
           .single();
 
         if (profileError && profileError.code !== 'PGRST116') {
@@ -60,7 +60,7 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
         const { data, error } = await supabase
           .from('t_paths')
           .select('id, template_name, created_at, is_bonus, user_id, version, settings, progression_settings, parent_t_path_id') // Specify all columns required by TPath
-          .eq('user_id', session.user.id)
+          .eq('user_id', memoizedSessionUserId) // Use memoized ID
           .eq('is_bonus', true) // These are the individual workouts within a main T-Path
           .eq('parent_t_path_id', activeTPathId) // Filter by the active parent T-Path
           .order('template_name', { ascending: true });
@@ -79,12 +79,12 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
       fetchUserWorkouts();
       setSelectedWorkoutId(""); // Reset selection when opening
     }
-  }, [open, session, supabase]);
+  }, [open, memoizedSessionUserId, supabase]); // Depend on memoized ID
 
   // Removed adoptExercise function as per new requirements
 
   const handleAddToWorkout = async () => {
-    if (!session || !selectedWorkoutId) {
+    if (!memoizedSessionUserId || !selectedWorkoutId) { // Use memoized ID
       toast.error("Please select a workout."); // Changed to toast.error
       return;
     }

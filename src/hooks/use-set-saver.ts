@@ -52,7 +52,7 @@ export const useSetSaver = ({
   onFirstSetSaved,
   preferredWeightUnit,
 }: UseSetSaverProps): UseSetSaverReturn => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
 
   const { saveSetToDb } = useSetPersistence({
     exerciseId,
@@ -108,9 +108,9 @@ export const useSetSaver = ({
 
     let isNewSetPR = false; // Declare isNewSetPR here
     let localCurrentExercisePR: UserExercisePR | null = exercisePR;
-    if (session?.user.id) {
+    if (memoizedSessionUserId) { // Use memoized ID
       // Pass the updated currentSet to PR check
-      const { isNewPR: currentSetIsNewPR, updatedPR } = await checkAndSaveSetPR(currentSet, session.user.id, localCurrentExercisePR);
+      const { isNewPR: currentSetIsNewPR, updatedPR } = await checkAndSaveSetPR(currentSet, memoizedSessionUserId, localCurrentExercisePR); // Use memoized ID
       if (currentSetIsNewPR) isNewSetPR = true; // Assign to declared variable
       localCurrentExercisePR = updatedPR; // Update local PR state for next iteration
       console.log(`[useSetSaver] handleSaveSet: Set ${setIndex + 1} PR check result: isNewPR=${currentSetIsNewPR}, updatedPR=`, updatedPR);
@@ -137,7 +137,7 @@ export const useSetSaver = ({
       await updateDraft(setIndex, { isSaved: false }); // Rollback saved status
       console.log(`[useSetSaver] handleSaveSet: Set ${setIndex + 1} failed to save. Draft rolled back.`);
     }
-  }, [exerciseId, currentSessionId, sets, updateDraft, onFirstSetSaved, session, checkAndSaveSetPR, exercisePR, saveSetToDb]);
+  }, [exerciseId, currentSessionId, sets, updateDraft, onFirstSetSaved, memoizedSessionUserId, checkAndSaveSetPR, exercisePR, saveSetToDb]); // Depend on memoized ID
 
   return {
     handleSaveSet,

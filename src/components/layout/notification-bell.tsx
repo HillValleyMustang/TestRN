@@ -29,7 +29,7 @@ interface UserAlert {
 }
 
 export function NotificationBell() {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [userAlerts, setUserAlerts] = useState<UserAlert[]>([]); // New state for user alerts
   const [unreadCount, setUnreadCount] = useState(0);
@@ -37,7 +37,7 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
 
   const fetchNotifications = useCallback(async () => {
-    if (!session) return;
+    if (!memoizedSessionUserId) return; // Use memoized ID
     setLoading(true);
     try {
       // Fetch global notifications
@@ -48,7 +48,7 @@ export function NotificationBell() {
       const { data: fetchedUserAlerts, error: userAlertsError } = await supabase
         .from('user_alerts')
         .select('id, title, message, created_at, is_read, type')
-        .eq('user_id', session.user.id)
+        .eq('user_id', memoizedSessionUserId) // Use memoized ID
         .order('created_at', { ascending: false });
       if (userAlertsError) throw userAlertsError;
 
@@ -68,16 +68,16 @@ export function NotificationBell() {
     } finally {
       setLoading(false);
     }
-  }, [session, supabase]);
+  }, [memoizedSessionUserId, supabase]); // Depend on memoized ID
 
   useEffect(() => {
-    if (session) {
+    if (memoizedSessionUserId) { // Use memoized ID
       fetchNotifications();
     }
-  }, [session, fetchNotifications]);
+  }, [memoizedSessionUserId, fetchNotifications]); // Depend on memoized ID
 
   const handleMarkAllAsRead = async () => {
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       toast.error("You must be logged in to mark notifications as read."); // Added toast.error
       return;
     }
@@ -95,7 +95,7 @@ export function NotificationBell() {
     // Mark global notifications as read
     if (unreadGlobalNotifications.length > 0) {
       const recordsToInsert = unreadGlobalNotifications.map(n => ({
-        user_id: session.user.id,
+        user_id: memoizedSessionUserId, // Use memoized ID
         notification_id: n.id,
         read_at: new Date().toISOString(),
       }));

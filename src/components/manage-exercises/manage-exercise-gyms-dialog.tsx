@@ -30,10 +30,10 @@ export const ManageExerciseGymsDialog = ({
   initialSelectedGymIds,
   onSaveSuccess,
 }: ManageExerciseGymsDialogProps) => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   // NEW: Consume userGyms from useManageExercisesData
   const { userGyms: fetchedUserGyms, refreshExercises: refreshManageExercisesData } = useManageExercisesData({
-    sessionUserId: session?.user.id ?? null,
+    sessionUserId: memoizedSessionUserId, // Use memoized ID
     supabase,
     setTempStatusMessage: () => {}, // Placeholder, not used here
   });
@@ -58,7 +58,7 @@ export const ManageExerciseGymsDialog = ({
   };
 
   const handleSaveChanges = async () => {
-    if (!session || !exercise.id) {
+    if (!memoizedSessionUserId || !exercise.id) { // Use memoized ID
       toast.error("Cannot save changes: session or exercise ID missing."); // Added toast.error
       return;
     }

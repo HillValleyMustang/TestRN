@@ -19,14 +19,14 @@ interface AiCoachDialogProps {
 }
 
 export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
-  const { supabase, session } = useSession();
+  const { supabase, session, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [analysis, setAnalysis] = useState("");
   const [loading, setLoading] = useState(false);
   const [usageCount, setUsageCount] = useState(0);
   const AI_COACH_DAILY_LIMIT = 2;
 
   const fetchUsageData = useCallback(async () => {
-    if (!session) return;
+    if (!memoizedSessionUserId) return; // Use memoized ID
     
     try {
       const today = new Date();
@@ -37,7 +37,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
       const { count, error } = await supabase
         .from('ai_coach_usage_logs')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', session.user.id)
+        .eq('user_id', memoizedSessionUserId) // Use memoized ID
         .gte('used_at', today.toISOString())
         .lt('used_at', tomorrow.toISOString());
 
@@ -49,7 +49,7 @@ export const AiCoachDialog = ({ open, onOpenChange }: AiCoachDialogProps) => {
       console.error("Failed to fetch AI coach usage data:", err);
       toast.error("Failed to load AI coach usage data."); // Added toast.error
     }
-  }, [session, supabase]);
+  }, [memoizedSessionUserId, supabase]); // Depend on memoized ID
 
   useEffect(() => {
     if (open) {

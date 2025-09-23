@@ -135,7 +135,7 @@ export const WorkoutSelector = ({
   userGyms,
   exerciseGymsMap,
 }: WorkoutSelectorProps) => {
-  const { supabase, session } = useSession();
+  const { supabase, session, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const { activeGym } = useGym();
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState<string>("");
   const [adHocExerciseSourceFilter, setAdHocExerciseSourceFilter] = useState<'my-exercises' | 'global-library'>('my-exercises');
@@ -162,12 +162,12 @@ export const WorkoutSelector = ({
   }, [activeGym, groupedTPaths]);
 
   const exercisesForCombobox = useMemo(() => {
-    if (!session) return [];
+    if (!memoizedSessionUserId) return []; // Use memoized ID
 
     return allAvailableExercises
       .filter(ex => {
         // Source filter
-        if (adHocExerciseSourceFilter === 'my-exercises') return ex.user_id === session.user.id;
+        if (adHocExerciseSourceFilter === 'my-exercises') return ex.user_id === memoizedSessionUserId; // Use memoized ID
         if (adHocExerciseSourceFilter === 'global-library') return ex.user_id === null;
         return false;
       })
@@ -194,7 +194,7 @@ export const WorkoutSelector = ({
   }, [
     allAvailableExercises, adHocExerciseSourceFilter, searchTerm,
     muscleFilter, gymFilter, showFavoritesOnly,
-    exercisesForSession, session, exerciseGymsMap, userGyms
+    exercisesForSession, memoizedSessionUserId, exerciseGymsMap, userGyms
   ]);
 
   const handleWorkoutClick = (workoutId: string) => {
@@ -229,7 +229,7 @@ export const WorkoutSelector = ({
   }, []);
 
   const handleSaveAiExerciseToMyExercises = useCallback(async (exercise: Partial<FetchedExerciseDefinition>) => {
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       toast.error("You must be logged in to save exercises.");
       return;
     }
@@ -245,7 +245,7 @@ export const WorkoutSelector = ({
         description: exercise.description,
         pro_tip: exercise.pro_tip,
         video_url: exercise.video_url,
-        user_id: session.user.id,
+        user_id: memoizedSessionUserId, // Use memoized ID
         library_id: null,
         is_favorite: false,
         created_at: new Date().toISOString(),
@@ -281,10 +281,10 @@ export const WorkoutSelector = ({
     } finally {
       setIsAiSaving(false);
     }
-  }, [session, supabase, addExerciseToSession, refreshAllData]);
+  }, [memoizedSessionUserId, supabase, addExerciseToSession, refreshAllData]); // Depend on memoized ID
 
   const handleAddAiExerciseToWorkoutOnly = useCallback(async (exercise: Partial<FetchedExerciseDefinition>) => {
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       toast.error("You must be logged in to add exercises.");
       return;
     }
@@ -294,7 +294,7 @@ export const WorkoutSelector = ({
 
       const existingExercise = allAvailableExercises.find(ex => 
         ex.name?.trim().toLowerCase() === exercise.name?.trim().toLowerCase() && 
-        (ex.user_id === session.user.id || ex.user_id === null)
+        (ex.user_id === memoizedSessionUserId || ex.user_id === null) // Use memoized ID
       );
       if (existingExercise) {
         finalExerciseToAdd = existingExercise as ExerciseDefinition;
@@ -309,7 +309,7 @@ export const WorkoutSelector = ({
           description: exercise.description,
           pro_tip: exercise.pro_tip,
           video_url: exercise.video_url,
-          user_id: session.user.id,
+          user_id: memoizedSessionUserId, // Use memoized ID
           library_id: null,
           is_favorite: false,
           created_at: new Date().toISOString(),
@@ -320,7 +320,7 @@ export const WorkoutSelector = ({
         if (insertError) {
           if (insertError.code === '23505') {
             toast.error(`You already have a custom exercise named "${exercise.name}".`);
-            const existingUserExercise = allAvailableExercises.find(ex => ex.name?.trim().toLowerCase() === exercise.name?.trim().toLowerCase() && ex.user_id === session.user.id);
+            const existingUserExercise = allAvailableExercises.find(ex => ex.name?.trim().toLowerCase() === exercise.name?.trim().toLowerCase() && ex.user_id === memoizedSessionUserId); // Use memoized ID
             if (existingUserExercise) {
               finalExerciseToAdd = existingUserExercise as ExerciseDefinition;
             } else {
@@ -351,7 +351,7 @@ export const WorkoutSelector = ({
     } finally {
       setIsAiSaving(false);
     }
-  }, [session, supabase, allAvailableExercises, addExerciseToSession, refreshAllData]);
+  }, [memoizedSessionUserId, supabase, allAvailableExercises, addExerciseToSession, refreshAllData]); // Depend on memoized ID
 
 
   const totalExercises = exercisesForSession.length;

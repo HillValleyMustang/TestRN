@@ -65,14 +65,14 @@ interface RollingStatusBadgeProps {
 }
 
 export function RollingStatusBadge({ isGeneratingPlan, tempStatusMessage }: RollingStatusBadgeProps) { // NEW PROP
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const { isOnline } = useSyncManager(); // Get isOnline status
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchStatusData = async () => {
-      if (!session) {
+      if (!memoizedSessionUserId) { // Use memoized ID
         setLoading(false);
         return;
       }
@@ -81,7 +81,7 @@ export function RollingStatusBadge({ isGeneratingPlan, tempStatusMessage }: Roll
         const { data: profileData, error } = await supabase
           .from('profiles')
           .select('rolling_workout_status')
-          .eq('id', session.user.id)
+          .eq('id', memoizedSessionUserId) // Use memoized ID
           .single();
 
         if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
@@ -106,7 +106,7 @@ export function RollingStatusBadge({ isGeneratingPlan, tempStatusMessage }: Roll
       setStatus('Offline');
       setLoading(false);
     }
-  }, [session, supabase, isOnline]); // Added isOnline to dependencies
+  }, [memoizedSessionUserId, supabase, isOnline]); // Added memoized ID to dependencies
 
   // NEW: Prioritize tempStatusMessage
   if (tempStatusMessage) {

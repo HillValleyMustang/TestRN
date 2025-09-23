@@ -15,9 +15,10 @@ export type SetLogWithSession = Pick<SetLog, 'id' | 'weight_kg' | 'reps' | 'reps
 
 interface UseExerciseHistoryProps {
   exerciseId: string;
+  sessionUserId: string | null; // ADDED: sessionUserId prop
 }
 
-export const useExerciseHistory = ({ exerciseId }: UseExerciseHistoryProps) => {
+export const useExerciseHistory = ({ exerciseId, sessionUserId }: UseExerciseHistoryProps) => {
   const { session, supabase } = useSession();
   const { profile, isLoading: loadingProfile } = useUserProfile();
   const [historyLogs, setHistoryLogs] = useState<SetLogWithSession[]>([]);
@@ -27,7 +28,7 @@ export const useExerciseHistory = ({ exerciseId }: UseExerciseHistoryProps) => {
   const preferredWeightUnit = profile?.preferred_weight_unit || 'kg';
 
   const fetchHistory = useCallback(async () => {
-    if (!session || !exerciseId) {
+    if (!session || !exerciseId || !sessionUserId) { // Use sessionUserId
       setLoading(false);
       return;
     }
@@ -65,7 +66,7 @@ export const useExerciseHistory = ({ exerciseId }: UseExerciseHistoryProps) => {
     } finally {
       setLoading(false);
     }
-  }, [session, exerciseId, supabase]);
+  }, [session, exerciseId, sessionUserId, supabase]); // Added sessionUserId to dependencies
 
   useEffect(() => {
     if (exerciseId) {

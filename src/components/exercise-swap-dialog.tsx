@@ -20,21 +20,21 @@ interface ExerciseSwapDialogProps {
 }
 
 export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap }: ExerciseSwapDialogProps) => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [availableExercises, setAvailableExercises] = useState<ExerciseDefinition[]>([]);
   const [selectedNewExerciseId, setSelectedNewExerciseId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [generatingAi, setGeneratingAi] = useState(false);
 
   const fetchAvailableExercises = async () => {
-    if (!session || !open) return;
+    if (!memoizedSessionUserId || !open) return; // Use memoized ID
 
     setLoading(true);
     try {
       const { data: allMatchingExercises, error: fetchError } = await supabase
         .from('exercise_definitions')
         .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url, movement_type, movement_pattern') // Include new fields
-        .or(`user_id.eq.${session.user.id},user_id.is.null`)
+        .or(`user_id.eq.${memoizedSessionUserId},user_id.is.null`) // Use memoized ID
         .eq('main_muscle', currentExercise.main_muscle)
         .eq('type', currentExercise.type)
         .neq('id', currentExercise.id)
@@ -45,7 +45,7 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
       // Filter out global exercises if a user-owned copy already exists
       const userOwnedExerciseLibraryIds = new Set(
         allMatchingExercises
-          .filter(ex => ex.user_id === session.user.id && ex.library_id)
+          .filter(ex => ex.user_id === memoizedSessionUserId && ex.library_id) // Use memoized ID
           .map(ex => ex.library_id)
       );
 
@@ -70,7 +70,7 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
       fetchAvailableExercises();
       setSelectedNewExerciseId("");
     }
-  }, [open, session, supabase, currentExercise]);
+  }, [open, memoizedSessionUserId, supabase, currentExercise]); // Depend on memoized ID
 
   // Removed adoptExercise function as per new requirements
 
@@ -93,7 +93,7 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
   };
 
   const handleGenerateAiSuggestion = async () => {
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       toast.error("You must be logged in to generate AI suggestions.");
       return;
     }
@@ -104,9 +104,10 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
           main_muscle: currentExercise.main_muscle,
           type: currentExercise.type,
           category: currentExercise.category,
+          saveScope: 'user', // Save as a user-owned exercise
         },
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${session?.access_token}`, // Use session?.access_token
         },
       });
 

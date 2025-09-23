@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
 import { useWorkoutFlow } from "@/components/workout-flow/workout-flow-context-provider"; // NEW
 
 export default function ManageExercisesPage() {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("my-exercises");
 
@@ -71,7 +71,7 @@ export default function ManageExercisesPage() {
     searchTerm, // NEW
     setSearchTerm, // NEW
   } = useManageExercisesData({
-    sessionUserId: session?.user.id ?? null,
+    sessionUserId: memoizedSessionUserId, // Use memoized ID
     supabase,
     setTempStatusMessage: workoutFlowManager.setTempStatusMessage,
     // Removed props that are now fetched internally by useManageExercisesData
@@ -125,7 +125,7 @@ export default function ManageExercisesPage() {
   }, []);
 
   const handleSaveAiExerciseToMyExercises = useCallback(async (exercise: Partial<FetchedExerciseDefinition>) => {
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       toast.error("You must be logged in to save exercises.");
       return;
     }
@@ -139,7 +139,7 @@ export default function ManageExercisesPage() {
         description: exercise.description,
         pro_tip: exercise.pro_tip,
         video_url: exercise.video_url,
-        user_id: session.user.id,
+        user_id: memoizedSessionUserId, // Use memoized ID
         library_id: null,
         is_favorite: false,
         created_at: new Date().toISOString(),
@@ -165,13 +165,13 @@ export default function ManageExercisesPage() {
     } finally {
       setIsAiSaving(false);
     }
-  }, [session, supabase, refreshExercises]);
+  }, [memoizedSessionUserId, supabase, refreshExercises]); // Depend on memoized ID
 
   const handleEditIdentifiedExercise = useCallback((exercise: Partial<FetchedExerciseDefinition>) => {
     const exerciseToEdit: FetchedExerciseDefinition = {
       ...exercise,
       id: exercise.id || null,
-      user_id: session?.user.id || null,
+      user_id: memoizedSessionUserId, // Use memoized ID
       is_favorite: false,
       library_id: exercise.library_id || null,
       created_at: exercise.created_at ?? null,
@@ -189,7 +189,7 @@ export default function ManageExercisesPage() {
     handleEditClick(exerciseToEdit);
     setShowSaveAiExercisePrompt(false);
     setAiIdentifiedExercise(null);
-  }, [handleEditClick, session?.user.id]);
+  }, [handleEditClick, memoizedSessionUserId]); // Depend on memoized ID
 
 
   return (

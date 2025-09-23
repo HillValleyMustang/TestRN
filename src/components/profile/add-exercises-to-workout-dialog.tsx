@@ -38,7 +38,7 @@ export const AddExercisesToWorkoutDialog = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [muscleFilter, setMuscleFilter] = useState("all");
   const [selectedExerciseIds, setSelectedExerciseIds] = useState<Set<string>>(new Set());
-  const { session, supabase } = useSession(); // NEW: Get session and supabase from useSession
+  const { session, supabase, memoizedSessionUserId } = useSession(); // NEW: Get session and supabase from useSession
   // NEW: Consume data from useManageExercisesData
   const {
     allAvailableExercises: fetchedAllAvailableExercises, // Correctly destructure
@@ -47,8 +47,8 @@ export const AddExercisesToWorkoutDialog = ({
     exerciseGymsMap: fetchedExerciseGymsMap,
     // Removed supabase from here as it's now passed as a prop
   } = useManageExercisesData({
-    sessionUserId: session?.user.id ?? null,
-    supabase: supabase, // Pass supabase from useSession
+    sessionUserId: memoizedSessionUserId, // Pass memoized ID
+    supabase,
     setTempStatusMessage: () => {}, // Placeholder, not used here
   });
 
@@ -63,12 +63,12 @@ export const AddExercisesToWorkoutDialog = ({
   }, [open]);
 
   const availableExercises = useMemo(() => {
-    if (!session) return []; // NEW: Ensure session exists
+    if (!memoizedSessionUserId) return []; // NEW: Ensure session exists
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
     return fetchedAllAvailableExercises // Use fetchedAllAvailableExercises
       .filter((ex: FetchedExerciseDefinition) => !exercisesInWorkout.includes(ex.id!)) // Exclude exercises already in workout, non-null assertion
       .filter((ex: FetchedExerciseDefinition) => { // Filter by source (My Exercises vs Global)
-        if (addExerciseSourceFilter === 'my-exercises') return ex.user_id === session.user.id; // User-owned
+        if (addExerciseSourceFilter === 'my-exercises') return ex.user_id === memoizedSessionUserId; // User-owned
         if (addExerciseSourceFilter === 'global-library') return ex.user_id === null; // Global
         return false;
       })
@@ -79,7 +79,7 @@ export const AddExercisesToWorkoutDialog = ({
         return ex.name!.toLowerCase().includes(lowerCaseSearchTerm); // Non-null assertion
       })
       .sort((a: FetchedExerciseDefinition, b: FetchedExerciseDefinition) => a.name!.localeCompare(b.name!)); // Non-null assertion
-  }, [fetchedAllAvailableExercises, exercisesInWorkout, addExerciseSourceFilter, muscleFilter, searchTerm, session]); // Depend on fetchedAllAvailableExercises and session
+  }, [fetchedAllAvailableExercises, exercisesInWorkout, addExerciseSourceFilter, muscleFilter, searchTerm, memoizedSessionUserId]); // Depend on fetchedAllAvailableExercises and memoizedSessionUserId
 
   const handleToggleSelect = (exerciseId: string, isChecked: boolean) => {
     setSelectedExerciseIds(prev => {

@@ -22,29 +22,29 @@ interface GymContextType {
 const GymContext = createContext<GymContextType | undefined>(undefined);
 
 export const GymContextProvider = ({ children }: { children: React.ReactNode }) => {
-  const { session } = useSession();
+  const { session, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [activeGym, setActiveGym] = useState<Gym | null>(null);
 
   const { data: cachedGyms, loading: loadingGyms, error: gymsError, refresh: refreshGyms } = useCacheAndRevalidate<LocalGym>({
     cacheTable: 'gyms_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!session?.user.id) return { data: [], error: null };
-      return client.from('gyms').select('*').eq('user_id', session.user.id);
-    }, [session?.user.id]),
+      if (!memoizedSessionUserId) return { data: [], error: null }; // Use memoized ID
+      return client.from('gyms').select('*').eq('user_id', memoizedSessionUserId); // Use memoized ID
+    }, [memoizedSessionUserId]), // Depend on memoized ID
     queryKey: 'user_gyms',
     supabase,
-    sessionUserId: session?.user.id ?? null,
+    sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
   const { data: cachedProfile, refresh: refreshProfile } = useCacheAndRevalidate<Profile>({
     cacheTable: 'profiles_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!session?.user.id) return { data: [], error: null };
-      return client.from('profiles').select('*').eq('id', session.user.id);
-    }, [session?.user.id]),
+      if (!memoizedSessionUserId) return { data: [], error: null }; // Use memoized ID
+      return client.from('profiles').select('*').eq('id', memoizedSessionUserId); // Use memoized ID
+    }, [memoizedSessionUserId]), // Depend on memoized ID
     queryKey: 'user_profile_for_gym_context',
     supabase,
-    sessionUserId: session?.user.id ?? null,
+    sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
   useEffect(() => {

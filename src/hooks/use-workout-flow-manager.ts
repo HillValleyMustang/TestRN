@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher';
 import { useActiveWorkoutSession } from './data/useActiveWorkoutSession';
 import { Tables, WorkoutExercise } from '@/types/supabase';
+import { useSession } from '@/components/session-context-provider'; // Import useSession
 
 interface UseWorkoutFlowManagerProps {
   router: ReturnType<typeof useRouter>;
@@ -12,6 +13,7 @@ interface UseWorkoutFlowManagerProps {
 
 export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) => {
   const workoutData = useWorkoutDataFetcher();
+  const { memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
 
   const activeSession = useActiveWorkoutSession({
     groupedTPaths: workoutData.groupedTPaths,

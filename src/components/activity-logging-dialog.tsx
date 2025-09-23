@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import *as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useSession } from "@/components/session-context-provider";
 import { TablesInsert, Tables } from "@/types/supabase";
@@ -82,16 +82,16 @@ const tennisSchema = z.object({
 });
 
 export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [preferredDistanceUnit, setPreferredDistanceUnit] = useState<Profile['preferred_distance_unit']>('km');
 
   useEffect(() => {
     const fetchUserProfile = async () => {
-      if (!session) return;
+      if (!memoizedSessionUserId) return; // Use memoized ID
       const { data: profileData, error } = await supabase
         .from('profiles')
         .select('preferred_distance_unit')
-        .eq('id', session.user.id)
+        .eq('id', memoizedSessionUserId) // Use memoized ID
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -102,7 +102,7 @@ export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
       }
     };
     fetchUserProfile();
-  }, [session, supabase]);
+  }, [memoizedSessionUserId, supabase]); // Depend on memoized ID
 
   const form = useForm<z.infer<typeof cyclingSchema>>({
     resolver: zodResolver(cyclingSchema),
@@ -115,7 +115,7 @@ export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
   });
 
   async function onSubmit(values: z.infer<typeof cyclingSchema>) {
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       toast.error("You must be logged in to log activities."); // Changed to toast.error
       return;
     }
@@ -140,7 +140,7 @@ export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
       const { data: previousLogs, error: fetchError } = await supabase
         .from('activity_logs')
         .select('avg_time')
-        .eq('user_id', session.user.id)
+        .eq('user_id', memoizedSessionUserId) // Use memoized ID
         .eq('activity_type', 'Cycling')
         .order('log_date', { ascending: false });
 
@@ -156,7 +156,7 @@ export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
     }
 
     const newLog: TablesInsert<'activity_logs'> = {
-      user_id: session.user.id,
+      user_id: memoizedSessionUserId, // Use memoized ID
       activity_type: 'Cycling',
       distance: `${distanceInKm} km`, // Store in KM
       time: timeStringForStorage,
@@ -194,16 +194,16 @@ export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
 
 // NEW: LogRunningForm component
 export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [preferredDistanceUnit, setPreferredDistanceUnit] = useState<Profile['preferred_distance_unit']>('km');
 
   useEffect(() => {
     const fetchUserProfile = async () => {
-      if (!session) return;
+      if (!memoizedSessionUserId) return; // Use memoized ID
       const { data: profileData, error } = await supabase
         .from('profiles')
         .select('preferred_distance_unit')
-        .eq('id', session.user.id)
+        .eq('id', memoizedSessionUserId) // Use memoized ID
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -214,7 +214,7 @@ export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
       }
     };
     fetchUserProfile();
-  }, [session, supabase]);
+  }, [memoizedSessionUserId, supabase]); // Depend on memoized ID
 
   const form = useForm<z.infer<typeof runningSchema>>({
     resolver: zodResolver(runningSchema),
@@ -227,7 +227,7 @@ export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
   });
 
   async function onSubmit(values: z.infer<typeof runningSchema>) {
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       toast.error("You must be logged in to log activities."); // Changed to toast.error
       return;
     }
@@ -251,7 +251,7 @@ export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
       const { data: previousLogs, error: fetchError } = await supabase
         .from('activity_logs')
         .select('avg_time')
-        .eq('user_id', session.user.id)
+        .eq('user_id', memoizedSessionUserId) // Use memoized ID
         .eq('activity_type', 'Running')
         .order('log_date', { ascending: false });
 
@@ -266,7 +266,7 @@ export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
     }
 
     const newLog: TablesInsert<'activity_logs'> = {
-      user_id: session.user.id,
+      user_id: memoizedSessionUserId, // Use memoized ID
       activity_type: 'Running',
       distance: `${distanceInKm} km`, // Store in KM
       time: timeStringForStorage,
@@ -304,7 +304,7 @@ export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
 
 
 export const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const form = useForm<z.infer<typeof swimmingSchema>>({
     resolver: zodResolver(swimmingSchema),
     defaultValues: {
@@ -315,7 +315,7 @@ export const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) 
   });
 
   async function onSubmit(values: z.infer<typeof swimmingSchema>) {
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       toast.error("You must be logged in to log activities."); // Changed to toast.error
       return;
     }
@@ -326,7 +326,7 @@ export const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) 
       const { data: previousLogs, error: fetchError } = await supabase
         .from('activity_logs')
         .select('distance')
-        .eq('user_id', session.user.id)
+        .eq('user_id', memoizedSessionUserId) // Use memoized ID
         .eq('activity_type', 'Swimming')
         .order('log_date', { ascending: false });
 
@@ -344,7 +344,7 @@ export const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) 
     }
 
     const newLog: TablesInsert<'activity_logs'> = {
-      user_id: session.user.id,
+      user_id: memoizedSessionUserId, // Use memoized ID
       activity_type: 'Swimming',
       distance: `${values.lengths} lengths (${values.pool_size}m pool)`,
       time: null,
@@ -378,7 +378,7 @@ export const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) 
 };
 
 export const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const form = useForm<z.infer<typeof tennisSchema>>({
     resolver: zodResolver(tennisSchema),
     defaultValues: {
@@ -388,7 +388,7 @@ export const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =>
   });
 
   async function onSubmit(values: z.infer<typeof tennisSchema>) {
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       toast.error("You must be logged in to log activities."); // Changed to toast.error
       return;
     }
@@ -399,7 +399,7 @@ export const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =>
       const { data: previousLogs, error: fetchError } = await supabase
         .from('activity_logs')
         .select('time')
-        .eq('user_id', session.user.id)
+        .eq('user_id', memoizedSessionUserId) // Use memoized ID
         .eq('activity_type', 'Tennis')
         .order('log_date', { ascending: false });
 
@@ -413,7 +413,7 @@ export const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =>
     }
 
     const newLog: TablesInsert<'activity_logs'> = {
-      user_id: session.user.id,
+      user_id: memoizedSessionUserId, // Use memoized ID
       activity_type: 'Tennis',
       distance: null,
       time: values.duration,

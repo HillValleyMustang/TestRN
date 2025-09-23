@@ -18,7 +18,7 @@ interface ChartData {
 }
 
 export const useActivityChartData = () => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [preferredDistanceUnit, setPreferredDistanceUnit] = useState<Profile['preferred_distance_unit']>('km');
   const [isLoading, setIsLoading] = useState(true);
@@ -28,24 +28,24 @@ export const useActivityChartData = () => {
   const { data: cachedProfile, loading: loadingProfile, error: profileError } = useCacheAndRevalidate<LocalProfile>({
     cacheTable: 'profiles_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!session?.user.id) return { data: [], error: null };
-      return client.from('profiles').select('*').eq('id', session.user.id);
-    }, [session?.user.id]),
+      if (!memoizedSessionUserId) return { data: [], error: null }; // Use memoized ID
+      return client.from('profiles').select('*').eq('id', memoizedSessionUserId); // Use memoized ID
+    }, [memoizedSessionUserId]), // Depend on memoized ID
     queryKey: 'activity_chart_profile',
     supabase,
-    sessionUserId: session?.user.id ?? null,
+    sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
   // Fetch activity logs
   const { data: cachedActivityLogs, loading: loadingLogs, error: logsError } = useCacheAndRevalidate<LocalActivityLog>({
     cacheTable: 'activity_logs',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!session?.user.id) return { data: [], error: null };
-      return client.from('activity_logs').select('*').eq('user_id', session.user.id).order('log_date', { ascending: true });
-    }, [session?.user.id]),
+      if (!memoizedSessionUserId) return { data: [], error: null }; // Use memoized ID
+      return client.from('activity_logs').select('*').eq('user_id', memoizedSessionUserId).order('log_date', { ascending: true }); // Use memoized ID
+    }, [memoizedSessionUserId]), // Depend on memoized ID
     queryKey: 'activity_chart_logs',
     supabase,
-    sessionUserId: session?.user.id ?? null,
+    sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
   useEffect(() => {

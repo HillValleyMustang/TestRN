@@ -41,7 +41,7 @@ const getYouTubeEmbedUrl = (url: string | null | undefined): string | null => {
 
 export const ExerciseInfoDialog = ({ open, onOpenChange, exercise, trigger, exerciseWorkouts = [], onRemoveFromWorkout, onDeleteExercise }: ExerciseInfoDialogProps) => {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const { session } = useSession();
+  const { session, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
 
   // Determine if the dialog is controlled or uncontrolled
   const isControlled = open !== undefined && onOpenChange !== undefined;
@@ -54,7 +54,7 @@ export const ExerciseInfoDialog = ({ open, onOpenChange, exercise, trigger, exer
   };
 
   const handleRemoveFromWorkoutClick = async (workoutId: string) => {
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       toast.error("You must be logged in to remove exercises from workouts."); // Changed to toast.error
       return;
     }
@@ -81,7 +81,7 @@ export const ExerciseInfoDialog = ({ open, onOpenChange, exercise, trigger, exer
 
   const embedVideoUrl = getYouTubeEmbedUrl(exercise.video_url);
   // Only allow deletion if the exercise is user-created and not a global one
-  const canDeleteExercise = session && exercise.user_id === session.user.id && exercise.library_id === null && onDeleteExercise;
+  const canDeleteExercise = memoizedSessionUserId && exercise.user_id === memoizedSessionUserId && exercise.library_id === null && onDeleteExercise; // Use memoized ID
 
   return (
     <Dialog open={currentOpen} onOpenChange={setCurrentOpen}>

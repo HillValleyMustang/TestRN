@@ -20,7 +20,7 @@ const PPL_ORDER = ['Push', 'Pull', 'Legs'];
  * their child workouts, and the exercises within them.
  */
 export const useWorkoutPlans = () => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const { profile, isLoading: loadingProfile, error: profileError } = useUserProfile();
 
   const [groupedTPaths, setGroupedTPaths] = useState<GroupedTPath[]>([]);
@@ -33,7 +33,7 @@ export const useWorkoutPlans = () => {
     supabaseQuery: useCallback(async (client: SupabaseClient) => client.from('exercise_definitions').select('*').order('name', { ascending: true }), []),
     queryKey: 'all_exercises_for_plans',
     supabase,
-    sessionUserId: session?.user.id ?? null,
+    sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
   const { data: cachedTPaths, loading: loadingTPaths, error: tPathsError, refresh: refreshTPaths } = useCacheAndRevalidate<LocalTPath>({
@@ -41,18 +41,18 @@ export const useWorkoutPlans = () => {
     supabaseQuery: useCallback(async (client: SupabaseClient) => client.from('t_paths').select('*'), []),
     queryKey: 'all_t_paths_for_plans',
     supabase,
-    sessionUserId: session?.user.id ?? null,
+    sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
   const { data: cachedTPathExercises, loading: loadingTPathExercises, error: tPathExercisesError, refresh: refreshTPathExercises } = useCacheAndRevalidate<LocalTPathExercise>({
     cacheTable: 't_path_exercises_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!session?.user.id) return { data: [], error: null };
+      if (!memoizedSessionUserId) return { data: [], error: null }; // Use memoized ID
       return client.from('t_path_exercises').select('*');
-    }, [session?.user.id]),
+    }, [memoizedSessionUserId]), // Depend on memoized ID
     queryKey: 'all_t_path_exercises_for_plans',
     supabase,
-    sessionUserId: session?.user.id ?? null,
+    sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
   const refresh = useCallback(async () => {
@@ -74,14 +74,14 @@ export const useWorkoutPlans = () => {
       return;
     }
 
-    if (!overallLoading && session?.user.id) {
+    if (!overallLoading && memoizedSessionUserId) { // Use memoizedSessionUserId
       const processData = async () => {
         try {
           const exerciseDefMap = new Map<string, ExerciseDefinition>();
           (cachedExercises || []).forEach(def => exerciseDefMap.set(def.id, def as ExerciseDefinition));
 
           const newWorkoutExercisesCache: Record<string, WorkoutExercise[]> = {};
-          const allChildWorkouts = (cachedTPaths || []).filter(tp => tp.user_id === session.user.id && tp.parent_t_path_id);
+          const allChildWorkouts = (cachedTPaths || []).filter(tp => tp.user_id === memoizedSessionUserId && tp.parent_t_path_id); // Use memoizedSessionUserId
 
           for (const workout of allChildWorkouts) {
             const exercisesForWorkout = (cachedTPathExercises || [])
@@ -97,7 +97,7 @@ export const useWorkoutPlans = () => {
           }
           setWorkoutExercisesCache(newWorkoutExercisesCache);
 
-          const userMainTPaths = (cachedTPaths || []).filter(tp => tp.user_id === session.user.id && !tp.parent_t_path_id);
+          const userMainTPaths = (cachedTPaths || []).filter(tp => tp.user_id === memoizedSessionUserId && !tp.parent_t_path_id); // Use memoizedSessionUserId
           
           const newGroupedTPaths: GroupedTPath[] = await Promise.all(
             userMainTPaths.map(async (mainTPath) => {
@@ -130,7 +130,7 @@ export const useWorkoutPlans = () => {
       processData();
     }
   }, [
-    session?.user.id, supabase,
+    memoizedSessionUserId, supabase, // Depend on memoized ID
     cachedExercises, loadingExercises, exercisesError,
     cachedTPaths, loadingTPaths, tPathsError,
     cachedTPathExercises, loadingTPathExercises, tPathExercisesError,

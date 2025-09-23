@@ -15,25 +15,25 @@ interface UseSetPRLogicProps {
 }
 
 export const useSetPRLogic = ({ exerciseId, exerciseType, supabase }: UseSetPRLogicProps) => {
-  const { session } = useSession(); // Get session to access user ID
+  const { session, memoizedSessionUserId } = useSession(); // Get session to access user ID
   const [exercisePR, setExercisePR] = useState<UserExercisePR | null>(null);
   const [loadingPR, setLoadingPR] = useState(true);
 
   useEffect(() => {
     const fetchExercisePR = async () => {
-      if (!session?.user.id) {
+      if (!memoizedSessionUserId) { // Use memoized ID
         setLoadingPR(false);
         console.log(`[useSetPRLogic] No user session, skipping PB fetch for ${exerciseId}`);
         return;
       }
 
       setLoadingPR(true);
-      console.log(`[useSetPRLogic] Fetching PB for exercise ${exerciseId} for user ${session.user.id}`);
+      console.log(`[useSetPRLogic] Fetching PB for exercise ${exerciseId} for user ${memoizedSessionUserId}`); // Use memoized ID
       const { data, error } = await supabase
         .from('user_exercise_prs')
         .select('id, user_id, exercise_id, best_volume_kg, best_time_seconds, last_achieved_date, created_at, updated_at')
         .eq('exercise_id', exerciseId)
-        .eq('user_id', session.user.id) // Explicitly filter by user_id
+        .eq('user_id', memoizedSessionUserId) // Explicitly filter by user_id using memoized ID
         .limit(1); // Fetch up to one record
 
       if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
@@ -50,7 +50,7 @@ export const useSetPRLogic = ({ exerciseId, exerciseType, supabase }: UseSetPRLo
       setLoadingPR(false);
     };
     fetchExercisePR();
-  }, [exerciseId, supabase, session?.user.id]);
+  }, [exerciseId, supabase, memoizedSessionUserId]); // Depend on memoized ID
 
   const checkAndSaveSetPR = useCallback(async (
     set: SetLogState,
@@ -115,7 +115,7 @@ export const useSetPRLogic = ({ exerciseId, exerciseType, supabase }: UseSetPRLo
     }
     console.log(`[useSetPRLogic] No new PB for ${exerciseId}.`);
     return { isNewPR: false, updatedPR: currentPRState };
-  }, [exerciseId, exerciseType, supabase, session?.user.id]);
+  }, [exerciseId, exerciseType, supabase]);
 
   return { exercisePR, loadingPR, checkAndSaveSetPR };
 };

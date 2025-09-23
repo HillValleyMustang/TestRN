@@ -29,11 +29,11 @@ export const PersonalInfoForm = ({ mainMuscleGroups, onDataChange, setIsSaving }
   const [isBodyFatInfoModalOpen, setIsBodyFatInfoModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false); // Local editing state
   const form = useFormContext(); // Use context
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const { profile } = useWorkoutDataFetcher(); // Get profile to check active_t_path_id
 
   const handleSave = async () => {
-    if (!session || !profile) {
+    if (!memoizedSessionUserId || !profile) { // Use memoized ID
       toast.error("Cannot save profile: session or profile data missing.");
       return;
     }
@@ -58,7 +58,7 @@ export const PersonalInfoForm = ({ mainMuscleGroups, onDataChange, setIsSaving }
         updated_at: new Date().toISOString()
       };
       
-      const { error } = await supabase.from('profiles').update(updateData).eq('id', session.user.id);
+      const { error } = await supabase.from('profiles').update(updateData).eq('id', memoizedSessionUserId); // Use memoized ID
       if (error) {
         console.error("Failed to update personal info:", error);
         toast.error("Failed to update personal info.");

@@ -23,7 +23,7 @@ interface GymManagementSectionProps {
 }
 
 export const GymManagementSection = ({ profile, onDataChange, setIsSaving }: GymManagementSectionProps) => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const { userGyms, activeGym, refreshGyms } = useGym(); // Use userGyms and activeGym from context
   const [loading, setLoading] = useState(true); // Keep local loading for dialogs/actions
   const [isEditing, setIsEditing] = useState(false); // Local editing state for this section
@@ -45,7 +45,7 @@ export const GymManagementSection = ({ profile, onDataChange, setIsSaving }: Gym
   }, [userGyms]);
 
   const handleRenameGym = async () => {
-    if (!session || !selectedGym || !newGymName.trim()) {
+    if (!memoizedSessionUserId || !selectedGym || !newGymName.trim()) { // Use memoized ID
       toast.error("Gym name cannot be empty.");
       return;
     }
@@ -72,7 +72,7 @@ export const GymManagementSection = ({ profile, onDataChange, setIsSaving }: Gym
   };
 
   const handleDeleteGym = async () => {
-    if (!session || !selectedGym || !profile) {
+    if (!memoizedSessionUserId || !selectedGym || !profile) { // Use memoized ID
       toast.error("Cannot delete gym: session or profile data missing.");
       return;
     }
@@ -89,7 +89,7 @@ export const GymManagementSection = ({ profile, onDataChange, setIsSaving }: Gym
       if (selectedGym.id === profile.active_gym_id) {
         const nextActiveGym = userGyms.find(g => g.id !== selectedGym.id); // Use userGyms
         if (nextActiveGym) {
-          const { error: updateProfileError } = await supabase.from('profiles').update({ active_gym_id: nextActiveGym.id }).eq('id', session.user.id);
+          const { error: updateProfileError } = await supabase.from('profiles').update({ active_gym_id: nextActiveGym.id }).eq('id', memoizedSessionUserId); // Use memoized ID
           if (updateProfileError) throw updateProfileError;
         }
       }
@@ -109,7 +109,7 @@ export const GymManagementSection = ({ profile, onDataChange, setIsSaving }: Gym
   };
 
   const handleConfirmDeleteLastGym = async () => {
-    if (!session || !selectedGym || !profile?.active_t_path_id) {
+    if (!memoizedSessionUserId || !selectedGym || !profile?.active_t_path_id) { // Use memoized ID
       toast.error("Cannot delete last gym: session, selected gym, or active T-Path data missing.");
       return;
     }
@@ -120,7 +120,7 @@ export const GymManagementSection = ({ profile, onDataChange, setIsSaving }: Gym
     try {
       const response = await fetch(`/api/generate-t-path`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` }, // Use session?.access_token
         body: JSON.stringify({ tPathId: profile.active_t_path_id })
       });
       if (!response.ok) throw new Error("Failed to reset workout plan.");
@@ -128,7 +128,7 @@ export const GymManagementSection = ({ profile, onDataChange, setIsSaving }: Gym
       const { error: deleteError } = await supabase.from('gyms').delete().eq('id', selectedGym.id);
       if (deleteError) throw deleteError;
 
-      const { error: profileError } = await supabase.from('profiles').update({ active_gym_id: null }).eq('id', session.user.id);
+      const { error: profileError } = await supabase.from('profiles').update({ active_gym_id: null }).eq('id', memoizedSessionUserId); // Use memoized ID
       if (profileError) throw profileError;
 
       toast.success("Last gym deleted and workout plan reset to defaults.", { id: toastId });

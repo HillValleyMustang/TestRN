@@ -5,6 +5,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { Tables, SetLogState } from '@/types/supabase';
 import { convertWeight, formatWeight } from '@/lib/unit-conversions';
+import { useSession } from '@/components/session-context-provider'; // Import useSession
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type Profile = Tables<'profiles'>;
@@ -27,12 +28,17 @@ export const useProgressionSuggestion = ({
   supabase,
   preferredWeightUnit,
 }: UseProgressionSuggestionProps) => {
+  const { memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
 
   const getProgressionSuggestion = useCallback(async (currentSetsLength: number, internalSessionId: string | null): Promise<{ newSets: SetLogState[] | null; message: string }> => {
     if (!supabase) {
       console.error("[useProgressionSuggestion] Supabase client not available.");
       toast.error("Error: Supabase client not available for progression suggestion."); // Changed to toast.error
       return { newSets: null, message: "Error: Supabase client not available." };
+    }
+    if (!memoizedSessionUserId) { // Ensure user is logged in
+      toast.error("You must be logged in to get progression suggestions.");
+      return { newSets: null, message: "Error: User not authenticated." };
     }
 
     try {
@@ -139,7 +145,7 @@ export const useProgressionSuggestion = ({
       toast.error("Failed to generate suggestion."); // Changed to toast.error
       return { newSets: null, message: "Failed to generate suggestion." };
     }
-  }, [exerciseId, exerciseType, exerciseCategory, supabase, preferredWeightUnit]);
+  }, [exerciseId, exerciseType, exerciseCategory, supabase, preferredWeightUnit, memoizedSessionUserId]); // Depend on memoized ID
 
   return { getProgressionSuggestion };
 };

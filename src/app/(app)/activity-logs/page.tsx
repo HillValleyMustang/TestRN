@@ -53,7 +53,7 @@ const formatAvgTime = (avgTimeSeconds: number | null, unit: 'km' | 'miles'): str
 
 
 export default function ActivityLogsPage() {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const router = useRouter();
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,11 +62,11 @@ export default function ActivityLogsPage() {
 
   useEffect(() => {
     const fetchUserProfile = async () => {
-      if (!session) return;
+      if (!memoizedSessionUserId) return; // Use memoized ID
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('preferred_distance_unit')
-        .eq('id', session.user.id)
+        .eq('id', memoizedSessionUserId) // Use memoized ID
         .single();
 
       if (profileError && profileError.code !== 'PGRST116') {
@@ -77,10 +77,10 @@ export default function ActivityLogsPage() {
       }
     };
     fetchUserProfile();
-  }, [session, supabase]);
+  }, [memoizedSessionUserId, supabase]); // Depend on memoized ID
 
   useEffect(() => {
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       router.push('/login');
       return;
     }
@@ -92,7 +92,7 @@ export default function ActivityLogsPage() {
         const { data, error } = await supabase
           .from('activity_logs')
           .select('id, activity_type, is_pb, log_date, distance, time, avg_time, created_at, user_id') // Specify all columns required by ActivityLog
-          .eq('user_id', session.user.id)
+          .eq('user_id', memoizedSessionUserId) // Use memoized ID
           .order('log_date', { ascending: false });
 
         if (error) {
@@ -109,7 +109,7 @@ export default function ActivityLogsPage() {
     };
 
     fetchActivityLogs();
-  }, [session, router, supabase]);
+  }, [memoizedSessionUserId, router, supabase]); // Depend on memoized ID
 
   const filterLogs = (type: string) => activityLogs.filter(log => log.activity_type === type);
 

@@ -8,6 +8,7 @@ import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { LoadingOverlay } from "../loading-overlay";
 import { toast } from 'sonner'; // Import toast
+import { useSession } from '@/components/session-context-provider'; // Import useSession
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -32,6 +33,8 @@ export const SaveAiExercisePrompt = ({
   context, // Destructure new prop
   onEditExercise, // Destructure new prop
 }: SaveAiExercisePromptProps) => {
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
+
   if (!exercise) return null;
 
   const currentDuplicateStatus = exercise.duplicate_status || 'none'; // Access directly from exercise

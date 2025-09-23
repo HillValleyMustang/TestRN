@@ -18,7 +18,7 @@ type OnboardingSummaryData = {
 
 export const useOnboardingForm = () => {
   const router = useRouter();
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
 
   const [currentStep, setCurrentStep] = useState(1);
   const [tPathType, setTPathType] = useState<"ulul" | "ppl" | null>(null);
@@ -128,7 +128,7 @@ export const useOnboardingForm = () => {
   }, [currentStep, equipmentMethod]);
 
   const handleSubmit = useCallback(async (fullName: string, heightCm: number, weightKg: number, bodyFatPct: number | null) => {
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       toast.error("You must be logged in to complete onboarding."); // Added toast.error
       return;
     }
@@ -155,7 +155,7 @@ export const useOnboardingForm = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${session?.access_token}`, // Use session?.access_token
         },
         body: JSON.stringify(payload),
       });
@@ -177,7 +177,7 @@ export const useOnboardingForm = () => {
       setLoading(false);
     }
   }, [
-    session, router, tPathType, experience, goalFocus, preferredMuscles,
+    memoizedSessionUserId, session, router, tPathType, experience, goalFocus, preferredMuscles, // Depend on memoized ID
     constraints, sessionLength, equipmentMethod, gymName, identifiedExercises, confirmedExercises
   ]);
 

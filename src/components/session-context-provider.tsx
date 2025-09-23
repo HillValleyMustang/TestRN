@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -11,6 +11,7 @@ import { db, LocalSupabaseSession } from '@/lib/db'; // Import db and LocalSupab
 interface SessionContextType {
   session: Session | null;
   supabase: SupabaseClient;
+  memoizedSessionUserId: string | null; // ADDED: Memoized user ID
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -19,6 +20,9 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+
+  // Memoize sessionUserId to ensure stable reference for dependencies
+  const memoizedSessionUserId = useMemo(() => session?.user.id || null, [session?.user.id]);
 
   // Function to save session to IndexedDB
   const saveSessionToIndexedDB = useCallback(async (currentSession: Session | null) => {
@@ -145,7 +149,7 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
   }
 
   return (
-    <SessionContext.Provider value={{ session, supabase }}>
+    <SessionContext.Provider value={{ session, supabase, memoizedSessionUserId }}>
       <SyncManagerInitializer />
       {children}
       <Toaster />

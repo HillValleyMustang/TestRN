@@ -53,7 +53,7 @@ export const useExerciseCompletion = ({
   onExerciseCompleted,
   preferredWeightUnit,
 }: UseExerciseCompletionProps): UseExerciseCompletionReturn => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
 
   const { saveSetToDb } = useSetPersistence({
     exerciseId,
@@ -113,12 +113,12 @@ export const useExerciseCompletion = ({
       const hasDataForSet = hasUserInput(currentSet);
 
       if (hasDataForSet && !currentSet.isSaved) {
-        if (!session?.user.id) { // Ensure session.user.id is available for PR check
+        if (!memoizedSessionUserId) { // Ensure memoizedSessionUserId is available for PR check
           console.error("Session user ID is missing for PR check.");
           hasError = true;
           break;
         }
-        const { isNewPR, updatedPR } = await checkAndSaveSetPR(currentSet, session.user.id, localCurrentExercisePR); // Pass local PR state
+        const { isNewPR, updatedPR } = await checkAndSaveSetPR(currentSet, memoizedSessionUserId, localCurrentExercisePR); // Pass local PR state and memoized ID
         if (isNewPR) anySetIsPR = true;
         localCurrentExercisePR = updatedPR; // Update local PR state for next iteration
         console.log(`[useExerciseCompletion] handleCompleteExercise: Processing set ${i + 1}. isNewPR=${isNewPR}, anySetIsPR (cumulative)=${anySetIsPR}`);
@@ -166,7 +166,7 @@ export const useExerciseCompletion = ({
   }, [
     exerciseId, sets, currentSessionId, exercisePR,
     onFirstSetSaved, onExerciseCompleted, updateDraft,
-    saveSetToDb, checkAndSaveSetPR, session
+    saveSetToDb, checkAndSaveSetPR, memoizedSessionUserId
   ]);
 
   return {

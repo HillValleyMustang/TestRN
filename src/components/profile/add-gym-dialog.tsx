@@ -19,7 +19,7 @@ interface AddGymDialogProps {
 }
 
 export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount }: AddGymDialogProps) => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [step, setStep] = useState<'name' | 'configure'>('name');
   const [newGymName, setNewGymName] = useState("");
   const [createdGym, setCreatedGym] = useState<Gym | null>(null);
@@ -37,7 +37,7 @@ export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount }: Ad
   };
 
   const handleNameSubmit = async () => {
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       toast.error("You must be logged in to add a gym."); // Added toast.error
       return;
     }
@@ -54,7 +54,7 @@ export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount }: Ad
     try {
       const { data: insertedGym, error } = await supabase
         .from('gyms')
-        .insert({ name: newGymName, user_id: session.user.id })
+        .insert({ name: newGymName, user_id: memoizedSessionUserId }) // Use memoized ID
         .select('*')
         .single();
 

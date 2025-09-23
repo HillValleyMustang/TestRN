@@ -20,7 +20,7 @@ interface ProgrammeTypeSectionProps {
 }
 
 export const ProgrammeTypeSection = ({ profile, onDataChange, setIsSaving }: ProgrammeTypeSectionProps) => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [isEditing, setIsEditing] = useState(false); // Local editing state
   const [isWarningOpen, setIsWarningOpen] = useState(false);
   const [pendingProgrammeType, setPendingProgrammeType] = useState<string | null>(null);
@@ -38,7 +38,7 @@ export const ProgrammeTypeSection = ({ profile, onDataChange, setIsSaving }: Pro
   };
 
   const confirmChange = async () => {
-    if (!session || !pendingProgrammeType) {
+    if (!memoizedSessionUserId || !pendingProgrammeType) { // Use memoized ID
       console.error("Error: Session or pending programme type missing for confirmation.");
       toast.error("Cannot confirm change: session or programme type missing.");
       return;
@@ -51,7 +51,7 @@ export const ProgrammeTypeSection = ({ profile, onDataChange, setIsSaving }: Pro
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ programme_type: pendingProgrammeType })
-        .eq('id', session.user.id);
+        .eq('id', memoizedSessionUserId); // Use memoized ID
       if (profileError) throw profileError;
 
       // Call the new API route to regenerate all plans
@@ -59,7 +59,7 @@ export const ProgrammeTypeSection = ({ profile, onDataChange, setIsSaving }: Pro
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${session?.access_token}`, // Use session?.access_token
         },
         body: JSON.stringify({}), // No body needed
       });

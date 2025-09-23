@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { Profile as ProfileType, Tables, UserAchievement } from '@/types/supabase';
 import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { ACHIEVEMENT_DISPLAY_INFO, ACHIEVEMENT_IDS } from '@/lib/achievements'; // Import from new utility file
+import { useSession } from '@/components/session-context-provider'; // Import useSession
 
 interface AchievementDetailDialogProps {
   open: boolean;
@@ -15,7 +16,7 @@ interface AchievementDetailDialogProps {
   achievementId: string | null;
   isUnlocked: boolean;
   profile: ProfileType | null;
-  session: Session | null;
+  session: Session | null; // Keep session prop for now, but use memoizedSessionUserId internally
   supabase: SupabaseClient;
   achievementInfo: { id: string; name: string; icon: string } | null;
 }
@@ -26,10 +27,12 @@ export const AchievementDetailDialog = ({
   achievementId,
   isUnlocked,
   profile,
-  session,
+  session, // Keep session prop for now
   supabase,
   achievementInfo,
 }: AchievementDetailDialogProps) => {
+  const { memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
+
   if (!achievementId || !achievementInfo) return null;
 
   const fullAchievementInfo = ACHIEVEMENT_DISPLAY_INFO[achievementId];

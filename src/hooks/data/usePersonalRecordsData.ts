@@ -15,13 +15,13 @@ interface PersonalRecord {
 }
 
 export const usePersonalRecordsData = () => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [personalRecords, setPersonalRecords] = useState<PersonalRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchPersonalRecords = useCallback(async () => {
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       setIsLoading(false);
       return;
     }
@@ -30,7 +30,7 @@ export const usePersonalRecordsData = () => {
     setError(null);
     try {
       const { data: prs, error: rpcError } = await supabase.rpc('get_user_personal_records', {
-        p_user_id: session.user.id,
+        p_user_id: memoizedSessionUserId, // Use memoized ID
         p_limit: 5 // Fetch top 5 PRs
       });
 
@@ -53,7 +53,7 @@ export const usePersonalRecordsData = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [session, supabase]);
+  }, [memoizedSessionUserId, supabase]); // Depend on memoized ID
 
   useEffect(() => {
     fetchPersonalRecords();

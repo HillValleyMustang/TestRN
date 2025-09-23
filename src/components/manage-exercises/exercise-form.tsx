@@ -68,7 +68,7 @@ interface ExerciseFormProps {
 }
 
 export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(({ editingExercise, onCancelEdit, onSaveSuccess }, ref) => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]);
@@ -153,7 +153,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
   };
 
   async function onSubmit(values: z.infer<typeof exerciseSchema>) {
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       toast.error("You must be logged in to manage exercises.");
       return;
     }
@@ -180,7 +180,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
       movement_pattern: values.movement_pattern,
     };
 
-    const isEditingUserOwned = editingExercise && editingExercise.user_id === session.user.id && editingExercise.library_id === null && editingExercise.id !== null;
+    const isEditingUserOwned = editingExercise && editingExercise.user_id === memoizedSessionUserId && editingExercise.library_id === null && editingExercise.id !== null; // Use memoized ID
 
     if (isEditingUserOwned) {
       const { error } = await supabase
@@ -200,7 +200,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
     } else {
       const { error } = await supabase.from('exercise_definitions').insert([{ 
         ...exerciseData, 
-        user_id: session.user.id,
+        user_id: memoizedSessionUserId, // Use memoized ID
         library_id: null,
         is_favorite: false,
         created_at: new Date().toISOString(),
@@ -246,7 +246,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
           }}
         >
           <CardTitle className="flex-1 text-base">
-            {editingExercise && editingExercise.user_id === session?.user.id && editingExercise.library_id === null ? "Edit Exercise" : "Add New Exercise"}
+            {editingExercise && editingExercise.user_id === memoizedSessionUserId && editingExercise.library_id === null ? "Edit Exercise" : "Add New Exercise"}
           </CardTitle>
           <span className="ml-2">
             {isExpanded ? (

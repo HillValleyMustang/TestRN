@@ -61,7 +61,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
   const [totalGlobalExercisesCount, setTotalGlobalExercisesCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState(""); // NEW
 
-  const { session } = useSession(); // Get session object
+  const { session, memoizedSessionUserId } = useSession(); // Get session object and memoizedSessionUserId
 
   // NEW: Fetch necessary data internally
   const fetchExercisesSupabase = useCallback(async (client: SupabaseClient) => {
@@ -76,33 +76,33 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
     supabaseQuery: fetchExercisesSupabase,
     queryKey: 'manage_exercises_all_exercises',
     supabase,
-    sessionUserId: sessionUserId,
+    sessionUserId: memoizedSessionUserId, // Use memoized ID
   });
 
   const { data: cachedUserGyms, loading: loadingUserGyms, error: userGymsError, refresh: refreshUserGyms } = useCacheAndRevalidate<LocalGym>({
     cacheTable: 'gyms_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!sessionUserId) return { data: [], error: null };
-      return client.from('gyms').select('*').eq('user_id', sessionUserId);
-    }, [sessionUserId]),
+      if (!memoizedSessionUserId) return { data: [], error: null }; // Use memoized ID
+      return client.from('gyms').select('*').eq('user_id', memoizedSessionUserId); // Use memoized ID
+    }, [memoizedSessionUserId]), // Depend on memoized ID
     queryKey: 'manage_exercises_user_gyms',
     supabase,
-    sessionUserId: sessionUserId,
+    sessionUserId: memoizedSessionUserId, // Use memoized ID
   });
 
   const { data: cachedGymExercises, loading: loadingGymExercises, error: gymExercisesError, refresh: refreshGymExercises } = useCacheAndRevalidate<LocalGymExercise>({
     cacheTable: 'gym_exercises_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!sessionUserId) return { data: [], error: null };
-      const { data: userGymsData, error: userGymsError } = await client.from('gyms').select('id').eq('user_id', sessionUserId);
+      if (!memoizedSessionUserId) return { data: [], error: null }; // Use memoized ID
+      const { data: userGymsData, error: userGymsError } = await client.from('gyms').select('id').eq('user_id', memoizedSessionUserId); // Use memoized ID
       if (userGymsError) throw new Error(userGymsError.message || "Failed to fetch user gyms for gym exercises.");
       const gymIds = (userGymsData || []).map(g => g.id);
       if (gymIds.length === 0) return { data: [], error: null };
       return client.from('gym_exercises').select('gym_id, exercise_id, created_at').in('gym_id', gymIds);
-    }, [sessionUserId]),
+    }, [memoizedSessionUserId]), // Depend on memoized ID
     queryKey: 'manage_exercises_gym_exercises',
     supabase,
-    sessionUserId: sessionUserId,
+    sessionUserId: memoizedSessionUserId, // Use memoized ID
   });
 
   const { data: cachedTPaths, loading: loadingTPaths, error: tPathsError, refresh: refreshTPaths } = useCacheAndRevalidate<LocalTPath>({
@@ -110,31 +110,31 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
     supabaseQuery: useCallback(async (client: SupabaseClient) => client.from('t_paths').select('*'), []),
     queryKey: 'manage_exercises_all_t_paths',
     supabase,
-    sessionUserId: sessionUserId,
+    sessionUserId: memoizedSessionUserId, // Use memoized ID
   });
 
   const { data: cachedTPathExercises, loading: loadingTPathExercises, error: tPathExercisesError, refresh: refreshTPathExercises } = useCacheAndRevalidate<Tables<'t_path_exercises'>>({
     cacheTable: 't_path_exercises_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!sessionUserId) return { data: [], error: null };
+      if (!memoizedSessionUserId) return { data: [], error: null }; // Use memoized ID
       const { data, error } = await client.from('t_path_exercises').select('id, exercise_id, template_id, order_index, is_bonus_exercise, created_at');
       return { data: data || [], error };
-    }, [sessionUserId]),
+    }, [memoizedSessionUserId]), // Depend on memoized ID
     queryKey: 'manage_exercises_all_t_path_exercises',
     supabase,
-    sessionUserId: sessionUserId,
+    sessionUserId: memoizedSessionUserId, // Use memoized ID
   });
 
   const { data: cachedProfile, loading: loadingProfile, error: profileError } = useCacheAndRevalidate<LocalProfile>({
     cacheTable: 'profiles_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!sessionUserId) return { data: [], error: null };
-      const { data, error } = await client.from('profiles').select('*').eq('id', sessionUserId);
+      if (!memoizedSessionUserId) return { data: [], error: null }; // Use memoized ID
+      const { data, error } = await client.from('profiles').select('*').eq('id', memoizedSessionUserId); // Use memoized ID
       return { data: data || [], error };
-    }, [sessionUserId]),
+    }, [memoizedSessionUserId]), // Depend on memoized ID
     queryKey: 'manage_exercises_user_profile',
     supabase,
-    sessionUserId: sessionUserId,
+    sessionUserId: memoizedSessionUserId, // Use memoized ID
   });
   const profile = cachedProfile?.[0] || null;
 
@@ -169,7 +169,8 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
   // Effect to populate exerciseWorkoutsMap asynchronously
   useEffect(() => {
     const populateExerciseWorkoutsMap = async () => {
-      if (!sessionUserId || !profile || !cachedTPaths || !cachedTPathExercises || !cachedExercises) {
+      if (!memoizedSessionUserId || !profile || !cachedTPaths || !cachedTPathExercises || !cachedExercises) { // Use memoized ID
+        setExerciseWorkoutsMapState({}); // Corrected setter name
         return;
       }
 
@@ -223,7 +224,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
               newMap[tpe.exercise_id].push({
                 id: workout.id,
                 name: workout.template_name,
-                isUserOwned: workout.user_id === sessionUserId, // Changed to sessionUserId
+                isUserOwned: workout.user_id === memoizedSessionUserId, // Changed to memoizedSessionUserId
                 isBonus: !!tpe.is_bonus_exercise,
               });
             }
@@ -257,11 +258,11 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
       }
     };
     populateExerciseWorkoutsMap();
-  }, [sessionUserId, profile, cachedTPaths, cachedTPathExercises, cachedExercises, supabase, exerciseWorkoutsMapState]);
+  }, [memoizedSessionUserId, profile, cachedTPaths, cachedTPathExercises, cachedExercises, supabase, exerciseWorkoutsMapState]);
 
 
   const fetchPageData = useCallback(async () => {
-    if (!sessionUserId || baseLoading) return;
+    if (!memoizedSessionUserId || baseLoading) return; // Use memoized ID
 
     setLoading(true);
     try {
@@ -270,7 +271,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
       const { data: userGlobalFavorites, error: favoritesError } = await supabase
         .from('user_global_favorites')
         .select('exercise_id')
-        .eq('user_id', sessionUserId);
+        .eq('user_id', memoizedSessionUserId); // Use memoized ID
 
       if (favoritesError) throw new Error(favoritesError.message);
       const favoritedGlobalExerciseIds = new Set(userGlobalFavorites?.map(fav => fav.exercise_id));
@@ -279,7 +280,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
       const globalExercisesList: FetchedExerciseDefinition[] = [];
 
       (cachedExercises || []).forEach(ex => {
-        if (ex.user_id === sessionUserId && ex.library_id === null) {
+        if (ex.user_id === memoizedSessionUserId && ex.library_id === null) { // Use memoized ID
           userOwnedExercisesList.push({ ...ex, id: ex.id, is_favorite: !!ex.is_favorite, movement_type: ex.movement_type, movement_pattern: ex.movement_pattern });
         } else if (ex.user_id === null) {
           globalExercisesList.push({
@@ -337,7 +338,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
     } finally {
       setLoading(false);
     }
-  }, [sessionUserId, supabase, selectedMuscleFilter, selectedGymFilter, cachedExercises, dataError, baseLoading, userGyms, exerciseGymsMap, searchTerm, profile]); // Added profile to dependencies
+  }, [memoizedSessionUserId, supabase, selectedMuscleFilter, selectedGymFilter, cachedExercises, dataError, baseLoading, userGyms, exerciseGymsMap, searchTerm, profile]); // Depend on memoized ID
 
   useEffect(() => {
     if (!baseLoading) { // Only fetch page data once base data is loaded
@@ -346,8 +347,8 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
   }, [fetchPageData, baseLoading]);
 
   const handleEditClick = useCallback((exercise: FetchedExerciseDefinition) => {
-    setEditingExercise(exercise.user_id === sessionUserId ? exercise : { ...exercise, id: null, user_id: sessionUserId, is_favorite: false, library_id: null });
-  }, [sessionUserId]);
+    setEditingExercise(exercise.user_id === memoizedSessionUserId ? exercise : { ...exercise, id: null, user_id: memoizedSessionUserId, is_favorite: false, library_id: null }); // Use memoized ID
+  }, [memoizedSessionUserId]);
 
   const handleCancelEdit = useCallback(() => {
     setEditingExercise(null);
@@ -363,13 +364,13 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
   }, [refreshExercises, refreshUserGyms, refreshGymExercises, refreshTPaths, refreshTPathExercises]);
 
   const handleDeleteExercise = useCallback(async (exercise: FetchedExerciseDefinition) => {
-    if (!sessionUserId || !exercise.id || exercise.user_id !== sessionUserId) {
+    if (!memoizedSessionUserId || !exercise.id || exercise.user_id !== memoizedSessionUserId) { // Use memoized ID
       toast.error("You can only delete your own custom exercises.");
       return;
     }
     const toastId = toast.loading(`Deleting '${exercise.name}'...`);
     try {
-      const { error } = await supabase.from('exercise_definitions').delete().eq('id', exercise.id);
+      const { error } = await supabase.from('exercise_definitions').delete().eq('id', exercise.id).eq('user_id', memoizedSessionUserId); // Use memoized ID
       if (error) throw new Error(error.message);
       toast.success("Exercise deleted successfully!", { id: toastId });
       handleSaveSuccess(); // Refresh all related data
@@ -377,14 +378,14 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
       console.error("Failed to delete exercise:", err);
       toast.error("Failed to delete exercise.", { id: toastId });
     }
-  }, [sessionUserId, supabase, handleSaveSuccess]);
+  }, [memoizedSessionUserId, supabase, handleSaveSuccess]); // Depend on memoized ID
 
   const handleToggleFavorite = useCallback(async (exercise: FetchedExerciseDefinition) => {
-    if (!sessionUserId) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       toast.error("You must be logged in to favourite exercises.");
       return;
     }
-    const isUserOwned = exercise.user_id === sessionUserId;
+    const isUserOwned = exercise.user_id === memoizedSessionUserId; // Use memoized ID
     const isCurrentlyFavorited = isUserOwned ? exercise.is_favorite : exercise.is_favorited_by_current_user;
     const newFavoriteStatus = !isCurrentlyFavorited;
 
@@ -405,14 +406,14 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
 
     try {
       if (isUserOwned) {
-        const { error } = await supabase.from('exercise_definitions').update({ is_favorite: newFavoriteStatus }).eq('id', exercise.id as string).eq('user_id', sessionUserId);
+        const { error } = await supabase.from('exercise_definitions').update({ is_favorite: newFavoriteStatus }).eq('id', exercise.id as string).eq('user_id', memoizedSessionUserId); // Use memoized ID
         if (error) throw error;
       } else {
         if (newFavoriteStatus) {
-          const { error } = await supabase.from('user_global_favorites').insert({ user_id: sessionUserId, exercise_id: exercise.id as string });
+          const { error } = await supabase.from('user_global_favorites').insert({ user_id: memoizedSessionUserId, exercise_id: exercise.id as string });
           if (error) throw error;
         } else {
-          const { error } = await supabase.from('user_global_favorites').delete().eq('user_id', sessionUserId).eq('exercise_id', exercise.id as string);
+          const { error } = await supabase.from('user_global_favorites').delete().eq('user_id', memoizedSessionUserId).eq('exercise_id', exercise.id as string);
           if (error) throw error;
         }
       }
@@ -425,7 +426,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
         setGlobalExercises(prev => prev.map(ex => ex.id === exercise.id ? exercise : ex));
       }
     }
-  }, [sessionUserId, supabase, setTempStatusMessage]);
+  }, [memoizedSessionUserId, supabase, setTempStatusMessage]); // Depend on memoized ID
 
   const handleOptimisticAdd = useCallback((exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => {
     handleSaveSuccess(); // Refresh to get latest data
@@ -436,7 +437,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
   }, [handleSaveSuccess]);
 
   const handleRemoveFromWorkout = useCallback(async (workoutId: string, exerciseId: string) => {
-    if (!sessionUserId) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       toast.error("You must be logged in to remove exercises from workouts.");
       return;
     }
@@ -453,7 +454,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
       console.error("Failed to remove exercise from workout:", err);
       toast.error("Failed to remove exercise from workout.", { id: toastId });
     }
-  }, [sessionUserId, supabase, handleSaveSuccess]);
+  }, [memoizedSessionUserId, supabase, handleSaveSuccess]); // Depend on memoized ID
 
   return {
     globalExercises,

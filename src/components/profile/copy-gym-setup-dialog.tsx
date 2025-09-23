@@ -20,12 +20,12 @@ interface CopyGymSetupDialogProps {
 }
 
 export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, onCopySuccess }: CopyGymSetupDialogProps) => {
-  const { session } = useSession();
+  const { session, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [selectedSourceGymId, setSelectedSourceGymId] = useState<string>("");
   const [isCopying, setIsCopying] = useState(false);
 
   const handleCopySetup = async () => {
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       toast.error("You must be logged in to copy gym setup."); // Added toast.error
       return;
     }
@@ -39,7 +39,7 @@ export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${session?.access_token}`, // Use session?.access_token
         },
         body: JSON.stringify({ sourceGymId: selectedSourceGymId, targetGymId: targetGym.id }),
       });

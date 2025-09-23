@@ -18,17 +18,17 @@ interface SetupGymViewProps {
 }
 
 export const SetupGymView = ({ gym, onClose }: SetupGymViewProps) => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
   const [sourceGyms, setSourceGyms] = useState<Gym[]>([]);
 
   useEffect(() => {
     const fetchOtherGyms = async () => {
-      if (!session) return;
+      if (!memoizedSessionUserId) return; // Use memoized ID
       const { data, error } = await supabase
         .from('gyms')
         .select('*')
-        .eq('user_id', session.user.id)
+        .eq('user_id', memoizedSessionUserId) // Use memoized ID
         .neq('id', gym.id); // Exclude the newly created gym
 
       if (error) {
@@ -39,7 +39,7 @@ export const SetupGymView = ({ gym, onClose }: SetupGymViewProps) => {
       }
     };
     fetchOtherGyms();
-  }, [session, supabase, gym.id]);
+  }, [memoizedSessionUserId, supabase, gym.id]); // Depend on memoized ID
 
   const handleSetupOption = async (option: 'copy' | 'defaults' | 'empty') => {
     switch (option) {
@@ -51,7 +51,7 @@ export const SetupGymView = ({ gym, onClose }: SetupGymViewProps) => {
         }
         break;
       case 'defaults':
-        if (!session) {
+        if (!memoizedSessionUserId) { // Use memoized ID
           toast.error("You must be logged in."); // Changed to toast.error
           return;
         }
@@ -61,7 +61,7 @@ export const SetupGymView = ({ gym, onClose }: SetupGymViewProps) => {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session.access_token}`,
+              'Authorization': `Bearer ${session?.access_token}`, // Use session?.access_token
             },
             body: JSON.stringify({ gymId: gym.id }),
           });

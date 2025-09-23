@@ -11,7 +11,7 @@ import { GymToggle } from '@/components/dashboard/gym-toggle';
 import { useGym } from '@/components/gym-context-provider'; // NEW IMPORT
 
 export default function WorkoutPage() {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialWorkoutId = searchParams.get('workoutId');
@@ -85,6 +85,7 @@ export default function WorkoutPage() {
         exerciseGymsMap={workoutFlowManager.exerciseGymsMap} // NEW
         availableMuscleGroups={workoutFlowManager.availableMuscleGroups} // NEW
         profile={workoutFlowManager.profile} // Pass profile prop
+        isWorkoutSessionStarted={workoutFlowManager.isWorkoutSessionStarted} // USE NEW PROP
       />
       <WorkoutProgressBar
         exercisesForSession={workoutFlowManager.exercisesForSession}

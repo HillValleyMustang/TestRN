@@ -5,7 +5,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { Tables, WorkoutExercise, WorkoutWithLastCompleted, GroupedTPath, LocalUserAchievement, Profile, FetchedExerciseDefinition } from '@/types/supabase';
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
-import { db, LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise, LocalGymExercise } from '@/lib/db';
+import { db, LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise, LocalGym, LocalGymExercise } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
 import { useUserProfile } from '@/hooks/data/useUserProfile';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -39,7 +39,7 @@ interface UseWorkoutDataFetcherReturn {
 }
 
 export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const prevStatusRef = useRef<string | null>(null);
@@ -52,7 +52,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     supabaseQuery: useCallback(async (client: SupabaseClient) => client.from('exercise_definitions').select('*').order('name', { ascending: true }), []),
     queryKey: 'all_exercises',
     supabase,
-    sessionUserId: session?.user.id ?? null,
+    sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
   const { data: cachedTPaths, loading: loadingTPaths, error: tPathsError, refresh: refreshTPaths } = useCacheAndRevalidate<LocalTPath>({
@@ -60,7 +60,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     supabaseQuery: useCallback(async (client: SupabaseClient) => client.from('t_paths').select('*'), []),
     queryKey: 'all_t_paths',
     supabase,
-    sessionUserId: session?.user.id ?? null,
+    sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
   const { profile, isLoading: loadingProfile, error: profileError, refresh: refreshProfile } = useUserProfile();
@@ -69,36 +69,36 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const { data: cachedTPathExercises, loading: loadingTPathExercises, error: tPathExercisesError, refresh: refreshTPathExercises } = useCacheAndRevalidate<Tables<'t_path_exercises'>>({
     cacheTable: 't_path_exercises_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!session?.user.id) return { data: [], error: null };
+      if (!memoizedSessionUserId) return { data: [], error: null }; // Use memoized ID
       const { data, error } = await client.from('t_path_exercises').select('id, exercise_id, template_id, order_index, is_bonus_exercise, created_at');
       return { data: data || [], error };
-    }, [session?.user.id]),
+    }, [memoizedSessionUserId]), // Depend on memoized ID
     queryKey: 'all_t_path_exercises',
     supabase,
-    sessionUserId: session?.user.id ?? null,
+    sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
   const { data: cachedAchievements, loading: loadingAchievements, error: achievementsError, refresh: refreshAchievements } = useCacheAndRevalidate<LocalUserAchievement>({
     cacheTable: 'user_achievements_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!session?.user.id) return { data: [], error: null };
-      const { data, error } = await client.from('user_achievements').select('id, user_id, achievement_id, unlocked_at').eq('user_id', session.user.id);
+      if (!memoizedSessionUserId) return { data: [], error: null }; // Use memoized ID
+      const { data, error } = await client.from('user_achievements').select('id, user_id, achievement_id, unlocked_at').eq('user_id', memoizedSessionUserId); // Use memoized ID
       return { data: data as LocalUserAchievement[] || [], error };
-    }, [session?.user.id]),
+    }, [memoizedSessionUserId]), // Depend on memoized ID
     queryKey: 'user_achievements',
     supabase,
-    sessionUserId: session?.user.id ?? null,
+    sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
   const { data: cachedUserGyms, loading: loadingUserGyms, error: userGymsError, refresh: refreshUserGyms } = useCacheAndRevalidate<Tables<'gyms'>>({
     cacheTable: 'gyms_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!session?.user.id) return { data: [], error: null };
-      return client.from('gyms').select('*').eq('user_id', session.user.id);
-    }, [session?.user.id]),
+      if (!memoizedSessionUserId) return { data: [], error: null }; // Use memoized ID
+      return client.from('gyms').select('*').eq('user_id', memoizedSessionUserId); // Use memoized ID
+    }, [memoizedSessionUserId]), // Depend on memoized ID
     queryKey: 'user_gyms_fetcher',
     supabase,
-    sessionUserId: session?.user.id ?? null,
+    sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
   const [cachedGymExercises, setCachedGymExercises] = useState<LocalGymExercise[] | null>(null);
@@ -106,7 +106,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const [gymExercisesError, setGymExercisesError] = useState<string | null>(null);
 
   const fetchGymExercises = useCallback(async () => {
-    if (!session?.user.id) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       setCachedGymExercises([]);
       setLoadingGymExercises(false);
       return;
@@ -114,7 +114,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     setLoadingGymExercises(true);
     setGymExercisesError(null);
     try {
-      const { data: userGymsData, error: userGymsError } = await supabase.from('gyms').select('id').eq('user_id', session.user.id);
+      const { data: userGymsData, error: userGymsError } = await supabase.from('gyms').select('id').eq('user_id', memoizedSessionUserId); // Use memoized ID
       if (userGymsError) throw new Error(userGymsError.message || "Failed to fetch user gyms for gym exercises.");
       const gymIds = (userGymsData || []).map(g => g.id);
       if (gymIds.length === 0) {
@@ -136,16 +136,16 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     } finally {
       setLoadingGymExercises(false);
     }
-  }, [session?.user.id, supabase]);
+  }, [memoizedSessionUserId, supabase]); // Depend on memoized ID
 
   useEffect(() => {
     fetchGymExercises();
   }, [fetchGymExercises]);
 
   const liveCachedGymExercises = useLiveQuery(async () => {
-    if (!session?.user.id) return [];
+    if (!memoizedSessionUserId) return []; // Use memoized ID
     return db.gym_exercises_cache.toArray();
-  }, [session?.user.id]);
+  }, [memoizedSessionUserId]); // Depend on memoized ID
 
   useEffect(() => {
     if (liveCachedGymExercises !== undefined) {
@@ -180,7 +180,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
 
   useEffect(() => {
     const calculateExerciseWorkoutsMap = async () => {
-      if (baseLoading || dataError || !session?.user.id || !cachedTPaths || !cachedTPathExercises || !profile) {
+      if (baseLoading || dataError || !memoizedSessionUserId || !cachedTPaths || !cachedTPathExercises || !profile) { // Use memoized ID
         setExerciseWorkoutsMap({});
         return;
       }
@@ -227,7 +227,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
               newMap[tpe.exercise_id].push({
                 id: workout.id,
                 name: workout.template_name,
-                isUserOwned: workout.user_id === session.user.id,
+                isUserOwned: workout.user_id === memoizedSessionUserId, // Use memoized ID
                 isBonus: !!tpe.is_bonus_exercise,
               });
             }
@@ -258,15 +258,14 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       setExerciseWorkoutsMap(newMap);
     };
     calculateExerciseWorkoutsMap();
-  }, [baseLoading, dataError, session?.user.id, cachedTPaths, cachedTPathExercises, profile, cachedExercises, supabase]);
-
+  }, [baseLoading, dataError, memoizedSessionUserId, cachedTPaths, cachedTPathExercises, profile, cachedExercises, supabase]); // Depend on memoized ID
 
   const workoutExercisesCache = useMemo(() => {
-    if (baseLoading || dataError || !session?.user.id) return {};
+    if (baseLoading || dataError || !memoizedSessionUserId) return {}; // Use memoized ID
     const exerciseDefMap = new Map<string, ExerciseDefinition>();
     (cachedExercises || []).forEach(def => exerciseDefMap.set(def.id, def as ExerciseDefinition));
     const newWorkoutExercisesCache: Record<string, WorkoutExercise[]> = {};
-    const allChildWorkouts = (cachedTPaths || []).filter(tp => tp.user_id === session.user.id && tp.parent_t_path_id);
+    const allChildWorkouts = (cachedTPaths || []).filter(tp => tp.user_id === memoizedSessionUserId && tp.parent_t_path_id); // Use memoized ID
     for (const workout of allChildWorkouts) {
       const exercisesForWorkout = (cachedTPathExercises || [])
         .filter(tpe => tpe.template_id === workout.id)
@@ -280,13 +279,13 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       newWorkoutExercisesCache[workout.id] = exercisesForWorkout;
     }
     return newWorkoutExercisesCache;
-  }, [cachedExercises, cachedTPaths, cachedTPathExercises, session?.user.id, baseLoading, dataError]);
+  }, [cachedExercises, cachedTPaths, cachedTPathExercises, memoizedSessionUserId, baseLoading, dataError]); // Depend on memoized ID
 
   const [groupedTPaths, setGroupedTPaths] = useState<GroupedTPath[]>([]);
 
   useEffect(() => {
     const enrichAndSetGroupedTPaths = async () => {
-      if (baseLoading || dataError || !session?.user.id || !cachedTPaths) {
+      if (baseLoading || dataError || !memoizedSessionUserId || !cachedTPaths) { // Use memoized ID
         setGroupedTPaths([]);
         if (!baseLoading) {
           setIsProcessingDerivedData(false);
@@ -295,8 +294,8 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       }
 
       setIsProcessingDerivedData(true);
-      const userMainTPaths = (cachedTPaths || []).filter(tp => tp.user_id === session.user.id && !tp.parent_t_path_id);
-      const allChildWorkouts = (cachedTPaths || []).filter(tp => tp.user_id === session.user.id && tp.parent_t_path_id);
+      const userMainTPaths = (cachedTPaths || []).filter(tp => tp.user_id === memoizedSessionUserId && !tp.parent_t_path_id); // Use memoized ID
+      const allChildWorkouts = (cachedTPaths || []).filter(tp => tp.user_id === memoizedSessionUserId && tp.parent_t_path_id); // Use memoized ID
       try {
         const newGroupedTPaths: GroupedTPath[] = await Promise.all(
           userMainTPaths.map(async (mainTPath) => {
@@ -335,7 +334,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       }
     };
     enrichAndSetGroupedTPaths();
-  }, [session?.user.id, supabase, cachedTPaths, baseLoading, dataError]); // Removed groupedTPaths from dependencies
+  }, [memoizedSessionUserId, supabase, cachedTPaths, baseLoading, dataError]); // Depend on memoized ID
 
   const refreshAllData = useCallback(async () => {
     await Promise.all([

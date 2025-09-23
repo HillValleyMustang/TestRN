@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tables } from '@/types/supabase';
 import { convertWeight, formatWeight } from '@/lib/unit-conversions';
 import { useExerciseHistory } from '@/hooks/data/useExerciseHistory';
+import { useSession } from '@/components/session-context-provider'; // Import useSession
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -22,6 +23,7 @@ interface ExerciseHistoryDialogProps {
 
 export const ExerciseHistoryDialog = ({ open, onOpenChange, exerciseId, exerciseName, exerciseType, exerciseCategory, trigger }: ExerciseHistoryDialogProps) => {
   const [internalOpen, setInternalOpen] = React.useState(false);
+  const { memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   
   const isControlled = open !== undefined && onOpenChange !== undefined;
   const currentOpen = isControlled ? open : internalOpen;
@@ -29,6 +31,7 @@ export const ExerciseHistoryDialog = ({ open, onOpenChange, exerciseId, exercise
 
   const { historyLogs, loading, error, preferredWeightUnit } = useExerciseHistory({
     exerciseId: currentOpen ? exerciseId : '',
+    sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
   return (

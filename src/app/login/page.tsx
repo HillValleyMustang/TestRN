@@ -13,16 +13,16 @@ type TPath = Tables<'t_paths'>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { session } = useSession();
+  const { session, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
 
   useEffect(() => {
     const checkUserProfile = async () => {
-      if (session) {
+      if (memoizedSessionUserId) { // Use memoized ID
         // Check if user has completed onboarding
         const { data: profile } = await supabase
           .from('profiles')
           .select('id') // Specify columns
-          .eq('id', session.user.id)
+          .eq('id', memoizedSessionUserId) // Use memoized ID
           .single();
 
         if (profile) {
@@ -30,7 +30,7 @@ export default function LoginPage() {
           const { data: tPaths } = await supabase
             .from('t_paths')
             .select('id') // Specify columns
-            .eq('user_id', session.user.id)
+            .eq('user_id', memoizedSessionUserId) // Use memoized ID
             .is('parent_t_path_id', null) // Look for main T-Paths
             .limit(1);
 
@@ -46,7 +46,7 @@ export default function LoginPage() {
     };
 
     checkUserProfile();
-  }, [session, router]);
+  }, [memoizedSessionUserId, router]); // Depend on memoized ID
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background p-2">

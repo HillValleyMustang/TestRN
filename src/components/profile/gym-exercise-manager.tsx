@@ -53,7 +53,7 @@ interface ManageGymWorkoutsExercisesDialogProps {
 }
 
 export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSaveSuccess, profile }: ManageGymWorkoutsExercisesDialogProps) => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   // NEW: Consume data from useWorkoutDataFetcher
   const {
     allAvailableExercises: fetchedAllAvailableExercises,
@@ -87,7 +87,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
   const fetchData = useCallback(async () => {
-    if (!session || !gym || !profile) {
+    if (!memoizedSessionUserId || !gym || !profile) { // Use memoized ID
       setLoading(false);
       return;
     }
@@ -163,7 +163,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
     } finally {
       setLoading(false);
     }
-  }, [session, supabase, gym, profile, selectedWorkoutId, groupedTPaths, fetchedAllAvailableExercises]); // Depend on groupedTPaths and fetchedAllAvailableExercises
+  }, [memoizedSessionUserId, supabase, gym, profile, selectedWorkoutId, groupedTPaths, fetchedAllAvailableExercises]); // Depend on memoized ID, groupedTPaths and fetchedAllAvailableExercises
 
   const refreshDialogData = useCallback(() => {
     fetchData();
@@ -187,7 +187,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
   }, [open, refreshDialogData]);
 
   const handleAddExercisesToWorkout = useCallback(async (exerciseIds: string[]) => {
-    if (!session || !gym || !selectedWorkoutId || exerciseIds.length === 0) return;
+    if (!memoizedSessionUserId || !gym || !selectedWorkoutId || exerciseIds.length === 0) return; // Use memoized ID
     setIsSaving(true);
 
     try {
@@ -260,7 +260,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
     } finally {
       setIsSaving(false);
     }
-  }, [session, supabase, gym, selectedWorkoutId, coreExercises, bonusExercises, fetchedAllAvailableExercises, exerciseIdsInGym, onSaveSuccess, refreshAllData]);
+  }, [memoizedSessionUserId, supabase, gym, selectedWorkoutId, coreExercises, bonusExercises, fetchedAllAvailableExercises, exerciseIdsInGym, onSaveSuccess, refreshAllData]); // Depend on memoized ID
 
 
   const handleRemoveExerciseClick = useCallback((exerciseId: string) => {
@@ -272,7 +272,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
   }, [coreExercises, bonusExercises]);
 
   const confirmRemoveExercise = useCallback(async () => {
-    if (!session || !selectedWorkoutId || !exerciseToRemove) return;
+    if (!memoizedSessionUserId || !selectedWorkoutId || !exerciseToRemove) return; // Use memoized ID
     setIsSaving(true);
     setShowConfirmRemoveDialog(false);
 
@@ -307,7 +307,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       setIsSaving(false);
       setExerciseToRemove(null);
     }
-  }, [session, supabase, selectedWorkoutId, coreExercises, bonusExercises, exerciseToRemove, onSaveSuccess, refreshAllData]);
+  }, [memoizedSessionUserId, supabase, selectedWorkoutId, coreExercises, bonusExercises, exerciseToRemove, onSaveSuccess, refreshAllData]); // Depend on memoized ID
 
   const handleWorkoutSelectChange = useCallback((newWorkoutId: string) => {
     setSelectedWorkoutId(newWorkoutId);
@@ -374,7 +374,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
   }, [coreExercises, bonusExercises, selectedWorkoutId]);
 
   const handleSaveChanges = useCallback(async () => {
-    if (!session || !selectedWorkoutId || !hasUnsavedChanges) return;
+    if (!memoizedSessionUserId || !selectedWorkoutId || !hasUnsavedChanges) return; // Use memoized ID
     setIsSaving(true);
     try {
       const updates = [
@@ -393,7 +393,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
     } finally {
       setIsSaving(false);
     }
-  }, [session, supabase, selectedWorkoutId, coreExercises, bonusExercises, hasUnsavedChanges, onSaveSuccess, refreshAllData]);
+  }, [memoizedSessionUserId, supabase, selectedWorkoutId, coreExercises, bonusExercises, hasUnsavedChanges, onSaveSuccess, refreshAllData]); // Depend on memoized ID
 
   const handleCloseDialog = useCallback(() => {
     if (hasUnsavedChanges) {

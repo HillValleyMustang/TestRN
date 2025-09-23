@@ -8,6 +8,7 @@ import { WorkoutExerciseWithDetails } from "@/hooks/use-edit-workout-exercises";
 import { ExerciseSelectionDropdown } from '@/components/shared/exercise-selection-dropdown';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from 'sonner'; // Import toast
+import { useSession } from '@/components/session-context-provider'; // Import useSession
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type Gym = Tables<'gyms'>;
@@ -45,6 +46,8 @@ export const AddExerciseSection = ({
   selectedGymFilter,
   setSelectedGymFilter,
 }: AddExerciseSectionProps) => {
+  const { memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
+
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">

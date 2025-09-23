@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { OnboardingSummaryModal } from "@/components/onboarding/onboarding-summary-modal"; // Import the new modal
 
 export default function OnboardingPage() {
-  const { session } = useSession();
+  const { session, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const {
     currentStep,
     tPathType,
@@ -68,7 +68,7 @@ export default function OnboardingPage() {
     }
   }, [originalHandleSubmit, fullName, heightCm, weightKg, bodyFatPct]);
 
-  if (!session) {
+  if (!memoizedSessionUserId) { // Use memoized ID
     return <div>Loading...</div>;
   }
 

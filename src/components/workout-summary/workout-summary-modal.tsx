@@ -37,7 +37,7 @@ interface WorkoutSummaryModalProps {
 }
 
 export const WorkoutSummaryModal = ({ open, onOpenChange, sessionId }: WorkoutSummaryModalProps) => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const router = useRouter();
   const [workoutSession, setWorkoutSession] = useState<WorkoutSession | null>(null);
   const [setLogs, setSetLogs] = useState<SetLogWithExercise[]>([]);
@@ -51,7 +51,7 @@ export const WorkoutSummaryModal = ({ open, onOpenChange, sessionId }: WorkoutSu
   const [hasShownAchievementToasts, setHasShownAchievementToasts] = useState(false);
 
   useEffect(() => {
-    if (!session || !sessionId || !open) {
+    if (!memoizedSessionUserId || !sessionId || !open) { // Use memoized ID
       setWorkoutSession(null);
       setSetLogs([]);
       setLoading(true);
@@ -116,11 +116,11 @@ export const WorkoutSummaryModal = ({ open, onOpenChange, sessionId }: WorkoutSu
         setSetLogs(processedSetLogs);
 
         // Only show achievement toasts if they haven't been shown for this session yet
-        if (!hasShownAchievementToasts && session.user.id) {
+        if (!hasShownAchievementToasts && memoizedSessionUserId) { // Use memoized ID
           const response = await fetch('/api/get-session-achievements', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-            body: JSON.stringify({ userId: session.user.id, sessionId: sessionId }),
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` }, // Use session?.access_token
+            body: JSON.stringify({ userId: memoizedSessionUserId, sessionId: sessionId }), // Use memoized ID
           });
           const data = await response.json();
           if (!response.ok) throw new Error(data.error || 'Failed to fetch session achievements.');
@@ -142,7 +142,7 @@ export const WorkoutSummaryModal = ({ open, onOpenChange, sessionId }: WorkoutSu
     };
 
     fetchWorkoutSummary();
-  }, [session, sessionId, supabase, hasShownAchievementToasts, open]); // Added 'open' to dependencies to re-trigger on modal open
+  }, [memoizedSessionUserId, sessionId, supabase, hasShownAchievementToasts, open]); // Depend on memoized ID and 'open' to re-trigger on modal open
 
   const handleRatingChange = (rating: number) => {
     setCurrentRating(rating);

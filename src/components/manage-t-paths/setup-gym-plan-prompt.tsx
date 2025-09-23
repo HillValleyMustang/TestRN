@@ -18,18 +18,18 @@ interface SetupGymPlanPromptProps {
 }
 
 export const SetupGymPlanPrompt = ({ gym, onSetupSuccess, profile }: SetupGymPlanPromptProps) => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
   const [sourceGyms, setSourceGyms] = useState<Gym[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchOtherGyms = async () => {
-      if (!session) return;
+      if (!memoizedSessionUserId) return; // Use memoized ID
       const { data, error } = await supabase
         .from('gyms')
         .select('*')
-        .eq('user_id', session.user.id)
+        .eq('user_id', memoizedSessionUserId) // Use memoized ID
         .neq('id', gym.id);
 
       if (error) {
@@ -40,10 +40,10 @@ export const SetupGymPlanPrompt = ({ gym, onSetupSuccess, profile }: SetupGymPla
       }
     };
     fetchOtherGyms();
-  }, [session, supabase, gym.id]);
+  }, [memoizedSessionUserId, supabase, gym.id]); // Depend on memoized ID
 
   const handleSetupDefaults = async () => {
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       toast.error("You must be logged in to set up defaults."); // Added toast.error
       return;
     }
@@ -52,7 +52,7 @@ export const SetupGymPlanPrompt = ({ gym, onSetupSuccess, profile }: SetupGymPla
     try {
       const response = await fetch('/api/setup-default-gym', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` }, // Use session?.access_token
         body: JSON.stringify({ gymId: gym.id }),
       });
       const data = await response.json();

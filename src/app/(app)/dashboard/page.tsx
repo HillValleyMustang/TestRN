@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 type Profile = Tables<'profiles'>;
 
 export default function DashboardPage() {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const router = useRouter();
   const { userGyms, activeGym, loadingGyms } = useGym();
   const { groupedTPaths, loadingData: loadingWorkoutData, profile, loadingData: loadingProfile } = useWorkoutDataFetcher();
@@ -38,7 +38,7 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       router.push('/login');
       return;
     }
@@ -50,7 +50,7 @@ export default function DashboardPage() {
       // If not loading and still no profile, they need to onboard
       router.push('/onboarding');
     }
-  }, [session, router, profile, loadingProfile]);
+  }, [memoizedSessionUserId, router, profile, loadingProfile]); // Depend on memoized ID
 
   const isGymConfigured = useMemo(() => {
     if (loadingWorkoutData || !activeGym) return false; 
@@ -73,7 +73,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (!session) return null;
+  if (!memoizedSessionUserId) return null; // Use memoized ID
 
   // After loading, if there's still no active gym, prompt user to create one.
   if (!activeGym) {

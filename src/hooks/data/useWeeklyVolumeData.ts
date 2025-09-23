@@ -32,7 +32,7 @@ interface ChartData {
 }
 
 export const useWeeklyVolumeData = () => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,27 +41,27 @@ export const useWeeklyVolumeData = () => {
   const { data: cachedSessions, loading: loadingSessions, error: sessionsError } = useCacheAndRevalidate<LocalWorkoutSession>({
     cacheTable: 'workout_sessions',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!session?.user.id) return { data: [], error: null };
-      return client.from('workout_sessions').select('*').eq('user_id', session.user.id).not('completed_at', 'is', null);
-    }, [session?.user.id]),
+      if (!memoizedSessionUserId) return { data: [], error: null }; // Use memoized ID
+      return client.from('workout_sessions').select('*').eq('user_id', memoizedSessionUserId).not('completed_at', 'is', null); // Use memoized ID
+    }, [memoizedSessionUserId]), // Depend on memoized ID
     queryKey: 'volume_chart_sessions',
     supabase,
-    sessionUserId: session?.user.id ?? null,
+    sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
   const { data: cachedSetLogs, loading: loadingSetLogs, error: setLogsError } = useCacheAndRevalidate<LocalSetLog>({
     cacheTable: 'set_logs',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!session?.user.id) return { data: [], error: null };
-      const { data: sessionIds, error: sessionIdsError } = await client.from('workout_sessions').select('id').eq('user_id', session.user.id);
+      if (!memoizedSessionUserId) return { data: [], error: null }; // Use memoized ID
+      const { data: sessionIds, error: sessionIdsError } = await client.from('workout_sessions').select('id').eq('user_id', memoizedSessionUserId); // Use memoized ID
       if (sessionIdsError) return { data: [], error: sessionIdsError };
       if (!sessionIds || sessionIds.length === 0) return { data: [], error: null };
       
       return client.from('set_logs').select('*').in('session_id', sessionIds.map(s => s.id));
-    }, [session?.user.id]),
+    }, [memoizedSessionUserId]), // Depend on memoized ID
     queryKey: 'volume_chart_set_logs',
     supabase,
-    sessionUserId: session?.user.id ?? null,
+    sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
   const { data: cachedExerciseDefs, loading: loadingExerciseDefs, error: exerciseDefsError } = useCacheAndRevalidate<LocalExerciseDefinition>({
@@ -71,7 +71,7 @@ export const useWeeklyVolumeData = () => {
     }, []),
     queryKey: 'all_exercises_for_volume_chart',
     supabase,
-    sessionUserId: session?.user.id ?? null,
+    sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
   useEffect(() => {

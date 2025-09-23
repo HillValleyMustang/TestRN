@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import { SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient, Session } from '@supabase/supabase-js'; // Import Session
 import { toast } from 'sonner';
 import { LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise, LocalUserAchievement, LocalGym, LocalActivityLog, LocalGymExercise } from '@/lib/db'; // Import specific local types
 
@@ -24,7 +24,7 @@ interface UseCacheAndRevalidateProps<T extends CacheItem> {
   supabaseQuery: (supabase: SupabaseClient) => Promise<{ data: T[] | null; error: any }>;
   queryKey: string;
   supabase: SupabaseClient;
-  sessionUserId: string | null | undefined;
+  sessionUserId: string | null; // This prop will now receive memoizedSessionUserId
 }
 
 export function useCacheAndRevalidate<T extends CacheItem>( // Updated generic constraint
@@ -61,7 +61,7 @@ export function useCacheAndRevalidate<T extends CacheItem>( // Updated generic c
       console.log(`[useCacheAndRevalidate] ${queryKey}: Fetched ${filteredData.length} items from IndexedDB for user ${sessionUserId}.`);
       return filteredData;
     },
-    [cacheTable, sessionUserId],
+    [cacheTable, sessionUserId], // Dependencies for useLiveQuery
     []
   );
 

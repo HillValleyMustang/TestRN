@@ -15,7 +15,7 @@ import { toast } from 'sonner'; // Import toast
  * It handles its own loading and error states according to our new architectural principles.
  */
 export const useWorkoutHistory = () => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [sessions, setSessions] = useState<WorkoutSessionWithAggregatedDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,27 +24,27 @@ export const useWorkoutHistory = () => {
   const { data: cachedSessions, loading: loadingSessions, error: sessionsError, refresh: refreshSessions } = useCacheAndRevalidate<LocalWorkoutSession>({
     cacheTable: 'workout_sessions',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!session?.user.id) return { data: [], error: null };
-      return client.from('workout_sessions').select('*').eq('user_id', session.user.id).not('completed_at', 'is', null).order('session_date', { ascending: false });
-    }, [session?.user.id]),
+      if (!memoizedSessionUserId) return { data: [], error: null }; // Use memoized ID
+      return client.from('workout_sessions').select('*').eq('user_id', memoizedSessionUserId).not('completed_at', 'is', null).order('session_date', { ascending: false }); // Use memoized ID
+    }, [memoizedSessionUserId]), // Depend on memoized ID
     queryKey: 'workout_history_sessions',
     supabase,
-    sessionUserId: session?.user.id ?? null,
+    sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
   const { data: cachedSetLogs, loading: loadingSetLogs, error: setLogsError, refresh: refreshSetLogs } = useCacheAndRevalidate<LocalSetLog>({
     cacheTable: 'set_logs',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!session?.user.id) return { data: [], error: null };
-      const { data: sessionIds, error: sessionIdsError } = await client.from('workout_sessions').select('id').eq('user_id', session.user.id);
+      if (!memoizedSessionUserId) return { data: [], error: null }; // Use memoized ID
+      const { data: sessionIds, error: sessionIdsError } = await client.from('workout_sessions').select('id').eq('user_id', memoizedSessionUserId); // Use memoized ID
       if (sessionIdsError) return { data: [], error: sessionIdsError };
       if (!sessionIds || sessionIds.length === 0) return { data: [], error: null };
       
       return client.from('set_logs').select('*').in('session_id', sessionIds.map(s => s.id));
-    }, [session?.user.id]),
+    }, [memoizedSessionUserId]), // Depend on memoized ID
     queryKey: 'workout_history_set_logs',
     supabase,
-    sessionUserId: session?.user.id ?? null,
+    sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
   const { data: cachedExerciseDefs, loading: loadingExerciseDefs, error: exerciseDefsError, refresh: refreshExerciseDefs } = useCacheAndRevalidate<LocalExerciseDefinition>({
@@ -54,7 +54,7 @@ export const useWorkoutHistory = () => {
     }, []),
     queryKey: 'all_exercises_for_history',
     supabase,
-    sessionUserId: session?.user.id ?? null,
+    sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
   // 2. Process and aggregate the data once all sources are loaded

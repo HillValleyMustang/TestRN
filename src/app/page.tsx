@@ -5,17 +5,17 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/session-context-provider';
 
 export default function HomePage() {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const router = useRouter();
 
   useEffect(() => {
     // Check if session is null (not logged in) or exists
     if (session === null) {
       router.push('/login');
-    } else if (session) {
+    } else if (memoizedSessionUserId) { // Use memoized ID
       router.push('/dashboard');
     }
-  }, [session, router]);
+  }, [session, router, memoizedSessionUserId]); // Depend on memoized ID
 
   // Render a loading state or nothing while redirecting
   return (

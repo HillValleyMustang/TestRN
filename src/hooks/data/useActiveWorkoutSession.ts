@@ -55,12 +55,12 @@ export const useActiveWorkoutSession = ({ groupedTPaths, workoutExercisesCache }
     setIsWorkoutSessionStarted(false); // RESET NEW STATE
   }, []);
 
-  const { session } = useSession();
+  const { session, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const { activeGym } = useGym();
 
   const resetWorkoutSession = useCallback(async () => {
     console.log("[ActiveWorkoutSession] resetWorkoutSession called.");
-    if (session?.user.id) {
+    if (memoizedSessionUserId) { // Use memoized ID
       try {
         const allDrafts = await db.draft_set_logs.toArray();
         const userDraftKeys = allDrafts.map(draft => [draft.exercise_id, draft.set_index] as [string, number]);
@@ -74,7 +74,7 @@ export const useActiveWorkoutSession = ({ groupedTPaths, workoutExercisesCache }
       }
     }
     _resetLocalState();
-  }, [session, _resetLocalState]);
+  }, [memoizedSessionUserId, _resetLocalState]); // Depend on memoized ID
 
   const selectWorkout = useCallback(async (workoutId: string | null) => {
     console.log(`[ActiveWorkoutSession] selectWorkout called with workoutId: ${workoutId}`);
@@ -123,7 +123,7 @@ export const useActiveWorkoutSession = ({ groupedTPaths, workoutExercisesCache }
 
   const createWorkoutSessionInDb = useCallback(async (templateName: string, firstSetTimestamp: string): Promise<string> => {
     console.log(`[ActiveWorkoutSession] createWorkoutSessionInDb called for template: ${templateName}, timestamp: ${firstSetTimestamp}`);
-    if (!session) {
+    if (!memoizedSessionUserId) { // Use memoized ID
       console.error("[ActiveWorkoutSession] Error: User not authenticated when trying to create workout session.");
       throw new Error("User not authenticated.");
     }
@@ -132,7 +132,7 @@ export const useActiveWorkoutSession = ({ groupedTPaths, workoutExercisesCache }
       const newSessionId = uuidv4();
       const sessionData: LocalWorkoutSession = {
         id: newSessionId,
-        user_id: session.user.id,
+        user_id: memoizedSessionUserId, // Use memoized ID
         template_name: templateName,
         t_path_id: activeWorkout?.id === 'ad-hoc' ? null : activeWorkout?.id || null,
         session_date: firstSetTimestamp,
@@ -155,11 +155,11 @@ export const useActiveWorkoutSession = ({ groupedTPaths, workoutExercisesCache }
     } finally {
       setIsCreatingSession(false);
     }
-  }, [session, activeWorkout]);
+  }, [memoizedSessionUserId, activeWorkout]); // Depend on memoized ID
 
   const finishWorkoutSession = useCallback(async (): Promise<string | null> => {
     console.log("[ActiveWorkoutSession] finishWorkoutSession called.");
-    if (!currentSessionId || !sessionStartTime || !session || !activeWorkout) {
+    if (!currentSessionId || !sessionStartTime || !memoizedSessionUserId || !activeWorkout) { // Use memoized ID
       console.error("[ActiveWorkoutSession] Error: Workout session not properly started or missing data for finishing.");
       toast.error("Workout session not properly started.");
       return null;
@@ -180,8 +180,8 @@ export const useActiveWorkoutSession = ({ groupedTPaths, workoutExercisesCache }
       await db.draft_set_logs.where('session_id').equals(currentSessionId).delete();
       console.log(`[ActiveWorkoutSession] Draft set logs for session ${currentSessionId} cleared.`);
       
-      console.log(`[ActiveWorkoutSession] Invoking process-achievements for user ${session.user.id}, session ${currentSessionId}`);
-      const { error: achievementError } = await supabase.functions.invoke('process-achievements', { body: { user_id: session.user.id, session_id: currentSessionId } });
+      console.log(`[ActiveWorkoutSession] Invoking process-achievements for user ${memoizedSessionUserId}, session ${currentSessionId}`); // Use memoized ID
+      const { error: achievementError } = await supabase.functions.invoke('process-achievements', { body: { user_id: memoizedSessionUserId, session_id: currentSessionId } }); // Use memoized ID
       if (achievementError) {
         console.error("[ActiveWorkoutSession] Error invoking process-achievements:", achievementError);
         toast.error("Failed to process achievements.");
@@ -196,7 +196,7 @@ export const useActiveWorkoutSession = ({ groupedTPaths, workoutExercisesCache }
       toast.error("Failed to save workout duration.");
       return null;
     }
-  }, [currentSessionId, sessionStartTime, session, activeWorkout, supabase, resetWorkoutSession]);
+  }, [currentSessionId, sessionStartTime, memoizedSessionUserId, activeWorkout, supabase, resetWorkoutSession]); // Depend on memoized ID
 
   const updateExerciseSets = useCallback((exerciseId: string, newSets: SetLogState[]) => {
     console.log(`[ActiveWorkoutSession] updateExerciseSets called for exerciseId: ${exerciseId}`);

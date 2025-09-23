@@ -47,7 +47,7 @@ export const useSetDrafts = ({
   currentSessionId,
   supabase,
 }: UseSetDraftsProps): UseSetDraftsReturn => {
-  const { session } = useSession();
+  const { session, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
 
   const drafts = useLiveQuery(async () => {
     if (!isValidId(exerciseId)) {
@@ -105,11 +105,11 @@ export const useSetDrafts = ({
   }, [exerciseId, currentSessionId]); // currentSessionId is a dependency here because it's used in the payload
 
   const fetchLastSets = useCallback(async () => {
-    if (!session || !isValidId(exerciseId)) return new Map<string, GetLastExerciseSetsForExerciseReturns>();
+    if (!memoizedSessionUserId || !isValidId(exerciseId)) return new Map<string, GetLastExerciseSetsForExerciseReturns>(); // Use memoized ID
     
     try {
       const { data: lastExerciseSets, error: rpcError } = await supabase.rpc('get_last_exercise_sets_for_exercise', {
-        p_user_id: session.user.id,
+        p_user_id: memoizedSessionUserId, // Use memoized ID
         p_exercise_id: exerciseId,
       });
 
@@ -129,7 +129,7 @@ export const useSetDrafts = ({
       toast.error(`Failed to load previous sets for ${exerciseName}.`); // Changed to toast.error
       return new Map<string, GetLastExerciseSetsForExerciseReturns>();
     }
-  }, [session, supabase, exerciseId, exerciseName]);
+  }, [memoizedSessionUserId, supabase, exerciseId, exerciseName]); // Depend on memoized ID
 
   // NEW: Effect to update session_id for existing drafts when currentSessionId becomes available
   useEffect(() => {

@@ -9,10 +9,12 @@ import { useEffect } from "react";
 import { UnsavedChangesDialog } from "@/components/workout-flow/unsaved-changes-dialog";
 import { EditWorkoutExercisesDialog } from "@/components/manage-t-paths/edit-workout-exercises-dialog";
 import { GymContextProvider } from "@/components/gym-context-provider";
+import { useSession } from "@/components/session-context-provider"; // Import useSession
 
 // This component now consumes the context provided by WorkoutFlowProvider
 function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const workoutFlowManager = useWorkoutFlow(); // Use the context hook
+  const { memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
 
   // --- Browser-level warning (for page close/refresh/browser navigation) ---
   useEffect(() => {

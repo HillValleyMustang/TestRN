@@ -26,21 +26,21 @@ interface WorkoutVolumeHistoryCardProps {
 }
 
 export const WorkoutVolumeHistoryCard = ({ workoutTemplateName, currentSessionId }: WorkoutVolumeHistoryCardProps) => {
-  const { session, supabase } = useSession();
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchWorkoutVolumeHistory = async () => {
-      if (!session || !workoutTemplateName) return;
+      if (!memoizedSessionUserId || !workoutTemplateName) return; // Use memoized ID
 
       setLoading(true);
       setError(null);
       try {
         const sessionsData = await db.workout_sessions
           .where('template_name').equals(workoutTemplateName)
-          .and(s => s.user_id === session.user.id && s.completed_at !== null)
+          .and(s => s.user_id === memoizedSessionUserId && s.completed_at !== null) // Use memoized ID
           .sortBy('session_date');
 
         const relevantSessionIds = (sessionsData || []).map(s => s.id);
@@ -96,7 +96,7 @@ export const WorkoutVolumeHistoryCard = ({ workoutTemplateName, currentSessionId
     };
 
     fetchWorkoutVolumeHistory();
-  }, [session, supabase, workoutTemplateName, currentSessionId]);
+  }, [memoizedSessionUserId, supabase, workoutTemplateName, currentSessionId]); // Depend on memoized ID
 
   if (loading) {
     return <Card className="h-[250px] flex items-center justify-center mb-6"><p className="text-muted-foreground">Loading history...</p></Card>;
