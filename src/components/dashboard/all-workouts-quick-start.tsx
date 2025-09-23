@@ -13,7 +13,6 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useGym } from '@/components/gym-context-provider'; // Import useGym
 import Link from 'next/link'; // Import Link
-import { CardContentPlaceholder } from '@/components/shared/card-content-placeholder'; // Import new component
 
 type TPath = Tables<'t_paths'>;
 type Gym = Tables<'gyms'>; // Import Gym type
@@ -118,30 +117,32 @@ export const AllWorkoutsQuickStart = ({
           {activeMainTPath ? `Workouts in "${activeMainTPath.template_name}"` : "All Workouts"}
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <CardContentPlaceholder
-          isLoading={componentLoading}
-          hasActiveGym={!!activeGym}
-          isGymConfigured={isGymConfigured}
-          activeGymName={activeGym?.name || null}
-          hasWorkouts={!isTrulyEmptyState}
-          loadingSkeleton={
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-14 flex-1" />
-                <Skeleton className="h-10 w-10" />
-              </div>
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-14 flex-1" />
-                <Skeleton className="h-10 w-10" />
-              </div>
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-14 flex-1" />
-                <Skeleton className="h-10 w-10" />
-              </div>
+      <CardContent className="min-h-[120px] flex flex-col justify-center"> {/* Added min-h and flex styles */}
+        {componentLoading && isTrulyEmptyState ? (
+          // Skeleton for the "no data" state (text-like)
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-14 flex-1" />
+              <Skeleton className="h-10 w-10" />
             </div>
-          }
-        >
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-14 flex-1" />
+              <Skeleton className="h-10 w-10" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-14 flex-1" />
+              <Skeleton className="h-10 w-10" />
+            </div>
+          </div>
+        ) : !activeGym ? (
+          <p className="text-muted-foreground text-center py-4">No active gym selected. Please set one in your profile.</p>
+        ) : !isGymConfigured ? (
+          <p className="text-muted-foreground text-center py-4">Your active gym "{activeGym.name}" has no workout plan. Go to <Link href="/manage-t-paths" className="text-primary underline">Manage T-Paths</Link> to set one up.</p>
+        ) : isTrulyEmptyState ? (
+          // Actual "no data" message
+          <p className="text-muted-foreground text-center py-4">No workouts found for your active Transformation Path. This might happen if your session length is too short for any workouts.</p>
+        ) : (
+          // Actual content when workouts are available
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {childWorkouts.map((workout: WorkoutWithLastCompleted) => {
               const pillProps = mapWorkoutToPillProps(workout, activeMainTPath!.template_name); // Non-null assertion as isTrulyEmptyState handles null
@@ -164,7 +165,7 @@ export const AllWorkoutsQuickStart = ({
               );
             })}
           </div>
-        </CardContentPlaceholder>
+        )}
       </CardContent>
     </Card>
   );
