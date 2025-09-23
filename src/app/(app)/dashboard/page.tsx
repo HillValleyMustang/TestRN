@@ -52,24 +52,7 @@ export default function DashboardPage() {
 
   if (!memoizedSessionUserId) return null;
 
-  // Show full-page skeleton until profile is loaded
-  if (loadingProfile || !profile) {
-    return (
-      <div className="flex flex-col gap-6 p-2 sm:p-4">
-        <header>
-          <h1 className="text-4xl font-bold tracking-tight">Welcome Back, <Skeleton className="inline-block h-8 w-32" /></h1>
-          <div className="text-muted-foreground mt-2"><Skeleton className="h-4 w-48" /></div>
-        </header>
-        <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-48 w-full" />
-      </div>
-    );
-  }
-
-  // Once profile is loaded, render the main dashboard content
+  // Render the main dashboard content directly without a full-page skeleton
   return (
     <div className="flex flex-col gap-6 p-2 sm:p-4">
       <header className="animate-fade-in-slide-up" style={{ animationDelay: '0s' }}>

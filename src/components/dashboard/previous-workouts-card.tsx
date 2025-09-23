@@ -48,12 +48,8 @@ export const PreviousWorkoutsCard = ({ onViewSummary }: PreviousWorkoutsCardProp
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {isLoading && recentSessions.length === 0 ? (
-          <div className="space-y-2">
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
-          </div>
+        {isLoading ? (
+          null
         ) : recentSessions.length === 0 ? (
           <p className="text-muted-foreground">No previous workouts found. Complete a workout to see it here!</p>
         ) : (

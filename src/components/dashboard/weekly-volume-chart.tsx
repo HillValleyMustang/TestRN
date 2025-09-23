@@ -24,10 +24,8 @@ export const WeeklyVolumeChart = () => {
         <CardTitle className="text-center text-xl">Weekly Workout Volume</CardTitle>
       </CardHeader>
       <CardContent>
-        {isLoading && chartData.length === 0 ? (
-          <div className="h-[250px] flex items-center justify-center">
-            <Skeleton className="h-full w-full" />
-          </div>
+        {isLoading ? (
+          null
         ) : chartData.length === 0 ? (
           <div className="h-[250px] flex items-center justify-center text-muted-foreground">
             No workout volume data available. Log some workouts to see your progress!
