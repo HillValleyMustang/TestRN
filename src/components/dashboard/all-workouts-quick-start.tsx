@@ -103,7 +103,12 @@ export const AllWorkoutsQuickStart = ({
       </CardHeader>
       <CardContent className="min-h-[120px] flex flex-col justify-center">
         {isLoading ? (
-          null
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex items-center gap-2"><Skeleton className="h-14 flex-1" /><Skeleton className="h-10 w-10" /></div>
+            <div className="flex items-center gap-2"><Skeleton className="h-14 flex-1" /><Skeleton className="h-10 w-10" /></div>
+            <div className="flex items-center gap-2"><Skeleton className="h-14 flex-1" /><Skeleton className="h-10 w-10" /></div>
+            <div className="flex items-center gap-2"><Skeleton className="h-14 flex-1" /><Skeleton className="h-10 w-10" /></div>
+          </div>
         ) : dataError ? (
           <p className="text-destructive">Error loading workouts: {dataError}</p>
         ) : !activeGym ? (

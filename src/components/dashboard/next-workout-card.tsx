@@ -146,7 +146,14 @@ export const NextWorkoutCard = ({
       </CardHeader>
       <CardContent className="min-h-[120px] flex flex-col justify-center">
         {isLoading ? (
-          null
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex flex-col space-y-2 w-full">
+              <Skeleton className="h-7 w-3/4" />
+              <Skeleton className="h-5 w-1/2" />
+              <Skeleton className="h-4 w-1/3" />
+            </div>
+            <Skeleton className="h-12 w-full sm:w-36" />
+          </div>
         ) : dataError ? (
           <p className="text-destructive">Error loading next workout: {dataError}</p>
         ) : !activeGym ? (
