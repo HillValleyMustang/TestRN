@@ -25,7 +25,7 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
   const { session, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [activeGym, setActiveGym] = useState<Gym | null>(null);
 
-  const { data: cachedGyms, loading: loadingGyms, error: gymsError, refresh: refreshGyms } = useCacheAndRevalidate<LocalGym>({
+  const { data: cachedGyms, loading: loadingGymsFromCache, error: gymsError, refresh: refreshGyms } = useCacheAndRevalidate<LocalGym>({
     cacheTable: 'gyms_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
       if (!memoizedSessionUserId) return { data: [], error: null }; // Use memoized ID
@@ -36,7 +36,7 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
     sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
-  const { data: cachedProfile, refresh: refreshProfile } = useCacheAndRevalidate<Profile>({
+  const { data: cachedProfile, loading: loadingProfileFromCache, error: profileError, refresh: refreshProfile } = useCacheAndRevalidate<Profile>({
     cacheTable: 'profiles_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
       if (!memoizedSessionUserId) return { data: [], error: null }; // Use memoized ID
@@ -47,19 +47,29 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
     sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
-  useEffect(() => {
-    if (gymsError) {
-      toast.error("Failed to load gym data."); // Changed to toast.error
-      console.error("GymContext Error:", gymsError);
-    }
-  }, [gymsError]);
+  // Combine loading states to prevent flicker
+  const loadingGyms = loadingGymsFromCache || loadingProfileFromCache;
 
   useEffect(() => {
+    const combinedError = gymsError || profileError;
+    if (combinedError) {
+      toast.error("Failed to load gym or profile data.");
+      console.error("GymContext Error:", combinedError);
+    }
+  }, [gymsError, profileError]);
+
+  useEffect(() => {
+    // Only process if not loading and all data is available
+    if (loadingGyms || !cachedProfile || !cachedGyms) {
+      return;
+    }
+
     const profile = cachedProfile?.[0];
     const gyms = cachedGyms || [];
     if (profile && gyms.length > 0) {
       const activeGymId = profile.active_gym_id;
       let newActiveGym = activeGymId ? gyms.find(g => g.id === activeGymId) : null;
+      // If no active gym is set in profile, or the set one doesn't exist, default to the first gym
       if (!newActiveGym) {
         newActiveGym = gyms[0];
       }
@@ -67,18 +77,18 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
     } else {
       setActiveGym(null);
     }
-  }, [cachedGyms, cachedProfile]);
+  }, [cachedGyms, cachedProfile, loadingGyms]);
 
   const switchActiveGym = useCallback(async (gymId: string): Promise<boolean> => {
     if (!session) {
       console.error("Error: User not authenticated when trying to switch active gym.");
-      toast.error("You must be logged in to switch active gym."); // Added toast.error
+      toast.error("You must be logged in to switch active gym.");
       return false;
     }
     const newActiveGym = (cachedGyms || []).find(g => g.id === gymId);
     if (!newActiveGym) {
       console.error("Error: New active gym not found in cached gyms.");
-      toast.error("Selected gym not found."); // Added toast.error
+      toast.error("Selected gym not found.");
       return false;
     }
 
@@ -100,7 +110,7 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
       return true;
     } catch (error: any) {
       console.error("Error switching active gym:", error.message);
-      toast.error(error.message || "Failed to switch active gym."); // Changed to toast.error
+      toast.error(error.message || "Failed to switch active gym.");
       setActiveGym(previousActiveGym); // Rollback
       return false;
     }
@@ -110,7 +120,7 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
     userGyms: cachedGyms || [],
     activeGym,
     switchActiveGym,
-    loadingGyms,
+    loadingGyms, // This is now the combined loading state
     refreshGyms,
   }), [cachedGyms, activeGym, switchActiveGym, loadingGyms, refreshGyms]);
 
