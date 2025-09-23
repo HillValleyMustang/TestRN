@@ -39,15 +39,12 @@ export const NextWorkoutCard = ({
 }: NextWorkoutCardProps) => {
   const router = useRouter();
   const { session } = useSession();
-  const { workoutExercisesCache, error: plansError } = useWorkoutPlans(); // Removed loadingPlans from here as it's a prop
+  const { workoutExercisesCache, error: plansError } = useWorkoutPlans();
   
-  const [mainTPath, setMainTPath] = useState<TPath | null>(null);
-  const [nextWorkout, setNextWorkout] = useState<WorkoutWithLastCompleted | null>(null);
-  const [estimatedDuration, setEstimatedDuration] = useState<string | null>(null); // Initialized to null
-  const [lastWorkoutName, setLastWorkoutName] = useState<string | null>(null);
+  const [mainTPath, setMainTPath] = useState<TPath | null>(null); // Keep mainTPath as state if it's used for other purposes
 
-  const componentLoading = loadingPlans || loadingGyms; // Use internal loading states
-  const dataError = plansError; // profileError is handled by parent
+  const componentLoading = loadingPlans || loadingGyms;
+  const dataError = plansError;
 
   // Determine if the active gym is configured
   const isGymConfigured = useMemo(() => {
@@ -55,110 +52,103 @@ export const NextWorkoutCard = ({
     return groupedTPaths.some(group => group.mainTPath.gym_id === activeGym.id);
   }, [activeGym, groupedTPaths]);
 
-  useEffect(() => {
-    const determineNextWorkout = () => {
-      if (dataError || !session || !profile || !groupedTPaths || !activeGym) {
-        // If any critical data is missing, reset or keep null
-        setMainTPath(null);
-        setNextWorkout(null);
-        setLastWorkoutName(null);
-        setEstimatedDuration(null); // Ensure it's null if data is not ready
-        return;
-      }
+  // Derive nextWorkout, estimatedDuration, and lastWorkoutName using useMemo
+  const { nextWorkout, derivedEstimatedDuration, derivedLastWorkoutName } = useMemo(() => {
+    let currentNextWorkout: WorkoutWithLastCompleted | null = null;
+    let currentEstimatedDuration: string | null = null;
+    let currentLastWorkoutName: string | null = null;
 
-      const activeMainTPathId = profile?.active_t_path_id;
+    if (dataError || !session || !profile || !groupedTPaths || !activeGym || componentLoading) {
+      // If any critical data is missing or loading, return nulls
+      return { nextWorkout: null, derivedEstimatedDuration: null, derivedLastWorkoutName: null };
+    }
 
-      if (!activeMainTPathId) {
-        setMainTPath(null);
-        setNextWorkout(null);
-        setLastWorkoutName(null);
-        setEstimatedDuration(null); // Ensure it's null if data is not ready
-        return;
-      }
+    const activeMainTPathId = profile?.active_t_path_id;
+    if (!activeMainTPathId) {
+      return { nextWorkout: null, derivedEstimatedDuration: null, derivedLastWorkoutName: null };
+    }
 
-      const foundGroup = groupedTPaths.find((group: GroupedTPath) => group.mainTPath.id === activeMainTPathId);
+    const foundGroup = groupedTPaths.find((group: GroupedTPath) => group.mainTPath.id === activeMainTPathId);
+    if (!foundGroup || foundGroup.childWorkouts.length === 0) {
+      return { nextWorkout: null, derivedEstimatedDuration: null, derivedLastWorkoutName: null };
+    }
 
-      if (!foundGroup || foundGroup.childWorkouts.length === 0) {
-        setMainTPath(null);
-        setNextWorkout(null);
-        setLastWorkoutName(null);
-        setEstimatedDuration(null); // Ensure it's null if data is not ready
-        return;
-      }
+    const childWorkouts = foundGroup.childWorkouts;
+    const workoutOrder = foundGroup.mainTPath.template_name.includes('Upper/Lower') ? ULUL_ORDER : PPL_ORDER;
 
-      setMainTPath(foundGroup.mainTPath);
-      const childWorkouts = foundGroup.childWorkouts;
-      const workoutOrder = foundGroup.mainTPath.template_name.includes('Upper/Lower') ? ULUL_ORDER : PPL_ORDER;
+    let lastCompletedWorkout: WorkoutWithLastCompleted | null = null;
+    let mostRecentCompletionDate: Date | null = null;
 
-      let lastCompletedWorkout: WorkoutWithLastCompleted | null = null;
-      let mostRecentCompletionDate: Date | null = null;
-
-      childWorkouts.forEach((workout: WorkoutWithLastCompleted) => {
-        if (workout.last_completed_at) {
-          const completionDate = new Date(workout.last_completed_at);
-          if (!mostRecentCompletionDate || completionDate > mostRecentCompletionDate) {
-            mostRecentCompletionDate = completionDate;
-            lastCompletedWorkout = workout;
-          }
+    childWorkouts.forEach((workout: WorkoutWithLastCompleted) => {
+      if (workout.last_completed_at) {
+        const completionDate = new Date(workout.last_completed_at);
+        if (!mostRecentCompletionDate || completionDate > mostRecentCompletionDate) {
+          mostRecentCompletionDate = completionDate;
+          lastCompletedWorkout = workout;
         }
-      });
+      }
+    });
 
-      let nextWorkoutToSuggest: WorkoutWithLastCompleted | null = null;
-
-      if (lastCompletedWorkout) {
-        const lastWorkoutName = (lastCompletedWorkout as WorkoutWithLastCompleted).template_name;
-        setLastWorkoutName(lastWorkoutName);
-        const currentIndex = workoutOrder.indexOf(lastWorkoutName);
-        if (currentIndex !== -1) {
-          const nextIndex = (currentIndex + 1) % workoutOrder.length;
-          const nextWorkoutName = workoutOrder[nextIndex];
-          nextWorkoutToSuggest = childWorkouts.find((w: WorkoutWithLastCompleted) => w.template_name === nextWorkoutName) || null;
-        } else {
-          nextWorkoutToSuggest = childWorkouts.find((w: WorkoutWithLastCompleted) => w.template_name === workoutOrder[0]) || null;
-        }
+    if (lastCompletedWorkout) {
+      currentLastWorkoutName = (lastCompletedWorkout as WorkoutWithLastCompleted).template_name;
+      const currentIndex = workoutOrder.indexOf(currentLastWorkoutName);
+      if (currentIndex !== -1) {
+        const nextIndex = (currentIndex + 1) % workoutOrder.length;
+        const nextWorkoutName = workoutOrder[nextIndex];
+        currentNextWorkout = childWorkouts.find((w: WorkoutWithLastCompleted) => w.template_name === nextWorkoutName) || null;
       } else {
-        nextWorkoutToSuggest = childWorkouts.find((w: WorkoutWithLastCompleted) => w.template_name === workoutOrder[0]) || null;
-        setLastWorkoutName("No previous workout");
+        currentNextWorkout = childWorkouts.find((w: WorkoutWithLastCompleted) => w.template_name === workoutOrder[0]) || null;
       }
+    } else {
+      currentNextWorkout = childWorkouts.find((w: WorkoutWithLastCompleted) => w.template_name === workoutOrder[0]) || null;
+      currentLastWorkoutName = "No previous workout";
+    }
+
+    // Calculate estimatedDuration only if currentNextWorkout and profile.preferred_session_length are available
+    // AND the specific workout's exercises are available in the cache
+    if (currentNextWorkout && profile?.preferred_session_length) {
+      const exercisesInWorkout = workoutExercisesCache[currentNextWorkout.id];
       
-      setNextWorkout(nextWorkoutToSuggest);
+      // CRITICAL: Check if exercisesInWorkout is actually populated and not empty
+      if (exercisesInWorkout && exercisesInWorkout.length > 0) {
+        const preferredSessionLength = profile.preferred_session_length;
+        const [minTimeStr, maxTimeStr] = preferredSessionLength.split('-');
+        const minTime = parseInt(minTimeStr, 10);
+        const maxTime = parseInt(maxTimeStr, 10);
 
-      // Only calculate estimatedDuration if profile.preferred_session_length is available
-      // AND component is not loading
-      // AND the specific workout's exercises are available in the cache
-      if (nextWorkoutToSuggest && profile?.preferred_session_length && !componentLoading) {
-        const exercisesInWorkout = workoutExercisesCache[nextWorkoutToSuggest.id];
-        
-        // CRITICAL: Check if exercisesInWorkout is actually populated
-        if (exercisesInWorkout && exercisesInWorkout.length > 0) {
-          const preferredSessionLength = profile.preferred_session_length;
-          const [minTimeStr, maxTimeStr] = preferredSessionLength.split('-');
-          const minTime = parseInt(minTimeStr, 10);
-          const maxTime = parseInt(maxTimeStr, 10);
+        const defaultCounts = getExerciseCounts(preferredSessionLength);
+        const defaultMainExerciseCount = defaultCounts.main;
 
-          const defaultCounts = getExerciseCounts(preferredSessionLength);
-          const defaultMainExerciseCount = defaultCounts.main;
+        const currentMainExerciseCount = exercisesInWorkout.filter(ex => !ex.is_bonus_exercise).length;
 
-          const currentMainExerciseCount = exercisesInWorkout.filter(ex => !ex.is_bonus_exercise).length;
+        const countDifference = currentMainExerciseCount - defaultMainExerciseCount;
+        const timeAdjustment = countDifference * 5;
 
-          const countDifference = currentMainExerciseCount - defaultMainExerciseCount;
-          const timeAdjustment = countDifference * 5;
+        const newMinTime = Math.max(5, minTime + timeAdjustment);
+        const newMaxTime = Math.max(10, maxTime + timeAdjustment);
 
-          const newMinTime = Math.max(5, minTime + timeAdjustment);
-          const newMaxTime = Math.max(10, maxTime + timeAdjustment);
-
-          setEstimatedDuration(`${newMinTime}-${newMaxTime} minutes`);
-        } else {
-          // If exercises for this specific workout are not yet in cache, keep duration null
-          setEstimatedDuration(null);
-        }
-      } else {
-        setEstimatedDuration(null); // Keep null if preferred_session_length is not ready or component is loading
+        currentEstimatedDuration = `${newMinTime}-${newMaxTime} minutes`;
       }
-    };
+    }
 
-    determineNextWorkout();
-  }, [session, groupedTPaths, dataError, profile, workoutExercisesCache, activeGym, componentLoading]); // Added componentLoading to dependencies
+    return { nextWorkout: currentNextWorkout, derivedEstimatedDuration: currentEstimatedDuration, derivedLastWorkoutName: currentLastWorkoutName };
+  }, [session, groupedTPaths, dataError, profile, workoutExercisesCache, activeGym, componentLoading]);
+
+  // Update mainTPath state separately if needed for other logic, but not for rendering next workout details
+  useEffect(() => {
+    if (dataError || !session || !profile || !groupedTPaths || !activeGym || componentLoading) {
+      setMainTPath(null);
+      return;
+    }
+    const activeMainTPathId = profile?.active_t_path_id;
+    if (!activeMainTPathId) {
+      setMainTPath(null);
+      return;
+    }
+    const foundGroup = groupedTPaths.find((group: GroupedTPath) => group.mainTPath.id === activeMainTPathId);
+    setMainTPath(foundGroup?.mainTPath || null);
+  }, [session, groupedTPaths, dataError, profile, activeGym, componentLoading]);
+
 
   if (dataError) {
     return (
@@ -187,7 +177,7 @@ export const NextWorkoutCard = ({
           Your Next Workout
         </CardTitle>
       </CardHeader>
-      <CardContent className="min-h-[120px] flex flex-col justify-center"> {/* Added min-h and flex styles */}
+      <CardContent className="min-h-[120px] flex flex-col justify-center">
         {componentLoading ? (
           // Skeleton for the "no data" state
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -217,15 +207,15 @@ export const NextWorkoutCard = ({
               <h3 className="text-lg font-semibold">{nextWorkout?.template_name}</h3>
               <div className="flex items-center gap-1 text-muted-foreground">
                 <Clock className="h-4 w-4" />
-                {estimatedDuration ? (
-                  <span>Estimated {estimatedDuration}</span>
+                {derivedEstimatedDuration ? (
+                  <span>Estimated {derivedEstimatedDuration}</span>
                 ) : (
                   <Skeleton className="h-4 w-24" /> // Skeleton for duration
                 )}
               </div>
-              {lastWorkoutName && (
+              {derivedLastWorkoutName && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Last workout: {lastWorkoutName}
+                  Last workout: {derivedLastWorkoutName}
                 </p>
               )}
             </div>
