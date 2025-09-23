@@ -210,7 +210,10 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
             .filter(Boolean) as WorkoutExercise[];
           newWorkoutExercisesCache[workout.id] = exercisesForWorkout;
         }
-        setWorkoutExercisesCache(newWorkoutExercisesCache); // Update state
+        // Deep compare before setting state to prevent unnecessary re-renders
+        if (JSON.stringify(newWorkoutExercisesCache) !== JSON.stringify(workoutExercisesCache)) {
+          setWorkoutExercisesCache(newWorkoutExercisesCache); // Update state
+        }
 
         // 2. Then calculate groupedTPaths, using the newly calculated workoutExercisesCache implicitly
         const userMainTPaths = (cachedTPaths || []).filter(tp => tp.user_id === memoizedSessionUserId && !tp.parent_t_path_id);
@@ -254,7 +257,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   }, [
     memoizedSessionUserId, supabase, profile,
     cachedExercises, cachedTPaths, cachedTPathExercises,
-    baseLoading, dataError, groupedTPaths // Add groupedTPaths to dependencies for deep compare
+    baseLoading, dataError, groupedTPaths, workoutExercisesCache // Add workoutExercisesCache to dependencies for deep compare
   ]);
 
   const refreshAllData = useCallback(async () => {
