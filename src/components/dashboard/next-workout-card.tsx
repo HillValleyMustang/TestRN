@@ -59,7 +59,7 @@ export const NextWorkoutCard = ({
     let currentLastWorkoutName: string | null = null;
     let currentMainTPath: TPath | null = null; // Now deriving mainTPath here
 
-    if (dataError || !session || !profile || !groupedTPaths || !activeGym || componentLoading) {
+    if (dataError || !session || !profile || !groupedTPaths || !activeGym) {
       // If any critical data is missing or loading, return nulls
       return { nextWorkout: null, derivedEstimatedDuration: null, derivedLastWorkoutName: null, derivedMainTPath: null };
     }
@@ -135,7 +135,7 @@ export const NextWorkoutCard = ({
     }
 
     return { nextWorkout: currentNextWorkout, derivedEstimatedDuration: currentEstimatedDuration, derivedLastWorkoutName: currentLastWorkoutName, derivedMainTPath: currentMainTPath };
-  }, [session, groupedTPaths, dataError, profile, workoutExercisesCache, activeGym, componentLoading]);
+  }, [session, groupedTPaths, dataError, profile, workoutExercisesCache, activeGym]);
 
   // Removed the separate useEffect for mainTPath as it's now derived in useMemo
 

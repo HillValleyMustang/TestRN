@@ -178,130 +178,42 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     return newExerciseGymsMap;
   }, [cachedUserGyms, cachedGymExercises]);
 
-  useEffect(() => {
-    const populateExerciseWorkoutsMap = async () => {
-      if (baseLoading || dataError || !memoizedSessionUserId || !cachedTPaths || !cachedTPathExercises || !profile) { // Use memoized ID
-        setExerciseWorkoutsMap({});
-        return;
-      }
-
-      const allTPaths = cachedTPaths || [];
-      const tPathExercisesData = cachedTPathExercises || [];
-      const activeTPathId = profile.active_t_path_id;
-      const preferredSessionLength = profile.preferred_session_length;
-      const maxAllowedMinutes = getMaxMinutes(preferredSessionLength);
-
-      let activeChildWorkoutIds: string[] = [];
-      let activeWorkoutNames: string[] = [];
-      if (activeTPathId) {
-        const activeMainTPath = allTPaths.find(tp => tp.id === activeTPathId);
-        if (activeMainTPath) {
-          const childWorkouts = allTPaths.filter(tp => tp.parent_t_path_id === activeMainTPath.id && tp.is_bonus);
-          activeChildWorkoutIds = childWorkouts.map(cw => cw.id);
-          activeWorkoutNames = childWorkouts.map(cw => cw.template_name);
-        }
-      }
-
-      const { data: structureData, error: structureError } = await supabase
-        .from('workout_exercise_structure')
-        .select('exercise_library_id, workout_name, min_session_minutes, bonus_for_time_group');
-      if (structureError) {
-        console.error("Error fetching workout structure for map:", structureError);
-        toast.error("Failed to load workout structure details.");
-        return;
-      }
-      const structure = structureData || [];
-
-      const libraryIdToUuidMap = new Map<string, string>();
-      (cachedExercises || []).forEach(ex => {
-        if (ex.library_id) libraryIdToUuidMap.set(ex.library_id, ex.id);
-      });
-
-      const newMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]> = {};
-
-      tPathExercisesData.forEach(tpe => {
-        if (activeChildWorkoutIds.includes(tpe.template_id)) {
-          const workout = allTPaths.find(tp => tp.id === tpe.template_id);
-          if (workout) {
-            if (!newMap[tpe.exercise_id]) newMap[tpe.exercise_id] = [];
-            if (!newMap[tpe.exercise_id].some(item => item.id === workout.id)) {
-              newMap[tpe.exercise_id].push({
-                id: workout.id,
-                name: workout.template_name,
-                isUserOwned: workout.user_id === memoizedSessionUserId, // Use memoized ID
-                isBonus: !!tpe.is_bonus_exercise,
-              });
-            }
-          }
-        }
-      });
-
-      structure.forEach(s => {
-        if (activeWorkoutNames.includes(s.workout_name)) {
-          const isIncludedAsMain = s.min_session_minutes !== null && maxAllowedMinutes >= s.min_session_minutes;
-          const isIncludedAsBonus = s.bonus_for_time_group !== null && maxAllowedMinutes >= s.bonus_for_time_group;
-          if (isIncludedAsMain || isIncludedAsBonus) {
-            const exerciseUuid = libraryIdToUuidMap.get(s.exercise_library_id);
-            if (exerciseUuid) {
-              if (!newMap[exerciseUuid]) newMap[exerciseUuid] = [];
-              if (!newMap[exerciseUuid].some(item => item.name === s.workout_name)) {
-                newMap[exerciseUuid].push({
-                  id: `global_${s.workout_name}`, // Use a unique ID for global workouts
-                  name: s.workout_name,
-                  isUserOwned: false,
-                  isBonus: false,
-                });
-              }
-            }
-          }
-        }
-      });
-      // Only update state if the map has actually changed to prevent re-renders
-      if (JSON.stringify(newMap) !== JSON.stringify(exerciseWorkoutsMap)) {
-        setExerciseWorkoutsMap(newMap);
-      }
-    };
-    populateExerciseWorkoutsMap();
-  }, [memoizedSessionUserId, profile, cachedTPaths, cachedTPathExercises, cachedExercises, supabase, baseLoading, dataError]); // Removed exerciseWorkoutsMap from dependencies
-
-
-  const workoutExercisesCache = useMemo(() => {
-    if (baseLoading || dataError || !memoizedSessionUserId) return {}; // Use memoized ID
-    const exerciseDefMap = new Map<string, ExerciseDefinition>();
-    (cachedExercises || []).forEach(def => exerciseDefMap.set(def.id, def as ExerciseDefinition));
-    const newWorkoutExercisesCache: Record<string, WorkoutExercise[]> = {};
-    const allChildWorkouts = (cachedTPaths || []).filter(tp => tp.user_id === memoizedSessionUserId && tp.parent_t_path_id); // Use memoized ID
-    for (const workout of allChildWorkouts) {
-      const exercisesForWorkout = (cachedTPathExercises || [])
-        .filter(tpe => tpe.template_id === workout.id)
-        .sort((a, b) => a.order_index - b.order_index)
-        .map(tpe => {
-          const exerciseDef = exerciseDefMap.get(tpe.exercise_id);
-          if (!exerciseDef) return null;
-          return { ...exerciseDef, is_bonus_exercise: tpe.is_bonus_exercise || false };
-        })
-        .filter(Boolean) as WorkoutExercise[];
-      newWorkoutExercisesCache[workout.id] = exercisesForWorkout;
-    }
-    return newWorkoutExercisesCache;
-  }, [cachedExercises, cachedTPaths, cachedTPathExercises, memoizedSessionUserId, baseLoading, dataError]); // Depend on memoized ID
-
-  const [groupedTPaths, setGroupedTPaths] = useState<GroupedTPath[]>([]);
+  const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, WorkoutExercise[]>>({}); // Make it a state
+  const [groupedTPaths, setGroupedTPaths] = useState<GroupedTPath[]>([]); // Existing state
 
   useEffect(() => {
-    const enrichAndSetGroupedTPaths = async () => {
-      if (baseLoading || dataError || !memoizedSessionUserId || !cachedTPaths) { // Use memoized ID
+    const processDerivedData = async () => {
+      if (baseLoading || dataError || !memoizedSessionUserId || !cachedTPaths || !cachedTPathExercises || !profile || !cachedExercises) {
         setGroupedTPaths([]);
-        if (!baseLoading) {
-          setIsProcessingDerivedData(false);
-        }
+        setWorkoutExercisesCache({});
+        setIsProcessingDerivedData(false);
         return;
       }
 
       setIsProcessingDerivedData(true);
-      const userMainTPaths = (cachedTPaths || []).filter(tp => tp.user_id === memoizedSessionUserId && !tp.parent_t_path_id); // Use memoized ID
-      const allChildWorkouts = (cachedTPaths || []).filter(tp => tp.user_id === memoizedSessionUserId && tp.parent_t_path_id); // Use memoized ID
       try {
+        const exerciseDefMap = new Map<string, ExerciseDefinition>();
+        (cachedExercises || []).forEach(def => exerciseDefMap.set(def.id, def as ExerciseDefinition));
+
+        // 1. Calculate workoutExercisesCache first
+        const newWorkoutExercisesCache: Record<string, WorkoutExercise[]> = {};
+        const allChildWorkouts = (cachedTPaths || []).filter(tp => tp.user_id === memoizedSessionUserId && tp.parent_t_path_id);
+        for (const workout of allChildWorkouts) {
+          const exercisesForWorkout = (cachedTPathExercises || [])
+            .filter(tpe => tpe.template_id === workout.id)
+            .sort((a, b) => a.order_index - b.order_index)
+            .map(tpe => {
+              const exerciseDef = exerciseDefMap.get(tpe.exercise_id);
+              if (!exerciseDef) return null;
+              return { ...exerciseDef, is_bonus_exercise: tpe.is_bonus_exercise || false };
+            })
+            .filter(Boolean) as WorkoutExercise[];
+          newWorkoutExercisesCache[workout.id] = exercisesForWorkout;
+        }
+        setWorkoutExercisesCache(newWorkoutExercisesCache); // Update state
+
+        // 2. Then calculate groupedTPaths, using the newly calculated workoutExercisesCache implicitly
+        const userMainTPaths = (cachedTPaths || []).filter(tp => tp.user_id === memoizedSessionUserId && !tp.parent_t_path_id);
         const newGroupedTPaths: GroupedTPath[] = await Promise.all(
           userMainTPaths.map(async (mainTPath) => {
             let childWorkouts = allChildWorkouts.filter(tp => tp.parent_t_path_id === mainTPath.id);
@@ -332,14 +244,18 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
           setGroupedTPaths(newGroupedTPaths);
         }
       } catch (enrichError: any) {
-        console.error("[WorkoutDataFetcher] Failed to enrich workout data:", enrichError);
-        toast.error("Could not load workout completion dates.");
+        console.error("[WorkoutDataFetcher] Failed to process derived data:", enrichError);
+        toast.error("Could not load workout plans.");
       } finally {
         setIsProcessingDerivedData(false);
       }
     };
-    enrichAndSetGroupedTPaths();
-  }, [memoizedSessionUserId, supabase, cachedTPaths, baseLoading, dataError]); // Depend on memoized ID
+    processDerivedData();
+  }, [
+    memoizedSessionUserId, supabase, profile,
+    cachedExercises, cachedTPaths, cachedTPathExercises,
+    baseLoading, dataError, groupedTPaths // Add groupedTPaths to dependencies for deep compare
+  ]);
 
   const refreshAllData = useCallback(async () => {
     await Promise.all([

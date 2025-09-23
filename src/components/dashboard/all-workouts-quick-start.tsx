@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dumbbell, Play } from 'lucide-react';
-import { Tables, WorkoutWithLastCompleted, Profile, GroupedTPath } from '@/types/supabase'; // Import Profile and GroupedTPath
+import { Tables, WorkoutWithLastCompleted, Profile, GroupedTPath, WorkoutExercise } from '@/types/supabase'; // Import Profile and GroupedTPath
 import { WorkoutPill, WorkoutPillProps } from '@/components/workout-flow/workout-pill';
 import { useUserProfile } from '@/hooks/data/useUserProfile';
 import { useWorkoutPlans } from '@/hooks/data/useWorkoutPlans';
@@ -55,6 +55,8 @@ interface AllWorkoutsQuickStartProps {
   loadingPlans: boolean;
   activeGym: Gym | null;
   loadingGyms: boolean;
+  workoutExercisesCache: Record<string, WorkoutExercise[]>; // NEW: Add workoutExercisesCache prop
+  dataError: string | null; // NEW: Add dataError prop
 }
 
 export const AllWorkoutsQuickStart = ({
@@ -63,12 +65,14 @@ export const AllWorkoutsQuickStart = ({
   loadingPlans,
   activeGym,
   loadingGyms,
+  workoutExercisesCache, // NEW: Destructure
+  dataError, // NEW: Destructure
 }: AllWorkoutsQuickStartProps) => {
   const router = useRouter();
-  const { workoutExercisesCache, error: plansError } = useWorkoutPlans(); // Removed loadingPlans from here as it's a prop
+  // Removed: const { workoutExercisesCache, error: plansError } = useWorkoutPlans(); // Removed this hook call
 
   const componentLoading = loadingPlans || loadingGyms; // Use internal loading states
-  const dataError = plansError;
+  // Removed: const dataError = plansError; // Now using prop
 
   const activeTPathGroup = useMemo(() => {
     if (!profile || !profile.active_t_path_id || groupedTPaths.length === 0) {

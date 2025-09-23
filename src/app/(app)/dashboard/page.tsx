@@ -23,8 +23,8 @@ type Profile = Tables<'profiles'>;
 export default function DashboardPage() {
   const { session, supabase, memoizedSessionUserId } = useSession();
   const router = useRouter();
-  const { userGyms, activeGym, loadingGyms } = useGym();
-  const { groupedTPaths, loadingData: loadingWorkoutData, profile, loadingData: loadingProfile } = useWorkoutDataFetcher(); // Corrected destructuring
+  const { groupedTPaths, loadingData: loadingWorkoutData, profile, loadingData: loadingProfile, workoutExercisesCache, dataError } = useWorkoutDataFetcher(); // Corrected destructuring to include workoutExercisesCache and dataError
+  const { loadingGyms, userGyms, activeGym } = useGym(); // NEW: Destructure from useGym hook
   
   const [welcomeName, setWelcomeName] = useState<string>('');
 
@@ -95,6 +95,7 @@ export default function DashboardPage() {
           loadingPlans={loadingWorkoutData}
           activeGym={activeGym}
           loadingGyms={loadingGyms}
+          // No need to pass workoutExercisesCache here, it's accessed internally by NextWorkoutCard
         />
       </div>
       <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.15s' }}>
@@ -104,6 +105,8 @@ export default function DashboardPage() {
           loadingPlans={loadingWorkoutData}
           activeGym={activeGym}
           loadingGyms={loadingGyms}
+          workoutExercisesCache={workoutExercisesCache} // NEW: Pass workoutExercisesCache
+          dataError={dataError} // NEW: Pass dataError
         />
       </div>
 
