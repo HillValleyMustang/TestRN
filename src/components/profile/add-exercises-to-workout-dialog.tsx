@@ -38,17 +38,17 @@ export const AddExercisesToWorkoutDialog = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [muscleFilter, setMuscleFilter] = useState("all");
   const [selectedExerciseIds, setSelectedExerciseIds] = useState<Set<string>>(new Set());
-  const { session } = useSession(); // NEW: Get session for user ID
+  const { session, supabase } = useSession(); // NEW: Get session and supabase from useSession
   // NEW: Consume data from useManageExercisesData
   const {
-    allAvailableExercises: fetchedAllAvailableExercises,
+    allAvailableExercises: fetchedAllAvailableExercises, // Correctly destructure
     availableMuscleGroups: fetchedAvailableMuscleGroups,
     userGyms: fetchedUserGyms,
     exerciseGymsMap: fetchedExerciseGymsMap,
-    supabase: manageExercisesSupabase, // Renamed to avoid conflict with useSession's supabase
+    // Removed supabase from here as it's now passed as a prop
   } = useManageExercisesData({
     sessionUserId: session?.user.id ?? null,
-    supabase: session?.supabase, // Pass supabase from useSession
+    supabase: supabase, // Pass supabase from useSession
     setTempStatusMessage: () => {}, // Placeholder, not used here
   });
 

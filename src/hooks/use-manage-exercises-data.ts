@@ -7,6 +7,7 @@ import { Tables, FetchedExerciseDefinition } from "@/types/supabase";
 import { getMaxMinutes } from '@/lib/utils';
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
 import { LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise, LocalGym, LocalGymExercise } from '@/lib/db'; // Import LocalGym and LocalGymExercise
+import { useSession } from '@/components/session-context-provider'; // Import useSession
 
 type TPath = Tables<'t_paths'>;
 
@@ -17,7 +18,39 @@ interface UseManageExercisesDataProps {
   // Removed userGyms, exerciseGymsMap, availableMuscleGroups, exerciseWorkoutsMap props
 }
 
-export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusMessage }: UseManageExercisesDataProps) => {
+interface UseManageExercisesDataReturn {
+  globalExercises: FetchedExerciseDefinition[];
+  userExercises: FetchedExerciseDefinition[];
+  loading: boolean;
+  editingExercise: FetchedExerciseDefinition | null;
+  setEditingExercise: React.Dispatch<React.SetStateAction<FetchedExerciseDefinition | null>>;
+  selectedMuscleFilter: string;
+  setSelectedMuscleFilter: React.Dispatch<React.SetStateAction<string>>;
+  availableMuscleGroups: string[];
+  exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>;
+  exerciseGymsMap: Record<string, string[]>;
+  userGyms: Tables<'gyms'>[];
+  selectedGymFilter: string;
+  setSelectedGymFilter: React.Dispatch<React.SetStateAction<string>>;
+  handleEditClick: (exercise: FetchedExerciseDefinition) => void;
+  handleCancelEdit: () => void;
+  handleSaveSuccess: () => void;
+  handleDeleteExercise: (exercise: FetchedExerciseDefinition) => Promise<void>;
+  handleToggleFavorite: (exercise: FetchedExerciseDefinition) => Promise<void>;
+  handleOptimisticAdd: (exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => void;
+  handleAddFailure: (exerciseId: string, workoutId: string) => void;
+  handleRemoveFromWorkout: (workoutId: string, exerciseId: string) => Promise<void>;
+  refreshExercises: () => void;
+  refreshTPaths: () => void;
+  totalUserExercisesCount: number;
+  totalGlobalExercisesCount: number;
+  searchTerm: string;
+  setSearchTerm: React.Dispatch<React.SetStateAction<string>>;
+  allAvailableExercises: FetchedExerciseDefinition[]; // ADDED
+  supabase: SupabaseClient; // ADDED
+}
+
+export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusMessage }: UseManageExercisesDataProps): UseManageExercisesDataReturn => {
   const [globalExercises, setGlobalExercises] = useState<FetchedExerciseDefinition[]>([]);
   const [userExercises, setUserExercises] = useState<FetchedExerciseDefinition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +60,8 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
   const [totalUserExercisesCount, setTotalUserExercisesCount] = useState(0);
   const [totalGlobalExercisesCount, setTotalGlobalExercisesCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState(""); // NEW
+
+  const { session } = useSession(); // Get session object
 
   // NEW: Fetch necessary data internally
   const fetchExercisesSupabase = useCallback(async (client: SupabaseClient) => {
@@ -188,7 +223,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
               newMap[tpe.exercise_id].push({
                 id: workout.id,
                 name: workout.template_name,
-                isUserOwned: workout.user_id === sessionUserId,
+                isUserOwned: workout.user_id === sessionUserId, // Changed to sessionUserId
                 isBonus: !!tpe.is_bonus_exercise,
               });
             }
@@ -448,5 +483,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
     totalGlobalExercisesCount,
     searchTerm, // NEW
     setSearchTerm, // NEW
+    allAvailableExercises, // ADDED
+    supabase, // ADDED
   };
 };

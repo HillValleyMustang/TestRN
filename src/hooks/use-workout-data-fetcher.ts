@@ -335,7 +335,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       }
     };
     enrichAndSetGroupedTPaths();
-  }, [session?.user.id, supabase, cachedTPaths, baseLoading, dataError, groupedTPaths]); // Added groupedTPaths to dependencies for deep comparison
+  }, [session?.user.id, supabase, cachedTPaths, baseLoading, dataError]); // Removed groupedTPaths from dependencies
 
   const refreshAllData = useCallback(async () => {
     await Promise.all([
