@@ -35,7 +35,7 @@ export const NextWorkoutCard = () => {
 
   useEffect(() => {
     const determineNextWorkout = () => {
-      if (dataError || !session || !profile || !groupedTPaths) return;
+      if (dataError || !session || !profile || !groupedTPaths) return; // Removed componentLoading from here
 
       const activeMainTPathId = profile?.active_t_path_id;
 
