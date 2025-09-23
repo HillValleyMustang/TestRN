@@ -98,14 +98,13 @@ export const AllWorkoutsQuickStart = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-center text-xl">
           <Dumbbell className="h-5 w-5" />
-          {/* Render static title, dynamic part will be in content */}
           All Workouts
         </CardTitle>
       </CardHeader>
       <CardContent className="min-h-[120px] flex flex-col justify-center">
         {isLoading ? (
-          // Render blank space during loading
-          <div className="h-[100px] w-full" />
+          // Render blank space during loading, matching the min-height of CardContent
+          <div className="h-[120px] w-full" />
         ) : dataError ? (
           <p className="text-destructive">Error loading workouts: {dataError}</p>
         ) : !activeGym ? (

@@ -22,13 +22,12 @@ export const WeeklyVolumeChart = () => {
     <Card>
       <CardHeader>
         <CardTitle className="text-center text-xl">
-          {/* Render static title, dynamic part will be in content */}
           Weekly Workout Volume
         </CardTitle>
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          // Render blank space during loading
+          // Render blank space during loading, matching the min-height of CardContent
           <div className="h-[250px] w-full" />
         ) : chartData.length === 0 ? (
           <div className="h-[250px] flex items-center justify-center text-muted-foreground animate-fade-in-fast">

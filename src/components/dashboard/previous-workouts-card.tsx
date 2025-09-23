@@ -44,14 +44,13 @@ export const PreviousWorkoutsCard = ({ onViewSummary }: PreviousWorkoutsCardProp
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-center text-xl">
           <History className="h-5 w-5" />
-          {/* Render static title, dynamic part will be in content */}
           Previous Workouts
         </CardTitle>
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          // Render blank space during loading
-          <div className="h-[100px] w-full" />
+          // Render blank space during loading, matching the min-height of CardContent
+          <div className="h-[300px] w-full" />
         ) : recentSessions.length === 0 ? (
           <p className="text-muted-foreground animate-fade-in-fast">No previous workouts found. Complete a workout to see it here!</p>
         ) : (
