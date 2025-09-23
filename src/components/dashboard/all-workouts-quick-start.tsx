@@ -118,27 +118,29 @@ export const AllWorkoutsQuickStart = ({
         ) : isTrulyEmptyState ? (
           <p className="text-muted-foreground text-center py-4">No workouts found for your active Transformation Path. This might happen if your session length is too short for any workouts.</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {childWorkouts.map((workout: WorkoutWithLastCompleted) => {
-              const pillProps = mapWorkoutToPillProps(workout, activeMainTPath!.template_name); // Non-null assertion as isTrulyEmptyState handles null
-              return (
-                <div key={workout.id} className="flex items-center gap-2">
-                  <WorkoutPill
-                    {...pillProps}
-                    isSelected={false}
-                    onClick={() => {}}
-                    className="flex-1"
-                  />
-                  <Button 
-                    size="icon"
-                    onClick={() => handleStartWorkout(workout.id)}
-                    className="flex-shrink-0"
-                  >
-                    <Play className="h-4 w-4" />
-                  </Button>
-                </div>
-              );
-            })}
+          <div className="animate-fade-in-fast"> {/* Apply fast fade-in here */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {childWorkouts.map((workout: WorkoutWithLastCompleted) => {
+                const pillProps = mapWorkoutToPillProps(workout, activeMainTPath!.template_name); // Non-null assertion as isTrulyEmptyState handles null
+                return (
+                  <div key={workout.id} className="flex items-center gap-2">
+                    <WorkoutPill
+                      {...pillProps}
+                      isSelected={false}
+                      onClick={() => {}}
+                      className="flex-1"
+                    />
+                    <Button 
+                      size="icon"
+                      onClick={() => handleStartWorkout(workout.id)}
+                      className="flex-shrink-0"
+                    >
+                      <Play className="h-4 w-4" />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </CardContent>

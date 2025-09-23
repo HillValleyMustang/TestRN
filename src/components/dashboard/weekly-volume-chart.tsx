@@ -21,17 +21,22 @@ export const WeeklyVolumeChart = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-center text-xl">Weekly Workout Volume</CardTitle>
+        <CardTitle className="text-center text-xl">
+          {isLoading ? <Skeleton className="h-6 w-48 mx-auto" /> : "Weekly Workout Volume"}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          null
+          <div className="h-[250px] flex flex-col items-center justify-center space-y-4">
+            <Skeleton className="h-48 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
         ) : chartData.length === 0 ? (
           <div className="h-[250px] flex items-center justify-center text-muted-foreground">
             No workout volume data available. Log some workouts to see your progress!
           </div>
         ) : (
-          <div className="h-[250px]">
+          <div className="h-[250px] animate-fade-in-fast"> {/* Apply fast fade-in here */}
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={chartData}

@@ -168,24 +168,26 @@ export const NextWorkoutCard = ({
         ) : isTrulyEmptyState ? (
           <p className="text-muted-foreground text-center py-4">No active Transformation Path found or no workouts defined for your current session length. Complete onboarding or set one in your profile to get started.</p>
         ) : (
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex flex-col space-y-1">
-              <h3 className="text-lg font-semibold min-h-[1.75rem]">{nextWorkout?.template_name}</h3>
-              <div className="flex items-center gap-1 text-muted-foreground min-h-[1.25rem]">
-                {derivedEstimatedDuration && <Clock className="h-4 w-4" />}
-                {derivedEstimatedDuration && <span>Estimated {derivedEstimatedDuration}</span>}
+          <div className="animate-fade-in-fast"> {/* Apply fast fade-in here */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="flex flex-col space-y-1">
+                <h3 className="text-lg font-semibold min-h-[1.75rem]">{nextWorkout?.template_name}</h3>
+                <div className="flex items-center gap-1 text-muted-foreground min-h-[1.25rem]">
+                  {derivedEstimatedDuration && <Clock className="h-4 w-4" />}
+                  {derivedEstimatedDuration && <span>Estimated {derivedEstimatedDuration}</span>}
+                </div>
+                <p className="text-xs text-muted-foreground min-h-[1rem]">
+                  {derivedLastWorkoutName && `Last workout: ${derivedLastWorkoutName}`}
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground min-h-[1rem]">
-                {derivedLastWorkoutName && `Last workout: ${derivedLastWorkoutName}`}
-              </p>
+              <Button 
+                onClick={() => router.push(`/workout?workoutId=${nextWorkout?.id}`)} 
+                className={cn("text-white", getWorkoutColorClass(nextWorkout?.template_name || '', 'bg'))}
+                size="lg"
+              >
+                Start Workout
+              </Button>
             </div>
-            <Button 
-              onClick={() => router.push(`/workout?workoutId=${nextWorkout?.id}`)} 
-              className={cn("text-white", getWorkoutColorClass(nextWorkout?.template_name || '', 'bg'))}
-              size="lg"
-            >
-              Start Workout
-            </Button>
           </div>
         )}
       </CardContent>

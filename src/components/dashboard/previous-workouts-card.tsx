@@ -44,16 +44,20 @@ export const PreviousWorkoutsCard = ({ onViewSummary }: PreviousWorkoutsCardProp
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-center text-xl">
           <History className="h-5 w-5" />
-          Previous Workouts
+          {isLoading ? <Skeleton className="h-6 w-48" /> : "Previous Workouts"}
         </CardTitle>
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          null
+          <div className="space-y-3">
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
         ) : recentSessions.length === 0 ? (
           <p className="text-muted-foreground">No previous workouts found. Complete a workout to see it here!</p>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3 animate-fade-in-fast"> {/* Apply fast fade-in here */}
             {recentSessions.map((sessionItem) => {
               const workoutName = sessionItem.template_name || 'Ad Hoc Workout';
               const workoutBorderClass = getWorkoutColorClass(workoutName, 'border');
@@ -78,21 +82,14 @@ export const PreviousWorkoutsCard = ({ onViewSummary }: PreviousWorkoutsCardProp
                     </Button>
                   </div>
                   <CardContent className="pt-0 pb-3 px-3">
-                    {isLoading ? ( // If individual session is loading (stale-while-revalidate)
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <Skeleton className="h-3 w-20" />
-                        <Skeleton className="h-3 w-16" />
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Dumbbell className="h-3 w-3" /> {sessionItem.exercise_count} Exercises
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Timer className="h-3 w-3" /> {sessionItem.duration_string || 'N/A'}
-                        </span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Dumbbell className="h-3 w-3" /> {sessionItem.exercise_count} Exercises
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Timer className="h-3 w-3" /> {sessionItem.duration_string || 'N/A'}
+                      </span>
+                    </div>
                   </CardContent>
                 </Card>
               );
