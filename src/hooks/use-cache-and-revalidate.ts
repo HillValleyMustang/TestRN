@@ -27,6 +27,14 @@ interface UseCacheAndRevalidateProps<T extends CacheItem> {
   sessionUserId: string | null; // This prop will now receive memoizedSessionUserId
 }
 
+// Helper to get a stable key for map lookups, handling composite keys
+const getItemKey = (item: any, primaryKey: string | string[]): string => {
+  if (Array.isArray(primaryKey)) {
+    return JSON.stringify(primaryKey.map(key => item[key]));
+  }
+  return item[primaryKey];
+};
+
 export function useCacheAndRevalidate<T extends CacheItem>( // Updated generic constraint
   { cacheTable, supabaseQuery, queryKey, supabase, sessionUserId }: UseCacheAndRevalidateProps<T>
 ) {
@@ -41,13 +49,11 @@ export function useCacheAndRevalidate<T extends CacheItem>( // Updated generic c
       // If no user, return empty array immediately.
       // This prevents trying to read from a potentially closed/deleted DB.
       if (sessionUserId === undefined || sessionUserId === null) {
-        console.log(`[useCacheAndRevalidate] ${queryKey}: No sessionUserId, returning empty array from IndexedDB.`);
         return [];
       }
 
       // Special handling for tables with composite keys or no user_id filter
       if (cacheTable === 't_path_exercises_cache' || cacheTable === 'gym_exercises_cache') {
-        console.log(`[useCacheAndRevalidate] ${queryKey}: Fetching all from IndexedDB (no user_id filter).`);
         return table.toArray();
       }
 
@@ -58,7 +64,6 @@ export function useCacheAndRevalidate<T extends CacheItem>( // Updated generic c
         // This is correct for exercises and t_paths
         return item.user_id === null || item.user_id === sessionUserId;
       }).toArray();
-      console.log(`[useCacheAndRevalidate] ${queryKey}: Fetched ${filteredData.length} items from IndexedDB for user ${sessionUserId}.`);
       return filteredData;
     },
     [cacheTable, sessionUserId], // Dependencies for useLiveQuery
@@ -66,63 +71,62 @@ export function useCacheAndRevalidate<T extends CacheItem>( // Updated generic c
   );
 
   const fetchDataAndRevalidate = useCallback(async () => {
-    console.log(`[useCacheAndRevalidate] ${queryKey}: fetchDataAndRevalidate called.`);
     if (isRevalidatingRef.current) {
-      console.log(`[useCacheAndRevalidate] ${queryKey}: Already revalidating, skipping.`);
       return;
     }
 
-    // Crucial check: If no user, do not proceed with fetching from Supabase or writing to IndexedDB.
-    // The `useLiveQuery` above already handles returning an empty array for the UI.
     if (sessionUserId === null || sessionUserId === undefined) {
-      console.log(`[useCacheAndRevalidate] ${queryKey}: No sessionUserId, skipping Supabase fetch and IndexedDB write.`);
-      setLoading(false); // Ensure loading state is cleared if we bail out
+      setLoading(false);
       return;
     }
 
-    isRevalidatingRef.current = true; // Set ref
+    isRevalidatingRef.current = true;
     setError(null);
-    setLoading(true); // Ensure loading is true when starting revalidation
+    setLoading(true);
 
     try {
-      console.log(`[useCacheAndRevalidate] ${queryKey}: Fetching remote data from Supabase.`);
       const { data: remoteData, error: remoteError } = await supabaseQuery(supabase);
       if (remoteError) throw remoteError;
 
       if (remoteData) {
         const table = db[cacheTable] as any;
+        const primaryKey = table.schema.primKey.keyPath;
+
+        const localData = await table.toArray();
         
-        // NEW LOGGING: Check what data is being received from Supabase for gyms_cache
-        if (cacheTable === 'gyms_cache' || cacheTable === 'gym_exercises_cache') {
-          console.log(`[useCacheAndRevalidate] ${queryKey}: Remote data fetched for bulkPut:`, remoteData);
+        const localDataMap = new Map(localData.map((item: any) => [getItemKey(item, primaryKey), item]));
+        const remoteDataMap = new Map(remoteData.map((item: any) => [getItemKey(item, primaryKey), item]));
+
+        const itemsToDelete: any[] = [];
+        const itemsToPut: T[] = [];
+
+        // Identify items to delete
+        for (const localKey of localDataMap.keys()) {
+          if (!remoteDataMap.has(localKey as string)) {
+            itemsToDelete.push(localKey);
+          }
         }
-        
-        await db.transaction('rw', table, async () => {
-          console.log(`[useCacheAndRevalidate] ${queryKey}: Starting transaction for bulkPut.`);
-          await table.clear();
-          console.log(`[useCacheAndRevalidate] ${queryKey}: Table cleared.`);
-          if (cacheTable === 'profiles_cache') {
-            if (remoteData.length > 0) {
-              await table.put(remoteData[0]);
-              console.log(`[useCacheAndRevalidate] ${queryKey}: Profile put.`);
-            } else {
-              console.log(`[useCacheAndRevalidate] ${queryKey}: No profile data to put.`);
+
+        // Identify items to add or update
+        for (const [remoteKey, remoteItem] of remoteDataMap.entries()) {
+          const localItem = localDataMap.get(remoteKey);
+          if (!localItem || JSON.stringify(localItem) !== JSON.stringify(remoteItem)) {
+            itemsToPut.push(remoteItem);
+          }
+        }
+
+        if (itemsToDelete.length > 0 || itemsToPut.length > 0) {
+          await db.transaction('rw', table, async () => {
+            if (itemsToDelete.length > 0) {
+              await table.bulkDelete(itemsToDelete);
             }
-          } else {
-            await table.bulkPut(remoteData);
-            console.log(`[useCacheAndRevalidate] ${queryKey}: Bulk put ${remoteData.length} items.`);
-          }
-          console.log(`[useCacheAndRevalidate] ${queryKey}: Transaction completed.`);
-          // NEW: Log table contents immediately after transaction
-          if (cacheTable === 'gyms_cache' || cacheTable === 't_paths_cache' || cacheTable === 't_path_exercises_cache' || cacheTable === 'gym_exercises_cache') {
-            const currentTableContents = await table.toArray();
-            console.log(`[useCacheAndRevalidate] ${queryKey}: Current ${cacheTable} contents after transaction:`, currentTableContents);
-          }
-        });
+            if (itemsToPut.length > 0) {
+              await table.bulkPut(itemsToPut);
+            }
+          });
+        }
       }
     } catch (err: any) {
-      console.error(`[useCacheAndRevalidate] Error during ${queryKey} revalidation:`, err);
-      // More robust error message extraction
       const errorMessage = (err && typeof err === 'object' && 'message' in err && err.message) 
                            ? err.message 
                            : (JSON.stringify(err) !== '{}' ? JSON.stringify(err) : `An unknown error occurred during ${queryKey} revalidation.`);
@@ -130,20 +134,15 @@ export function useCacheAndRevalidate<T extends CacheItem>( // Updated generic c
       toast.error(`Failed to refresh data for ${queryKey}: ${errorMessage}`);
     } finally {
       setLoading(false);
-      isRevalidatingRef.current = false; // Reset ref
-      console.log(`[useCacheAndRevalidate] ${queryKey}: fetchDataAndRevalidate finished. Loading: ${false}, Error: ${error}`);
+      isRevalidatingRef.current = false;
     }
-  }, [supabase, supabaseQuery, queryKey, cacheTable, sessionUserId]); // sessionUserId is a dependency here.
+  }, [supabase, supabaseQuery, queryKey, cacheTable, sessionUserId]);
 
   useEffect(() => {
-    // This useEffect will trigger fetchDataAndRevalidate when sessionUserId changes.
-    // The fetchDataAndRevalidate itself now handles the null/undefined sessionUserId case.
-    console.log(`[useCacheAndRevalidate] ${queryKey}: useEffect for sessionUserId triggered. Calling fetchDataAndRevalidate.`);
     fetchDataAndRevalidate();
   }, [fetchDataAndRevalidate]);
 
   const refresh = useCallback(() => {
-    console.log(`[useCacheAndRevalidate] ${queryKey}: Manual refresh called.`);
     fetchDataAndRevalidate();
   }, [fetchDataAndRevalidate]);
 
