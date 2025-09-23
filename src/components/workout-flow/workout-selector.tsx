@@ -64,6 +64,8 @@ interface WorkoutSelectorProps {
   availableMuscleGroups: string[];
   userGyms: Tables<'gyms'>[];
   exerciseGymsMap: Record<string, string[]>;
+  availableGymExerciseIds: Set<string>; // NEW
+  allGymExerciseIds: Set<string>; // NEW
 }
 
 const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName: string): Omit<WorkoutPillProps, 'isSelected' | 'onClick'> => {
@@ -81,7 +83,7 @@ const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName:
     
     if (lowerTitle.includes(' a')) variant = 'a';
     else if (lowerTitle.includes(' b')) variant = 'b';
-  } else {
+  } else { // push-pull-legs
     if (lowerTitle.includes('push')) category = 'push';
     else if (lowerTitle.includes('pull')) category = 'pull';
     else if (lowerTitle.includes('legs')) category = 'legs';
@@ -132,6 +134,8 @@ export const WorkoutSelector = ({
   availableMuscleGroups,
   userGyms,
   exerciseGymsMap,
+  availableGymExerciseIds, // NEW
+  allGymExerciseIds, // NEW
 }: WorkoutSelectorProps) => {
   const { supabase, session, memoizedSessionUserId } = useSession();
   const { activeGym } = useGym();

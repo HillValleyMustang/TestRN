@@ -20,21 +20,14 @@ const hasUserInput = (set: SetLogState): boolean => {
          (set.time_seconds !== null && set.time_seconds > 0);
 };
 
-// Helper for deep comparison of Sets
-const areSetsEqual = (set1: Set<string>, set2: Set<string>): boolean => {
-  if (set1.size !== set2.size) return false;
-  for (const item of set1) {
-    if (!set2.has(item)) return false;
-  }
-  return true;
-};
-
 interface UseActiveWorkoutSessionProps {
   groupedTPaths: GroupedTPath[];
   workoutExercisesCache: Record<string, WorkoutExercise[]>;
+  availableGymExerciseIds: Set<string>; // NEW PROP
+  allGymExerciseIds: Set<string>; // NEW PROP
 }
 
-export const useActiveWorkoutSession = ({ groupedTPaths, workoutExercisesCache }: UseActiveWorkoutSessionProps) => {
+export const useActiveWorkoutSession = ({ groupedTPaths, workoutExercisesCache, availableGymExerciseIds, allGymExerciseIds }: UseActiveWorkoutSessionProps) => {
   const [activeWorkout, setActiveWorkout] = useState<Tables<'t_paths'> | null>(null);
   const [exercisesForSession, setExercisesForSession] = useState<WorkoutExercise[]>([]);
   const [exercisesWithSets, setExercisesWithSets] = useState<Record<string, SetLogState[]>>({});
@@ -44,12 +37,6 @@ export const useActiveWorkoutSession = ({ groupedTPaths, workoutExercisesCache }
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [expandedExerciseCards, setExpandedExerciseCards] = useState<Record<string, boolean>>({});
   const [isWorkoutSessionStarted, setIsWorkoutSessionStarted] = useState(false); // NEW STATE
-
-  // New states for gym exercise links
-  const [availableGymExerciseIds, setAvailableGymExerciseIds] = useState<Set<string>>(new Set());
-  const [allGymExerciseIds, setAllGymExerciseIds] = useState<Set<string>>(new Set());
-  const [loadingGymLinks, setLoadingGymLinks] = useState(true);
-  const [gymLinksError, setGymLinksError] = useState<string | null>(null);
 
   const isWorkoutActive = useMemo(() => !!activeWorkout, [activeWorkout]);
   const hasUnsavedChanges = useMemo(() => {
@@ -112,48 +99,9 @@ export const useActiveWorkoutSession = ({ groupedTPaths, workoutExercisesCache }
     }
   }, [resetWorkoutSession, groupedTPaths]);
 
-  // Effect to fetch gym exercise links asynchronously
-  useEffect(() => {
-    const fetchGymExerciseLinks = async () => {
-      if (!memoizedSessionUserId || !activeGym) {
-        setLoadingGymLinks(false);
-        return;
-      }
-      setLoadingGymLinks(true);
-      setGymLinksError(null);
-      try {
-        const { data: gymLinks, error: gymLinksError } = await supabase.from('gym_exercises').select('exercise_id').eq('gym_id', activeGym.id);
-        if (gymLinksError) throw gymLinksError;
-        
-        const { data: allLinks, error: allLinksError } = await supabase.from('gym_exercises').select('exercise_id');
-        if (allLinksError) throw allLinksError;
-
-        const newAvailableIds = new Set((gymLinks || []).map((l: { exercise_id: string }) => l.exercise_id));
-        const newAllLinkedIds = new Set((allLinks || []).map((l: { exercise_id: string }) => l.exercise_id));
-
-        // Deep compare Sets before updating state
-        if (!areSetsEqual(newAvailableIds, availableGymExerciseIds)) {
-          setAvailableGymExerciseIds(newAvailableIds);
-        }
-        if (!areSetsEqual(newAllLinkedIds, allGymExerciseIds)) {
-          setAllGymExerciseIds(newAllLinkedIds);
-        }
-
-      } catch (error: any) {
-        console.error("[ActiveWorkoutSession] Error fetching gym exercise links:", error);
-        setGymLinksError(error.message || "Failed to load gym exercise links.");
-        toast.error("Failed to load gym exercise links.");
-      } finally {
-        setLoadingGymLinks(false);
-      }
-    };
-
-    fetchGymExerciseLinks();
-  }, [memoizedSessionUserId, activeGym, supabase]);
-
   // Memoize filtered exercises to prevent unnecessary re-renders
   const filteredExercises = useMemo(() => {
-    if (!activeWorkout || !memoizedSessionUserId || activeWorkout.id === 'ad-hoc' || loadingGymLinks) {
+    if (!activeWorkout || !memoizedSessionUserId || activeWorkout.id === 'ad-hoc') {
       return [];
     }
 
@@ -164,11 +112,12 @@ export const useActiveWorkoutSession = ({ groupedTPaths, workoutExercisesCache }
 
     let currentFilteredExercises = newExercisesFromCache;
 
-    if (activeGym && !gymLinksError) { // Only filter if no error fetching links
+    if (activeGym) {
+      // Use the pre-fetched availableGymExerciseIds and allGymExerciseIds
       currentFilteredExercises = newExercisesFromCache.filter(ex => !allGymExerciseIds.has(ex.id) || availableGymExerciseIds.has(ex.id));
     }
     return currentFilteredExercises;
-  }, [activeWorkout, workoutExercisesCache, activeGym, memoizedSessionUserId, loadingGymLinks, gymLinksError, availableGymExerciseIds, allGymExerciseIds]);
+  }, [activeWorkout, workoutExercisesCache, activeGym, memoizedSessionUserId, availableGymExerciseIds, allGymExerciseIds]);
 
   // Effect to react to activeWorkout and filteredExercises changes
   useEffect(() => {

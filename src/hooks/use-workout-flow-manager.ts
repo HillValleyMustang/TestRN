@@ -18,6 +18,8 @@ export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) =>
   const activeSession = useActiveWorkoutSession({
     groupedTPaths: workoutData.groupedTPaths,
     workoutExercisesCache: workoutData.workoutExercisesCache,
+    availableGymExerciseIds: workoutData.availableGymExerciseIds, // NEW
+    allGymExerciseIds: workoutData.allGymExerciseIds, // NEW
   });
 
   const [pendingNavigationPath, setPendingNavigationPath] = useState<string | null>(null);

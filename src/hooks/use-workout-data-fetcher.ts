@@ -36,6 +36,8 @@ interface UseWorkoutDataFetcherReturn {
   userGyms: Tables<'gyms'>[];
   exerciseGymsMap: Record<string, string[]>;
   exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>; // ADDED
+  availableGymExerciseIds: Set<string>; // NEW
+  allGymExerciseIds: Set<string>; // NEW
 }
 
 export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
@@ -177,6 +179,18 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     });
     return newExerciseGymsMap;
   }, [cachedUserGyms, cachedGymExercises]);
+
+  // NEW: Derive availableGymExerciseIds and allGymExerciseIds here
+  const availableGymExerciseIds = useMemo(() => {
+    if (!profile?.active_gym_id || !cachedGymExercises) return new Set<string>();
+    return new Set(cachedGymExercises.filter(link => link.gym_id === profile.active_gym_id).map(link => link.exercise_id));
+  }, [profile?.active_gym_id, cachedGymExercises]);
+
+  const allGymExerciseIds = useMemo(() => {
+    if (!cachedGymExercises) return new Set<string>();
+    return new Set(cachedGymExercises.map(link => link.exercise_id));
+  }, [cachedGymExercises]);
+
 
   const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, WorkoutExercise[]>>({}); // Make it a state
   const [groupedTPaths, setGroupedTPaths] = useState<GroupedTPath[]>([]); // Existing state
@@ -327,6 +341,8 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     userGyms: cachedUserGyms || [],
     exerciseGymsMap,
     exerciseWorkoutsMap,
+    availableGymExerciseIds, // NEW
+    allGymExerciseIds, // NEW
   }), [
     allAvailableExercises,
     groupedTPaths,
@@ -347,5 +363,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     cachedUserGyms,
     exerciseGymsMap,
     exerciseWorkoutsMap,
+    availableGymExerciseIds, // NEW
+    allGymExerciseIds, // NEW
   ]);
 };
