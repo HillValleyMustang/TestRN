@@ -47,7 +47,8 @@ export default function DashboardPage() {
     if (profile) {
       const name = profile.full_name || profile.first_name || 'Athlete';
       setWelcomeName(name);
-    } else if (!loadingProfile && !profile) { // If not loading and still no profile, they need to onboard
+    } else if (!loadingProfile) {
+      // If not loading and still no profile, they need to onboard
       router.push('/onboarding');
     }
   }, [memoizedSessionUserId, router, profile, loadingProfile]);
@@ -59,13 +60,13 @@ export default function DashboardPage() {
 
   if (!memoizedSessionUserId) return null;
 
-  // If profile is still loading or not available, show a basic loading state for the whole page
+  // Show full-page skeleton until initial load is complete
   if (loadingProfile || !profile) {
     return (
       <div className="flex flex-col gap-6 p-2 sm:p-4">
         <header>
           <h1 className="text-4xl font-bold tracking-tight">Welcome Back, <Skeleton className="inline-block h-8 w-32" /></h1>
-          <p className="text-muted-foreground mt-2"><Skeleton className="h-4 w-48" /></p>
+          <div className="text-muted-foreground mt-2"><Skeleton className="h-4 w-48" /></div>
         </header>
         <Skeleton className="h-48 w-full" />
         <Skeleton className="h-48 w-full" />
