@@ -123,26 +123,35 @@ export const NextWorkoutCard = ({
       
       setNextWorkout(nextWorkoutToSuggest);
 
-      // Only calculate estimatedDuration if profile.preferred_session_length is available AND component is not loading
+      // Only calculate estimatedDuration if profile.preferred_session_length is available
+      // AND component is not loading
+      // AND the specific workout's exercises are available in the cache
       if (nextWorkoutToSuggest && profile?.preferred_session_length && !componentLoading) {
-        const preferredSessionLength = profile.preferred_session_length;
-        const [minTimeStr, maxTimeStr] = preferredSessionLength.split('-');
-        const minTime = parseInt(minTimeStr, 10);
-        const maxTime = parseInt(maxTimeStr, 10);
+        const exercisesInWorkout = workoutExercisesCache[nextWorkoutToSuggest.id];
+        
+        // CRITICAL: Check if exercisesInWorkout is actually populated
+        if (exercisesInWorkout && exercisesInWorkout.length > 0) {
+          const preferredSessionLength = profile.preferred_session_length;
+          const [minTimeStr, maxTimeStr] = preferredSessionLength.split('-');
+          const minTime = parseInt(minTimeStr, 10);
+          const maxTime = parseInt(maxTimeStr, 10);
 
-        const defaultCounts = getExerciseCounts(preferredSessionLength);
-        const defaultMainExerciseCount = defaultCounts.main;
+          const defaultCounts = getExerciseCounts(preferredSessionLength);
+          const defaultMainExerciseCount = defaultCounts.main;
 
-        const exercisesInWorkout = workoutExercisesCache[nextWorkoutToSuggest.id] || [];
-        const currentMainExerciseCount = exercisesInWorkout.filter(ex => !ex.is_bonus_exercise).length;
+          const currentMainExerciseCount = exercisesInWorkout.filter(ex => !ex.is_bonus_exercise).length;
 
-        const countDifference = currentMainExerciseCount - defaultMainExerciseCount;
-        const timeAdjustment = countDifference * 5;
+          const countDifference = currentMainExerciseCount - defaultMainExerciseCount;
+          const timeAdjustment = countDifference * 5;
 
-        const newMinTime = Math.max(5, minTime + timeAdjustment);
-        const newMaxTime = Math.max(10, maxTime + timeAdjustment);
+          const newMinTime = Math.max(5, minTime + timeAdjustment);
+          const newMaxTime = Math.max(10, maxTime + timeAdjustment);
 
-        setEstimatedDuration(`${newMinTime}-${newMaxTime} minutes`);
+          setEstimatedDuration(`${newMinTime}-${newMaxTime} minutes`);
+        } else {
+          // If exercises for this specific workout are not yet in cache, keep duration null
+          setEstimatedDuration(null);
+        }
       } else {
         setEstimatedDuration(null); // Keep null if preferred_session_length is not ready or component is loading
       }
