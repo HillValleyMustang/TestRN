@@ -23,6 +23,42 @@ export const PreviousWorkoutsCard = ({ onViewSummary }: PreviousWorkoutsCardProp
     onViewSummary(sessionId);
   };
 
+  if (isLoading && recentSessions.length === 0) { // Show skeleton only if loading AND no data
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-center text-xl">
+            <History className="h-5 w-5" />
+            Previous Workouts
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-center text-xl">
+            <History className="h-5 w-5" />
+            Previous Workouts
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-destructive text-center">Error: {error}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -32,15 +68,7 @@ export const PreviousWorkoutsCard = ({ onViewSummary }: PreviousWorkoutsCardProp
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
-          </div>
-        ) : error ? (
-          <p className="text-destructive text-center">Error: {error}</p>
-        ) : recentSessions.length === 0 ? (
+        {recentSessions.length === 0 ? (
           <p className="text-muted-foreground">No previous workouts found. Complete a workout to see it here!</p>
         ) : (
           <div className="space-y-3">

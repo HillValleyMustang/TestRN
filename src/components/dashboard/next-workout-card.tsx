@@ -19,7 +19,7 @@ type TPath = Tables<'t_paths'>;
 const ULUL_ORDER = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
 const PPL_ORDER = ['Push', 'Pull', 'Legs'];
 
-export const NextWorkoutCard = () => { // Removed isLoading prop
+export const NextWorkoutCard = () => {
   const router = useRouter();
   const { session } = useSession();
   const { profile, isLoading: loadingProfile, error: profileError } = useUserProfile();
@@ -35,7 +35,7 @@ export const NextWorkoutCard = () => { // Removed isLoading prop
 
   useEffect(() => {
     const determineNextWorkout = () => {
-      if (componentLoading || dataError || !session || !profile || !groupedTPaths) return;
+      if (dataError || !session || !profile || !groupedTPaths) return; // Removed componentLoading from here
 
       const activeMainTPathId = profile?.active_t_path_id;
 
@@ -125,9 +125,10 @@ export const NextWorkoutCard = () => { // Removed isLoading prop
     };
 
     determineNextWorkout();
-  }, [session, groupedTPaths, componentLoading, dataError, profile, workoutExercisesCache]);
+  }, [session, groupedTPaths, dataError, profile, workoutExercisesCache]);
 
-  if (componentLoading && !nextWorkout) { // Show skeleton only if loading AND no data
+  // Show skeleton only if loading AND no data
+  if (componentLoading && (!profile || !groupedTPaths || !nextWorkout)) { 
     return (
       <Card>
         <CardHeader>

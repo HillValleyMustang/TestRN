@@ -5,14 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { formatWeight } from '@/lib/unit-conversions';
 import { useWeeklyVolumeData } from '@/hooks/data/useWeeklyVolumeData';
+import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
 
 export const WeeklyVolumeChart = () => {
   const { chartData, isLoading, error } = useWeeklyVolumeData();
 
-  if (isLoading) {
+  if (isLoading && chartData.length === 0) { // Show skeleton only if loading AND no data
     return (
       <Card className="h-[350px] flex items-center justify-center">
-        <p className="text-muted-foreground">Loading chart data...</p>
+        <Skeleton className="h-full w-full" />
       </Card>
     );
   }
