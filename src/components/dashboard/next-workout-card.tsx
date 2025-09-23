@@ -141,32 +141,29 @@ export const NextWorkoutCard = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-center text-xl">
           <Dumbbell className="h-5 w-5" />
-          {isLoading ? <Skeleton className="h-6 w-48" /> : "Your Next Workout"}
+          {/* Render static title, dynamic part will be in content */}
+          Your Next Workout
         </CardTitle>
       </CardHeader>
       <CardContent className="min-h-[120px] flex flex-col justify-center">
         {isLoading ? (
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex flex-col space-y-2 w-full">
-              <Skeleton className="h-7 w-3/4" />
-              <Skeleton className="h-5 w-1/2" />
-              <Skeleton className="h-4 w-1/3" />
-            </div>
-            <Skeleton className="h-12 w-full sm:w-36" />
-          </div>
+          // Render blank space during loading
+          <div className="h-[100px] w-full" />
         ) : dataError ? (
           <p className="text-destructive">Error loading next workout: {dataError}</p>
         ) : !activeGym ? (
-          <div className="text-muted-foreground text-center py-4">
+          <div className="text-muted-foreground text-center py-4 animate-fade-in-fast">
             <p className="mb-4">No active gym selected. Please set one in your profile.</p>
             <Button onClick={() => router.push('/profile')} size="sm">Go to Profile Settings</Button>
           </div>
         ) : !isGymConfigured ? (
-          <div className="text-muted-foreground text-center py-4">
+          <div className="text-muted-foreground text-center py-4 animate-fade-in-fast">
             <p className="mb-4">Your active gym "{activeGym.name}" has no workout plan. Go to <Link href="/manage-t-paths" className="text-primary underline">Manage T-Paths</Link> to set one up.</p>
           </div>
         ) : isTrulyEmptyState ? (
-          <p className="text-muted-foreground text-center py-4">No active Transformation Path found or no workouts defined for your current session length. Complete onboarding or set one in your profile to get started.</p>
+          <div className="text-muted-foreground text-center py-4 animate-fade-in-fast">
+            <p>No active Transformation Path found or no workouts defined for your current session length. Complete onboarding or set one in your profile to get started.</p>
+          </div>
         ) : (
           <div className="animate-fade-in-fast"> {/* Apply fast fade-in here */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

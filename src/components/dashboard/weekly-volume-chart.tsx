@@ -22,17 +22,16 @@ export const WeeklyVolumeChart = () => {
     <Card>
       <CardHeader>
         <CardTitle className="text-center text-xl">
-          {isLoading ? <Skeleton className="h-6 w-48 mx-auto" /> : "Weekly Workout Volume"}
+          {/* Render static title, dynamic part will be in content */}
+          Weekly Workout Volume
         </CardTitle>
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="h-[250px] flex flex-col items-center justify-center space-y-4">
-            <Skeleton className="h-48 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-          </div>
+          // Render blank space during loading
+          <div className="h-[250px] w-full" />
         ) : chartData.length === 0 ? (
-          <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+          <div className="h-[250px] flex items-center justify-center text-muted-foreground animate-fade-in-fast">
             No workout volume data available. Log some workouts to see your progress!
           </div>
         ) : (

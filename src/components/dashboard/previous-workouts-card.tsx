@@ -44,18 +44,16 @@ export const PreviousWorkoutsCard = ({ onViewSummary }: PreviousWorkoutsCardProp
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-center text-xl">
           <History className="h-5 w-5" />
-          {isLoading ? <Skeleton className="h-6 w-48" /> : "Previous Workouts"}
+          {/* Render static title, dynamic part will be in content */}
+          Previous Workouts
         </CardTitle>
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="space-y-3">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-          </div>
+          // Render blank space during loading
+          <div className="h-[100px] w-full" />
         ) : recentSessions.length === 0 ? (
-          <p className="text-muted-foreground">No previous workouts found. Complete a workout to see it here!</p>
+          <p className="text-muted-foreground animate-fade-in-fast">No previous workouts found. Complete a workout to see it here!</p>
         ) : (
           <div className="space-y-3 animate-fade-in-fast"> {/* Apply fast fade-in here */}
             {recentSessions.map((sessionItem) => {
