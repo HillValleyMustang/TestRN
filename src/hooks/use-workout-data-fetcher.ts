@@ -9,7 +9,7 @@ import { db, LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExerci
 import { useSession } from '@/components/session-context-provider';
 import { useUserProfile } from '@/hooks/data/useUserProfile';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { getMaxMinutes } from '@/lib/utils'; // Import getMaxMinutes
+import { getMaxMinutes, areSetsEqual } from '@/lib/utils'; // Import getMaxMinutes and areSetsEqual
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -44,10 +44,14 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
-  const prevStatusRef = useRef<string | null>(null);
+  const prevStatusRef = useRef<string | null>(null); // Corrected initialization
   const [tempStatusMessage, setTempStatusMessage] = useState<{ message: string; type: 'added' | 'removed' | 'success' } | null>(null);
   const [exerciseWorkoutsMap, setExerciseWorkoutsMap] = useState<Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>>({}); // ADDED STATE
   const [isProcessingDerivedData, setIsProcessingDerivedData] = useState(true);
+
+  // Refs to hold stable Set instances
+  const availableGymExerciseIdsRef = useRef<Set<string>>(new Set());
+  const allGymExerciseIdsRef = useRef<Set<string>>(new Set());
 
   const { data: cachedExercises, loading: loadingExercises, error: exercisesError, refresh: refreshExercises } = useCacheAndRevalidate<LocalExerciseDefinition>({
     cacheTable: 'exercise_definitions_cache',
@@ -180,16 +184,28 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     return newExerciseGymsMap;
   }, [cachedUserGyms, cachedGymExercises]);
 
-  // NEW: Derive availableGymExerciseIds and allGymExerciseIds here
-  const availableGymExerciseIds = useMemo(() => {
-    if (!profile?.active_gym_id || !cachedGymExercises) return new Set<string>();
-    return new Set(cachedGymExercises.filter(link => link.gym_id === profile.active_gym_id).map(link => link.exercise_id));
-  }, [profile?.active_gym_id, cachedGymExercises]);
+  // NEW: Derive availableGymExerciseIds and allGymExerciseIds here, using refs for stability
+  useEffect(() => {
+    if (!profile?.active_gym_id || !cachedGymExercises) {
+      if (availableGymExerciseIdsRef.current.size > 0) {
+        availableGymExerciseIdsRef.current = new Set();
+      }
+      if (allGymExerciseIdsRef.current.size > 0) {
+        allGymExerciseIdsRef.current = new Set();
+      }
+      return;
+    }
 
-  const allGymExerciseIds = useMemo(() => {
-    if (!cachedGymExercises) return new Set<string>();
-    return new Set(cachedGymExercises.map(link => link.exercise_id));
-  }, [cachedGymExercises]);
+    const newAvailableIds = new Set(cachedGymExercises.filter(link => link.gym_id === profile.active_gym_id).map(link => link.exercise_id));
+    const newAllLinkedIds = new Set(cachedGymExercises.map(link => link.exercise_id));
+
+    if (!areSetsEqual(newAvailableIds, availableGymExerciseIdsRef.current)) {
+      availableGymExerciseIdsRef.current = newAvailableIds;
+    }
+    if (!areSetsEqual(newAllLinkedIds, allGymExerciseIdsRef.current)) {
+      allGymExerciseIdsRef.current = newAllLinkedIds;
+    }
+  }, [profile?.active_gym_id, cachedGymExercises]);
 
 
   const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, WorkoutExercise[]>>({}); // Make it a state
@@ -341,8 +357,8 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     userGyms: cachedUserGyms || [],
     exerciseGymsMap,
     exerciseWorkoutsMap,
-    availableGymExerciseIds, // NEW
-    allGymExerciseIds, // NEW
+    availableGymExerciseIds: availableGymExerciseIdsRef.current, // Use ref's current value
+    allGymExerciseIds: allGymExerciseIdsRef.current, // Use ref's current value
   }), [
     allAvailableExercises,
     groupedTPaths,
@@ -363,7 +379,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     cachedUserGyms,
     exerciseGymsMap,
     exerciseWorkoutsMap,
-    availableGymExerciseIds, // NEW
-    allGymExerciseIds, // NEW
+    availableGymExerciseIdsRef.current, // Depend on ref's current value
+    allGymExerciseIdsRef.current, // Depend on ref's current value
   ]);
 };
