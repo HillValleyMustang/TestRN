@@ -368,304 +368,266 @@ export const WorkoutSelector = ({
   const totalExercises = exercisesForSession.length;
 
   return (
-    <>
-      <div className="space-y-6">
-        <div className="space-y-4">
-          {loadingWorkoutFlow ? (
-            <p className="text-muted-foreground text-center py-4">Loading Transformation Paths...</p>
-          ) : !activeGym ? (
-            <Card>
-              <CardHeader><CardTitle>No Active Gym</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Please add a gym in your profile settings to begin.</p>
-                <Button onClick={() => router.push('/profile')} className="mt-4">Go to Profile Settings</Button>
-              </CardContent>
-            </Card>
-          ) : !isGymConfigured ? (
-            <SetupGymPlanPrompt gym={activeGym} onSetupSuccess={refreshAllData} profile={profile} setTempStatusMessage={setTempStatusMessage} />
-          ) : !activeTPathGroup ? (
-            <p className="text-muted-foreground text-center py-4">
-              No active Transformation Path found for this gym. Go to <WorkoutAwareLink href="/manage-t-paths" className="text-primary underline">Manage T-Paths</WorkoutAwareLink> to set one up.
-            </p>
-          ) : (
-            <div key={activeTPathGroup.mainTPath.id} className="space-y-3">
-              <h4 className="text-lg font-semibold flex items-center gap-2">
-                <Dumbbell className="h-5 w-5 text-muted-foreground" />
-                {activeTPathGroup.mainTPath.template_name}
-              </h4>
-              {activeTPathGroup.childWorkouts.length === 0 ? (
-                <p className="text-muted-foreground text-sm ml-7">No workouts defined for this path. This may happen if your session length is too short for any workouts.</p>
-              ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  {activeTPathGroup.childWorkouts.map((workout: WorkoutWithLastCompleted) => {
-                    const pillProps = mapWorkoutToPillProps(workout, activeTPathGroup.mainTPath.template_name);
-                    const isPPLAndLegs = pillProps.workoutType === 'push-pull-legs' && pillProps.category === 'legs';
-                    const isSelectedPill = activeWorkout?.id === workout.id;
-                    return (
-                      <WorkoutPill
-                        key={workout.id}
-                        {...pillProps}
-                        isSelected={isSelectedPill}
-                        onClick={handleWorkoutClick}
-                        className={cn(isPPLAndLegs && "col-span-2 justify-self-center")}
-                      />
-                    );
-                  })}
+    <div className="space-y-6">
+      <div className="space-y-4">
+        {loadingWorkoutFlow ? (
+          <p className="text-muted-foreground text-center py-4">Loading Transformation Paths...</p>
+        ) : !activeGym ? (
+          <Card>
+            <CardHeader><CardTitle>No Active Gym</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Please add a gym in your profile settings to begin.</p>
+              <Button onClick={() => router.push('/profile')} className="mt-4">Go to Profile Settings</Button>
+            </CardContent>
+          </Card>
+        ) : !isGymConfigured ? (
+          <SetupGymPlanPrompt gym={activeGym} onSetupSuccess={refreshAllData} profile={profile} setTempStatusMessage={setTempStatusMessage} />
+        ) : !activeTPathGroup ? (
+          <p className="text-muted-foreground text-center py-4">
+            No active Transformation Path found for this gym. Go to <WorkoutAwareLink href="/manage-t-paths" className="text-primary underline">Manage T-Paths</WorkoutAwareLink> to set one up.
+          </p>
+        ) : (
+          <div key={activeTPathGroup.mainTPath.id} className="space-y-3">
+            <h4 className="text-lg font-semibold flex items-center gap-2">
+              <Dumbbell className="h-5 w-5 text-muted-foreground" />
+              {activeTPathGroup.mainTPath.template_name}
+            </h4>
+            {activeTPathGroup.childWorkouts.length === 0 ? (
+              <p className="text-muted-foreground text-sm ml-7">No workouts defined for this path. This may happen if your session length is too short for any workouts.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {activeTPathGroup.childWorkouts.map((workout: WorkoutWithLastCompleted) => {
+                  const pillProps = mapWorkoutToPillProps(workout, activeTPathGroup.mainTPath.template_name);
+                  const isPPLAndLegs = pillProps.workoutType === 'push-pull-legs' && pillProps.category === 'legs';
+                  const isSelectedPill = activeWorkout?.id === workout.id;
+                  return (
+                    <WorkoutPill
+                      key={workout.id}
+                      {...pillProps}
+                      isSelected={isSelectedPill}
+                      onClick={handleWorkoutClick}
+                      className={cn(isPPLAndLegs && "col-span-2 justify-self-center")}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {activeWorkout && (
+        <div className="mt-4 border-t pt-4">
+          <div className="flex justify-center mb-4">
+            <WorkoutBadge 
+              workoutName={activeWorkout.id === 'ad-hoc' ? "Ad Hoc Workout" : (activeWorkout?.template_name || "Workout")} 
+              className="text-lg px-4 py-2"
+            >
+              {activeWorkout.id === 'ad-hoc' ? "Ad Hoc Workout" : (activeWorkout?.template_name || "Workout")}
+            </WorkoutBadge>
+          </div>
+
+          {activeWorkout.id === 'ad-hoc' && (
+            <section className="mb-6 p-4 border rounded-lg bg-card">
+              <h3 className="text-lg font-semibold mb-3">Add Exercises</h3>
+              <div className="flex flex-col gap-3 mb-3">
+                {/* Filters */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Tabs value={adHocExerciseSourceFilter} onValueChange={(value) => setAdHocExerciseSourceFilter(value as 'my-exercises' | 'global-library')} className="flex-grow">
+                    <TabsList className="grid w-full grid-cols-2 h-9">
+                      <TabsTrigger value="my-exercises" className="text-xs">My Exercises</TabsTrigger>
+                      <TabsTrigger value="global-library" className="text-xs">Global Library</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                  <Select onValueChange={setMuscleFilter} value={muscleFilter}>
+                    <SelectTrigger className="flex-1 h-8 text-xs min-w-[120px]">
+                      <SelectValue placeholder="Muscle Group" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Muscles</SelectItem>
+                      {availableMuscleGroups.map(muscle => (
+                        <SelectItem key={muscle} value={muscle}>
+                          {muscle}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select onValueChange={setGymFilter} value={gymFilter} disabled={userGyms.length === 0}>
+                    <SelectTrigger className="flex-1 h-8 text-xs min-w-[100px]">
+                      <SelectValue placeholder="Gym" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Gyms</SelectItem>
+                      {userGyms.map(gym => (
+                        <SelectItem key={gym.id} value={gym.id}>
+                          {gym.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant={showFavoritesOnly ? "default" : "outline"}
+                    size="icon"
+                    onClick={() => setShowFavoritesOnly(prev => !prev)}
+                    className="h-8 w-8 flex-shrink-0"
+                    title="Show Favorites Only"
+                  >
+                    <Heart className={cn("h-4 w-4", showFavoritesOnly ? "fill-white text-white" : "text-muted-foreground")} />
+                  </Button>
                 </div>
-              )}
-            </div>
+
+                {/* Combobox and Add Button */}
+                <div className="flex gap-2">
+                  <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={isComboboxOpen}
+                        className="w-full justify-between font-normal"
+                      >
+                        {selectedExerciseToAdd
+                          ? allAvailableExercises.find(ex => ex.id === selectedExerciseToAdd)?.name
+                          : "Select exercise..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                      <Command>
+                        <CommandInput
+                          placeholder="Search exercises..."
+                          value={searchTerm}
+                          onValueChange={setSearchTerm}
+                        />
+                        <CommandList>
+                          <CommandEmpty>No exercise found.</CommandEmpty>
+                          <CommandGroup>
+                            {exercisesForCombobox.map((exercise) => (
+                              <CommandItem
+                                key={exercise.id}
+                                value={exercise.name!}
+                                onSelect={() => {
+                                  setSelectedExerciseToAdd(exercise.id!);
+                                  setIsComboboxOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedExerciseToAdd === exercise.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {exercise.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <Button onClick={handleAddExercise} disabled={!selectedExerciseToAdd} className="flex-shrink-0">
+                    <PlusCircle className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <AnalyseGymButton onClick={() => setShowAnalyseGymDialog(true)} />
+            </section>
+          )}
+
+          <section className="mb-6">
+            {exercisesForSession.length === 0 && activeWorkout.id !== 'ad-hoc' ? (
+              <div className="flex flex-col items-center justify-center text-center py-8">
+                <Dumbbell className="h-12 w-12 text-muted-foreground mb-3" />
+                <h3 className="text-lg font-bold mb-2">No exercises for this workout</h3>
+                <p className="text-muted-foreground mb-4">This may happen if your session length is too short.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {exercisesForSession.map((exercise: WorkoutExercise, index: number) => (
+                  <ExerciseCard
+                    key={exercise.id}
+                    exercise={exercise}
+                    exerciseNumber={index + 1}
+                    currentSessionId={currentSessionId}
+                    supabase={supabase}
+                    onUpdateGlobalSets={updateExerciseSets}
+                    onSubstituteExercise={substituteExercise}
+                    onRemoveExercise={removeExerciseFromSession}
+                    workoutTemplateName={activeWorkout.template_name}
+                    onFirstSetSaved={async (timestamp) => {
+                      return await createWorkoutSessionInDb(activeWorkout.template_name, timestamp);
+                    }}
+                    onExerciseCompleted={markExerciseAsCompleted}
+                    isExerciseCompleted={completedExercises.has(exercise.id)}
+                    isExpandedProp={expandedExerciseCards[exercise.id] || false}
+                    onToggleExpand={toggleExerciseCardExpansion}
+                    setTempStatusMessage={setTempStatusMessage} // NEW
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+
+          {activeWorkout.id !== 'ad-hoc' && activeWorkout && (
+            <Button 
+              variant="outline" 
+              onClick={() => handleOpenEditWorkoutDialog(activeWorkout.id, activeWorkout.template_name)} 
+              className="w-full mt-4 mb-6"
+            >
+              <Settings className="h-4 w-4 mr-2" /> Manage Exercises for this Workout
+            </Button>
+          )}
+
+          {totalExercises > 0 && (
+            <Button size="lg" onClick={finishWorkoutSession} className="w-full mt-6">
+              Finish Workout
+            </Button>
           )}
         </div>
+      )}
 
-        {activeWorkout && (
-          <div className="mt-4 border-t pt-4">
-            <div className="flex justify-center mb-4">
-              <WorkoutBadge 
-                workoutName={activeWorkout.id === 'ad-hoc' ? "Ad Hoc Workout" : (activeWorkout?.template_name || "Workout")} 
-                className="text-lg px-4 py-2"
-              >
-                {activeWorkout.id === 'ad-hoc' ? "Ad Hoc Workout" : (activeWorkout?.template_name || "Workout")}
-              </WorkoutBadge>
-            </div>
-
-            {activeWorkout.id === 'ad-hoc' && (
-              <section className="mb-6 p-4 border rounded-lg bg-card">
-                <h3 className="text-lg font-semibold mb-3">Add Exercises</h3>
-                <div className="flex flex-col gap-3 mb-3">
-                  {/* Filters */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Tabs value={adHocExerciseSourceFilter} onValueChange={(value) => setAdHocExerciseSourceFilter(value as 'my-exercises' | 'global-library')} className="flex-grow">
-                      <TabsList className="grid w-full grid-cols-2 h-9">
-                        <TabsTrigger value="my-exercises" className="text-xs">My Exercises</TabsTrigger>
-                        <TabsTrigger value="global-library" className="text-xs">Global Library</TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                    <Select onValueChange={setMuscleFilter} value={muscleFilter}>
-                      <SelectTrigger className="flex-1 h-8 text-xs min-w-[120px]">
-                        <SelectValue placeholder="Muscle Group" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Muscles</SelectItem>
-                        {availableMuscleGroups.map(muscle => (
-                          <SelectItem key={muscle} value={muscle}>
-                            {muscle}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select onValueChange={setGymFilter} value={gymFilter} disabled={userGyms.length === 0}>
-                      <SelectTrigger className="flex-1 h-8 text-xs min-w-[100px]">
-                        <SelectValue placeholder="Gym" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Gyms</SelectItem>
-                        {userGyms.map(gym => (
-                          <SelectItem key={gym.id} value={gym.id}>
-                            {gym.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant={showFavoritesOnly ? "default" : "outline"}
-                      size="icon"
-                      onClick={() => setShowFavoritesOnly(prev => !prev)}
-                      className="h-8 w-8 flex-shrink-0"
-                      title="Show Favorites Only"
-                    >
-                      <Heart className={cn("h-4 w-4", showFavoritesOnly ? "fill-white text-white" : "text-muted-foreground")} />
-                    </Button>
-                  </div>
-
-                  {/* Combobox and Add Button */}
-                  <div className="flex gap-2">
-                    <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={isComboboxOpen}
-                          className="w-full justify-between font-normal"
-                        >
-                          {selectedExerciseToAdd
-                            ? allAvailableExercises.find(ex => ex.id === selectedExerciseToAdd)?.name
-                            : "Select exercise..."}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                        <Command>
-                          <CommandInput
-                            placeholder="Search exercises..."
-                            value={searchTerm}
-                            onValueChange={setSearchTerm}
-                          />
-                          <CommandList>
-                            <CommandEmpty>No exercise found.</CommandEmpty>
-                            <CommandGroup>
-                              {exercisesForCombobox.map((exercise) => (
-                                <CommandItem
-                                  key={exercise.id}
-                                  value={exercise.name!}
-                                  onSelect={() => {
-                                    setSelectedExerciseToAdd(exercise.id!);
-                                    setIsComboboxOpen(false);
-                                  }}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      selectedExerciseToAdd === exercise.id ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  {exercise.name}
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                    <Button onClick={handleAddExercise} disabled={!selectedExerciseToAdd} className="flex-shrink-0">
-                      <PlusCircle className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <AnalyseGymButton onClick={() => setShowAnalyseGymDialog(true)} />
-              </section>
-            )}
-
-            <section className="mb-6">
-              {exercisesForSession.length === 0 && activeWorkout.id !== 'ad-hoc' ? (
-                <div className="flex flex-col items-center justify-center text-center py-8">
-                  <Dumbbell className="h-12 w-12 text-muted-foreground mb-3" />
-                  <h3 className="text-lg font-bold mb-2">No exercises for this workout</h3>
-                  <p className="text-muted-foreground mb-4">This may happen if your session length is too short.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-<dyad-problem-report summary="4 problems">
-<problem file="src/components/layout/header.tsx" line="94" column="13" code="2322">Type '{ message: string; type: &quot;added&quot; | &quot;removed&quot; | &quot;success&quot; | &quot;error&quot;; } | null' is not assignable to type '{ message: string; type: &quot;added&quot; | &quot;removed&quot; | &quot;success&quot;; } | null'.
-  Type '{ message: string; type: &quot;added&quot; | &quot;removed&quot; | &quot;success&quot; | &quot;error&quot;; }' is not assignable to type '{ message: string; type: &quot;added&quot; | &quot;removed&quot; | &quot;success&quot;; }'.
-    Types of property 'type' are incompatible.
-      Type '&quot;added&quot; | &quot;removed&quot; | &quot;success&quot; | &quot;error&quot;' is not assignable to type '&quot;added&quot; | &quot;removed&quot; | &quot;success&quot;'.
-        Type '&quot;error&quot;' is not assignable to type '&quot;added&quot; | &quot;removed&quot; | &quot;success&quot;'.</problem>
-<problem file="src/app/(app)/layout.tsx" line="44" column="13" code="2322">Type '(message: { message: string; type: &quot;added&quot; | &quot;removed&quot; | &quot;success&quot; | &quot;error&quot;; } | null) =&gt; void' is not assignable to type '{ message: string; type: &quot;added&quot; | &quot;removed&quot; | &quot;success&quot; | &quot;error&quot;; }'.</problem>
-<problem file="src/app/(app)/manage-exercises/page.tsx" line="371" column="10" code="2741">Property 'setTempStatusMessage' is missing in type '{ open: true; onOpenChange: () =&gt; void; exercise: FetchedExerciseDefinition; onSaveSuccess: () =&gt; void; }' but required in type 'EditExerciseDialogProps'.</problem>
-<problem file="src/app/(app)/profile/page.tsx" line="401" column="22" code="2741">Property 'setTempStatusMessage' is missing in type '{ form: UseFormReturn&lt;{ full_name: string; weight_kg?: number | null | undefined; primary_goal?: string | null | undefined; preferred_session_length?: string | null | undefined; height_cm?: number | null | undefined; body_fat_pct?: number | ... 1 more ... | undefined; health_notes?: string | ... 1 more ... | undefin...' but required in type 'ProfileSettingsTabProps'.</problem>
-</dyad-problem-report>You're absolutely right! My apologies for missing these in the previous round. It seems there were a few more places where the `setTempStatusMessage` prop needed to be passed down or its type definition adjusted.
-
-Here's a breakdown of the fixes:
-
-1.  **`src/components/layout/header.tsx`**: The `tempStatusMessage` prop in `RollingStatusBadge` was expecting a type without `'error'`. I've updated the `RollingStatusBadgeProps` interface to correctly include `'error'` as a valid type.
-2.  **`src/app/(app)/layout.tsx`**: The `tempStatusMessage` prop in `Header` was receiving the `setTempStatusMessage` *function* instead of the `tempStatusMessage` *state value*. I've corrected this to pass the state value.
-3.  **`src/app/(app)/manage-exercises/page.tsx`**: The `EditExerciseDialog` component was missing the `setTempStatusMessage` prop. I've added it.
-4.  **`src/app/(app)/profile/page.tsx`**: The `ProfileSettingsTab` component was missing the `setTempStatusMessage` prop. I've added it.
-
-These changes should resolve all the remaining TypeScript compile-time errors.
-
-<dyad-write path="src/components/layout/header.tsx" description="Updated `RollingStatusBadgeProps` to include 'error' type for `tempStatusMessage`.">
-"use client";
-
-import Link from "next/link";
-import React, { useState } from "react";
-import { Home, Dumbbell, LayoutTemplate, History, User, BarChart3, PanelLeft, Plus } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { UserNav } from "./user-nav";
-import { NotificationBell } from "./notification-bell";
-import { ActivityLoggingDialog } from "../activity-logging-dialog";
-import { useScrollPosition } from "@/hooks/use-scroll-position";
-import { cn } from "@/lib/utils";
-import { RollingStatusBadge } from "./rolling-status-badge";
-import { WorkoutAwareLink } from "../workout-flow/workout-aware-link"; // Import WorkoutAwareLink
-import { usePathname } from "next/navigation"; // Import usePathname to check active link
-
-const mobileNavLinks = [
-  { href: "/dashboard", label: "Dashboard", icon: Home }, // Reverted to Dashboard
-  { href: "/workout-history", label: "History", icon: History },
-  { href: "/activity-logs", label: "Activities", icon: BarChart3 },
-  { href: "/manage-exercises", label: "Exercises", icon: Dumbbell },
-  { href: "/manage-t-paths", label: "Management", icon: LayoutTemplate }, // CHANGED LABEL
-  { href: "/profile", label: "Profile", icon: User },
-  { href: "/workout", label: "Workout", icon: Dumbbell }, // Moved workout here for consistent styling
-];
-
-interface HeaderProps {
-  isGeneratingPlan: boolean;
-  tempStatusMessage: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null; // NEW
-}
-
-export function Header({ isGeneratingPlan, tempStatusMessage }: HeaderProps) { // NEW PROP
-  const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
-  const [isSheetOpen, setIsSheetOpen] = useState(false); // NEW: State for sheet
-  const isScrolled = useScrollPosition();
-  const pathname = usePathname(); // Get current pathname
-
-  return (
-    <>
-      <header className={cn(
-        "sticky top-0 z-30 flex h-14 items-center gap-4 border-b px-4 sm:static sm:h-auto sm:border-0 sm:px-6",
-        "transition-all duration-300 ease-in-out",
-        isScrolled ? "bg-background/80 backdrop-blur-md border-b-transparent" : "bg-background border-b"
-      )}>
-        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}> {/* Bind state */}
-          <SheetTrigger asChild>
-            <Button size="icon" variant="outline" className="sm:hidden">
-              <span>
-                <PanelLeft className="h-5 w-5" />
-                <span className="sr-only">Toggle Menu</span>
-              </span>
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="sm:max-w-xs">
-            <nav className="grid gap-1 text-lg font-medium overflow-y-auto h-full py-1"> {/* Reduced gap, py */}
-              {mobileNavLinks.map(link => {
-                const isActive = pathname === link.href;
-                const Icon = link.icon;
-                return (
-                  <WorkoutAwareLink
-                    key={link.href}
-                    href={link.href}
-                    className={cn(
-                      "flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors", // Adjusted px, py, gap
-                      isActive 
-                        ? "bg-action text-action-foreground font-semibold shadow-md" 
-                        : "text-foreground hover:bg-muted"
-                    )}
-                    onClick={() => setIsSheetOpen(false)} // NEW: Close sheet on click
-                  >
-                    <Icon className={cn("h-4 w-4", isActive ? "text-action-foreground" : "text-primary")} /> {/* Reduced h/w */}
-                    {link.label}
-                  </WorkoutAwareLink>
-                );
-              })}
-              <hr className="my-2" />
-              <Button 
-                variant="default" 
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg justify-start text-lg font-medium bg-primary text-primary-foreground hover:bg-primary/90" // Styled as a primary button
-                onClick={() => {
-                  setIsActivityLogOpen(true);
-                  setIsSheetOpen(false); // NEW: Close sheet on click
-                }}
-              >
-                <Plus className="h-4 w-4 text-primary-foreground" /> {/* Reduced h/w */}
-                Log Activity
-              </Button>
-            </nav>
-          </SheetContent>
-        </Sheet>
-        <div className="relative ml-auto flex flex-1 items-center justify-end gap-2 md:grow-0">
-          <RollingStatusBadge 
-            isGeneratingPlan={isGeneratingPlan} 
-            tempStatusMessage={tempStatusMessage} // NEW
-          />
-          <NotificationBell />
-          <UserNav />
-        </div>
-      </header>
-
-      <ActivityLoggingDialog open={isActivityLogOpen} onOpenChange={setIsActivityLogOpen} />
-    </>
+      <Card
+        className={cn(
+          "cursor-pointer hover:bg-accent transition-colors",
+          activeWorkout?.id === 'ad-hoc' && "border-primary ring-2 ring-primary"
+        )}
+        onClick={handleAdHocClick}
+      >
+        <CardHeader className="p-4">
+          <CardTitle className="flex items-center text-base">
+            <PlusCircle className="h-4 w-4 mr-2" />
+            Start Ad-Hoc Workout
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Start a workout without a T-Path. Add exercises as you go.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+      <LoadingOverlay isOpen={isCreatingSession} title="Starting Workout..." description="Please wait while your session is being prepared." />
+      {selectedWorkoutToEdit && (
+        <EditWorkoutExercisesDialog
+          open={isEditWorkoutDialogOpen}
+          onOpenChange={setIsEditWorkoutDialogOpen}
+          workoutId={selectedWorkoutToEdit.id}
+          workoutName={selectedWorkoutToEdit.name}
+          onSaveSuccess={handleEditWorkoutSaveSuccess}
+          setTempStatusMessage={setTempStatusMessage} // NEW
+        />
+      )}
+      <AnalyseGymDialog
+        open={showAnalyseGymDialog}
+        onOpenChange={setShowAnalyseGymDialog}
+        onExerciseIdentified={handleExerciseIdentified}
+      />
+      <SaveAiExercisePrompt
+        open={showSaveAiExercisePrompt}
+        onOpenChange={setShowSaveAiExercisePrompt}
+        exercise={aiIdentifiedExercise}
+        onSaveToMyExercises={handleSaveAiExerciseToMyExercises}
+        onAddOnlyToCurrentWorkout={handleAddAiExerciseToWorkoutOnly}
+        context="workout-flow"
+        isSaving={isAiSaving}
+      />
+    </div>
   );
-}
+};
