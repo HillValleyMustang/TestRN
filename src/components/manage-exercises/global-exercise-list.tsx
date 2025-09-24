@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Tables, FetchedExerciseDefinition } from "@/types/supabase"; // Import FetchedExerciseDefinition
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,6 +61,15 @@ export const GlobalExerciseList = ({
 
   // NEW: State for the explainer dialog
   const [isExplainerDialogOpen, setIsExplainerDialogOpen] = useState(false);
+
+  const initialSelectedGymIdsForDialog = useMemo(() => {
+    if (!selectedExerciseForGyms) return new Set<string>();
+    const gymNamesForExercise = exerciseGymsMap[selectedExerciseForGyms.id as string] || [];
+    const gymIds = userGyms
+        .filter(gym => gymNamesForExercise.includes(gym.name))
+        .map(gym => gym.id);
+    return new Set(gymIds);
+  }, [selectedExerciseForGyms, exerciseGymsMap, userGyms]);
 
   const handleOpenAddTPathDialog = (exercise: FetchedExerciseDefinition) => {
     setSelectedExerciseForTPath(exercise);
@@ -207,11 +216,7 @@ export const GlobalExerciseList = ({
             open={isManageGymsDialogOpen}
             onOpenChange={setIsManageGymsDialogOpen}
             exercise={selectedExerciseForGyms}
-            initialSelectedGymIds={new Set(
-                userGyms
-                    .filter(gym => exerciseGymsMap[selectedExerciseForGyms.id as string]?.includes(gym.name))
-                    .map(gym => gym.id)
-            )}
+            initialSelectedGymIds={initialSelectedGymIdsForDialog}
             onSaveSuccess={onAddSuccess}
         />
       )}
