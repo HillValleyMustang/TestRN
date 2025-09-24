@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, LocalDraftSetLog } from '@/lib/db';
 import { SetLogState, Tables, GetLastExerciseSetsForExerciseReturns } from '@/types/supabase';
@@ -131,23 +131,38 @@ export const useSetDrafts = ({
     }
   }, [memoizedSessionUserId, supabase, exerciseId, exerciseName]); // Depend on memoized ID
 
-  // NEW: Effect to update session_id for existing drafts when currentSessionId becomes available
+  // Ref to track if session_id update has already been attempted for the current exerciseId
+  const sessionUpdateAttemptedRef = useRef<string | null>(null);
+
   useEffect(() => {
     const updateDraftSessionIds = async () => {
-      if (currentSessionId && drafts && drafts.length > 0) {
-        const draftsToUpdate = drafts.filter(d => d.session_id === null);
-        if (draftsToUpdate.length > 0) {
-          console.log(`[useSetDrafts] Updating ${draftsToUpdate.length} drafts to new session_id: ${currentSessionId}`);
-          await db.transaction('rw', db.draft_set_logs, async () => {
-            for (const draft of draftsToUpdate) {
-              await db.draft_set_logs.update([draft.exercise_id, draft.set_index], { session_id: currentSessionId });
-            }
-          });
-        }
+      if (!isValidId(exerciseId) || !currentSessionId) {
+        return;
+      }
+
+      // Only run if currentSessionId is new for this exerciseId
+      if (sessionUpdateAttemptedRef.current === `${exerciseId}-${currentSessionId}`) {
+        return;
+      }
+
+      // Fetch drafts that need updating (session_id is null) for the current exercise
+      const draftsToUpdate = await db.draft_set_logs
+        .where('exercise_id').equals(exerciseId)
+        .and(d => d.session_id === null)
+        .toArray();
+
+      if (draftsToUpdate.length > 0) {
+        console.log(`[useSetDrafts] Updating ${draftsToUpdate.length} drafts to new session_id: ${currentSessionId}`);
+        await db.transaction('rw', db.draft_set_logs, async () => {
+          for (const draft of draftsToUpdate) {
+            await db.draft_set_logs.update([draft.exercise_id, draft.set_index], { session_id: currentSessionId });
+          }
+        });
+        sessionUpdateAttemptedRef.current = `${exerciseId}-${currentSessionId}`; // Mark as attempted
       }
     };
     updateDraftSessionIds();
-  }, [currentSessionId, drafts]); // Depend on currentSessionId and drafts
+  }, [exerciseId, currentSessionId]); // Dependencies: exerciseId, currentSessionId
 
   useEffect(() => {
     const processAndSetSets = async () => {
@@ -155,48 +170,50 @@ export const useSetDrafts = ({
         return;
       }
 
-      if (drafts && drafts.length > 0) {
-        const loadedSets = drafts.map((draft: LocalDraftSetLog) => ({
-          id: draft.set_log_id || null,
-          created_at: null,
-          session_id: draft.session_id,
-          exercise_id: draft.exercise_id,
-          weight_kg: draft.weight_kg,
-          reps: draft.reps,
-          reps_l: draft.reps_l,
-          reps_r: draft.reps_r,
-          time_seconds: draft.time_seconds,
-          is_pb: draft.is_pb || false,
-          isSaved: draft.isSaved || false,
-          isPR: draft.is_pb || false,
-          lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
-        }));
-
-        const lastSetsMap = await fetchLastSets();
-        const finalSets = loadedSets.map((set, setIndex) => {
-          const correspondingLastSet = lastSetsMap.get(exerciseId)?.[setIndex];
-          return {
-            ...set,
-            lastWeight: correspondingLastSet?.weight_kg || null,
-            lastReps: correspondingLastSet?.reps || null,
-            lastRepsL: correspondingLastSet?.reps_l || null,
-            lastRepsR: correspondingLastSet?.reps_r || null,
-            lastTimeSeconds: correspondingLastSet?.time_seconds || null,
-          };
-        });
-        setSets(finalSets);
-      } else if (drafts && drafts.length === 0) {
-        if (sets.length > 0) {
-          // Do nothing, preserve state to avoid wipe
-        } else {
-          // This block will now correctly trigger initial drafts if none exist for the exercise
-          await createInitialDrafts();
-        }
+      if (drafts.length === 0) {
+        // No drafts found for this exerciseId. Create initial ones.
+        // The createInitialDrafts function already has an internal check
+        // to prevent creating duplicates if another instance already did.
+        createInitialDrafts();
+        // Do NOT setSets here, as createInitialDrafts will trigger a new liveQuery update,
+        // and this useEffect will run again with the new drafts.
+        return;
       }
+
+      // If drafts exist, process them and set the state.
+      const loadedSets = drafts.map((draft: LocalDraftSetLog) => ({
+        id: draft.set_log_id || null,
+        created_at: null,
+        session_id: draft.session_id,
+        exercise_id: draft.exercise_id,
+        weight_kg: draft.weight_kg,
+        reps: draft.reps,
+        reps_l: draft.reps_l,
+        reps_r: draft.reps_r,
+        time_seconds: draft.time_seconds,
+        is_pb: draft.is_pb || false,
+        isSaved: draft.isSaved || false,
+        isPR: draft.is_pb || false,
+        lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null,
+      }));
+
+      const lastSetsMap = await fetchLastSets();
+      const finalSets = loadedSets.map((set, setIndex) => {
+        const correspondingLastSet = lastSetsMap.get(exerciseId)?.[setIndex];
+        return {
+          ...set,
+          lastWeight: correspondingLastSet?.weight_kg || null,
+          lastReps: correspondingLastSet?.reps || null,
+          lastRepsL: correspondingLastSet?.reps_l || null,
+          lastRepsR: correspondingLastSet?.reps_r || null,
+          lastTimeSeconds: correspondingLastSet?.time_seconds || null,
+        };
+      });
+      setSets(finalSets);
     };
 
     processAndSetSets();
-  }, [drafts, loadingDrafts, exerciseId, currentSessionId, exerciseName, createInitialDrafts, fetchLastSets]); // Removed sets.length from dependencies
+  }, [drafts, loadingDrafts, exerciseId, createInitialDrafts, fetchLastSets]); // Dependencies: drafts, loadingDrafts, exerciseId, createInitialDrafts, fetchLastSets
 
   const updateDraft = useCallback(async (setIndex: number, updatedSet: Partial<SetLogState>) => {
     if (!isValidDraftKey(exerciseId, setIndex)) {
