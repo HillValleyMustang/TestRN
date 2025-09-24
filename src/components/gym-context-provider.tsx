@@ -8,7 +8,6 @@ import { Tables, Profile } from '@/types/supabase';
 import { toast } from 'sonner';
 import { db, LocalGym } from '@/lib/db';
 import { useCacheAndRevalidate } from '@/hooks/use-cache-and-revalidate';
-import { deepEqual } from '@/lib/utils'; // Import deepEqual
 
 type Gym = Tables<'gyms'>;
 
@@ -74,14 +73,11 @@ export const GymContextProvider = ({ children }: { children: React.ReactNode }) 
       if (!newActiveGym) {
         newActiveGym = gyms[0];
       }
-      // CRITICAL: Only update if the ID is different
-      if (newActiveGym?.id !== activeGym?.id) {
-        setActiveGym(newActiveGym || null);
-      }
-    } else if (activeGym !== null) { // If no profile/gyms, and activeGym is currently set, clear it
+      setActiveGym(newActiveGym || null);
+    } else {
       setActiveGym(null);
     }
-  }, [cachedGyms, cachedProfile, loadingGyms, activeGym]); // Added activeGym to dependencies
+  }, [cachedGyms, cachedProfile, loadingGyms]);
 
   const switchActiveGym = useCallback(async (gymId: string): Promise<boolean> => {
     if (!session) {

@@ -9,7 +9,7 @@ import { Tables, WorkoutWithLastCompleted, Profile, GroupedTPath, WorkoutExercis
 import { WorkoutPill, WorkoutPillProps } from '@/components/workout-flow/workout-pill';
 import { useUserProfile } from '@/hooks/data/useUserProfile';
 import { useWorkoutPlans } from '@/hooks/data/useWorkoutPlans';
-import { cn, WorkoutPillCategory, WorkoutPillVariant } from '@/lib/utils'; // Import WorkoutPillCategory and WorkoutPillVariant
+import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useGym } from '@/components/gym-context-provider'; // Import useGym
 import Link from 'next/link'; // Import Link
@@ -22,8 +22,8 @@ const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName:
   const isUpperLowerSplit = mainTPathName.toLowerCase().includes('upper/lower');
   const workoutType: WorkoutPillProps['workoutType'] = isUpperLowerSplit ? 'upper-lower' : 'push-pull-legs';
   
-  let category: WorkoutPillCategory;
-  let variant: WorkoutPillVariant = undefined;
+  let category: WorkoutPillProps['category'];
+  let variant: WorkoutPillProps['variant'] = undefined;
 
   if (isUpperLowerSplit) {
     if (lowerTitle.includes('upper')) category = 'upper';

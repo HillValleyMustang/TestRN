@@ -9,7 +9,7 @@ import { db, LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExerci
 import { useSession } from '@/components/session-context-provider';
 import { useUserProfile } from '@/hooks/data/useUserProfile';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { getMaxMinutes, areSetsEqual, deepEqual } from '@/lib/utils'; // Import getMaxMinutes, areSetsEqual, and deepEqual
+import { getMaxMinutes, areSetsEqual } from '@/lib/utils'; // Import getMaxMinutes and areSetsEqual
 
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
@@ -279,7 +279,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
             return { mainTPath, childWorkouts: enrichedChildWorkouts };
           })
         );
-        if (!deepEqual(newGroupedTPaths, groupedTPaths)) { // Use deepEqual
+        if (JSON.stringify(newGroupedTPaths) !== JSON.stringify(groupedTPaths)) {
           setGroupedTPaths(newGroupedTPaths);
         }
 
@@ -336,7 +336,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
             }
           }
         });
-        if (!deepEqual(newMap, exerciseWorkoutsMap)) { // Use deepEqual
+        if (JSON.stringify(newMap) !== JSON.stringify(exerciseWorkoutsMap)) {
           setExerciseWorkoutsMap(newMap);
         }
       } catch (enrichError: any) {
@@ -350,7 +350,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   }, [
     memoizedSessionUserId, supabase, profile,
     cachedExercises, cachedTPaths, cachedTPathExercises,
-    baseLoading, dataError, groupedTPaths, exerciseWorkoutsMap // Added groupedTPaths and exerciseWorkoutsMap to dependencies for deepEqual
+    baseLoading, dataError
   ]);
 
   const refreshAllData = useCallback(async () => {

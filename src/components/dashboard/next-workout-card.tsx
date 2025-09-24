@@ -147,7 +147,7 @@ export const NextWorkoutCard = ({
       <CardContent className="min-h-[120px] flex flex-col justify-center">
         {isLoading ? (
           // Render blank space during loading, matching the min-height of CardContent
-          <div className="h-[100px] w-full" />
+          <div className="h-[120px] w-full" />
         ) : dataError ? (
           <p className="text-destructive">Error loading next workout: {dataError}</p>
         ) : !activeGym ? (

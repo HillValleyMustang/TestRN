@@ -116,8 +116,8 @@ export const formatTimeAgo = (date: Date | null): string => {
 };
 
 // New utility function to get color and icon classes for the new pill
-export type WorkoutPillCategory = 'upper' | 'lower' | 'push' | 'pull' | 'legs';
-export type WorkoutPillVariant = 'a' | 'b';
+type WorkoutPillCategory = 'upper' | 'lower' | 'push' | 'pull' | 'legs';
+type WorkoutPillVariant = 'a' | 'b';
 
 export const getPillStyles = (workoutType: 'upper-lower' | 'push-pull-legs', category: WorkoutPillCategory, variant?: WorkoutPillVariant) => {
   let Icon: LucideIcon = Zap; // Default
@@ -275,37 +275,4 @@ export const areSetsEqual = (set1: Set<string>, set2: Set<string>): boolean => {
     if (!set2.has(item)) return false;
   }
   return true;
-};
-
-// NEW: Deep equality check for objects and arrays
-export const deepEqual = (a: any, b: any): boolean => {
-  if (a === b) return true;
-
-  if (a && b && typeof a == 'object' && typeof b == 'object') {
-    if (a.constructor !== b.constructor) return false;
-
-    if (Array.isArray(a)) {
-      if (a.length !== b.length) return false;
-      for (let i = 0; i < a.length; i++) {
-        if (!deepEqual(a[i], b[i])) return false;
-      }
-      return true;
-    }
-
-    const keysA = Object.keys(a);
-    const keysB = Object.keys(b);
-
-    if (keysA.length !== keysB.length) return false;
-
-    for (let i = 0; i < keysA.length; i++) {
-      const key = keysA[i];
-      if (!keysB.includes(key) || !deepEqual(a[key], b[key])) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  return a !== a && b !== b; // Handle NaN
 };
