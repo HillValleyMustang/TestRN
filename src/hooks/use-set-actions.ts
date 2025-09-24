@@ -23,6 +23,7 @@ interface UseSetActionsProps {
   addDraft: (newSet: SetLogState) => Promise<void>;
   deleteDraft: (setIndex: number) => Promise<void>;
   preferredWeightUnit: Profile['preferred_weight_unit'];
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
 interface UseSetActionsReturn {
@@ -42,16 +43,19 @@ export const useSetActions = ({
   addDraft,
   deleteDraft,
   preferredWeightUnit,
+  setTempStatusMessage, // NEW
 }: UseSetActionsProps): UseSetActionsReturn => {
 
   const handleAddSet = useCallback(async () => {
     if (!isValidId(exerciseId)) {
       console.error("Cannot add set: exercise information is incomplete.");
-      toast.error("Cannot add set: exercise information is incomplete."); // Changed to toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     if (sets.length >= MAX_SETS) {
-      toast.info(`Maximum of ${MAX_SETS} sets reached for this exercise.`);
+      setTempStatusMessage({ message: "Max 5 sets!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     
@@ -64,17 +68,19 @@ export const useSetActions = ({
       lastWeight: lastSet?.weight_kg, lastReps: lastSet?.reps, lastRepsL: lastSet?.reps_l, lastRepsR: lastSet?.reps_r, lastTimeSeconds: lastSet?.time_seconds,
     };
     await addDraft(newSet);
-  }, [exerciseId, currentSessionId, sets, addDraft]);
+  }, [exerciseId, currentSessionId, sets, addDraft, setTempStatusMessage]);
 
   const handleInputChange = useCallback(async (setIndex: number, field: NumericSetLogFields, value: string) => {
     if (!isValidId(exerciseId)) {
       console.error("Cannot update set: exercise information is incomplete.");
-      toast.error("Cannot update set: exercise information is incomplete."); // Changed to toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     if (!sets[setIndex]) {
       console.error(`Set at index ${setIndex} not found for input change.`);
-      toast.error("Failed to update set: set not found."); // Added toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
 
@@ -89,46 +95,51 @@ export const useSetActions = ({
     }
     
     await updateDraft(setIndex, updatedSet);
-  }, [exerciseId, sets, updateDraft, preferredWeightUnit]);
+  }, [exerciseId, sets, updateDraft, preferredWeightUnit, setTempStatusMessage]);
 
   const handleEditSet = useCallback(async (setIndex: number) => {
     if (!isValidId(exerciseId)) {
       console.error("Cannot edit set: exercise information is incomplete.");
-      toast.error("Cannot edit set: exercise information is incomplete."); // Changed to toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     if (!sets[setIndex]) {
       console.error(`Set at index ${setIndex} not found for edit.`);
-      toast.error("Failed to edit set: set not found."); // Added toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
 
     await updateDraft(setIndex, { isSaved: false }); // Mark as unsaved to allow editing
     console.log(`[useSetActions] handleEditSet: Set ${setIndex + 1} marked for edit. Draft updated.`);
-  }, [exerciseId, sets, updateDraft]);
+  }, [exerciseId, sets, updateDraft, setTempStatusMessage]);
 
   const handleDeleteSet = useCallback(async (setIndex: number) => {
     if (!isValidId(exerciseId)) {
       console.error("Cannot delete set: exercise information is incomplete.");
-      toast.error("Cannot delete set: exercise information is incomplete."); // Changed to toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     if (!sets[setIndex]) {
       console.error(`Set at index ${setIndex} not found for delete.`);
-      toast.error("Failed to delete set: set not found."); // Added toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
 
     const setToDelete = sets[setIndex];
     
     await deleteDraft(setIndex);
-    toast.success("Set removed."); // Changed to toast.success
+    setTempStatusMessage({ message: "Removed!", type: 'removed' });
+    setTimeout(() => setTempStatusMessage(null), 3000);
 
     if (setToDelete.id) {
       // If the set was already saved to DB, queue its deletion
       // This logic is now handled by useSetPersistence directly
     }
-  }, [exerciseId, sets, deleteDraft]);
+  }, [exerciseId, sets, deleteDraft, setTempStatusMessage]);
 
   return {
     handleAddSet,

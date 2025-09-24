@@ -61,7 +61,7 @@ const StatusInfoModal = () => (
 
 interface RollingStatusBadgeProps {
   isGeneratingPlan: boolean;
-  tempStatusMessage: { message: string; type: 'added' | 'removed' | 'success' } | null; // NEW
+  tempStatusMessage: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null; // NEW
 }
 
 export function RollingStatusBadge({ isGeneratingPlan, tempStatusMessage }: RollingStatusBadgeProps) { // NEW PROP

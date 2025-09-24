@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,9 +16,10 @@ interface AddGymDialogProps {
   onOpenChange: (open: boolean) => void;
   onSaveSuccess: () => void; // To refresh the parent list
   gymCount: number;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
-export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount }: AddGymDialogProps) => {
+export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount, setTempStatusMessage }: AddGymDialogProps) => {
   const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [step, setStep] = useState<'name' | 'configure'>('name');
   const [newGymName, setNewGymName] = useState("");
@@ -38,15 +39,18 @@ export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount }: Ad
 
   const handleNameSubmit = async () => {
     if (!memoizedSessionUserId) { // Use memoized ID
-      toast.error("You must be logged in to add a gym."); // Added toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     if (!newGymName.trim()) {
-      toast.error("Gym name cannot be empty."); // Added toast.error
+      setTempStatusMessage({ message: "Name empty!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     if (gymCount >= 3) {
-      toast.error("You can have a maximum of 3 gyms."); // Added toast.error
+      setTempStatusMessage({ message: "Max 3 gyms!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
 
@@ -63,9 +67,12 @@ export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount }: Ad
       setCreatedGym(insertedGym);
       setStep('configure');
       onSaveSuccess(); // Refresh the list in the background
+      setTempStatusMessage({ message: "Added!", type: 'success' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } catch (err: any) {
       console.error("Failed to add gym:", err.message);
-      toast.error("Failed to add gym."); // Changed to toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setIsSaving(false);
     }
@@ -99,7 +106,7 @@ export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount }: Ad
           </>
         )}
         {step === 'configure' && createdGym && (
-          <SetupGymView gym={createdGym} onClose={handleClose} />
+          <SetupGymView gym={createdGym} onClose={handleClose} setTempStatusMessage={setTempStatusMessage} />
         )}
       </DialogContent>
     </Dialog>

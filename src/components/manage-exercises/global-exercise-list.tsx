@@ -20,6 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ManageExerciseGymsDialog } from "./manage-exercise-gyms-dialog";
 import { ExerciseListInfoDialog } from "./exercise-list-info-dialog"; // NEW IMPORT
+import { toast } from "sonner"; // Import toast
 
 // Removed local FetchedExerciseDefinition definition
 
@@ -36,6 +37,7 @@ interface GlobalExerciseListProps {
   onOptimisticAdd: (exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => void; // Added
   onAddFailure: (exerciseId: string, workoutId: string) => void; // Added
   totalCount: number; // NEW PROP
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
 export const GlobalExerciseList = ({
@@ -51,6 +53,7 @@ export const GlobalExerciseList = ({
   onOptimisticAdd, // Destructured
   onAddFailure, // Destructured
   totalCount, // NEW
+  setTempStatusMessage, // NEW
 }: GlobalExerciseListProps) => {
   const [isAddTPathDialogOpen, setIsAddTPathDialogOpen] = useState(false);
   const [selectedExerciseForTPath, setSelectedExerciseForTPath] = useState<FetchedExerciseDefinition | null>(null);
@@ -198,6 +201,7 @@ export const GlobalExerciseList = ({
           onAddSuccess={onAddSuccess}
           onOptimisticAdd={onOptimisticAdd}
           onAddFailure={onAddFailure}
+          setTempStatusMessage={setTempStatusMessage} // NEW
         />
       )}
 
@@ -208,6 +212,7 @@ export const GlobalExerciseList = ({
           exercise={selectedExerciseForInfo}
           exerciseWorkouts={exerciseWorkoutsMap[selectedExerciseForInfo.id as string] || []}
           onRemoveFromWorkout={onRemoveFromWorkout}
+          setTempStatusMessage={setTempStatusMessage} // NEW
         />
       )}
 
@@ -219,6 +224,7 @@ export const GlobalExerciseList = ({
             userGyms={userGyms}
             initialSelectedGymIds={initialSelectedGymIdsForDialog}
             onSaveSuccess={onAddSuccess}
+            setTempStatusMessage={setTempStatusMessage} // NEW
         />
       )}
 

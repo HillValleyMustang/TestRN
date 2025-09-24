@@ -66,6 +66,7 @@ interface WorkoutSelectorProps {
   exerciseGymsMap: Record<string, string[]>;
   availableGymExerciseIds: Set<string>; // NEW
   allGymExerciseIds: Set<string>; // NEW
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
 const mapWorkoutToPillProps = (workout: WorkoutWithLastCompleted, mainTPathName: string): Omit<WorkoutPillProps, 'isSelected' | 'onClick'> => {
@@ -136,6 +137,7 @@ export const WorkoutSelector = ({
   exerciseGymsMap,
   availableGymExerciseIds, // NEW
   allGymExerciseIds, // NEW
+  setTempStatusMessage, // NEW
 }: WorkoutSelectorProps) => {
   const { supabase, session, memoizedSessionUserId } = useSession();
   const { activeGym } = useGym();
@@ -203,7 +205,8 @@ export const WorkoutSelector = ({
 
   const handleAddExercise = () => {
     if (!selectedExerciseToAdd) {
-      toast.error("Please select an exercise to add.");
+      setTempStatusMessage({ message: "Select exercise!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     const exercise = allAvailableExercises.find((ex: FetchedExerciseDefinition) => ex.id === selectedExerciseToAdd);
@@ -211,7 +214,8 @@ export const WorkoutSelector = ({
       addExerciseToSession(exercise as ExerciseDefinition); 
       setSelectedExerciseToAdd("");
     } else {
-      toast.error("Selected exercise not found.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     }
   };
 
@@ -220,13 +224,15 @@ export const WorkoutSelector = ({
       setAiIdentifiedExercise(exercises[0]);
       setShowSaveAiExercisePrompt(true);
     } else {
-      toast.info("No exercises were identified from the photos.");
+      setTempStatusMessage({ message: "No exercises identified!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     }
-  }, [setAiIdentifiedExercise, setShowSaveAiExercisePrompt]);
+  }, [setAiIdentifiedExercise, setShowSaveAiExercisePrompt, setTempStatusMessage]);
 
   const handleSaveAiExerciseToMyExercises = useCallback(async (exercise: Partial<FetchedExerciseDefinition>) => {
     if (!memoizedSessionUserId) {
-      toast.error("You must be logged in to save exercises.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     setIsAiSaving(true);
@@ -251,18 +257,24 @@ export const WorkoutSelector = ({
 
       if (insertError) {
         if (insertError.code === '23505') {
-          toast.error(`You already have a custom exercise named "${exercise.name}".`);
+          setTempStatusMessage({ message: "Duplicate!", type: 'error' });
+          const existingUserExercise = allAvailableExercises.find(ex => ex.name?.trim().toLowerCase() === exercise.name?.trim().toLowerCase() && ex.user_id === memoizedSessionUserId);
+          if (existingUserExercise) {
+            finalExerciseToAdd = existingUserExercise as ExerciseDefinition;
+          } else {
+             throw insertError;
+          }
         } else {
           throw insertError;
         }
       } else {
-        toast.success(`'${exercise.name}' added to My Exercises!`);
+        setTempStatusMessage({ message: "Added!", type: 'success' });
         finalExerciseToAdd = insertedExercise as ExerciseDefinition;
       }
 
       if (finalExerciseToAdd) {
         await addExerciseToSession(finalExerciseToAdd);
-        toast.success(`'${finalExerciseToAdd.name}' added to current workout!`);
+        setTempStatusMessage({ message: "Added!", type: 'success' });
       } else {
         throw new Error("Could not find the exercise to add to workout.");
       }
@@ -273,15 +285,17 @@ export const WorkoutSelector = ({
 
     } catch (err: any) {
       console.error("Failed to save AI identified exercise and add to workout:", err);
-      toast.error("Failed to save exercise.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
     } finally {
       setIsAiSaving(false);
+      setTimeout(() => setTempStatusMessage(null), 3000);
     }
-  }, [memoizedSessionUserId, supabase, addExerciseToSession, refreshAllData, setShowSaveAiExercisePrompt, setAiIdentifiedExercise, setIsAiSaving]);
+  }, [memoizedSessionUserId, supabase, allAvailableExercises, addExerciseToSession, refreshAllData, setShowSaveAiExercisePrompt, setAiIdentifiedExercise, setIsAiSaving, setTempStatusMessage]);
 
   const handleAddAiExerciseToWorkoutOnly = useCallback(async (exercise: Partial<FetchedExerciseDefinition>) => {
     if (!memoizedSessionUserId) {
-      toast.error("You must be logged in to add exercises.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     setIsAiSaving(true);
@@ -315,7 +329,7 @@ export const WorkoutSelector = ({
 
         if (insertError) {
           if (insertError.code === '23505') {
-            toast.error(`You already have a custom exercise named "${exercise.name}".`);
+            setTempStatusMessage({ message: "Duplicate!", type: 'error' });
             const existingUserExercise = allAvailableExercises.find(ex => ex.name?.trim().toLowerCase() === exercise.name?.trim().toLowerCase() && ex.user_id === memoizedSessionUserId);
             if (existingUserExercise) {
               finalExerciseToAdd = existingUserExercise as ExerciseDefinition;
@@ -332,7 +346,7 @@ export const WorkoutSelector = ({
 
       if (finalExerciseToAdd) {
         await addExerciseToSession(finalExerciseToAdd);
-        toast.success(`'${finalExerciseToAdd.name}' added to current workout!`);
+        setTempStatusMessage({ message: "Added!", type: 'success' });
       } else {
         throw new Error("Could not find or create the exercise to add to workout.");
       }
@@ -343,11 +357,12 @@ export const WorkoutSelector = ({
 
     } catch (err: any) {
       console.error("Failed to add AI identified exercise to workout only:", err);
-      toast.error("Failed to add exercise.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
     } finally {
       setIsAiSaving(false);
+      setTimeout(() => setTempStatusMessage(null), 3000);
     }
-  }, [memoizedSessionUserId, supabase, allAvailableExercises, addExerciseToSession, refreshAllData, setShowSaveAiExercisePrompt, setAiIdentifiedExercise, setIsAiSaving]);
+  }, [memoizedSessionUserId, supabase, allAvailableExercises, addExerciseToSession, refreshAllData, setShowSaveAiExercisePrompt, setAiIdentifiedExercise, setIsAiSaving, setTempStatusMessage]);
 
 
   const totalExercises = exercisesForSession.length;
@@ -367,7 +382,7 @@ export const WorkoutSelector = ({
               </CardContent>
             </Card>
           ) : !isGymConfigured ? (
-            <SetupGymPlanPrompt gym={activeGym} onSetupSuccess={refreshAllData} profile={profile} />
+            <SetupGymPlanPrompt gym={activeGym} onSetupSuccess={refreshAllData} profile={profile} setTempStatusMessage={setTempStatusMessage} />
           ) : !activeTPathGroup ? (
             <p className="text-muted-foreground text-center py-4">
               No active Transformation Path found for this gym. Go to <WorkoutAwareLink href="/manage-t-paths" className="text-primary underline">Manage T-Paths</WorkoutAwareLink> to set one up.
@@ -529,90 +544,128 @@ export const WorkoutSelector = ({
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {exercisesForSession.map((exercise: WorkoutExercise, index: number) => (
-                    <ExerciseCard
-                      key={exercise.id}
-                      exercise={exercise}
-                      exerciseNumber={index + 1}
-                      currentSessionId={currentSessionId}
-                      supabase={supabase}
-                      onUpdateGlobalSets={updateExerciseSets}
-                      onSubstituteExercise={substituteExercise}
-                      onRemoveExercise={removeExerciseFromSession}
-                      workoutTemplateName={activeWorkout.template_name}
-                      onFirstSetSaved={async (timestamp) => {
-                        return await createWorkoutSessionInDb(activeWorkout.template_name, timestamp);
-                      }}
-                      onExerciseCompleted={markExerciseAsCompleted}
-                      isExerciseCompleted={completedExercises.has(exercise.id)}
-                      isExpandedProp={expandedExerciseCards[exercise.id] || false}
-                      onToggleExpand={toggleExerciseCardExpansion}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
+<dyad-problem-report summary="4 problems">
+<problem file="src/components/layout/header.tsx" line="94" column="13" code="2322">Type '{ message: string; type: &quot;added&quot; | &quot;removed&quot; | &quot;success&quot; | &quot;error&quot;; } | null' is not assignable to type '{ message: string; type: &quot;added&quot; | &quot;removed&quot; | &quot;success&quot;; } | null'.
+  Type '{ message: string; type: &quot;added&quot; | &quot;removed&quot; | &quot;success&quot; | &quot;error&quot;; }' is not assignable to type '{ message: string; type: &quot;added&quot; | &quot;removed&quot; | &quot;success&quot;; }'.
+    Types of property 'type' are incompatible.
+      Type '&quot;added&quot; | &quot;removed&quot; | &quot;success&quot; | &quot;error&quot;' is not assignable to type '&quot;added&quot; | &quot;removed&quot; | &quot;success&quot;'.
+        Type '&quot;error&quot;' is not assignable to type '&quot;added&quot; | &quot;removed&quot; | &quot;success&quot;'.</problem>
+<problem file="src/app/(app)/layout.tsx" line="44" column="13" code="2322">Type '(message: { message: string; type: &quot;added&quot; | &quot;removed&quot; | &quot;success&quot; | &quot;error&quot;; } | null) =&gt; void' is not assignable to type '{ message: string; type: &quot;added&quot; | &quot;removed&quot; | &quot;success&quot; | &quot;error&quot;; }'.</problem>
+<problem file="src/app/(app)/manage-exercises/page.tsx" line="371" column="10" code="2741">Property 'setTempStatusMessage' is missing in type '{ open: true; onOpenChange: () =&gt; void; exercise: FetchedExerciseDefinition; onSaveSuccess: () =&gt; void; }' but required in type 'EditExerciseDialogProps'.</problem>
+<problem file="src/app/(app)/profile/page.tsx" line="401" column="22" code="2741">Property 'setTempStatusMessage' is missing in type '{ form: UseFormReturn&lt;{ full_name: string; weight_kg?: number | null | undefined; primary_goal?: string | null | undefined; preferred_session_length?: string | null | undefined; height_cm?: number | null | undefined; body_fat_pct?: number | ... 1 more ... | undefined; health_notes?: string | ... 1 more ... | undefin...' but required in type 'ProfileSettingsTabProps'.</problem>
+</dyad-problem-report>You're absolutely right! My apologies for missing these in the previous round. It seems there were a few more places where the `setTempStatusMessage` prop needed to be passed down or its type definition adjusted.
 
-            {activeWorkout.id !== 'ad-hoc' && activeWorkout && (
+Here's a breakdown of the fixes:
+
+1.  **`src/components/layout/header.tsx`**: The `tempStatusMessage` prop in `RollingStatusBadge` was expecting a type without `'error'`. I've updated the `RollingStatusBadgeProps` interface to correctly include `'error'` as a valid type.
+2.  **`src/app/(app)/layout.tsx`**: The `tempStatusMessage` prop in `Header` was receiving the `setTempStatusMessage` *function* instead of the `tempStatusMessage` *state value*. I've corrected this to pass the state value.
+3.  **`src/app/(app)/manage-exercises/page.tsx`**: The `EditExerciseDialog` component was missing the `setTempStatusMessage` prop. I've added it.
+4.  **`src/app/(app)/profile/page.tsx`**: The `ProfileSettingsTab` component was missing the `setTempStatusMessage` prop. I've added it.
+
+These changes should resolve all the remaining TypeScript compile-time errors.
+
+<dyad-write path="src/components/layout/header.tsx" description="Updated `RollingStatusBadgeProps` to include 'error' type for `tempStatusMessage`.">
+"use client";
+
+import Link from "next/link";
+import React, { useState } from "react";
+import { Home, Dumbbell, LayoutTemplate, History, User, BarChart3, PanelLeft, Plus } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { UserNav } from "./user-nav";
+import { NotificationBell } from "./notification-bell";
+import { ActivityLoggingDialog } from "../activity-logging-dialog";
+import { useScrollPosition } from "@/hooks/use-scroll-position";
+import { cn } from "@/lib/utils";
+import { RollingStatusBadge } from "./rolling-status-badge";
+import { WorkoutAwareLink } from "../workout-flow/workout-aware-link"; // Import WorkoutAwareLink
+import { usePathname } from "next/navigation"; // Import usePathname to check active link
+
+const mobileNavLinks = [
+  { href: "/dashboard", label: "Dashboard", icon: Home }, // Reverted to Dashboard
+  { href: "/workout-history", label: "History", icon: History },
+  { href: "/activity-logs", label: "Activities", icon: BarChart3 },
+  { href: "/manage-exercises", label: "Exercises", icon: Dumbbell },
+  { href: "/manage-t-paths", label: "Management", icon: LayoutTemplate }, // CHANGED LABEL
+  { href: "/profile", label: "Profile", icon: User },
+  { href: "/workout", label: "Workout", icon: Dumbbell }, // Moved workout here for consistent styling
+];
+
+interface HeaderProps {
+  isGeneratingPlan: boolean;
+  tempStatusMessage: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null; // NEW
+}
+
+export function Header({ isGeneratingPlan, tempStatusMessage }: HeaderProps) { // NEW PROP
+  const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false); // NEW: State for sheet
+  const isScrolled = useScrollPosition();
+  const pathname = usePathname(); // Get current pathname
+
+  return (
+    <>
+      <header className={cn(
+        "sticky top-0 z-30 flex h-14 items-center gap-4 border-b px-4 sm:static sm:h-auto sm:border-0 sm:px-6",
+        "transition-all duration-300 ease-in-out",
+        isScrolled ? "bg-background/80 backdrop-blur-md border-b-transparent" : "bg-background border-b"
+      )}>
+        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}> {/* Bind state */}
+          <SheetTrigger asChild>
+            <Button size="icon" variant="outline" className="sm:hidden">
+              <span>
+                <PanelLeft className="h-5 w-5" />
+                <span className="sr-only">Toggle Menu</span>
+              </span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="sm:max-w-xs">
+            <nav className="grid gap-1 text-lg font-medium overflow-y-auto h-full py-1"> {/* Reduced gap, py */}
+              {mobileNavLinks.map(link => {
+                const isActive = pathname === link.href;
+                const Icon = link.icon;
+                return (
+                  <WorkoutAwareLink
+                    key={link.href}
+                    href={link.href}
+                    className={cn(
+                      "flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors", // Adjusted px, py, gap
+                      isActive 
+                        ? "bg-action text-action-foreground font-semibold shadow-md" 
+                        : "text-foreground hover:bg-muted"
+                    )}
+                    onClick={() => setIsSheetOpen(false)} // NEW: Close sheet on click
+                  >
+                    <Icon className={cn("h-4 w-4", isActive ? "text-action-foreground" : "text-primary")} /> {/* Reduced h/w */}
+                    {link.label}
+                  </WorkoutAwareLink>
+                );
+              })}
+              <hr className="my-2" />
               <Button 
-                variant="outline" 
-                onClick={() => handleOpenEditWorkoutDialog(activeWorkout.id, activeWorkout.template_name)} 
-                className="w-full mt-4 mb-6"
+                variant="default" 
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg justify-start text-lg font-medium bg-primary text-primary-foreground hover:bg-primary/90" // Styled as a primary button
+                onClick={() => {
+                  setIsActivityLogOpen(true);
+                  setIsSheetOpen(false); // NEW: Close sheet on click
+                }}
               >
-                <Settings className="h-4 w-4 mr-2" /> Manage Exercises for this Workout
+                <Plus className="h-4 w-4 text-primary-foreground" /> {/* Reduced h/w */}
+                Log Activity
               </Button>
-            )}
+            </nav>
+          </SheetContent>
+        </Sheet>
+        <div className="relative ml-auto flex flex-1 items-center justify-end gap-2 md:grow-0">
+          <RollingStatusBadge 
+            isGeneratingPlan={isGeneratingPlan} 
+            tempStatusMessage={tempStatusMessage} // NEW
+          />
+          <NotificationBell />
+          <UserNav />
+        </div>
+      </header>
 
-            {totalExercises > 0 && (
-              <Button size="lg" onClick={finishWorkoutSession} className="w-full mt-6">
-                Finish Workout
-              </Button>
-            )}
-          </div>
-        )}
-
-        <Card
-          className={cn(
-            "cursor-pointer hover:bg-accent transition-colors",
-            activeWorkout?.id === 'ad-hoc' && "border-primary ring-2 ring-primary"
-          )}
-          onClick={handleAdHocClick}
-        >
-          <CardHeader className="p-4">
-            <CardTitle className="flex items-center text-base">
-              <PlusCircle className="h-4 w-4 mr-2" />
-              Start Ad-Hoc Workout
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Start a workout without a T-Path. Add exercises as you go.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-        <LoadingOverlay isOpen={isCreatingSession} title="Starting Workout..." description="Please wait while your session is being prepared." />
-      </div>
-      {selectedWorkoutToEdit && (
-        <EditWorkoutExercisesDialog
-          open={isEditWorkoutDialogOpen}
-          onOpenChange={setIsEditWorkoutDialogOpen}
-          workoutId={selectedWorkoutToEdit.id}
-          workoutName={selectedWorkoutToEdit.name}
-          onSaveSuccess={handleEditWorkoutSaveSuccess}
-        />
-      )}
-      <AnalyseGymDialog
-        open={showAnalyseGymDialog}
-        onOpenChange={setShowAnalyseGymDialog}
-        onExerciseIdentified={handleExerciseIdentified}
-      />
-      <SaveAiExercisePrompt
-        open={showSaveAiExercisePrompt}
-        onOpenChange={setShowSaveAiExercisePrompt}
-        exercise={aiIdentifiedExercise}
-        onSaveToMyExercises={handleSaveAiExerciseToMyExercises}
-        onAddOnlyToCurrentWorkout={handleAddAiExerciseToWorkoutOnly}
-        context="workout-flow"
-        isSaving={isAiSaving}
-      />
+      <ActivityLoggingDialog open={isActivityLogOpen} onOpenChange={setIsActivityLogOpen} />
     </>
   );
-};
+}

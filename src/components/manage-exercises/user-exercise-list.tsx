@@ -31,6 +31,7 @@ import { EditExerciseDialog } from "./edit-exercise-dialog"; // Import the new d
 import { Badge } from "@/components/ui/badge";
 import { ManageExerciseGymsDialog } from "./manage-exercise-gyms-dialog";
 import { ExerciseListInfoDialog } from "./exercise-list-info-dialog"; // NEW IMPORT
+import { toast } from "sonner"; // Import toast
 
 // Removed local FetchedExerciseDefinition definition
 
@@ -51,6 +52,7 @@ interface UserExerciseListProps {
   onOptimisticAdd: (exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => void; // Added
   onAddFailure: (exerciseId: string, workoutId: string) => void; // Added
   totalCount: number; // NEW PROP
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
 export const UserExerciseList = ({
@@ -70,6 +72,7 @@ export const UserExerciseList = ({
   onOptimisticAdd, // Destructured
   onAddFailure, // Destructured
   totalCount, // NEW
+  setTempStatusMessage, // NEW
 }: UserExerciseListProps) => {
   const [isAddTPathDialogOpen, setIsAddTPathDialogOpen] = useState(false);
   const [selectedExerciseForTPath, setSelectedExerciseForTPath] = useState<FetchedExerciseDefinition | null>(null);
@@ -135,6 +138,7 @@ export const UserExerciseList = ({
             editingExercise={null} // Always null for adding new
             onCancelEdit={() => {}} // No specific cancel logic needed here for add form
             onSaveSuccess={onAddSuccess} // Use onAddSuccess for new exercises
+            setTempStatusMessage={setTempStatusMessage} // NEW
           />
         </div>
 
@@ -247,6 +251,7 @@ export const UserExerciseList = ({
           onAddSuccess={onAddSuccess}
           onOptimisticAdd={onOptimisticAdd}
           onAddFailure={onAddFailure}
+          setTempStatusMessage={setTempStatusMessage} // NEW
         />
       )}
 
@@ -258,6 +263,7 @@ export const UserExerciseList = ({
           exerciseWorkouts={exerciseWorkoutsMap[selectedExerciseForInfo.id as string] || []}
           onRemoveFromWorkout={onRemoveFromWorkout}
           onDeleteExercise={onDelete}
+          setTempStatusMessage={setTempStatusMessage} // NEW
         />
       )}
 
@@ -269,6 +275,7 @@ export const UserExerciseList = ({
             userGyms={userGyms}
             initialSelectedGymIds={initialSelectedGymIdsForDialog}
             onSaveSuccess={onAddSuccess}
+            setTempStatusMessage={setTempStatusMessage} // NEW
         />
       )}
 

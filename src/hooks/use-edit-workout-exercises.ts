@@ -23,9 +23,10 @@ interface UseEditWorkoutExercisesProps {
   workoutId: string;
   onSaveSuccess: () => void; // Callback to refresh parent list
   open: boolean; // To trigger data fetching when dialog opens
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
-export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseEditWorkoutExercisesProps) => {
+export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open, setTempStatusMessage }: UseEditWorkoutExercisesProps) => {
   const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   // NEW: Consume data from useWorkoutDataFetcher
   const {
@@ -81,11 +82,12 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
 
     } catch (err: any) {
       console.error("Failed to load workout exercises:", JSON.stringify(err, null, 2));
-      toast.error("Failed to load workout exercises."); // Changed to toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setLoading(false);
     }
-  }, [memoizedSessionUserId, supabase, workoutId, fetchedAllAvailableExercises]); // Depend on memoized ID and fetchedAllAvailableExercises
+  }, [memoizedSessionUserId, supabase, workoutId, fetchedAllAvailableExercises, setTempStatusMessage]); // Depend on memoized ID and fetchedAllAvailableExercises
 
   useEffect(() => {
     if (open) {
@@ -124,11 +126,14 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         return newItems;
       });
     }
-  }, []);
+    setTempStatusMessage({ message: "Order changed!", type: 'success' });
+    setTimeout(() => setTempStatusMessage(null), 3000);
+  }, [setTempStatusMessage]);
 
   const handleAddExerciseWithBonusStatus = useCallback(async (isBonus: boolean) => {
     if (!exerciseToAddDetails || !memoizedSessionUserId) { // Use memoized ID
-      toast.error("Cannot add exercise: details or session missing."); // Added toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
 
@@ -171,7 +176,8 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         ex.t_path_exercise_id === tempTPathExerciseId ? { ...ex, t_path_exercise_id: insertedTpe.id } : ex
       ));
 
-      toast.success(`'${exerciseToAddDetails.name}' added to workout as ${isBonus ? 'Bonus' : 'Core'}!`); // Changed to toast.success
+      setTempStatusMessage({ message: "Added!", type: 'success' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       setSelectedExerciseToAdd("");
       setExerciseToAddDetails(null);
       refreshAllData(); // Refresh all data after adding an exercise
@@ -180,20 +186,22 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       let errorMessage = "An unexpected error occurred.";
       if (err && typeof err === 'object') {
         if (err.code === '23505') {
-          errorMessage = "This exercise is already in the workout.";
+          errorMessage = "Duplicate!";
         } else if (err.message) {
-          errorMessage = err.message;
+          errorMessage = "Error!";
         }
       }
-      toast.error("Failed to add exercise: " + errorMessage); // Changed to toast.error
+      setTempStatusMessage({ message: errorMessage, type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setIsSaving(false);
     }
-  }, [memoizedSessionUserId, supabase, workoutId, exercises, exerciseToAddDetails, refreshAllData]); // Depend on memoized ID
+  }, [memoizedSessionUserId, supabase, workoutId, exercises, exerciseToAddDetails, refreshAllData, setTempStatusMessage]); // Depend on memoized ID
 
   const handleSelectAndPromptBonus = useCallback(() => {
     if (!selectedExerciseToAdd) {
-      toast.error("Please select an exercise to add."); // Added toast.error
+      setTempStatusMessage({ message: "Select exercise!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     const exercise = fetchedAllAvailableExercises.find(e => e.id === selectedExerciseToAdd);
@@ -201,9 +209,10 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       setExerciseToAddDetails(exercise as ExerciseDefinition); // Cast to ExerciseDefinition
       setShowAddAsBonusDialog(true);
     } else {
-      toast.error("Selected exercise not found in available exercises."); // Added toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     }
-  }, [selectedExerciseToAdd, fetchedAllAvailableExercises]);
+  }, [selectedExerciseToAdd, fetchedAllAvailableExercises, setTempStatusMessage]);
 
   const handleRemoveExerciseClick = useCallback((exerciseId: string, tPathExerciseId: string, name: string) => {
     setExerciseToRemove({ exerciseId, tPathExerciseId, name });
@@ -212,7 +221,8 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
 
   const confirmRemoveExercise = useCallback(async () => {
     if (!exerciseToRemove) {
-      toast.error("No exercise selected for removal."); // Added toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     setIsSaving(true);
@@ -231,20 +241,23 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         setExercises(previousExercises);
         throw error;
       }
-      toast.success("Exercise removed from workout!"); // Changed to toast.success
+      setTempStatusMessage({ message: "Removed!", type: 'removed' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       refreshAllData(); // Refresh all data after removing an exercise
     } catch (err: any) {
       console.error("Error removing exercise:", JSON.stringify(err, null, 2));
-      toast.error("Failed to remove exercise."); // Changed to toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setIsSaving(false);
       setExerciseToRemove(null);
     }
-  }, [exercises, exerciseToRemove, supabase, refreshAllData]);
+  }, [exercises, exerciseToRemove, supabase, refreshAllData, setTempStatusMessage]);
 
   const handleToggleBonusStatus = useCallback(async (exercise: WorkoutExerciseWithDetails) => {
     if (!memoizedSessionUserId) { // Use memoized ID
-      toast.error("You must be logged in to toggle bonus status."); // Added toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     setIsSaving(true);
@@ -261,22 +274,25 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         .eq('id', exercise.t_path_exercise_id);
 
       if (error) throw error;
-      toast.success(`'${exercise.name}' is now a ${newBonusStatus ? 'Bonus' : 'Core'} exercise!`); // Changed to toast.success
+      setTempStatusMessage({ message: "Updated!", type: 'success' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       refreshAllData(); // Refresh all data after toggling bonus status
     } catch (err: any) {
       console.error("Error toggling bonus status:", JSON.stringify(err, null, 2));
-      toast.error("Failed to toggle bonus status."); // Changed to toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       setExercises(prev => prev.map(ex =>
         ex.id === exercise.id ? { ...ex, is_bonus_exercise: !newBonusStatus } : ex
       ));
     } finally {
       setIsSaving(false);
     }
-  }, [memoizedSessionUserId, supabase, refreshAllData]); // Depend on memoized ID
+  }, [memoizedSessionUserId, supabase, refreshAllData, setTempStatusMessage]); // Depend on memoized ID
 
   const handleResetToDefaults = useCallback(async () => {
     if (!memoizedSessionUserId) { // Use memoized ID
-      toast.error("You must be logged in to reset to defaults."); // Added toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     setIsSaving(true);
@@ -310,17 +326,19 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
         throw new Error(errorBody.error || `Failed to regenerate T-Path workouts.`);
       }
 
-      toast.success("Workout exercises reset to defaults!"); // Changed to toast.success
+      setTempStatusMessage({ message: "Updated!", type: 'success' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       onSaveSuccess();
       fetchWorkoutData();
       refreshAllData(); // Refresh all data after resetting to defaults
     } catch (err: any) {
       console.error("Error resetting exercises:", err);
-      toast.error("Failed to reset exercises."); // Changed to toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setIsSaving(false);
     }
-  }, [memoizedSessionUserId, session, supabase, workoutId, onSaveSuccess, fetchWorkoutData, refreshAllData]); // Depend on memoized ID
+  }, [memoizedSessionUserId, session, supabase, workoutId, onSaveSuccess, fetchWorkoutData, refreshAllData, setTempStatusMessage]); // Depend on memoized ID
 
   const handleSaveOrder = useCallback(async () => {
     setIsSaving(true);
@@ -334,16 +352,18 @@ export const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open }: UseE
       const { error } = await supabase.rpc('update_exercise_order', { updates });
 
       if (error) throw error;
-      toast.success("Workout order saved successfully!"); // Changed to toast.success
+      setTempStatusMessage({ message: "Saved!", type: 'success' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       onSaveSuccess();
       refreshAllData(); // Refresh all data after saving order
     } catch (err: any) {
       console.error("Error saving order:", JSON.stringify(err, null, 2));
-      toast.error("Failed to save workout order."); // Changed to toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setIsSaving(false);
     }
-  }, [exercises, supabase, onSaveSuccess, refreshAllData]);
+  }, [exercises, supabase, onSaveSuccess, refreshAllData, setTempStatusMessage]);
 
   return {
     exercises,

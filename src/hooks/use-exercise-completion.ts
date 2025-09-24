@@ -35,6 +35,7 @@ interface UseExerciseCompletionProps {
   onFirstSetSaved: (timestamp: string) => Promise<string>;
   onExerciseCompleted: (exerciseId: string, isNewPR: boolean) => void;
   preferredWeightUnit: Profile['preferred_weight_unit'];
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
 interface UseExerciseCompletionReturn {
@@ -52,6 +53,7 @@ export const useExerciseCompletion = ({
   onFirstSetSaved,
   onExerciseCompleted,
   preferredWeightUnit,
+  setTempStatusMessage, // NEW
 }: UseExerciseCompletionProps): UseExerciseCompletionReturn => {
   const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
 
@@ -61,11 +63,13 @@ export const useExerciseCompletion = ({
     exerciseCategory,
     supabase,
     preferredWeightUnit,
+    setTempStatusMessage, // NEW
   });
   const { exercisePR, checkAndSaveSetPR } = useSetPRLogic({
     exerciseId,
     exerciseType,
     supabase,
+    setTempStatusMessage, // NEW
   });
 
   // Derived state for trophy icon visibility
@@ -75,12 +79,14 @@ export const useExerciseCompletion = ({
 
   const handleCompleteExercise = useCallback(async (): Promise<{ success: boolean; isNewPR: boolean }> => {
     if (!isValidId(exerciseId)) {
-      toast.error("Cannot complete exercise: exercise information is incomplete.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return { success: false, isNewPR: false };
     }
     if (!sets) {
       console.error("Error: Sets data is null or undefined when trying to complete exercise.");
-      toast.error("Cannot complete exercise: no set data found."); // Added toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return { success: false, isNewPR: false };
     }
 
@@ -88,7 +94,8 @@ export const useExerciseCompletion = ({
 
     const hasAnyData = sets.some(s => hasUserInput(s));
     if (!hasAnyData) {
-      toast.error("No data to save for this exercise. Please log at least one set.");
+      setTempStatusMessage({ message: "No data to save!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return { success: false, isNewPR: false };
     }
 
@@ -99,7 +106,8 @@ export const useExerciseCompletion = ({
         console.log(`[useExerciseCompletion] handleCompleteExercise: New session created with ID: ${currentSessionIdToUse}`);
       } catch (err) {
         console.error("Failed to start workout session:", err);
-        toast.error("Failed to start workout session. Please try again.");
+        setTempStatusMessage({ message: "Error!", type: 'error' });
+        setTimeout(() => setTempStatusMessage(null), 3000);
         return { success: false, isNewPR: false };
       }
     }
@@ -150,7 +158,8 @@ export const useExerciseCompletion = ({
 
     if (hasError) {
       console.error(`[useExerciseCompletion] handleCompleteExercise: Encountered errors while saving sets.`);
-      toast.error("Failed to save some sets. Please check your inputs."); // Added toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return { success: false, isNewPR: false };
     }
 
@@ -160,13 +169,14 @@ export const useExerciseCompletion = ({
       return { success: true, isNewPR: anySetIsPR };
     } catch (err: any) {
       console.error("[useExerciseCompletion] Error saving exercise completion:", err);
-      toast.error("Failed to complete exercise: " + err.message);
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return { success: false, isNewPR: false };
     }
   }, [
     exerciseId, sets, currentSessionId, exercisePR,
     onFirstSetSaved, onExerciseCompleted, updateDraft,
-    saveSetToDb, checkAndSaveSetPR, memoizedSessionUserId
+    saveSetToDb, checkAndSaveSetPR, memoizedSessionUserId, setTempStatusMessage
   ]);
 
   return {

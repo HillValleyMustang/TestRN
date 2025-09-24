@@ -17,24 +17,25 @@ interface ExerciseSwapDialogProps {
   onOpenChange: (open: boolean) => void;
   currentExercise: ExerciseDefinition;
   onSwap: (newExercise: ExerciseDefinition) => void;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
-export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap }: ExerciseSwapDialogProps) => {
-  const { session, supabase } = useSession();
+export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap, setTempStatusMessage }: ExerciseSwapDialogProps) => {
+  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [availableExercises, setAvailableExercises] = useState<ExerciseDefinition[]>([]);
   const [selectedNewExerciseId, setSelectedNewExerciseId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [generatingAi, setGeneratingAi] = useState(false);
 
   const fetchAvailableExercises = async () => {
-    if (!session || !open) return;
+    if (!memoizedSessionUserId || !open) return; // Use memoized ID
 
     setLoading(true);
     try {
       const { data: allMatchingExercises, error: fetchError } = await supabase
         .from('exercise_definitions')
         .select('id, name, main_muscle, type, category, description, pro_tip, video_url, user_id, library_id, created_at, is_favorite, icon_url, movement_type, movement_pattern') // Include new fields
-        .or(`user_id.eq.${session.user.id},user_id.is.null`)
+        .or(`user_id.eq.${memoizedSessionUserId},user_id.is.null`) // Use memoized ID
         .eq('main_muscle', currentExercise.main_muscle)
         .eq('type', currentExercise.type)
         .neq('id', currentExercise.id)
@@ -45,7 +46,7 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
       // Filter out global exercises if a user-owned copy already exists
       const userOwnedExerciseLibraryIds = new Set(
         allMatchingExercises
-          .filter(ex => ex.user_id === session.user.id && ex.library_id)
+          .filter(ex => ex.user_id === memoizedSessionUserId && ex.library_id) // Use memoized ID
           .map(ex => ex.library_id)
       );
 
@@ -59,7 +60,8 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
       setAvailableExercises(filteredExercises || []);
     } catch (err: any) {
       console.error("Failed to fetch available exercises for swap:", err);
-      toast.error("Failed to load swap options.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setLoading(false);
     }
@@ -70,14 +72,15 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
       fetchAvailableExercises();
       setSelectedNewExerciseId("");
     }
-  }, [open, session, supabase, currentExercise]);
+  }, [open, memoizedSessionUserId, supabase, currentExercise, setTempStatusMessage]); // Depend on memoized ID
 
   // Removed adoptExercise function as per new requirements
 
   const handleConfirmSwap = async () => {
     const newExercise = availableExercises.find(ex => ex.id === selectedNewExerciseId);
     if (!newExercise) {
-      toast.error("Please select an exercise to swap with.");
+      setTempStatusMessage({ message: "Select exercise!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
 
@@ -85,16 +88,19 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
       // Directly use the newExercise, no adoption needed.
       onSwap(newExercise);
       onOpenChange(false);
-      toast.success(`Swapped with ${newExercise.name}`);
+      setTempStatusMessage({ message: "Swapped!", type: 'success' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } catch (err: any) {
       console.error("Failed to swap exercise:", err);
-      toast.error("Failed to swap exercise.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     }
   };
 
   const handleGenerateAiSuggestion = async () => {
-    if (!session) {
-      toast.error("You must be logged in to generate AI suggestions.");
+    if (!memoizedSessionUserId) { // Use memoized ID
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     setGeneratingAi(true);
@@ -107,7 +113,7 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
           saveScope: 'user', // Save as a user-owned exercise
         },
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${session?.access_token}`, // Use session?.access_token
         },
       });
 
@@ -121,13 +127,16 @@ export const ExerciseSwapDialog = ({ open, onOpenChange, currentExercise, onSwap
       const newAiExercise = data.newExercise;
       if (newAiExercise) {
         setAvailableExercises(prev => [...prev, newAiExercise]);
-        toast.success("AI generated a new exercise suggestion!");
+        setTempStatusMessage({ message: "Suggested!", type: 'success' });
+        setTimeout(() => setTempStatusMessage(null), 3000);
       } else {
-        toast.error("AI did not return a valid exercise.");
+        setTempStatusMessage({ message: "Error!", type: 'error' });
+        setTimeout(() => setTempStatusMessage(null), 3000);
       }
     } catch (err: any) {
       console.error("Failed to generate AI suggestion:", err);
-      toast.error("Failed to generate AI suggestion.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setGeneratingAi(false);
     }

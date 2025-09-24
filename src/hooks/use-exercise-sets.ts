@@ -32,6 +32,7 @@ interface UseExerciseSetsProps {
   onExerciseCompleted: (exerciseId: string, isNewPR: boolean) => void;
   workoutTemplateName: string;
   exerciseNumber: number;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
 interface UseExerciseSetsReturn {
@@ -65,6 +66,7 @@ export const useExerciseSets = ({
   onExerciseCompleted,
   workoutTemplateName,
   exerciseNumber,
+  setTempStatusMessage, // NEW
 }: UseExerciseSetsProps): UseExerciseSetsReturn => {
   const { session } = useSession();
 
@@ -83,6 +85,7 @@ export const useExerciseSets = ({
     exerciseCategory,
     currentSessionId,
     supabase,
+    setTempStatusMessage, // NEW
   });
 
   const {
@@ -100,6 +103,7 @@ export const useExerciseSets = ({
     addDraft,
     deleteDraft,
     preferredWeightUnit,
+    setTempStatusMessage, // NEW
   });
 
   const {
@@ -115,6 +119,7 @@ export const useExerciseSets = ({
     updateDraft,
     onFirstSetSaved,
     preferredWeightUnit,
+    setTempStatusMessage, // NEW
   });
 
   const {
@@ -130,6 +135,7 @@ export const useExerciseSets = ({
     onFirstSetSaved,
     onExerciseCompleted,
     preferredWeightUnit,
+    setTempStatusMessage, // NEW
   });
 
   const { getProgressionSuggestion } = useProgressionSuggestion({
@@ -138,6 +144,7 @@ export const useExerciseSets = ({
     exerciseCategory,
     supabase,
     preferredWeightUnit,
+    setTempStatusMessage, // NEW
   });
 
   useEffect(() => {
@@ -148,13 +155,14 @@ export const useExerciseSets = ({
 
   const handleSuggestProgression = useCallback(async () => {
     if (!isValidId(exerciseId)) {
-      console.error("Cannot suggest progression: exercise information is incomplete.");
-      toast.error("Cannot suggest progression: exercise information is incomplete."); // Changed to toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     if (!sets) {
       console.error("Sets data is null or undefined when trying to suggest progression.");
-      toast.error("Cannot suggest progression: no set data found."); // Added toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
 
@@ -167,9 +175,10 @@ export const useExerciseSets = ({
       // Add new suggested drafts
       await Promise.all(newSets.map((set, index) => addDraft({ ...set, session_id: currentSessionId, exercise_id: exerciseId })));
       
-      toast.info(message);
+      setTempStatusMessage({ message: "Suggested!", type: 'success' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     }
-  }, [sets, currentSessionId, getProgressionSuggestion, exerciseId, deleteDraft, addDraft]);
+  }, [sets, currentSessionId, getProgressionSuggestion, exerciseId, deleteDraft, addDraft, setTempStatusMessage]);
 
   return {
     sets: sets || [],

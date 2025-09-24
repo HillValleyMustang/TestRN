@@ -117,6 +117,7 @@ export const useWorkoutFlowManager = ({ router }: UseWorkoutFlowManagerProps) =>
     handleOpenEditWorkoutDialog,
     handleEditWorkoutSaveSuccess,
     setIsEditWorkoutDialogOpen,
+    setTempStatusMessage: workoutData.setTempStatusMessage, // Pass down the setter
   }), [
     workoutData,
     activeSession,

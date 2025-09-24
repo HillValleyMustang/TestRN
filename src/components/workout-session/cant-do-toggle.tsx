@@ -17,9 +17,10 @@ interface CantDoToggleProps {
   exercise: ExerciseDefinition;
   onRemove: () => void;
   onSubstitute: (newExercise: ExerciseDefinition) => void;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
-export const CantDoToggle = ({ open, onOpenChange, exercise, onRemove, onSubstitute }: CantDoToggleProps) => {
+export const CantDoToggle = ({ open, onOpenChange, exercise, onRemove, onSubstitute, setTempStatusMessage }: CantDoToggleProps) => {
   const [showSubstitutionDialog, setShowSubstitutionDialog] = React.useState(false);
   const { memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
 
@@ -31,7 +32,8 @@ export const CantDoToggle = ({ open, onOpenChange, exercise, onRemove, onSubstit
   const handleRemove = () => {
     onOpenChange(false); // Close current dialog
     onRemove();
-    toast.success(`Removed ${exercise.name} from this workout`); // Changed to toast.success
+    setTempStatusMessage({ message: "Removed!", type: 'removed' });
+    setTimeout(() => setTempStatusMessage(null), 3000);
   };
 
   return (
@@ -70,6 +72,7 @@ export const CantDoToggle = ({ open, onOpenChange, exercise, onRemove, onSubstit
         onOpenChange={setShowSubstitutionDialog}
         currentExercise={exercise}
         onSubstitute={onSubstitute}
+        setTempStatusMessage={setTempStatusMessage} // NEW
       />
     </>
   );

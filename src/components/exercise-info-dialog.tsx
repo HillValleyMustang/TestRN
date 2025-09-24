@@ -29,6 +29,7 @@ interface ExerciseInfoDialogProps {
   exerciseWorkouts?: { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]; // Added isBonus
   onRemoveFromWorkout?: (workoutId: string, exerciseId: string) => void;
   onDeleteExercise?: (exercise: FetchedExerciseDefinition) => void;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
 // Helper function to get YouTube embed URL
@@ -39,7 +40,7 @@ const getYouTubeEmbedUrl = (url: string | null | undefined): string | null => {
   return match && match[1] ? `https://www.youtube.com/embed/${match[1]}` : null;
 };
 
-export const ExerciseInfoDialog = ({ open, onOpenChange, exercise, trigger, exerciseWorkouts = [], onRemoveFromWorkout, onDeleteExercise }: ExerciseInfoDialogProps) => {
+export const ExerciseInfoDialog = ({ open, onOpenChange, exercise, trigger, exerciseWorkouts = [], onRemoveFromWorkout, onDeleteExercise, setTempStatusMessage }: ExerciseInfoDialogProps) => {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const { session, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
 
@@ -55,15 +56,19 @@ export const ExerciseInfoDialog = ({ open, onOpenChange, exercise, trigger, exer
 
   const handleRemoveFromWorkoutClick = async (workoutId: string) => {
     if (!memoizedSessionUserId) { // Use memoized ID
-      toast.error("You must be logged in to remove exercises from workouts."); // Changed to toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     if (onRemoveFromWorkout) {
       if (exercise.id === null) {
-        toast.error("Cannot remove exercise: invalid exercise ID."); // Changed to toast.error
+        setTempStatusMessage({ message: "Error!", type: 'error' });
+        setTimeout(() => setTempStatusMessage(null), 3000);
         return;
       }
       onRemoveFromWorkout(workoutId, exercise.id);
+      setTempStatusMessage({ message: "Removed!", type: 'removed' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     }
   };
 

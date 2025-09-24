@@ -15,12 +15,14 @@ type Gym = Tables<'gyms'>;
 interface SetupGymViewProps {
   gym: Gym;
   onClose: () => void;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
-export const SetupGymView = ({ gym, onClose }: SetupGymViewProps) => {
+export const SetupGymView = ({ gym, onClose, setTempStatusMessage }: SetupGymViewProps) => {
   const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
   const [sourceGyms, setSourceGyms] = useState<Gym[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchOtherGyms = async () => {
@@ -29,17 +31,18 @@ export const SetupGymView = ({ gym, onClose }: SetupGymViewProps) => {
         .from('gyms')
         .select('*')
         .eq('user_id', memoizedSessionUserId) // Use memoized ID
-        .neq('id', gym.id); // Exclude the newly created gym
+        .neq('id', gym.id);
 
       if (error) {
         console.error("Failed to fetch other gyms for copying:", error);
-        toast.error("Failed to load other gyms for copying."); // Added toast.error
+        setTempStatusMessage({ message: "Error!", type: 'error' });
+        setTimeout(() => setTempStatusMessage(null), 3000);
       } else {
         setSourceGyms(data || []);
       }
     };
     fetchOtherGyms();
-  }, [memoizedSessionUserId, supabase, gym.id]); // Depend on memoized ID
+  }, [memoizedSessionUserId, supabase, gym.id, setTempStatusMessage]); // Depend on memoized ID
 
   const handleSetupOption = async (option: 'copy' | 'defaults' | 'empty') => {
     switch (option) {
@@ -47,15 +50,17 @@ export const SetupGymView = ({ gym, onClose }: SetupGymViewProps) => {
         if (sourceGyms.length > 0) {
           setIsCopyDialogOpen(true);
         } else {
-          toast.info("You don't have any other gyms to copy from.");
+          setTempStatusMessage({ message: "No gyms to copy!", type: 'error' });
+          setTimeout(() => setTempStatusMessage(null), 3000);
         }
         break;
       case 'defaults':
         if (!memoizedSessionUserId) { // Use memoized ID
-          toast.error("You must be logged in."); // Changed to toast.error
+          setTempStatusMessage({ message: "Error!", type: 'error' });
+          setTimeout(() => setTempStatusMessage(null), 3000);
           return;
         }
-        const toastId = toast.loading("Setting up with app defaults...");
+        setLoading(true);
         try {
           const response = await fetch('/api/setup-default-gym', {
             method: 'POST',
@@ -69,15 +74,20 @@ export const SetupGymView = ({ gym, onClose }: SetupGymViewProps) => {
           if (!response.ok) {
             throw new Error(data.error || 'Failed to set up default gym.');
           }
-          toast.success(`"${gym.name}" is being set up with default workouts.`, { id: toastId });
+          setTempStatusMessage({ message: "Updated!", type: 'success' });
+          setTimeout(() => setTempStatusMessage(null), 3000);
           onClose();
         } catch (err: any) {
           console.error("Failed to set up default gym:", err.message);
-          toast.error(`Failed to set up default gym: ${err.message}`, { id: toastId }); // Changed to toast.error
+          setTempStatusMessage({ message: "Error!", type: 'error' });
+          setTimeout(() => setTempStatusMessage(null), 3000);
+        } finally {
+          setLoading(false);
         }
         break;
       case 'empty':
-        toast.success(`"${gym.name}" is ready! You can add exercises manually.`);
+        setTempStatusMessage({ message: "Added!", type: 'success' });
+        setTimeout(() => setTempStatusMessage(null), 3000);
         onClose();
         break;
     }
@@ -127,6 +137,7 @@ export const SetupGymView = ({ gym, onClose }: SetupGymViewProps) => {
           targetGym={gym}
           sourceGyms={sourceGyms}
           onCopySuccess={async () => onClose()} // Close the main setup view on success
+          setTempStatusMessage={setTempStatusMessage} // NEW
         />
       )}
     </>

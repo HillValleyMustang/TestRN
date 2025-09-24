@@ -65,9 +65,10 @@ interface ExerciseFormProps {
   editingExercise: FetchedExerciseDefinition | null;
   onCancelEdit: () => void;
   onSaveSuccess: () => void;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
-export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(({ editingExercise, onCancelEdit, onSaveSuccess }, ref) => {
+export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(({ editingExercise, onCancelEdit, onSaveSuccess, setTempStatusMessage }, ref) => {
   const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
@@ -154,7 +155,8 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
 
   async function onSubmit(values: z.infer<typeof exerciseSchema>) {
     if (!memoizedSessionUserId) { // Use memoized ID
-      toast.error("You must be logged in to manage exercises.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
 
@@ -183,9 +185,9 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
 
       if (error) {
         console.error("Failed to update exercise:", error.message);
-        toast.error("Failed to update exercise.");
+        setTempStatusMessage({ message: "Error!", type: 'error' });
       } else {
-        toast.success("Exercise updated successfully!");
+        setTempStatusMessage({ message: "Updated!", type: 'success' });
         onCancelEdit();
         onSaveSuccess();
         setIsExpanded(false);
@@ -200,9 +202,9 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
       }]).select('id').single();
       if (error) {
         console.error("Failed to add exercise:", error.message);
-        toast.error("Failed to add exercise.");
+        setTempStatusMessage({ message: "Error!", type: 'error' });
       } else {
-        toast.success("Exercise added successfully!");
+        setTempStatusMessage({ message: "Added!", type: 'success' });
         form.reset();
         setSelectedMuscles([]);
         setSelectedTypes([]);
@@ -210,6 +212,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
         setIsExpanded(false);
       }
     }
+    setTimeout(() => setTempStatusMessage(null), 3000);
   }
 
   const toggleExpand = () => {
@@ -336,6 +339,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
                   editingExercise={editingExercise}
                   onCancelEdit={onCancelEdit}
                   toggleExpand={toggleExpand}
+                  setTempStatusMessage={setTempStatusMessage} // NEW
                 />
               </form>
             </Form>

@@ -25,6 +25,7 @@ import { ProfileSettingsTab } from '@/components/profile/profile-settings-tab';
 import { PointsExplanationModal } from '@/components/profile/points-explanation-modal';
 import { achievementsList } from '@/lib/achievements';
 import { LoadingOverlay } from '@/components/loading-overlay';
+import { useWorkoutFlow } from '@/components/workout-flow/workout-flow-context-provider'; // NEW: Import useWorkoutFlow
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
@@ -343,6 +344,9 @@ export default function ProfilePage() {
     emblaApi && emblaApi.scrollNext();
   }, [emblaApi]);
 
+  // NEW: Get setTempStatusMessage from useWorkoutFlow
+  const { setTempStatusMessage } = useWorkoutFlow();
+
   if (loadingProfile || loadingAchievements) return <div className="p-4"><Skeleton className="h-screen w-full" /></div>;
   if (!profile) return <div className="p-4">Could not load profile.</div>;
 
@@ -407,6 +411,7 @@ export default function ProfilePage() {
                       profile={profile}
                       onDataChange={refreshProfileData}
                       setIsSaving={setIsSaving} // Pass setIsSaving down
+                      setTempStatusMessage={setTempStatusMessage} // NEW
                     />
                   </FormProvider>
                 </div>

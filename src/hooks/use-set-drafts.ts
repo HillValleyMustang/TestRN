@@ -28,6 +28,7 @@ interface UseSetDraftsProps {
   exerciseCategory?: ExerciseDefinition['category'] | null;
   currentSessionId: string | null;
   supabase: SupabaseClient;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
 interface UseSetDraftsReturn {
@@ -46,6 +47,7 @@ export const useSetDrafts = ({
   exerciseCategory,
   currentSessionId,
   supabase,
+  setTempStatusMessage, // NEW
 }: UseSetDraftsProps): UseSetDraftsReturn => {
   const { session, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
 
@@ -61,10 +63,11 @@ export const useSetDrafts = ({
       return fetchedDrafts;
     } catch (error) {
       console.error(`Error fetching draft set logs for exercise ${exerciseId}:`, error);
-      toast.error("Failed to load local set drafts.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return [];
     }
-  }, [exerciseId]); // currentSessionId is no longer a dependency here
+  }, [exerciseId, setTempStatusMessage]); // currentSessionId is no longer a dependency here
 
   const [sets, setSets] = useState<SetLogState[]>([]);
   const loadingDrafts = drafts === undefined;
@@ -100,9 +103,10 @@ export const useSetDrafts = ({
       await db.draft_set_logs.bulkPut(draftPayloads);
     } catch (error) {
       console.error(`Error creating initial draft sets for exercise ${exerciseId}:`, error);
-      toast.error("Failed to create initial local set drafts.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     }
-  }, [exerciseId, currentSessionId]); // currentSessionId is a dependency here because it's used in the payload
+  }, [exerciseId, currentSessionId, setTempStatusMessage]); // currentSessionId is a dependency here because it's used in the payload
 
   const fetchLastSets = useCallback(async () => {
     if (!memoizedSessionUserId || !isValidId(exerciseId)) return new Map<string, GetLastExerciseSetsForExerciseReturns>(); // Use memoized ID
@@ -115,7 +119,8 @@ export const useSetDrafts = ({
 
       if (rpcError && rpcError.code !== 'PGRST116') { 
         console.error(`Error fetching last sets for exercise ${exerciseName}:`, rpcError);
-        toast.error(`Failed to load previous sets for ${exerciseName}.`); // Changed to toast.error
+        setTempStatusMessage({ message: "Error!", type: 'error' });
+        setTimeout(() => setTempStatusMessage(null), 3000);
         return new Map<string, GetLastExerciseSetsForExerciseReturns>();
       }
       
@@ -126,10 +131,11 @@ export const useSetDrafts = ({
       return lastSetsMap;
     } catch (error) {
       console.error(`Unexpected error in fetchLastSets for exercise ${exerciseId}:`, error);
-      toast.error(`Failed to load previous sets for ${exerciseName}.`); // Changed to toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return new Map<string, GetLastExerciseSetsForExerciseReturns>();
     }
-  }, [memoizedSessionUserId, supabase, exerciseId, exerciseName]); // Depend on memoized ID
+  }, [memoizedSessionUserId, supabase, exerciseId, exerciseName, setTempStatusMessage]); // Depend on memoized ID
 
   // Ref to track if session_id update has already been attempted for the current exerciseId
   const sessionUpdateAttemptedRef = useRef<string | null>(null);
@@ -218,7 +224,8 @@ export const useSetDrafts = ({
   const updateDraft = useCallback(async (setIndex: number, updatedSet: Partial<SetLogState>) => {
     if (!isValidDraftKey(exerciseId, setIndex)) {
       console.error(`Invalid draft key for updateDraft: exerciseId=${exerciseId}, setIndex=${setIndex}`);
-      toast.error("Failed to update local set draft: invalid key.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
 
@@ -226,7 +233,8 @@ export const useSetDrafts = ({
       const currentDraft = await db.draft_set_logs.get([exerciseId, setIndex]);
       if (!currentDraft) {
         console.warn(`Draft not found for update: exerciseId=${exerciseId}, setIndex=${setIndex}`);
-        toast.error("Failed to update local set draft: draft not found.");
+        setTempStatusMessage({ message: "Error!", type: 'error' });
+        setTimeout(() => setTempStatusMessage(null), 3000);
         return;
       }
 
@@ -248,15 +256,17 @@ export const useSetDrafts = ({
       await db.draft_set_logs.put(newDraft);
     } catch (error) {
       console.error(`Error updating draft set log for exercise ${exerciseId}, set ${setIndex}:`, error);
-      toast.error("Failed to update local set draft.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     }
-  }, [exerciseId]);
+  }, [exerciseId, setTempStatusMessage]);
 
   const addDraft = useCallback(async (newSet: SetLogState) => {
     const newSetIndex = drafts ? drafts.length : 0; // Use drafts.length for the new index
     if (!isValidDraftKey(exerciseId, newSetIndex)) {
       console.error(`Invalid draft key for addDraft: exerciseId=${exerciseId}, newSetIndex=${newSetIndex}`);
-      toast.error("Failed to add local set draft: invalid key.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     try {
@@ -268,14 +278,16 @@ export const useSetDrafts = ({
       await db.draft_set_logs.put(draftPayload);
     } catch (error) {
       console.error(`Error adding draft set log for exercise ${exerciseId}, set ${newSetIndex}:`, error);
-      toast.error("Failed to add local set draft.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     }
-  }, [exerciseId, currentSessionId, drafts]); // Depend on drafts for length
+  }, [exerciseId, currentSessionId, drafts, setTempStatusMessage]); // Depend on drafts for length
 
   const deleteDraft = useCallback(async (setIndex: number) => {
     if (!isValidDraftKey(exerciseId, setIndex)) {
       console.error(`Invalid draft key for deleteDraft: exerciseId=${exerciseId}, setIndex=${setIndex}`);
-      toast.error("Failed to delete local set draft: invalid key.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     try {
@@ -294,9 +306,10 @@ export const useSetDrafts = ({
       });
     } catch (error) {
       console.error(`Error deleting draft set log for exercise ${exerciseId}, set ${setIndex}:`, error);
-      toast.error("Failed to delete local set draft.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     }
-  }, [exerciseId]);
+  }, [exerciseId, setTempStatusMessage]);
 
   return {
     sets,

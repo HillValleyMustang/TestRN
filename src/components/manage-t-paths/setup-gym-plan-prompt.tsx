@@ -15,9 +15,10 @@ interface SetupGymPlanPromptProps {
   gym: Gym;
   onSetupSuccess: () => void;
   profile: Profile | null; // NEW: Added profile prop
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
-export const SetupGymPlanPrompt = ({ gym, onSetupSuccess, profile }: SetupGymPlanPromptProps) => {
+export const SetupGymPlanPrompt = ({ gym, onSetupSuccess, profile, setTempStatusMessage }: SetupGymPlanPromptProps) => {
   const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
   const [sourceGyms, setSourceGyms] = useState<Gym[]>([]);
@@ -34,21 +35,22 @@ export const SetupGymPlanPrompt = ({ gym, onSetupSuccess, profile }: SetupGymPla
 
       if (error) {
         console.error("Failed to fetch other gyms for copying:", error);
-        toast.error("Failed to load other gyms for copying."); // Added toast.error
+        setTempStatusMessage({ message: "Error!", type: 'error' });
+        setTimeout(() => setTempStatusMessage(null), 3000);
       } else {
         setSourceGyms(data || []);
       }
     };
     fetchOtherGyms();
-  }, [memoizedSessionUserId, supabase, gym.id]); // Depend on memoized ID
+  }, [memoizedSessionUserId, supabase, gym.id, setTempStatusMessage]); // Depend on memoized ID
 
   const handleSetupDefaults = async () => {
     if (!memoizedSessionUserId) { // Use memoized ID
-      toast.error("You must be logged in to set up defaults."); // Added toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     setLoading(true);
-    const toastId = toast.loading("Setting up with app defaults...");
     try {
       const response = await fetch('/api/setup-default-gym', {
         method: 'POST',
@@ -57,11 +59,13 @@ export const SetupGymPlanPrompt = ({ gym, onSetupSuccess, profile }: SetupGymPla
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to set up default gym.');
-      toast.success(`"${gym.name}" is being set up with default workouts.`, { id: toastId });
+      setTempStatusMessage({ message: "Updated!", type: 'success' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       onSetupSuccess();
     } catch (err: any) {
       console.error("Failed to set up default gym:", err.message);
-      toast.error(`Failed to set up default gym: ${err.message}`, { id: toastId }); // Changed to toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setLoading(false);
     }
@@ -94,6 +98,7 @@ export const SetupGymPlanPrompt = ({ gym, onSetupSuccess, profile }: SetupGymPla
         targetGym={gym}
         sourceGyms={sourceGyms}
         onCopySuccess={async () => onSetupSuccess()}
+        setTempStatusMessage={setTempStatusMessage} // NEW
       />
     </>
   );

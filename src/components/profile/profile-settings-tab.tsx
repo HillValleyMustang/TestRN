@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { FormProvider, UseFormReturn } from 'react-hook-form'; // Import FormProvider
 import { LogOut } from 'lucide-react';
@@ -23,7 +23,8 @@ interface ProfileSettingsTabProps {
   onSignOut: () => void;
   profile: Profile | null;
   onDataChange: () => void;
-  setIsSaving: (isSaving: boolean) => void; // NEW: Pass setIsSaving down
+  setIsSaving: (isSaving: boolean) => void;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
 export const ProfileSettingsTab = ({
@@ -35,6 +36,7 @@ export const ProfileSettingsTab = ({
   profile,
   onDataChange,
   setIsSaving, // NEW
+  setTempStatusMessage, // NEW
 }: ProfileSettingsTabProps) => {
   return (
     <div className="mt-6 space-y-6 border-none p-0">
@@ -43,20 +45,24 @@ export const ProfileSettingsTab = ({
         mainMuscleGroups={mainMuscleGroups} 
         onDataChange={onDataChange} 
         setIsSaving={setIsSaving} 
+        setTempStatusMessage={setTempStatusMessage} // NEW
       />
       <WorkoutPreferencesForm 
         onDataChange={onDataChange} 
         setIsSaving={setIsSaving} 
+        setTempStatusMessage={setTempStatusMessage} // NEW
       />
       <ProgrammeTypeSection 
         profile={profile} 
         onDataChange={onDataChange} 
         setIsSaving={setIsSaving} 
+        setTempStatusMessage={setTempStatusMessage} // NEW
       />
       <GymManagementSection 
         profile={profile} 
         onDataChange={onDataChange} 
         setIsSaving={setIsSaving} 
+        setTempStatusMessage={setTempStatusMessage} // NEW
       />
       <AICoachUsageSection aiCoachUsageToday={aiCoachUsageToday} AI_COACH_DAILY_LIMIT={AI_COACH_DAILY_LIMIT} />
       <DataExportSection />

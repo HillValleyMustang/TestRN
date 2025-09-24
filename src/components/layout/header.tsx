@@ -26,7 +26,7 @@ const mobileNavLinks = [
 
 interface HeaderProps {
   isGeneratingPlan: boolean;
-  tempStatusMessage: { message: string; type: 'added' | 'removed' | 'success' } | null; // NEW
+  tempStatusMessage: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null; // NEW
 }
 
 export function Header({ isGeneratingPlan, tempStatusMessage }: HeaderProps) { // NEW PROP

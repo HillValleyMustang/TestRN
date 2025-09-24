@@ -28,6 +28,7 @@ interface AddExerciseSectionProps {
   userGyms: Gym[];
   selectedGymFilter: string;
   setSelectedGymFilter: (filter: string) => void;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
 export const AddExerciseSection = ({
@@ -45,6 +46,7 @@ export const AddExerciseSection = ({
   userGyms,
   selectedGymFilter,
   setSelectedGymFilter,
+  setTempStatusMessage, // NEW
 }: AddExerciseSectionProps) => {
   const { memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
 

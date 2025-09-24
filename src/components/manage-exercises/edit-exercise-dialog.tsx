@@ -12,6 +12,7 @@ interface EditExerciseDialogProps {
   onOpenChange: (open: boolean) => void;
   exercise: FetchedExerciseDefinition | null;
   onSaveSuccess: () => void;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
 export const EditExerciseDialog = ({
@@ -19,6 +20,7 @@ export const EditExerciseDialog = ({
   onOpenChange,
   exercise,
   onSaveSuccess,
+  setTempStatusMessage, // NEW
 }: EditExerciseDialogProps) => {
   const handleCancelEdit = () => {
     onOpenChange(false); // Close the dialog
@@ -42,6 +44,7 @@ export const EditExerciseDialog = ({
             editingExercise={exercise}
             onCancelEdit={handleCancelEdit}
             onSaveSuccess={handleSaveSuccessAndClose}
+            setTempStatusMessage={setTempStatusMessage} // NEW
             // Removed isExpandedInDialog prop
           />
         </div>

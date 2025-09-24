@@ -13,6 +13,7 @@ import { Tables, FetchedExerciseDefinition } from '@/types/supabase';
 import { cn } from '@/lib/utils';
 import { useManageExercisesData } from '@/hooks/use-manage-exercises-data'; // NEW: Import useManageExercisesData
 import { useSession } from '@/components/session-context-provider'; // NEW: Import useSession
+import { toast } from "sonner"; // Import toast
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -24,6 +25,7 @@ interface AddExercisesToWorkoutDialogProps {
   onAddExercises: (exerciseIds: string[]) => void;
   addExerciseSourceFilter: 'my-exercises' | 'global-library';
   setAddExerciseSourceFilter: (filter: 'my-exercises' | 'global-library') => void;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
 export const AddExercisesToWorkoutDialog = ({
@@ -34,6 +36,7 @@ export const AddExercisesToWorkoutDialog = ({
   onAddExercises,
   addExerciseSourceFilter,
   setAddExerciseSourceFilter,
+  setTempStatusMessage, // NEW
 }: AddExercisesToWorkoutDialogProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [muscleFilter, setMuscleFilter] = useState("all");
@@ -49,7 +52,7 @@ export const AddExercisesToWorkoutDialog = ({
   } = useManageExercisesData({
     sessionUserId: memoizedSessionUserId, // Pass memoized ID
     supabase,
-    setTempStatusMessage: () => {}, // Placeholder, not used here
+    setTempStatusMessage: setTempStatusMessage, // Placeholder, not used here
   });
 
 
@@ -96,6 +99,8 @@ export const AddExercisesToWorkoutDialog = ({
   const handleAddSelected = () => {
     onAddExercises(Array.from(selectedExerciseIds));
     onOpenChange(false); // Close dialog after adding
+    setTempStatusMessage({ message: "Added!", type: 'success' });
+    setTimeout(() => setTempStatusMessage(null), 3000);
   };
 
   return (

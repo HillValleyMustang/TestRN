@@ -30,8 +30,8 @@ interface UseWorkoutDataFetcherReturn {
   refreshTPaths: () => void;
   refreshTPathExercises: () => void;
   isGeneratingPlan: boolean;
-  tempStatusMessage: { message: string; type: 'added' | 'removed' | 'success' } | null;
-  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' } | null) => void;
+  tempStatusMessage: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null; // UPDATED TYPE
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // ADDED
   availableMuscleGroups: string[];
   userGyms: Tables<'gyms'>[];
   exerciseGymsMap: Record<string, string[]>;
@@ -45,7 +45,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const prevStatusRef = useRef<string | null>(null);
-  const [tempStatusMessage, setTempStatusMessage] = useState<{ message: string; type: 'added' | 'removed' | 'success' } | null>(null);
+  const [tempStatusMessage, setTempStatusMessage] = useState<{ message: string; type: 'added' | 'removed' | 'success' | 'error' } | null>(null); // UPDATED TYPE
   const [exerciseWorkoutsMap, setExerciseWorkoutsMap] = useState<Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>>({}); // ADDED STATE
   const [isProcessingDerivedData, setIsProcessingDerivedData] = useState(true);
 
@@ -374,12 +374,12 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       }
       setIsGeneratingPlan(false);
       if (finalStatus === 'completed') {
-        toast.success("Your new workout plan is ready!");
+        setTempStatusMessage({ message: "Updated!", type: 'success' }); // Use tempStatusMessage
+        setTimeout(() => setTempStatusMessage(null), 3000);
         refreshAllData();
       } else if (finalStatus === 'failed') {
-        toast.error("Workout plan generation failed.", {
-          description: profile?.t_path_generation_error || "An unknown error occurred.",
-        });
+        setTempStatusMessage({ message: "Error!", type: 'error' }); // Use tempStatusMessage
+        setTimeout(() => setTempStatusMessage(null), 3000);
       }
     };
     if (status === 'in_progress') {

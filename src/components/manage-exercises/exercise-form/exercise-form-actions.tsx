@@ -12,12 +12,14 @@ interface ExerciseFormActionsProps {
   editingExercise: FetchedExerciseDefinition | null; // Changed type to FetchedExerciseDefinition
   onCancelEdit: () => void;
   toggleExpand: () => void; // This prop is now used to close the dialog if not in dialog mode
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
 export const ExerciseFormActions = ({
   editingExercise,
   onCancelEdit,
   toggleExpand,
+  setTempStatusMessage, // NEW
 }: ExerciseFormActionsProps) => {
   const { session } = useSession();
   // Determine if we are editing an existing user-owned exercise (not a global one being "copied")

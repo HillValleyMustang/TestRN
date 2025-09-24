@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { GripVertical, Info, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WorkoutExerciseWithDetails } from '../gym-exercise-manager';
+import { toast } from "sonner"; // Import toast
 
 interface SortableGymExerciseItemProps {
   exercise: WorkoutExerciseWithDetails;

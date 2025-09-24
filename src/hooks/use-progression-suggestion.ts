@@ -16,6 +16,7 @@ interface UseProgressionSuggestionProps {
   exerciseCategory?: ExerciseDefinition['category'] | null;
   supabase: SupabaseClient;
   preferredWeightUnit: Profile['preferred_weight_unit'];
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
 const MAX_SETS = 5;
@@ -27,17 +28,20 @@ export const useProgressionSuggestion = ({
   exerciseCategory,
   supabase,
   preferredWeightUnit,
+  setTempStatusMessage, // NEW
 }: UseProgressionSuggestionProps) => {
   const { memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
 
   const getProgressionSuggestion = useCallback(async (currentSetsLength: number, internalSessionId: string | null): Promise<{ newSets: SetLogState[] | null; message: string }> => {
     if (!supabase) {
       console.error("[useProgressionSuggestion] Supabase client not available.");
-      toast.error("Error: Supabase client not available for progression suggestion."); // Changed to toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return { newSets: null, message: "Error: Supabase client not available." };
     }
     if (!memoizedSessionUserId) { // Ensure user is logged in
-      toast.error("You must be logged in to get progression suggestions.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return { newSets: null, message: "Error: User not authenticated." };
     }
 
@@ -127,7 +131,7 @@ export const useProgressionSuggestion = ({
           suggestionMessage = "No previous sets found. Let's aim for 30 seconds and focus on form!";
         }
       }
-
+      
       const newSets: SetLogState[] = [];
       for (let i = 0; i < suggestedNumSets; i++) {
         newSets.push({
@@ -142,10 +146,11 @@ export const useProgressionSuggestion = ({
 
     } catch (err: any) {
       console.error("Failed to generate progression suggestion:", err);
-      toast.error("Failed to generate suggestion."); // Changed to toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return { newSets: null, message: "Failed to generate suggestion." };
     }
-  }, [exerciseId, exerciseType, exerciseCategory, supabase, preferredWeightUnit, memoizedSessionUserId]); // Depend on memoized ID
+  }, [exerciseId, exerciseType, exerciseCategory, supabase, preferredWeightUnit, memoizedSessionUserId, setTempStatusMessage]); // Depend on memoized ID
 
   return { getProgressionSuggestion };
 };

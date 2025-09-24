@@ -19,11 +19,12 @@ interface AddExerciseToTPathDialogProps {
   onOpenChange: (open: boolean) => void;
   exercise: FetchedExerciseDefinition; // Use FetchedExerciseDefinition
   onAddSuccess: () => void;
-  onOptimisticAdd: (exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => void;
-  onAddFailure: (exerciseId: string, workoutId: string) => void;
+  onOptimisticAdd: (exerciseId: string, workoutId: string, workoutName: string, isBonus: boolean) => void; // Updated type
+  onAddFailure: (exerciseId: string, workoutId: string) => void; // Updated type
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
-export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSuccess, onOptimisticAdd, onAddFailure }: AddExerciseToTPathDialogProps) => {
+export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSuccess, onOptimisticAdd, onAddFailure, setTempStatusMessage }: AddExerciseToTPathDialogProps) => {
   const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [userWorkouts, setUserWorkouts] = useState<TPath[]>([]);
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string>("");
@@ -51,7 +52,8 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
 
         if (!activeTPathId) {
           setUserWorkouts([]);
-          toast.info("You don't have an active Transformation Path set up. Please set one in your profile.");
+          setTempStatusMessage({ message: "No active plan!", type: 'error' });
+          setTimeout(() => setTempStatusMessage(null), 3000);
           setLoading(false);
           return;
         }
@@ -69,7 +71,8 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
         setUserWorkouts(data as TPath[] || []); // Explicitly cast
       } catch (err: any) {
         console.error("Failed to fetch user workouts:", err);
-        toast.error("Failed to load your workouts."); // Changed to toast.error
+        setTempStatusMessage({ message: "Error!", type: 'error' });
+        setTimeout(() => setTempStatusMessage(null), 3000);
       } finally {
         setLoading(false);
       }
@@ -79,13 +82,14 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
       fetchUserWorkouts();
       setSelectedWorkoutId(""); // Reset selection when opening
     }
-  }, [open, memoizedSessionUserId, supabase]); // Depend on memoized ID
+  }, [open, memoizedSessionUserId, supabase, setTempStatusMessage]); // Depend on memoized ID
 
   // Removed adoptExercise function as per new requirements
 
   const handleAddToWorkout = async () => {
     if (!memoizedSessionUserId || !selectedWorkoutId) { // Use memoized ID
-      toast.error("Please select a workout."); // Changed to toast.error
+      setTempStatusMessage({ message: "Select workout!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
 
@@ -96,7 +100,8 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
       // Optimistic update: Update UI immediately
       // We use the original exercise.id directly, as no adoption is happening.
       if (exercise.id === null) {
-        toast.error("Cannot add exercise: invalid exercise ID."); // Changed to toast.error
+        setTempStatusMessage({ message: "Error!", type: 'error' });
+        setTimeout(() => setTempStatusMessage(null), 3000);
         setIsAdding(false);
         return;
       }
@@ -127,19 +132,21 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
 
       if (insertError) {
         if (insertError.code === '23505') { // Unique violation code
-          toast.error("This exercise is already in the selected workout."); // Changed to toast.error
+          setTempStatusMessage({ message: "Duplicate!", type: 'error' });
         } else {
           throw insertError;
         }
         onAddFailure(exercise.id, selectedWorkoutId); // Rollback on error
       } else {
-        toast.success(`'${exercise.name}' added to workout!`); // Changed to toast.success
+        setTempStatusMessage({ message: "Added!", type: 'success' });
         onAddSuccess(); // Notify parent to refresh data
         onOpenChange(false);
       }
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } catch (err: any) {
       console.error("Failed to add exercise to workout:", err);
-      toast.error("Failed to add exercise."); // Changed to toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       if (exercise.id) { // Only call onAddFailure if exercise.id is not null
         onAddFailure(exercise.id, selectedWorkoutId); // Rollback on error
       }

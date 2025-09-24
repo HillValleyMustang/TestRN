@@ -25,6 +25,7 @@ import { SortableGymExerciseList } from './gym-exercise-manager/sortable-gym-exe
 import { SortableGymExerciseItem } from './gym-exercise-manager/sortable-gym-exercise-item';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher'; // NEW: Import useWorkoutDataFetcher
+import { ConfirmRemoveExerciseDialog } from '@/components/manage-t-paths/edit-workout-exercises/confirm-remove-exercise-dialog'; // NEW: Import ConfirmRemoveExerciseDialog
 
 
 type Gym = Tables<'gyms'>;
@@ -50,9 +51,10 @@ interface ManageGymWorkoutsExercisesDialogProps {
   gym: Gym | null;
   onSaveSuccess: () => void;
   profile: Profile | null;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
-export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSaveSuccess, profile }: ManageGymWorkoutsExercisesDialogProps) => {
+export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSaveSuccess, profile, setTempStatusMessage }: ManageGymWorkoutsExercisesDialogProps) => {
   const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   // NEW: Consume data from useWorkoutDataFetcher
   const {
@@ -158,12 +160,13 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       }
 
     } catch (err: any) {
-      toast.error("Failed to load gym and workout data.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
       console.error("Error fetching gym workout data:", err);
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setLoading(false);
     }
-  }, [memoizedSessionUserId, supabase, gym, profile, selectedWorkoutId, groupedTPaths, fetchedAllAvailableExercises]); // Depend on memoized ID, groupedTPaths and fetchedAllAvailableExercises
+  }, [memoizedSessionUserId, supabase, gym, profile, selectedWorkoutId, groupedTPaths, fetchedAllAvailableExercises, setTempStatusMessage]); // Depend on memoized ID, groupedTPaths and fetchedAllAvailableExercises
 
   const refreshDialogData = useCallback(() => {
     fetchData();
@@ -249,18 +252,20 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
         ));
       }
 
-      toast.success(`Added ${exerciseIds.length} exercise(s) to workout!`);
+      setTempStatusMessage({ message: "Added!", type: 'success' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       onSaveSuccess();
       refreshAllData(); // Refresh all data after adding exercises
     } catch (err: any) {
-      toast.error("Failed to add exercises to workout.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
       console.error("Error adding exercises to workout:", err);
+      setTimeout(() => setTempStatusMessage(null), 3000);
       setCoreExercises(prev => prev.filter(ex => !ex.t_path_exercise_id.startsWith('temp-')));
       setExerciseIdsInGym(prev => new Set([...prev].filter(id => !exerciseIds.includes(id))));
     } finally {
       setIsSaving(false);
     }
-  }, [memoizedSessionUserId, supabase, gym, selectedWorkoutId, coreExercises, bonusExercises, fetchedAllAvailableExercises, exerciseIdsInGym, onSaveSuccess, refreshAllData]); // Depend on memoized ID
+  }, [memoizedSessionUserId, supabase, gym, selectedWorkoutId, coreExercises, bonusExercises, fetchedAllAvailableExercises, exerciseIdsInGym, onSaveSuccess, refreshAllData, setTempStatusMessage]); // Depend on memoized ID
 
 
   const handleRemoveExerciseClick = useCallback((exerciseId: string) => {
@@ -297,17 +302,19 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
         throw deleteError;
       }
 
-      toast.success(`'${exerciseToRemove.name}' removed from workout.`);
+      setTempStatusMessage({ message: "Removed!", type: 'removed' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       onSaveSuccess();
       refreshAllData(); // Refresh all data after removing an exercise
     } catch (err: any) {
-      toast.error("Failed to remove exercise from workout.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
       console.error("Error removing exercise from workout:", err);
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setIsSaving(false);
       setExerciseToRemove(null);
     }
-  }, [memoizedSessionUserId, supabase, selectedWorkoutId, coreExercises, bonusExercises, exerciseToRemove, onSaveSuccess, refreshAllData]); // Depend on memoized ID
+  }, [memoizedSessionUserId, supabase, selectedWorkoutId, coreExercises, bonusExercises, exerciseToRemove, onSaveSuccess, refreshAllData, setTempStatusMessage]); // Depend on memoized ID
 
   const handleWorkoutSelectChange = useCallback((newWorkoutId: string) => {
     setSelectedWorkoutId(newWorkoutId);
@@ -371,7 +378,9 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       setBonusExercises(newBonus);
     }
     setHasUnsavedChanges(true); // Mark as unsaved after any drag-and-drop
-  }, [coreExercises, bonusExercises, selectedWorkoutId]);
+    setTempStatusMessage({ message: "Order changed!", type: 'success' });
+    setTimeout(() => setTempStatusMessage(null), 3000);
+  }, [coreExercises, bonusExercises, selectedWorkoutId, setTempStatusMessage]);
 
   const handleSaveChanges = useCallback(async () => {
     if (!memoizedSessionUserId || !selectedWorkoutId || !hasUnsavedChanges) return; // Use memoized ID
@@ -383,17 +392,19 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
       ];
       const { error } = await supabase.rpc('update_gym_exercise_order_and_status', { updates });
       if (error) throw error;
-      toast.success("Exercise order and status updated!");
+      setTempStatusMessage({ message: "Saved!", type: 'success' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       setHasUnsavedChanges(false);
       onSaveSuccess();
       refreshAllData(); // Refresh all data after saving changes
     } catch (err: any) {
-      toast.error("Failed to save exercise order/status.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
       console.error("Error saving exercise order/status:", err);
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setIsSaving(false);
     }
-  }, [memoizedSessionUserId, supabase, selectedWorkoutId, coreExercises, bonusExercises, hasUnsavedChanges, onSaveSuccess, refreshAllData]); // Depend on memoized ID
+  }, [memoizedSessionUserId, supabase, selectedWorkoutId, coreExercises, bonusExercises, hasUnsavedChanges, onSaveSuccess, refreshAllData, setTempStatusMessage]); // Depend on memoized ID
 
   const handleCloseDialog = useCallback(() => {
     if (hasUnsavedChanges) {
@@ -434,7 +445,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
               <p className="text-muted-foreground text-center">Loading gym workout data...</p>
             ) : !mainTPath ? (
               <div className="text-center text-muted-foreground">
-                <SetupGymPlanPrompt gym={gym} onSetupSuccess={refreshDialogData} profile={profile} />
+                <SetupGymPlanPrompt gym={gym} onSetupSuccess={refreshDialogData} profile={profile} setTempStatusMessage={setTempStatusMessage} />
               </div>
             ) : (
               <>
@@ -505,6 +516,7 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
         onAddExercises={handleAddExercisesToWorkout}
         addExerciseSourceFilter={addExerciseSourceFilter}
         setAddExerciseSourceFilter={setAddExerciseSourceFilter}
+        setTempStatusMessage={setTempStatusMessage} // NEW
       />
 
       {selectedExerciseForInfo && (
@@ -512,23 +524,16 @@ export const ManageGymWorkoutsExercisesDialog = ({ open, onOpenChange, gym, onSa
           open={isInfoDialogOpen}
           onOpenChange={setIsInfoDialogOpen}
           exercise={selectedExerciseForInfo}
+          setTempStatusMessage={setTempStatusMessage} // NEW
         />
       )}
 
-      <AlertDialog open={showConfirmRemoveDialog} onOpenChange={setShowConfirmRemoveDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Removal</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to remove "<span className="font-semibold">{exerciseToRemove?.name}</span>" from this workout? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowConfirmRemoveDialog(false)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmRemoveExercise}>Remove</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmRemoveExerciseDialog
+        open={showConfirmRemoveDialog}
+        onOpenChange={setShowConfirmRemoveDialog}
+        exerciseToRemove={exerciseToRemove}
+        onConfirm={confirmRemoveExercise}
+      />
 
       <AlertDialog open={showDiscardChangesDialog} onOpenChange={setShowDiscardChangesDialog}>
         <AlertDialogContent>

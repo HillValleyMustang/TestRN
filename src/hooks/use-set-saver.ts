@@ -34,6 +34,7 @@ interface UseSetSaverProps {
   updateDraft: (setIndex: number, updatedSet: Partial<SetLogState>) => Promise<void>;
   onFirstSetSaved: (timestamp: string) => Promise<string>;
   preferredWeightUnit: Profile['preferred_weight_unit'];
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
 interface UseSetSaverReturn {
@@ -51,6 +52,7 @@ export const useSetSaver = ({
   updateDraft,
   onFirstSetSaved,
   preferredWeightUnit,
+  setTempStatusMessage, // NEW
 }: UseSetSaverProps): UseSetSaverReturn => {
   const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
 
@@ -60,11 +62,13 @@ export const useSetSaver = ({
     exerciseCategory,
     supabase,
     preferredWeightUnit,
+    setTempStatusMessage, // NEW
   });
   const { exercisePR, loadingPR, checkAndSaveSetPR } = useSetPRLogic({
     exerciseId,
     exerciseType,
     supabase,
+    setTempStatusMessage, // NEW
   });
 
   const handleSaveSet = useCallback(async (setIndex: number) => {
@@ -72,19 +76,22 @@ export const useSetSaver = ({
 
     if (!isValidId(exerciseId)) {
       console.error("Cannot save set: exercise information is incomplete.");
-      toast.error("Cannot save set: exercise information is incomplete.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     if (!sets[setIndex]) {
       console.error(`Set at index ${setIndex} not found for saving.`);
-      toast.error("Failed to save set: set not found.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
 
     let currentSet = { ...sets[setIndex] }; // Create a mutable copy
 
     if (!hasUserInput(currentSet)) {
-      toast.info(`Set ${setIndex + 1}: No data to save.`);
+      setTempStatusMessage({ message: "No data to save!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
 
@@ -98,7 +105,8 @@ export const useSetSaver = ({
         currentSet.session_id = newSessionId; // IMPORTANT: Update session_id in the currentSet copy
       } catch (err) {
         console.error("Failed to start workout session:", err);
-        toast.error("Failed to start workout session.");
+        setTempStatusMessage({ message: "Error!", type: 'error' });
+        setTimeout(() => setTempStatusMessage(null), 3000);
         return;
       }
     } else {
@@ -131,13 +139,16 @@ export const useSetSaver = ({
         isSaved: true,
         is_pb: savedSet.is_pb || false,
       });
+      setTempStatusMessage({ message: "Saved!", type: 'success' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       console.log(`[useSetSaver] handleSaveSet: Set ${setIndex + 1} saved locally with is_pb=${savedSet.is_pb}. Draft updated.`);
     } else {
-      toast.error(`Failed to save set ${setIndex + 1}. Please try again.`);
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       await updateDraft(setIndex, { isSaved: false }); // Rollback saved status
       console.log(`[useSetSaver] handleSaveSet: Set ${setIndex + 1} failed to save. Draft rolled back.`);
     }
-  }, [exerciseId, currentSessionId, sets, updateDraft, onFirstSetSaved, memoizedSessionUserId, checkAndSaveSetPR, exercisePR, saveSetToDb]); // Depend on memoized ID
+  }, [exerciseId, currentSessionId, sets, updateDraft, onFirstSetSaved, memoizedSessionUserId, checkAndSaveSetPR, exercisePR, saveSetToDb, setTempStatusMessage]); // Depend on memoized ID
 
   return {
     handleSaveSet,

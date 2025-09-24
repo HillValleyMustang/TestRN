@@ -14,6 +14,7 @@ interface UseSetPersistenceProps {
   exerciseCategory?: Tables<'exercise_definitions'>['category'] | null;
   supabase: SupabaseClient;
   preferredWeightUnit: Tables<'profiles'>['preferred_weight_unit'];
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
 export const useSetPersistence = ({
@@ -22,29 +23,34 @@ export const useSetPersistence = ({
   exerciseCategory,
   supabase,
   preferredWeightUnit,
+  setTempStatusMessage, // NEW
 }: UseSetPersistenceProps) => {
 
   const saveSetToDb = useCallback(async (set: SetLogState, setIndex: number, sessionIdToUse: string): Promise<{ savedSet: SetLogState | null }> => {
     // Validation logic remains the same
     if (exerciseType === 'weight') {
       if (set.weight_kg === null || set.weight_kg <= 0) {
-        toast.error(`Set ${setIndex + 1}: Please enter a valid positive weight.`); // Changed to toast.error
+        setTempStatusMessage({ message: "Invalid weight!", type: 'error' });
+        setTimeout(() => setTempStatusMessage(null), 3000);
         return { savedSet: null };
       }
       if (exerciseCategory === 'Unilateral') {
         if (set.reps_l === null || set.reps_r === null || set.reps_l < 0 || set.reps_r < 0) {
-          toast.error(`Set ${setIndex + 1}: Please enter valid positive reps for both left and right sides.`); // Changed to toast.error
+          setTempStatusMessage({ message: "Invalid reps!", type: 'error' });
+          setTimeout(() => setTempStatusMessage(null), 3000);
           return { savedSet: null };
         }
       } else {
         if (set.reps === null || set.reps <= 0) {
-          toast.error(`Set ${setIndex + 1}: Please enter valid positive reps.`); // Changed to toast.error
+          setTempStatusMessage({ message: "Invalid reps!", type: 'error' });
+          setTimeout(() => setTempStatusMessage(null), 3000);
           return { savedSet: null };
         }
       }
     } else if (exerciseType === 'timed') {
       if (set.time_seconds === null || set.time_seconds <= 0) {
-        toast.error(`Set ${setIndex + 1}: Please enter a valid positive time in seconds.`); // Changed to toast.error
+        setTempStatusMessage({ message: "Invalid time!", type: 'error' });
+        setTimeout(() => setTempStatusMessage(null), 3000);
         return { savedSet: null };
       }
     }
@@ -74,23 +80,26 @@ export const useSetPersistence = ({
       return { savedSet: { ...set, ...setLogData, isSaved: true } };
     } catch (error: any) {
       console.error(`[useSetPersistence] ERROR saving set ${setIndex + 1} locally:`, error);
-      toast.error(`Failed to save set ${setIndex + 1} locally.`); // Changed to toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return { savedSet: null };
     }
-  }, [exerciseId, exerciseType, exerciseCategory, supabase, preferredWeightUnit]);
+  }, [exerciseId, exerciseType, exerciseCategory, supabase, preferredWeightUnit, setTempStatusMessage]);
 
   const deleteSetFromDb = useCallback(async (setId: string): Promise<boolean> => {
     try {
       await db.set_logs.delete(setId);
       await addToSyncQueue('delete', 'set_logs', { id: setId });
-      toast.info("Set removed. Will sync deletion when online.");
+      setTempStatusMessage({ message: "Removed!", type: 'removed' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return true;
     } catch (error: any) {
       console.error(`[useSetPersistence] ERROR deleting set ${setId} locally:`, error);
-      toast.error("Failed to remove set locally."); // Changed to toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return false;
     }
-  }, [supabase]);
+  }, [supabase, setTempStatusMessage]);
 
   return { saveSetToDb, deleteSetFromDb };
 };

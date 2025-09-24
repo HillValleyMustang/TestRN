@@ -17,9 +17,10 @@ interface ProgrammeTypeSectionProps {
   profile: Profile | null;
   onDataChange: () => void;
   setIsSaving: (isSaving: boolean) => void;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
-export const ProgrammeTypeSection = ({ profile, onDataChange, setIsSaving }: ProgrammeTypeSectionProps) => {
+export const ProgrammeTypeSection = ({ profile, onDataChange, setIsSaving, setTempStatusMessage }: ProgrammeTypeSectionProps) => {
   const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [isEditing, setIsEditing] = useState(false); // Local editing state
   const [isWarningOpen, setIsWarningOpen] = useState(false);
@@ -40,7 +41,8 @@ export const ProgrammeTypeSection = ({ profile, onDataChange, setIsSaving }: Pro
   const confirmChange = async () => {
     if (!memoizedSessionUserId || !pendingProgrammeType) { // Use memoized ID
       console.error("Error: Session or pending programme type missing for confirmation.");
-      toast.error("Cannot confirm change: session or programme type missing.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     setIsWarningOpen(false);
@@ -69,12 +71,14 @@ export const ProgrammeTypeSection = ({ profile, onDataChange, setIsSaving }: Pro
         throw new Error(errorData.error || "Failed to start plan regeneration.");
       }
 
-      toast.success("Programme type updated! Your workout plans are regenerating in the background.");
+      setTempStatusMessage({ message: "Updating!", type: 'success' }); // Use tempStatusMessage for initiation
+      setTimeout(() => setTempStatusMessage(null), 3000);
       onDataChange();
       setIsEditing(false); // Exit editing mode
     } catch (err: any) {
       console.error("Failed to update programme type and regenerate plans:", err);
-      toast.error("Failed to update programme type.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setIsRegenerating(false); // Clear local regenerating state
       setIsSaving(false); // Clear global saving state

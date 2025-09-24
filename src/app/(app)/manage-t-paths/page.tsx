@@ -22,7 +22,7 @@ export default function ManageTPathsPage() {
   const { session, supabase } = useSession();
   const router = useRouter();
   const { userGyms, activeGym, switchActiveGym, loadingGyms } = useGym(); // Get gym context
-  const { groupedTPaths, loadingData, refreshAllData, profile } = useWorkoutDataFetcher();
+  const { groupedTPaths, loadingData, refreshAllData, profile, setTempStatusMessage } = useWorkoutDataFetcher(); // NEW: Destructure setTempStatusMessage
 
   const [isEditWorkoutDialogOpen, setIsEditWorkoutDialogOpen] = useState(false);
   const [selectedWorkoutToEdit, setSelectedWorkoutToEdit] = useState<{ id: string; name: string } | null>(null);
@@ -93,7 +93,7 @@ export default function ManageTPathsPage() {
           </CardContent>
         </Card>
       ) : !isGymConfigured ? (
-        <SetupGymPlanPrompt gym={activeGym} onSetupSuccess={refreshAllData} profile={profile} />
+        <SetupGymPlanPrompt gym={activeGym} onSetupSuccess={refreshAllData} profile={profile} setTempStatusMessage={setTempStatusMessage} />
       ) : (
         <ActiveTPathWorkoutsList
           activeTPathName={activeTPathGroup.mainTPath.template_name}
@@ -110,6 +110,7 @@ export default function ManageTPathsPage() {
           workoutId={selectedWorkoutToEdit.id}
           workoutName={selectedWorkoutToEdit.name}
           onSaveSuccess={handleSaveSuccess}
+          setTempStatusMessage={setTempStatusMessage} // NEW
         />
       )}
     </div>

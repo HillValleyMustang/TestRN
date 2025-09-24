@@ -18,6 +18,7 @@ interface ExerciseSubstitutionDialogProps {
   onOpenChange: (open: boolean) => void;
   currentExercise: ExerciseDefinition;
   onSubstitute: (newExercise: ExerciseDefinition) => void;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
 // Helper function to get YouTube embed URL
@@ -32,7 +33,8 @@ export const ExerciseSubstitutionDialog = ({
   open,
   onOpenChange,
   currentExercise,
-  onSubstitute
+  onSubstitute,
+  setTempStatusMessage, // NEW
 }: ExerciseSubstitutionDialogProps) => {
   const { session, supabase } = useSession();
   const [substitutions, setSubstitutions] = useState<ExerciseDefinition[]>([]);
@@ -73,7 +75,8 @@ export const ExerciseSubstitutionDialog = ({
       setSubstitutions(filteredSubstitutions || []);
     } catch (err: any) {
       console.error("Failed to fetch substitutions:", err);
-      toast.info("Failed to load substitution options.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setLoading(false);
     }
@@ -85,26 +88,30 @@ export const ExerciseSubstitutionDialog = ({
       setAiGenerationCount(0);
       setNewlyGeneratedExerciseIds(new Set());
     }
-  }, [open, session, supabase, currentExercise]);
+  }, [open, session, supabase, currentExercise, setTempStatusMessage]);
 
   const handleSelectSubstitution = async (exercise: ExerciseDefinition) => {
     try {
       onSubstitute(exercise);
       onOpenChange(false);
-      console.log(`Substituted with ${exercise.name}`); // Replaced toast.success
+      setTempStatusMessage({ message: "Swapped!", type: 'success' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } catch (err: any) {
       console.error("Failed to substitute exercise:", err);
-      toast.info("Failed to substitute exercise.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     }
   };
 
   const handleGenerateAiSuggestion = async () => {
     if (!session) {
-      toast.info("You must be logged in to generate AI suggestions.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     if (aiGenerationCount >= 2) {
-      toast.info("You have reached the maximum number of AI suggestions for this substitution.");
+      setTempStatusMessage({ message: "Max 2 suggestions!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
 
@@ -127,22 +134,26 @@ export const ExerciseSubstitutionDialog = ({
       }
 
       if (data.error) {
-        toast.info(data.error);
+        setTempStatusMessage({ message: "Error!", type: 'error' });
+        setTimeout(() => setTempStatusMessage(null), 3000);
         return;
       }
 
       const newAiExercise = data.newExercise;
       if (newAiExercise) {
         setSubstitutions(prev => [...prev, newAiExercise]);
-        console.log("AI generated a new exercise suggestion!"); // Replaced toast.success
+        setTempStatusMessage({ message: "Suggested!", type: 'success' });
+        setTimeout(() => setTempStatusMessage(null), 3000);
         setNewlyGeneratedExerciseIds(prev => new Set(prev).add(newAiExercise.id));
         setAiGenerationCount(prev => prev + 1);
       } else {
-        toast.info("AI did not return a valid exercise.");
+        setTempStatusMessage({ message: "Error!", type: 'error' });
+        setTimeout(() => setTempStatusMessage(null), 3000);
       }
     } catch (err: any) {
       console.error("Failed to generate AI suggestion:", err);
-      toast.info("Failed to generate AI suggestion.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setGeneratingAi(false);
     }

@@ -62,6 +62,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
           workoutId={workoutFlowManager.selectedWorkoutToEdit.id}
           workoutName={workoutFlowManager.selectedWorkoutToEdit.name}
           onSaveSuccess={workoutFlowManager.handleEditWorkoutSaveSuccess}
+          setTempStatusMessage={workoutFlowManager.setTempStatusMessage} // NEW
         />
       )}
     </>

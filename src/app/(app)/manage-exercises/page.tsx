@@ -70,6 +70,7 @@ export default function ManageExercisesPage() {
     totalGlobalExercisesCount,
     searchTerm, // NEW
     setSearchTerm, // NEW
+    setTempStatusMessage, // NEW: Destructure setTempStatusMessage
   } = useManageExercisesData({
     sessionUserId: memoizedSessionUserId, // Use memoized ID
     supabase,
@@ -126,7 +127,8 @@ export default function ManageExercisesPage() {
 
   const handleSaveAiExerciseToMyExercises = useCallback(async (exercise: Partial<FetchedExerciseDefinition>) => {
     if (!memoizedSessionUserId) { // Use memoized ID
-      toast.error("You must be logged in to save exercises.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     setIsAiSaving(true);
@@ -149,23 +151,25 @@ export default function ManageExercisesPage() {
 
       if (error) {
         if (error.code === '23505') {
-          toast.error("This exercise already exists in your custom exercises.");
+          setTempStatusMessage({ message: "Duplicate!", type: 'error' });
         } else {
           throw error;
         }
       } else {
-        toast.success(`'${exercise.name}' added to My Exercises!`);
+        setTempStatusMessage({ message: "Added!", type: 'success' });
         refreshExercises();
         setShowSaveAiExercisePrompt(false);
         setAiIdentifiedExercise(null);
       }
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } catch (err: any) {
       console.error("Failed to save AI identified exercise:", err);
-      toast.error("Failed to save exercise.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setIsAiSaving(false);
     }
-  }, [memoizedSessionUserId, supabase, refreshExercises]); // Depend on memoized ID
+  }, [memoizedSessionUserId, supabase, refreshExercises, setTempStatusMessage]); // Depend on memoized ID
 
   const handleEditIdentifiedExercise = useCallback((exercise: Partial<FetchedExerciseDefinition>) => {
     const exerciseToEdit: FetchedExerciseDefinition = {
@@ -297,6 +301,7 @@ export default function ManageExercisesPage() {
                           onOptimisticAdd={handleOptimisticAdd}
                           onAddFailure={handleAddFailure}
                           totalCount={totalUserExercisesCount}
+                          setTempStatusMessage={setTempStatusMessage} // NEW
                         />
                       </div>
                     </TabsContent>
@@ -317,6 +322,7 @@ export default function ManageExercisesPage() {
                           onOptimisticAdd={handleOptimisticAdd}
                           onAddFailure={handleAddFailure}
                           totalCount={totalGlobalExercisesCount}
+                          setTempStatusMessage={setTempStatusMessage} // NEW
                         />
                       </div>
                     </TabsContent>
@@ -367,6 +373,7 @@ export default function ManageExercisesPage() {
           onOpenChange={handleCancelEdit}
           exercise={editingExercise}
           onSaveSuccess={handleSaveSuccess}
+          setTempStatusMessage={setTempStatusMessage} // NEW
         />
       )}
     </>

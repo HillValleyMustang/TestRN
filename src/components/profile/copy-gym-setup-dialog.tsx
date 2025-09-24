@@ -17,20 +17,23 @@ interface CopyGymSetupDialogProps {
   targetGym: Gym;
   sourceGyms: Gym[];
   onCopySuccess: () => Promise<void>; // Changed to return a Promise
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
-export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, onCopySuccess }: CopyGymSetupDialogProps) => {
+export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, onCopySuccess, setTempStatusMessage }: CopyGymSetupDialogProps) => {
   const { session, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [selectedSourceGymId, setSelectedSourceGymId] = useState<string>("");
   const [isCopying, setIsCopying] = useState(false);
 
   const handleCopySetup = async () => {
     if (!memoizedSessionUserId) { // Use memoized ID
-      toast.error("You must be logged in to copy gym setup."); // Added toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     if (!selectedSourceGymId) {
-      toast.error("Please select a gym to copy from."); // Changed to toast.error
+      setTempStatusMessage({ message: "Select gym!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     setIsCopying(true);
@@ -53,11 +56,13 @@ export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, 
       // CRITICAL FIX: Await the data refresh before closing the dialog and showing success.
       await onCopySuccess();
 
-      toast.success(`Successfully copied setup to "${targetGym.name}"!`);
+      setTempStatusMessage({ message: "Copied!", type: 'success' });
       onOpenChange(false);
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } catch (err: any) {
       console.error("Failed to copy gym setup:", err.message);
-      toast.error("Failed to copy gym setup."); // Changed to toast.error
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setIsCopying(false);
     }

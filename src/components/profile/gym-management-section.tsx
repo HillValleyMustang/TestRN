@@ -20,9 +20,10 @@ interface GymManagementSectionProps {
   profile: Profile | null;
   onDataChange: () => void; // Callback to refresh parent data
   setIsSaving: (isSaving: boolean) => void;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
-export const GymManagementSection = ({ profile, onDataChange, setIsSaving }: GymManagementSectionProps) => {
+export const GymManagementSection = ({ profile, onDataChange, setIsSaving, setTempStatusMessage }: GymManagementSectionProps) => {
   const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const { userGyms, activeGym, refreshGyms } = useGym(); // Use userGyms and activeGym from context
   const [loading, setLoading] = useState(true); // Keep local loading for dialogs/actions
@@ -46,7 +47,8 @@ export const GymManagementSection = ({ profile, onDataChange, setIsSaving }: Gym
 
   const handleRenameGym = async () => {
     if (!memoizedSessionUserId || !selectedGym || !newGymName.trim()) { // Use memoized ID
-      toast.error("Gym name cannot be empty.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
 
@@ -56,15 +58,17 @@ export const GymManagementSection = ({ profile, onDataChange, setIsSaving }: Gym
       const { error } = await supabase.from('gyms').update({ name: newGymName }).eq('id', selectedGym.id);
       if (error) throw error;
 
-      toast.success("Gym renamed successfully!");
+      setTempStatusMessage({ message: "Renamed!", type: 'success' });
       onDataChange(); // Trigger parent refresh
       refreshGyms(); // Refresh the gym context
       setIsRenameDialogOpen(false);
       setNewGymName("");
       setSelectedGym(null);
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } catch (err: any) {
       console.error("Failed to rename gym:", err.message);
-      toast.error("Failed to rename gym.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setIsRenaming(false); // Clear local renaming state
       setIsSaving(false); // Clear global saving state
@@ -73,7 +77,8 @@ export const GymManagementSection = ({ profile, onDataChange, setIsSaving }: Gym
 
   const handleDeleteGym = async () => {
     if (!memoizedSessionUserId || !selectedGym || !profile) { // Use memoized ID
-      toast.error("Cannot delete gym: session or profile data missing.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
 
@@ -96,12 +101,14 @@ export const GymManagementSection = ({ profile, onDataChange, setIsSaving }: Gym
       const { error } = await supabase.from('gyms').delete().eq('id', selectedGym.id);
       if (error) throw error;
 
-      toast.success(`Gym "${selectedGym.name}" deleted.`);
+      setTempStatusMessage({ message: "Removed!", type: 'removed' });
       onDataChange(); // Trigger parent refresh
       refreshGyms(); // Refresh the gym context
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } catch (err: any) {
       console.error("Failed to delete gym:", err.message);
-      toast.error("Failed to delete gym.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setIsSaving(false); // Clear global saving state
       setSelectedGym(null);
@@ -110,13 +117,13 @@ export const GymManagementSection = ({ profile, onDataChange, setIsSaving }: Gym
 
   const handleConfirmDeleteLastGym = async () => {
     if (!memoizedSessionUserId || !selectedGym || !profile?.active_t_path_id) { // Use memoized ID
-      toast.error("Cannot delete last gym: session, selected gym, or active T-Path data missing.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     setIsLastGymWarningOpen(false);
     setIsSaving(true); // Set global saving state
-    const toastId = toast.loading("Resetting workout plan and deleting gym...");
-
+    
     try {
       const response = await fetch(`/api/generate-t-path`, {
         method: 'POST',
@@ -131,12 +138,14 @@ export const GymManagementSection = ({ profile, onDataChange, setIsSaving }: Gym
       const { error: profileError } = await supabase.from('profiles').update({ active_gym_id: null }).eq('id', memoizedSessionUserId); // Use memoized ID
       if (profileError) throw profileError;
 
-      toast.success("Last gym deleted and workout plan reset to defaults.", { id: toastId });
+      setTempStatusMessage({ message: "Updated!", type: 'success' });
       onDataChange(); // Trigger parent refresh
       refreshGyms(); // Refresh the gym context
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } catch (err: any) {
       console.error("Failed to delete last gym:", err.message);
-      toast.error(`Failed to delete last gym: ${err.message}`, { id: toastId });
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setIsSaving(false); // Clear global saving state
       setSelectedGym(null);
@@ -203,6 +212,7 @@ export const GymManagementSection = ({ profile, onDataChange, setIsSaving }: Gym
         onOpenChange={setIsAddGymDialogOpen}
         onSaveSuccess={handleAddSuccess}
         gymCount={userGyms.length} // Pass userGyms.length
+        setTempStatusMessage={setTempStatusMessage} // NEW
       />
 
       <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
@@ -267,6 +277,7 @@ export const GymManagementSection = ({ profile, onDataChange, setIsSaving }: Gym
           refreshGyms();
         }}
         profile={profile} // NEW: Pass profile
+        setTempStatusMessage={setTempStatusMessage} // NEW
       />
     </>
   );

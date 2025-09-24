@@ -23,6 +23,7 @@ interface EditWorkoutExercisesDialogProps {
   workoutId: string;
   workoutName: string;
   onSaveSuccess: () => void;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
 export const EditWorkoutExercisesDialog = ({
@@ -31,6 +32,7 @@ export const EditWorkoutExercisesDialog = ({
   workoutId,
   workoutName,
   onSaveSuccess,
+  setTempStatusMessage, // NEW
 }: EditWorkoutExercisesDialogProps) => {
   const {
     exercises,
@@ -63,7 +65,7 @@ export const EditWorkoutExercisesDialog = ({
     handleToggleBonusStatus,
     handleResetToDefaults,
     handleSaveOrder,
-  } = useEditWorkoutExercises({ workoutId, onSaveSuccess, open });
+  } = useEditWorkoutExercises({ workoutId, onSaveSuccess, open, setTempStatusMessage }); // NEW: Pass setTempStatusMessage
 
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
   const [selectedExerciseForInfo, setSelectedExerciseForInfo] = useState<FetchedExerciseDefinition | null>(null);
@@ -103,6 +105,7 @@ export const EditWorkoutExercisesDialog = ({
                 userGyms={userGyms}
                 selectedGymFilter={selectedGymFilter}
                 setSelectedGymFilter={setSelectedGymFilter}
+                setTempStatusMessage={setTempStatusMessage} // NEW
               />
 
               <SortableExerciseList
@@ -135,6 +138,7 @@ export const EditWorkoutExercisesDialog = ({
           open={isInfoDialogOpen}
           onOpenChange={setIsInfoDialogOpen}
           exercise={selectedExerciseForInfo}
+          setTempStatusMessage={setTempStatusMessage} // NEW
         />
       )}
 

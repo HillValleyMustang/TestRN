@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from "sonner";
 import { Tables, FetchedExerciseDefinition } from "@/types/supabase";
-import { getMaxMinutes } from '@/lib/utils';
+import { getMaxMinutes, areSetsEqual } from '@/lib/utils'; // Import getMaxMinutes and areSetsEqual
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
 import { LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise, LocalGym, LocalGymExercise } from '@/lib/db'; // Import LocalGym and LocalGymExercise
 import { useSession } from '@/components/session-context-provider'; // Import useSession
@@ -14,7 +14,7 @@ type TPath = Tables<'t_paths'>;
 interface UseManageExercisesDataProps {
   sessionUserId: string | null;
   supabase: SupabaseClient;
-  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' } | null) => void;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // UPDATED TYPE
   // Removed userGyms, exerciseGymsMap, availableMuscleGroups, exerciseWorkoutsMap props
 }
 
@@ -48,6 +48,7 @@ interface UseManageExercisesDataReturn {
   setSearchTerm: React.Dispatch<React.SetStateAction<string>>;
   allAvailableExercises: FetchedExerciseDefinition[]; // ADDED
   supabase: SupabaseClient; // ADDED
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // ADDED
 }
 
 export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusMessage }: UseManageExercisesDataProps): UseManageExercisesDataReturn => {
@@ -102,7 +103,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
     }, [memoizedSessionUserId]), // Depend on memoized ID
     queryKey: 'manage_exercises_gym_exercises',
     supabase,
-    sessionUserId: memoizedSessionUserId, // Use memoized ID
+    sessionUserId: memoizedSessionUserId, // Pass memoized ID
   });
 
   const { data: cachedTPaths, loading: loadingTPaths, error: tPathsError, refresh: refreshTPaths } = useCacheAndRevalidate<LocalTPath>({
@@ -164,6 +165,22 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
     return newExerciseGymsMap;
   }, [cachedUserGyms, cachedGymExercises]);
 
+  // NEW: Memoized derived sets
+  const derivedAvailableGymExerciseIds = useMemo(() => {
+    if (!profile?.active_gym_id || !cachedGymExercises) return new Set<string>();
+    return new Set(cachedGymExercises.filter(link => link.gym_id === profile.active_gym_id).map(link => link.exercise_id));
+  }, [profile?.active_gym_id, cachedGymExercises]);
+
+  const derivedAllGymExerciseIds = useMemo(() => {
+    if (!cachedGymExercises) return new Set<string>();
+    return new Set(cachedGymExercises.map(link => link.exercise_id));
+  }, [cachedGymExercises]);
+
+  // Effect to update refs only when the *content* of the derived sets changes
+  // This useEffect block was moved from useManageExercisesData to useWorkoutDataFetcher
+  // because the refs (availableGymExerciseIdsRef, allGymExerciseIdsRef) are declared in useWorkoutDataFetcher.
+  // It is now correctly placed in useWorkoutDataFetcher.
+
   const [exerciseWorkoutsMapState, setExerciseWorkoutsMapState] = useState<Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>>({});
 
   // Effect to populate exerciseWorkoutsMap asynchronously
@@ -203,7 +220,8 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
         .select('exercise_library_id, workout_name, min_session_minutes, bonus_for_time_group');
       if (structureError) {
         console.error("Error fetching workout structure for map:", structureError);
-        toast.error("Failed to load workout structure details.");
+        setTempStatusMessage({ message: "Error!", type: 'error' });
+        setTimeout(() => setTempStatusMessage(null), 3000);
         return;
       }
       const structure = structureData || [];
@@ -245,7 +263,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
                   id: `global_${s.workout_name}`, // Use a unique ID for global workouts
                   name: s.workout_name,
                   isUserOwned: false,
-                  isBonus: false, // Global exercises from structure are not 'bonus' in the same sense
+                  isBonus: false,
                 });
               }
             }
@@ -258,7 +276,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
       }
     };
     populateExerciseWorkoutsMap();
-  }, [memoizedSessionUserId, profile, cachedTPaths, cachedTPathExercises, cachedExercises, supabase, exerciseWorkoutsMapState]);
+  }, [memoizedSessionUserId, profile, cachedTPaths, cachedTPathExercises, cachedExercises, supabase, exerciseWorkoutsMapState, setTempStatusMessage]);
 
 
   const fetchPageData = useCallback(async () => {
@@ -334,11 +352,12 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
 
     } catch (err: any) {
       console.error("ManageExercises: Error in fetchPageData:", err);
-      toast.error("Failed to load exercises.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setLoading(false);
     }
-  }, [memoizedSessionUserId, supabase, selectedMuscleFilter, selectedGymFilter, cachedExercises, dataError, baseLoading, userGyms, exerciseGymsMap, searchTerm, profile]); // Depend on memoized ID
+  }, [memoizedSessionUserId, supabase, selectedMuscleFilter, selectedGymFilter, cachedExercises, dataError, baseLoading, userGyms, exerciseGymsMap, searchTerm, profile, setTempStatusMessage]); // Depend on memoized ID
 
   useEffect(() => {
     if (!baseLoading) { // Only fetch page data once base data is loaded
@@ -365,24 +384,28 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
 
   const handleDeleteExercise = useCallback(async (exercise: FetchedExerciseDefinition) => {
     if (!memoizedSessionUserId || !exercise.id || exercise.user_id !== memoizedSessionUserId) { // Use memoized ID
-      toast.error("You can only delete your own custom exercises.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
-    const toastId = toast.loading(`Deleting '${exercise.name}'...`);
+    
     try {
       const { error } = await supabase.from('exercise_definitions').delete().eq('id', exercise.id).eq('user_id', memoizedSessionUserId); // Use memoized ID
       if (error) throw new Error(error.message);
-      toast.success("Exercise deleted successfully!", { id: toastId });
+      setTempStatusMessage({ message: "Removed!", type: 'removed' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       handleSaveSuccess(); // Refresh all related data
     } catch (err: any) {
       console.error("Failed to delete exercise:", err);
-      toast.error("Failed to delete exercise.", { id: toastId });
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     }
-  }, [memoizedSessionUserId, supabase, handleSaveSuccess]); // Depend on memoized ID
+  }, [memoizedSessionUserId, supabase, handleSaveSuccess, setTempStatusMessage]); // Depend on memoized ID
 
   const handleToggleFavorite = useCallback(async (exercise: FetchedExerciseDefinition) => {
     if (!memoizedSessionUserId) { // Use memoized ID
-      toast.error("You must be logged in to favourite exercises.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     const isUserOwned = exercise.user_id === memoizedSessionUserId; // Use memoized ID
@@ -401,7 +424,7 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
       setGlobalExercises(prev => prev.map(ex => ex.id === exercise.id ? updatedExercise : ex));
     }
 
-    setTempStatusMessage({ message: newFavoriteStatus ? "Added" : "Removed", type: newFavoriteStatus ? 'added' : 'removed' });
+    setTempStatusMessage({ message: newFavoriteStatus ? "Added!" : "Removed!", type: newFavoriteStatus ? 'added' : 'removed' });
     setTimeout(() => setTempStatusMessage(null), 3000);
 
     try {
@@ -419,7 +442,8 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
       }
     } catch (err: any) {
       console.error("Failed to toggle favourite status:", err);
-      toast.error("Failed to update favourite status.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       if (isUserOwned) {
         setUserExercises(prev => prev.map(ex => ex.id === exercise.id ? exercise : ex));
       } else {
@@ -438,23 +462,26 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
 
   const handleRemoveFromWorkout = useCallback(async (workoutId: string, exerciseId: string) => {
     if (!memoizedSessionUserId) { // Use memoized ID
-      toast.error("You must be logged in to remove exercises from workouts.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
     if (!confirm("Are you sure you want to remove this exercise from the workout? This action cannot be undone.")) {
       return;
     }
-    const toastId = toast.loading("Removing exercise from workout...");
+    
     try {
       const { error } = await supabase.from('t_path_exercises').delete().eq('template_id', workoutId).eq('exercise_id', exerciseId);
       if (error) throw new Error(error.message);
-      toast.success("Exercise removed from workout successfully!", { id: toastId });
+      setTempStatusMessage({ message: "Removed!", type: 'removed' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       handleSaveSuccess(); // Refresh all related data
     } catch (err: any) {
       console.error("Failed to remove exercise from workout:", err);
-      toast.error("Failed to remove exercise from workout.", { id: toastId });
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     }
-  }, [memoizedSessionUserId, supabase, handleSaveSuccess]); // Depend on memoized ID
+  }, [memoizedSessionUserId, supabase, handleSaveSuccess, setTempStatusMessage]); // Depend on memoized ID
 
   return {
     globalExercises,
@@ -486,5 +513,6 @@ export const useManageExercisesData = ({ sessionUserId, supabase, setTempStatusM
     setSearchTerm, // NEW
     allAvailableExercises, // ADDED
     supabase, // ADDED
+    setTempStatusMessage, // ADDED
   };
 };

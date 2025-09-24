@@ -23,9 +23,10 @@ interface PersonalInfoFormProps {
   mainMuscleGroups: string[];
   onDataChange: () => void;
   setIsSaving: (isSaving: boolean) => void;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
-export const PersonalInfoForm = ({ mainMuscleGroups, onDataChange, setIsSaving }: PersonalInfoFormProps) => {
+export const PersonalInfoForm = ({ mainMuscleGroups, onDataChange, setIsSaving, setTempStatusMessage }: PersonalInfoFormProps) => {
   const [isBodyFatInfoModalOpen, setIsBodyFatInfoModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false); // Local editing state
   const form = useFormContext(); // Use context
@@ -34,7 +35,8 @@ export const PersonalInfoForm = ({ mainMuscleGroups, onDataChange, setIsSaving }
 
   const handleSave = async () => {
     if (!memoizedSessionUserId || !profile) { // Use memoized ID
-      toast.error("Cannot save profile: session or profile data missing.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
 
@@ -61,15 +63,17 @@ export const PersonalInfoForm = ({ mainMuscleGroups, onDataChange, setIsSaving }
       const { error } = await supabase.from('profiles').update(updateData).eq('id', memoizedSessionUserId); // Use memoized ID
       if (error) {
         console.error("Failed to update personal info:", error);
-        toast.error("Failed to update personal info.");
-        return;
+        setTempStatusMessage({ message: "Error!", type: 'error' });
+      } else {
+        setTempStatusMessage({ message: "Updated!", type: 'success' });
+        onDataChange(); // Refresh parent data
+        setIsEditing(false); // Exit editing mode
       }
-      toast.success("Personal info updated successfully!");
-      onDataChange(); // Refresh parent data
-      setIsEditing(false); // Exit editing mode
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } catch (error: any) {
       console.error("Error saving personal info:", error);
-      toast.error("Error saving personal info.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setIsSaving(false); // Clear global saving state
     }

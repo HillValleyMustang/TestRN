@@ -21,7 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn, getWorkoutColorClass, getWorkoutIcon } from '@/lib/utils';
+import { cn, getWorkoutColorClass } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Separator } from '@/components/ui/separator';
 
@@ -41,6 +41,7 @@ interface ExerciseCardProps {
   isExerciseCompleted: boolean;
   isExpandedProp: boolean;
   onToggleExpand: (exerciseId: string) => void;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
 export const ExerciseCard = ({
@@ -57,6 +58,7 @@ export const ExerciseCard = ({
   isExerciseCompleted,
   isExpandedProp,
   onToggleExpand,
+  setTempStatusMessage, // NEW
 }: ExerciseCardProps) => {
   const { session } = useSession();
   const [preferredWeightUnit, setPreferredWeightUnit] = useState<Profile['preferred_weight_unit']>('kg');
@@ -86,7 +88,8 @@ export const ExerciseCard = ({
 
       if (error && error.code !== 'PGRST116') {
         console.error("Error fetching user profile for units/rest time:", error);
-        toast.error("Failed to load user preferences.");
+        setTempStatusMessage({ message: "Error!", type: 'error' });
+        setTimeout(() => setTempStatusMessage(null), 3000);
       } else if (profileData) {
         setPreferredWeightUnit(profileData.preferred_weight_unit || 'kg');
         setDefaultRestTime(profileData.default_rest_time_seconds || 60);
@@ -94,7 +97,7 @@ export const ExerciseCard = ({
       }
     };
     fetchUserProfile();
-  }, [session, supabase]);
+  }, [session, supabase, setTempStatusMessage]);
 
   const {
     sets,
@@ -123,6 +126,7 @@ export const ExerciseCard = ({
     },
     workoutTemplateName,
     exerciseNumber,
+    setTempStatusMessage, // NEW
   });
 
   const handleSaveSetAndStartTimer = async (setIndex: number) => {
@@ -429,6 +433,7 @@ export const ExerciseCard = ({
         open={showExerciseInfoDialog}
         onOpenChange={setShowExerciseInfoDialog}
         exercise={exercise}
+        setTempStatusMessage={setTempStatusMessage} // NEW
       />
       <ExerciseSwapDialog
         open={showSwapDialog}
@@ -440,6 +445,7 @@ export const ExerciseCard = ({
           }
           setShowSwapDialog(false);
         }}
+        setTempStatusMessage={setTempStatusMessage} // NEW
       />
       <CantDoToggle
         open={showCantDoDialog}
@@ -457,6 +463,7 @@ export const ExerciseCard = ({
           }
           setShowCantDoDialog(false);
         }}
+        setTempStatusMessage={setTempStatusMessage} // NEW
       />
     </React.Fragment>
   );

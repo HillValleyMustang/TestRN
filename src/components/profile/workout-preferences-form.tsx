@@ -15,9 +15,10 @@ import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher'; // Imp
 interface WorkoutPreferencesFormProps {
   onDataChange: () => void;
   setIsSaving: (isSaving: boolean) => void;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
-export const WorkoutPreferencesForm = ({ onDataChange, setIsSaving }: WorkoutPreferencesFormProps) => {
+export const WorkoutPreferencesForm = ({ onDataChange, setIsSaving, setTempStatusMessage }: WorkoutPreferencesFormProps) => {
   const [isEditing, setIsEditing] = useState(false); // Local editing state
   const form = useFormContext(); // Use context
   const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
@@ -25,7 +26,8 @@ export const WorkoutPreferencesForm = ({ onDataChange, setIsSaving }: WorkoutPre
 
   const handleSave = async () => {
     if (!memoizedSessionUserId || !profile) { // Use memoized ID
-      toast.error("Cannot save preferences: session or profile data missing.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       return;
     }
 
@@ -42,10 +44,10 @@ export const WorkoutPreferencesForm = ({ onDataChange, setIsSaving }: WorkoutPre
       const { error } = await supabase.from('profiles').update(updateData).eq('id', memoizedSessionUserId); // Use memoized ID
       if (error) {
         console.error("Failed to update workout preferences:", error);
-        toast.error("Failed to update workout preferences.");
+        setTempStatusMessage({ message: "Error!", type: 'error' });
         return;
       }
-      toast.success("Workout preferences updated successfully!");
+      setTempStatusMessage({ message: "Updated!", type: 'success' });
       onDataChange(); // Refresh parent data
 
       // Always trigger plan regeneration if an active T-Path exists and session length changed
@@ -67,19 +69,21 @@ export const WorkoutPreferencesForm = ({ onDataChange, setIsSaving }: WorkoutPre
           if (!response.ok) {
             const errorText = await response.text();
             console.error("[WorkoutPreferencesForm] Failed to initiate T-Path workout regeneration API:", errorText);
+            setTempStatusMessage({ message: "Error!", type: 'error' });
             throw new Error(`Failed to initiate T-Path workout regeneration: ${errorText}`);
           }
           console.log("[WorkoutPreferencesForm] Successfully initiated T-Path workout regeneration API call.");
         } catch (err: any) {
           console.error("[WorkoutPreferencesForm] Error initiating workout plan update:", err);
-          toast.error("Error initiating workout plan update.");
+          setTempStatusMessage({ message: "Error!", type: 'error' });
         }
       }
-
+      setTimeout(() => setTempStatusMessage(null), 3000);
       setIsEditing(false); // Exit editing mode
     } catch (error: any) {
       console.error("Error saving workout preferences:", error);
-      toast.error("Error saving workout preferences.");
+      setTempStatusMessage({ message: "Error!", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
       setIsSaving(false); // Clear global saving state
     }

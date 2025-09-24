@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { Tables, SetLogState, UserExercisePR, UserExercisePRInsert, UserExercisePRUpdate } from '@/types/supabase';
-import { useSession } from '@/components/session-context-provider'; // Import useSession to get user ID
+import { useSession } from '@/components/session-context-provider'; // Import useSession
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
@@ -12,9 +12,10 @@ interface UseSetPRLogicProps {
   exerciseId: string;
   exerciseType: ExerciseDefinition['type'];
   supabase: SupabaseClient;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
 }
 
-export const useSetPRLogic = ({ exerciseId, exerciseType, supabase }: UseSetPRLogicProps) => {
+export const useSetPRLogic = ({ exerciseId, exerciseType, supabase, setTempStatusMessage }: UseSetPRLogicProps) => {
   const { session, memoizedSessionUserId } = useSession(); // Get session to access user ID
   const [exercisePR, setExercisePR] = useState<UserExercisePR | null>(null);
   const [loadingPR, setLoadingPR] = useState(true);
@@ -38,7 +39,8 @@ export const useSetPRLogic = ({ exerciseId, exerciseType, supabase }: UseSetPRLo
 
       if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
         console.error(`[useSetPRLogic] Error fetching exercise PB for ${exerciseId}:`, error);
-        toast.error(`Failed to load personal best for ${exerciseId}.`); // Changed to toast.error
+        setTempStatusMessage({ message: "Error!", type: 'error' });
+        setTimeout(() => setTempStatusMessage(null), 3000);
         setExercisePR(null);
       } else if (data && data.length > 0) {
         setExercisePR(data[0] as UserExercisePR); // Take the first (and only) record
@@ -50,7 +52,7 @@ export const useSetPRLogic = ({ exerciseId, exerciseType, supabase }: UseSetPRLo
       setLoadingPR(false);
     };
     fetchExercisePR();
-  }, [exerciseId, supabase, memoizedSessionUserId]); // Depend on memoized ID
+  }, [exerciseId, supabase, memoizedSessionUserId, setTempStatusMessage]); // Depend on memoized ID
 
   const checkAndSaveSetPR = useCallback(async (
     set: SetLogState,
@@ -106,7 +108,8 @@ export const useSetPRLogic = ({ exerciseId, exerciseType, supabase }: UseSetPRLo
 
       if (upsertError) {
         console.error(`[useSetPRLogic] Error saving set PB for ${exerciseId}:`, upsertError);
-        toast.error("Failed to update personal best."); // Changed to toast.error
+        setTempStatusMessage({ message: "Error!", type: 'error' });
+        setTimeout(() => setTempStatusMessage(null), 3000);
         return { isNewPR: false, updatedPR: currentPRState }; // Return original if error
       }
       setExercisePR(updatedPR as UserExercisePR); // Update internal state
@@ -115,7 +118,7 @@ export const useSetPRLogic = ({ exerciseId, exerciseType, supabase }: UseSetPRLo
     }
     console.log(`[useSetPRLogic] No new PB for ${exerciseId}.`);
     return { isNewPR: false, updatedPR: currentPRState };
-  }, [exerciseId, exerciseType, supabase]);
+  }, [exerciseId, exerciseType, supabase, setTempStatusMessage]);
 
   return { exercisePR, loadingPR, checkAndSaveSetPR };
 };
