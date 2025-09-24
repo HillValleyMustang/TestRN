@@ -91,6 +91,7 @@ export default function WorkoutPage() {
         exercisesForSession={workoutFlowManager.exercisesForSession}
         completedExercises={workoutFlowManager.completedExercises} // Explicitly pass as Set<string>
         isWorkoutSessionStarted={workoutFlowManager.isWorkoutSessionStarted} // USE NEW PROP
+        activeWorkout={workoutFlowManager.activeWorkout}
       />
       <WorkoutSummaryModal
         open={showSummaryModal}

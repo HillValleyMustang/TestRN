@@ -6,7 +6,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function getWorkoutColorClass(workoutName: string, type: 'text' | 'border' | 'bg' = 'text'): string {
+export function getWorkoutColorClass(workoutName: string, type: 'text' | 'border' | 'bg' | 'gradient' = 'text'): string | { from: string, to: string } {
   let colorKey: string;
   switch (workoutName) {
     case 'Upper Body A':
@@ -39,11 +39,15 @@ export function getWorkoutColorClass(workoutName: string, type: 'text' | 'border
     case 'Bonus': // New case for bonus exercises
       colorKey = 'bonus';
       break;
-    default: return ''; // No specific color for other workouts or 'Ad Hoc Workout'
+    case 'Ad Hoc Workout': // Handle Ad Hoc workout explicitly
+      colorKey = 'ad-hoc';
+      break;
+    default: return ''; // No specific color for other workouts
   }
 
-  // Use the single color variable for all types
-  if (type === 'text') {
+  if (type === 'gradient') {
+    return { from: `from-workout-${colorKey}`, to: `to-workout-${colorKey}-light` };
+  } else if (type === 'text') {
     return `text-workout-${colorKey}`;
   } else if (type === 'bg') {
     return `bg-workout-${colorKey}`;
@@ -75,7 +79,8 @@ export function getWorkoutIcon(workoutName: string): LucideIcon | null {
       return Star;
     case '4-Day Upper/Lower':
     case '3-Day Push/Pull/Legs':
-      return Dumbbell; // Generic icon for main T-Paths
+    case 'Ad Hoc Workout': // Generic icon for main T-Paths and Ad Hoc
+      return Dumbbell; 
     default:
       return null;
   }

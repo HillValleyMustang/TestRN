@@ -78,21 +78,36 @@
 
     /* New Workout Pill Colors (from user's specific hex codes) */
     --workout-upper-body-a: 220 68% 32%; /* #1e3a8a */
+    --workout-upper-body-a-light: 220 68% 42%;
     --workout-upper-body-b: 0 84% 60%; /* #ef4444 */
+    --workout-upper-body-b-light: 0 84% 70%;
     --workout-lower-body-a: 190 86% 36%; /* #0891b2 */
+    --workout-lower-body-a-light: 190 86% 46%;
     --workout-lower-body-b: 270 67% 40%; /* #6b21a8 */
+    --workout-lower-body-b-light: 270 67% 50%;
     --workout-push: 120 60% 45%; /* NEW: classic Adidas forest green */
+    --workout-push-light: 120 60% 55%;
     --workout-pull: 35 85% 55%; /* NEW: vintage orange */
+    --workout-pull-light: 35 85% 65%;
     --workout-legs: 280 55% 50%; /* NEW: brighter purple/magenta */
+    --workout-legs-light: 280 55% 60%;
     --workout-bonus: 50 75% 60%; /* NEW: golden yellow */
+    --workout-bonus-light: 50 75% 70%;
     --workout-ad-hoc: 50 75% 60%; /* NEW: same as bonus - golden yellow */
+    --workout-ad-hoc-light: 50 75% 70%;
     --workout-activity: var(--chart-2); /* Generic activity color */
+    --workout-activity-light: 173 58% 49%;
+
 
     /* NEW Activity Colors */
     --activity-running: 25 80% 55%; /* coral/salmon */
+    --activity-running-light: 25 80% 65%;
     --activity-swimming: 200 85% 45%; /* deeper aqua blue */
+    --activity-swimming-light: 200 85% 55%;
     --activity-cycling: 160 70% 40%; /* sage green */
+    --activity-cycling-light: 160 70% 50%;
     --activity-tennis: 300 70% 55%; /* bright magenta */
+    --activity-tennis-light: 300 70% 65%;
 
 
     /* New Aurora Colors (Light Mode) - Adjusted to retro palette */
@@ -176,21 +191,35 @@
 
     /* Dark mode adjustments for new workout colors - Directly from 90s Retro Palette */
     --workout-upper-body-a: 220 68% 32%; /* #1e3a8a */
+    --workout-upper-body-a-light: 220 68% 42%;
     --workout-upper-body-b: 0 84% 60%; /* #ef4444 */
+    --workout-upper-body-b-light: 0 84% 70%;
     --workout-lower-body-a: 190 86% 36%; /* #0891b2 */
+    --workout-lower-body-a-light: 190 86% 46%;
     --workout-lower-body-b: 270 67% 40%; /* #6b21a8 */
+    --workout-lower-body-b-light: 270 67% 50%;
     --workout-push: 120 60% 45%; /* NEW: classic Adidas forest green */
+    --workout-push-light: 120 60% 55%;
     --workout-pull: 35 85% 55%; /* NEW: vintage orange */
+    --workout-pull-light: 35 85% 65%;
     --workout-legs: 280 55% 50%; /* NEW: brighter purple/magenta */
+    --workout-legs-light: 280 55% 60%;
     --workout-bonus: 50 75% 60%; /* NEW: golden yellow */
+    --workout-bonus-light: 50 75% 70%;
     --workout-ad-hoc: 50 75% 60%; /* NEW: same as bonus - golden yellow */
+    --workout-ad-hoc-light: 50 75% 70%;
     --workout-activity: var(--chart-2); /* Generic activity color */
+    --workout-activity-light: 173 58% 49%;
 
     /* NEW Activity Colors */
     --activity-running: 25 80% 55%; /* coral/salmon */
+    --activity-running-light: 25 80% 65%;
     --activity-swimming: 200 85% 45%; /* deeper aqua blue */
+    --activity-swimming-light: 200 85% 55%;
     --activity-cycling: 160 70% 40%; /* sage green */
+    --activity-cycling-light: 160 70% 50%;
     --activity-tennis: 300 70% 55%; /* bright magenta */
+    --activity-tennis-light: 300 70% 65%;
   }
 }
 

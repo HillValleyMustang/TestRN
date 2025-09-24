@@ -15,8 +15,13 @@ interface WorkoutSessionHeaderProps {
 export const WorkoutSessionHeader = ({ tPathName, currentExerciseCount, totalExercises }: WorkoutSessionHeaderProps) => {
   const router = useRouter();
   const workoutColorClass = getWorkoutColorClass(tPathName, 'text');
-  const progressBarColorClass = getWorkoutColorClass(tPathName, 'bg');
+  const progressBarGradientClasses = getWorkoutColorClass(tPathName, 'gradient');
   const progressPercentage = totalExercises > 0 ? (currentExerciseCount / totalExercises) * 100 : 0;
+
+  // Ensure progressBarGradientClasses is an object with 'from' and 'to' properties
+  const fromClass = typeof progressBarGradientClasses === 'object' ? progressBarGradientClasses.from : 'from-primary';
+  const toClass = typeof progressBarGradientClasses === 'object' ? progressBarGradientClasses.to : 'to-action';
+
 
   return (
     <header className="sticky top-0 z-20 w-full bg-background/95 backdrop-blur-md border-b p-4 sm:px-6 sm:py-4">
@@ -29,7 +34,7 @@ export const WorkoutSessionHeader = ({ tPathName, currentExerciseCount, totalExe
       </div>
       <div className="w-full bg-muted rounded-full h-2">
         <div
-          className={cn("h-2 rounded-full transition-all duration-500 ease-out", progressBarColorClass)}
+          className={cn("h-2 rounded-full transition-all duration-500 ease-out", fromClass, toClass)}
           style={{ width: `${progressPercentage}%` }}
         ></div>
       </div>

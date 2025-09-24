@@ -70,13 +70,23 @@ export default {
   			},
         workout: {
           'upper-body-a': 'hsl(var(--workout-upper-body-a))',
+          'upper-body-a-light': 'hsl(var(--workout-upper-body-a-light))',
           'upper-body-b': 'hsl(var(--workout-upper-body-b))',
+          'upper-body-b-light': 'hsl(var(--workout-upper-body-b-light))',
           'lower-body-a': 'hsl(var(--workout-lower-body-a))',
+          'lower-body-a-light': 'hsl(var(--workout-lower-body-a-light))',
           'lower-body-b': 'hsl(var(--workout-lower-body-b))',
+          'lower-body-b-light': 'hsl(var(--workout-lower-body-b-light))',
           'push': 'hsl(var(--workout-push))',
+          'push-light': 'hsl(var(--workout-push-light))',
           'pull': 'hsl(var(--workout-pull))',
+          'pull-light': 'hsl(var(--workout-pull-light))',
           'legs': 'hsl(var(--workout-legs))',
+          'legs-light': 'hsl(var(--workout-legs-light))',
           'bonus': 'hsl(var(--workout-bonus))',
+          'bonus-light': 'hsl(var(--workout-bonus-light))',
+          'ad-hoc': 'hsl(var(--workout-ad-hoc))',
+          'ad-hoc-light': 'hsl(var(--workout-ad-hoc-light))',
         },
   		},
   		borderRadius: {
@@ -129,7 +139,10 @@ export default {
   plugins: [require("tailwindcss-animate")],
   safelist: [
     {
-      pattern: /(bg|text|border)-workout-(upper-body-a|lower-body-a|upper-body-b|lower-body-b|push|pull|legs|bonus)/,
+      pattern: /(bg|text|border)-workout-(upper-body-a|lower-body-a|upper-body-b|lower-body-b|push|pull|legs|bonus|ad-hoc)/,
+    },
+    {
+      pattern: /(from|to)-workout-(upper-body-a|lower-body-a|upper-body-b|lower-body-b|push|pull|legs|bonus|ad-hoc)(-light)?/,
     },
     // Add the specific background colors for the fitness level badge to the safelist
     'bg-gray-500',

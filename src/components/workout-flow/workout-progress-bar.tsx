@@ -2,20 +2,24 @@
 
 import React, { useMemo } from 'react';
 import { Progress } from '@/components/ui/progress';
-import { cn } from '@/lib/utils';
-import { WorkoutExercise } from '@/types/supabase';
+import { cn, getWorkoutColorClass } from '@/lib/utils';
+import { Tables, WorkoutExercise } from '@/types/supabase';
 import { Dumbbell } from 'lucide-react';
+
+type TPath = Tables<'t_paths'>; // Import TPath type
 
 interface WorkoutProgressBarProps {
   exercisesForSession: WorkoutExercise[];
   completedExercises: Set<string>;
   isWorkoutSessionStarted: boolean; // NEW PROP
+  activeWorkout: TPath | null; // NEW PROP
 }
 
 export const WorkoutProgressBar = ({
   exercisesForSession,
   completedExercises,
   isWorkoutSessionStarted, // USE NEW PROP
+  activeWorkout, // NEW PROP
 }: WorkoutProgressBarProps) => {
   const totalExercises = exercisesForSession.length;
   const completedCount = completedExercises.size;
@@ -28,6 +32,13 @@ export const WorkoutProgressBar = ({
   if (!isWorkoutSessionStarted || totalExercises === 0) { // USE NEW PROP FOR VISIBILITY
     return null; // Don't render if workout session hasn't started or no exercises
   }
+
+  const workoutName = activeWorkout?.template_name || 'Ad Hoc Workout';
+  const progressBarGradientClasses = getWorkoutColorClass(workoutName, 'gradient');
+
+  // Ensure progressBarGradientClasses is an object with 'from' and 'to' properties
+  const fromClass = typeof progressBarGradientClasses === 'object' ? progressBarGradientClasses.from : 'from-primary';
+  const toClass = typeof progressBarGradientClasses === 'object' ? progressBarGradientClasses.to : 'to-action';
 
   return (
     <div
@@ -46,7 +57,7 @@ export const WorkoutProgressBar = ({
             </span>
             <span className="text-primary">{Math.round(progressPercentage)}% Complete</span>
           </div>
-          <Progress value={progressPercentage} className="h-2 bg-muted" indicatorClassName="bg-gradient-to-r from-primary to-action" />
+          <Progress value={progressPercentage} className="h-2 bg-muted" indicatorClassName={cn(fromClass, toClass)} />
         </div>
       </div>
     </div>
