@@ -57,7 +57,11 @@ export const WorkoutProgressBar = ({
             </span>
             <span className="text-primary">{Math.round(progressPercentage)}% Complete</span>
           </div>
-          <Progress value={progressPercentage} className="h-2 bg-muted" indicatorClassName={cn(fromClass, toClass)} />
+          <Progress 
+            value={progressPercentage} 
+            className="h-2 bg-muted" 
+            indicatorClassName={cn("bg-gradient-to-r", fromClass, toClass)} // ADDED bg-gradient-to-r
+          />
         </div>
       </div>
     </div>
