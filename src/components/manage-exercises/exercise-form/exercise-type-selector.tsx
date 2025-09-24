@@ -58,7 +58,7 @@ export const ExerciseTypeSelector = ({
           </span>
         </div>
       </div>
-      <FormMessage />
+      {/* Removed FormMessage from here */}
     </div>
   );
 };
