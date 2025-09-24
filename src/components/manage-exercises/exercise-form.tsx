@@ -134,7 +134,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
   }, [editingExercise, form]);
 
   const handleTypeChange = (type: "weight" | "timed" | "bodyweight") => {
-    form.setValue("type", [type]);
+    form.setValue("type", [type], { shouldValidate: true, shouldDirty: true }); // Trigger validation and dirty state
     setSelectedTypes([type]);
   };
 
@@ -148,7 +148,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
       newMuscles = [...currentMuscles, muscle];
     }
     
-    form.setValue("main_muscles", newMuscles);
+    form.setValue("main_muscles", newMuscles, { shouldValidate: true, shouldDirty: true }); // Trigger validation and dirty state
     setSelectedMuscles(newMuscles);
   };
 
@@ -158,15 +158,8 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
       return;
     }
 
-    if (!values.type || values.type.length === 0) {
-      toast.error("Please select at least one exercise type.");
-      return;
-    }
-
-    if (!values.main_muscles || values.main_muscles.length === 0) {
-      toast.error("Please select at least one main muscle group.");
-      return;
-    }
+    // Removed redundant checks for values.type and values.main_muscles.
+    // Zod resolver now handles these and displays messages via FormMessage.
 
     const exerciseData = {
       name: values.name,
@@ -269,10 +262,19 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
                   handleMuscleToggle={handleMuscleToggle}
                 />
                 
-                <ExerciseTypeSelector
-                  form={form}
-                  selectedTypes={selectedTypes}
-                  handleTypeChange={handleTypeChange}
+                <FormField 
+                  control={form.control} 
+                  name="type" 
+                  render={({ field }) => (
+                    <FormItem>
+                      <ExerciseTypeSelector
+                        form={form}
+                        selectedTypes={selectedTypes}
+                        handleTypeChange={handleTypeChange}
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )} 
                 />
                 
                 <ExerciseCategorySelect
