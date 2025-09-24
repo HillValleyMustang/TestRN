@@ -153,7 +153,7 @@ export const UserExerciseList = ({
                   {exercises.map((ex) => (
                     <li key={ex.id!} className="flex flex-col py-1 px-2 border rounded-md w-full"> {/* Changed to flex-col */}
                       <div className="flex justify-between items-start w-full"> {/* Row 1: Exercise Name */}
-                        <p className="font-medium text-base whitespace-normal flex-grow min-w-0">{ex.name}</p>
+                        <p className="font-medium text-base whitespace-normal max-w-[calc(100%-80px)]">{ex.name}</p>
                       </div>
                       <div className="flex justify-between items-center w-full mt-1"> {/* Row 2: Muscle Group | Buttons */}
                         <p className="text-sm text-muted-foreground whitespace-normal flex-grow min-w-0">{ex.main_muscle}</p>
