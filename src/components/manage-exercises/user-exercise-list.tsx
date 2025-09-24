@@ -266,6 +266,7 @@ export const UserExerciseList = ({
             open={isManageGymsDialogOpen}
             onOpenChange={setIsManageGymsDialogOpen}
             exercise={selectedExerciseForGyms}
+            userGyms={userGyms}
             initialSelectedGymIds={initialSelectedGymIdsForDialog}
             onSaveSuccess={onAddSuccess}
         />

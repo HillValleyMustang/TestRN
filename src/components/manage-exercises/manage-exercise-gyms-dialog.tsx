@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import { useSession } from "@/components/session-context-provider";
 import { Tables, FetchedExerciseDefinition } from '@/types/supabase';
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useManageExercisesData } from '@/hooks/use-manage-exercises-data'; // NEW: Import useManageExercisesData
 
 type Gym = Tables<'gyms'>;
 
@@ -17,7 +16,7 @@ interface ManageExerciseGymsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   exercise: FetchedExerciseDefinition;
-  // Removed userGyms prop
+  userGyms: Tables<'gyms'>[]; // NEW: Receive userGyms as a prop
   initialSelectedGymIds: Set<string>;
   onSaveSuccess: () => void;
 }
@@ -26,18 +25,11 @@ export const ManageExerciseGymsDialog = ({
   open,
   onOpenChange,
   exercise,
-  // Removed userGyms prop
+  userGyms, // Use the prop
   initialSelectedGymIds,
   onSaveSuccess,
 }: ManageExerciseGymsDialogProps) => {
-  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
-  // NEW: Consume userGyms from useManageExercisesData
-  const { userGyms: fetchedUserGyms, refreshExercises: refreshManageExercisesData } = useManageExercisesData({
-    sessionUserId: memoizedSessionUserId, // Use memoized ID
-    supabase,
-    setTempStatusMessage: () => {}, // Placeholder, not used here
-  });
-
+  const { session, supabase, memoizedSessionUserId } = useSession();
   const [selectedGymIds, setSelectedGymIds] = useState<Set<string>>(initialSelectedGymIds);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -58,8 +50,8 @@ export const ManageExerciseGymsDialog = ({
   };
 
   const handleSaveChanges = async () => {
-    if (!memoizedSessionUserId || !exercise.id) { // Use memoized ID
-      toast.error("Cannot save changes: session or exercise ID missing."); // Added toast.error
+    if (!memoizedSessionUserId || !exercise.id) {
+      toast.error("Cannot save changes: session or exercise ID missing.");
       return;
     }
     setIsSaving(true);
@@ -87,12 +79,11 @@ export const ManageExerciseGymsDialog = ({
       }
 
       toast.success(`Gym associations for "${exercise.name}" updated.`);
-      onSaveSuccess();
-      refreshManageExercisesData(); // NEW: Refresh all data after saving changes
+      onSaveSuccess(); // This will trigger the refresh in the parent.
       onOpenChange(false);
     } catch (err: any) {
       console.error("Failed to update gym associations:", err);
-      toast.error("Failed to update gym associations."); // Changed to toast.error
+      toast.error("Failed to update gym associations.");
     } finally {
       setIsSaving(false);
     }
@@ -109,10 +100,10 @@ export const ManageExerciseGymsDialog = ({
         </DialogHeader>
         <ScrollArea className="max-h-64 py-4">
           <div className="space-y-3">
-            {fetchedUserGyms.length === 0 ? ( // Use fetchedUserGyms
+            {userGyms.length === 0 ? (
               <p className="text-muted-foreground text-sm">You haven't created any gyms yet. Go to your profile settings to add one.</p>
             ) : (
-              fetchedUserGyms.map(gym => ( // Use fetchedUserGyms
+              userGyms.map(gym => (
                 <div key={gym.id} className="flex items-center space-x-2">
                   <Checkbox
                     id={`gym-${gym.id}`}
@@ -129,7 +120,7 @@ export const ManageExerciseGymsDialog = ({
         </ScrollArea>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSaveChanges} disabled={isSaving || fetchedUserGyms.length === 0}> {/* Use fetchedUserGyms */}
+          <Button onClick={handleSaveChanges} disabled={isSaving || userGyms.length === 0}>
             {isSaving ? "Saving..." : "Save Changes"}
           </Button>
         </DialogFooter>
