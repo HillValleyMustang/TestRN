@@ -125,6 +125,38 @@ export type Database = {
           },
         ];
       };
+      client_logs: {
+        Row: {
+          data: Json | null
+          id: string
+          log_type: string
+          timestamp: string | null
+          user_id: string | null
+        }
+        Insert: {
+          data?: Json | null
+          id?: string
+          log_type: string
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          data?: Json | null
+          id?: string
+          log_type?: string
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      };
       exercise_definitions: {
         Row: {
           category: string | null;
@@ -249,6 +281,30 @@ export type Database = {
           },
         ];
       };
+      notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          message: string
+          title: string
+          type: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message: string
+          title: string
+          type?: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message?: string
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      };
       profiles: {
         Row: {
           active_gym_id: string | null;
@@ -340,6 +396,38 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      progress_photos: {
+        Row: {
+          created_at: string | null
+          id: string
+          notes: string | null
+          photo_path: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          photo_path: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          photo_path?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "progress_photos_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       };
       set_logs: {
         Row: {
