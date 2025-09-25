@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Camera, Check, RefreshCw, X } from 'lucide-react';
+import { Camera, Check, RefreshCw, X, Ghost } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface PhotoCaptureFlowProps {
@@ -35,6 +35,7 @@ export const PhotoCaptureFlow = ({ open, onOpenChange, onPhotoCaptured }: PhotoC
   const [stream, setStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isPoseGhostVisible, setIsPoseGhostVisible] = useState(false);
 
   const startCamera = useCallback(async () => {
     try {
@@ -130,6 +131,13 @@ export const PhotoCaptureFlow = ({ open, onOpenChange, onPhotoCaptured }: PhotoC
           )}
           <canvas ref={canvasRef} className="hidden" />
 
+          {/* Pose Ghost Overlay */}
+          {isPoseGhostVisible && step === 'capture' && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <Ghost className="w-3/4 h-3/4 text-white opacity-30" />
+            </div>
+          )}
+
           {/* Controls */}
           <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/50 to-transparent flex justify-center items-center">
             {step === 'capture' && (
@@ -152,14 +160,29 @@ export const PhotoCaptureFlow = ({ open, onOpenChange, onPhotoCaptured }: PhotoC
               </div>
             )}
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-4 right-4 text-white bg-black/30 hover:bg-black/50 hover:text-white"
-            onClick={() => onOpenChange(false)}
-          >
-            <X className="h-6 w-6" />
-          </Button>
+          
+          {/* Top-right controls */}
+          <div className="absolute top-4 right-4 flex items-center gap-2">
+            {step === 'capture' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white bg-black/30 hover:bg-black/50 hover:text-white"
+                onClick={() => setIsPoseGhostVisible(prev => !prev)}
+                title="Toggle Pose Ghost"
+              >
+                <Ghost className="h-6 w-6" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white bg-black/30 hover:bg-black/50 hover:text-white"
+              onClick={() => onOpenChange(false)}
+            >
+              <X className="h-6 w-6" />
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
