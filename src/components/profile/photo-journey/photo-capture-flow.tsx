@@ -191,7 +191,7 @@ export const PhotoCaptureFlow = ({ open, onOpenChange, onPhotoCaptured }: PhotoC
           {/* Pose Ghost Overlay */}
           {isPoseGhostVisible && ghostImageUrl && step === 'capture' && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <img src={ghostImageUrl} alt="Pose ghost" className="w-full h-full object-contain opacity-30" />
+              <img src={ghostImageUrl} alt="Pose ghost" className="w-full h-full object-cover opacity-[0.35]" />
             </div>
           )}
 
