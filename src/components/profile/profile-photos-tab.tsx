@@ -28,7 +28,8 @@ export const ProfilePhotosTab = () => {
         },
       });
       if (!response.ok) {
-        throw new Error('Failed to fetch photos.');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch photos.');
       }
       const data = await response.json();
       setPhotos(data);
