@@ -10,7 +10,7 @@ import *as z from "zod";
 import { toast } from 'sonner';
 import { Profile as ProfileType, ProfileUpdate, Tables, LocalUserAchievement } from '@/types/supabase';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart2, User, Settings, ChevronLeft, ChevronRight, Flame, Dumbbell, Trophy, Star, Footprints, ListChecks, Camera } from 'lucide-react';
+import { BarChart2, User, Settings, ChevronLeft, ChevronRight, Flame, Dumbbell, Trophy, Star, Footprints, ListChecks } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, getLevelFromPoints } from '@/lib/utils';
 import { AchievementDetailDialog } from '@/components/profile/achievement-detail-dialog';
@@ -21,12 +21,11 @@ import { useCacheAndRevalidate } from '@/hooks/use-cache-and-revalidate';
 
 import { ProfileOverviewTab } from '@/components/profile/profile-overview-tab';
 import { ProfileStatsTab } from '@/components/profile/profile-stats-tab';
-import { ProfilePhotosTab } from '@/components/profile/profile-photos-tab';
 import { ProfileSettingsTab } from '@/components/profile/profile-settings-tab';
 import { PointsExplanationModal } from '@/components/profile/points-explanation-modal';
 import { achievementsList } from '@/lib/achievements';
 import { LoadingOverlay } from '@/components/loading-overlay';
-import { useWorkoutFlow } from '@/components/workout-flow/workout-flow-context-provider';
+import { useWorkoutFlow } from '@/components/workout-flow/workout-flow-context-provider'; // NEW: Import useWorkoutFlow
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
@@ -56,14 +55,14 @@ const profileSchema = z.object({
   health_notes: z.string().optional().nullable(),
   preferred_session_length: z.string().optional().nullable(),
   preferred_muscles: z.array(z.string()).optional().nullable(),
-  programme_type: z.string().optional().nullable(),
+  programme_type: z.string().optional().nullable(), // Added programme_type
 });
 
 export default function ProfilePage() {
   const { session, supabase } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // Still needed for LoadingOverlay
   const [aiCoachUsageToday, setAiCoachUsageToday] = useState(0);
   
   const [isAchievementDetailOpen, setIsAchievementDetailOpen] = useState(false);
@@ -84,7 +83,7 @@ export default function ProfilePage() {
       health_notes: null,
       preferred_session_length: null, 
       preferred_muscles: [],
-      programme_type: null,
+      programme_type: null, // Added programme_type
     },
   });
 
@@ -132,7 +131,7 @@ export default function ProfilePage() {
     supabaseQuery: useCallback(async (client) => {
       if (!session?.user.id) return { data: [], error: null };
       const { data: userTPaths, error: tPathsError } = await client.from('t_paths').select('id').eq('user_id', session.user.id);
-      if (tPathsError) throw tPathsError;
+      if (tPathsError) throw tPathsError; // Throw error if fetching t_paths fails
       if (!userTPaths) return { data: [], error: null };
       const tpathIds = userTPaths.map(p => p.id);
       return client.from('t_path_exercises').select('*').in('template_id', tpathIds);
@@ -198,7 +197,7 @@ export default function ProfilePage() {
       const currentFormValues = form.getValues();
 
       const needsUpdate = 
-        !form.formState.isDirty ||
+        !form.formState.isDirty || // If form is not dirty, always update
         currentFormValues.full_name !== profileFullName ||
         currentFormValues.height_cm !== profile.height_cm ||
         currentFormValues.weight_kg !== profile.weight_kg ||
@@ -313,7 +312,7 @@ export default function ProfilePage() {
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
     if (emblaApi) {
-      const index = ["overview", "stats", "photos", "settings"].indexOf(value);
+      const index = ["overview", "stats", "settings"].indexOf(value);
       if (index !== -1) {
         emblaApi.scrollTo(index);
       }
@@ -325,7 +324,7 @@ export default function ProfilePage() {
 
     const onSelect = () => {
       const selectedIndex = emblaApi.selectedScrollSnap();
-      const tabNames = ["overview", "stats", "photos", "settings"];
+      const tabNames = ["overview", "stats", "settings"];
       setActiveTab(tabNames[selectedIndex]);
     };
 
@@ -345,6 +344,7 @@ export default function ProfilePage() {
     emblaApi && emblaApi.scrollNext();
   }, [emblaApi]);
 
+  // NEW: Get setTempStatusMessage from useWorkoutFlow
   const { setTempStatusMessage } = useWorkoutFlow();
 
   if (loadingProfile || loadingAchievements) return <div className="p-4"><Skeleton className="h-screen w-full" /></div>;
@@ -355,6 +355,8 @@ export default function ProfilePage() {
   return (
     <>
       <div className="p-2 sm:p-4 max-w-4xl mx-auto">
+        {/* Removed ProfileHeader */}
+
         <div className="text-center mb-8">
           <Avatar className="w-24 h-24 mx-auto mb-4 ring-4 ring-primary/20">
             <AvatarFallback className="text-4xl font-bold">{userInitial}</AvatarFallback>
@@ -368,10 +370,9 @@ export default function ProfilePage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-muted">
+          <TabsList className="grid w-full grid-cols-3 bg-muted">
             <TabsTrigger value="overview"><User className="h-4 w-4 mr-2" />Overview</TabsTrigger>
             <TabsTrigger value="stats"><BarChart2 className="h-4 w-4 mr-2" />Stats</TabsTrigger>
-            <TabsTrigger value="photos"><Camera className="h-4 w-4 mr-2" />Photos</TabsTrigger>
             <TabsTrigger value="settings"><Settings className="h-4 w-4 mr-2" />Settings</TabsTrigger>
           </TabsList>
           
@@ -400,10 +401,6 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
-                  <ProfilePhotosTab />
-                </div>
-
-                <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
                   <FormProvider {...form}>
                     <ProfileSettingsTab
                       form={form}
@@ -413,8 +410,8 @@ export default function ProfilePage() {
                       onSignOut={handleSignOut}
                       profile={profile}
                       onDataChange={refreshProfileData}
-                      setIsSaving={setIsSaving}
-                      setTempStatusMessage={setTempStatusMessage}
+                      setIsSaving={setIsSaving} // Pass setIsSaving down
+                      setTempStatusMessage={setTempStatusMessage} // NEW
                     />
                   </FormProvider>
                 </div>
@@ -458,6 +455,7 @@ export default function ProfilePage() {
         title="Saving Profile" 
         description="Please wait while we update your profile and workout plan." 
       />
+      {/* Removed FloatingSaveEditButton */}
     </>
   );
 }

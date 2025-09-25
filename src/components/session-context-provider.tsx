@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
-import { Session, SupabaseClient, AuthChangeEvent, AuthError } from '@supabase/supabase-js';
+import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Toaster } from 'sonner';
@@ -90,7 +90,7 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
             setSession(localSession);
             // Attempt to refresh the session in the background if it's from IndexedDB
             supabase.auth.setSession(localSession).then(() => {
-              supabase.auth.refreshSession().then(({ data, error }: { data: { session: Session | null }, error: AuthError | null }) => {
+              supabase.auth.refreshSession().then(({ data, error }) => {
                 if (isMounted) {
                   if (data?.session) {
                     setSession(data.session);
@@ -112,7 +112,7 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
 
     initializeDbAndSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, newSession: Session | null) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       if (isMounted) {
         setSession(newSession);
         await saveSessionToIndexedDB(newSession); // Always save the latest session state
