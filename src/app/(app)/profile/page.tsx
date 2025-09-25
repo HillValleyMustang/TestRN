@@ -12,7 +12,7 @@ import { Profile as ProfileType, ProfileUpdate, Tables, LocalUserAchievement } f
 import { Skeleton } from '@/components/ui/skeleton';
 import { BarChart2, User, Settings, ChevronLeft, ChevronRight, Flame, Dumbbell, Trophy, Star, Footprints, ListChecks, Image, Camera } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn, getLevelFromPoints } from '@/lib/utils';
+import { cn, getLevelFromPoints, formatAthleteName } from '@/lib/utils';
 import { AchievementDetailDialog } from '@/components/profile/achievement-detail-dialog';
 import useEmblaCarousel from 'embla-carousel-react';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -196,21 +196,26 @@ export default function ProfilePage() {
   }, [refreshProfileCache, refreshAchievementsCache, refreshTPathsCache, refreshTPathExercisesCache]);
 
   const fetchPhotos = useCallback(async () => {
+    if (!session?.user.id) return;
     setLoadingPhotos(true);
     try {
-      const response = await fetch('/api/photos');
-      if (!response.ok) {
-        throw new Error('Failed to fetch photos');
+      const { data, error } = await supabase
+        .from('progress_photos')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
       }
-      const data = await response.json();
       setPhotos(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching photos:", error);
       toast.error("Could not load your photos.");
     } finally {
       setLoadingPhotos(false);
     }
-  }, []);
+  }, [session?.user.id, supabase]);
 
   useEffect(() => {
     if (activeTab === 'photo') {

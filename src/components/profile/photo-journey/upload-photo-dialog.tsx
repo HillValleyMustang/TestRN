@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
+import { useSession } from '@/components/session-context-provider';
 
 interface UploadPhotoDialogProps {
   open: boolean;
@@ -17,6 +18,7 @@ interface UploadPhotoDialogProps {
 }
 
 export const UploadPhotoDialog = ({ open, onOpenChange, onUploadSuccess, initialFile }: UploadPhotoDialogProps) => {
+  const { session, supabase } = useSession();
   const [file, setFile] = useState<File | null>(null);
   const [notes, setNotes] = useState('');
   const [preview, setPreview] = useState<string | null>(null);
@@ -71,21 +73,38 @@ export const UploadPhotoDialog = ({ open, onOpenChange, onUploadSuccess, initial
       toast.error("Please select a photo to upload.");
       return;
     }
+    if (!session?.user) {
+      toast.error("You must be logged in to upload photos.");
+      return;
+    }
     setLoading(true);
 
-    const formData = new FormData();
-    formData.append('photo', file);
-    formData.append('notes', notes);
-
     try {
-      const response = await fetch('/api/photos/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      const timestamp = Date.now();
+      const filePath = `${session.user.id}/${timestamp}-${file.name}`;
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Upload failed');
+      // 1. Upload to storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('user-photos')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // 2. Insert record into database
+      const { error: insertError } = await supabase
+        .from('progress_photos')
+        .insert({
+          user_id: session.user.id,
+          photo_path: uploadData.path,
+          notes: notes,
+        });
+
+      if (insertError) {
+        // If DB insert fails, try to remove the orphaned file from storage
+        await supabase.storage.from('user-photos').remove([filePath]);
+        throw insertError;
       }
 
       toast.success("Photo uploaded successfully!");

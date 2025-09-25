@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
+import { useSession } from '@/components/session-context-provider';
 
 type ProgressPhoto = Tables<'progress_photos'>;
 
@@ -13,6 +14,7 @@ interface PhotoCardProps {
 }
 
 export const PhotoCard = ({ photo }: PhotoCardProps) => {
+  const { supabase } = useSession();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -20,11 +22,13 @@ export const PhotoCard = ({ photo }: PhotoCardProps) => {
     const fetchSignedUrl = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`/api/photos/signed-url?path=${encodeURIComponent(photo.photo_path)}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch signed URL');
+        const { data, error } = await supabase.storage
+          .from('user-photos')
+          .createSignedUrl(photo.photo_path, 60); // 60 seconds validity
+
+        if (error) {
+          throw error;
         }
-        const data = await response.json();
         setImageUrl(data.signedUrl);
       } catch (error) {
         console.error("Error fetching signed URL:", error);
@@ -34,8 +38,10 @@ export const PhotoCard = ({ photo }: PhotoCardProps) => {
       }
     };
 
-    fetchSignedUrl();
-  }, [photo.photo_path]);
+    if (supabase) {
+      fetchSignedUrl();
+    }
+  }, [photo.photo_path, supabase]);
 
   return (
     <Card className="overflow-hidden">
