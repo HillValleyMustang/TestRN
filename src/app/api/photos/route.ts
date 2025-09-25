@@ -18,7 +18,11 @@ export async function GET(request: Request) {
       .order('created_at', { ascending: false });
 
     if (error) {
-      throw error;
+      console.error('Supabase error fetching photos:', error);
+      return NextResponse.json(
+        { error: error.message || 'An error occurred while fetching photos.' },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json(data);

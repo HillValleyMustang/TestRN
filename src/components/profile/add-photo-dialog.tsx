@@ -61,8 +61,16 @@ export const AddPhotoDialog = ({ open, onOpenChange, onUploadSuccess }: AddPhoto
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to upload photo.');
+        let errorMessage = 'Failed to upload photo.';
+        try {
+          const errorData = await response.json();
+          if (errorData && errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch (e) {
+          // Ignore if response is not JSON
+        }
+        throw new Error(errorMessage);
       }
 
       toast.success("Photo uploaded successfully!");

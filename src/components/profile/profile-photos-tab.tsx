@@ -28,8 +28,20 @@ export const ProfilePhotosTab = () => {
         },
       });
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch photos.');
+        let errorMessage = 'Failed to fetch photos.';
+        try {
+          const errorData = await response.json();
+          if (errorData && errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch (jsonError) {
+          const errorText = await response.text();
+          if (errorText) {
+            errorMessage = errorText;
+          }
+          console.error("Non-JSON error response from /api/photos:", errorText);
+        }
+        throw new Error(errorMessage);
       }
       const data = await response.json();
       setPhotos(data);
@@ -57,8 +69,19 @@ export const ProfilePhotosTab = () => {
         },
       });
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete photo.');
+        let errorMessage = 'Failed to delete photo.';
+        try {
+          const errorData = await response.json();
+          if (errorData && errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch (jsonError) {
+          const errorText = await response.text();
+          if (errorText) {
+            errorMessage = errorText;
+          }
+        }
+        throw new Error(errorMessage);
       }
       toast.success("Photo deleted successfully.");
     } catch (error: any) {

@@ -43,13 +43,22 @@ export const ProgressPhotoCard = ({ photo, onDelete }: ProgressPhotoCardProps) =
           },
         });
         if (!response.ok) {
-          throw new Error('Failed to get signed URL.');
+          let errorMessage = 'Failed to get signed URL.';
+          try {
+            const errorData = await response.json();
+            if (errorData && errorData.error) {
+              errorMessage = errorData.error;
+            }
+          } catch (e) {
+            // Ignore if response is not JSON
+          }
+          throw new Error(errorMessage);
         }
         const data = await response.json();
         setImageUrl(data.signedUrl);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error fetching signed URL:", error);
-        toast.error("Could not load image.");
+        toast.error(`Could not load image: ${error.message}`);
       } finally {
         setLoading(false);
       }
