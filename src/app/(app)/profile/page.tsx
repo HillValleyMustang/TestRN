@@ -29,6 +29,7 @@ import { useWorkoutFlow } from '@/components/workout-flow/workout-flow-context-p
 import { PhotoJourneyTab } from '@/components/profile/photo-journey/photo-journey-tab';
 import { UploadPhotoDialog } from '@/components/profile/photo-journey/upload-photo-dialog';
 import { Button } from '@/components/ui/button';
+import { PhotoCaptureFlow } from '@/components/profile/photo-journey/photo-capture-flow';
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
@@ -76,6 +77,8 @@ export default function ProfilePage() {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [photos, setPhotos] = useState<Tables<'progress_photos'>[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(true);
+  const [isCaptureFlowOpen, setIsCaptureFlowOpen] = useState(false);
+  const [capturedPhoto, setCapturedPhoto] = useState<File | null>(null);
 
   const AI_COACH_DAILY_LIMIT = 2;
 
@@ -472,7 +475,7 @@ export default function ProfilePage() {
         <Button
           size="icon"
           className="fixed bottom-24 right-4 sm:bottom-8 sm:right-8 h-14 w-14 rounded-full shadow-lg z-20"
-          onClick={() => setIsUploadDialogOpen(true)}
+          onClick={() => setIsCaptureFlowOpen(true)}
         >
           <Camera className="h-6 w-6" />
           <span className="sr-only">Upload Photo</span>
@@ -501,7 +504,20 @@ export default function ProfilePage() {
       <UploadPhotoDialog
         open={isUploadDialogOpen}
         onOpenChange={setIsUploadDialogOpen}
-        onUploadSuccess={fetchPhotos}
+        onUploadSuccess={() => {
+          fetchPhotos();
+          setCapturedPhoto(null);
+        }}
+        initialFile={capturedPhoto}
+      />
+      <PhotoCaptureFlow
+        open={isCaptureFlowOpen}
+        onOpenChange={setIsCaptureFlowOpen}
+        onPhotoCaptured={(file) => {
+          setCapturedPhoto(file);
+          setIsCaptureFlowOpen(false);
+          setIsUploadDialogOpen(true);
+        }}
       />
     </>
   );

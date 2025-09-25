@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,14 +13,31 @@ interface UploadPhotoDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUploadSuccess: () => void;
+  initialFile?: File | null;
 }
 
-export const UploadPhotoDialog = ({ open, onOpenChange, onUploadSuccess }: UploadPhotoDialogProps) => {
+export const UploadPhotoDialog = ({ open, onOpenChange, onUploadSuccess, initialFile }: UploadPhotoDialogProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [notes, setNotes] = useState('');
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open && initialFile) {
+      setFile(initialFile);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreview(reader.result as string);
+      };
+      reader.readAsDataURL(initialFile);
+    } else if (!open) {
+      // Reset when dialog closes
+      setFile(null);
+      setPreview(null);
+      setNotes('');
+    }
+  }, [open, initialFile]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -92,10 +109,12 @@ export const UploadPhotoDialog = ({ open, onOpenChange, onUploadSuccess }: Uploa
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="photo">Photo</Label>
-            <Input id="photo" type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} required disabled={loading} />
-          </div>
+          {!initialFile && (
+            <div>
+              <Label htmlFor="photo">Photo</Label>
+              <Input id="photo" type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} required disabled={loading} />
+            </div>
+          )}
           {preview && (
             <div className="mt-4">
               <img src={preview} alt="Preview" className="max-h-48 w-auto rounded-md mx-auto" />
