@@ -44,13 +44,16 @@ export const ProgressPhotoCard = ({ photo, onDelete }: ProgressPhotoCardProps) =
         });
         if (!response.ok) {
           let errorMessage = 'Failed to get signed URL.';
+          const errorText = await response.text();
           try {
-            const errorData = await response.json();
+            const errorData = JSON.parse(errorText);
             if (errorData && errorData.error) {
               errorMessage = errorData.error;
             }
           } catch (e) {
-            // Ignore if response is not JSON
+            if (errorText) {
+              errorMessage = errorText;
+            }
           }
           throw new Error(errorMessage);
         }

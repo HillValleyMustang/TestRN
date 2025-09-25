@@ -29,13 +29,13 @@ export const ProfilePhotosTab = () => {
       });
       if (!response.ok) {
         let errorMessage = 'Failed to fetch photos.';
+        const errorText = await response.text();
         try {
-          const errorData = await response.json();
+          const errorData = JSON.parse(errorText);
           if (errorData && errorData.error) {
             errorMessage = errorData.error;
           }
         } catch (jsonError) {
-          const errorText = await response.text();
           if (errorText) {
             errorMessage = errorText;
           }
@@ -70,13 +70,13 @@ export const ProfilePhotosTab = () => {
       });
       if (!response.ok) {
         let errorMessage = 'Failed to delete photo.';
+        const errorText = await response.text();
         try {
-          const errorData = await response.json();
+          const errorData = JSON.parse(errorText);
           if (errorData && errorData.error) {
             errorMessage = errorData.error;
           }
         } catch (jsonError) {
-          const errorText = await response.text();
           if (errorText) {
             errorMessage = errorText;
           }
