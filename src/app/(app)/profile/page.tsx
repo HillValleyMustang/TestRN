@@ -10,7 +10,7 @@ import *as z from "zod";
 import { toast } from 'sonner';
 import { Profile as ProfileType, ProfileUpdate, Tables, LocalUserAchievement } from '@/types/supabase';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart2, User, Settings, ChevronLeft, ChevronRight, Flame, Dumbbell, Trophy, Star, Footprints, ListChecks, Image } from 'lucide-react';
+import { BarChart2, User, Settings, ChevronLeft, ChevronRight, Flame, Dumbbell, Trophy, Star, Footprints, ListChecks, Image, Camera } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, getLevelFromPoints } from '@/lib/utils';
 import { AchievementDetailDialog } from '@/components/profile/achievement-detail-dialog';
@@ -27,6 +27,8 @@ import { achievementsList } from '@/lib/achievements';
 import { LoadingOverlay } from '@/components/loading-overlay';
 import { useWorkoutFlow } from '@/components/workout-flow/workout-flow-context-provider';
 import { PhotoJourneyTab } from '@/components/profile/photo-journey/photo-journey-tab';
+import { UploadPhotoDialog } from '@/components/profile/photo-journey/upload-photo-dialog';
+import { Button } from '@/components/ui/button';
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
@@ -70,6 +72,10 @@ export default function ProfilePage() {
   const [selectedAchievement, setSelectedAchievement] = useState<{ id: string; name: string; icon: string } | null>(null);
   const [isPointsExplanationOpen, setIsPointsExplanationOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [photos, setPhotos] = useState<Tables<'progress_photos'>[]>([]);
+  const [loadingPhotos, setLoadingPhotos] = useState(true);
 
   const AI_COACH_DAILY_LIMIT = 2;
 
@@ -185,6 +191,29 @@ export default function ProfilePage() {
     await refreshTPathsCache();
     await refreshTPathExercisesCache();
   }, [refreshProfileCache, refreshAchievementsCache, refreshTPathsCache, refreshTPathExercisesCache]);
+
+  const fetchPhotos = useCallback(async () => {
+    setLoadingPhotos(true);
+    try {
+      const response = await fetch('/api/photos');
+      if (!response.ok) {
+        throw new Error('Failed to fetch photos');
+      }
+      const data = await response.json();
+      setPhotos(data);
+    } catch (error) {
+      console.error("Error fetching photos:", error);
+      toast.error("Could not load your photos.");
+    } finally {
+      setLoadingPhotos(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'photo') {
+      fetchPhotos();
+    }
+  }, [activeTab, fetchPhotos]);
 
   useEffect(() => {
     if (!session?.user.id || loadingProfile) {
@@ -400,7 +429,7 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
-                  <PhotoJourneyTab />
+                  <PhotoJourneyTab photos={photos} loading={loadingPhotos} />
                 </div>
 
                 <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
@@ -439,6 +468,17 @@ export default function ProfilePage() {
         </Tabs>
       </div>
 
+      {activeTab === 'photo' && (
+        <Button
+          size="icon"
+          className="fixed bottom-24 right-4 sm:bottom-8 sm:right-8 h-14 w-14 rounded-full shadow-lg z-20"
+          onClick={() => setIsUploadDialogOpen(true)}
+        >
+          <Camera className="h-6 w-6" />
+          <span className="sr-only">Upload Photo</span>
+        </Button>
+      )}
+
       <AchievementDetailDialog
         open={isAchievementDetailOpen}
         onOpenChange={setIsAchievementDetailOpen}
@@ -457,6 +497,11 @@ export default function ProfilePage() {
         isOpen={isSaving} 
         title="Saving Profile" 
         description="Please wait while we update your profile and workout plan." 
+      />
+      <UploadPhotoDialog
+        open={isUploadDialogOpen}
+        onOpenChange={setIsUploadDialogOpen}
+        onUploadSuccess={fetchPhotos}
       />
     </>
   );
