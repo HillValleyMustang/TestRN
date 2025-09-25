@@ -256,6 +256,7 @@ export type Database = {
           photo_path: string;
           notes: string | null;
           created_at: string;
+          workouts_since_last_photo: number | null;
         };
         Insert: {
           id?: string;
@@ -263,6 +264,7 @@ export type Database = {
           photo_path: string;
           notes?: string | null;
           created_at?: string;
+          workouts_since_last_photo?: number | null;
         };
         Update: {
           id?: string;
@@ -270,6 +272,7 @@ export type Database = {
           photo_path?: string;
           notes?: string | null;
           created_at?: string;
+          workouts_since_last_photo?: number | null;
         };
         Relationships: [
           {

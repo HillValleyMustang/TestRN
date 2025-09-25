@@ -60,6 +60,11 @@ export const PhotoCard = ({ photo }: PhotoCardProps) => {
         <div className="p-4">
           <p className="text-sm font-medium">{new Date(photo.created_at).toLocaleDateString()}</p>
           <p className="text-sm text-muted-foreground">{photo.notes || 'No notes'}</p>
+          {photo.workouts_since_last_photo !== null && (
+            <p className="text-xs text-primary font-semibold mt-2">
+              {photo.workouts_since_last_photo} workout(s) since last photo
+            </p>
+          )}
         </div>
       </CardContent>
     </Card>

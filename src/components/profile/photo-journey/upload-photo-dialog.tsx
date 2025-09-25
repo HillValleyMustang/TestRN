@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { useSession } from '@/components/session-context-provider';
@@ -80,10 +80,39 @@ export const UploadPhotoDialog = ({ open, onOpenChange, onUploadSuccess, initial
     setLoading(true);
 
     try {
+      // 1. Find the timestamp of the user's most recent photo
+      const { data: lastPhoto, error: lastPhotoError } = await supabase
+        .from('progress_photos')
+        .select('created_at')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (lastPhotoError && lastPhotoError.code !== 'PGRST116') { // Ignore 'not found' error
+        throw lastPhotoError;
+      }
+
+      // 2. If a previous photo exists, count workouts since then
+      let workoutsSinceLastPhoto: number | null = null;
+      if (lastPhoto) {
+        const { count, error: countError } = await supabase
+          .from('workout_sessions')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', session.user.id)
+          .not('completed_at', 'is', null)
+          .gt('completed_at', lastPhoto.created_at);
+
+        if (countError) {
+          throw countError;
+        }
+        workoutsSinceLastPhoto = count;
+      }
+
       const timestamp = Date.now();
       const filePath = `${session.user.id}/${timestamp}-${file.name}`;
 
-      // 1. Upload to storage
+      // 3. Upload to storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('user-photos')
         .upload(filePath, file);
@@ -92,13 +121,14 @@ export const UploadPhotoDialog = ({ open, onOpenChange, onUploadSuccess, initial
         throw uploadError;
       }
 
-      // 2. Insert record into database
+      // 4. Insert record into database with the new count
       const { error: insertError } = await supabase
         .from('progress_photos')
         .insert({
           user_id: session.user.id,
           photo_path: uploadData.path,
           notes: notes,
+          workouts_since_last_photo: workoutsSinceLastPhoto,
         });
 
       if (insertError) {

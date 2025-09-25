@@ -6,6 +6,7 @@ export type ProgressPhotosRow = {
   photo_path: string;
   notes: string | null;
   created_at: string;
+  workouts_since_last_photo: number | null;
 };
 export type ProgressPhotosInsert = {
   id?: string;
@@ -13,6 +14,7 @@ export type ProgressPhotosInsert = {
   photo_path: string;
   notes?: string | null;
   created_at?: string;
+  workouts_since_last_photo?: number | null;
 };
 export type ProgressPhotosUpdate = {
   id?: string;
@@ -20,4 +22,5 @@ export type ProgressPhotosUpdate = {
   photo_path?: string;
   notes?: string | null;
   created_at?: string;
+  workouts_since_last_photo?: number | null;
 };
