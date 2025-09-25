@@ -281,3 +281,30 @@ export const areSetsEqual = (set1: Set<string>, set2: Set<string>): boolean => {
   }
   return true;
 };
+
+/**
+ * Formats a full name into "Athlete [Initials]".
+ * - One name: "Athlete C"
+ * - Two names: "Athlete CD"
+ * - Three+ names: "Athlete CDD" (takes first three initials)
+ */
+export function formatAthleteName(fullName: string | null | undefined): string {
+  if (!fullName) {
+    return "Athlete";
+  }
+
+  const nameParts = fullName.split(' ').filter(part => part.length > 0);
+  if (nameParts.length === 0) {
+    return "Athlete";
+  }
+
+  const initials = nameParts.map(part => part[0].toUpperCase());
+
+  if (initials.length === 1) {
+    return `Athlete ${initials[0]}`;
+  } else if (initials.length === 2) {
+    return `Athlete ${initials[0]}${initials[1]}`;
+  } else { // Three or more names
+    return `Athlete ${initials.slice(0, 3).join('')}`;
+  }
+}

@@ -17,6 +17,7 @@ import { useGym } from '@/components/gym-context-provider';
 import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { formatAthleteName } from '@/lib/utils'; // NEW: Import formatAthleteName
 
 type Profile = Tables<'profiles'>;
 
@@ -26,7 +27,8 @@ export default function DashboardPage() {
   const { groupedTPaths, loadingData: loadingWorkoutData, profile, loadingData: loadingProfile, workoutExercisesCache, dataError } = useWorkoutDataFetcher(); // Corrected destructuring to include workoutExercisesCache and dataError
   const { loadingGyms, userGyms, activeGym } = useGym(); // NEW: Destructure from useGym hook
   
-  const [welcomeName, setWelcomeName] = useState<string>('');
+  const [welcomeText, setWelcomeText] = useState<string>(''); // Changed from welcomeName
+  const [athleteName, setAthleteName] = useState<string>(''); // New state for formatted athlete name
 
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [summarySessionId, setSummarySessionId] = useState<string | null>(null);
@@ -43,8 +45,19 @@ export default function DashboardPage() {
     }
 
     if (profile) {
-      const name = profile.full_name || profile.first_name || 'Athlete';
-      setWelcomeName(name);
+      const formattedName = formatAthleteName(profile.full_name || profile.first_name);
+      setAthleteName(formattedName);
+
+      // Determine 'Welcome' vs 'Welcome Back'
+      const now = new Date();
+      const createdAt = new Date(profile.created_at!); // profile.created_at is guaranteed to exist here
+      const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+      if (now.getTime() - createdAt.getTime() < fiveMinutes) {
+        setWelcomeText('Welcome');
+      } else {
+        setWelcomeText('Welcome Back,');
+      }
     } else if (!loadingProfile && !profile) { // If not loading and still no profile, they need to onboard
       router.push('/onboarding');
     }
@@ -58,7 +71,7 @@ export default function DashboardPage() {
       <header className="animate-fade-in-slide-up" style={{ animationDelay: '0s' }}>
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-4xl font-bold tracking-tight">Welcome Back, {welcomeName}</h1>
+            <h1 className="text-4xl font-bold tracking-tight">{welcomeText} {athleteName}</h1> {/* Updated greeting */}
             <p className="text-muted-foreground mt-2">Ready to Train? Let's get Started!</p>
           </div>
         </div>
