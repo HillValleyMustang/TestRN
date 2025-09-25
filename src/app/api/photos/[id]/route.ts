@@ -7,14 +7,14 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   const photoId = params.id;
-  const supabase = createRouteHandlerClient({ cookies });
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
+    const supabase = createRouteHandlerClient({ cookies });
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // First, get the photo record to ensure ownership and get the file path
     const { data: photoData, error: fetchError } = await supabase
       .from('progress_photos')

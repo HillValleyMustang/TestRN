@@ -3,14 +3,14 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
-  const supabase = createRouteHandlerClient({ cookies });
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
+    const supabase = createRouteHandlerClient({ cookies });
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { data, error } = await supabase
       .from('progress_photos')
       .select('*')
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error('Error fetching photos:', error);
+    console.error('Error in /api/photos route:', error);
     return NextResponse.json(
       { error: error.message || 'An unexpected error occurred.' },
       { status: 500 }
