@@ -6,7 +6,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { useSession } from '@/components/session-context-provider';
-import { Dumbbell } from 'lucide-react';
+import { Dumbbell, GitCompareArrows } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 type ProgressPhoto = Tables<'progress_photos'>;
 
@@ -14,9 +15,10 @@ interface PhotoDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   photo: ProgressPhoto | null;
+  totalPhotos: number;
 }
 
-export const PhotoDetailDialog = ({ open, onOpenChange, photo }: PhotoDetailDialogProps) => {
+export const PhotoDetailDialog = ({ open, onOpenChange, photo, totalPhotos }: PhotoDetailDialogProps) => {
   const { supabase } = useSession();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -74,9 +76,15 @@ export const PhotoDetailDialog = ({ open, onOpenChange, photo }: PhotoDetailDial
             </div>
           )}
         </div>
-        <div className="p-4 pt-2">
-          <p className="text-sm font-medium">{new Date(photo.created_at).toLocaleString()}</p>
-          <p className="text-sm text-muted-foreground">{photo.notes || 'No notes'}</p>
+        <div className="p-4 pt-2 flex justify-between items-center">
+          <div>
+            <p className="text-sm font-medium">{new Date(photo.created_at).toLocaleString()}</p>
+            <p className="text-sm text-muted-foreground">{photo.notes || 'No notes'}</p>
+          </div>
+          <Button variant="outline" disabled={totalPhotos < 2}>
+            <GitCompareArrows className="h-4 w-4 mr-2" />
+            Compare
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
