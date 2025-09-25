@@ -16,9 +16,10 @@ interface PhotoDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   photo: ProgressPhoto | null;
   totalPhotos: number;
+  onStartCompare: (photo: ProgressPhoto) => void;
 }
 
-export const PhotoDetailDialog = ({ open, onOpenChange, photo, totalPhotos }: PhotoDetailDialogProps) => {
+export const PhotoDetailDialog = ({ open, onOpenChange, photo, totalPhotos, onStartCompare }: PhotoDetailDialogProps) => {
   const { supabase } = useSession();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,7 +82,7 @@ export const PhotoDetailDialog = ({ open, onOpenChange, photo, totalPhotos }: Ph
             <p className="text-sm font-medium">{new Date(photo.created_at).toLocaleString()}</p>
             <p className="text-sm text-muted-foreground">{photo.notes || 'No notes'}</p>
           </div>
-          <Button variant="outline" disabled={totalPhotos < 2}>
+          <Button variant="outline" disabled={totalPhotos < 2} onClick={() => onStartCompare(photo)}>
             <GitCompareArrows className="h-4 w-4 mr-2" />
             Compare
           </Button>
