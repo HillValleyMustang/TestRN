@@ -142,11 +142,11 @@ export const PhotoCaptureFlow = ({ open, onOpenChange, onPhotoCaptured }: PhotoC
               </Button>
             )}
             {step === 'confirm' && (
-              <div className="flex w-full justify-around items-center">
-                <Button variant="outline" className="text-lg p-6" onClick={handleRetake}>
+              <div className="flex w-full justify-between items-center gap-4">
+                <Button variant="outline" className="text-base p-4 flex-1" onClick={handleRetake}>
                   <RefreshCw className="h-5 w-5 mr-2" /> Retake
                 </Button>
-                <Button className="text-lg p-6 bg-primary" onClick={handleSave}>
+                <Button className="text-base p-4 bg-primary flex-1" onClick={handleSave}>
                   <Check className="h-5 w-5 mr-2" /> Save Snapshot
                 </Button>
               </div>
