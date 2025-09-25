@@ -44,7 +44,7 @@ export const PhotoCard = ({ photo }: PhotoCardProps) => {
   }, [photo.photo_path, supabase]);
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-lg">
       <CardContent className="p-0">
         <div className="aspect-square w-full bg-muted">
           {loading ? (
@@ -59,7 +59,7 @@ export const PhotoCard = ({ photo }: PhotoCardProps) => {
         </div>
         <div className="p-4">
           <p className="text-sm font-medium">{new Date(photo.created_at).toLocaleDateString()}</p>
-          <p className="text-sm text-muted-foreground">{photo.notes || 'No notes'}</p>
+          <p className="text-sm text-muted-foreground truncate">{photo.notes || 'No notes'}</p>
           {photo.workouts_since_last_photo !== null && (
             <p className="text-xs text-primary font-semibold mt-2">
               {photo.workouts_since_last_photo} workout(s) since last photo
