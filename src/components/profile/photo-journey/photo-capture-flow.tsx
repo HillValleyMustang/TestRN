@@ -75,12 +75,28 @@ export const PhotoCaptureFlow = ({ open, onOpenChange, onPhotoCaptured }: PhotoC
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
+
+      // Add validation for video dimensions
+      if (video.videoWidth === 0 || video.videoHeight === 0) {
+        console.error("Video dimensions are not available yet.");
+        toast.error("Camera is not ready. Please try again in a moment.");
+        return;
+      }
+
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       const context = canvas.getContext('2d');
       if (context) {
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg');
+
+        // Add validation for the generated data URL
+        if (!dataUrl || dataUrl === "data:,") {
+          console.error("Failed to generate a valid data URL from canvas.");
+          toast.error("Could not capture photo. Please try again.");
+          return;
+        }
+
         setCapturedImage(dataUrl);
         setStep('confirm');
         stopCamera();
