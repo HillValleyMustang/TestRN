@@ -3,9 +3,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Camera, Check, RefreshCw, X, Ghost, Loader2 } from 'lucide-react';
+import { Camera, Check, RefreshCw, X, Ghost, Loader2, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSession } from '@/components/session-context-provider';
+import { useGesture } from '@use-gesture/react';
 
 interface PhotoCaptureFlowProps {
   open: boolean;
@@ -41,6 +42,22 @@ export const PhotoCaptureFlow = ({ open, onOpenChange, onPhotoCaptured }: PhotoC
   const [ghostImageUrl, setGhostImageUrl] = useState<string | null>(null);
   const [loadingGhost, setLoadingGhost] = useState(false);
 
+  // State for gesture controls
+  const [ghostStyle, setGhostStyle] = useState({ x: 0, y: 0, scale: 1 });
+
+  // Gesture handler
+  const bind = useGesture({
+    onDrag: ({ offset: [x, y] }) => setGhostStyle(prev => ({ ...prev, x, y })),
+    onPinch: ({ offset: [s] }) => setGhostStyle(prev => ({ ...prev, scale: s })),
+  }, {
+    drag: { from: () => [ghostStyle.x, ghostStyle.y] },
+    pinch: { from: () => [ghostStyle.scale, 0] }
+  });
+
+  const handleResetGhost = () => {
+    setGhostStyle({ x: 0, y: 0, scale: 1 });
+  };
+
   const startCamera = useCallback(async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -74,6 +91,7 @@ export const PhotoCaptureFlow = ({ open, onOpenChange, onPhotoCaptured }: PhotoC
       setCapturedImage(null);
       setIsPoseGhostVisible(false);
       setGhostImageUrl(null);
+      handleResetGhost(); // Reset ghost style on close
     }
     return () => stopCamera();
   }, [open, startCamera, stopCamera]);
@@ -124,6 +142,7 @@ export const PhotoCaptureFlow = ({ open, onOpenChange, onPhotoCaptured }: PhotoC
   const togglePoseGhost = async () => {
     const turningOn = !isPoseGhostVisible;
     setIsPoseGhostVisible(turningOn);
+    handleResetGhost(); // Reset position/scale when toggling
 
     if (turningOn) {
       setLoadingGhost(true);
@@ -190,8 +209,16 @@ export const PhotoCaptureFlow = ({ open, onOpenChange, onPhotoCaptured }: PhotoC
 
           {/* Pose Ghost Overlay */}
           {isPoseGhostVisible && ghostImageUrl && step === 'capture' && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <img src={ghostImageUrl} alt="Pose ghost" className="w-full h-full object-cover opacity-[0.35]" />
+            <div {...bind()} className="absolute inset-0 touch-none">
+              <img
+                src={ghostImageUrl}
+                alt="Pose ghost"
+                style={{
+                  transform: `translate(${ghostStyle.x}px, ${ghostStyle.y}px) scale(${ghostStyle.scale})`,
+                  opacity: 0.35,
+                }}
+                className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+              />
             </div>
           )}
 
@@ -221,16 +248,29 @@ export const PhotoCaptureFlow = ({ open, onOpenChange, onPhotoCaptured }: PhotoC
           {/* Top-right controls */}
           <div className="absolute top-4 right-4 flex items-center gap-2">
             {step === 'capture' && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-white bg-black/30 hover:bg-black/50 hover:text-white"
-                onClick={togglePoseGhost}
-                title="Toggle Pose Ghost"
-                disabled={loadingGhost}
-              >
-                {loadingGhost ? <Loader2 className="h-6 w-6 animate-spin" /> : <Ghost className="h-6 w-6" />}
-              </Button>
+              <>
+                {isPoseGhostVisible && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-white bg-black/30 hover:bg-black/50 hover:text-white"
+                    onClick={handleResetGhost}
+                    title="Reset Pose Ghost"
+                  >
+                    <RotateCcw className="h-5 w-5" />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white bg-black/30 hover:bg-black/50 hover:text-white"
+                  onClick={togglePoseGhost}
+                  title="Toggle Pose Ghost"
+                  disabled={loadingGhost}
+                >
+                  {loadingGhost ? <Loader2 className="h-6 w-6 animate-spin" /> : <Ghost className="h-6 w-6" />}
+                </Button>
+              </>
             )}
             <Button
               variant="ghost"
