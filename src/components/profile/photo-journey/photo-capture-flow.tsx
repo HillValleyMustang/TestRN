@@ -3,8 +3,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Camera, Check, RefreshCw, X, Ghost } from 'lucide-react';
+import { Camera, Check, RefreshCw, X, Ghost, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useSession } from '@/components/session-context-provider';
 
 interface PhotoCaptureFlowProps {
   open: boolean;
@@ -30,12 +31,15 @@ function dataURLtoFile(dataurl: string, filename: string): File {
 }
 
 export const PhotoCaptureFlow = ({ open, onOpenChange, onPhotoCaptured }: PhotoCaptureFlowProps) => {
+  const { session, supabase } = useSession();
   const [step, setStep] = useState<'capture' | 'confirm'>('capture');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isPoseGhostVisible, setIsPoseGhostVisible] = useState(false);
+  const [ghostImageUrl, setGhostImageUrl] = useState<string | null>(null);
+  const [loadingGhost, setLoadingGhost] = useState(false);
 
   const startCamera = useCallback(async () => {
     try {
@@ -68,6 +72,8 @@ export const PhotoCaptureFlow = ({ open, onOpenChange, onPhotoCaptured }: PhotoC
       stopCamera();
       setStep('capture');
       setCapturedImage(null);
+      setIsPoseGhostVisible(false);
+      setGhostImageUrl(null);
     }
     return () => stopCamera();
   }, [open, startCamera, stopCamera]);
@@ -77,9 +83,7 @@ export const PhotoCaptureFlow = ({ open, onOpenChange, onPhotoCaptured }: PhotoC
       const video = videoRef.current;
       const canvas = canvasRef.current;
 
-      // Add validation for video dimensions
       if (video.videoWidth === 0 || video.videoHeight === 0) {
-        console.error("Video dimensions are not available yet.");
         toast.error("Camera is not ready. Please try again in a moment.");
         return;
       }
@@ -91,9 +95,7 @@ export const PhotoCaptureFlow = ({ open, onOpenChange, onPhotoCaptured }: PhotoC
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg');
 
-        // Add validation for the generated data URL
         if (!dataUrl || dataUrl === "data:,") {
-          console.error("Failed to generate a valid data URL from canvas.");
           toast.error("Could not capture photo. Please try again.");
           return;
         }
@@ -119,6 +121,61 @@ export const PhotoCaptureFlow = ({ open, onOpenChange, onPhotoCaptured }: PhotoC
     }
   };
 
+  const togglePoseGhost = async () => {
+    const turningOn = !isPoseGhostVisible;
+    setIsPoseGhostVisible(turningOn);
+
+    if (turningOn) {
+      setLoadingGhost(true);
+      try {
+        if (!session?.user.id) {
+          toast.error("You must be logged in to use this feature.");
+          setIsPoseGhostVisible(false);
+          return;
+        }
+
+        const { data: latestPhoto, error: fetchError } = await supabase
+          .from('progress_photos')
+          .select('photo_path')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (fetchError) {
+          if (fetchError.code === 'PGRST116') {
+            toast.info("No previous photo found to use as a ghost.");
+            setIsPoseGhostVisible(false);
+            return;
+          }
+          throw fetchError;
+        }
+
+        if (!latestPhoto) {
+          toast.info("No previous photo found to use as a ghost.");
+          setIsPoseGhostVisible(false);
+          return;
+        }
+
+        const { data: urlData, error: urlError } = await supabase.storage
+          .from('user-photos')
+          .createSignedUrl(latestPhoto.photo_path, 60);
+
+        if (urlError) throw urlError;
+        setGhostImageUrl(urlData.signedUrl);
+
+      } catch (error: any) {
+        console.error("Error fetching pose ghost image:", error);
+        toast.error("Could not load your last photo for the ghost overlay.");
+        setIsPoseGhostVisible(false);
+      } finally {
+        setLoadingGhost(false);
+      }
+    } else {
+      setGhostImageUrl(null);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="p-0 m-0 w-screen h-screen max-w-full max-h-full bg-black border-0 rounded-none flex items-center justify-center">
@@ -132,9 +189,9 @@ export const PhotoCaptureFlow = ({ open, onOpenChange, onPhotoCaptured }: PhotoC
           <canvas ref={canvasRef} className="hidden" />
 
           {/* Pose Ghost Overlay */}
-          {isPoseGhostVisible && step === 'capture' && (
+          {isPoseGhostVisible && ghostImageUrl && step === 'capture' && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <Ghost className="w-3/4 h-3/4 text-white opacity-30" />
+              <img src={ghostImageUrl} alt="Pose ghost" className="w-full h-full object-contain opacity-30" />
             </div>
           )}
 
@@ -168,10 +225,11 @@ export const PhotoCaptureFlow = ({ open, onOpenChange, onPhotoCaptured }: PhotoC
                 variant="ghost"
                 size="icon"
                 className="text-white bg-black/30 hover:bg-black/50 hover:text-white"
-                onClick={() => setIsPoseGhostVisible(prev => !prev)}
+                onClick={togglePoseGhost}
                 title="Toggle Pose Ghost"
+                disabled={loadingGhost}
               >
-                <Ghost className="h-6 w-6" />
+                {loadingGhost ? <Loader2 className="h-6 w-6 animate-spin" /> : <Ghost className="h-6 w-6" />}
               </Button>
             )}
             <Button
