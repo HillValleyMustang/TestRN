@@ -18,35 +18,25 @@ export default function LoginPage() {
   useEffect(() => {
     const checkUserProfile = async () => {
       if (memoizedSessionUserId) { // Use memoized ID
-        // Check if user has completed onboarding
+        // Check if user has completed onboarding by looking for a programme_type
         const { data: profile } = await supabase
           .from('profiles')
-          .select('id') // Specify columns
+          .select('id, programme_type') // Select programme_type
           .eq('id', memoizedSessionUserId) // Use memoized ID
           .single();
 
-        if (profile) {
-          // User has profile, check if they have *main* T-Paths
-          const { data: tPaths } = await supabase
-            .from('t_paths')
-            .select('id') // Specify columns
-            .eq('user_id', memoizedSessionUserId) // Use memoized ID
-            .is('parent_t_path_id', null) // Look for main T-Paths
-            .limit(1);
-
-          if (tPaths && tPaths.length > 0) {
-            router.push('/dashboard');
-          } else {
-            router.push('/onboarding');
-          }
+        if (profile && profile.programme_type) {
+          // If profile exists and has a programme type, onboarding is complete.
+          router.push('/dashboard');
         } else {
+          // Otherwise, send to onboarding.
           router.push('/onboarding');
         }
       }
     };
 
     checkUserProfile();
-  }, [memoizedSessionUserId, router]); // Depend on memoized ID
+  }, [memoizedSessionUserId, router, supabase]); // Added supabase to dependency array
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background p-2">
