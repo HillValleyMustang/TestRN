@@ -6,7 +6,9 @@ import { Slider } from '@/components/ui/slider';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { useSession } from '@/components/session-context-provider';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Lightbulb, X } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from '@/components/ui/button';
 
 type ProgressPhoto = Tables<'progress_photos'>;
 
@@ -16,6 +18,12 @@ interface PhotoComparisonDialogProps {
   sourcePhoto: ProgressPhoto | null;
 }
 
+const proTips = [
+  'Progress isn\'t always linear! Factors like water retention can affect daily photos. Stay consistent!',
+  'Different lighting can change how a photo looks. For best results, try to use the same spot each time.',
+  'Notice a difference in angle? Try using the Pose Ghost next time for a perfect match.'
+];
+
 export const PhotoComparisonDialog = ({ open, onOpenChange, sourcePhoto }: PhotoComparisonDialogProps) => {
   const { session, supabase } = useSession();
   const [comparisonPhoto, setComparisonPhoto] = useState<ProgressPhoto | null>(null);
@@ -23,6 +31,8 @@ export const PhotoComparisonDialog = ({ open, onOpenChange, sourcePhoto }: Photo
   const [comparisonImageUrl, setComparisonImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [sliderValue, setSliderValue] = useState(50);
+  const [tip, setTip] = useState<string | null>(null);
+  const [isTipVisible, setIsTipVisible] = useState(true);
 
   useEffect(() => {
     if (!open || !sourcePhoto) {
@@ -32,6 +42,10 @@ export const PhotoComparisonDialog = ({ open, onOpenChange, sourcePhoto }: Photo
       setLoading(true);
       return;
     }
+
+    const randomTip = proTips[Math.floor(Math.random() * proTips.length)];
+    setTip(randomTip);
+    setIsTipVisible(true);
 
     const fetchComparisonData = async () => {
       setLoading(true);
@@ -109,17 +123,34 @@ export const PhotoComparisonDialog = ({ open, onOpenChange, sourcePhoto }: Photo
             )}
           </div>
         </div>
-        <div className="py-4">
-          <Slider
-            value={[sliderValue]}
-            onValueChange={(value) => setSliderValue(value[0])}
-            max={100}
-            step={1}
-            disabled={loading}
-          />
-          <div className="flex justify-between text-xs text-muted-foreground mt-2">
-            <span>{comparisonPhoto ? new Date(comparisonPhoto.created_at).toLocaleDateString() : 'Older'}</span>
-            <span>{sourcePhoto ? new Date(sourcePhoto.created_at).toLocaleDateString() : 'Newer'}</span>
+        <div className="px-4 pb-4 space-y-4">
+          {isTipVisible && tip && (
+            <Alert className="relative pr-10">
+              <Lightbulb className="h-4 w-4" />
+              <AlertTitle>Pro Tip</AlertTitle>
+              <AlertDescription>{tip}</AlertDescription>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-2 right-2 h-6 w-6"
+                onClick={() => setIsTipVisible(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </Alert>
+          )}
+          <div>
+            <Slider
+              value={[sliderValue]}
+              onValueChange={(value) => setSliderValue(value[0])}
+              max={100}
+              step={1}
+              disabled={loading}
+            />
+            <div className="flex justify-between text-xs text-muted-foreground mt-2">
+              <span>{comparisonPhoto ? new Date(comparisonPhoto.created_at).toLocaleDateString() : 'Older'}</span>
+              <span>{sourcePhoto ? new Date(sourcePhoto.created_at).toLocaleDateString() : 'Newer'}</span>
+            </div>
           </div>
         </div>
       </DialogContent>
