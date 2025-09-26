@@ -6,15 +6,16 @@ import { useOnboardingForm } from "@/hooks/use-onboarding-form";
 import { useSession } from "@/components/session-context-provider";
 import { LoadingOverlay } from "@/components/loading-overlay";
 import { OnboardingSummaryModal } from "@/components/onboarding/onboarding-summary-modal";
-import { Progress } from "@/components/ui/progress";
+import { ProgressRing } from "@/components/ui/progress-ring"; // Import the new ProgressRing
 
 // Import step components
 import { OnboardingStep1_GoalFocus } from "@/components/onboarding/onboarding-step-1-goal-focus";
 import { OnboardingStep2_TrainingPlan } from "@/components/onboarding/onboarding-step-2-training-plan";
-import { OnboardingStep3_ProfileAndAi } from "@/components/onboarding/onboarding-step-3-profile-and-ai";
-import { OnboardingStep4_GymSetup } from "@/components/onboarding/onboarding-step-4-gym-setup";
-import { OnboardingStep5_GymPhotoUpload } from "@/components/onboarding/onboarding-step-5-gym-photo-upload";
-import { OnboardingStep6_AppFeatures } from "@/components/onboarding/onboarding-step-6-app-features";
+import { OnboardingStep3_ProfileSnapshot } from "@/components/onboarding/onboarding-step-3-profile-snapshot";
+import { OnboardingStep4_AiCoach } from "@/components/onboarding/onboarding-step-4-ai-coach";
+import { OnboardingStep5_GymSetup } from "@/components/onboarding/onboarding-step-5-gym-setup";
+import { OnboardingStep6_GymPhotoUpload } from "@/components/onboarding/onboarding-step-6-gym-photo-upload";
+import { OnboardingStep7_AppFeatures } from "@/components/onboarding/onboarding-step-7-app-features";
 
 export default function OnboardingPage() {
   const { memoizedSessionUserId } = useSession();
@@ -30,10 +31,12 @@ export default function OnboardingPage() {
     fullName, setFullName,
     heightCm, setHeightCm,
     weightKg, setWeightKg,
+    bodyFatPct, setBodyFatPct,
+    // Step 4
     preferredMuscles, setPreferredMuscles,
     constraints, setConstraints,
     consentGiven, setConsentGiven,
-    // Step 4 & 5
+    // Step 5 & 6
     equipmentMethod, setEquipmentMethod,
     gymName, setGymName,
     identifiedExercises, addIdentifiedExercise, removeIdentifiedExercise,
@@ -80,13 +83,22 @@ export default function OnboardingPage() {
         );
       case 3:
         return (
-          <OnboardingStep3_ProfileAndAi
+          <OnboardingStep3_ProfileSnapshot
             fullName={fullName}
             setFullName={setFullName}
             heightCm={heightCm}
             setHeightCm={setHeightCm}
             weightKg={weightKg}
             setWeightKg={setWeightKg}
+            bodyFatPct={bodyFatPct}
+            setBodyFatPct={setBodyFatPct}
+            handleNext={handleNext}
+            handleBack={handleBack}
+          />
+        );
+      case 4:
+        return (
+          <OnboardingStep4_AiCoach
             preferredMuscles={preferredMuscles}
             setPreferredMuscles={setPreferredMuscles}
             constraints={constraints}
@@ -97,9 +109,9 @@ export default function OnboardingPage() {
             handleBack={handleBack}
           />
         );
-      case 4:
+      case 5:
         return (
-          <OnboardingStep4_GymSetup
+          <OnboardingStep5_GymSetup
             equipmentMethod={equipmentMethod}
             setEquipmentMethod={setEquipmentMethod}
             handleNext={handleNext}
@@ -108,9 +120,9 @@ export default function OnboardingPage() {
             setGymName={setGymName}
           />
         );
-      case 5:
+      case 6:
         return (
-          <OnboardingStep5_GymPhotoUpload
+          <OnboardingStep6_GymPhotoUpload
             identifiedExercises={identifiedExercises}
             addIdentifiedExercise={addIdentifiedExercise}
             removeIdentifiedExercise={removeIdentifiedExercise}
@@ -120,9 +132,9 @@ export default function OnboardingPage() {
             handleBack={handleBack}
           />
         );
-      case 6:
+      case 7:
         return (
-          <OnboardingStep6_AppFeatures
+          <OnboardingStep7_AppFeatures
             handleNext={handleNext}
             handleBack={handleBack}
           />
@@ -137,10 +149,11 @@ export default function OnboardingPage() {
     switch (currentStep) {
       case 1: return `Welcome! What's Your Main Goal?`;
       case 2: return "How Do You Like to Train?";
-      case 3: return `Great, ${firstName}! Let's Personalise Your Plan.`;
-      case 4: return "Let's Equip Your Workouts";
-      case 5: return "Analyse Your Gym";
-      case 6: return "Your Plan Comes With Powerful Tools";
+      case 3: return `Great, ${firstName}! Let's Get Your Snapshot.`;
+      case 4: return "Personalise Your AI Coach";
+      case 5: return "Let's Equip Your Workouts";
+      case 6: return "Analyse Your Gym";
+      case 7: return "Your Plan Comes With Powerful Tools";
       default: return "";
     }
   };
@@ -149,10 +162,11 @@ export default function OnboardingPage() {
     switch (currentStep) {
       case 1: return "This helps us tailor your workout plan to what you want to achieve.";
       case 2: return "Choose the structure and duration that best fits your lifestyle.";
-      case 3: return "These details help us and our AI coach create a truly bespoke plan for you.";
-      case 4: return "Tell us about your primary gym so we can select the right exercises.";
-      case 5: return "Upload photos of your equipment, and our AI will identify exercises for you to confirm.";
-      case 6: return "Here are some of the key features you're about to unlock. Click below to generate your plan!";
+      case 3: return "These details help us create a truly bespoke plan for you.";
+      case 4: return "These details help our AI coach create a truly bespoke plan for you.";
+      case 5: return "Tell us about your primary gym so we can select the right exercises.";
+      case 6: return "Upload photos of your equipment, and our AI will identify exercises for you to confirm.";
+      case 7: return "Here are some of the key features you're about to unlock. Click below to generate your plan!";
       default: return "";
     }
   };
@@ -161,18 +175,15 @@ export default function OnboardingPage() {
     <>
       <div className="min-h-screen bg-background p-2 sm:p-4">
         <div className="max-w-2xl mx-auto">
-          <header className="mb-8 text-center">
-            <h1 className="text-3xl font-bold">Your Fitness Journey Starts Now</h1>
+          <header className="mb-8 text-center flex flex-col items-center">
+            <ProgressRing progress={progressValue} />
+            <h1 className="text-3xl font-bold mt-4">Almost There!</h1>
             <p className="text-muted-foreground mt-2">
-              Let's set up your personalised Transformation Path
+              Complete your profile to unlock personalized training
             </p>
           </header>
 
-          <div className="mb-6 px-2">
-            <Progress value={progressValue} className="w-full" />
-          </div>
-
-          <Card>
+          <Card className="animate-fade-in-slide-up">
             <CardHeader>
               <CardTitle>{getStepTitle()}</CardTitle>
               <CardDescription>{getStepDescription()}</CardDescription>

@@ -34,6 +34,7 @@ export const useOnboardingForm = () => {
   const [fullName, setFullName] = useState('');
   const [heightCm, setHeightCm] = useState<number | null>(175);
   const [weightKg, setWeightKg] = useState<number | null>(75);
+  const [bodyFatPct, setBodyFatPct] = useState<number | null>(15);
   const [preferredMuscles, setPreferredMuscles] = useState<string>("");
   const [constraints, setConstraints] = useState<string>("");
   const [consentGiven, setConsentGiven] = useState(false);
@@ -139,7 +140,7 @@ export const useOnboardingForm = () => {
         fullName,
         heightCm,
         weightKg,
-        bodyFatPct: null, // Body fat is not collected in this flow
+        bodyFatPct,
         experience: 'intermediate', // Defaulting experience for now
       };
 
@@ -170,7 +171,7 @@ export const useOnboardingForm = () => {
   }, [
     memoizedSessionUserId, session, router, tPathType, goalFocus, preferredMuscles,
     constraints, sessionLength, equipmentMethod, gymName, identifiedExercises, confirmedExercises,
-    fullName, heightCm, weightKg
+    fullName, heightCm, weightKg, bodyFatPct
   ]);
 
   const handleNext = useCallback(() => {
@@ -216,6 +217,7 @@ export const useOnboardingForm = () => {
     fullName, setFullName,
     heightCm, setHeightCm,
     weightKg, setWeightKg,
+    bodyFatPct, setBodyFatPct,
     preferredMuscles, setPreferredMuscles,
     constraints, setConstraints,
     consentGiven, setConsentGiven,

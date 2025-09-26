@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dumbbell, Sparkles, BarChart3 } from 'lucide-react';
 import { cn, getWorkoutColorClass } from '@/lib/utils';
 
-interface OnboardingStep6Props {
+interface OnboardingStep7Props {
   handleNext: () => void;
   handleBack: () => void;
 }
@@ -31,10 +31,10 @@ const features = [
   }
 ];
 
-export const OnboardingStep6_AppFeatures = ({
+export const OnboardingStep7_AppFeatures = ({
   handleNext,
   handleBack,
-}: OnboardingStep6Props) => {
+}: OnboardingStep7Props) => {
   return (
     <div className="space-y-6">
       <div className="space-y-4">

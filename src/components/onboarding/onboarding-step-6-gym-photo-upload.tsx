@@ -10,7 +10,7 @@ import { Camera, CheckCircle, Trash2 } from 'lucide-react';
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 
-interface OnboardingStep5Props {
+interface OnboardingStep6Props {
   identifiedExercises: Partial<FetchedExerciseDefinition>[];
   addIdentifiedExercise: (exercise: Partial<FetchedExerciseDefinition>) => void;
   removeIdentifiedExercise: (exerciseName: string) => void;
@@ -20,7 +20,7 @@ interface OnboardingStep5Props {
   handleBack: () => void;
 }
 
-export const OnboardingStep5_GymPhotoUpload = ({
+export const OnboardingStep6_GymPhotoUpload = ({
   identifiedExercises,
   addIdentifiedExercise,
   removeIdentifiedExercise,
@@ -28,7 +28,7 @@ export const OnboardingStep5_GymPhotoUpload = ({
   toggleConfirmedExercise,
   handleNext,
   handleBack,
-}: OnboardingStep5Props) => {
+}: OnboardingStep6Props) => {
   const [showAnalyseGymDialog, setShowAnalyseGymDialog] = useState(false);
 
   const handleExerciseIdentified = useCallback((exercises: Partial<FetchedExerciseDefinition>[], duplicate_status: 'none' | 'global' | 'my-exercises') => {
