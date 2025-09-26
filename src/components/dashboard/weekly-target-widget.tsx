@@ -11,11 +11,21 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { ConsistencyCalendarModal } from '@/components/dashboard/consistency-calendar-modal';
+import { WeeklyActivitySummaryDialog } from './weekly-activity-summary-dialog';
+
+interface Activity {
+  id: string;
+  type: string;
+  distance: string | null;
+  time: string | null;
+  date: string;
+}
 
 interface WeeklySummary {
   completed_workouts: { id: string; name: string }[];
   goal_total: number;
   programme_type: 'ulul' | 'ppl';
+  completed_activities: Activity[];
 }
 
 interface WeeklyTargetWidgetProps {
@@ -28,6 +38,7 @@ export const WeeklyTargetWidget = ({ onViewSummary }: WeeklyTargetWidgetProps) =
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isActivitySummaryOpen, setIsActivitySummaryOpen] = useState(false);
 
   const { data: cachedProfile, loading: loadingProfile, error: profileError } = useCacheAndRevalidate<LocalProfile>({
     cacheTable: 'profiles_cache',
@@ -76,9 +87,9 @@ export const WeeklyTargetWidget = ({ onViewSummary }: WeeklyTargetWidgetProps) =
 
   const programmeType = cachedProfile?.[0]?.programme_type;
 
-  const { displayItems, completedCount, goalTotal } = useMemo(() => {
+  const { displayItems, completedCount, goalTotal, completedActivities } = useMemo(() => {
     if (!summary || !programmeType) {
-      return { displayItems: [], completedCount: 0, goalTotal: programmeType === 'ulul' ? 4 : 3 };
+      return { displayItems: [], completedCount: 0, goalTotal: programmeType === 'ulul' ? 4 : 3, completedActivities: [] };
     }
 
     const goalWorkouts = programmeType === 'ulul'
@@ -101,7 +112,7 @@ export const WeeklyTargetWidget = ({ onViewSummary }: WeeklyTargetWidgetProps) =
         isCompleted: isCompleted,
       });
     }
-    return { displayItems: items, completedCount, goalTotal };
+    return { displayItems: items, completedCount, goalTotal, completedActivities: summary.completed_activities || [] };
   }, [summary, programmeType]);
 
   if (isLoading || loadingProfile) {
@@ -152,7 +163,7 @@ export const WeeklyTargetWidget = ({ onViewSummary }: WeeklyTargetWidgetProps) =
   return (
     <>
       <Card className="animate-fade-in-slide-up">
-        <CardHeader className="pb-2 flex flex-row items-center justify-between">
+        <CardHeader className="pb-1 flex flex-row items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
             <Dumbbell className="h-5 w-5 text-primary" /> Weekly Target
           </CardTitle>
@@ -160,7 +171,7 @@ export const WeeklyTargetWidget = ({ onViewSummary }: WeeklyTargetWidgetProps) =
             <CalendarDays className="h-4 w-4 text-muted-foreground" />
           </Button>
         </CardHeader>
-        <CardContent className="flex flex-col items-center justify-center gap-2 pt-2">
+        <CardContent className="flex flex-col items-center justify-center gap-2 pt-1">
           <div className="flex space-x-2">
             <TooltipProvider>
               {displayItems.map((item, index) => {
@@ -191,9 +202,23 @@ export const WeeklyTargetWidget = ({ onViewSummary }: WeeklyTargetWidgetProps) =
           <p className="text-sm text-muted-foreground">
             {completedCount} / {goalTotal} Workouts Completed This Week
           </p>
+          {completedActivities.length > 0 && (
+            <Button
+              variant="link"
+              className="text-sm text-muted-foreground h-auto p-0"
+              onClick={() => setIsActivitySummaryOpen(true)}
+            >
+              {completedActivities.length} Activit{completedActivities.length > 1 ? 'ies' : 'y'} Completed This Week
+            </Button>
+          )}
         </CardContent>
       </Card>
       <ConsistencyCalendarModal open={isCalendarOpen} onOpenChange={setIsCalendarOpen} />
+      <WeeklyActivitySummaryDialog
+        open={isActivitySummaryOpen}
+        onOpenChange={setIsActivitySummaryOpen}
+        activities={completedActivities}
+      />
     </>
   );
 };

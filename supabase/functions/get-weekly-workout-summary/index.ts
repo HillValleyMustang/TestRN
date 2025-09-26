@@ -74,18 +74,36 @@ serve(async (req: Request) => {
     // 4. Query completed workout sessions for the week
     const { data: completedSessions, error: sessionsError } = await supabaseServiceRoleClient
       .from('workout_sessions')
-      .select('id, template_name, completed_at') // Select id, name and completion time
+      .select('id, template_name, completed_at')
       .eq('user_id', userId)
       .not('completed_at', 'is', null)
-      .gte('completed_at', startOfWeek.toISOString()) // Use completed_at for accuracy
-      .order('completed_at', { ascending: true }); // Order chronologically
+      .gte('completed_at', startOfWeek.toISOString())
+      .order('completed_at', { ascending: true });
 
     if (sessionsError) throw sessionsError;
+
+    // NEW: Query completed activities for the week
+    const { data: completedActivities, error: activitiesError } = await supabaseServiceRoleClient
+      .from('activity_logs')
+      .select('id, activity_type, distance, time, log_date')
+      .eq('user_id', userId)
+      .gte('log_date', startOfWeek.toISOString());
+
+    if (activitiesError) throw activitiesError;
 
     // 5. Format the completed workouts
     const completed_workouts = (completedSessions || []).map((session: { id: string, template_name: string | null }) => ({
       id: session.id,
       name: session.template_name || 'Ad Hoc Workout'
+    }));
+
+    // NEW: Format completed activities
+    const completed_activities_details = (completedActivities || []).map((activity: any) => ({
+        id: activity.id,
+        type: activity.activity_type,
+        distance: activity.distance,
+        time: activity.time,
+        date: activity.log_date,
     }));
 
     // 6. Return the new data structure
@@ -94,6 +112,7 @@ serve(async (req: Request) => {
         completed_workouts: completed_workouts,
         goal_total: goal_total,
         programme_type: programmeType,
+        completed_activities: completed_activities_details,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
