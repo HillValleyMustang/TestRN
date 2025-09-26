@@ -10,9 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { ChevronDown, X, Bot } from "lucide-react";
 import { Label } from '@/components/ui/label';
 
-interface OnboardingStep2Props {
-  experience: "beginner" | "intermediate" | null;
-  setExperience: (value: "beginner" | "intermediate") => void;
+interface OnboardingStep3Props {
   goalFocus: string;
   setGoalFocus: (value: string) => void;
   preferredMuscles: string;
@@ -36,9 +34,7 @@ const goals = [
   { id: "mobility", title: "Increase Mobility" },
 ];
 
-export const OnboardingStep2_GoalsAndExperience = ({
-  experience,
-  setExperience,
+export const OnboardingStep3_GoalFocus = ({
   goalFocus,
   setGoalFocus,
   preferredMuscles,
@@ -47,7 +43,7 @@ export const OnboardingStep2_GoalsAndExperience = ({
   setConstraints,
   handleNext,
   handleBack,
-}: OnboardingStep2Props) => {
+}: OnboardingStep3Props) => {
   const selectedMuscles = preferredMuscles ? preferredMuscles.split(',').map(m => m.trim()) : [];
 
   const handleMuscleToggle = (muscle: string) => {
@@ -61,55 +57,22 @@ export const OnboardingStep2_GoalsAndExperience = ({
   };
 
   return (
-    <div className="space-y-8">
-      <div>
-        <Label className="text-base font-semibold">What's your primary goal?</Label>
-        <div className="grid grid-cols-2 gap-3 mt-2">
-          {goals.map(goal => (
-            <Card 
-              key={goal.id}
-              className={cn(
-                "cursor-pointer transition-all min-h-[80px] flex flex-col justify-center p-4",
-                goalFocus === goal.id 
-                  ? 'border-primary ring-2 ring-primary' 
-                  : 'hover:border-primary/50'
-              )}
-              onClick={() => setGoalFocus(goal.id)}
-            >
-              <CardTitle className="text-base text-center font-semibold">{goal.title}</CardTitle>
-            </Card>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <Label className="text-base font-semibold">What's your experience level?</Label>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-3">
+        {goals.map(goal => (
           <Card 
+            key={goal.id}
             className={cn(
-              "cursor-pointer transition-all min-h-[100px] flex flex-col justify-center",
-              experience === 'beginner' 
+              "cursor-pointer transition-all min-h-[80px] flex flex-col justify-center p-4",
+              goalFocus === goal.id 
                 ? 'border-primary ring-2 ring-primary' 
                 : 'hover:border-primary/50'
             )}
-            onClick={() => setExperience('beginner')}
+            onClick={() => setGoalFocus(goal.id)}
           >
-            <CardHeader className="pb-2"><CardTitle className="text-lg text-center">Beginner</CardTitle></CardHeader>
-            <CardContent className="pt-0"><p className="text-sm text-muted-foreground text-center">New to structured training or returning after a long break.</p></CardContent>
+            <CardTitle className="text-base text-center font-semibold">{goal.title}</CardTitle>
           </Card>
-          <Card 
-            className={cn(
-              "cursor-pointer transition-all min-h-[100px] flex flex-col justify-center",
-              experience === 'intermediate' 
-                ? 'border-primary ring-2 ring-primary' 
-                : 'hover:border-primary/50'
-            )}
-            onClick={() => setExperience('intermediate')}
-          >
-            <CardHeader className="pb-2"><CardTitle className="text-lg text-center">Intermediate</CardTitle></CardHeader>
-            <CardContent className="pt-0"><p className="text-sm text-muted-foreground text-center">Some experience with structured training programs.</p></CardContent>
-          </Card>
-        </div>
+        ))}
       </div>
       
       <div>
@@ -132,10 +95,15 @@ export const OnboardingStep2_GoalsAndExperience = ({
                     selectedMuscles.map((muscle) => (
                       <Badge key={muscle} variant="secondary" className="flex items-center gap-1 text-xs">
                         {muscle}
-                        <X className="h-3 w-3 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleMuscleToggle(muscle); }} />
+                        <X className="h-3 w-3 cursor-pointer" onClick={(e) => {
+                          e.stopPropagation();
+                          handleMuscleToggle(muscle);
+                        }} />
                       </Badge>
                     ))
-                  ) : ( <span className="text-sm">Select muscles...</span> )}
+                  ) : (
+                    <span className="text-sm">Select muscles...</span>
+                  )}
                 </div>
                 <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </span>
@@ -144,7 +112,16 @@ export const OnboardingStep2_GoalsAndExperience = ({
           <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
             <div className="grid grid-cols-2 gap-2 p-2">
               {mainMuscleGroups.map((muscle) => (
-                <Button key={muscle} type="button" variant={selectedMuscles.includes(muscle) ? "default" : "outline"} onClick={() => handleMuscleToggle(muscle)} className={cn("flex-1 text-sm", selectedMuscles.includes(muscle) ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent")}>
+                <Button
+                  key={muscle}
+                  type="button"
+                  variant={selectedMuscles.includes(muscle) ? "default" : "outline"}
+                  onClick={() => handleMuscleToggle(muscle)}
+                  className={cn(
+                    "flex-1 text-sm",
+                    selectedMuscles.includes(muscle) ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent"
+                  )}
+                >
                   {muscle}
                 </Button>
               ))}
@@ -152,7 +129,8 @@ export const OnboardingStep2_GoalsAndExperience = ({
           </PopoverContent>
         </Popover>
         <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-          <Bot className="h-3 w-3 flex-shrink-0" /> This helps our AI tailor exercise suggestions.
+          <Bot className="h-3 w-3 flex-shrink-0" />
+          This helps our AI tailor exercise suggestions and coaching feedback.
         </p>
       </div>
       
@@ -160,15 +138,29 @@ export const OnboardingStep2_GoalsAndExperience = ({
         <Label htmlFor="constraints" className="text-sm font-medium">
           Constraints <span className="text-xs font-normal text-muted-foreground">(Optional)</span>
         </Label>
-        <Textarea id="constraints" placeholder="Any injuries, health conditions, or limitations..." value={constraints} onChange={(e) => setConstraints(e.target.value)} className="mt-1 text-sm" />
+        <Textarea 
+          id="constraints" 
+          placeholder="Any injuries, health conditions, or limitations..." 
+          value={constraints}
+          onChange={(e) => setConstraints(e.target.value)}
+          className="mt-1 text-sm"
+        />
         <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-          <Bot className="h-3 w-3 flex-shrink-0" /> Our AI will consider these when generating plans.
+          <Bot className="h-3 w-3 flex-shrink-0" />
+          Our AI will consider these when generating workout plans and advice.
         </p>
       </div>
       
-      <div className="flex justify-between mt-8">
-        <Button variant="outline" onClick={handleBack}>Back</Button>
-        <Button onClick={handleNext} disabled={!goalFocus || !experience}>Next</Button>
+      <div className="flex justify-between">
+        <Button variant="outline" onClick={handleBack}>
+          Back
+        </Button>
+        <Button 
+          onClick={handleNext} 
+          disabled={!goalFocus}
+        >
+          Next
+        </Button>
       </div>
     </div>
   );
