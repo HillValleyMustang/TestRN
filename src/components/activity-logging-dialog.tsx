@@ -90,7 +90,7 @@ const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
   if (e.target.value === '') e.target.value = '0';
 };
 
-export const LogCyclingForm = ({ onLogSuccess, setTempStatusMessage }: { onLogSuccess: () => void; setTempStatusMessage: (message: any) => void; }) => {
+export const LogCyclingForm = ({ onSuccess, setTempStatusMessage }: { onSuccess: () => void; setTempStatusMessage: (message: any) => void; }) => {
   const { session, supabase, memoizedSessionUserId } = useSession();
   const [preferredDistanceUnit, setPreferredDistanceUnit] = useState<Profile['preferred_distance_unit']>('km');
 
@@ -183,7 +183,7 @@ export const LogCyclingForm = ({ onLogSuccess, setTempStatusMessage }: { onLogSu
       setTempStatusMessage({ message: "Added!", type: 'success' });
       setTimeout(() => setTempStatusMessage(null), 3000);
       form.reset();
-      onLogSuccess();
+      onSuccess();
     }
   }
 
@@ -202,7 +202,7 @@ export const LogCyclingForm = ({ onLogSuccess, setTempStatusMessage }: { onLogSu
   );
 };
 
-export const LogRunningForm = ({ onLogSuccess, setTempStatusMessage }: { onLogSuccess: () => void; setTempStatusMessage: (message: any) => void; }) => {
+export const LogRunningForm = ({ onSuccess, setTempStatusMessage }: { onSuccess: () => void; setTempStatusMessage: (message: any) => void; }) => {
   const { session, supabase, memoizedSessionUserId } = useSession();
   const [preferredDistanceUnit, setPreferredDistanceUnit] = useState<Profile['preferred_distance_unit']>('km');
 
@@ -293,7 +293,7 @@ export const LogRunningForm = ({ onLogSuccess, setTempStatusMessage }: { onLogSu
       setTempStatusMessage({ message: "Added!", type: 'success' });
       setTimeout(() => setTempStatusMessage(null), 3000);
       form.reset();
-      onLogSuccess();
+      onSuccess();
     }
   }
 
@@ -313,7 +313,7 @@ export const LogRunningForm = ({ onLogSuccess, setTempStatusMessage }: { onLogSu
 };
 
 
-export const LogSwimmingForm = ({ onLogSuccess, setTempStatusMessage }: { onLogSuccess: () => void; setTempStatusMessage: (message: any) => void; }) => {
+export const LogSwimmingForm = ({ onSuccess, setTempStatusMessage }: { onSuccess: () => void; setTempStatusMessage: (message: any) => void; }) => {
   const { session, supabase, memoizedSessionUserId } = useSession();
   const form = useForm<z.infer<typeof swimmingSchema>>({
     resolver: zodResolver(swimmingSchema),
@@ -372,7 +372,7 @@ export const LogSwimmingForm = ({ onLogSuccess, setTempStatusMessage }: { onLogS
       setTempStatusMessage({ message: "Added!", type: 'success' });
       setTimeout(() => setTempStatusMessage(null), 3000);
       form.reset();
-      onLogSuccess();
+      onSuccess();
     }
   }
 
@@ -388,7 +388,7 @@ export const LogSwimmingForm = ({ onLogSuccess, setTempStatusMessage }: { onLogS
   );
 };
 
-export const LogTennisForm = ({ onLogSuccess, setTempStatusMessage }: { onLogSuccess: () => void; setTempStatusMessage: (message: any) => void; }) => {
+export const LogTennisForm = ({ onSuccess, setTempStatusMessage }: { onSuccess: () => void; setTempStatusMessage: (message: any) => void; }) => {
   const { session, supabase, memoizedSessionUserId } = useSession();
   const form = useForm<z.infer<typeof tennisSchema>>({
     resolver: zodResolver(tennisSchema),
@@ -442,7 +442,7 @@ export const LogTennisForm = ({ onLogSuccess, setTempStatusMessage }: { onLogSuc
       setTempStatusMessage({ message: "Added!", type: 'success' });
       setTimeout(() => setTempStatusMessage(null), 3000);
       form.reset();
-      onLogSuccess();
+      onSuccess();
     }
   }
 
@@ -457,7 +457,7 @@ export const LogTennisForm = ({ onLogSuccess, setTempStatusMessage }: { onLogSuc
   );
 };
 
-export const ActivityLoggingDialog = ({ open, onOpenChange, initialActivity, trigger, onLogSuccess }: ActivityLoggingDialogProps) => {
+export const ActivityLoggingDialog = ({ open, onOpenChange, initialActivity, trigger }: ActivityLoggingDialogProps) => {
   const [internalOpen, setInternalOpen] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<ActivityType | null>(initialActivity || null);
   const { setTempStatusMessage, refreshAllData } = useWorkoutFlow();
@@ -479,10 +479,6 @@ export const ActivityLoggingDialog = ({ open, onOpenChange, initialActivity, tri
   const handleLogSuccess = () => {
     setCurrentOpen(false);
     setSelectedActivity(null);
-    if (onLogSuccess) {
-      onLogSuccess();
-    }
-    // Always refresh data after a successful log
     refreshAllData();
   };
 
@@ -504,10 +500,10 @@ export const ActivityLoggingDialog = ({ open, onOpenChange, initialActivity, tri
           <div className="py-4">
             <h3 className="text-lg font-semibold mb-4">Log {selectedActivity}</h3>
             <Button variant="outline" className="mb-4 w-full" onClick={() => setSelectedActivity(null)}> Back to Activity Types </Button>
-            {selectedActivity === "Running" && <LogRunningForm onLogSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
-            {selectedActivity === "Cycling" && <LogCyclingForm onLogSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
-            {selectedActivity === "Swimming" && <LogSwimmingForm onLogSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
-            {selectedActivity === "Tennis" && <LogTennisForm onLogSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
+            {selectedActivity === "Running" && <LogRunningForm onSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
+            {selectedActivity === "Cycling" && <LogCyclingForm onSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
+            {selectedActivity === "Swimming" && <LogSwimmingForm onSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
+            {selectedActivity === "Tennis" && <LogTennisForm onSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
           </div>
         )}
       </DialogContent>
