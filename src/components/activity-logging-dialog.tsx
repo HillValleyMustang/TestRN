@@ -14,6 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useSession } from "@/components/session-context-provider";
 import { TablesInsert, Tables } from "@/types/supabase";
 import { convertDistance, KM_TO_MILES } from '@/lib/unit-conversions';
+import { useWorkoutFlow } from "./workout-flow/workout-flow-context-provider";
 
 type ActivityLog = Tables<'activity_logs'>;
 type ActivityType = "Cycling" | "Swimming" | "Tennis" | "Running";
@@ -82,7 +83,14 @@ const tennisSchema = z.object({
   log_date: z.string().min(1, "Date is required."),
 });
 
-export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
+const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+  if (e.target.value === '0') e.target.value = '';
+};
+const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+  if (e.target.value === '') e.target.value = '0';
+};
+
+export const LogCyclingForm = ({ onLogSuccess, setTempStatusMessage }: { onLogSuccess: () => void; setTempStatusMessage: (message: any) => void; }) => {
   const { session, supabase, memoizedSessionUserId } = useSession();
   const [preferredDistanceUnit, setPreferredDistanceUnit] = useState<Profile['preferred_distance_unit']>('km');
 
@@ -172,7 +180,8 @@ export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
       console.error("Failed to log cycling activity:", error.message);
       toast.error("Failed to log cycling activity.");
     } else {
-      toast.success("Cycling activity logged successfully!");
+      setTempStatusMessage({ message: "Added!", type: 'success' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       form.reset();
       onLogSuccess();
     }
@@ -181,19 +190,19 @@ export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField control={form.control} name="distance" render={({ field }) => ( <FormItem> <FormLabel>Distance ({preferredDistanceUnit})</FormLabel> <FormControl><Input type="number" step="0.1" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+        <FormField control={form.control} name="distance" render={({ field }) => ( <FormItem> <FormLabel>Distance ({preferredDistanceUnit})</FormLabel> <FormControl><Input type="number" step="0.1" {...field} inputMode="decimal" onFocus={handleFocus} onBlur={handleBlur} /></FormControl> <FormMessage /> </FormItem> )} />
         <div className="flex gap-2">
-          <FormField control={form.control} name="minutes" render={({ field }) => ( <FormItem className="flex-1"> <FormLabel>Minutes</FormLabel> <FormControl><Input type="number" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-          <FormField control={form.control} name="seconds" render={({ field }) => ( <FormItem className="flex-1"> <FormLabel>Seconds</FormLabel> <FormControl><Input type="number" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+          <FormField control={form.control} name="minutes" render={({ field }) => ( <FormItem className="flex-1"> <FormLabel>Minutes</FormLabel> <FormControl><Input type="number" {...field} inputMode="numeric" onFocus={handleFocus} onBlur={handleBlur} /></FormControl> <FormMessage /> </FormItem> )} />
+          <FormField control={form.control} name="seconds" render={({ field }) => ( <FormItem className="flex-1"> <FormLabel>Seconds</FormLabel> <FormControl><Input type="number" {...field} inputMode="numeric" onFocus={handleFocus} onBlur={handleBlur} /></FormControl> <FormMessage /> </FormItem> )} />
         </div>
-        <FormField control={form.control} name="log_date" render={({ field }) => ( <FormItem> <FormLabel>Date</FormLabel> <FormControl><Input type="date" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+        <FormField control={form.control} name="log_date" render={({ field }) => ( <FormItem> <FormLabel>Date</FormLabel> <FormControl><Input type="date" {...field} className="w-full max-w-[180px]" /></FormControl> <FormMessage /> </FormItem> )} />
         <Button type="submit" className="w-full">Log Cycling</Button>
       </form>
     </Form>
   );
 };
 
-export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
+export const LogRunningForm = ({ onLogSuccess, setTempStatusMessage }: { onLogSuccess: () => void; setTempStatusMessage: (message: any) => void; }) => {
   const { session, supabase, memoizedSessionUserId } = useSession();
   const [preferredDistanceUnit, setPreferredDistanceUnit] = useState<Profile['preferred_distance_unit']>('km');
 
@@ -281,7 +290,8 @@ export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
       console.error("Failed to log running activity:", error.message);
       toast.error("Failed to log running activity.");
     } else {
-      toast.success("Running activity logged successfully!");
+      setTempStatusMessage({ message: "Added!", type: 'success' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       form.reset();
       onLogSuccess();
     }
@@ -290,12 +300,12 @@ export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField control={form.control} name="distance" render={({ field }) => ( <FormItem> <FormLabel>Distance ({preferredDistanceUnit})</FormLabel> <FormControl><Input type="number" step="0.1" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+        <FormField control={form.control} name="distance" render={({ field }) => ( <FormItem> <FormLabel>Distance ({preferredDistanceUnit})</FormLabel> <FormControl><Input type="number" step="0.1" {...field} inputMode="decimal" onFocus={handleFocus} onBlur={handleBlur} /></FormControl> <FormMessage /> </FormItem> )} />
         <div className="flex gap-2">
-          <FormField control={form.control} name="minutes" render={({ field }) => ( <FormItem className="flex-1"> <FormLabel>Minutes</FormLabel> <FormControl><Input type="number" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-          <FormField control={form.control} name="seconds" render={({ field }) => ( <FormItem className="flex-1"> <FormLabel>Seconds</FormLabel> <FormControl><Input type="number" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+          <FormField control={form.control} name="minutes" render={({ field }) => ( <FormItem className="flex-1"> <FormLabel>Minutes</FormLabel> <FormControl><Input type="number" {...field} inputMode="numeric" onFocus={handleFocus} onBlur={handleBlur} /></FormControl> <FormMessage /> </FormItem> )} />
+          <FormField control={form.control} name="seconds" render={({ field }) => ( <FormItem className="flex-1"> <FormLabel>Seconds</FormLabel> <FormControl><Input type="number" {...field} inputMode="numeric" onFocus={handleFocus} onBlur={handleBlur} /></FormControl> <FormMessage /> </FormItem> )} />
         </div>
-        <FormField control={form.control} name="log_date" render={({ field }) => ( <FormItem> <FormLabel>Date</FormLabel> <FormControl><Input type="date" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+        <FormField control={form.control} name="log_date" render={({ field }) => ( <FormItem> <FormLabel>Date</FormLabel> <FormControl><Input type="date" {...field} className="w-full max-w-[180px]" /></FormControl> <FormMessage /> </FormItem> )} />
         <Button type="submit" className="w-full">Log Running</Button>
       </form>
     </Form>
@@ -303,7 +313,7 @@ export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
 };
 
 
-export const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
+export const LogSwimmingForm = ({ onLogSuccess, setTempStatusMessage }: { onLogSuccess: () => void; setTempStatusMessage: (message: any) => void; }) => {
   const { session, supabase, memoizedSessionUserId } = useSession();
   const form = useForm<z.infer<typeof swimmingSchema>>({
     resolver: zodResolver(swimmingSchema),
@@ -359,7 +369,8 @@ export const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) 
       console.error("Failed to log swimming activity:", error.message);
       toast.error("Failed to log swimming activity.");
     } else {
-      toast.success("Swimming activity logged successfully!");
+      setTempStatusMessage({ message: "Added!", type: 'success' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       form.reset();
       onLogSuccess();
     }
@@ -368,16 +379,16 @@ export const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField control={form.control} name="lengths" render={({ field }) => ( <FormItem> <FormLabel>Lengths</FormLabel> <FormControl><Input type="number" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-        <FormField control={form.control} name="pool_size" render={({ field }) => ( <FormItem> <FormLabel>Pool Size (meters)</FormLabel> <FormControl><Input type="number" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-        <FormField control={form.control} name="log_date" render={({ field }) => ( <FormItem> <FormLabel>Date</FormLabel> <FormControl><Input type="date" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+        <FormField control={form.control} name="lengths" render={({ field }) => ( <FormItem> <FormLabel>Lengths</FormLabel> <FormControl><Input type="number" {...field} inputMode="numeric" onFocus={handleFocus} onBlur={handleBlur} /></FormControl> <FormMessage /> </FormItem> )} />
+        <FormField control={form.control} name="pool_size" render={({ field }) => ( <FormItem> <FormLabel>Pool Size (meters)</FormLabel> <FormControl><Input type="number" {...field} inputMode="numeric" onFocus={handleFocus} onBlur={handleBlur} /></FormControl> <FormMessage /> </FormItem> )} />
+        <FormField control={form.control} name="log_date" render={({ field }) => ( <FormItem> <FormLabel>Date</FormLabel> <FormControl><Input type="date" {...field} className="w-full max-w-[180px]" /></FormControl> <FormMessage /> </FormItem> )} />
         <Button type="submit" className="w-full">Log Swimming</Button>
       </form>
     </Form>
   );
 };
 
-export const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
+export const LogTennisForm = ({ onLogSuccess, setTempStatusMessage }: { onLogSuccess: () => void; setTempStatusMessage: (message: any) => void; }) => {
   const { session, supabase, memoizedSessionUserId } = useSession();
   const form = useForm<z.infer<typeof tennisSchema>>({
     resolver: zodResolver(tennisSchema),
@@ -428,7 +439,8 @@ export const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =>
       console.error("Failed to log tennis activity:", error.message);
       toast.error("Failed to log tennis activity.");
     } else {
-      toast.success("Tennis activity logged successfully!");
+      setTempStatusMessage({ message: "Added!", type: 'success' });
+      setTimeout(() => setTempStatusMessage(null), 3000);
       form.reset();
       onLogSuccess();
     }
@@ -438,7 +450,7 @@ export const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField control={form.control} name="duration" render={({ field }) => ( <FormItem> <FormLabel>Duration (e.g., 1h 30m or 90m)</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-        <FormField control={form.control} name="log_date" render={({ field }) => ( <FormItem> <FormLabel>Date</FormLabel> <FormControl><Input type="date" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+        <FormField control={form.control} name="log_date" render={({ field }) => ( <FormItem> <FormLabel>Date</FormLabel> <FormControl><Input type="date" {...field} className="w-full max-w-[180px]" /></FormControl> <FormMessage /> </FormItem> )} />
         <Button type="submit" className="w-full">Log Tennis</Button>
       </form>
     </Form>
@@ -448,6 +460,7 @@ export const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =>
 export const ActivityLoggingDialog = ({ open, onOpenChange, initialActivity, trigger, onLogSuccess }: ActivityLoggingDialogProps) => {
   const [internalOpen, setInternalOpen] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<ActivityType | null>(initialActivity || null);
+  const { setTempStatusMessage } = useWorkoutFlow();
 
   const isControlled = open !== undefined && onOpenChange !== undefined;
   const currentOpen = isControlled ? open : internalOpen;
@@ -489,10 +502,10 @@ export const ActivityLoggingDialog = ({ open, onOpenChange, initialActivity, tri
           <div className="py-4">
             <h3 className="text-lg font-semibold mb-4">Log {selectedActivity}</h3>
             <Button variant="outline" className="mb-4 w-full" onClick={() => setSelectedActivity(null)}> Back to Activity Types </Button>
-            {selectedActivity === "Running" && <LogRunningForm onLogSuccess={handleLogSuccess} />}
-            {selectedActivity === "Cycling" && <LogCyclingForm onLogSuccess={handleLogSuccess} />}
-            {selectedActivity === "Swimming" && <LogSwimmingForm onLogSuccess={handleLogSuccess} />}
-            {selectedActivity === "Tennis" && <LogTennisForm onLogSuccess={handleLogSuccess} />}
+            {selectedActivity === "Running" && <LogRunningForm onLogSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
+            {selectedActivity === "Cycling" && <LogCyclingForm onLogSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
+            {selectedActivity === "Swimming" && <LogSwimmingForm onLogSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
+            {selectedActivity === "Tennis" && <LogTennisForm onLogSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
           </div>
         )}
       </DialogContent>
