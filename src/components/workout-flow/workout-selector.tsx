@@ -439,7 +439,7 @@ export const WorkoutSelector = ({
 
           {activeWorkout.id === 'ad-hoc' && (
             <section className="mb-6 p-4 border rounded-lg bg-card">
-              <h3 className="text-lg font-semibold mb-3">Add Exercises</h3>
+              <h3 className="text-lg font-semibold mb-3">Find and Add Exercises Here ...</h3>
               <div className="flex flex-col gap-3 mb-3">
                 {/* Filters */}
                 <div className="flex flex-wrap items-center gap-2">
