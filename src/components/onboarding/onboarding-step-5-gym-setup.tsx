@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Camera, SkipForward } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface OnboardingStep4Props {
+interface OnboardingStep5Props {
   equipmentMethod: "photo" | "skip" | null;
   setEquipmentMethod: (value: "photo" | "skip") => void;
   handleNext: () => void;
@@ -17,14 +17,14 @@ interface OnboardingStep4Props {
   setGymName: (value: string) => void;
 }
 
-export const OnboardingStep4_GymSetup = ({
+export const OnboardingStep5_GymSetup = ({
   equipmentMethod,
   setEquipmentMethod,
   handleNext,
   handleBack,
   gymName,
   setGymName,
-}: OnboardingStep4Props) => {
+}: OnboardingStep5Props) => {
   return (
     <div className="space-y-6">
       <div>
