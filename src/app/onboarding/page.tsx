@@ -14,6 +14,7 @@ import { OnboardingStep2_GoalFocus } from "@/components/onboarding/onboarding-st
 import { OnboardingStep3_GoalFocus as OnboardingStep3_AiCoach } from "@/components/onboarding/onboarding-step-3-goal-focus";
 import { OnboardingStep4_TrainingPlan } from "@/components/onboarding/onboarding-step-4-training-plan";
 import { OnboardingStep5_GymSetup } from "@/components/onboarding/onboarding-step-5-gym-setup";
+import { OnboardingStep6_GymPhotoUpload } from "@/components/onboarding/onboarding-step-6-gym-photo-upload";
 // Placeholder for future steps - will be created in subsequent turns
 // import { OnboardingStep6_Toolkit } from "@/components/onboarding/onboarding-step-6-toolkit";
 
@@ -118,7 +119,19 @@ export default function OnboardingPage() {
             setGymName={setGymName}
           />
         );
-      // Cases for steps 6-7 will be added in future turns
+      case 6:
+        return (
+          <OnboardingStep6_GymPhotoUpload
+            identifiedExercises={identifiedExercises}
+            addIdentifiedExercise={addIdentifiedExercise}
+            removeIdentifiedExercise={removeIdentifiedExercise}
+            confirmedExercises={confirmedExercises}
+            toggleConfirmedExercise={toggleConfirmedExercise}
+            handleNext={handleNext}
+            handleBack={handleBack}
+          />
+        );
+      // Cases for step 7 will be added in future turns
       default:
         return null;
     }
@@ -132,7 +145,7 @@ export default function OnboardingPage() {
       case 3: return "Any Specifics for Your AI Coach?";
       case 4: return "How Do You Like to Train?";
       case 5: return "Let's Equip Your Plan";
-      case 6: return "Your Plan Comes With Powerful Tools";
+      case 6: return "Analyse Your Gym";
       case 7: return "Crafting Your Personalized Plan...";
       default: return "";
     }
@@ -145,7 +158,8 @@ export default function OnboardingPage() {
       case 3: return "Tell us about any preferences or limitations so we can fine-tune your plan.";
       case 4: return "Choose the structure and duration that best fits your lifestyle.";
       case 5: return "Tell us about your primary gym so we can select the right exercises.";
-      // Descriptions for steps 6-7 will be added
+      case 6: return "Upload photos of your equipment, and our AI will identify exercises for you to confirm.";
+      // Descriptions for step 7 will be added
       default: return "";
     }
   };
