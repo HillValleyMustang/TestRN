@@ -2,19 +2,21 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dumbbell, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
+import { Dumbbell, CheckCircle, Loader2, AlertCircle, CalendarDays } from 'lucide-react';
 import { cn, getWorkoutColorClass } from '@/lib/utils';
 import { useSession } from '@/components/session-context-provider';
 import { useCacheAndRevalidate } from '@/hooks/use-cache-and-revalidate';
 import { db, LocalProfile } from '@/lib/db';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
+import { ConsistencyCalendarModal } from '@/components/dashboard/consistency-calendar-modal';
 
 interface WeeklySummary {
   completed_count: number;
   goal: {
     total: number;
-    labels: string[];
+    workouts: { name: string }[];
   };
 }
 
@@ -23,6 +25,7 @@ export const WeeklyTargetWidget = () => {
   const [summary, setSummary] = useState<WeeklySummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   // Fetch profile to get programme_type for initial goal setup if needed
   const { data: cachedProfile, loading: loadingProfile, error: profileError } = useCacheAndRevalidate<LocalProfile>({
@@ -70,32 +73,6 @@ export const WeeklyTargetWidget = () => {
     }
   }, [memoizedSessionUserId, fetchWeeklySummary]);
 
-  // Determine the workout names for tooltips
-  const getFullWorkoutName = (label: string): string => {
-    switch (label) {
-      case 'U': return 'Upper Body';
-      case 'L': return 'Lower Body';
-      case 'P': return 'Push';
-      case 'O': return 'Pull'; // Assuming 'O' for Pull based on PPL
-      case 'E': return 'Legs'; // Assuming 'E' for Legs based on PPL
-      default: return 'Workout';
-    }
-  };
-
-  // Determine the color class for each circle
-  const getCircleColorClass = (label: string, isCompleted: boolean): string => {
-    let baseColorKey: string;
-    switch (label) {
-      case 'U': baseColorKey = 'upper-body-a'; break; // Using 'a' variant for simplicity
-      case 'L': baseColorKey = 'lower-body-a'; break;
-      case 'P': baseColorKey = 'push'; break;
-      case 'O': baseColorKey = 'pull'; break;
-      case 'E': baseColorKey = 'legs'; break;
-      default: baseColorKey = 'ad-hoc'; break; // Fallback
-    }
-    return isCompleted ? `bg-workout-${baseColorKey} text-white` : 'bg-muted text-muted-foreground';
-  };
-
   if (isLoading || loadingProfile) {
     return (
       <Card className="animate-fade-in-slide-up">
@@ -142,47 +119,53 @@ export const WeeklyTargetWidget = () => {
     );
   }
 
-  const goalLabels = summary?.goal.labels || (programmeType === 'ulul' ? ['U', 'L', 'U', 'L'] : ['P', 'P', 'L']);
+  const goalWorkouts = summary?.goal.workouts || (programmeType === 'ulul' ? [{name: 'Upper Body A'}, {name: 'Lower Body A'}, {name: 'Upper Body B'}, {name: 'Lower Body B'}] : [{name: 'Push'}, {name: 'Pull'}, {name: 'Legs'}]);
   const completedCount = summary?.completed_count || 0;
 
   return (
-    <Card className="animate-fade-in-slide-up">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Dumbbell className="h-5 w-5 text-primary" /> Weekly Target
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col items-center justify-center gap-3 pt-4">
-        <div className="flex space-x-2">
-          <TooltipProvider>
-            {goalLabels.map((label, index) => {
-              const isCompleted = index < completedCount;
-              const fullWorkoutName = getFullWorkoutName(label);
-              const colorClass = getCircleColorClass(label, isCompleted);
-              return (
-                <Tooltip key={index}>
-                  <TooltipTrigger asChild>
-                    <div
-                      className={cn(
-                        "h-10 w-10 rounded-full flex items-center justify-center text-sm font-semibold transition-colors duration-200",
-                        colorClass
-                      )}
-                    >
-                      {isCompleted ? <CheckCircle className="h-5 w-5" /> : label}
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{fullWorkoutName} - {isCompleted ? 'Completed' : 'Pending'}</p>
-                  </TooltipContent>
-                </Tooltip>
-              );
-            })}
-          </TooltipProvider>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {completedCount} / {goalLabels.length} Workouts Completed This Week
-        </p>
-      </CardContent>
-    </Card>
+    <>
+      <Card className="animate-fade-in-slide-up">
+        <CardHeader className="pb-2 flex flex-row items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Dumbbell className="h-5 w-5 text-primary" /> Weekly Target
+          </CardTitle>
+          <Button variant="ghost" size="icon" onClick={() => setIsCalendarOpen(true)}>
+            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+          </Button>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center justify-center gap-3 pt-4">
+          <div className="flex space-x-2">
+            <TooltipProvider>
+              {goalWorkouts.map((workout, index) => {
+                const isCompleted = index < completedCount;
+                const label = workout.name.includes('Upper') ? 'U' : workout.name.includes('Lower') ? 'L' : workout.name[0];
+                const colorClass = getWorkoutColorClass(workout.name, 'bg');
+                return (
+                  <Tooltip key={index}>
+                    <TooltipTrigger asChild>
+                      <div
+                        className={cn(
+                          "h-10 w-10 rounded-full flex items-center justify-center text-sm font-semibold transition-colors duration-200",
+                          isCompleted ? `${colorClass} text-white` : 'bg-muted text-muted-foreground'
+                        )}
+                      >
+                        {isCompleted ? <CheckCircle className="h-5 w-5" /> : label}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{workout.name} - {isCompleted ? 'Completed' : 'Pending'}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </TooltipProvider>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {completedCount} / {summary?.goal.total || (programmeType === 'ulul' ? 4 : 3)} Workouts Completed This Week
+          </p>
+        </CardContent>
+      </Card>
+      <ConsistencyCalendarModal open={isCalendarOpen} onOpenChange={setIsCalendarOpen} />
+    </>
   );
 };

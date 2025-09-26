@@ -79,14 +79,26 @@ serve(async (req: Request) => {
     if (countError) throw countError;
 
     // 4. Based on the workout_plan, create a goal object
-    let goal: { total: number; labels: string[] };
+    let goal: { total: number; workouts: { name: string }[] };
     if (programmeType === 'ulul') {
-      goal = { total: 4, labels: ['U', 'L', 'U', 'L'] };
+      const workoutNames = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
+      goal = { 
+        total: 4, 
+        workouts: workoutNames.map(name => ({ name })) 
+      };
     } else if (programmeType === 'ppl') {
-      goal = { total: 3, labels: ['P', 'P', 'L'] };
+      const pplSequence = ['Push', 'Pull', 'Legs'];
+      const numWorkoutsToShow = Math.max(3, completedCount || 0);
+      const workouts = [];
+      for (let i = 0; i < numWorkoutsToShow; i++) {
+        workouts.push({ name: pplSequence[i % 3] });
+      }
+      goal = { 
+        total: 3, // The "official" goal is still 3
+        workouts: workouts
+      };
     } else {
-      // Fallback for unknown programme types, or if we want to handle more dynamically
-      goal = { total: 0, labels: [] };
+      goal = { total: 0, workouts: [] };
     }
 
     // 5. Return a single JSON object
