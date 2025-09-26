@@ -154,7 +154,7 @@ export const WeeklyTargetWidget = () => {
             <CalendarDays className="h-4 w-4 text-muted-foreground" />
           </Button>
         </CardHeader>
-        <CardContent className="flex flex-col items-center justify-center gap-3 pt-4">
+        <CardContent className="flex flex-col items-center justify-center gap-2 pt-2">
           <div className="flex space-x-2">
             <TooltipProvider>
               {displayItems.map((item, index) => {
