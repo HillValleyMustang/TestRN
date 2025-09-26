@@ -4,9 +4,9 @@ import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Import Card components
-import { Camera, SkipForward } from 'lucide-react'; // Import icons
-import { cn } from '@/lib/utils'; // Import cn for conditional classes
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Camera, SkipForward } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface OnboardingStep4Props {
   equipmentMethod: "photo" | "skip" | null;
@@ -35,49 +35,49 @@ export const OnboardingStep4_GymSetup = ({
           value={gymName}
           onChange={(e) => setGymName(e.target.value)}
           required
-          className="mt-1 text-sm" // Reduced text size
+          className="mt-1 text-sm"
         />
-        <p className="text-sm text-muted-foreground mt-1">
-          Give your primary gym a name.
+        <p className="text-xs text-muted-foreground mt-1">
+          Give your primary gym a name. You can add more later.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> {/* Use grid for cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Card 
           className={cn(
-            "cursor-pointer transition-all min-h-[120px] flex flex-col justify-center text-center",
+            "cursor-pointer transition-all min-h-[100px] flex flex-col justify-center text-center p-4",
             equipmentMethod === 'photo' 
               ? 'border-primary ring-2 ring-primary' 
               : 'hover:border-primary/50'
           )}
           onClick={() => setEquipmentMethod('photo')}
         >
-          <CardHeader className="pb-2">
-            <Camera className="h-8 w-8 mx-auto mb-2 text-primary" /> {/* Icon */}
-            <CardTitle className="text-lg">Upload Gym Photos</CardTitle>
+          <CardHeader className="p-0 pb-2">
+            <Camera className="h-6 w-6 mx-auto mb-1 text-primary" />
+            <CardTitle className="text-base font-semibold">Upload Gym Photos</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
-            <p className="text-sm text-muted-foreground">
-              Take photos of your gym to help us identify available equipment.
+          <CardContent className="p-0">
+            <p className="text-xs text-muted-foreground">
+              Our AI will identify available equipment.
             </p>
           </CardContent>
         </Card>
         
         <Card 
           className={cn(
-            "cursor-pointer transition-all min-h-[120px] flex flex-col justify-center text-center",
+            "cursor-pointer transition-all min-h-[100px] flex flex-col justify-center text-center p-4",
             equipmentMethod === 'skip' 
               ? 'border-primary ring-2 ring-primary' 
               : 'hover:border-primary/50'
           )}
           onClick={() => setEquipmentMethod('skip')}
         >
-          <CardHeader className="pb-2">
-            <SkipForward className="h-8 w-8 mx-auto mb-2 text-primary" /> {/* Icon */}
-            <CardTitle className="text-lg">Skip for Now</CardTitle>
+          <CardHeader className="p-0 pb-2">
+            <SkipForward className="h-6 w-6 mx-auto mb-1 text-primary" />
+            <CardTitle className="text-base font-semibold">Skip for Now</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
-            <p className="text-sm text-muted-foreground">
+          <CardContent className="p-0">
+            <p className="text-xs text-muted-foreground">
               Use a default "Common Gym" equipment set.
             </p>
           </CardContent>

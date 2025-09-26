@@ -3,8 +3,7 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Dumbbell, Sparkles, BarChart3 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Import Card components
-import { cn, getWorkoutColorClass } from '@/lib/utils'; // Import getWorkoutColorClass
+import { cn, getWorkoutColorClass } from '@/lib/utils';
 
 interface OnboardingStep7Props {
   handleNext: () => void;
@@ -13,22 +12,22 @@ interface OnboardingStep7Props {
 
 const features = [
   {
-    icon: <Dumbbell className="h-5 w-5" />,
+    icon: <Dumbbell />,
     title: "Personalised T-Paths",
     description: "Structured workout plans that adapt to your goals and preferences.",
-    colorKey: "upper-body-a" // Use color key for styling
+    colorKey: "upper-body-a"
   },
   {
-    icon: <Sparkles className="h-5 w-5" />,
+    icon: <Sparkles />,
     title: "AI Fitness Coach",
     description: "Get intelligent feedback and exercise suggestions based on your performance.",
-    colorKey: "lower-body-a" // Use color key for styling
+    colorKey: "lower-body-a"
   },
   {
-    icon: <BarChart3 className="h-5 w-5" />,
+    icon: <BarChart3 />,
     title: "Track Your Progress",
     description: "Visualize your gains with detailed charts, personal bests, and consistency tracking.",
-    colorKey: "upper-body-b" // Use color key for styling
+    colorKey: "upper-body-b"
   }
 ];
 
@@ -40,29 +39,30 @@ export const OnboardingStep7_AppFeatures = ({
     <div className="space-y-6">
       <div className="space-y-4">
         {features.map((feature, index) => (
-          <Card 
-            key={index} 
+          <div
+            key={index}
             className={cn(
-              "flex items-start gap-4 p-3 border-2", // Use border-2 for more prominence
-              getWorkoutColorClass(feature.colorKey, 'border') // Apply border color
+              "flex items-start gap-4 p-4 rounded-lg border-l-4",
+              getWorkoutColorClass(feature.colorKey, 'border'),
+              'bg-card'
             )}
           >
-            <div className={cn("flex-shrink-0", getWorkoutColorClass(feature.colorKey, 'text'))}> {/* Apply text color to icon */}
-              {feature.icon}
+            <div className={cn("flex-shrink-0 p-2 rounded-full", getWorkoutColorClass(feature.colorKey, 'bg'))}>
+              {React.cloneElement(feature.icon, { className: "h-5 w-5 text-white" })}
             </div>
             <div>
-              <h4 className="font-semibold">{feature.title}</h4>
+              <h4 className="font-semibold text-base">{feature.title}</h4>
               <p className="text-sm text-muted-foreground">{feature.description}</p>
             </div>
-          </Card>
+          </div>
         ))}
       </div>
       
       <div className="flex justify-between">
-        <Button variant="outline" onClick={handleBack} size="sm">
+        <Button variant="outline" onClick={handleBack}>
           Back
         </Button>
-        <Button onClick={handleNext} size="sm">
+        <Button onClick={handleNext}>
           Next
         </Button>
       </div>

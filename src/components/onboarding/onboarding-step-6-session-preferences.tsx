@@ -3,10 +3,8 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"; // Keep RadioGroup for functionality
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Import Card components
-import { cn } from '@/lib/utils'; // Import cn for conditional classes
-import { Clock } from 'lucide-react'; // Icon for session length
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { cn } from '@/lib/utils';
 
 interface OnboardingStep6Props {
   sessionLength: string;
@@ -16,10 +14,10 @@ interface OnboardingStep6Props {
 }
 
 const sessionLengthOptions = [
-  { value: "15-30", label: "15-30 minutes" },
-  { value: "30-45", label: "30-45 minutes" },
-  { value: "45-60", label: "45-60 minutes" },
-  { value: "60-90", label: "60-90 minutes" },
+  { value: "15-30", label: "15-30 mins" },
+  { value: "30-45", label: "30-45 mins" },
+  { value: "45-60", label: "45-60 mins" },
+  { value: "60-90", label: "60-90 mins" },
 ];
 
 export const OnboardingStep6_SessionPreferences = ({
@@ -33,39 +31,32 @@ export const OnboardingStep6_SessionPreferences = ({
       <RadioGroup 
         value={sessionLength} 
         onValueChange={setSessionLength}
-        className="grid grid-cols-1 md:grid-cols-2 gap-4" // Use grid for cards
+        className="grid grid-cols-2 gap-3"
       >
         {sessionLengthOptions.map(option => (
-          <Card
+          <Label
             key={option.value}
+            htmlFor={option.value}
             className={cn(
-              "cursor-pointer transition-all min-h-[60px] flex flex-col justify-center text-center p-2", // Reduced min-height and adjusted padding
+              "cursor-pointer transition-all border-2 rounded-lg flex items-center justify-center text-center p-3 font-semibold",
               sessionLength === option.value
-                ? 'border-primary ring-2 ring-primary'
-                : 'hover:border-primary/50'
+                ? 'border-primary ring-2 ring-primary bg-primary/10'
+                : 'border-input bg-card hover:border-primary/50'
             )}
-            onClick={() => setSessionLength(option.value)}
           >
-            <CardHeader className="pb-0"> {/* Adjusted padding */}
-              <Clock className="h-5 w-5 mx-auto mb-1 text-primary" /> {/* Smaller icon */}
-              <CardTitle className="text-sm">{option.label}</CardTitle> {/* Reduced font size */}
-            </CardHeader>
-            <CardContent className="pt-0">
-              {/* Hidden RadioGroupItem for actual form value */}
-              <RadioGroupItem value={option.value} id={option.value} className="sr-only" />
-            </CardContent>
-          </Card>
+            <RadioGroupItem value={option.value} id={option.value} className="sr-only" />
+            {option.label}
+          </Label>
         ))}
       </RadioGroup>
       
       <div className="flex justify-between">
-        <Button variant="outline" onClick={handleBack} size="sm">
+        <Button variant="outline" onClick={handleBack}>
           Back
         </Button>
         <Button 
           onClick={handleNext} 
           disabled={!sessionLength}
-          size="sm"
         >
           Next
         </Button>
