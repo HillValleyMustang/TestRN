@@ -13,11 +13,9 @@ import { Button } from '@/components/ui/button';
 import { ConsistencyCalendarModal } from '@/components/dashboard/consistency-calendar-modal';
 
 interface WeeklySummary {
-  completed_count: number;
-  goal: {
-    total: number;
-    workouts: { name: string }[];
-  };
+  completed_workouts: { name: string }[];
+  goal_total: number;
+  programme_type: 'ulul' | 'ppl';
 }
 
 export const WeeklyTargetWidget = () => {
@@ -27,7 +25,6 @@ export const WeeklyTargetWidget = () => {
   const [error, setError] = useState<string | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
-  // Fetch profile to get programme_type for initial goal setup if needed
   const { data: cachedProfile, loading: loadingProfile, error: profileError } = useCacheAndRevalidate<LocalProfile>({
     cacheTable: 'profiles_cache',
     supabaseQuery: useCallback(async (client) => {
@@ -35,7 +32,7 @@ export const WeeklyTargetWidget = () => {
       return client.from('profiles').select('*').eq('id', memoizedSessionUserId);
     }, [memoizedSessionUserId]),
     queryKey: 'weekly_target_profile',
-    supabase: supabase!, // Use supabase from useSession directly
+    supabase: supabase!,
     sessionUserId: memoizedSessionUserId,
   });
 
@@ -73,6 +70,34 @@ export const WeeklyTargetWidget = () => {
     }
   }, [memoizedSessionUserId, fetchWeeklySummary]);
 
+  const programmeType = cachedProfile?.[0]?.programme_type;
+
+  const { displayItems, completedCount, goalTotal } = useMemo(() => {
+    if (!summary || !programmeType) {
+      return { displayItems: [], completedCount: 0, goalTotal: programmeType === 'ulul' ? 4 : 3 };
+    }
+
+    const goalWorkouts = programmeType === 'ulul'
+      ? ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B']
+      : ['Push', 'Pull', 'Legs'];
+
+    const completed = summary.completed_workouts;
+    const completedCount = completed.length;
+    const goalTotal = summary.goal_total;
+    const displayCount = Math.max(goalTotal, completedCount);
+
+    const items = [];
+    for (let i = 0; i < displayCount; i++) {
+      const isCompleted = i < completedCount;
+      const workoutName = isCompleted ? completed[i].name : goalWorkouts[i];
+      items.push({
+        name: workoutName,
+        isCompleted: isCompleted,
+      });
+    }
+    return { displayItems: items, completedCount, goalTotal };
+  }, [summary, programmeType]);
+
   if (isLoading || loadingProfile) {
     return (
       <Card className="animate-fade-in-slide-up">
@@ -103,7 +128,6 @@ export const WeeklyTargetWidget = () => {
     );
   }
 
-  const programmeType = cachedProfile?.[0]?.programme_type;
   if (!programmeType) {
     return (
       <Card className="animate-fade-in-slide-up">
@@ -119,9 +143,6 @@ export const WeeklyTargetWidget = () => {
     );
   }
 
-  const goalWorkouts = summary?.goal.workouts || (programmeType === 'ulul' ? [{name: 'Upper Body A'}, {name: 'Lower Body A'}, {name: 'Upper Body B'}, {name: 'Lower Body B'}] : [{name: 'Push'}, {name: 'Pull'}, {name: 'Legs'}]);
-  const completedCount = summary?.completed_count || 0;
-
   return (
     <>
       <Card className="animate-fade-in-slide-up">
@@ -136,24 +157,23 @@ export const WeeklyTargetWidget = () => {
         <CardContent className="flex flex-col items-center justify-center gap-3 pt-4">
           <div className="flex space-x-2">
             <TooltipProvider>
-              {goalWorkouts.map((workout, index) => {
-                const isCompleted = index < completedCount;
-                const label = workout.name.includes('Upper') ? 'U' : workout.name.includes('Lower') ? 'L' : workout.name[0];
-                const colorClass = getWorkoutColorClass(workout.name, 'bg');
+              {displayItems.map((item, index) => {
+                const label = item.name.includes('Upper') ? 'U' : item.name.includes('Lower') ? 'L' : item.name[0];
+                const colorClass = getWorkoutColorClass(item.name, 'bg');
                 return (
                   <Tooltip key={index}>
                     <TooltipTrigger asChild>
                       <div
                         className={cn(
                           "h-10 w-10 rounded-full flex items-center justify-center text-sm font-semibold transition-colors duration-200",
-                          isCompleted ? `${colorClass} text-white` : 'bg-muted text-muted-foreground'
+                          item.isCompleted ? `${colorClass} text-white` : 'bg-muted text-muted-foreground'
                         )}
                       >
-                        {isCompleted ? <CheckCircle className="h-5 w-5" /> : label}
+                        {item.isCompleted ? <CheckCircle className="h-5 w-5" /> : label}
                       </div>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>{workout.name} - {isCompleted ? 'Completed' : 'Pending'}</p>
+                      <p>{item.name} - {item.isCompleted ? 'Completed' : 'Pending'}</p>
                     </TooltipContent>
                   </Tooltip>
                 );
@@ -161,7 +181,7 @@ export const WeeklyTargetWidget = () => {
             </TooltipProvider>
           </div>
           <p className="text-sm text-muted-foreground">
-            {completedCount} / {summary?.goal.total || (programmeType === 'ulul' ? 4 : 3)} Workouts Completed This Week
+            {completedCount} / {goalTotal} Workouts Completed This Week
           </p>
         </CardContent>
       </Card>

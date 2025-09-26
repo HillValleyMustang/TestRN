@@ -65,47 +65,34 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: 'User programme type not defined.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // 2. Determine the start of the current week (Monday at midnight UTC)
+    // 2. Determine goal total
+    const goal_total = programmeType === 'ulul' ? 4 : 3;
+
+    // 3. Get start of week
     const startOfWeek = getStartOfWeekUTC(new Date());
 
-    // 3. Query workout_sessions to get a COUNT of workouts completed by the user since the start of the week
-    const { count: completedCount, error: countError } = await supabaseServiceRoleClient
+    // 4. Query completed workout sessions for the week
+    const { data: completedSessions, error: sessionsError } = await supabaseServiceRoleClient
       .from('workout_sessions')
-      .select('id', { count: 'exact', head: true })
+      .select('template_name, completed_at') // Select name and completion time
       .eq('user_id', userId)
       .not('completed_at', 'is', null)
-      .gte('session_date', startOfWeek.toISOString());
+      .gte('completed_at', startOfWeek.toISOString()) // Use completed_at for accuracy
+      .order('completed_at', { ascending: true }); // Order chronologically
 
-    if (countError) throw countError;
+    if (sessionsError) throw sessionsError;
 
-    // 4. Based on the workout_plan, create a goal object
-    let goal: { total: number; workouts: { name: string }[] };
-    if (programmeType === 'ulul') {
-      const workoutNames = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
-      goal = { 
-        total: 4, 
-        workouts: workoutNames.map(name => ({ name })) 
-      };
-    } else if (programmeType === 'ppl') {
-      const pplSequence = ['Push', 'Pull', 'Legs'];
-      const numWorkoutsToShow = Math.max(3, completedCount || 0);
-      const workouts = [];
-      for (let i = 0; i < numWorkoutsToShow; i++) {
-        workouts.push({ name: pplSequence[i % 3] });
-      }
-      goal = { 
-        total: 3, // The "official" goal is still 3
-        workouts: workouts
-      };
-    } else {
-      goal = { total: 0, workouts: [] };
-    }
+    // 5. Format the completed workouts
+    const completed_workouts = (completedSessions || []).map((session: { template_name: string | null }) => ({
+      name: session.template_name || 'Ad Hoc Workout'
+    }));
 
-    // 5. Return a single JSON object
+    // 6. Return the new data structure
     return new Response(
       JSON.stringify({
-        completed_count: completedCount || 0,
-        goal: goal,
+        completed_workouts: completed_workouts,
+        goal_total: goal_total,
+        programme_type: programmeType,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
