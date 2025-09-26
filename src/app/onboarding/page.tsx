@@ -12,8 +12,8 @@ import { Progress } from "@/components/ui/progress";
 import { OnboardingStep1_ProfileSnapshot } from "@/components/onboarding/onboarding-step-1-profile-snapshot";
 import { OnboardingStep2_GoalFocus } from "@/components/onboarding/onboarding-step-2-goal-focus";
 import { OnboardingStep3_GoalFocus as OnboardingStep3_AiCoach } from "@/components/onboarding/onboarding-step-3-goal-focus";
+import { OnboardingStep4_TrainingPlan } from "@/components/onboarding/onboarding-step-4-training-plan";
 // Placeholder for future steps - will be created in subsequent turns
-// import { OnboardingStep4_Blueprint } from "@/components/onboarding/onboarding-step-4-blueprint";
 // import { OnboardingStep5_Equip } from "@/components/onboarding/onboarding-step-5-equip";
 // import { OnboardingStep6_Toolkit } from "@/components/onboarding/onboarding-step-6-toolkit";
 
@@ -31,6 +31,10 @@ export default function OnboardingPage() {
     // Step 3
     preferredMuscles, setPreferredMuscles,
     constraints, setConstraints,
+    // Step 4
+    tPathType, setTPathType,
+    sessionLength, setSessionLength,
+    tPathDescriptions,
     // Handlers
     handleNext,
     handleBack,
@@ -86,7 +90,19 @@ export default function OnboardingPage() {
             handleBack={handleBack}
           />
         );
-      // Cases for steps 4-7 will be added in future turns
+      case 4:
+        return (
+          <OnboardingStep4_TrainingPlan
+            tPathType={tPathType}
+            setTPathType={setTPathType}
+            sessionLength={sessionLength}
+            setSessionLength={setSessionLength}
+            handleNext={handleNext}
+            handleBack={handleBack}
+            tPathDescriptions={tPathDescriptions}
+          />
+        );
+      // Cases for steps 5-7 will be added in future turns
       default:
         return null;
     }
@@ -111,7 +127,8 @@ export default function OnboardingPage() {
       case 1: return "Let's start with the basics to personalize your experience.";
       case 2: return "This helps us tailor your workout plan to what you want to achieve.";
       case 3: return "Tell us about any preferences or limitations so we can fine-tune your plan.";
-      // Descriptions for steps 4-7 will be added
+      case 4: return "Choose the structure and duration that best fits your lifestyle.";
+      // Descriptions for steps 5-7 will be added
       default: return "";
     }
   };
