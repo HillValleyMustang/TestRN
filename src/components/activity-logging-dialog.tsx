@@ -89,7 +89,7 @@ const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
   if (e.target.value === '') e.target.value = '0';
 };
 
-export const LogCyclingForm = ({ onSuccess, setTempStatusMessage }: { onSuccess: () => void; setTempStatusMessage: (message: any) => void; }) => {
+export const LogCyclingForm = ({ onLogSuccess, setTempStatusMessage }: { onLogSuccess: (newLog: Tables<'activity_logs'>) => void; setTempStatusMessage: (message: any) => void; }) => {
   const { session, supabase, memoizedSessionUserId } = useSession();
   const [preferredDistanceUnit, setPreferredDistanceUnit] = useState<Profile['preferred_distance_unit']>('km');
 
@@ -173,7 +173,7 @@ export const LogCyclingForm = ({ onSuccess, setTempStatusMessage }: { onSuccess:
       log_date: values.log_date,
     };
 
-    const { error } = await supabase.from('activity_logs').insert([newLog]);
+    const { data: insertedData, error } = await supabase.from('activity_logs').insert([newLog]).select().single();
 
     if (error) {
       console.error("Failed to log cycling activity:", error.message);
@@ -182,7 +182,7 @@ export const LogCyclingForm = ({ onSuccess, setTempStatusMessage }: { onSuccess:
       setTempStatusMessage({ message: "Added!", type: 'success' });
       setTimeout(() => setTempStatusMessage(null), 3000);
       form.reset();
-      onSuccess();
+      onLogSuccess(insertedData);
     }
   }
 
@@ -201,7 +201,7 @@ export const LogCyclingForm = ({ onSuccess, setTempStatusMessage }: { onSuccess:
   );
 };
 
-export const LogRunningForm = ({ onSuccess, setTempStatusMessage }: { onSuccess: () => void; setTempStatusMessage: (message: any) => void; }) => {
+export const LogRunningForm = ({ onLogSuccess, setTempStatusMessage }: { onLogSuccess: (newLog: Tables<'activity_logs'>) => void; setTempStatusMessage: (message: any) => void; }) => {
   const { session, supabase, memoizedSessionUserId } = useSession();
   const [preferredDistanceUnit, setPreferredDistanceUnit] = useState<Profile['preferred_distance_unit']>('km');
 
@@ -283,7 +283,7 @@ export const LogRunningForm = ({ onSuccess, setTempStatusMessage }: { onSuccess:
       log_date: values.log_date,
     };
 
-    const { error } = await supabase.from('activity_logs').insert([newLog]);
+    const { data: insertedData, error } = await supabase.from('activity_logs').insert([newLog]).select().single();
 
     if (error) {
       console.error("Failed to log running activity:", error.message);
@@ -292,7 +292,7 @@ export const LogRunningForm = ({ onSuccess, setTempStatusMessage }: { onSuccess:
       setTempStatusMessage({ message: "Added!", type: 'success' });
       setTimeout(() => setTempStatusMessage(null), 3000);
       form.reset();
-      onSuccess();
+      onLogSuccess(insertedData);
     }
   }
 
@@ -312,7 +312,7 @@ export const LogRunningForm = ({ onSuccess, setTempStatusMessage }: { onSuccess:
 };
 
 
-export const LogSwimmingForm = ({ onSuccess, setTempStatusMessage }: { onSuccess: () => void; setTempStatusMessage: (message: any) => void; }) => {
+export const LogSwimmingForm = ({ onLogSuccess, setTempStatusMessage }: { onLogSuccess: (newLog: Tables<'activity_logs'>) => void; setTempStatusMessage: (message: any) => void; }) => {
   const { session, supabase, memoizedSessionUserId } = useSession();
   const form = useForm<z.infer<typeof swimmingSchema>>({
     resolver: zodResolver(swimmingSchema),
@@ -362,7 +362,7 @@ export const LogSwimmingForm = ({ onSuccess, setTempStatusMessage }: { onSuccess
       log_date: values.log_date,
     };
 
-    const { error } = await supabase.from('activity_logs').insert([newLog]);
+    const { data: insertedData, error } = await supabase.from('activity_logs').insert([newLog]).select().single();
 
     if (error) {
       console.error("Failed to log swimming activity:", error.message);
@@ -371,7 +371,7 @@ export const LogSwimmingForm = ({ onSuccess, setTempStatusMessage }: { onSuccess
       setTempStatusMessage({ message: "Added!", type: 'success' });
       setTimeout(() => setTempStatusMessage(null), 3000);
       form.reset();
-      onSuccess();
+      onLogSuccess(insertedData);
     }
   }
 
@@ -387,7 +387,7 @@ export const LogSwimmingForm = ({ onSuccess, setTempStatusMessage }: { onSuccess
   );
 };
 
-export const LogTennisForm = ({ onSuccess, setTempStatusMessage }: { onSuccess: () => void; setTempStatusMessage: (message: any) => void; }) => {
+export const LogTennisForm = ({ onLogSuccess, setTempStatusMessage }: { onLogSuccess: (newLog: Tables<'activity_logs'>) => void; setTempStatusMessage: (message: any) => void; }) => {
   const { session, supabase, memoizedSessionUserId } = useSession();
   const form = useForm<z.infer<typeof tennisSchema>>({
     resolver: zodResolver(tennisSchema),
@@ -432,7 +432,7 @@ export const LogTennisForm = ({ onSuccess, setTempStatusMessage }: { onSuccess: 
       log_date: values.log_date,
     };
 
-    const { error } = await supabase.from('activity_logs').insert([newLog]);
+    const { data: insertedData, error } = await supabase.from('activity_logs').insert([newLog]).select().single();
 
     if (error) {
       console.error("Failed to log tennis activity:", error.message);
@@ -441,7 +441,7 @@ export const LogTennisForm = ({ onSuccess, setTempStatusMessage }: { onSuccess: 
       setTempStatusMessage({ message: "Added!", type: 'success' });
       setTimeout(() => setTempStatusMessage(null), 3000);
       form.reset();
-      onSuccess();
+      onLogSuccess(insertedData);
     }
   }
 
@@ -459,7 +459,7 @@ export const LogTennisForm = ({ onSuccess, setTempStatusMessage }: { onSuccess: 
 export const ActivityLoggingDialog = ({ open, onOpenChange, initialActivity, trigger }: ActivityLoggingDialogProps) => {
   const [internalOpen, setInternalOpen] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<ActivityType | null>(initialActivity || null);
-  const { setTempStatusMessage, refreshAllData } = useWorkoutFlow();
+  const { setTempStatusMessage, refreshAllData, addActivityToWeeklySummary } = useWorkoutFlow();
 
   const isControlled = open !== undefined && onOpenChange !== undefined;
   const currentOpen = isControlled ? open : internalOpen;
@@ -475,10 +475,11 @@ export const ActivityLoggingDialog = ({ open, onOpenChange, initialActivity, tri
     setSelectedActivity(activity);
   };
 
-  const handleLogSuccess = () => {
+  const handleLogSuccess = (newLog: Tables<'activity_logs'>) => {
     setCurrentOpen(false);
     setSelectedActivity(null);
-    refreshAllData();
+    addActivityToWeeklySummary(newLog); // Optimistic update
+    refreshAllData(); // Background revalidation
   };
 
   return (
@@ -499,10 +500,10 @@ export const ActivityLoggingDialog = ({ open, onOpenChange, initialActivity, tri
           <div className="py-4">
             <h3 className="text-lg font-semibold mb-4">Log {selectedActivity}</h3>
             <Button variant="outline" className="mb-4 w-full" onClick={() => setSelectedActivity(null)}> Back to Activity Types </Button>
-            {selectedActivity === "Running" && <LogRunningForm onSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
-            {selectedActivity === "Cycling" && <LogCyclingForm onSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
-            {selectedActivity === "Swimming" && <LogSwimmingForm onSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
-            {selectedActivity === "Tennis" && <LogTennisForm onSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
+            {selectedActivity === "Running" && <LogRunningForm onLogSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
+            {selectedActivity === "Cycling" && <LogCyclingForm onLogSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
+            {selectedActivity === "Swimming" && <LogSwimmingForm onLogSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
+            {selectedActivity === "Tennis" && <LogTennisForm onLogSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
           </div>
         )}
       </DialogContent>

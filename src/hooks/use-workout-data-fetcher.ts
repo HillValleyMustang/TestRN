@@ -45,8 +45,9 @@ interface UseWorkoutDataFetcherReturn {
   exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>;
   availableGymExerciseIds: Set<string>;
   allGymExerciseIds: Set<string>;
-  weeklySummary: WeeklySummary | null; // NEW
-  loadingWeeklySummary: boolean; // NEW
+  weeklySummary: WeeklySummary | null;
+  loadingWeeklySummary: boolean;
+  addActivityToWeeklySummary: (newActivity: Tables<'activity_logs'>) => void;
 }
 
 export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
@@ -58,7 +59,6 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const [exerciseWorkoutsMap, setExerciseWorkoutsMap] = useState<Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>>({});
   const [isProcessingDerivedData, setIsProcessingDerivedData] = useState(true);
 
-  // NEW: State for weekly summary
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummary | null>(null);
   const [loadingWeeklySummary, setLoadingWeeklySummary] = useState(true);
 
@@ -262,6 +262,29 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     }
   }, [memoizedSessionUserId, session?.access_token]);
 
+  const addActivityToWeeklySummary = useCallback((newActivity: Tables<'activity_logs'>) => {
+    setWeeklySummary(prevSummary => {
+      if (!prevSummary) return null;
+
+      const newActivityFormatted = {
+        id: newActivity.id,
+        type: newActivity.activity_type,
+        distance: newActivity.distance,
+        time: newActivity.time,
+        date: newActivity.log_date,
+      };
+
+      if (prevSummary.completed_activities.some(act => act.id === newActivity.id)) {
+        return prevSummary;
+      }
+
+      return {
+        ...prevSummary,
+        completed_activities: [...prevSummary.completed_activities, newActivityFormatted],
+      };
+    });
+  }, []);
+
   useEffect(() => {
     const processDerivedData = async () => {
       if (baseLoading || dataError || !memoizedSessionUserId || !cachedTPaths || !cachedTPathExercises || !profile || !cachedExercises) {
@@ -388,7 +411,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       refreshAchievements(),
       refreshUserGyms(),
       fetchGymExercises(),
-      fetchWeeklySummary(), // NEW
+      fetchWeeklySummary(),
     ]);
   }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, refreshAchievements, refreshUserGyms, fetchGymExercises, fetchWeeklySummary]);
 
@@ -449,8 +472,9 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     exerciseWorkoutsMap,
     availableGymExerciseIds: availableGymExerciseIdsRef.current,
     allGymExerciseIds: allGymExerciseIdsRef.current,
-    weeklySummary, // NEW
-    loadingWeeklySummary, // NEW
+    weeklySummary,
+    loadingWeeklySummary,
+    addActivityToWeeklySummary,
   }), [
     allAvailableExercises,
     groupedTPaths,
@@ -471,7 +495,8 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     cachedUserGyms,
     exerciseGymsMap,
     exerciseWorkoutsMap,
-    weeklySummary, // NEW
-    loadingWeeklySummary, // NEW
+    weeklySummary,
+    loadingWeeklySummary,
+    addActivityToWeeklySummary,
   ]);
 };
