@@ -87,21 +87,27 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <WeeklyTargetWidget 
-        onViewSummary={handleViewSummary} 
-        summary={weeklySummary}
-        loading={loadingWeeklySummary}
-        error={dataError}
-        profile={profile}
-      />
+      <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.1s' }}>
+        <WeeklyTargetWidget 
+          onViewSummary={handleViewSummary} 
+          summary={weeklySummary}
+          loading={loadingWeeklySummary}
+          error={dataError}
+          profile={profile}
+        />
+      </div>
+
+      <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.2s' }}>
+        <ActionHub />
+      </div>
 
       {!loadingGyms && userGyms.length > 1 && (
-        <div className="flex justify-center animate-fade-in-slide-up" style={{ animationDelay: '0.1s' }}>
+        <div className="flex justify-center animate-fade-in-slide-up" style={{ animationDelay: '0.3s' }}>
           <GymToggle />
         </div>
       )}
 
-      <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
+      <div className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
         <NextWorkoutCard 
           profile={profile}
           groupedTPaths={groupedTPaths}
@@ -122,13 +128,10 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.7s' }}>
-        <ActionHub />
-      </div>
-      <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.85s' }}>
+      <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.6s' }}>
         <WeeklyVolumeChart />
       </div>
-      <div className="animate-fade-in-slide-up" style={{ animationDelay: '1s' }}>
+      <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.7s' }}>
         <PreviousWorkoutsCard onViewSummary={handleViewSummary} />
       </div>
       <WorkoutSummaryModal
