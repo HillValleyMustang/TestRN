@@ -17,18 +17,19 @@ import { useGym } from '@/components/gym-context-provider';
 import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { formatAthleteName } from '@/lib/utils'; // NEW: Import formatAthleteName
+import { formatAthleteName } from '@/lib/utils';
+import { WeeklyTargetWidget } from '@/components/dashboard/weekly-target-widget'; // NEW: Import WeeklyTargetWidget
 
 type Profile = Tables<'profiles'>;
 
 export default function DashboardPage() {
   const { session, supabase, memoizedSessionUserId } = useSession();
   const router = useRouter();
-  const { groupedTPaths, loadingData: loadingWorkoutData, profile, loadingData: loadingProfile, workoutExercisesCache, dataError } = useWorkoutDataFetcher(); // Corrected destructuring to include workoutExercisesCache and dataError
-  const { loadingGyms, userGyms, activeGym } = useGym(); // NEW: Destructure from useGym hook
+  const { groupedTPaths, loadingData: loadingWorkoutData, profile, loadingData: loadingProfile, workoutExercisesCache, dataError } = useWorkoutDataFetcher();
+  const { loadingGyms, userGyms, activeGym } = useGym();
   
-  const [welcomeText, setWelcomeText] = useState<string>(''); // Changed from welcomeName
-  const [athleteName, setAthleteName] = useState<string>(''); // New state for formatted athlete name
+  const [welcomeText, setWelcomeText] = useState<string>('');
+  const [athleteName, setAthleteName] = useState<string>('');
 
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [summarySessionId, setSummarySessionId] = useState<string | null>(null);
@@ -50,7 +51,7 @@ export default function DashboardPage() {
 
       // Determine 'Welcome' vs 'Welcome Back'
       const now = new Date();
-      const createdAt = new Date(profile.created_at!); // profile.created_at is guaranteed to exist here
+      const createdAt = new Date(profile.created_at!);
       const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
 
       if (now.getTime() - createdAt.getTime() < fiveMinutes) {
@@ -58,24 +59,26 @@ export default function DashboardPage() {
       } else {
         setWelcomeText('Welcome Back,');
       }
-    } else if (!loadingProfile && !profile) { // If not loading and still no profile, they need to onboard
+    } else if (!loadingProfile && !profile) {
       router.push('/onboarding');
     }
   }, [memoizedSessionUserId, router, profile, loadingProfile]);
 
   if (!memoizedSessionUserId) return null;
 
-  // Render the main dashboard content directly without a full-page skeleton
   return (
     <div className="flex flex-col gap-6 p-2 sm:p-4">
       <header className="animate-fade-in-slide-up" style={{ animationDelay: '0s' }}>
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-4xl font-bold tracking-tight">{welcomeText} {athleteName}</h1> {/* Updated greeting */}
+            <h1 className="text-4xl font-bold tracking-tight">{welcomeText} {athleteName}</h1>
             <p className="text-muted-foreground mt-2">Ready to Train? Let's get Started!</p>
           </div>
         </div>
       </header>
+
+      {/* NEW: Weekly Target Widget */}
+      <WeeklyTargetWidget />
 
       {!loadingGyms && userGyms.length > 1 && (
         <div className="flex justify-center animate-fade-in-slide-up" style={{ animationDelay: '0.1s' }}>
@@ -83,7 +86,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* These cards now handle their own internal loading/empty/unconfigured states */}
       <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
         <NextWorkoutCard 
           profile={profile}
@@ -91,7 +93,6 @@ export default function DashboardPage() {
           loadingPlans={loadingWorkoutData}
           activeGym={activeGym}
           loadingGyms={loadingGyms}
-          // No need to pass workoutExercisesCache here, it's accessed internally by NextWorkoutCard
         />
       </div>
       <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.5s' }}>
@@ -101,8 +102,8 @@ export default function DashboardPage() {
           loadingPlans={loadingWorkoutData}
           activeGym={activeGym}
           loadingGyms={loadingGyms}
-          workoutExercisesCache={workoutExercisesCache} // NEW: Pass workoutExercisesCache
-          dataError={dataError} // NEW: Pass dataError
+          workoutExercisesCache={workoutExercisesCache}
+          dataError={dataError}
         />
       </div>
 
