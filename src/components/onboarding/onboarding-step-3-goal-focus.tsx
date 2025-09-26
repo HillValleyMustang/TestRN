@@ -12,7 +12,6 @@ import { Label } from '@/components/ui/label';
 
 interface OnboardingStep3Props {
   goalFocus: string;
-  setGoalFocus: (value: string) => void;
   preferredMuscles: string;
   setPreferredMuscles: (value: string) => void;
   constraints: string;
@@ -27,16 +26,8 @@ const mainMuscleGroups = [
   "Abdominals", "Core", "Full Body"
 ];
 
-const goals = [
-  { id: "muscle_gain", title: "Build Muscle & Tone" },
-  { id: "general_fitness", title: "Improve General Fitness" },
-  { id: "strength", title: "Build Strength" },
-  { id: "mobility", title: "Increase Mobility" },
-];
-
 export const OnboardingStep3_GoalFocus = ({
   goalFocus,
-  setGoalFocus,
   preferredMuscles,
   setPreferredMuscles,
   constraints,
@@ -58,23 +49,6 @@ export const OnboardingStep3_GoalFocus = ({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3">
-        {goals.map(goal => (
-          <Card 
-            key={goal.id}
-            className={cn(
-              "cursor-pointer transition-all min-h-[80px] flex flex-col justify-center p-4",
-              goalFocus === goal.id 
-                ? 'border-primary ring-2 ring-primary' 
-                : 'hover:border-primary/50'
-            )}
-            onClick={() => setGoalFocus(goal.id)}
-          >
-            <CardTitle className="text-base text-center font-semibold">{goal.title}</CardTitle>
-          </Card>
-        ))}
-      </div>
-      
       <div>
         <Label className="text-sm font-medium">
           Preferred Muscles to Train <span className="text-xs font-normal text-muted-foreground">(Optional)</span>
@@ -156,8 +130,7 @@ export const OnboardingStep3_GoalFocus = ({
           Back
         </Button>
         <Button 
-          onClick={handleNext} 
-          disabled={!goalFocus}
+          onClick={handleNext}
         >
           Next
         </Button>
