@@ -25,20 +25,20 @@ export const OnboardingStep1_GoalFocus = ({
 }: OnboardingStep1Props) => {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-4">
         {goals.map(goal => (
-          <Card 
+          <div
             key={goal.id}
             className={cn(
-              "cursor-pointer transition-all min-h-[80px] flex flex-col justify-center p-4",
-              goalFocus === goal.id 
-                ? 'border-primary ring-2 ring-primary' 
-                : 'hover:border-primary/50'
+              "cursor-pointer transition-all duration-200 rounded-lg p-0.5",
+              goalFocus === goal.id ? 'bg-gradient-primary' : 'bg-border'
             )}
             onClick={() => setGoalFocus(goal.id)}
           >
-            <CardTitle className="text-base text-center font-semibold">{goal.title}</CardTitle>
-          </Card>
+            <div className="bg-background rounded-[5px] h-full w-full flex items-center justify-center p-4 min-h-[80px]">
+              <h3 className="text-base text-center font-semibold text-foreground">{goal.title}</h3>
+            </div>
+          </div>
         ))}
       </div>
       
@@ -47,6 +47,7 @@ export const OnboardingStep1_GoalFocus = ({
           onClick={handleNext} 
           disabled={!goalFocus}
           size="lg"
+          className="bg-gradient-primary text-primary-foreground font-bold"
         >
           Next
         </Button>

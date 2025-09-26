@@ -47,114 +47,54 @@ export const OnboardingStep2_TrainingPlan = ({
         <p className="text-sm text-muted-foreground mb-3">This determines how your workouts are structured throughout the week.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* ULUL Card */}
-          <Card 
-            className={`cursor-pointer transition-all ${
-              tPathType === 'ulul' 
-                ? 'border-primary ring-2 ring-primary' 
-                : 'hover:border-primary'
-            }`}
+          <div
+            className={cn(
+              "cursor-pointer transition-all duration-200 rounded-lg p-0.5",
+              tPathType === 'ulul' ? 'bg-gradient-primary' : 'bg-border'
+            )}
             onClick={() => setTPathType('ulul')}
           >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-lg">{tPathDescriptions.ulul.title}</CardTitle>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7">
-                    <Info className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80 max-w-[90vw]">
-                  <ScrollArea className="h-48 pr-4">
-                    <div className="space-y-2">
-                      <p className="font-semibold text-sm">Benefits of Upper/Lower Split:</p>
-                      <ul className="list-disc list-inside text-xs space-y-1">
-                        {tPathDescriptions.ulul.research.map((point, i) => (
-                          <li key={i}>{point}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </ScrollArea>
-                </PopoverContent>
-              </Popover>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <h4 className="font-semibold text-green-600 text-sm">Pros:</h4>
-                <ul className="text-xs space-y-1">
+            <Card className="bg-background rounded-[5px] h-full w-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-lg">{tPathDescriptions.ulul.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="text-xs space-y-1 text-muted-foreground">
                   {tPathDescriptions.ulul.pros.map((pro, i) => (
                     <li key={i} className="flex items-start">
-                      <span className="text-green-500 mr-2">✓</span>
+                      <span className="text-teal mr-2">✓</span>
                       {pro}
                     </li>
                   ))}
                 </ul>
-                <h4 className="font-semibold text-red-600 mt-3 text-sm">Cons:</h4>
-                <ul className="text-xs space-y-1">
-                  {tPathDescriptions.ulul.cons.map((con, i) => (
-                    <li key={i} className="flex items-start">
-                      <span className="text-red-500 mr-2">✗</span>
-                      {con}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
           
           {/* PPL Card */}
-          <Card 
-            className={`cursor-pointer transition-all ${
-              tPathType === 'ppl' 
-                ? 'border-primary ring-2 ring-primary' 
-                : 'hover:border-primary'
-            }`}
+          <div
+            className={cn(
+              "cursor-pointer transition-all duration-200 rounded-lg p-0.5",
+              tPathType === 'ppl' ? 'bg-gradient-primary' : 'bg-border'
+            )}
             onClick={() => setTPathType('ppl')}
           >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-lg">{tPathDescriptions.ppl.title}</CardTitle>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7">
-                    <Info className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80 max-w-[90vw]">
-                  <ScrollArea className="h-48 pr-4">
-                    <div className="space-y-2">
-                      <p className="font-semibold text-sm">Benefits of Push/Pull/Legs Split:</p>
-                      <ul className="list-disc list-inside text-xs space-y-1">
-                        {tPathDescriptions.ppl.research.map((point, i) => (
-                          <li key={i}>{point}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </ScrollArea>
-                </PopoverContent>
-              </Popover>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <h4 className="font-semibold text-green-600 text-sm">Pros:</h4>
-                <ul className="text-xs space-y-1">
+            <Card className="bg-background rounded-[5px] h-full w-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-lg">{tPathDescriptions.ppl.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="text-xs space-y-1 text-muted-foreground">
                   {tPathDescriptions.ppl.pros.map((pro, i) => (
                     <li key={i} className="flex items-start">
-                      <span className="text-green-500 mr-2">✓</span>
+                      <span className="text-teal mr-2">✓</span>
                       {pro}
                     </li>
                   ))}
                 </ul>
-                <h4 className="font-semibold text-red-600 mt-3 text-sm">Cons:</h4>
-                <ul className="text-xs space-y-1">
-                  {tPathDescriptions.ppl.cons.map((con, i) => (
-                    <li key={i} className="flex items-start">
-                      <span className="text-red-500 mr-2">✗</span>
-                      {con}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
 
@@ -168,32 +108,34 @@ export const OnboardingStep2_TrainingPlan = ({
           className="grid grid-cols-2 md:grid-cols-4 gap-3"
         >
           {sessionLengthOptions.map(option => (
-            <Label
-              key={option.value}
-              htmlFor={option.value}
-              className={cn(
-                "cursor-pointer transition-all border-2 rounded-lg flex items-center justify-center text-center p-3 font-semibold h-16",
-                sessionLength === option.value
-                  ? 'border-primary ring-2 ring-primary bg-primary/10'
-                  : 'border-input bg-card hover:border-primary/50'
-              )}
-            >
+            <div key={option.value}>
               <RadioGroupItem value={option.value} id={option.value} className="sr-only" />
-              {option.label}
-            </Label>
+              <Label
+                htmlFor={option.value}
+                className={cn(
+                  "cursor-pointer transition-all border-2 rounded-lg flex items-center justify-center text-center p-3 font-semibold h-16",
+                  sessionLength === option.value
+                    ? 'border-teal ring-2 ring-teal bg-teal/10'
+                    : 'border-input bg-secondary hover:border-teal/50'
+                )}
+              >
+                {option.label}
+              </Label>
+            </div>
           ))}
         </RadioGroup>
       </div>
       
       {/* Navigation */}
       <div className="flex justify-between">
-        <Button variant="outline" onClick={handleBack}>
+        <Button variant="secondary" onClick={handleBack}>
           Back
         </Button>
         <Button 
           onClick={handleNext} 
           disabled={!tPathType || !sessionLength}
           size="lg"
+          className="bg-gradient-primary text-primary-foreground font-bold"
         >
           Next
         </Button>
