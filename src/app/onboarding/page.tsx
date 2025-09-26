@@ -3,61 +3,35 @@
 import React, { useCallback, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useOnboardingForm } from "@/hooks/use-onboarding-form";
-import { OnboardingStep1_TPathSelection } from "@/components/onboarding/onboarding-step-1-tpath-selection";
-import { OnboardingStep2_ExperienceLevel } from "@/components/onboarding/onboarding-step-2-experience-level";
-import { OnboardingStep3_GoalFocus } from "@/components/onboarding/onboarding-step-3-goal-focus";
-import { OnboardingStep4_GymSetup } from "@/components/onboarding/onboarding-step-4-gym-setup";
-import { OnboardingStep5_GymPhotoUpload } from "@/components/onboarding/onboarding-step-5-gym-photo-upload";
-import { OnboardingStep6_SessionPreferences } from "@/components/onboarding/onboarding-step-6-session-preferences";
-import { OnboardingStep7_AppFeatures } from "@/components/onboarding/onboarding-step-7-app-features";
-import { OnboardingStep8_FinalDetails } from "@/components/onboarding/onboarding-step-8-final-details";
 import { useSession } from "@/components/session-context-provider";
 import { LoadingOverlay } from "@/components/loading-overlay";
 import { toast } from "sonner";
-import { OnboardingSummaryModal } from "@/components/onboarding/onboarding-summary-modal"; // Import the new modal
+import { OnboardingSummaryModal } from "@/components/onboarding/onboarding-summary-modal";
+import { OnboardingProgressBar } from "@/components/onboarding/onboarding-progress-bar";
+
+// Import new step components
+import { OnboardingStep1_Profile } from "@/components/onboarding/onboarding-step-1-profile";
+import { OnboardingStep2_GoalsAndExperience } from "@/components/onboarding/onboarding-step-2-goals-and-experience";
+import { OnboardingStep3_TPathSelection } from "@/components/onboarding/onboarding-step-3-tpath-selection";
+import { OnboardingStep4_ScheduleAndTools } from "@/components/onboarding/onboarding-step-4-schedule-and-tools";
+import { OnboardingStep5_GymAnalysis } from "@/components/onboarding/onboarding-step-5-gym-analysis";
+import { OnboardingStep6_AppFeatures } from "@/components/onboarding/onboarding-step-6-app-features";
 
 export default function OnboardingPage() {
-  const { session, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
+  const { memoizedSessionUserId } = useSession();
   const {
-    currentStep,
-    tPathType,
-    setTPathType,
-    experience,
-    setExperience,
-    goalFocus,
-    setGoalFocus,
-    preferredMuscles,
-    setPreferredMuscles,
-    constraints,
-    setConstraints,
-    sessionLength,
-    setSessionLength,
-    equipmentMethod,
-    setEquipmentMethod,
-    consentGiven,
-    setConsentGiven,
-    loading,
-    isInitialSetupLoading,
-    tPathDescriptions,
-    handleNext,
-    handleBack,
-    handleSubmit: originalHandleSubmit,
-    identifiedExercises,
-    addIdentifiedExercise,
-    removeIdentifiedExercise,
-    confirmedExercises,
-    toggleConfirmedExercise,
-    gymName,
-    setGymName,
-    summaryData,
-    isSummaryModalOpen,
-    setIsSummaryModalOpen,
-    handleCloseSummaryModal,
+    currentStep, tPathType, setTPathType, experience, setExperience, goalFocus, setGoalFocus,
+    preferredMuscles, setPreferredMuscles, constraints, setConstraints, sessionLength, setSessionLength,
+    equipmentMethod, setEquipmentMethod, loading, isInitialSetupLoading, tPathDescriptions,
+    handleNext, handleBack, handleSubmit: originalHandleSubmit, identifiedExercises, addIdentifiedExercise,
+    removeIdentifiedExercise, confirmedExercises, toggleConfirmedExercise, gymName, setGymName,
+    summaryData, isSummaryModalOpen, setIsSummaryModalOpen, handleCloseSummaryModal,
   } = useOnboardingForm();
 
+  // State for the final details, now part of Step 1
   const [fullName, setFullName] = useState('');
-  const [heightCm, setHeightCm] = useState<number | null>(null);
-  const [weightKg, setWeightKg] = useState<number | null>(null);
+  const [heightCm, setHeightCm] = useState<number | null>(175);
+  const [weightKg, setWeightKg] = useState<number | null>(70);
   const [bodyFatPct, setBodyFatPct] = useState<number | null>(null);
 
   const handleSubmit = useCallback(async () => {
@@ -68,100 +42,26 @@ export default function OnboardingPage() {
     }
   }, [originalHandleSubmit, fullName, heightCm, weightKg, bodyFatPct]);
 
-  if (!memoizedSessionUserId) { // Use memoized ID
+  if (!memoizedSessionUserId) {
     return <div>Loading...</div>;
   }
+
+  const totalSteps = equipmentMethod === 'skip' ? 5 : 6; // Total steps changes based on skip path
 
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
-        return (
-          <OnboardingStep1_TPathSelection
-            tPathType={tPathType}
-            setTPathType={setTPathType}
-            handleNext={handleNext}
-            tPathDescriptions={tPathDescriptions}
-          />
-        );
+        return <OnboardingStep1_Profile handleNext={handleNext} fullName={fullName} setFullName={setFullName} heightCm={heightCm} setHeightCm={setHeightCm} weightKg={weightKg} setWeightKg={setWeightKg} bodyFatPct={bodyFatPct} setBodyFatPct={setBodyFatPct} />;
       case 2:
-        return (
-          <OnboardingStep2_ExperienceLevel
-            experience={experience}
-            setExperience={setExperience}
-            handleNext={handleNext}
-            handleBack={handleBack}
-          />
-        );
+        return <OnboardingStep2_GoalsAndExperience experience={experience} setExperience={setExperience} goalFocus={goalFocus} setGoalFocus={setGoalFocus} preferredMuscles={preferredMuscles} setPreferredMuscles={setPreferredMuscles} constraints={constraints} setConstraints={setConstraints} handleNext={handleNext} handleBack={handleBack} />;
       case 3:
-        return (
-          <OnboardingStep3_GoalFocus
-            goalFocus={goalFocus}
-            setGoalFocus={setGoalFocus}
-            preferredMuscles={preferredMuscles}
-            setPreferredMuscles={setPreferredMuscles}
-            constraints={constraints}
-            setConstraints={setConstraints}
-            handleNext={handleNext}
-            handleBack={handleBack}
-          />
-        );
+        return <OnboardingStep3_TPathSelection tPathType={tPathType} setTPathType={setTPathType} handleNext={handleNext} handleBack={handleBack} tPathDescriptions={tPathDescriptions} />;
       case 4:
-        return (
-          <OnboardingStep4_GymSetup
-            equipmentMethod={equipmentMethod}
-            setEquipmentMethod={setEquipmentMethod}
-            handleNext={handleNext}
-            handleBack={handleBack}
-            gymName={gymName}
-            setGymName={setGymName}
-          />
-        );
+        return <OnboardingStep4_ScheduleAndTools sessionLength={sessionLength} setSessionLength={setSessionLength} equipmentMethod={equipmentMethod} setEquipmentMethod={setEquipmentMethod} handleNext={handleNext} handleBack={handleBack} gymName={gymName} setGymName={setGymName} />;
       case 5:
-        return (
-          <OnboardingStep5_GymPhotoUpload
-            identifiedExercises={identifiedExercises}
-            addIdentifiedExercise={addIdentifiedExercise}
-            removeIdentifiedExercise={removeIdentifiedExercise}
-            confirmedExercises={confirmedExercises}
-            toggleConfirmedExercise={toggleConfirmedExercise}
-            handleNext={handleNext}
-            handleBack={handleBack}
-          />
-        );
+        return <OnboardingStep5_GymAnalysis identifiedExercises={identifiedExercises} addIdentifiedExercise={addIdentifiedExercise} removeIdentifiedExercise={removeIdentifiedExercise} confirmedExercises={confirmedExercises} toggleConfirmedExercise={toggleConfirmedExercise} handleNext={handleNext} handleBack={handleBack} />;
       case 6:
-        return (
-          <OnboardingStep6_SessionPreferences
-            sessionLength={sessionLength}
-            setSessionLength={setSessionLength}
-            handleNext={handleNext}
-            handleBack={handleBack}
-          />
-        );
-      case 7:
-        return (
-          <OnboardingStep7_AppFeatures
-            handleNext={handleNext}
-            handleBack={handleBack}
-          />
-        );
-      case 8:
-        return (
-          <OnboardingStep8_FinalDetails
-            consentGiven={consentGiven}
-            setConsentGiven={setConsentGiven}
-            handleSubmit={handleSubmit}
-            handleBack={handleBack}
-            loading={loading}
-            fullName={fullName}
-            setFullName={setFullName}
-            heightCm={heightCm}
-            setHeightCm={setHeightCm}
-            weightKg={weightKg}
-            setWeightKg={setWeightKg}
-            bodyFatPct={bodyFatPct}
-            setBodyFatPct={setBodyFatPct}
-          />
-        );
+        return <OnboardingStep6_AppFeatures handleNext={handleSubmit} handleBack={handleBack} />; // Final step before summary
       default:
         return null;
     }
@@ -169,28 +69,24 @@ export default function OnboardingPage() {
 
   const getStepTitle = () => {
     switch (currentStep) {
-      case 1: return "Choose Your Transformation Path";
-      case 2: return "Your Experience Level";
-      case 3: return "Goal Focus";
-      case 4: return "Gym Setup";
-      case 5: return "Analyse Your Gym";
-      case 6: return "Session Preferences";
-      case 7: return "App Features";
-      case 8: return "Final Details & Consent";
+      case 1: return "Let's Build Your Athlete Profile";
+      case 2: return "What Are Your Goals?";
+      case 3: return "Choose Your Transformation Path";
+      case 4: return "Your Schedule & Tools";
+      case 5: return "Calibrating Your Gym";
+      case 6: return "A Preview of Your New Power";
       default: return "";
     }
   };
 
   const getStepDescription = () => {
     switch (currentStep) {
-      case 1: return "Select the workout structure that best fits your goals";
-      case 2: return "Help us tailor your program to your experience level";
-      case 3: return "What are you primarily trying to achieve?";
-      case 4: return "Let's set up your gym equipment";
-      case 5: return "Upload photos of your gym equipment for the AI to analyse";
-      case 6: return "How long do you prefer your workout sessions to be?";
-      case 7: return "Here's a quick look at what you can do with the app.";
-      case 8: return "Just a few more details to personalise your experience.";
+      case 1: return "Tell us a bit about yourself to get started.";
+      case 2: return "Help us tailor your program to your experience and what you want to achieve.";
+      case 3: return "Select the workout structure that best fits your goals. This will theme your app.";
+      case 4: return "The final inputs our AI needs to build your personalised plan.";
+      case 5: return "Upload photos of your gym equipment for the AI to analyse.";
+      case 6: return "Here's a quick look at what you can do with the app.";
       default: return "";
     }
   };
@@ -206,30 +102,7 @@ export default function OnboardingPage() {
             </p>
           </header>
 
-          <div className="mb-6">
-            <div className="flex justify-between items-start">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((step) => (
-                <React.Fragment key={step}>
-                  <div className="flex-shrink-0 text-center">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto ${
-                      currentStep >= step 
-                        ? "bg-primary text-primary-foreground" 
-                        : "bg-muted text-muted-foreground"
-                    }`}>
-                      {step}
-                    </div>
-                  </div>
-                  {step < 8 && (
-                    <div className={`flex-grow h-1 mt-4 ${
-                      currentStep > step 
-                        ? "bg-primary" 
-                        : "bg-muted"
-                    }`}></div>
-                  )}
-                </React.Fragment>
-              ))}
-            </div>
-          </div>
+          <OnboardingProgressBar currentStep={currentStep} totalSteps={totalSteps} tPathType={tPathType} />
 
           <Card>
             <CardHeader>

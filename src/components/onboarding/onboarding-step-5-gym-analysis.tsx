@@ -3,12 +3,12 @@
 import React, { useState, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { AnalyseGymDialog } from "@/components/manage-exercises/exercise-form/analyze-gym-dialog";
-import { SaveAiExercisePrompt } from "@/components/workout-flow/save-ai-exercise-prompt";
 import { Tables, FetchedExerciseDefinition } from '@/types/supabase';
 import { toast } from 'sonner';
 import { Camera, CheckCircle, Trash2 } from 'lucide-react';
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface OnboardingStep5Props {
   identifiedExercises: Partial<FetchedExerciseDefinition>[];
@@ -20,7 +20,7 @@ interface OnboardingStep5Props {
   handleBack: () => void;
 }
 
-export const OnboardingStep5_GymPhotoUpload = ({
+export const OnboardingStep5_GymAnalysis = ({
   identifiedExercises,
   addIdentifiedExercise,
   removeIdentifiedExercise,
@@ -30,19 +30,16 @@ export const OnboardingStep5_GymPhotoUpload = ({
   handleBack,
 }: OnboardingStep5Props) => {
   const [showAnalyseGymDialog, setShowAnalyseGymDialog] = useState(false);
-  const [showSaveAiExercisePrompt, setShowSaveAiExercisePrompt] = useState(false);
-  const [aiIdentifiedExercise, setAiIdentifiedExercise] = useState<Partial<Tables<'exercise_definitions'>> | null>(null);
-  const [aiDuplicateStatus, setAiDuplicateStatus] = useState<'none' | 'global' | 'my-exercises'>('none');
 
-  const handleExerciseIdentified = useCallback((exercises: Partial<FetchedExerciseDefinition>[], duplicate_status: 'none' | 'global' | 'my-exercises') => {
+  const handleExerciseIdentified = useCallback((exercises: Partial<FetchedExerciseDefinition>[]) => {
     if (exercises.length === 0) {
-      toast.info("No exercises were identified from the photos.");
+      toast.info("No new exercises were identified from the photos.");
       return;
     }
     exercises.forEach(ex => {
-      addIdentifiedExercise(ex as Partial<Tables<'exercise_definitions'>>);
+      addIdentifiedExercise(ex);
     });
-    console.log(`${exercises.length} exercise(s) identified and added for review!`);
+    toast.success(`${exercises.length} exercise(s) identified and added for review!`);
   }, [addIdentifiedExercise]);
 
   return (
@@ -64,36 +61,33 @@ export const OnboardingStep5_GymPhotoUpload = ({
             <p className="text-sm text-muted-foreground mb-4">
               Confirm the exercises you want to associate with this gym. Uncheck any you don't want.
             </p>
-            <ul className="space-y-2">
-              {identifiedExercises.map((ex, index) => (
-                <li key={index} className="flex items-center justify-between p-2 border rounded-md bg-muted/50">
-                  <div className="flex items-center gap-3">
-                    <Checkbox
-                      id={`exercise-${index}`}
-                      checked={confirmedExercises.has(ex.name!)}
-                      onCheckedChange={() => toggleConfirmedExercise(ex.name!)}
-                    />
-                    <Label htmlFor={`exercise-${index}`} className="text-sm font-medium cursor-pointer">
-                      {ex.name}
-                    </Label>
-                  </div>
-                  <Button variant="ghost" size="icon" onClick={() => removeIdentifiedExercise(ex.name!)} className="h-7 w-7">
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
+            <ScrollArea className="h-64 pr-4">
+              <ul className="space-y-2">
+                {identifiedExercises.map((ex, index) => (
+                  <li key={index} className="flex items-center justify-between p-2 border rounded-md bg-muted/50">
+                    <div className="flex items-center gap-3">
+                      <Checkbox
+                        id={`exercise-${index}`}
+                        checked={confirmedExercises.has(ex.name!)}
+                        onCheckedChange={() => toggleConfirmedExercise(ex.name!)}
+                      />
+                      <Label htmlFor={`exercise-${index}`} className="text-sm font-medium cursor-pointer">
+                        {ex.name}
+                      </Label>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => removeIdentifiedExercise(ex.name!)} className="h-7 w-7">
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </ScrollArea>
           </div>
         )}
 
-        <div className="flex justify-between">
-          <Button variant="outline" onClick={handleBack}>
-            Back
-          </Button>
-          <Button 
-            onClick={handleNext} 
-            disabled={identifiedExercises.length > 0 && confirmedExercises.size === 0}
-          >
+        <div className="flex justify-between mt-8">
+          <Button variant="outline" onClick={handleBack}>Back</Button>
+          <Button onClick={handleNext} disabled={identifiedExercises.length > 0 && confirmedExercises.size === 0}>
             {identifiedExercises.length > 0 ? `Confirm ${confirmedExercises.size} Exercises` : 'Next'}
           </Button>
         </div>

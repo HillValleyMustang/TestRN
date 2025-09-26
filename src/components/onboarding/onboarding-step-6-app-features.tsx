@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dumbbell, Sparkles, BarChart3 } from 'lucide-react';
 import { cn, getWorkoutColorClass } from '@/lib/utils';
 
-interface OnboardingStep7Props {
+interface OnboardingStep6Props {
   handleNext: () => void;
   handleBack: () => void;
 }
@@ -31,29 +31,23 @@ const features = [
   }
 ];
 
-export const OnboardingStep7_AppFeatures = ({
+export const OnboardingStep6_AppFeatures = ({
   handleNext,
   handleBack,
-}: OnboardingStep7Props) => {
+}: OnboardingStep6Props) => {
   return (
     <div className="space-y-6">
-      <div className="space-y-4">
+      <div className="h-80 overflow-y-auto snap-y snap-mandatory rounded-lg border">
         {features.map((feature, index) => (
           <div
             key={index}
-            className={cn(
-              "flex items-start gap-4 p-4 rounded-lg border-l-4",
-              getWorkoutColorClass(feature.colorKey, 'border'),
-              'bg-card'
-            )}
+            className="h-80 snap-start flex flex-col items-center justify-center text-center p-6"
           >
-            <div className={cn("flex-shrink-0 p-2 rounded-full", getWorkoutColorClass(feature.colorKey, 'bg'))}>
-              {React.cloneElement(feature.icon, { className: "h-5 w-5 text-white" })}
+            <div className={cn("flex-shrink-0 p-3 rounded-full mb-4", getWorkoutColorClass(feature.colorKey, 'bg'))}>
+              {React.cloneElement(feature.icon, { className: "h-8 w-8 text-white" })}
             </div>
-            <div>
-              <h4 className="font-semibold text-base">{feature.title}</h4>
-              <p className="text-sm text-muted-foreground">{feature.description}</p>
-            </div>
+            <h4 className="font-semibold text-xl mb-2">{feature.title}</h4>
+            <p className="text-sm text-muted-foreground max-w-xs">{feature.description}</p>
           </div>
         ))}
       </div>

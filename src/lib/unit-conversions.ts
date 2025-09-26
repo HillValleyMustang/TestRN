@@ -41,3 +41,11 @@ export function formatTime(seconds: number | null | undefined): string {
   const remainingSeconds = seconds % 60;
   return `${minutes}m ${remainingSeconds}s`;
 }
+
+export function cmToFeetAndInches(cm: number | null): string {
+  if (cm === null || cm === undefined) return '-';
+  const inchesTotal = cm / 2.54;
+  const feet = Math.floor(inchesTotal / 12);
+  const inches = Math.round(inchesTotal % 12);
+  return `${feet}' ${inches}"`;
+}
