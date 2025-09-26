@@ -42,10 +42,10 @@ export const OnboardingStep1_Profile = ({
     <>
       <div className="space-y-8">
         <div>
-          <Label htmlFor="fullName" className="text-sm font-medium">Preferred Name</Label>
+          <Label htmlFor="fullName" className="text-sm font-medium">What should we call you?</Label>
           <Input 
             id="fullName" 
-            placeholder="e.g., John Doe" 
+            placeholder="e.g., Alex Smith" 
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             required
