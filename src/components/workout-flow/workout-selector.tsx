@@ -27,6 +27,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { SetupGymPlanPrompt } from '../manage-t-paths/setup-gym-plan-prompt';
 import { useRouter } from 'next/navigation';
+import { AdHocGeneratorDialog } from './adhoc-generator-dialog';
 
 type TPath = Tables<'t_paths'>;
 
@@ -155,6 +156,7 @@ export const WorkoutSelector = ({
   const [gymFilter, setGymFilter] = useState("all");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [isComboboxOpen, setIsComboboxOpen] = useState(false);
+  const [isAdHocGeneratorOpen, setIsAdHocGeneratorOpen] = useState(false);
 
   const activeTPathId = profile?.active_t_path_id;
   const activeTPathGroup = activeTPathId ? groupedTPaths.find(group => group.mainTPath.id === activeTPathId) : null;
@@ -200,7 +202,15 @@ export const WorkoutSelector = ({
   };
 
   const handleAdHocClick = () => {
-    selectWorkout('ad-hoc');
+    setIsAdHocGeneratorOpen(true);
+  };
+
+  const handleWorkoutGenerated = async (exercises: ExerciseDefinition[]) => {
+    await selectWorkout('ad-hoc');
+    for (const exercise of exercises) {
+      await addExerciseToSession(exercise);
+    }
+    toast.success(`${exercises.length} exercises added to your ad-hoc workout!`);
   };
 
   const handleAddExercise = () => {
@@ -627,6 +637,11 @@ export const WorkoutSelector = ({
         onAddOnlyToCurrentWorkout={handleAddAiExerciseToWorkoutOnly}
         context="workout-flow"
         isSaving={isAiSaving}
+      />
+      <AdHocGeneratorDialog
+        open={isAdHocGeneratorOpen}
+        onOpenChange={setIsAdHocGeneratorOpen}
+        onWorkoutGenerated={handleWorkoutGenerated}
       />
     </div>
   );
