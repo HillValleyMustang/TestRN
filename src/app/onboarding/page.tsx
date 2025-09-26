@@ -6,13 +6,13 @@ import { useOnboardingForm } from "@/hooks/use-onboarding-form";
 import { useSession } from "@/components/session-context-provider";
 import { LoadingOverlay } from "@/components/loading-overlay";
 import { OnboardingSummaryModal } from "@/components/onboarding/onboarding-summary-modal";
-import { ProgressRing } from "@/components/ui/progress-ring"; // Import the new ProgressRing
+import { Progress } from "@/components/ui/progress";
 
 // Import step components
-import { OnboardingStep1_GoalFocus } from "@/components/onboarding/onboarding-step-1-goal-focus";
-import { OnboardingStep2_TrainingPlan } from "@/components/onboarding/onboarding-step-2-training-plan";
-import { OnboardingStep3_ProfileSnapshot } from "@/components/onboarding/onboarding-step-3-profile-snapshot";
-import { OnboardingStep4_AiCoach } from "@/components/onboarding/onboarding-step-4-ai-coach";
+import { OnboardingStep1_ProfileSnapshot } from "@/components/onboarding/onboarding-step-1-profile-snapshot";
+import { OnboardingStep2_GoalFocus } from "@/components/onboarding/onboarding-step-2-goal-focus";
+import { OnboardingStep3_GoalFocus as OnboardingStep3_AiCoach } from "@/components/onboarding/onboarding-step-3-goal-focus";
+import { OnboardingStep4_TrainingPlan } from "@/components/onboarding/onboarding-step-4-training-plan";
 import { OnboardingStep5_GymSetup } from "@/components/onboarding/onboarding-step-5-gym-setup";
 import { OnboardingStep6_GymPhotoUpload } from "@/components/onboarding/onboarding-step-6-gym-photo-upload";
 import { OnboardingStep7_AppFeatures } from "@/components/onboarding/onboarding-step-7-app-features";
@@ -22,21 +22,20 @@ export default function OnboardingPage() {
   const {
     currentStep,
     // Step 1
-    goalFocus, setGoalFocus,
-    // Step 2
-    tPathType, setTPathType,
-    sessionLength, setSessionLength,
-    tPathDescriptions,
-    // Step 3
     fullName, setFullName,
     heightCm, setHeightCm,
     weightKg, setWeightKg,
-    bodyFatPct, setBodyFatPct,
-    // Step 4
+    consentGiven, setConsentGiven,
+    // Step 2
+    goalFocus, setGoalFocus,
+    // Step 3
     preferredMuscles, setPreferredMuscles,
     constraints, setConstraints,
-    consentGiven, setConsentGiven,
-    // Step 5 & 6
+    // Step 4
+    tPathType, setTPathType,
+    sessionLength, setSessionLength,
+    tPathDescriptions,
+    // Step 5
     equipmentMethod, setEquipmentMethod,
     gymName, setGymName,
     identifiedExercises, addIdentifiedExercise, removeIdentifiedExercise,
@@ -63,15 +62,42 @@ export default function OnboardingPage() {
     switch (currentStep) {
       case 1:
         return (
-          <OnboardingStep1_GoalFocus
-            goalFocus={goalFocus}
-            setGoalFocus={setGoalFocus}
+          <OnboardingStep1_ProfileSnapshot
+            fullName={fullName}
+            setFullName={setFullName}
+            heightCm={heightCm}
+            setHeightCm={setHeightCm}
+            weightKg={weightKg}
+            setWeightKg={setWeightKg}
+            consentGiven={consentGiven}
+            setConsentGiven={setConsentGiven}
             handleNext={handleNext}
           />
         );
       case 2:
         return (
-          <OnboardingStep2_TrainingPlan
+          <OnboardingStep2_GoalFocus
+            goalFocus={goalFocus}
+            setGoalFocus={setGoalFocus}
+            handleNext={handleNext}
+            handleBack={handleBack}
+          />
+        );
+      case 3:
+        return (
+          <OnboardingStep3_AiCoach
+            goalFocus={goalFocus}
+            preferredMuscles={preferredMuscles}
+            setPreferredMuscles={setPreferredMuscles}
+            constraints={constraints}
+            setConstraints={setConstraints}
+            handleNext={handleNext}
+            handleBack={handleBack}
+          />
+        );
+      case 4:
+        return (
+          <OnboardingStep4_TrainingPlan
             tPathType={tPathType}
             setTPathType={setTPathType}
             sessionLength={sessionLength}
@@ -79,34 +105,6 @@ export default function OnboardingPage() {
             handleNext={handleNext}
             handleBack={handleBack}
             tPathDescriptions={tPathDescriptions}
-          />
-        );
-      case 3:
-        return (
-          <OnboardingStep3_ProfileSnapshot
-            fullName={fullName}
-            setFullName={setFullName}
-            heightCm={heightCm}
-            setHeightCm={setHeightCm}
-            weightKg={weightKg}
-            setWeightKg={setWeightKg}
-            bodyFatPct={bodyFatPct}
-            setBodyFatPct={setBodyFatPct}
-            handleNext={handleNext}
-            handleBack={handleBack}
-          />
-        );
-      case 4:
-        return (
-          <OnboardingStep4_AiCoach
-            preferredMuscles={preferredMuscles}
-            setPreferredMuscles={setPreferredMuscles}
-            constraints={constraints}
-            setConstraints={setConstraints}
-            consentGiven={consentGiven}
-            setConsentGiven={setConsentGiven}
-            handleNext={handleNext}
-            handleBack={handleBack}
           />
         );
       case 5:
@@ -147,11 +145,11 @@ export default function OnboardingPage() {
   const getStepTitle = () => {
     const firstName = fullName.split(' ')[0];
     switch (currentStep) {
-      case 1: return `Welcome! What's Your Main Goal?`;
-      case 2: return "How Do You Like to Train?";
-      case 3: return `Great, ${firstName}! Let's Get Your Snapshot.`;
-      case 4: return "Personalise Your AI Coach";
-      case 5: return "Let's Equip Your Workouts";
+      case 1: return "Welcome! Let's Get to Know You.";
+      case 2: return `What's Your Main Goal, ${firstName}?`;
+      case 3: return "Any Specifics for Your AI Coach?";
+      case 4: return "How Do You Like to Train?";
+      case 5: return "Let's Equip Your Plan";
       case 6: return "Analyse Your Gym";
       case 7: return "Your Plan Comes With Powerful Tools";
       default: return "";
@@ -160,10 +158,10 @@ export default function OnboardingPage() {
 
   const getStepDescription = () => {
     switch (currentStep) {
-      case 1: return "This helps us tailor your workout plan to what you want to achieve.";
-      case 2: return "Choose the structure and duration that best fits your lifestyle.";
-      case 3: return "These details help us create a truly bespoke plan for you.";
-      case 4: return "These details help our AI coach create a truly bespoke plan for you.";
+      case 1: return "Let's start with the basics to personalize your experience.";
+      case 2: return "This helps us tailor your workout plan to what you want to achieve.";
+      case 3: return "Tell us about any preferences or limitations so we can fine-tune your plan.";
+      case 4: return "Choose the structure and duration that best fits your lifestyle.";
       case 5: return "Tell us about your primary gym so we can select the right exercises.";
       case 6: return "Upload photos of your equipment, and our AI will identify exercises for you to confirm.";
       case 7: return "Here are some of the key features you're about to unlock. Click below to generate your plan!";
@@ -175,15 +173,18 @@ export default function OnboardingPage() {
     <>
       <div className="min-h-screen bg-background p-2 sm:p-4">
         <div className="max-w-2xl mx-auto">
-          <header className="mb-8 text-center flex flex-col items-center">
-            <ProgressRing progress={progressValue} />
-            <h1 className="text-3xl font-bold mt-4">Almost There!</h1>
+          <header className="mb-8 text-center">
+            <h1 className="text-3xl font-bold">Your Fitness Journey Starts Now</h1>
             <p className="text-muted-foreground mt-2">
-              Complete your profile to unlock personalized training
+              Let's set up your personalised Transformation Path
             </p>
           </header>
 
-          <Card className="animate-fade-in-slide-up">
+          <div className="mb-6 px-2">
+            <Progress value={progressValue} className="w-full" />
+          </div>
+
+          <Card>
             <CardHeader>
               <CardTitle>{getStepTitle()}</CardTitle>
               <CardDescription>{getStepDescription()}</CardDescription>

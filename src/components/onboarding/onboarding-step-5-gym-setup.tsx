@@ -28,7 +28,7 @@ export const OnboardingStep5_GymSetup = ({
   return (
     <div className="space-y-6">
       <div>
-        <Label htmlFor="gymName" className="text-base font-semibold">Your Gym's Name</Label>
+        <Label htmlFor="gymName" className="text-sm font-medium">Your Gym's Name</Label>
         <Input
           id="gymName"
           placeholder="e.g., Home Gym, Fitness First"
@@ -91,7 +91,6 @@ export const OnboardingStep5_GymSetup = ({
         <Button 
           onClick={handleNext} 
           disabled={!equipmentMethod || !gymName}
-          size="lg"
         >
           Next
         </Button>

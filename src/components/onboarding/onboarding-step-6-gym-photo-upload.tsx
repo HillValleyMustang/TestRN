@@ -30,6 +30,9 @@ export const OnboardingStep6_GymPhotoUpload = ({
   handleBack,
 }: OnboardingStep6Props) => {
   const [showAnalyseGymDialog, setShowAnalyseGymDialog] = useState(false);
+  const [showSaveAiExercisePrompt, setShowSaveAiExercisePrompt] = useState(false);
+  const [aiIdentifiedExercise, setAiIdentifiedExercise] = useState<Partial<Tables<'exercise_definitions'>> | null>(null);
+  const [aiDuplicateStatus, setAiDuplicateStatus] = useState<'none' | 'global' | 'my-exercises'>('none');
 
   const handleExerciseIdentified = useCallback((exercises: Partial<FetchedExerciseDefinition>[], duplicate_status: 'none' | 'global' | 'my-exercises') => {
     if (exercises.length === 0) {
@@ -39,7 +42,7 @@ export const OnboardingStep6_GymPhotoUpload = ({
     exercises.forEach(ex => {
       addIdentifiedExercise(ex as Partial<Tables<'exercise_definitions'>>);
     });
-    toast.success(`${exercises.length} exercise(s) identified and added for review!`);
+    console.log(`${exercises.length} exercise(s) identified and added for review!`);
   }, [addIdentifiedExercise]);
 
   return (
@@ -90,7 +93,6 @@ export const OnboardingStep6_GymPhotoUpload = ({
           <Button 
             onClick={handleNext} 
             disabled={identifiedExercises.length > 0 && confirmedExercises.size === 0}
-            size="lg"
           >
             {identifiedExercises.length > 0 ? `Confirm ${confirmedExercises.size} Exercises` : 'Next'}
           </Button>
