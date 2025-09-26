@@ -18,7 +18,7 @@ import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatAthleteName } from '@/lib/utils';
-import { WeeklyTargetWidget } from '@/components/dashboard/weekly-target-widget'; // NEW: Import WeeklyTargetWidget
+import { WeeklyTargetWidget } from '@/components/dashboard/weekly-target-widget';
 
 type Profile = Tables<'profiles'>;
 
@@ -78,7 +78,7 @@ export default function DashboardPage() {
       </header>
 
       {/* NEW: Weekly Target Widget */}
-      <WeeklyTargetWidget />
+      <WeeklyTargetWidget onViewSummary={handleViewSummary} />
 
       {!loadingGyms && userGyms.length > 1 && (
         <div className="flex justify-center animate-fade-in-slide-up" style={{ animationDelay: '0.1s' }}>

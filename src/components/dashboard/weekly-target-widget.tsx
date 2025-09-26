@@ -13,12 +13,16 @@ import { Button } from '@/components/ui/button';
 import { ConsistencyCalendarModal } from '@/components/dashboard/consistency-calendar-modal';
 
 interface WeeklySummary {
-  completed_workouts: { name: string }[];
+  completed_workouts: { id: string; name: string }[];
   goal_total: number;
   programme_type: 'ulul' | 'ppl';
 }
 
-export const WeeklyTargetWidget = () => {
+interface WeeklyTargetWidgetProps {
+  onViewSummary: (sessionId: string) => void;
+}
+
+export const WeeklyTargetWidget = ({ onViewSummary }: WeeklyTargetWidgetProps) => {
   const { session, supabase, memoizedSessionUserId } = useSession();
   const [summary, setSummary] = useState<WeeklySummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -90,7 +94,9 @@ export const WeeklyTargetWidget = () => {
     for (let i = 0; i < displayCount; i++) {
       const isCompleted = i < completedCount;
       const workoutName = isCompleted ? completed[i].name : goalWorkouts[i];
+      const sessionId = isCompleted ? completed[i].id : null;
       items.push({
+        id: sessionId,
         name: workoutName,
         isCompleted: isCompleted,
       });
@@ -165,15 +171,17 @@ export const WeeklyTargetWidget = () => {
                     <TooltipTrigger asChild>
                       <div
                         className={cn(
-                          "h-10 w-10 rounded-full flex items-center justify-center text-sm font-semibold transition-colors duration-200",
-                          item.isCompleted ? `${colorClass} text-white` : 'bg-muted text-muted-foreground'
+                          "h-10 w-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-200",
+                          item.isCompleted ? `${colorClass} text-white` : 'bg-muted text-muted-foreground',
+                          item.isCompleted && item.id && 'cursor-pointer hover:scale-110'
                         )}
+                        onClick={() => item.isCompleted && item.id && onViewSummary(item.id)}
                       >
                         {item.isCompleted ? <CheckCircle className="h-5 w-5" /> : label}
                       </div>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>{item.name} - {item.isCompleted ? 'Completed' : 'Pending'}</p>
+                      <p>{item.name} - {item.isCompleted ? 'Completed (Click to view)' : 'Pending'}</p>
                     </TooltipContent>
                   </Tooltip>
                 );

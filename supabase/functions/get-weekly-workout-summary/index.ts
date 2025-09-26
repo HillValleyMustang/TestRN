@@ -74,7 +74,7 @@ serve(async (req: Request) => {
     // 4. Query completed workout sessions for the week
     const { data: completedSessions, error: sessionsError } = await supabaseServiceRoleClient
       .from('workout_sessions')
-      .select('template_name, completed_at') // Select name and completion time
+      .select('id, template_name, completed_at') // Select id, name and completion time
       .eq('user_id', userId)
       .not('completed_at', 'is', null)
       .gte('completed_at', startOfWeek.toISOString()) // Use completed_at for accuracy
@@ -83,7 +83,8 @@ serve(async (req: Request) => {
     if (sessionsError) throw sessionsError;
 
     // 5. Format the completed workouts
-    const completed_workouts = (completedSessions || []).map((session: { template_name: string | null }) => ({
+    const completed_workouts = (completedSessions || []).map((session: { id: string, template_name: string | null }) => ({
+      id: session.id,
       name: session.template_name || 'Ad Hoc Workout'
     }));
 
