@@ -5,13 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dumbbell, CheckCircle, Loader2, AlertCircle, CalendarDays } from 'lucide-react';
 import { cn, getWorkoutColorClass } from '@/lib/utils';
 import { useSession } from '@/components/session-context-provider';
-import { useCacheAndRevalidate } from '@/hooks/use-cache-and-revalidate';
-import { db, LocalProfile } from '@/lib/db';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { ConsistencyCalendarModal } from '@/components/dashboard/consistency-calendar-modal';
 import { WeeklyActivitySummaryDialog } from './weekly-activity-summary-dialog';
+import { Tables } from '@/types/supabase';
 
 interface Activity {
   id: string;
@@ -30,62 +29,17 @@ interface WeeklySummary {
 
 interface WeeklyTargetWidgetProps {
   onViewSummary: (sessionId: string) => void;
+  summary: WeeklySummary | null;
+  loading: boolean;
+  error: string | null;
+  profile: Tables<'profiles'> | null;
 }
 
-export const WeeklyTargetWidget = ({ onViewSummary }: WeeklyTargetWidgetProps) => {
-  const { session, supabase, memoizedSessionUserId } = useSession();
-  const [summary, setSummary] = useState<WeeklySummary | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export const WeeklyTargetWidget = ({ onViewSummary, summary, loading, error, profile }: WeeklyTargetWidgetProps) => {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isActivitySummaryOpen, setIsActivitySummaryOpen] = useState(false);
 
-  const { data: cachedProfile, loading: loadingProfile, error: profileError } = useCacheAndRevalidate<LocalProfile>({
-    cacheTable: 'profiles_cache',
-    supabaseQuery: useCallback(async (client) => {
-      if (!memoizedSessionUserId) return { data: [], error: null };
-      return client.from('profiles').select('*').eq('id', memoizedSessionUserId);
-    }, [memoizedSessionUserId]),
-    queryKey: 'weekly_target_profile',
-    supabase: supabase!,
-    sessionUserId: memoizedSessionUserId,
-  });
-
-  const fetchWeeklySummary = useCallback(async () => {
-    if (!memoizedSessionUserId) {
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch('/api/get-weekly-workout-summary', {
-        headers: {
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch weekly workout summary.');
-      }
-      setSummary(data);
-    } catch (err: any) {
-      console.error("Error fetching weekly workout summary:", err);
-      setError(err.message || "Failed to load weekly target.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [memoizedSessionUserId, session?.access_token]);
-
-  useEffect(() => {
-    if (memoizedSessionUserId) {
-      fetchWeeklySummary();
-    }
-  }, [memoizedSessionUserId, fetchWeeklySummary]);
-
-  const programmeType = cachedProfile?.[0]?.programme_type;
+  const programmeType = profile?.programme_type;
 
   const { displayItems, completedCount, goalTotal, completedActivities } = useMemo(() => {
     if (!summary || !programmeType) {
@@ -115,7 +69,7 @@ export const WeeklyTargetWidget = ({ onViewSummary }: WeeklyTargetWidgetProps) =
     return { displayItems: items, completedCount, goalTotal, completedActivities: summary.completed_activities || [] };
   }, [summary, programmeType]);
 
-  if (isLoading || loadingProfile) {
+  if (loading) {
     return (
       <Card className="animate-fade-in-slide-up">
         <CardHeader className="pb-2">
@@ -130,7 +84,7 @@ export const WeeklyTargetWidget = ({ onViewSummary }: WeeklyTargetWidgetProps) =
     );
   }
 
-  if (error || profileError) {
+  if (error) {
     return (
       <Card className="animate-fade-in-slide-up">
         <CardHeader className="pb-2">

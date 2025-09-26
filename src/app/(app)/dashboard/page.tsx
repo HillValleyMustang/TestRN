@@ -25,7 +25,17 @@ type Profile = Tables<'profiles'>;
 export default function DashboardPage() {
   const { session, supabase, memoizedSessionUserId } = useSession();
   const router = useRouter();
-  const { groupedTPaths, loadingData: loadingWorkoutData, profile, loadingData: loadingProfile, workoutExercisesCache, dataError } = useWorkoutDataFetcher();
+  const { 
+    groupedTPaths, 
+    loadingData: loadingWorkoutData, 
+    profile, 
+    loadingData: loadingProfile, 
+    workoutExercisesCache, 
+    dataError,
+    refreshAllData,
+    weeklySummary,
+    loadingWeeklySummary
+  } = useWorkoutDataFetcher();
   const { loadingGyms, userGyms, activeGym } = useGym();
   
   const [welcomeText, setWelcomeText] = useState<string>('');
@@ -77,8 +87,13 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* NEW: Weekly Target Widget */}
-      <WeeklyTargetWidget onViewSummary={handleViewSummary} />
+      <WeeklyTargetWidget 
+        onViewSummary={handleViewSummary} 
+        summary={weeklySummary}
+        loading={loadingWeeklySummary}
+        error={dataError}
+        profile={profile}
+      />
 
       {!loadingGyms && userGyms.length > 1 && (
         <div className="flex justify-center animate-fade-in-slide-up" style={{ animationDelay: '0.1s' }}>
@@ -108,7 +123,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.7s' }}>
-        <ActionHub />
+        <ActionHub onActivityLogSuccess={refreshAllData} />
       </div>
       <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.85s' }}>
         <WeeklyVolumeChart />

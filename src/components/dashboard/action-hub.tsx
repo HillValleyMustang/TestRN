@@ -23,15 +23,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from '@/components/ui/button';
-import { WorkoutPerformanceModal } from './workout-performance-modal'; // Import the new modal
+import { WorkoutPerformanceModal } from './workout-performance-modal';
 import { ConsistencyCalendarModal } from './consistency-calendar-modal';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'; // Import Card components
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-export const ActionHub = () => {
+interface ActionHubProps {
+  onActivityLogSuccess: () => void;
+}
+
+export const ActionHub = ({ onActivityLogSuccess }: ActionHubProps) => {
   const router = useRouter();
   const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
   const [isAiCoachOpen, setIsAiCoachOpen] = useState(false);
-  const [isWorkoutPerformanceOpen, setIsWorkoutPerformanceOpen] = useState(false); // New state for the new modal
+  const [isWorkoutPerformanceOpen, setIsWorkoutPerformanceOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
@@ -55,7 +59,7 @@ export const ActionHub = () => {
           <ActionButton
             title="Workout Log"
             icon={<History className="h-5 w-5 text-chart-1" strokeWidth={2.5} />}
-            onClick={() => setIsWorkoutPerformanceOpen(true)} // Open new modal
+            onClick={() => setIsWorkoutPerformanceOpen(true)}
           />
           <ActionButton
             title="Consistency Calendar"
@@ -98,9 +102,9 @@ export const ActionHub = () => {
         </CardContent>
       </Card>
 
-      <ActivityLoggingDialog open={isActivityLogOpen} onOpenChange={setIsActivityLogOpen} />
+      <ActivityLoggingDialog open={isActivityLogOpen} onOpenChange={setIsActivityLogOpen} onLogSuccess={onActivityLogSuccess} />
       <AiCoachDialog open={isAiCoachOpen} onOpenChange={setIsAiCoachOpen} />
-      <WorkoutPerformanceModal open={isWorkoutPerformanceOpen} onOpenChange={setIsWorkoutPerformanceOpen} /> {/* Use the new modal */}
+      <WorkoutPerformanceModal open={isWorkoutPerformanceOpen} onOpenChange={setIsWorkoutPerformanceOpen} />
       <ConsistencyCalendarModal open={isCalendarOpen} onOpenChange={setIsCalendarOpen} />
     </>
   );

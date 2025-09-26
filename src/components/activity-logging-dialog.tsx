@@ -24,6 +24,7 @@ interface ActivityLoggingDialogProps {
   onOpenChange?: (open: boolean) => void;
   initialActivity?: ActivityType | null;
   trigger?: React.ReactNode;
+  onLogSuccess?: () => void;
 }
 
 // Helper function to convert time string (e.g., "1h 30m", "90m", "1m 30s") to total seconds
@@ -82,27 +83,27 @@ const tennisSchema = z.object({
 });
 
 export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
-  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
+  const { session, supabase, memoizedSessionUserId } = useSession();
   const [preferredDistanceUnit, setPreferredDistanceUnit] = useState<Profile['preferred_distance_unit']>('km');
 
   useEffect(() => {
     const fetchUserProfile = async () => {
-      if (!memoizedSessionUserId) return; // Use memoized ID
+      if (!memoizedSessionUserId) return;
       const { data: profileData, error } = await supabase
         .from('profiles')
         .select('preferred_distance_unit')
-        .eq('id', memoizedSessionUserId) // Use memoized ID
+        .eq('id', memoizedSessionUserId)
         .single();
 
       if (error && error.code !== 'PGRST116') {
         console.error("Error fetching user profile for distance unit:", error);
-        toast.error("Failed to load user preferences."); // Added toast.error
+        toast.error("Failed to load user preferences.");
       } else if (profileData) {
         setPreferredDistanceUnit(profileData.preferred_distance_unit || 'km');
       }
     };
     fetchUserProfile();
-  }, [memoizedSessionUserId, supabase]); // Depend on memoized ID
+  }, [memoizedSessionUserId, supabase]);
 
   const form = useForm<z.infer<typeof cyclingSchema>>({
     resolver: zodResolver(cyclingSchema),
@@ -115,15 +116,15 @@ export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
   });
 
   async function onSubmit(values: z.infer<typeof cyclingSchema>) {
-    if (!memoizedSessionUserId) { // Use memoized ID
-      toast.error("You must be logged in to log activities."); // Changed to toast.error
+    if (!memoizedSessionUserId) {
+      toast.error("You must be logged in to log activities.");
       return;
     }
 
     // Convert input distance to KM for storage and PB comparison
     const distanceInKm = convertDistance(values.distance, preferredDistanceUnit as 'km' | 'miles', 'km');
     if (distanceInKm === null) {
-      toast.error("Invalid distance value."); // Changed to toast.error
+      toast.error("Invalid distance value.");
       return;
     }
 
@@ -140,7 +141,7 @@ export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
       const { data: previousLogs, error: fetchError } = await supabase
         .from('activity_logs')
         .select('avg_time')
-        .eq('user_id', memoizedSessionUserId) // Use memoized ID
+        .eq('user_id', memoizedSessionUserId)
         .eq('activity_type', 'Cycling')
         .order('log_date', { ascending: false });
 
@@ -152,11 +153,11 @@ export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
       }
     } catch (err) {
       console.error("Error checking cycling PB:", err);
-      toast.error("Failed to check personal best for cycling."); // Added toast.error
+      toast.error("Failed to check personal best for cycling.");
     }
 
     const newLog: TablesInsert<'activity_logs'> = {
-      user_id: memoizedSessionUserId, // Use memoized ID
+      user_id: memoizedSessionUserId,
       activity_type: 'Cycling',
       distance: `${distanceInKm} km`, // Store in KM
       time: timeStringForStorage,
@@ -169,9 +170,9 @@ export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
 
     if (error) {
       console.error("Failed to log cycling activity:", error.message);
-      toast.error("Failed to log cycling activity."); // Changed to toast.error
+      toast.error("Failed to log cycling activity.");
     } else {
-      toast.success("Cycling activity logged successfully!"); // Replaced console.log
+      toast.success("Cycling activity logged successfully!");
       form.reset();
       onLogSuccess();
     }
@@ -192,29 +193,28 @@ export const LogCyclingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
   );
 };
 
-// NEW: LogRunningForm component
 export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
-  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
+  const { session, supabase, memoizedSessionUserId } = useSession();
   const [preferredDistanceUnit, setPreferredDistanceUnit] = useState<Profile['preferred_distance_unit']>('km');
 
   useEffect(() => {
     const fetchUserProfile = async () => {
-      if (!memoizedSessionUserId) return; // Use memoized ID
+      if (!memoizedSessionUserId) return;
       const { data: profileData, error } = await supabase
         .from('profiles')
         .select('preferred_distance_unit')
-        .eq('id', memoizedSessionUserId) // Use memoized ID
+        .eq('id', memoizedSessionUserId)
         .single();
 
       if (error && error.code !== 'PGRST116') {
         console.error("Error fetching user profile for distance unit:", error);
-        toast.error("Failed to load user preferences."); // Added toast.error
+        toast.error("Failed to load user preferences.");
       } else if (profileData) {
         setPreferredDistanceUnit(profileData.preferred_distance_unit || 'km');
       }
     };
     fetchUserProfile();
-  }, [memoizedSessionUserId, supabase]); // Depend on memoized ID
+  }, [memoizedSessionUserId, supabase]);
 
   const form = useForm<z.infer<typeof runningSchema>>({
     resolver: zodResolver(runningSchema),
@@ -227,14 +227,14 @@ export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
   });
 
   async function onSubmit(values: z.infer<typeof runningSchema>) {
-    if (!memoizedSessionUserId) { // Use memoized ID
-      toast.error("You must be logged in to log activities."); // Changed to toast.error
+    if (!memoizedSessionUserId) {
+      toast.error("You must be logged in to log activities.");
       return;
     }
 
     const distanceInKm = convertDistance(values.distance, preferredDistanceUnit as 'km' | 'miles', 'km');
     if (distanceInKm === null) {
-      toast.error("Invalid distance value."); // Changed to toast.error
+      toast.error("Invalid distance value.");
       return;
     }
 
@@ -251,7 +251,7 @@ export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
       const { data: previousLogs, error: fetchError } = await supabase
         .from('activity_logs')
         .select('avg_time')
-        .eq('user_id', memoizedSessionUserId) // Use memoized ID
+        .eq('user_id', memoizedSessionUserId)
         .eq('activity_type', 'Running')
         .order('log_date', { ascending: false });
 
@@ -262,11 +262,11 @@ export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
       }
     } catch (err) {
       console.error("Error checking running PB:", err);
-      toast.error("Failed to check personal best for running."); // Added toast.error
+      toast.error("Failed to check personal best for running.");
     }
 
     const newLog: TablesInsert<'activity_logs'> = {
-      user_id: memoizedSessionUserId, // Use memoized ID
+      user_id: memoizedSessionUserId,
       activity_type: 'Running',
       distance: `${distanceInKm} km`, // Store in KM
       time: timeStringForStorage,
@@ -279,9 +279,9 @@ export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
 
     if (error) {
       console.error("Failed to log running activity:", error.message);
-      toast.error("Failed to log running activity."); // Changed to toast.error
+      toast.error("Failed to log running activity.");
     } else {
-      toast.success("Running activity logged successfully!"); // Replaced console.log
+      toast.success("Running activity logged successfully!");
       form.reset();
       onLogSuccess();
     }
@@ -304,7 +304,7 @@ export const LogRunningForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =
 
 
 export const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
-  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
+  const { session, supabase, memoizedSessionUserId } = useSession();
   const form = useForm<z.infer<typeof swimmingSchema>>({
     resolver: zodResolver(swimmingSchema),
     defaultValues: {
@@ -315,8 +315,8 @@ export const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) 
   });
 
   async function onSubmit(values: z.infer<typeof swimmingSchema>) {
-    if (!memoizedSessionUserId) { // Use memoized ID
-      toast.error("You must be logged in to log activities."); // Changed to toast.error
+    if (!memoizedSessionUserId) {
+      toast.error("You must be logged in to log activities.");
       return;
     }
 
@@ -326,7 +326,7 @@ export const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) 
       const { data: previousLogs, error: fetchError } = await supabase
         .from('activity_logs')
         .select('distance')
-        .eq('user_id', memoizedSessionUserId) // Use memoized ID
+        .eq('user_id', memoizedSessionUserId)
         .eq('activity_type', 'Swimming')
         .order('log_date', { ascending: false });
 
@@ -340,11 +340,11 @@ export const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) 
       isPB = previousLengths.every(prevLen => totalLengths > prevLen);
     } catch (err) {
       console.error("Error checking swimming PB:", err);
-      toast.error("Failed to check personal best for swimming."); // Added toast.error
+      toast.error("Failed to check personal best for swimming.");
     }
 
     const newLog: TablesInsert<'activity_logs'> = {
-      user_id: memoizedSessionUserId, // Use memoized ID
+      user_id: memoizedSessionUserId,
       activity_type: 'Swimming',
       distance: `${values.lengths} lengths (${values.pool_size}m pool)`,
       time: null,
@@ -357,9 +357,9 @@ export const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) 
 
     if (error) {
       console.error("Failed to log swimming activity:", error.message);
-      toast.error("Failed to log swimming activity."); // Changed to toast.error
+      toast.error("Failed to log swimming activity.");
     } else {
-      toast.success("Swimming activity logged successfully!"); // Replaced console.log
+      toast.success("Swimming activity logged successfully!");
       form.reset();
       onLogSuccess();
     }
@@ -378,7 +378,7 @@ export const LogSwimmingForm = ({ onLogSuccess }: { onLogSuccess: () => void }) 
 };
 
 export const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) => {
-  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
+  const { session, supabase, memoizedSessionUserId } = useSession();
   const form = useForm<z.infer<typeof tennisSchema>>({
     resolver: zodResolver(tennisSchema),
     defaultValues: {
@@ -388,8 +388,8 @@ export const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =>
   });
 
   async function onSubmit(values: z.infer<typeof tennisSchema>) {
-    if (!memoizedSessionUserId) { // Use memoized ID
-      toast.error("You must be logged in to log activities."); // Changed to toast.error
+    if (!memoizedSessionUserId) {
+      toast.error("You must be logged in to log activities.");
       return;
     }
 
@@ -399,7 +399,7 @@ export const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =>
       const { data: previousLogs, error: fetchError } = await supabase
         .from('activity_logs')
         .select('time')
-        .eq('user_id', memoizedSessionUserId) // Use memoized ID
+        .eq('user_id', memoizedSessionUserId)
         .eq('activity_type', 'Tennis')
         .order('log_date', { ascending: false });
 
@@ -409,11 +409,11 @@ export const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =>
       isPB = previousDurations.every(prevDur => durationMinutes > prevDur);
     } catch (err) {
       console.error("Error checking tennis PB:", err);
-      toast.error("Failed to check personal best for tennis."); // Added toast.error
+      toast.error("Failed to check personal best for tennis.");
     }
 
     const newLog: TablesInsert<'activity_logs'> = {
-      user_id: memoizedSessionUserId, // Use memoized ID
+      user_id: memoizedSessionUserId,
       activity_type: 'Tennis',
       distance: null,
       time: values.duration,
@@ -426,9 +426,9 @@ export const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =>
 
     if (error) {
       console.error("Failed to log tennis activity:", error.message);
-      toast.error("Failed to log tennis activity."); // Changed to toast.error
+      toast.error("Failed to log tennis activity.");
     } else {
-      toast.success("Tennis activity logged successfully!"); // Replaced console.log
+      toast.success("Tennis activity logged successfully!");
       form.reset();
       onLogSuccess();
     }
@@ -445,7 +445,7 @@ export const LogTennisForm = ({ onLogSuccess }: { onLogSuccess: () => void }) =>
   );
 };
 
-export const ActivityLoggingDialog = ({ open, onOpenChange, initialActivity, trigger }: ActivityLoggingDialogProps) => {
+export const ActivityLoggingDialog = ({ open, onOpenChange, initialActivity, trigger, onLogSuccess }: ActivityLoggingDialogProps) => {
   const [internalOpen, setInternalOpen] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<ActivityType | null>(initialActivity || null);
 
@@ -466,6 +466,9 @@ export const ActivityLoggingDialog = ({ open, onOpenChange, initialActivity, tri
   const handleLogSuccess = () => {
     setCurrentOpen(false);
     setSelectedActivity(null);
+    if (onLogSuccess) {
+      onLogSuccess();
+    }
   };
 
   return (

@@ -11,11 +11,18 @@ import { useUserProfile } from '@/hooks/data/useUserProfile';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getMaxMinutes, areSetsEqual } from '@/lib/utils'; // Import getMaxMinutes and areSetsEqual
 
+const ULUL_ORDER = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
+const PPL_ORDER = ['Push', 'Pull', 'Legs'];
+
 type TPath = Tables<'t_paths'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 
-const ULUL_ORDER = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
-const PPL_ORDER = ['Push', 'Pull', 'Legs'];
+interface WeeklySummary {
+  completed_workouts: { id: string; name: string }[];
+  goal_total: number;
+  programme_type: 'ulul' | 'ppl';
+  completed_activities: any[]; // Keep this flexible for now
+}
 
 interface UseWorkoutDataFetcherReturn {
   allAvailableExercises: FetchedExerciseDefinition[];
@@ -30,26 +37,31 @@ interface UseWorkoutDataFetcherReturn {
   refreshTPaths: () => void;
   refreshTPathExercises: () => void;
   isGeneratingPlan: boolean;
-  tempStatusMessage: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null; // UPDATED TYPE
-  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // ADDED
+  tempStatusMessage: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void;
   availableMuscleGroups: string[];
   userGyms: Tables<'gyms'>[];
   exerciseGymsMap: Record<string, string[]>;
-  exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>; // ADDED
-  availableGymExerciseIds: Set<string>; // NEW
-  allGymExerciseIds: Set<string>; // NEW
+  exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>;
+  availableGymExerciseIds: Set<string>;
+  allGymExerciseIds: Set<string>;
+  weeklySummary: WeeklySummary | null; // NEW
+  loadingWeeklySummary: boolean; // NEW
 }
 
 export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
-  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
+  const { session, supabase, memoizedSessionUserId } = useSession();
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const prevStatusRef = useRef<string | null>(null);
-  const [tempStatusMessage, setTempStatusMessage] = useState<{ message: string; type: 'added' | 'removed' | 'success' | 'error' } | null>(null); // UPDATED TYPE
-  const [exerciseWorkoutsMap, setExerciseWorkoutsMap] = useState<Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>>({}); // ADDED STATE
+  const [tempStatusMessage, setTempStatusMessage] = useState<{ message: string; type: 'added' | 'removed' | 'success' | 'error' } | null>(null);
+  const [exerciseWorkoutsMap, setExerciseWorkoutsMap] = useState<Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>>({});
   const [isProcessingDerivedData, setIsProcessingDerivedData] = useState(true);
 
-  // Refs to hold stable Set instances
+  // NEW: State for weekly summary
+  const [weeklySummary, setWeeklySummary] = useState<WeeklySummary | null>(null);
+  const [loadingWeeklySummary, setLoadingWeeklySummary] = useState(true);
+
   const availableGymExerciseIdsRef = useRef<Set<string>>(new Set());
   const allGymExerciseIdsRef = useRef<Set<string>>(new Set());
 
@@ -58,7 +70,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     supabaseQuery: useCallback(async (client: SupabaseClient) => client.from('exercise_definitions').select('*').order('name', { ascending: true }), []),
     queryKey: 'all_exercises',
     supabase,
-    sessionUserId: memoizedSessionUserId, // Pass memoized ID
+    sessionUserId: memoizedSessionUserId,
   });
 
   const { data: cachedTPaths, loading: loadingTPaths, error: tPathsError, refresh: refreshTPaths } = useCacheAndRevalidate<LocalTPath>({
@@ -66,7 +78,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     supabaseQuery: useCallback(async (client: SupabaseClient) => client.from('t_paths').select('*'), []),
     queryKey: 'all_t_paths',
     supabase,
-    sessionUserId: memoizedSessionUserId, // Pass memoized ID
+    sessionUserId: memoizedSessionUserId,
   });
 
   const { profile, isLoading: loadingProfile, error: profileError, refresh: refreshProfile } = useUserProfile();
@@ -75,36 +87,36 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const { data: cachedTPathExercises, loading: loadingTPathExercises, error: tPathExercisesError, refresh: refreshTPathExercises } = useCacheAndRevalidate<Tables<'t_path_exercises'>>({
     cacheTable: 't_path_exercises_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!memoizedSessionUserId) return { data: [], error: null }; // Use memoized ID
+      if (!memoizedSessionUserId) return { data: [], error: null };
       const { data, error } = await client.from('t_path_exercises').select('id, exercise_id, template_id, order_index, is_bonus_exercise, created_at');
       return { data: data || [], error };
-    }, [memoizedSessionUserId]), // Depend on memoized ID
+    }, [memoizedSessionUserId]),
     queryKey: 'all_t_path_exercises',
     supabase,
-    sessionUserId: memoizedSessionUserId, // Pass memoized ID
+    sessionUserId: memoizedSessionUserId,
   });
 
   const { data: cachedAchievements, loading: loadingAchievements, error: achievementsError, refresh: refreshAchievements } = useCacheAndRevalidate<LocalUserAchievement>({
     cacheTable: 'user_achievements_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!memoizedSessionUserId) return { data: [], error: null }; // Use memoized ID
-      const { data, error } = await client.from('user_achievements').select('id, user_id, achievement_id, unlocked_at').eq('user_id', memoizedSessionUserId); // Use memoized ID
+      if (!memoizedSessionUserId) return { data: [], error: null };
+      const { data, error } = await client.from('user_achievements').select('id, user_id, achievement_id, unlocked_at').eq('user_id', memoizedSessionUserId);
       return { data: data as LocalUserAchievement[] || [], error };
-    }, [memoizedSessionUserId]), // Depend on memoized ID
+    }, [memoizedSessionUserId]),
     queryKey: 'user_achievements',
     supabase,
-    sessionUserId: memoizedSessionUserId, // Pass memoized ID
+    sessionUserId: memoizedSessionUserId,
   });
 
   const { data: cachedUserGyms, loading: loadingUserGyms, error: userGymsError, refresh: refreshUserGyms } = useCacheAndRevalidate<Tables<'gyms'>>({
     cacheTable: 'gyms_cache',
     supabaseQuery: useCallback(async (client: SupabaseClient) => {
-      if (!memoizedSessionUserId) return { data: [], error: null }; // Use memoized ID
-      return client.from('gyms').select('*').eq('user_id', memoizedSessionUserId); // Use memoized ID
-    }, [memoizedSessionUserId]), // Depend on memoized ID
+      if (!memoizedSessionUserId) return { data: [], error: null };
+      return client.from('gyms').select('*').eq('user_id', memoizedSessionUserId);
+    }, [memoizedSessionUserId]),
     queryKey: 'user_gyms_fetcher',
     supabase,
-    sessionUserId: memoizedSessionUserId, // Pass memoized ID
+    sessionUserId: memoizedSessionUserId,
   });
 
   const [cachedGymExercises, setCachedGymExercises] = useState<LocalGymExercise[] | null>(null);
@@ -112,7 +124,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const [gymExercisesError, setGymExercisesError] = useState<string | null>(null);
 
   const fetchGymExercises = useCallback(async () => {
-    if (!memoizedSessionUserId) { // Use memoized ID
+    if (!memoizedSessionUserId) {
       setCachedGymExercises([]);
       setLoadingGymExercises(false);
       return;
@@ -120,7 +132,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     setLoadingGymExercises(true);
     setGymExercisesError(null);
     try {
-      const { data: userGymsData, error: userGymsError } = await supabase.from('gyms').select('id').eq('user_id', memoizedSessionUserId); // Use memoized ID
+      const { data: userGymsData, error: userGymsError } = await supabase.from('gyms').select('id').eq('user_id', memoizedSessionUserId);
       if (userGymsError) throw new Error(userGymsError.message || "Failed to fetch user gyms for gym exercises.");
       const gymIds = (userGymsData || []).map(g => g.id);
       if (gymIds.length === 0) {
@@ -142,16 +154,16 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     } finally {
       setLoadingGymExercises(false);
     }
-  }, [memoizedSessionUserId, supabase]); // Depend on memoized ID
+  }, [memoizedSessionUserId, supabase]);
 
   useEffect(() => {
     fetchGymExercises();
   }, [fetchGymExercises]);
 
   const liveCachedGymExercises = useLiveQuery(async () => {
-    if (!memoizedSessionUserId) return []; // Use memoized ID
+    if (!memoizedSessionUserId) return [];
     return db.gym_exercises_cache.toArray();
-  }, [memoizedSessionUserId]); // Depend on memoized ID
+  }, [memoizedSessionUserId]);
 
   useEffect(() => {
     if (liveCachedGymExercises !== undefined) {
@@ -184,7 +196,6 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     return newExerciseGymsMap;
   }, [cachedUserGyms, cachedGymExercises]);
 
-  // NEW: Memoized derived sets
   const derivedAvailableGymExerciseIds = useMemo(() => {
     if (!profile?.active_gym_id || !cachedGymExercises) return new Set<string>();
     return new Set(cachedGymExercises.filter(link => link.gym_id === profile.active_gym_id).map(link => link.exercise_id));
@@ -195,7 +206,6 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     return new Set(cachedGymExercises.map(link => link.exercise_id));
   }, [cachedGymExercises]);
 
-  // Effect to update refs only when the *content* of the derived sets changes
   useEffect(() => {
     if (!areSetsEqual(derivedAvailableGymExerciseIds, availableGymExerciseIdsRef.current)) {
       availableGymExerciseIdsRef.current = derivedAvailableGymExerciseIds;
@@ -203,12 +213,10 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     if (!areSetsEqual(derivedAllGymExerciseIds, allGymExerciseIdsRef.current)) {
       allGymExerciseIdsRef.current = derivedAllGymExerciseIds;
     }
-  }, [derivedAvailableGymExerciseIds, derivedAllGymExerciseIds]); // Dependencies are the memoized derived sets
+  }, [derivedAvailableGymExerciseIds, derivedAllGymExerciseIds]);
 
+  const [groupedTPaths, setGroupedTPaths] = useState<GroupedTPath[]>([]);
 
-  const [groupedTPaths, setGroupedTPaths] = useState<GroupedTPath[]>([]); // Existing state
-
-  // REFACTORED: workoutExercisesCache is now a useMemo for stability
   const workoutExercisesCache = useMemo(() => {
     if (baseLoading || dataError || !memoizedSessionUserId || !cachedTPaths || !cachedTPathExercises || !cachedExercises) {
       return {};
@@ -233,7 +241,27 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     return newWorkoutExercisesCache;
   }, [baseLoading, dataError, memoizedSessionUserId, cachedTPaths, cachedTPathExercises, cachedExercises]);
 
-  // REFACTORED: useEffect for groupedTPaths and exerciseWorkoutsMap
+  const fetchWeeklySummary = useCallback(async () => {
+    if (!memoizedSessionUserId) {
+      setLoadingWeeklySummary(false);
+      return;
+    }
+    setLoadingWeeklySummary(true);
+    try {
+      const response = await fetch('/api/get-weekly-workout-summary', {
+        headers: { 'Authorization': `Bearer ${session?.access_token}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to fetch weekly summary.');
+      setWeeklySummary(data);
+    } catch (err: any) {
+      console.error("[WorkoutDataFetcher] Error fetching weekly summary:", err);
+      toast.error("Failed to load weekly target.");
+    } finally {
+      setLoadingWeeklySummary(false);
+    }
+  }, [memoizedSessionUserId, session?.access_token]);
+
   useEffect(() => {
     const processDerivedData = async () => {
       if (baseLoading || dataError || !memoizedSessionUserId || !cachedTPaths || !cachedTPathExercises || !profile || !cachedExercises) {
@@ -251,7 +279,6 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
         const preferredSessionLength = profile.preferred_session_length;
         const maxAllowedMinutes = getMaxMinutes(preferredSessionLength);
 
-        // 1. Calculate groupedTPaths
         const allChildWorkouts = allTPaths.filter(tp => tp.user_id === memoizedSessionUserId && tp.parent_t_path_id);
         const userMainTPaths = allTPaths.filter(tp => tp.user_id === memoizedSessionUserId && !tp.parent_t_path_id);
         const newGroupedTPaths: GroupedTPath[] = await Promise.all(
@@ -283,7 +310,6 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
           setGroupedTPaths(newGroupedTPaths);
         }
 
-        // 2. Calculate exerciseWorkoutsMap
         const { data: structureData, error: structureError } = await supabase
           .from('workout_exercise_structure')
           .select('exercise_library_id, workout_name, min_session_minutes, bonus_for_time_group');
@@ -362,8 +388,9 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       refreshAchievements(),
       refreshUserGyms(),
       fetchGymExercises(),
+      fetchWeeklySummary(), // NEW
     ]);
-  }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, refreshAchievements, refreshUserGyms, fetchGymExercises]);
+  }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, refreshAchievements, refreshUserGyms, fetchGymExercises, fetchWeeklySummary]);
 
   const status = profile?.t_path_generation_status;
   useEffect(() => {
@@ -374,11 +401,11 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       }
       setIsGeneratingPlan(false);
       if (finalStatus === 'completed') {
-        setTempStatusMessage({ message: "Updated!", type: 'success' }); // Use tempStatusMessage
+        setTempStatusMessage({ message: "Updated!", type: 'success' });
         setTimeout(() => setTempStatusMessage(null), 3000);
         refreshAllData();
       } else if (finalStatus === 'failed') {
-        setTempStatusMessage({ message: "Error!", type: 'error' }); // Use tempStatusMessage
+        setTempStatusMessage({ message: "Error!", type: 'error' });
         setTimeout(() => setTempStatusMessage(null), 3000);
       }
     };
@@ -420,8 +447,10 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     userGyms: cachedUserGyms || [],
     exerciseGymsMap,
     exerciseWorkoutsMap,
-    availableGymExerciseIds: availableGymExerciseIdsRef.current, // Use ref's current value
-    allGymExerciseIds: allGymExerciseIdsRef.current, // Use ref's current value
+    availableGymExerciseIds: availableGymExerciseIdsRef.current,
+    allGymExerciseIds: allGymExerciseIdsRef.current,
+    weeklySummary, // NEW
+    loadingWeeklySummary, // NEW
   }), [
     allAvailableExercises,
     groupedTPaths,
@@ -442,5 +471,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     cachedUserGyms,
     exerciseGymsMap,
     exerciseWorkoutsMap,
+    weeklySummary, // NEW
+    loadingWeeklySummary, // NEW
   ]);
 };
