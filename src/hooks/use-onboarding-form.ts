@@ -23,24 +23,22 @@ export const useOnboardingForm = () => {
   // State for each step
   const [currentStep, setCurrentStep] = useState(1);
   
-  // Step 1 State
-  const [fullName, setFullName] = useState('');
-  const [heightCm, setHeightCm] = useState<number | null>(175);
-  const [weightKg, setWeightKg] = useState<number | null>(75);
-  const [consentGiven, setConsentGiven] = useState(false);
-
-  // Step 2 State
+  // Step 1 State (Goal Focus)
   const [goalFocus, setGoalFocus] = useState<string>("");
 
-  // Step 3 State
-  const [preferredMuscles, setPreferredMuscles] = useState<string>("");
-  const [constraints, setConstraints] = useState<string>("");
-
-  // Step 4 State
+  // Step 2 State (Training Plan)
   const [tPathType, setTPathType] = useState<"ulul" | "ppl" | null>(null);
   const [sessionLength, setSessionLength] = useState<string>("");
 
-  // Step 5 State
+  // Step 3 State (Profile & AI)
+  const [fullName, setFullName] = useState('');
+  const [heightCm, setHeightCm] = useState<number | null>(175);
+  const [weightKg, setWeightKg] = useState<number | null>(75);
+  const [preferredMuscles, setPreferredMuscles] = useState<string>("");
+  const [constraints, setConstraints] = useState<string>("");
+  const [consentGiven, setConsentGiven] = useState(false);
+
+  // Step 4 & 5 State (Gym Setup)
   const [equipmentMethod, setEquipmentMethod] = useState<"photo" | "skip" | null>(null);
   const [gymName, setGymName] = useState<string>("");
   const [identifiedExercises, setIdentifiedExercises] = useState<Partial<FetchedExerciseDefinition>[]>([]);
@@ -181,8 +179,8 @@ export const useOnboardingForm = () => {
       return;
     }
     // Skip photo upload if user chooses to use defaults
-    if (currentStep === 5 && equipmentMethod === 'skip') {
-      setCurrentStep(7); // Skip to the final step (The Reveal)
+    if (currentStep === 4 && equipmentMethod === 'skip') {
+      setCurrentStep(6); // Skip to the features step
       return;
     }
     if (currentStep < 7) {
@@ -192,8 +190,8 @@ export const useOnboardingForm = () => {
 
   const handleBack = useCallback(() => {
     // Handle skipping back over photo upload
-    if (currentStep === 7 && equipmentMethod === 'skip') {
-      setCurrentStep(5);
+    if (currentStep === 6 && equipmentMethod === 'skip') {
+      setCurrentStep(4);
       return;
     }
     if (currentStep > 1) {
@@ -209,19 +207,19 @@ export const useOnboardingForm = () => {
   return {
     currentStep,
     // Step 1
+    goalFocus, setGoalFocus,
+    // Step 2
+    tPathType, setTPathType,
+    sessionLength, setSessionLength,
+    tPathDescriptions,
+    // Step 3
     fullName, setFullName,
     heightCm, setHeightCm,
     weightKg, setWeightKg,
-    consentGiven, setConsentGiven,
-    // Step 2
-    goalFocus, setGoalFocus,
-    // Step 3
     preferredMuscles, setPreferredMuscles,
     constraints, setConstraints,
-    // Step 4
-    tPathType, setTPathType,
-    sessionLength, setSessionLength,
-    // Step 5
+    consentGiven, setConsentGiven,
+    // Step 4 & 5
     equipmentMethod, setEquipmentMethod,
     gymName, setGymName,
     identifiedExercises, addIdentifiedExercise, removeIdentifiedExercise,
@@ -236,6 +234,5 @@ export const useOnboardingForm = () => {
     handleBack,
     handleSubmit,
     handleCloseSummaryModal,
-    tPathDescriptions,
   };
 };

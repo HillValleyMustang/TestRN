@@ -9,33 +9,31 @@ import { OnboardingSummaryModal } from "@/components/onboarding/onboarding-summa
 import { Progress } from "@/components/ui/progress";
 
 // Import step components
-import { OnboardingStep1_ProfileSnapshot } from "@/components/onboarding/onboarding-step-1-profile-snapshot";
-import { OnboardingStep2_GoalFocus } from "@/components/onboarding/onboarding-step-2-goal-focus";
-import { OnboardingStep3_GoalFocus as OnboardingStep3_AiCoach } from "@/components/onboarding/onboarding-step-3-goal-focus";
-import { OnboardingStep4_TrainingPlan } from "@/components/onboarding/onboarding-step-4-training-plan";
-import { OnboardingStep5_GymSetup } from "@/components/onboarding/onboarding-step-5-gym-setup";
-import { OnboardingStep6_GymPhotoUpload } from "@/components/onboarding/onboarding-step-6-gym-photo-upload";
-import { OnboardingStep7_AppFeatures } from "@/components/onboarding/onboarding-step-7-app-features";
+import { OnboardingStep1_GoalFocus } from "@/components/onboarding/onboarding-step-1-goal-focus";
+import { OnboardingStep2_TrainingPlan } from "@/components/onboarding/onboarding-step-2-training-plan";
+import { OnboardingStep3_ProfileAndAi } from "@/components/onboarding/onboarding-step-3-profile-and-ai";
+import { OnboardingStep4_GymSetup } from "@/components/onboarding/onboarding-step-4-gym-setup";
+import { OnboardingStep5_GymPhotoUpload } from "@/components/onboarding/onboarding-step-5-gym-photo-upload";
+import { OnboardingStep6_AppFeatures } from "@/components/onboarding/onboarding-step-6-app-features";
 
 export default function OnboardingPage() {
   const { memoizedSessionUserId } = useSession();
   const {
     currentStep,
     // Step 1
-    fullName, setFullName,
-    heightCm, setHeightCm,
-    weightKg, setWeightKg,
-    consentGiven, setConsentGiven,
-    // Step 2
     goalFocus, setGoalFocus,
-    // Step 3
-    preferredMuscles, setPreferredMuscles,
-    constraints, setConstraints,
-    // Step 4
+    // Step 2
     tPathType, setTPathType,
     sessionLength, setSessionLength,
     tPathDescriptions,
-    // Step 5
+    // Step 3
+    fullName, setFullName,
+    heightCm, setHeightCm,
+    weightKg, setWeightKg,
+    preferredMuscles, setPreferredMuscles,
+    constraints, setConstraints,
+    consentGiven, setConsentGiven,
+    // Step 4 & 5
     equipmentMethod, setEquipmentMethod,
     gymName, setGymName,
     identifiedExercises, addIdentifiedExercise, removeIdentifiedExercise,
@@ -62,42 +60,15 @@ export default function OnboardingPage() {
     switch (currentStep) {
       case 1:
         return (
-          <OnboardingStep1_ProfileSnapshot
-            fullName={fullName}
-            setFullName={setFullName}
-            heightCm={heightCm}
-            setHeightCm={setHeightCm}
-            weightKg={weightKg}
-            setWeightKg={setWeightKg}
-            consentGiven={consentGiven}
-            setConsentGiven={setConsentGiven}
+          <OnboardingStep1_GoalFocus
+            goalFocus={goalFocus}
+            setGoalFocus={setGoalFocus}
             handleNext={handleNext}
           />
         );
       case 2:
         return (
-          <OnboardingStep2_GoalFocus
-            goalFocus={goalFocus}
-            setGoalFocus={setGoalFocus}
-            handleNext={handleNext}
-            handleBack={handleBack}
-          />
-        );
-      case 3:
-        return (
-          <OnboardingStep3_AiCoach
-            goalFocus={goalFocus}
-            preferredMuscles={preferredMuscles}
-            setPreferredMuscles={setPreferredMuscles}
-            constraints={constraints}
-            setConstraints={setConstraints}
-            handleNext={handleNext}
-            handleBack={handleBack}
-          />
-        );
-      case 4:
-        return (
-          <OnboardingStep4_TrainingPlan
+          <OnboardingStep2_TrainingPlan
             tPathType={tPathType}
             setTPathType={setTPathType}
             sessionLength={sessionLength}
@@ -107,9 +78,28 @@ export default function OnboardingPage() {
             tPathDescriptions={tPathDescriptions}
           />
         );
-      case 5:
+      case 3:
         return (
-          <OnboardingStep5_GymSetup
+          <OnboardingStep3_ProfileAndAi
+            fullName={fullName}
+            setFullName={setFullName}
+            heightCm={heightCm}
+            setHeightCm={setHeightCm}
+            weightKg={weightKg}
+            setWeightKg={setWeightKg}
+            preferredMuscles={preferredMuscles}
+            setPreferredMuscles={setPreferredMuscles}
+            constraints={constraints}
+            setConstraints={setConstraints}
+            consentGiven={consentGiven}
+            setConsentGiven={setConsentGiven}
+            handleNext={handleNext}
+            handleBack={handleBack}
+          />
+        );
+      case 4:
+        return (
+          <OnboardingStep4_GymSetup
             equipmentMethod={equipmentMethod}
             setEquipmentMethod={setEquipmentMethod}
             handleNext={handleNext}
@@ -118,9 +108,9 @@ export default function OnboardingPage() {
             setGymName={setGymName}
           />
         );
-      case 6:
+      case 5:
         return (
-          <OnboardingStep6_GymPhotoUpload
+          <OnboardingStep5_GymPhotoUpload
             identifiedExercises={identifiedExercises}
             addIdentifiedExercise={addIdentifiedExercise}
             removeIdentifiedExercise={removeIdentifiedExercise}
@@ -130,9 +120,9 @@ export default function OnboardingPage() {
             handleBack={handleBack}
           />
         );
-      case 7:
+      case 6:
         return (
-          <OnboardingStep7_AppFeatures
+          <OnboardingStep6_AppFeatures
             handleNext={handleNext}
             handleBack={handleBack}
           />
@@ -145,26 +135,24 @@ export default function OnboardingPage() {
   const getStepTitle = () => {
     const firstName = fullName.split(' ')[0];
     switch (currentStep) {
-      case 1: return "Welcome! Let's Get to Know You.";
-      case 2: return `What's Your Main Goal, ${firstName}?`;
-      case 3: return "Any Specifics for Your AI Coach?";
-      case 4: return "How Do You Like to Train?";
-      case 5: return "Let's Equip Your Plan";
-      case 6: return "Analyse Your Gym";
-      case 7: return "Your Plan Comes With Powerful Tools";
+      case 1: return `Welcome! What's Your Main Goal?`;
+      case 2: return "How Do You Like to Train?";
+      case 3: return `Great, ${firstName}! Let's Personalise Your Plan.`;
+      case 4: return "Let's Equip Your Workouts";
+      case 5: return "Analyse Your Gym";
+      case 6: return "Your Plan Comes With Powerful Tools";
       default: return "";
     }
   };
 
   const getStepDescription = () => {
     switch (currentStep) {
-      case 1: return "Let's start with the basics to personalize your experience.";
-      case 2: return "This helps us tailor your workout plan to what you want to achieve.";
-      case 3: return "Tell us about any preferences or limitations so we can fine-tune your plan.";
-      case 4: return "Choose the structure and duration that best fits your lifestyle.";
-      case 5: return "Tell us about your primary gym so we can select the right exercises.";
-      case 6: return "Upload photos of your equipment, and our AI will identify exercises for you to confirm.";
-      case 7: return "Here are some of the key features you're about to unlock. Click below to generate your plan!";
+      case 1: return "This helps us tailor your workout plan to what you want to achieve.";
+      case 2: return "Choose the structure and duration that best fits your lifestyle.";
+      case 3: return "These details help us and our AI coach create a truly bespoke plan for you.";
+      case 4: return "Tell us about your primary gym so we can select the right exercises.";
+      case 5: return "Upload photos of your equipment, and our AI will identify exercises for you to confirm.";
+      case 6: return "Here are some of the key features you're about to unlock. Click below to generate your plan!";
       default: return "";
     }
   };

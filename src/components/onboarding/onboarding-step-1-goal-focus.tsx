@@ -5,11 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from '@/lib/utils';
 
-interface OnboardingStep2Props {
+interface OnboardingStep1Props {
   goalFocus: string;
   setGoalFocus: (value: string) => void;
   handleNext: () => void;
-  handleBack: () => void;
 }
 
 const goals = [
@@ -19,12 +18,11 @@ const goals = [
   { id: "mobility", title: "Increase Mobility" },
 ];
 
-export const OnboardingStep2_GoalFocus = ({
+export const OnboardingStep1_GoalFocus = ({
   goalFocus,
   setGoalFocus,
   handleNext,
-  handleBack,
-}: OnboardingStep2Props) => {
+}: OnboardingStep1Props) => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3">
@@ -44,13 +42,11 @@ export const OnboardingStep2_GoalFocus = ({
         ))}
       </div>
       
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={handleBack}>
-          Back
-        </Button>
+      <div className="flex justify-end">
         <Button 
           onClick={handleNext} 
           disabled={!goalFocus}
+          size="lg"
         >
           Next
         </Button>

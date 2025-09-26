@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-interface OnboardingStep4Props {
+interface OnboardingStep2Props {
   tPathType: "ulul" | "ppl" | null;
   setTPathType: (type: "ulul" | "ppl") => void;
   sessionLength: string;
@@ -30,7 +30,7 @@ const sessionLengthOptions = [
   { value: "60-90", label: "60-90 mins" },
 ];
 
-export const OnboardingStep4_TrainingPlan = ({
+export const OnboardingStep2_TrainingPlan = ({
   tPathType,
   setTPathType,
   sessionLength,
@@ -38,7 +38,7 @@ export const OnboardingStep4_TrainingPlan = ({
   handleNext,
   handleBack,
   tPathDescriptions,
-}: OnboardingStep4Props) => {
+}: OnboardingStep2Props) => {
   return (
     <div className="space-y-8">
       {/* Workout Split Selection */}
@@ -193,6 +193,7 @@ export const OnboardingStep4_TrainingPlan = ({
         <Button 
           onClick={handleNext} 
           disabled={!tPathType || !sessionLength}
+          size="lg"
         >
           Next
         </Button>

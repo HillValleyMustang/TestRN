@@ -11,7 +11,6 @@ import { ChevronDown, X, Bot } from "lucide-react";
 import { Label } from '@/components/ui/label';
 
 interface OnboardingStep3Props {
-  goalFocus: string;
   preferredMuscles: string;
   setPreferredMuscles: (value: string) => void;
   constraints: string;
@@ -26,8 +25,7 @@ const mainMuscleGroups = [
   "Abdominals", "Core", "Full Body"
 ];
 
-export const OnboardingStep3_GoalFocus = ({
-  goalFocus,
+export const OnboardingStep3_AiCoach = ({
   preferredMuscles,
   setPreferredMuscles,
   constraints,
@@ -50,8 +48,8 @@ export const OnboardingStep3_GoalFocus = ({
   return (
     <div className="space-y-6">
       <div>
-        <Label className="text-sm font-medium">
-          Preferred Muscles to Train <span className="text-xs font-normal text-muted-foreground">(Optional)</span>
+        <Label className="text-base font-semibold">
+          Preferred Muscles to Train <span className="text-sm font-normal text-muted-foreground">(Optional)</span>
         </Label>
         <Popover>
           <PopoverTrigger asChild>
@@ -109,8 +107,8 @@ export const OnboardingStep3_GoalFocus = ({
       </div>
       
       <div>
-        <Label htmlFor="constraints" className="text-sm font-medium">
-          Constraints <span className="text-xs font-normal text-muted-foreground">(Optional)</span>
+        <Label htmlFor="constraints" className="text-base font-semibold">
+          Constraints <span className="text-sm font-normal text-muted-foreground">(Optional)</span>
         </Label>
         <Textarea 
           id="constraints" 
@@ -131,6 +129,7 @@ export const OnboardingStep3_GoalFocus = ({
         </Button>
         <Button 
           onClick={handleNext}
+          size="lg"
         >
           Next
         </Button>
