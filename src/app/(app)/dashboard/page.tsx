@@ -123,7 +123,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.7s' }}>
-        <ActionHub onActivityLogSuccess={refreshAllData} />
+        <ActionHub />
       </div>
       <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.85s' }}>
         <WeeklyVolumeChart />

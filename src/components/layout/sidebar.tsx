@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { WorkoutAwareLink } from "../workout-flow/workout-aware-link";
 import { ActivityLoggingDialog } from "../activity-logging-dialog";
 import { useState } from "react";
-import { useWorkoutFlow } from "../workout-flow/workout-flow-context-provider";
 
 const mainNavLinks = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -24,14 +23,6 @@ const mainNavLinks = [
 export function Sidebar() {
   const pathname = usePathname();
   const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
-  const { refreshAllData } = useWorkoutFlow();
-
-  const handleLogSuccess = () => {
-    setIsActivityLogOpen(false);
-    if (refreshAllData) {
-      refreshAllData();
-    }
-  };
 
   return (
     <>
@@ -76,7 +67,7 @@ export function Sidebar() {
           </Tooltip>
         </nav>
       </aside>
-      <ActivityLoggingDialog open={isActivityLogOpen} onOpenChange={setIsActivityLogOpen} onLogSuccess={handleLogSuccess} />
+      <ActivityLoggingDialog open={isActivityLogOpen} onOpenChange={setIsActivityLogOpen} />
     </>
   );
 };

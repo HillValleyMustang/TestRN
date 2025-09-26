@@ -27,11 +27,7 @@ import { WorkoutPerformanceModal } from './workout-performance-modal';
 import { ConsistencyCalendarModal } from './consistency-calendar-modal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-interface ActionHubProps {
-  onActivityLogSuccess: () => void;
-}
-
-export const ActionHub = ({ onActivityLogSuccess }: ActionHubProps) => {
+export const ActionHub = () => {
   const router = useRouter();
   const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
   const [isAiCoachOpen, setIsAiCoachOpen] = useState(false);
@@ -102,7 +98,7 @@ export const ActionHub = ({ onActivityLogSuccess }: ActionHubProps) => {
         </CardContent>
       </Card>
 
-      <ActivityLoggingDialog open={isActivityLogOpen} onOpenChange={setIsActivityLogOpen} onLogSuccess={onActivityLogSuccess} />
+      <ActivityLoggingDialog open={isActivityLogOpen} onOpenChange={setIsActivityLogOpen} />
       <AiCoachDialog open={isAiCoachOpen} onOpenChange={setIsAiCoachOpen} />
       <WorkoutPerformanceModal open={isWorkoutPerformanceOpen} onOpenChange={setIsWorkoutPerformanceOpen} />
       <ConsistencyCalendarModal open={isCalendarOpen} onOpenChange={setIsCalendarOpen} />

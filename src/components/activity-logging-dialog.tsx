@@ -25,7 +25,6 @@ interface ActivityLoggingDialogProps {
   onOpenChange?: (open: boolean) => void;
   initialActivity?: ActivityType | null;
   trigger?: React.ReactNode;
-  onLogSuccess?: () => void;
 }
 
 // Helper function to convert time string (e.g., "1h 30m", "90m", "1m 30s") to total seconds
