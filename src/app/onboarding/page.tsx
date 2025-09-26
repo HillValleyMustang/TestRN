@@ -10,8 +10,8 @@ import { Progress } from "@/components/ui/progress";
 
 // Import step components
 import { OnboardingStep1_ProfileSnapshot } from "@/components/onboarding/onboarding-step-1-profile-snapshot";
+import { OnboardingStep2_GoalFocus } from "@/components/onboarding/onboarding-step-2-goal-focus";
 // Placeholder for future steps - will be created in subsequent turns
-// import { OnboardingStep2_GoalFocus } from "@/components/onboarding/onboarding-step-2-goal-focus";
 // import { OnboardingStep3_AiCoach } from "@/components/onboarding/onboarding-step-3-ai-coach";
 // import { OnboardingStep4_Blueprint } from "@/components/onboarding/onboarding-step-4-blueprint";
 // import { OnboardingStep5_Equip } from "@/components/onboarding/onboarding-step-5-equip";
@@ -26,6 +26,8 @@ export default function OnboardingPage() {
     heightCm, setHeightCm,
     weightKg, setWeightKg,
     consentGiven, setConsentGiven,
+    // Step 2
+    goalFocus, setGoalFocus,
     // Handlers
     handleNext,
     handleBack,
@@ -60,16 +62,26 @@ export default function OnboardingPage() {
             handleNext={handleNext}
           />
         );
-      // Cases for steps 2-7 will be added in future turns
+      case 2:
+        return (
+          <OnboardingStep2_GoalFocus
+            goalFocus={goalFocus}
+            setGoalFocus={setGoalFocus}
+            handleNext={handleNext}
+            handleBack={handleBack}
+          />
+        );
+      // Cases for steps 3-7 will be added in future turns
       default:
         return null;
     }
   };
 
   const getStepTitle = () => {
+    const firstName = fullName.split(' ')[0];
     switch (currentStep) {
       case 1: return "Welcome! Let's Get to Know You.";
-      case 2: return "What's Your Main Goal?";
+      case 2: return `What's Your Main Goal, ${firstName}?`;
       case 3: return "Any Specifics for Your AI Coach?";
       case 4: return "How Do You Like to Train?";
       case 5: return "Let's Equip Your Plan";
@@ -82,7 +94,8 @@ export default function OnboardingPage() {
   const getStepDescription = () => {
     switch (currentStep) {
       case 1: return "Let's start with the basics to personalize your experience.";
-      // Descriptions for steps 2-7 will be added
+      case 2: return "This helps us tailor your workout plan to what you want to achieve.";
+      // Descriptions for steps 3-7 will be added
       default: return "";
     }
   };
