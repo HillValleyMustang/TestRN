@@ -1,11 +1,12 @@
 "use client";
 
 import React from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useOnboardingForm } from "@/hooks/use-onboarding-form";
 import { useSession } from "@/components/session-context-provider";
 import { LoadingOverlay } from "@/components/loading-overlay";
 import { OnboardingSummaryModal } from "@/components/onboarding/onboarding-summary-modal";
-import { CircularProgress } from "@/components/ui/circular-progress";
+import { Progress } from "@/components/ui/progress";
 
 // Import step components
 import { OnboardingStep1_GoalFocus } from "@/components/onboarding/onboarding-step-1-goal-focus";
@@ -19,23 +20,29 @@ export default function OnboardingPage() {
   const { memoizedSessionUserId } = useSession();
   const {
     currentStep,
+    // Step 1
     goalFocus, setGoalFocus,
+    // Step 2
     tPathType, setTPathType,
     sessionLength, setSessionLength,
     tPathDescriptions,
+    // Step 3
     fullName, setFullName,
     heightCm, setHeightCm,
     weightKg, setWeightKg,
     preferredMuscles, setPreferredMuscles,
     constraints, setConstraints,
     consentGiven, setConsentGiven,
+    // Step 4 & 5
     equipmentMethod, setEquipmentMethod,
     gymName, setGymName,
     identifiedExercises, addIdentifiedExercise, removeIdentifiedExercise,
     confirmedExercises, toggleConfirmedExercise,
+    // Handlers
     handleNext,
     handleBack,
     handleSubmit,
+    // Final step
     loading,
     summaryData,
     isSummaryModalOpen,
@@ -46,31 +53,87 @@ export default function OnboardingPage() {
     return <div>Loading...</div>;
   }
 
-  const TOTAL_STEPS = 6; // Adjusted total steps
+  const TOTAL_STEPS = 7;
   const progressValue = (currentStep / TOTAL_STEPS) * 100;
 
   const renderStepContent = () => {
-    const stepProps = { handleNext, handleBack };
     switch (currentStep) {
       case 1:
-        return <OnboardingStep1_GoalFocus {...{ goalFocus, setGoalFocus, ...stepProps }} />;
+        return (
+          <OnboardingStep1_GoalFocus
+            goalFocus={goalFocus}
+            setGoalFocus={setGoalFocus}
+            handleNext={handleNext}
+          />
+        );
       case 2:
-        return <OnboardingStep2_TrainingPlan {...{ tPathType, setTPathType, sessionLength, setSessionLength, tPathDescriptions, ...stepProps }} />;
+        return (
+          <OnboardingStep2_TrainingPlan
+            tPathType={tPathType}
+            setTPathType={setTPathType}
+            sessionLength={sessionLength}
+            setSessionLength={setSessionLength}
+            handleNext={handleNext}
+            handleBack={handleBack}
+            tPathDescriptions={tPathDescriptions}
+          />
+        );
       case 3:
-        return <OnboardingStep3_ProfileAndAi {...{ fullName, setFullName, heightCm, setHeightCm, weightKg, setWeightKg, preferredMuscles, setPreferredMuscles, constraints, setConstraints, consentGiven, setConsentGiven, ...stepProps }} />;
+        return (
+          <OnboardingStep3_ProfileAndAi
+            fullName={fullName}
+            setFullName={setFullName}
+            heightCm={heightCm}
+            setHeightCm={setHeightCm}
+            weightKg={weightKg}
+            setWeightKg={setWeightKg}
+            preferredMuscles={preferredMuscles}
+            setPreferredMuscles={setPreferredMuscles}
+            constraints={constraints}
+            setConstraints={setConstraints}
+            consentGiven={consentGiven}
+            setConsentGiven={setConsentGiven}
+            handleNext={handleNext}
+            handleBack={handleBack}
+          />
+        );
       case 4:
-        return <OnboardingStep4_GymSetup {...{ equipmentMethod, setEquipmentMethod, gymName, setGymName, ...stepProps }} />;
+        return (
+          <OnboardingStep4_GymSetup
+            equipmentMethod={equipmentMethod}
+            setEquipmentMethod={setEquipmentMethod}
+            handleNext={handleNext}
+            handleBack={handleBack}
+            gymName={gymName}
+            setGymName={setGymName}
+          />
+        );
       case 5:
-        return <OnboardingStep5_GymPhotoUpload {...{ identifiedExercises, addIdentifiedExercise, removeIdentifiedExercise, confirmedExercises, toggleConfirmedExercise, ...stepProps }} />;
+        return (
+          <OnboardingStep5_GymPhotoUpload
+            identifiedExercises={identifiedExercises}
+            addIdentifiedExercise={addIdentifiedExercise}
+            removeIdentifiedExercise={removeIdentifiedExercise}
+            confirmedExercises={confirmedExercises}
+            toggleConfirmedExercise={toggleConfirmedExercise}
+            handleNext={handleNext}
+            handleBack={handleBack}
+          />
+        );
       case 6:
-        return <OnboardingStep6_AppFeatures {...{ ...stepProps }} />;
+        return (
+          <OnboardingStep6_AppFeatures
+            handleNext={handleNext}
+            handleBack={handleBack}
+          />
+        );
       default:
         return null;
     }
   };
 
   const getStepTitle = () => {
-    const firstName = fullName.split(' ')[0] || 'there';
+    const firstName = fullName.split(' ')[0];
     switch (currentStep) {
       case 1: return `Welcome! What's Your Main Goal?`;
       case 2: return "How Do You Like to Train?";
@@ -96,26 +159,35 @@ export default function OnboardingPage() {
 
   return (
     <>
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
-        <div className="w-full max-w-md mx-auto">
-          <div className="flex flex-col items-center text-center mb-8">
-            <CircularProgress progress={progressValue} />
-            <h1 className="text-2xl font-bold mt-4 text-transparent bg-clip-text bg-gradient-to-r from-coral to-teal">
-              {getStepTitle()}
-            </h1>
-            <p className="text-muted-foreground mt-1">{getStepDescription()}</p>
+      <div className="min-h-screen bg-background p-2 sm:p-4">
+        <div className="max-w-2xl mx-auto">
+          <header className="mb-8 text-center">
+            <h1 className="text-3xl font-bold">Your Fitness Journey Starts Now</h1>
+            <p className="text-muted-foreground mt-2">
+              Let's set up your personalised Transformation Path
+            </p>
+          </header>
+
+          <div className="mb-6 px-2">
+            <Progress value={progressValue} className="w-full" />
           </div>
 
-          <div key={currentStep} className="animate-fade-in-slide-up">
-            {renderStepContent()}
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>{getStepTitle()}</CardTitle>
+              <CardDescription>{getStepDescription()}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {renderStepContent()}
+            </CardContent>
+          </Card>
         </div>
+        <LoadingOverlay 
+          isOpen={loading}
+          title="Crafting Your Plan..."
+          description="Finalizing your profile and generating your personalized workouts."
+        />
       </div>
-      <LoadingOverlay 
-        isOpen={loading}
-        title="Crafting Your Plan..."
-        description="Finalizing your profile and generating your personalized workouts."
-      />
       <OnboardingSummaryModal
         open={isSummaryModalOpen}
         onOpenChange={handleCloseSummaryModal}

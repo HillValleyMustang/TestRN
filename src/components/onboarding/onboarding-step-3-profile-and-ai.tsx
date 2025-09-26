@@ -1,15 +1,15 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
+import { ChevronDown, X, Bot } from "lucide-react";
 import { cn } from '@/lib/utils';
-import { Slider } from '@/components/ui/slider';
-import { BodyFatInfoModal } from './body-fat-info-modal';
-import { Info } from 'lucide-react';
 
 interface OnboardingStep3Props {
   fullName: string;
@@ -28,6 +28,12 @@ interface OnboardingStep3Props {
   handleBack: () => void;
 }
 
+const mainMuscleGroups = [
+  "Pectorals", "Deltoids", "Lats", "Traps", "Biceps", 
+  "Triceps", "Quadriceps", "Hamstrings", "Glutes", "Calves", 
+  "Abdominals", "Core", "Full Body"
+];
+
 export const OnboardingStep3_ProfileAndAi = ({
   fullName,
   setFullName,
@@ -44,121 +50,114 @@ export const OnboardingStep3_ProfileAndAi = ({
   handleNext,
   handleBack,
 }: OnboardingStep3Props) => {
-  const [activeInput, setActiveInput] = useState<'height' | 'weight' | 'bodyfat'>('height');
-  const [bodyFat, setBodyFat] = useState<number | null>(15);
-  const [isBodyFatInfoModalOpen, setIsBodyFatInfoModalOpen] = useState(false);
+
+  const bmi = useMemo(() => {
+    if (!weightKg || !heightCm) return null;
+    const heightInMeters = heightCm / 100;
+    if (heightInMeters === 0) return null;
+    return (weightKg / (heightInMeters * heightInMeters)).toFixed(1);
+  }, [weightKg, heightCm]);
+
+  const selectedMuscles = preferredMuscles ? preferredMuscles.split(',').map(m => m.trim()) : [];
+
+  const handleMuscleToggle = (muscle: string) => {
+    const currentSelection = new Set(selectedMuscles);
+    if (currentSelection.has(muscle)) {
+      currentSelection.delete(muscle);
+    } else {
+      currentSelection.add(muscle);
+    }
+    setPreferredMuscles(Array.from(currentSelection).join(', '));
+  };
 
   const isNextDisabled = !fullName || !heightCm || !weightKg || !consentGiven;
 
-  const heightInFeetInches = useMemo(() => {
-    if (!heightCm) return '';
-    const inches = heightCm / 2.54;
-    const feet = Math.floor(inches / 12);
-    const remainingInches = Math.round(inches % 12);
-    return `${feet} ft ${remainingInches} in`;
-  }, [heightCm]);
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="space-y-2">
-        <Label htmlFor="fullName">Preferred Name</Label>
+        <Label htmlFor="fullName" className="text-base font-semibold">First, what should we call you?</Label>
         <Input 
           id="fullName" 
-          placeholder="John Doe" 
+          placeholder="e.g., Alex Doe" 
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
           required
-          className="bg-secondary border-border h-12 text-base"
+          className="text-base"
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        {/* Height Button */}
-        <div
-          className={cn(
-            "rounded-lg p-2 border-2 transition-all cursor-pointer",
-            activeInput === 'height' ? 'border-teal' : 'border-border'
-          )}
-          onClick={() => setActiveInput('height')}
-        >
-          <Label className="text-xs text-muted-foreground">Height (cm)</Label>
-          <p className="text-lg font-bold">{heightCm || '...'}</p>
-          {activeInput === 'height' && <div className="text-xs font-bold text-teal">ACTIVE</div>}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="heightCm" className="text-base font-semibold">Height (cm)</Label>
+            <Input type="number" inputMode="numeric" id="heightCm" value={heightCm || ''} onChange={(e) => setHeightCm(e.target.value ? parseInt(e.target.value) : null)} className="text-base" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="weightKg" className="text-base font-semibold">Weight (kg)</Label>
+            <Input type="number" inputMode="numeric" id="weightKg" value={weightKg || ''} onChange={(e) => setWeightKg(e.target.value ? parseInt(e.target.value) : null)} className="text-base" />
+          </div>
         </div>
-        {/* Weight Button */}
-        <div
-          className={cn(
-            "rounded-lg p-2 border-2 transition-all cursor-pointer",
-            activeInput === 'weight' ? 'border-teal' : 'border-border'
-          )}
-          onClick={() => setActiveInput('weight')}
-        >
-          <Label className="text-xs text-muted-foreground">Weight (kg)</Label>
-          <p className="text-lg font-bold">{weightKg || '...'}</p>
-          {activeInput === 'weight' && <div className="text-xs font-bold text-teal">ACTIVE</div>}
-        </div>
-        {/* Body Fat Button */}
-        <div
-          className={cn(
-            "rounded-lg p-2 border-2 transition-all cursor-pointer",
-            activeInput === 'bodyfat' ? 'border-teal' : 'border-border'
-          )}
-          onClick={() => setActiveInput('bodyfat')}
-        >
-          <Label className="text-xs text-muted-foreground flex items-center">
-            Body Fat (%)
-            <Button type="button" variant="ghost" size="icon" className="h-4 w-4 ml-1" onClick={(e) => { e.stopPropagation(); setIsBodyFatInfoModalOpen(true); }}>
-              <Info className="h-3 w-3" />
-            </Button>
-          </Label>
-          <p className="text-lg font-bold">{bodyFat || '...'}</p>
-          {activeInput === 'bodyfat' && <div className="text-xs font-bold text-teal">ACTIVE</div>}
+        <div className="flex flex-col items-center justify-center bg-muted/50 rounded-lg p-4 h-full">
+          <p className="text-sm text-muted-foreground">Estimated BMI</p>
+          <p className="text-4xl font-extrabold">{bmi || '...'}</p>
         </div>
       </div>
 
-      <div className="p-4 rounded-lg border-2 border-teal bg-secondary/50 min-h-[120px] flex flex-col justify-center items-center">
-        {activeInput === 'height' && (
-          <>
-            <p className="text-3xl font-bold">{heightCm} cm</p>
-            <p className="text-muted-foreground">{heightInFeetInches}</p>
-            <Slider
-              value={[heightCm || 175]}
-              onValueChange={(value) => setHeightCm(value[0])}
-              min={100}
-              max={250}
-              step={1}
-              className="w-full mt-4"
-            />
-          </>
-        )}
-        {activeInput === 'weight' && (
-          <>
-            <p className="text-3xl font-bold">{weightKg} kg</p>
-            <p className="text-muted-foreground">{((weightKg || 0) * 2.20462).toFixed(1)} lbs</p>
-            <Slider
-              value={[weightKg || 75]}
-              onValueChange={(value) => setWeightKg(value[0])}
-              min={30}
-              max={200}
-              step={1}
-              className="w-full mt-4"
-            />
-          </>
-        )}
-        {activeInput === 'bodyfat' && (
-          <>
-            <p className="text-3xl font-bold">{bodyFat}%</p>
-            <p className="text-muted-foreground">Body Fat Percentage</p>
-            <Slider
-              value={[bodyFat || 15]}
-              onValueChange={(value) => setBodyFat(value[0])}
-              min={3}
-              max={50}
-              step={1}
-              className="w-full mt-4"
-            />
-          </>
-        )}
+      <div>
+        <Label className="text-base font-semibold">Any specifics for your AI Coach?</Label>
+        <p className="text-sm text-muted-foreground mb-3">This helps us fine-tune your plan and coaching feedback.</p>
+        <div className="space-y-4">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                className={cn(
+                  "w-full justify-between h-auto min-h-[40px] py-2",
+                  selectedMuscles.length === 0 && "text-muted-foreground"
+                )}
+              >
+                <span className="flex items-center justify-between w-full">
+                  <div className="flex flex-wrap gap-1">
+                    {selectedMuscles.length > 0 ? (
+                      selectedMuscles.map((muscle) => (
+                        <Badge key={muscle} variant="secondary" className="flex items-center gap-1 text-xs">
+                          {muscle}
+                          <X className="h-3 w-3 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleMuscleToggle(muscle); }} />
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-sm">Preferred Muscles to Train (Optional)</span>
+                    )}
+                  </div>
+                  <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+              <div className="grid grid-cols-2 gap-2 p-2">
+                {mainMuscleGroups.map((muscle) => (
+                  <Button
+                    key={muscle}
+                    type="button"
+                    variant={selectedMuscles.includes(muscle) ? "default" : "outline"}
+                    onClick={() => handleMuscleToggle(muscle)}
+                    className={cn("flex-1 text-sm", selectedMuscles.includes(muscle) ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent")}
+                  >
+                    {muscle}
+                  </Button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+          <Textarea 
+            id="constraints" 
+            placeholder="Any injuries or limitations? (Optional)" 
+            value={constraints}
+            onChange={(e) => setConstraints(e.target.value)}
+            className="text-sm"
+          />
+        </div>
       </div>
 
       <div className="flex items-start space-x-3 pt-4">
@@ -176,19 +175,17 @@ export const OnboardingStep3_ProfileAndAi = ({
       </div>
       
       <div className="flex justify-between">
-        <Button variant="secondary" onClick={handleBack}>
+        <Button variant="outline" onClick={handleBack}>
           Back
         </Button>
         <Button 
           onClick={handleNext} 
           disabled={isNextDisabled}
           size="lg"
-          className="bg-gradient-primary text-primary-foreground font-bold"
         >
           Next
         </Button>
       </div>
-      <BodyFatInfoModal open={isBodyFatInfoModalOpen} onOpenChange={setIsBodyFatInfoModalOpen} />
     </div>
   );
 };

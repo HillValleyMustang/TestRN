@@ -4,63 +4,222 @@
 
 @layer base {
   :root {
-    --background: 222 47% 11%; /* Dark Navy Blue */
-    --foreground: 210 40% 98%;
 
-    --card: 222 47% 11%;
-    --card-foreground: 210 40% 98%;
+    --background: 0 0% 98%; /* Softer off-white background */
 
-    --popover: 222 47% 11%;
-    --popover-foreground: 210 40% 98%;
+    --foreground: 0 0% 3.9%;
 
-    --primary: 173 97% 58%; /* Vibrant Teal */
-    --primary-foreground: 222 47% 11%;
+    --card: 0 0% 100%; /* Base color for card */
 
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
+    --card-foreground: 0 0% 3.9%;
 
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    --popover: 0 0% 100%;
 
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 98%;
+    --popover-foreground: 0 0% 3.9%;
 
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
+    --primary: 0 0% 9%;
 
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 173 97% 58%;
+    --primary-foreground: 0 0% 98%;
 
-    --radius: 0.75rem;
+    --secondary: 0 0% 96.1%;
 
-    /* Custom Colors from Design */
-    --teal: 173 97% 58%;
-    --coral: 350 90% 65%;
-    --dark-navy: 222 47% 11%;
+    --secondary-foreground: 0 0% 9%;
+
+    --muted: 0 0% 96.1%;
+
+    --muted-foreground: 0 0% 45.1%;
+
+    --accent: 0 0% 96.1%;
+
+    --accent-foreground: 0 0% 9%;
+
+    --destructive: 0 84.2% 60.2%;
+
+    --destructive-foreground: 0 0% 98%;
+
+    --action-primary: 217 91% 60%; /* New premium blue for primary actions */
+    --action-primary-light: 217 91% 70%; /* Lighter shade for gradient */
+    --action-primary-foreground: 0 0% 100%;
+
+    --border: 0 0% 89.8%;
+
+    --input: 0 0% 89.8%;
+
+    --ring: 0 0% 3.9%;
+
+    --chart-1: 12 76% 61%;
+
+    --chart-2: 173 58% 39%;
+
+    --chart-3: 197 37% 24%;
+
+    --chart-4: 43 74% 66%;
+
+    --chart-5: 27 87% 67%;
+
+    --radius: 0.75rem; /* Increased corner radius */
+  ;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* New Workout Pill Colors (from user's specific hex codes) */
+    --workout-upper-body-a: 220 68% 32%; /* #1e3a8a */
+    --workout-upper-body-a-light: 220 68% 42%;
+    --workout-upper-body-b: 0 84% 60%; /* #ef4444 */
+    --workout-upper-body-b-light: 0 84% 70%;
+    --workout-lower-body-a: 190 86% 36%; /* #0891b2 */
+    --workout-lower-body-a-light: 190 86% 46%;
+    --workout-lower-body-b: 270 67% 40%; /* #6b21a8 */
+    --workout-lower-body-b-light: 270 67% 50%;
+    --workout-push: 120 60% 45%; /* NEW: classic Adidas forest green */
+    --workout-push-light: 120 60% 55%;
+    --workout-pull: 35 85% 55%; /* NEW: vintage orange */
+    --workout-pull-light: 35 85% 65%;
+    --workout-legs: 280 55% 50%; /* NEW: brighter purple/magenta */
+    --workout-legs-light: 280 55% 60%;
+    --workout-bonus: 50 75% 60%; /* NEW: golden yellow */
+    --workout-bonus-light: 50 75% 70%;
+    --workout-ad-hoc: 50 75% 60%; /* NEW: same as bonus - golden yellow */
+    --workout-ad-hoc-light: 50 75% 70%;
+    --workout-activity: var(--chart-2); /* Generic activity color */
+    --workout-activity-light: 173 58% 49%;
+
+
+    /* NEW Activity Colors */
+    --activity-running: 25 80% 55%; /* coral/salmon */
+    --activity-running-light: 25 80% 65%;
+    --activity-swimming: 200 85% 45%; /* deeper aqua blue */
+    --activity-swimming-light: 200 85% 55%;
+    --activity-cycling: 160 70% 40%; /* sage green */
+    --activity-cycling-light: 160 70% 50%;
+    --activity-tennis: 300 70% 55%; /* bright magenta */
+    --activity-tennis-light: 300 70% 65%;
+
+
+    /* New Aurora Colors (Light Mode) - Adjusted to retro palette */
+    --aurora-blue: 200 100% 78%; /* Sky Blue */
+    --aurora-purple: 270 50% 32%; /* Deep Purple */
+    --aurora-orange: 58 98% 73%; /* Pale Yellow */
+    --aurora-green: 160 100% 43%; /* Vibrant Mint */
+    --aurora-pink: 324 100% 44%; /* Hot Magenta */
+    --aurora-yellow: 58 98% 73%; /* Pale Yellow */
   }
-
   .dark {
-    /* Dark theme is now the default */
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 11%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 11%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 173 97% 58%;
-    --primary-foreground: 222 47% 11%;
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 173 97% 58%;
+
+    --background: 0 0% 3.9%;
+
+    --foreground: 0 0% 98%;
+
+    --card: 0 0% 3.9%; /* Base color for card */
+
+    --card-foreground: 0 0% 98%;
+
+    --popover: 0 0% 3.9%;
+
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 0 0% 98%;
+
+    --primary-foreground: 0 0% 9%;
+
+    --secondary: 0 0% 14.9%;
+
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 0 0% 14.9%;
+
+    --muted-foreground: 0 0% 63.9%;
+
+    --accent: 0 0% 14.9%;
+
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+
+    --destructive-foreground: 0 0% 98%;
+
+    --action-primary: 217 91% 60%;
+    --action-primary-light: 217 91% 70%;
+    --action-primary-foreground: 0 0% 100%;
+
+    --border: 0 0% 14.9%;
+
+    --input: 0 0% 14.9%;
+
+    --ring: 0 0% 83.1%;
+
+    --chart-1: 220 70% 50%;
+
+    --chart-2: 160 60% 45%;
+
+    --chart-3: 197 37% 24%;
+
+    --chart-4: 43 74% 66%;
+
+    --chart-5: 27 87% 67%;
+  ;
+
+    --sidebar-background: 240 5.9% 10%;
+
+    --sidebar-foreground: 240 4.8% 95.9%;
+
+    --sidebar-primary: 224.3 76.3% 48%;
+
+    --sidebar-primary-foreground: 0 0% 100%;
+
+    --sidebar-accent: 240 3.7% 15.9%;
+
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+
+    --sidebar-border: 240 3.7% 15.9%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Dark mode adjustments for new workout colors - Directly from 90s Retro Palette */
+    --workout-upper-body-a: 220 68% 32%; /* #1e3a8a */
+    --workout-upper-body-a-light: 220 68% 42%;
+    --workout-upper-body-b: 0 84% 60%; /* #ef4444 */
+    --workout-upper-body-b-light: 0 84% 70%;
+    --workout-lower-body-a: 190 86% 36%; /* #0891b2 */
+    --workout-lower-body-a-light: 190 86% 46%;
+    --workout-lower-body-b: 270 67% 40%; /* #6b21a8 */
+    --workout-lower-body-b-light: 270 67% 50%;
+    --workout-push: 120 60% 45%; /* NEW: classic Adidas forest green */
+    --workout-push-light: 120 60% 55%;
+    --workout-pull: 35 85% 55%; /* NEW: vintage orange */
+    --workout-pull-light: 35 85% 65%;
+    --workout-legs: 280 55% 50%; /* NEW: brighter purple/magenta */
+    --workout-legs-light: 280 55% 60%;
+    --workout-bonus: 50 75% 60%; /* NEW: golden yellow */
+    --workout-bonus-light: 50 75% 70%;
+    --workout-ad-hoc: 50 75% 60%; /* NEW: same as bonus - golden yellow */
+    --workout-ad-hoc-light: 50 75% 70%;
+    --workout-activity: var(--chart-2); /* Generic activity color */
+    --workout-activity-light: 173 58% 49%;
+
+    /* NEW Activity Colors */
+    --activity-running: 25 80% 55%; /* coral/salmon */
+    --activity-running-light: 25 80% 65%;
+    --activity-swimming: 200 85% 45%; /* deeper aqua blue */
+    --activity-swimming-light: 200 85% 55%;
+    --activity-cycling: 160 70% 40%; /* sage green */
+    --activity-cycling-light: 160 70% 50%;
+    --activity-tennis: 300 70% 55%; /* bright magenta */
+    --activity-tennis-light: 300 70% 65%;
   }
 }
 
@@ -70,22 +229,77 @@
   }
   body {
     @apply bg-background text-foreground;
+    overflow-x: hidden; /* Prevent horizontal scroll from large gradients */
+    position: relative; /* Needed for pseudo-elements to be positioned relative to body */
+  }
+  /* Aurora background effect */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* Layered radial gradients for Aurora effect */
+    background-image:
+      radial-gradient(circle at 10% 10%, hsl(var(--aurora-blue) / 0.15), transparent 50%),
+      radial-gradient(circle at 90% 30%, hsl(var(--aurora-purple) / 0.15), transparent 50%),
+      radial-gradient(circle at 30% 80%, hsl(var(--aurora-orange) / 0.15), transparent 50%),
+      radial-gradient(circle at 70% 50%, hsl(var(--aurora-green) / 0.15), transparent 50%),
+      radial-gradient(circle at 50% 0%, hsl(var(--aurora-pink) / 0.15), transparent 50%);
+    filter: blur(100px); /* Apply blur to the gradients */
+    z-index: -1; /* Behind content, above noise */
+    pointer-events: none;
+    animation: aurora-pulse 15s infinite alternate ease-in-out;
+  }
+  /* The noise overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-image: url(/noise.svg);
+    opacity: 0.02;
+    pointer-events: none;
+    z-index: -2; /* Keep it behind everything */
   }
 }
 
-/* Keyframes for animations */
-@keyframes fade-in-slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
+/* Custom class for backdrop blur */
+.backdrop-blur-md {
+  backdrop-filter: blur(12px); /* Updated blur to 12px */
+  -webkit-backdrop-filter: blur(12px); /* For Safari compatibility */
+}
+
+/* Keyframes for subtle aurora animation */
+@keyframes aurora-pulse {
+  0% {
+    transform: scale(1) translate(0, 0);
     opacity: 1;
-    transform: translateY(0);
+  }
+  25% {
+    transform: scale(1.05) translate(5%, -5%);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1) translate(-5%, 5%);
+    opacity: 1;
+  }
+  75% {
+    transform: scale(1.05) translate(5%, 5%);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1) translate(0, 0);
+    opacity: 1;
   }
 }
 
-/* Animation utility class */
-.animate-fade-in-slide-up {
-  animation: fade-in-slide-up 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+/* Apply transparency and backdrop blur to cards */
+.card {
+  background-color: hsl(var(--card) / 0.7); /* Updated opacity to 0.7 */
+  backdrop-filter: blur(12px); /* Updated blur to 12px */
+  -webkit-backdrop-filter: blur(12px); /* For Safari compatibility */
 }
