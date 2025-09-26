@@ -79,4 +79,4 @@ export function Sidebar() {
       <ActivityLoggingDialog open={isActivityLogOpen} onOpenChange={setIsActivityLogOpen} onLogSuccess={handleLogSuccess} />
     </>
   );
-}
+};

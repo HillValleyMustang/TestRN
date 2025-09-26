@@ -460,7 +460,7 @@ export const LogTennisForm = ({ onLogSuccess, setTempStatusMessage }: { onLogSuc
 export const ActivityLoggingDialog = ({ open, onOpenChange, initialActivity, trigger, onLogSuccess }: ActivityLoggingDialogProps) => {
   const [internalOpen, setInternalOpen] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<ActivityType | null>(initialActivity || null);
-  const { setTempStatusMessage } = useWorkoutFlow();
+  const { setTempStatusMessage, refreshAllData } = useWorkoutFlow();
 
   const isControlled = open !== undefined && onOpenChange !== undefined;
   const currentOpen = isControlled ? open : internalOpen;
@@ -482,6 +482,8 @@ export const ActivityLoggingDialog = ({ open, onOpenChange, initialActivity, tri
     if (onLogSuccess) {
       onLogSuccess();
     }
+    // Always refresh data after a successful log
+    refreshAllData();
   };
 
   return (
