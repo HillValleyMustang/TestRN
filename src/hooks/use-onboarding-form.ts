@@ -18,24 +18,36 @@ type OnboardingSummaryData = {
 
 export const useOnboardingForm = () => {
   const router = useRouter();
-  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
+  const { session, supabase, memoizedSessionUserId } = useSession();
 
+  // State for each step
   const [currentStep, setCurrentStep] = useState(1);
-  const [tPathType, setTPathType] = useState<"ulul" | "ppl" | null>(null);
-  const [experience, setExperience] = useState<"beginner" | "intermediate" | null>(null);
+  
+  // Step 1 State
+  const [fullName, setFullName] = useState('');
+  const [heightCm, setHeightCm] = useState<number | null>(175);
+  const [weightKg, setWeightKg] = useState<number | null>(75);
+  const [consentGiven, setConsentGiven] = useState(false);
+
+  // Step 2 State
   const [goalFocus, setGoalFocus] = useState<string>("");
+
+  // Step 3 State
   const [preferredMuscles, setPreferredMuscles] = useState<string>("");
   const [constraints, setConstraints] = useState<string>("");
+
+  // Step 4 State
+  const [tPathType, setTPathType] = useState<"ulul" | "ppl" | null>(null);
   const [sessionLength, setSessionLength] = useState<string>("");
+
+  // Step 5 State
   const [equipmentMethod, setEquipmentMethod] = useState<"photo" | "skip" | null>(null);
+  const [gymName, setGymName] = useState<string>("");
   const [identifiedExercises, setIdentifiedExercises] = useState<Partial<FetchedExerciseDefinition>[]>([]);
   const [confirmedExercises, setConfirmedExercises] = useState<Set<string>>(new Set());
-  const [consentGiven, setConsentGiven] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [isInitialSetupLoading, setIsInitialSetupLoading] = useState(false);
-  const [gymName, setGymName] = useState<string>("");
 
-  // New state for the summary modal
+  // Final Step State
+  const [loading, setLoading] = useState(false);
   const [summaryData, setSummaryData] = useState<OnboardingSummaryData | null>(null);
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
 
@@ -110,26 +122,30 @@ export const useOnboardingForm = () => {
   }, []);
 
   const handleNext = useCallback(() => {
-    if (currentStep === 4 && equipmentMethod === 'skip') {
-      setCurrentStep(6);
+    // Skip photo upload if user chooses to use defaults
+    if (currentStep === 5 && equipmentMethod === 'skip') {
+      setCurrentStep(7); // Skip to the final step (The Reveal)
       return;
     }
-    if (currentStep < 8) {
+    if (currentStep < 7) {
       setCurrentStep(prev => prev + 1);
     }
   }, [currentStep, equipmentMethod]);
 
   const handleBack = useCallback(() => {
-    if (currentStep === 6 && equipmentMethod === 'skip') {
-      setCurrentStep(4);
+    // Handle skipping back over photo upload
+    if (currentStep === 7 && equipmentMethod === 'skip') {
+      setCurrentStep(5);
       return;
     }
-    setCurrentStep(prev => prev - 1);
+    if (currentStep > 1) {
+      setCurrentStep(prev => prev - 1);
+    }
   }, [currentStep, equipmentMethod]);
 
-  const handleSubmit = useCallback(async (fullName: string, heightCm: number, weightKg: number, bodyFatPct: number | null) => {
-    if (!memoizedSessionUserId) { // Use memoized ID
-      toast.error("You must be logged in to complete onboarding."); // Added toast.error
+  const handleSubmit = useCallback(async () => {
+    if (!memoizedSessionUserId) {
+      toast.error("You must be logged in to complete onboarding.");
       return;
     }
     setLoading(true);
@@ -137,7 +153,6 @@ export const useOnboardingForm = () => {
     try {
       const payload = {
         tPathType,
-        experience,
         goalFocus,
         preferredMuscles,
         constraints,
@@ -148,14 +163,15 @@ export const useOnboardingForm = () => {
         fullName,
         heightCm,
         weightKg,
-        bodyFatPct,
+        bodyFatPct: null, // Body fat is not collected in this flow
+        experience: 'intermediate', // Defaulting experience for now
       };
 
       const response = await fetch('/api/complete-onboarding', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`, // Use session?.access_token
+          'Authorization': `Bearer ${session?.access_token}`,
         },
         body: JSON.stringify(payload),
       });
@@ -166,19 +182,19 @@ export const useOnboardingForm = () => {
         throw new Error(data.error || 'Onboarding process failed.');
       }
 
-      // Instead of redirecting, set the summary data and open the modal
       setSummaryData({ ...data, confirmedExerciseNames: confirmedExercises });
       setIsSummaryModalOpen(true);
 
     } catch (error: any) {
       console.error("Onboarding failed:", error.message);
-      toast.error("Onboarding failed: " + error.message); // Changed to toast.error
+      toast.error("Onboarding failed: " + error.message);
     } finally {
       setLoading(false);
     }
   }, [
-    memoizedSessionUserId, session, router, tPathType, experience, goalFocus, preferredMuscles, // Depend on memoized ID
-    constraints, sessionLength, equipmentMethod, gymName, identifiedExercises, confirmedExercises
+    memoizedSessionUserId, session, router, tPathType, goalFocus, preferredMuscles,
+    constraints, sessionLength, equipmentMethod, gymName, identifiedExercises, confirmedExercises,
+    fullName, heightCm, weightKg
   ]);
 
   const handleCloseSummaryModal = () => {
@@ -188,38 +204,34 @@ export const useOnboardingForm = () => {
 
   return {
     currentStep,
-    tPathType,
-    setTPathType,
-    experience,
-    setExperience,
-    goalFocus,
-    setGoalFocus,
-    preferredMuscles,
-    setPreferredMuscles,
-    constraints,
-    setConstraints,
-    sessionLength,
-    setSessionLength,
-    equipmentMethod,
-    setEquipmentMethod,
-    consentGiven,
-    setConsentGiven,
+    // Step 1
+    fullName, setFullName,
+    heightCm, setHeightCm,
+    weightKg, setWeightKg,
+    consentGiven, setConsentGiven,
+    // Step 2
+    goalFocus, setGoalFocus,
+    // Step 3
+    preferredMuscles, setPreferredMuscles,
+    constraints, setConstraints,
+    // Step 4
+    tPathType, setTPathType,
+    sessionLength, setSessionLength,
+    // Step 5
+    equipmentMethod, setEquipmentMethod,
+    gymName, setGymName,
+    identifiedExercises, addIdentifiedExercise, removeIdentifiedExercise,
+    confirmedExercises, toggleConfirmedExercise,
+    // Final
     loading,
-    isInitialSetupLoading,
-    tPathDescriptions,
-    handleNext,
-    handleBack,
-    handleSubmit,
-    identifiedExercises,
-    addIdentifiedExercise,
-    removeIdentifiedExercise,
-    confirmedExercises,
-    toggleConfirmedExercise,
-    gymName,
-    setGymName,
     summaryData,
     isSummaryModalOpen,
     setIsSummaryModalOpen,
+    // Handlers & Data
+    handleNext,
+    handleBack,
+    handleSubmit,
     handleCloseSummaryModal,
+    tPathDescriptions,
   };
 };
