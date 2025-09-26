@@ -94,8 +94,8 @@ serve(async (req: Request) => {
       // Fetch generic exercises OR exercises linked to the active gym
       query = query.or(`user_id.is.null,id.in.(${gymExerciseIds.join(',') || '""'})`);
     } else {
-      // Fetch only generic bodyweight exercises
-      query = query.is('user_id', null).eq('type', 'bodyweight');
+      // Fetch only generic (global) exercises of any type
+      query = query.is('user_id', null);
     }
 
     const { data: availableExercises, error: fetchError } = await query;

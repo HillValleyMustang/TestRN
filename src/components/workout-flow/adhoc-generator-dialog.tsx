@@ -4,21 +4,22 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Sparkles, Loader2 } from 'lucide-react';
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { ExerciseDefinition } from '@/types/supabase';
+import { cn } from '@/lib/utils';
 
 interface AdHocGeneratorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onWorkoutGenerated: (exercises: ExerciseDefinition[]) => void;
+  activeGymName: string | null;
 }
 
-export const AdHocGeneratorDialog = ({ open, onOpenChange, onWorkoutGenerated }: AdHocGeneratorDialogProps) => {
+export const AdHocGeneratorDialog = ({ open, onOpenChange, onWorkoutGenerated, activeGymName }: AdHocGeneratorDialogProps) => {
   const { session } = useSession();
   const [timeInMinutes, setTimeInMinutes] = useState(30);
   const [workoutFocus, setWorkoutFocus] = useState<'Full Body' | 'Upper Body' | 'Lower Body'>('Full Body');
@@ -94,27 +95,37 @@ export const AdHocGeneratorDialog = ({ open, onOpenChange, onWorkoutGenerated }:
           {/* Workout Focus */}
           <div className="space-y-2">
             <Label>Workout Focus</Label>
-            <ToggleGroup
-              type="single"
-              value={workoutFocus}
-              onValueChange={(value: 'Full Body' | 'Upper Body' | 'Lower Body') => {
-                if (value) setWorkoutFocus(value);
-              }}
-              className="grid grid-cols-3"
-              disabled={loading}
-            >
-              <ToggleGroupItem value="Full Body">Full Body</ToggleGroupItem>
-              <ToggleGroupItem value="Upper Body">Upper</ToggleGroupItem>
-              <ToggleGroupItem value="Lower Body">Lower</ToggleGroupItem>
-            </ToggleGroup>
+            <div className="grid grid-cols-3 gap-2">
+              <Button
+                variant={workoutFocus === 'Full Body' ? 'default' : 'outline'}
+                onClick={() => setWorkoutFocus('Full Body')}
+                disabled={loading}
+              >
+                Full Body
+              </Button>
+              <Button
+                variant={workoutFocus === 'Upper Body' ? 'default' : 'outline'}
+                onClick={() => setWorkoutFocus('Upper Body')}
+                disabled={loading}
+              >
+                Upper
+              </Button>
+              <Button
+                variant={workoutFocus === 'Lower Body' ? 'default' : 'outline'}
+                onClick={() => setWorkoutFocus('Lower Body')}
+                disabled={loading}
+              >
+                Lower
+              </Button>
+            </div>
           </div>
 
           {/* Equipment Toggle */}
           <div className="flex items-center justify-between space-x-2">
             <Label htmlFor="equipment-toggle" className="flex flex-col space-y-1">
-              <span>Use My Gym's Equipment</span>
+              <span>Use Equipment from "{activeGymName || 'Your Active Gym'}"</span>
               <span className="font-normal leading-snug text-muted-foreground text-xs">
-                If off, only bodyweight exercises will be suggested.
+                If off, exercises from the global library will be used.
               </span>
             </Label>
             <Switch

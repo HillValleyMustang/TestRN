@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useMemo } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Dumbbell, Settings, Sparkles, Search, Heart, Home, Filter, ChevronsUpDown, Check } from 'lucide-react';
 import { Tables, WorkoutWithLastCompleted, GroupedTPath, SetLogState, WorkoutExercise, FetchedExerciseDefinition, Profile, ExerciseDefinition } from '@/types/supabase';
@@ -598,10 +598,9 @@ export const WorkoutSelector = ({
 
       <Card
         className={cn(
-          "cursor-pointer hover:bg-accent transition-colors",
+          "cursor-pointer transition-colors",
           activeWorkout?.id === 'ad-hoc' && "border-primary ring-2 ring-primary"
         )}
-        onClick={handleAdHocClick}
       >
         <CardHeader className="p-4">
           <CardTitle className="flex items-center text-base">
@@ -612,6 +611,15 @@ export const WorkoutSelector = ({
             Start a workout without a T-Path. Add exercises as you go.
           </CardDescription>
         </CardHeader>
+        <CardContent className="p-4 pt-0">
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => selectWorkout('ad-hoc')}>Start Empty</Button>
+            <Button className="flex-1" onClick={handleAdHocClick}>
+              <Sparkles className="h-4 w-4 mr-2" />
+              Generate
+            </Button>
+          </div>
+        </CardContent>
       </Card>
       <LoadingOverlay isOpen={isCreatingSession} title="Starting Workout..." description="Please wait while your session is being prepared." />
       {selectedWorkoutToEdit && (
@@ -642,6 +650,7 @@ export const WorkoutSelector = ({
         open={isAdHocGeneratorOpen}
         onOpenChange={setIsAdHocGeneratorOpen}
         onWorkoutGenerated={handleWorkoutGenerated}
+        activeGymName={activeGym?.name || null}
       />
     </div>
   );
