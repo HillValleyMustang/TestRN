@@ -63,7 +63,7 @@ export const OnboardingStep7_AppFeatures = ({
           Back
         </Button>
         <Button onClick={handleNext}>
-          Next
+          Complete Setup
         </Button>
       </div>
     </div>

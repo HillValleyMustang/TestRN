@@ -121,28 +121,6 @@ export const useOnboardingForm = () => {
     });
   }, []);
 
-  const handleNext = useCallback(() => {
-    // Skip photo upload if user chooses to use defaults
-    if (currentStep === 5 && equipmentMethod === 'skip') {
-      setCurrentStep(7); // Skip to the final step (The Reveal)
-      return;
-    }
-    if (currentStep < 7) {
-      setCurrentStep(prev => prev + 1);
-    }
-  }, [currentStep, equipmentMethod]);
-
-  const handleBack = useCallback(() => {
-    // Handle skipping back over photo upload
-    if (currentStep === 7 && equipmentMethod === 'skip') {
-      setCurrentStep(5);
-      return;
-    }
-    if (currentStep > 1) {
-      setCurrentStep(prev => prev - 1);
-    }
-  }, [currentStep, equipmentMethod]);
-
   const handleSubmit = useCallback(async () => {
     if (!memoizedSessionUserId) {
       toast.error("You must be logged in to complete onboarding.");
@@ -196,6 +174,32 @@ export const useOnboardingForm = () => {
     constraints, sessionLength, equipmentMethod, gymName, identifiedExercises, confirmedExercises,
     fullName, heightCm, weightKg
   ]);
+
+  const handleNext = useCallback(() => {
+    if (currentStep === 7) {
+      handleSubmit();
+      return;
+    }
+    // Skip photo upload if user chooses to use defaults
+    if (currentStep === 5 && equipmentMethod === 'skip') {
+      setCurrentStep(7); // Skip to the final step (The Reveal)
+      return;
+    }
+    if (currentStep < 7) {
+      setCurrentStep(prev => prev + 1);
+    }
+  }, [currentStep, equipmentMethod, handleSubmit]);
+
+  const handleBack = useCallback(() => {
+    // Handle skipping back over photo upload
+    if (currentStep === 7 && equipmentMethod === 'skip') {
+      setCurrentStep(5);
+      return;
+    }
+    if (currentStep > 1) {
+      setCurrentStep(prev => prev - 1);
+    }
+  }, [currentStep, equipmentMethod]);
 
   const handleCloseSummaryModal = () => {
     setIsSummaryModalOpen(false);
