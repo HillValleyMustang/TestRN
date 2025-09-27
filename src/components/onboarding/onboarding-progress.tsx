@@ -19,7 +19,7 @@ export const OnboardingProgress = ({ currentStep, totalSteps }: OnboardingProgre
 
   return (
     <div className="mb-10">
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-center gap-4">
         {Array.from({ length: totalSteps }).map((_, i) => {
           const step = i + 1;
           const isCompleted = currentStep > step;
@@ -27,20 +27,17 @@ export const OnboardingProgress = ({ currentStep, totalSteps }: OnboardingProgre
           const colorClass = stepColors[i % stepColors.length];
 
           return (
-            <React.Fragment key={step}>
-              <div
-                className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center font-semibold transition-all duration-300 ease-in-out",
-                  isActive && "w-9 h-9 ring-4 ring-primary/20",
-                  isCompleted || isActive ? `${colorClass} text-primary-foreground` : "bg-muted text-muted-foreground"
-                )}
-              >
-                {step}
-              </div>
-              {step < totalSteps && (
-                <div className={cn("flex-grow h-1 transition-colors duration-300", isCompleted ? colorClass : "bg-muted")} />
+            <div
+              key={step}
+              className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center font-semibold transition-all duration-300 ease-in-out",
+                isActive && "w-9 h-9 ring-4 ring-primary/20",
+                isCompleted ? `${colorClass} text-primary-foreground` : "",
+                isActive ? `${colorClass} text-primary-foreground` : "bg-muted text-muted-foreground"
               )}
-            </React.Fragment>
+            >
+              {step}
+            </div>
           );
         })}
       </div>
