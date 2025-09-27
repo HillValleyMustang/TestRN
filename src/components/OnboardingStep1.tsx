@@ -205,7 +205,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
         </div>
 
         {/* Height Field */}
-        <div className="space-y-2" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setActiveSlider(null); } }}>
+        <div className="space-y-2">
           <Label className="text-base font-semibold text-gray-900">How tall are you?</Label>
           <div className="relative">
             {formData.heightUnit === 'cm' ? (
@@ -312,7 +312,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
                   <div 
-                    className="absolute top-1/2 w-6 h-6 bg-onboarding-primary rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-2 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
+                    className="absolute top-1/2 w-7 h-7 bg-gradient-to-br from-onboarding-primary to-onboarding-primary-light rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-3 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
                     style={{ left: `${getSliderProgress(formData.heightCm, 100, 250)}%` }}
                   />
                 </div>
@@ -331,7 +331,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
         {/* Weight and Body Fat Row */}
         <div className="grid grid-cols-2 gap-4">
           {/* Weight Field */}
-          <div className="space-y-2" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setActiveSlider(null); } }}>
+          <div className="space-y-2">
             <Label className="text-base font-semibold text-gray-900">Current weight?</Label>
             <div className="relative">
               <Input
@@ -416,7 +416,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
                     <div 
-                      className="absolute top-1/2 w-6 h-6 bg-onboarding-primary rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-2 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
+                      className="absolute top-1/2 w-7 h-7 bg-gradient-to-br from-onboarding-primary to-onboarding-primary-light rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-3 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
                       style={{ 
                         left: `${getSliderProgress(
                           formData.weight, 
@@ -439,7 +439,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
           </div>
 
           {/* Body Fat Field */}
-          <div className="space-y-2" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setActiveSlider(null); } }}>
+          <div className="space-y-2">
             <Label className="text-base font-semibold text-gray-900">
               Body fat %
               <span className="text-sm font-normal text-gray-500 ml-1">(optional)</span>
@@ -490,7 +490,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
                     <div 
-                      className="absolute top-1/2 w-6 h-6 bg-onboarding-primary rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-2 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
+                      className="absolute top-1/2 w-7 h-7 bg-gradient-to-br from-onboarding-primary to-onboarding-primary-light rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-3 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
                       style={{ left: `${getSliderProgress(formData.bodyFatPct || 15, 5, 50)}%` }}
                     />
                   </div>
