@@ -312,7 +312,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
                   <div 
-                    className="absolute top-1/2 w-7 h-7 bg-gradient-to-br from-onboarding-primary to-onboarding-primary-light rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-3 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
+                    className="absolute top-1/2 w-6 h-6 bg-onboarding-primary rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-2 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
                     style={{ left: `${getSliderProgress(formData.heightCm, 100, 250)}%` }}
                   />
                 </div>
@@ -416,7 +416,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
                     <div 
-                      className="absolute top-1/2 w-7 h-7 bg-gradient-to-br from-onboarding-primary to-onboarding-primary-light rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-3 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
+                      className="absolute top-1/2 w-6 h-6 bg-onboarding-primary rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-2 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
                       style={{ 
                         left: `${getSliderProgress(
                           formData.weight, 
@@ -490,7 +490,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
                     <div 
-                      className="absolute top-1/2 w-7 h-7 bg-gradient-to-br from-onboarding-primary to-onboarding-primary-light rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-3 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
+                      className="absolute top-1/2 w-6 h-6 bg-onboarding-primary rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-2 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
                       style={{ left: `${getSliderProgress(formData.bodyFatPct || 15, 5, 50)}%` }}
                     />
                   </div>
@@ -510,15 +510,6 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
 
       {/* Navigation */}
       <div className="flex gap-3 pt-8">
-        {onBack && (
-          <Button
-            variant="outline"
-            onClick={onBack}
-            className="flex-1 h-12 text-base font-semibold border-2 border-gray-300 hover:border-gray-400 transition-all duration-200"
-          >
-            Back
-          </Button>
-        )}
         <Button
           onClick={handleSubmit}
           disabled={!isValid}
