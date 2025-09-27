@@ -1,14 +1,16 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Info } from 'lucide-react';
 import { BodyFatInfoModal } from './body-fat-info-modal';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"; // Import Card components
-import { cn } from '@/lib/utils'; // Import cn for conditional classes
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { cn } from '@/lib/utils';
+import { InteractiveSliderInput } from './interactive-slider-input';
+import { cmToFeetAndInches, convertWeight } from '@/lib/unit-conversions';
 
 interface OnboardingStep8Props {
   consentGiven: boolean;
@@ -43,9 +45,28 @@ export const OnboardingStep8_FinalDetails = ({
 }: OnboardingStep8Props) => {
   const [isBodyFatInfoModalOpen, setIsBodyFatInfoModalOpen] = useState(false);
 
+  const heightSubtitle = useMemo(() => {
+    return cmToFeetAndInches(heightCm);
+  }, [heightCm]);
+
+  const weightSubtitle = useMemo(() => {
+    const lbs = convertWeight(weightKg, 'kg', 'lbs');
+    return lbs ? `${lbs.toFixed(0)} lbs` : '';
+  }, [weightKg]);
+
+  const getBodyFatLabel = (percentage: number | null): string => {
+    if (percentage === null) return '';
+    if (percentage <= 12) return 'Athletic';
+    if (percentage <= 20) return 'Fit';
+    if (percentage <= 28) return 'Average';
+    return 'Average+';
+  };
+
+  const bodyFatSubtitle = getBodyFatLabel(bodyFatPct);
+
   return (
     <>
-      <Card className="bg-gradient-to-br from-primary/5 to-background shadow-lg p-6"> {/* Added Card wrapper with gradient */}
+      <Card className="bg-gradient-to-br from-primary/5 to-background shadow-lg p-6">
         <CardHeader className="text-center mb-6">
           <CardTitle className="text-3xl font-bold text-primary">Almost There!</CardTitle>
           <CardDescription className="text-muted-foreground mt-2">
@@ -65,36 +86,31 @@ export const OnboardingStep8_FinalDetails = ({
                 className="mt-1 text-sm"
               />
             </div>
-            <div className="flex flex-col sm:flex-row gap-4"> {/* Changed to flex-col on small screens */}
-              <div className="flex-1">
-                <Label htmlFor="heightCm" className="text-sm font-medium">Height (cm)</Label>
-                <Input 
-                  id="heightCm" 
-                  type="number" 
-                  inputMode="numeric" 
-                  step="1" 
-                  placeholder="e.g., 175" 
-                  value={heightCm ?? ''}
-                  onChange={(e) => setHeightCm(parseInt(e.target.value) || null)}
-                  required
-                  className="mt-1 text-sm"
-                />
-              </div>
-              <div className="flex-1">
-                <Label htmlFor="weightKg" className="text-sm font-medium">Weight (kg)</Label>
-                <Input 
-                  id="weightKg" 
-                  type="number" 
-                  inputMode="numeric" 
-                  step="1" 
-                  placeholder="e.g., 70" 
-                  value={weightKg ?? ''}
-                  onChange={(e) => setWeightKg(parseInt(e.target.value) || null)}
-                  required
-                  className="mt-1 text-sm"
-                />
-              </div>
-            </div>
+            
+            <InteractiveSliderInput
+              id="heightCm"
+              label="Height (cm)"
+              value={heightCm}
+              onValueChange={setHeightCm}
+              unit="cm"
+              subtitle={heightSubtitle}
+              min={120}
+              max={220}
+              step={1}
+            />
+
+            <InteractiveSliderInput
+              id="weightKg"
+              label="Weight (kg)"
+              value={weightKg}
+              onValueChange={setWeightKg}
+              unit="kg"
+              subtitle={weightSubtitle}
+              min={40}
+              max={150}
+              step={1}
+            />
+
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <Label htmlFor="bodyFatPct" className="text-sm font-medium">Body Fat (%) (Optional)</Label>
@@ -102,17 +118,15 @@ export const OnboardingStep8_FinalDetails = ({
                   <Info className="h-4 w-4 text-muted-foreground" />
                 </Button>
               </div>
-              <Input 
-                id="bodyFatPct" 
-                type="number" 
-                inputMode="numeric" 
-                step="1" 
-                min="0"
-                max="100"
-                placeholder="e.g., 15" 
-                value={bodyFatPct ?? ''}
-                onChange={(e) => setBodyFatPct(e.target.value === '' ? null : parseInt(e.target.value))}
-                className="max-w-[120px] mt-1 text-sm"
+              <InteractiveSliderInput
+                id="bodyFatPct"
+                value={bodyFatPct}
+                onValueChange={setBodyFatPct}
+                unit="%"
+                subtitle={bodyFatSubtitle}
+                min={5}
+                max={50}
+                step={1}
               />
             </div>
 
@@ -130,15 +144,15 @@ export const OnboardingStep8_FinalDetails = ({
             </div>
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-2 pt-4"> {/* Responsive buttons */}
+          <div className="flex flex-col sm:flex-row gap-2 pt-4">
             <Button variant="outline" onClick={handleBack} size="sm" className="flex-1">
               Back
             </Button>
             <Button 
               onClick={handleSubmit} 
               disabled={!consentGiven || loading || !fullName || heightCm === null || weightKg === null}
-              size="lg" // Made larger
-              variant="default" // Use default variant for primary action color
+              size="lg"
+              variant="default"
               className="flex-1"
             >
               {loading ? "Completing Setup..." : "Complete Onboarding"}
