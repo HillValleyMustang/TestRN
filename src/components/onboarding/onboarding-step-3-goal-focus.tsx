@@ -7,8 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, X, Bot } from "lucide-react";
-import { Label } from '@/components/ui/label';
+import { ChevronDown, X, Bot } from "lucide-react"; // Added Bot icon
 
 interface OnboardingStep3Props {
   goalFocus: string;
@@ -58,42 +57,45 @@ export const OnboardingStep3_GoalFocus = ({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {goals.map(goal => (
           <Card 
             key={goal.id}
             className={cn(
-              "cursor-pointer transition-all min-h-[80px] flex flex-col justify-center p-4",
+              "cursor-pointer transition-all min-h-[100px] flex flex-col justify-center", // Reduced min-height
               goalFocus === goal.id 
                 ? 'border-primary ring-2 ring-primary' 
                 : 'hover:border-primary/50'
             )}
             onClick={() => setGoalFocus(goal.id)}
           >
-            <CardTitle className="text-base text-center font-semibold">{goal.title}</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base text-center">{goal.title}</CardTitle> {/* Reduced font size */}
+            </CardHeader>
+            <CardContent className="pt-0">
+              {/* Optional: Add a short description here if needed, with text-xs */}
+            </CardContent>
           </Card>
         ))}
       </div>
       
       <div>
-        <Label className="text-sm font-medium">
-          Preferred Muscles to Train <span className="text-xs font-normal text-muted-foreground">(Optional)</span>
-        </Label>
+        <label className="text-sm font-medium">Preferred Muscles to Train (Optional)</label>
         <Popover>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
               role="combobox"
               className={cn(
-                "w-full justify-between mt-1 h-auto min-h-[40px] py-2",
+                "w-full justify-between mt-1 h-auto min-h-[40px] py-2", // Adjusted height and padding
                 selectedMuscles.length === 0 && "text-muted-foreground"
               )}
             >
               <span className="flex items-center justify-between w-full">
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1"> {/* Allow badges to wrap */}
                   {selectedMuscles.length > 0 ? (
                     selectedMuscles.map((muscle) => (
-                      <Badge key={muscle} variant="secondary" className="flex items-center gap-1 text-xs">
+                      <Badge key={muscle} variant="secondary" className="flex items-center gap-1 text-xs"> {/* Reduced badge text size */}
                         {muscle}
                         <X className="h-3 w-3 cursor-pointer" onClick={(e) => {
                           e.stopPropagation();
@@ -118,7 +120,7 @@ export const OnboardingStep3_GoalFocus = ({
                   variant={selectedMuscles.includes(muscle) ? "default" : "outline"}
                   onClick={() => handleMuscleToggle(muscle)}
                   className={cn(
-                    "flex-1 text-sm",
+                    "flex-1 text-sm", // Reduced button text size
                     selectedMuscles.includes(muscle) ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent"
                   )}
                 >
@@ -128,24 +130,22 @@ export const OnboardingStep3_GoalFocus = ({
             </div>
           </PopoverContent>
         </Popover>
-        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"> {/* Reduced text size, added AI icon */}
           <Bot className="h-3 w-3 flex-shrink-0" />
           This helps our AI tailor exercise suggestions and coaching feedback.
         </p>
       </div>
       
       <div>
-        <Label htmlFor="constraints" className="text-sm font-medium">
-          Constraints <span className="text-xs font-normal text-muted-foreground">(Optional)</span>
-        </Label>
+        <label htmlFor="constraints" className="text-sm font-medium">Constraints (Optional)</label>
         <Textarea 
           id="constraints" 
           placeholder="Any injuries, health conditions, or limitations..." 
           value={constraints}
           onChange={(e) => setConstraints(e.target.value)}
-          className="mt-1 text-sm"
+          className="mt-1 text-sm" // Reduced text size
         />
-        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"> {/* Reduced text size, added AI icon */}
           <Bot className="h-3 w-3 flex-shrink-0" />
           Our AI will consider these when generating workout plans and advice.
         </p>
