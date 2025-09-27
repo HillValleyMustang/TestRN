@@ -76,6 +76,11 @@
 
     --sidebar-ring: 217.2 91.2% 59.8%;
 
+    /* New Onboarding Theme Colors */
+    --onboarding-primary: 220 68% 32%;
+    --onboarding-primary-light: 220 68% 42%;
+    --onboarding-primary-faint: 220 68% 98%;
+
     /* New Workout Pill Colors (from user's specific hex codes) */
     --workout-upper-body-a: 220 68% 32%; /* #1e3a8a */
     --workout-upper-body-a-light: 220 68% 42%;
@@ -188,6 +193,11 @@
     --sidebar-border: 240 3.7% 15.9%;
 
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* New Onboarding Theme Colors (Dark) */
+    --onboarding-primary: 220 68% 52%;
+    --onboarding-primary-light: 220 68% 62%;
+    --onboarding-primary-faint: 220 68% 10%;
 
     /* Dark mode adjustments for new workout colors - Directly from 90s Retro Palette */
     --workout-upper-body-a: 220 68% 32%; /* #1e3a8a */

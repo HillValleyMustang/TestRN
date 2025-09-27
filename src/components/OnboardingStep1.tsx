@@ -161,7 +161,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
       {/* Progress Bar */}
       <div className="flex items-center justify-center">
         <div className="flex items-center space-x-2">
-          <div className="w-9 h-9 rounded-full bg-purple-600 text-white flex items-center justify-center font-semibold text-lg shadow-lg transition-all duration-300">
+          <div className="w-9 h-9 rounded-full bg-onboarding-primary text-white flex items-center justify-center font-semibold text-lg shadow-lg transition-all duration-300">
             1
           </div>
           <div className="w-6 h-1 bg-gray-200 rounded-full"></div>
@@ -194,7 +194,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
             onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
             className={cn(
               "h-12 px-4 text-base border-2 rounded-xl transition-all duration-200",
-              "focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500",
+              "focus:ring-2 focus:ring-onboarding-primary/20 focus:border-onboarding-primary",
               "hover:border-gray-400",
               errors.fullName ? "border-red-500" : "border-gray-300"
             )}
@@ -205,7 +205,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
         </div>
 
         {/* Height Field */}
-        <div className="space-y-2">
+        <div className="space-y-2" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setActiveSlider(null); } }}>
           <Label className="text-base font-semibold text-gray-900">How tall are you?</Label>
           <div className="relative">
             {formData.heightUnit === 'cm' ? (
@@ -215,12 +215,11 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                 value={formData.heightCm}
                 onChange={(e) => handleHeightCmChange(Number(e.target.value))}
                 onFocus={() => setActiveSlider('height')}
-                onBlur={() => setTimeout(() => setActiveSlider(null), 150)}
                 className={cn(
                   "h-12 px-4 pr-20 text-base border-2 rounded-xl transition-all duration-200",
-                  "focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500",
+                  "focus:ring-2 focus:ring-onboarding-primary/20 focus:border-onboarding-primary",
                   "hover:border-gray-400",
-                  activeSlider === 'height' ? "border-purple-500 bg-purple-50/50" : "border-gray-300"
+                  activeSlider === 'height' ? "border-onboarding-primary bg-onboarding-primary-faint" : "border-gray-300"
                 )}
               />
             ) : (
@@ -231,11 +230,10 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                   value={formData.heightFt}
                   onChange={(e) => handleHeightFtInChange(Number(e.target.value), formData.heightIn)}
                   onFocus={() => setActiveSlider('height')}
-                  onBlur={() => setTimeout(() => setActiveSlider(null), 150)}
                   className={cn(
                     "h-12 px-3 text-base border-2 rounded-xl transition-all duration-200 w-20 text-center",
-                    "focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500",
-                    activeSlider === 'height' ? "border-purple-500 bg-purple-50/50" : "border-gray-300"
+                    "focus:ring-2 focus:ring-onboarding-primary/20 focus:border-onboarding-primary",
+                    activeSlider === 'height' ? "border-onboarding-primary bg-onboarding-primary-faint" : "border-gray-300"
                   )}
                 />
                 <span className="text-gray-600 font-medium">ft</span>
@@ -245,11 +243,10 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                   value={formData.heightIn}
                   onChange={(e) => handleHeightFtInChange(formData.heightFt, Number(e.target.value))}
                   onFocus={() => setActiveSlider('height')}
-                  onBlur={() => setTimeout(() => setActiveSlider(null), 150)}
                   className={cn(
                     "h-12 px-3 text-base border-2 rounded-xl transition-all duration-200 w-20 text-center",
-                    "focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500",
-                    activeSlider === 'height' ? "border-purple-500 bg-purple-50/50" : "border-gray-300"
+                    "focus:ring-2 focus:ring-onboarding-primary/20 focus:border-onboarding-primary",
+                    activeSlider === 'height' ? "border-onboarding-primary bg-onboarding-primary-faint" : "border-gray-300"
                   )}
                 />
                 <span className="text-gray-600 font-medium">in</span>
@@ -265,7 +262,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                 className={cn(
                   "h-7 px-2 text-xs font-medium border transition-all duration-200",
                   formData.heightUnit === 'cm' 
-                    ? "bg-purple-600 text-white border-purple-600 shadow-sm" 
+                    ? "bg-onboarding-primary text-white border-onboarding-primary shadow-sm" 
                     : "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
                 )}
                 onClick={() => handleHeightUnitChange('cm')}
@@ -279,7 +276,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                 className={cn(
                   "h-7 px-2 text-xs font-medium border transition-all duration-200",
                   formData.heightUnit === 'ft' 
-                    ? "bg-purple-600 text-white border-purple-600 shadow-sm" 
+                    ? "bg-onboarding-primary text-white border-onboarding-primary shadow-sm" 
                     : "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
                 )}
                 onClick={() => handleHeightUnitChange('ft')}
@@ -291,9 +288,9 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
 
           {/* Height Slider */}
           {activeSlider === 'height' && (
-            <div className="mt-4 p-5 bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-500 rounded-xl shadow-lg animate-in slide-in-from-top-2 duration-300">
+            <div className="mt-4 p-5 bg-onboarding-primary-faint border-2 border-onboarding-primary rounded-xl shadow-lg animate-in slide-in-from-top-2 duration-300">
               <div className="text-center mb-4">
-                <div className="text-2xl font-bold text-purple-600">
+                <div className="text-2xl font-bold text-onboarding-primary">
                   {formData.heightCm} cm
                 </div>
                 <div className="text-sm text-gray-600">
@@ -303,7 +300,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
               <div className="relative">
                 <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div 
-                    className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 to-purple-600 rounded-full transition-all duration-200"
+                    className="absolute top-0 left-0 h-full bg-gradient-to-r from-onboarding-primary to-onboarding-primary-light rounded-full transition-all duration-200"
                     style={{ width: `${getSliderProgress(formData.heightCm, 100, 250)}%` }}
                   />
                   <input
@@ -315,7 +312,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
                   <div 
-                    className="absolute top-1/2 w-7 h-7 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-3 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
+                    className="absolute top-1/2 w-7 h-7 bg-gradient-to-br from-onboarding-primary to-onboarding-primary-light rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-3 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
                     style={{ left: `${getSliderProgress(formData.heightCm, 100, 250)}%` }}
                   />
                 </div>
@@ -334,7 +331,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
         {/* Weight and Body Fat Row */}
         <div className="grid grid-cols-2 gap-4">
           {/* Weight Field */}
-          <div className="space-y-2">
+          <div className="space-y-2" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setActiveSlider(null); } }}>
             <Label className="text-base font-semibold text-gray-900">Current weight?</Label>
             <div className="relative">
               <Input
@@ -343,12 +340,11 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                 value={formData.weight}
                 onChange={(e) => handleWeightChange(Number(e.target.value))}
                 onFocus={() => setActiveSlider('weight')}
-                onBlur={() => setTimeout(() => setActiveSlider(null), 150)}
                 className={cn(
                   "h-12 px-4 pr-16 text-base border-2 rounded-xl transition-all duration-200",
-                  "focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500",
+                  "focus:ring-2 focus:ring-onboarding-primary/20 focus:border-onboarding-primary",
                   "hover:border-gray-400",
-                  activeSlider === 'weight' ? "border-purple-500 bg-purple-50/50" : "border-gray-300"
+                  activeSlider === 'weight' ? "border-onboarding-primary bg-onboarding-primary-faint" : "border-gray-300"
                 )}
               />
               
@@ -361,7 +357,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                   className={cn(
                     "h-7 px-2 text-xs font-medium border transition-all duration-200",
                     formData.weightUnit === 'kg' 
-                      ? "bg-purple-600 text-white border-purple-600 shadow-sm" 
+                      ? "bg-onboarding-primary text-white border-onboarding-primary shadow-sm" 
                       : "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
                   )}
                   onClick={() => handleWeightUnitChange('kg')}
@@ -375,7 +371,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                   className={cn(
                     "h-7 px-2 text-xs font-medium border transition-all duration-200",
                     formData.weightUnit === 'lbs' 
-                      ? "bg-purple-600 text-white border-purple-600 shadow-sm" 
+                      ? "bg-onboarding-primary text-white border-onboarding-primary shadow-sm" 
                       : "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
                   )}
                   onClick={() => handleWeightUnitChange('lbs')}
@@ -387,9 +383,9 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
 
             {/* Weight Slider */}
             {activeSlider === 'weight' && (
-              <div className="mt-4 p-5 bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-500 rounded-xl shadow-lg animate-in slide-in-from-top-2 duration-300">
+              <div className="mt-4 p-5 bg-onboarding-primary-faint border-2 border-onboarding-primary rounded-xl shadow-lg animate-in slide-in-from-top-2 duration-300">
                 <div className="text-center mb-4">
-                  <div className="text-2xl font-bold text-purple-600">
+                  <div className="text-2xl font-bold text-onboarding-primary">
                     {formData.weight} {formData.weightUnit}
                   </div>
                   <div className="text-sm text-gray-600">
@@ -402,7 +398,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                 <div className="relative">
                   <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
                     <div 
-                      className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 to-purple-600 rounded-full transition-all duration-200"
+                      className="absolute top-0 left-0 h-full bg-gradient-to-r from-onboarding-primary to-onboarding-primary-light rounded-full transition-all duration-200"
                       style={{ 
                         width: `${getSliderProgress(
                           formData.weight, 
@@ -420,7 +416,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
                     <div 
-                      className="absolute top-1/2 w-7 h-7 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-3 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
+                      className="absolute top-1/2 w-7 h-7 bg-gradient-to-br from-onboarding-primary to-onboarding-primary-light rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-3 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
                       style={{ 
                         left: `${getSliderProgress(
                           formData.weight, 
@@ -443,12 +439,12 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
           </div>
 
           {/* Body Fat Field */}
-          <div className="space-y-2">
+          <div className="space-y-2" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setActiveSlider(null); } }}>
             <Label className="text-base font-semibold text-gray-900">
               Body fat %
               <span className="text-sm font-normal text-gray-500 ml-1">(optional)</span>
               <span 
-                className="inline-flex items-center justify-center w-4 h-4 ml-1 text-xs text-white bg-purple-600 rounded-full cursor-help" 
+                className="inline-flex items-center justify-center w-4 h-4 ml-1 text-xs text-white bg-onboarding-primary rounded-full cursor-help" 
                 title="If you don't know, you can skip this"
               >
                 i
@@ -460,20 +456,19 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
               value={formData.bodyFatPct || ''}
               onChange={(e) => setFormData(prev => ({ ...prev, bodyFatPct: e.target.value ? Number(e.target.value) : null }))}
               onFocus={() => setActiveSlider('bodyFat')}
-              onBlur={() => setTimeout(() => setActiveSlider(null), 150)}
               className={cn(
                 "h-12 px-4 text-base border-2 rounded-xl transition-all duration-200",
-                "focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500",
+                "focus:ring-2 focus:ring-onboarding-primary/20 focus:border-onboarding-primary",
                 "hover:border-gray-400",
-                activeSlider === 'bodyFat' ? "border-purple-500 bg-purple-50/50" : "border-gray-300"
+                activeSlider === 'bodyFat' ? "border-onboarding-primary bg-onboarding-primary-faint" : "border-gray-300"
               )}
             />
 
             {/* Body Fat Slider */}
             {activeSlider === 'bodyFat' && (
-              <div className="mt-4 p-5 bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-500 rounded-xl shadow-lg animate-in slide-in-from-top-2 duration-300">
+              <div className="mt-4 p-5 bg-onboarding-primary-faint border-2 border-onboarding-primary rounded-xl shadow-lg animate-in slide-in-from-top-2 duration-300">
                 <div className="text-center mb-4">
-                  <div className="text-2xl font-bold text-purple-600">
+                  <div className="text-2xl font-bold text-onboarding-primary">
                     {formData.bodyFatPct || 15}%
                   </div>
                   <div className="text-sm text-gray-600">
@@ -483,7 +478,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                 <div className="relative">
                   <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
                     <div 
-                      className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 to-purple-600 rounded-full transition-all duration-200"
+                      className="absolute top-0 left-0 h-full bg-gradient-to-r from-onboarding-primary to-onboarding-primary-light rounded-full transition-all duration-200"
                       style={{ width: `${getSliderProgress(formData.bodyFatPct || 15, 5, 50)}%` }}
                     />
                     <input
@@ -495,7 +490,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
                     <div 
-                      className="absolute top-1/2 w-7 h-7 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-3 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
+                      className="absolute top-1/2 w-7 h-7 bg-gradient-to-br from-onboarding-primary to-onboarding-primary-light rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-3 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
                       style={{ left: `${getSliderProgress(formData.bodyFatPct || 15, 5, 50)}%` }}
                     />
                   </div>
@@ -529,7 +524,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
           disabled={!isValid}
           className={cn(
             "flex-1 h-12 text-base font-semibold transition-all duration-200",
-            "bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800",
+            "bg-gradient-to-r from-onboarding-primary to-onboarding-primary-light hover:from-onboarding-primary-light hover:to-onboarding-primary",
             "hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0",
             "disabled:bg-gray-300 disabled:text-gray-500 disabled:hover:transform-none disabled:hover:shadow-none disabled:cursor-not-allowed"
           )}

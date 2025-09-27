@@ -68,6 +68,11 @@ export default {
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
   			},
+        onboarding: {
+          primary: 'hsl(var(--onboarding-primary))',
+          'primary-light': 'hsl(var(--onboarding-primary-light))',
+          'primary-faint': 'hsl(var(--onboarding-primary-faint))',
+        },
         workout: {
           'upper-body-a': 'hsl(var(--workout-upper-body-a))',
           'upper-body-a-light': 'hsl(var(--workout-upper-body-a-light))',
