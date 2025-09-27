@@ -312,7 +312,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
                   <div 
-                    className="absolute top-1/2 w-7 h-7 bg-gradient-to-br from-onboarding-primary to-onboarding-primary-light rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-3 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
+                    className="absolute top-1/2 w-8 h-8 bg-gradient-to-br from-onboarding-primary to-onboarding-primary-light rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-4 border-white ring-2 ring-inset ring-white/30 cursor-pointer transition-transform duration-200 hover:scale-110"
                     style={{ left: `${getSliderProgress(formData.heightCm, 100, 250)}%` }}
                   />
                 </div>
@@ -416,7 +416,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
                     <div 
-                      className="absolute top-1/2 w-7 h-7 bg-gradient-to-br from-onboarding-primary to-onboarding-primary-light rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-3 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
+                      className="absolute top-1/2 w-8 h-8 bg-gradient-to-br from-onboarding-primary to-onboarding-primary-light rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-4 border-white ring-2 ring-inset ring-white/30 cursor-pointer transition-transform duration-200 hover:scale-110"
                       style={{ 
                         left: `${getSliderProgress(
                           formData.weight, 
@@ -490,7 +490,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
                     <div 
-                      className="absolute top-1/2 w-7 h-7 bg-gradient-to-br from-onboarding-primary to-onboarding-primary-light rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-3 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
+                      className="absolute top-1/2 w-8 h-8 bg-gradient-to-br from-onboarding-primary to-onboarding-primary-light rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-4 border-white ring-2 ring-inset ring-white/30 cursor-pointer transition-transform duration-200 hover:scale-110"
                       style={{ left: `${getSliderProgress(formData.bodyFatPct || 15, 5, 50)}%` }}
                     />
                   </div>
