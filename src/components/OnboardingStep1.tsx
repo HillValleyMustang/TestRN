@@ -303,20 +303,20 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                     className="absolute top-0 left-0 h-full bg-gradient-to-r from-onboarding-primary to-onboarding-primary-light rounded-full transition-all duration-200"
                     style={{ width: `${getSliderProgress(formData.heightCm, 100, 250)}%` }}
                   />
+                  <div 
+                    className="absolute top-1/2 w-9 h-9 rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-4 border-white ring-2 ring-inset ring-white/30 pointer-events-none"
+                    style={{ 
+                      left: `${getSliderProgress(formData.heightCm, 100, 250)}%`,
+                      backgroundImage: 'radial-gradient(circle at 30% 30%, hsl(var(--onboarding-primary-light)), hsl(var(--onboarding-primary)))'
+                    }}
+                  />
                   <input
                     type="range"
                     min="100"
                     max="250"
                     value={formData.heightCm}
                     onChange={(e) => handleHeightCmChange(Number(e.target.value))}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                  <div 
-                    className="absolute top-1/2 w-8 h-8 rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-4 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
-                    style={{ 
-                      left: `${getSliderProgress(formData.heightCm, 100, 250)}%`,
-                      backgroundImage: 'radial-gradient(circle at 30% 30%, hsl(var(--onboarding-primary-light)), hsl(var(--onboarding-primary)))'
-                    }}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                   />
                 </div>
                 <div className="flex justify-between text-xs text-gray-500 mt-2">
@@ -410,16 +410,8 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                         )}%` 
                       }}
                     />
-                    <input
-                      type="range"
-                      min={formData.weightUnit === 'kg' ? 30 : 66}
-                      max={formData.weightUnit === 'kg' ? 200 : 440}
-                      value={formData.weight}
-                      onChange={(e) => handleWeightChange(Number(e.target.value))}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    />
                     <div 
-                      className="absolute top-1/2 w-8 h-8 rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-4 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
+                      className="absolute top-1/2 w-9 h-9 rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-4 border-white ring-2 ring-inset ring-white/30 pointer-events-none"
                       style={{ 
                         left: `${getSliderProgress(
                           formData.weight, 
@@ -428,6 +420,14 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                         )}%`,
                         backgroundImage: 'radial-gradient(circle at 30% 30%, hsl(var(--onboarding-primary-light)), hsl(var(--onboarding-primary)))'
                       }}
+                    />
+                    <input
+                      type="range"
+                      min={formData.weightUnit === 'kg' ? 30 : 66}
+                      max={formData.weightUnit === 'kg' ? 200 : 440}
+                      value={formData.weight}
+                      onChange={(e) => handleWeightChange(Number(e.target.value))}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     />
                   </div>
                   <div className="flex justify-between text-xs text-gray-500 mt-2">
@@ -485,20 +485,20 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                       className="absolute top-0 left-0 h-full bg-gradient-to-r from-onboarding-primary to-onboarding-primary-light rounded-full transition-all duration-200"
                       style={{ width: `${getSliderProgress(formData.bodyFatPct || 15, 5, 50)}%` }}
                     />
+                    <div 
+                      className="absolute top-1/2 w-9 h-9 rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-4 border-white ring-2 ring-inset ring-white/30 pointer-events-none"
+                      style={{ 
+                        left: `${getSliderProgress(formData.bodyFatPct || 15, 5, 50)}%`,
+                        backgroundImage: 'radial-gradient(circle at 30% 30%, hsl(var(--onboarding-primary-light)), hsl(var(--onboarding-primary)))'
+                      }}
+                    />
                     <input
                       type="range"
                       min="5"
                       max="50"
                       value={formData.bodyFatPct || 15}
                       onChange={(e) => setFormData(prev => ({ ...prev, bodyFatPct: Number(e.target.value) }))}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    />
-                    <div 
-                      className="absolute top-1/2 w-8 h-8 rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-4 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
-                      style={{ 
-                        left: `${getSliderProgress(formData.bodyFatPct || 15, 5, 50)}%`,
-                        backgroundImage: 'radial-gradient(circle at 30% 30%, hsl(var(--onboarding-primary-light)), hsl(var(--onboarding-primary)))'
-                      }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     />
                   </div>
                   <div className="flex justify-between text-xs text-gray-500 mt-2">
