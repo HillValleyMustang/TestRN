@@ -1,74 +1,51 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useOnboardingForm } from "@/hooks/use-onboarding-form";
-import { OnboardingStep1_TPathSelection } from "@/components/onboarding/onboarding-step-1-tpath-selection";
-import { OnboardingStep2_ExperienceLevel } from "@/components/onboarding/onboarding-step-2-experience-level";
-import { OnboardingStep3_GoalFocus } from "@/components/onboarding/onboarding-step-3-goal-focus";
-import { OnboardingStep4_GymSetup } from "@/components/onboarding/onboarding-step-4-gym-setup";
-import { OnboardingStep5_GymPhotoUpload } from "@/components/onboarding/onboarding-step-5-gym-photo-upload";
-import { OnboardingStep6_SessionPreferences } from "@/components/onboarding/onboarding-step-6-session-preferences";
-import { OnboardingStep7_AppFeatures } from "@/components/onboarding/onboarding-step-7-app-features";
-import { OnboardingStep8_FinalDetails } from "@/components/onboarding/onboarding-step-8-final-details";
 import { useSession } from "@/components/session-context-provider";
 import { LoadingOverlay } from "@/components/loading-overlay";
-import { toast } from "sonner";
-import { OnboardingSummaryModal } from "@/components/onboarding/onboarding-summary-modal"; // Import the new modal
+import { OnboardingSummaryModal } from "@/components/onboarding/onboarding-summary-modal";
+
+// Import new step components
+import { OnboardingStep1_PersonalInfo } from "@/components/onboarding/onboarding-step-1-personal-info";
+import { OnboardingStep2_TrainingSetup } from "@/components/onboarding/onboarding-step-2-training-setup";
+import { OnboardingStep3_GoalsAndPreferences } from "@/components/onboarding/onboarding-step-3-goals-and-preferences";
+import { OnboardingStep4_GymSetupAndConsent } from "@/components/onboarding/onboarding-step-4-gym-setup-and-consent";
+import { OnboardingStep5_GymPhotoUpload } from "@/components/onboarding/onboarding-step-5-gym-photo-upload";
 
 export default function OnboardingPage() {
-  const { session, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
+  const { memoizedSessionUserId } = useSession();
   const {
     currentStep,
-    tPathType,
-    setTPathType,
-    experience,
-    setExperience,
-    goalFocus,
-    setGoalFocus,
-    preferredMuscles,
-    setPreferredMuscles,
-    constraints,
-    setConstraints,
-    sessionLength,
-    setSessionLength,
-    equipmentMethod,
-    setEquipmentMethod,
-    consentGiven,
-    setConsentGiven,
-    loading,
-    isInitialSetupLoading,
-    tPathDescriptions,
     handleNext,
     handleBack,
-    handleSubmit: originalHandleSubmit,
-    identifiedExercises,
-    addIdentifiedExercise,
-    removeIdentifiedExercise,
-    confirmedExercises,
-    toggleConfirmedExercise,
-    gymName,
-    setGymName,
+    handleSubmit,
+    loading,
+    isInitialSetupLoading,
     summaryData,
     isSummaryModalOpen,
     setIsSummaryModalOpen,
     handleCloseSummaryModal,
+    // Destructure all state and setters for the new components
+    tPathType, setTPathType, tPathDescriptions,
+    experience, setExperience,
+    goalFocus, setGoalFocus,
+    preferredMuscles, setPreferredMuscles,
+    constraints, setConstraints,
+    sessionLength, setSessionLength,
+    equipmentMethod, setEquipmentMethod,
+    gymName, setGymName,
+    identifiedExercises, addIdentifiedExercise, removeIdentifiedExercise,
+    confirmedExercises, toggleConfirmedExercise,
+    consentGiven, setConsentGiven,
+    fullName, setFullName,
+    heightCm, setHeightCm,
+    weightKg, setWeightKg,
+    bodyFatPct, setBodyFatPct,
   } = useOnboardingForm();
 
-  const [fullName, setFullName] = useState('');
-  const [heightCm, setHeightCm] = useState<number | null>(null);
-  const [weightKg, setWeightKg] = useState<number | null>(null);
-  const [bodyFatPct, setBodyFatPct] = useState<number | null>(null);
-
-  const handleSubmit = useCallback(async () => {
-    if (fullName && heightCm !== null && weightKg !== null) {
-      await originalHandleSubmit(fullName, heightCm, weightKg, bodyFatPct);
-    } else {
-      toast.error("Please fill in all required personal details.");
-    }
-  }, [originalHandleSubmit, fullName, heightCm, weightKg, bodyFatPct]);
-
-  if (!memoizedSessionUserId) { // Use memoized ID
+  if (!memoizedSessionUserId) {
     return <div>Loading...</div>;
   }
 
@@ -76,44 +53,42 @@ export default function OnboardingPage() {
     switch (currentStep) {
       case 1:
         return (
-          <OnboardingStep1_TPathSelection
-            tPathType={tPathType}
-            setTPathType={setTPathType}
+          <OnboardingStep1_PersonalInfo
             handleNext={handleNext}
-            tPathDescriptions={tPathDescriptions}
+            fullName={fullName} setFullName={setFullName}
+            heightCm={heightCm} setHeightCm={setHeightCm}
+            weightKg={weightKg} setWeightKg={setWeightKg}
+            bodyFatPct={bodyFatPct} setBodyFatPct={setBodyFatPct}
           />
         );
       case 2:
         return (
-          <OnboardingStep2_ExperienceLevel
-            experience={experience}
-            setExperience={setExperience}
-            handleNext={handleNext}
-            handleBack={handleBack}
+          <OnboardingStep2_TrainingSetup
+            tPathType={tPathType} setTPathType={setTPathType}
+            experience={experience} setExperience={setExperience}
+            handleNext={handleNext} handleBack={handleBack}
+            tPathDescriptions={tPathDescriptions}
           />
         );
       case 3:
         return (
-          <OnboardingStep3_GoalFocus
-            goalFocus={goalFocus}
-            setGoalFocus={setGoalFocus}
-            preferredMuscles={preferredMuscles}
-            setPreferredMuscles={setPreferredMuscles}
-            constraints={constraints}
-            setConstraints={setConstraints}
-            handleNext={handleNext}
-            handleBack={handleBack}
+          <OnboardingStep3_GoalsAndPreferences
+            goalFocus={goalFocus} setGoalFocus={setGoalFocus}
+            preferredMuscles={preferredMuscles} setPreferredMuscles={setPreferredMuscles}
+            constraints={constraints} setConstraints={setConstraints}
+            sessionLength={sessionLength} setSessionLength={setSessionLength}
+            handleNext={handleNext} handleBack={handleBack}
           />
         );
       case 4:
         return (
-          <OnboardingStep4_GymSetup
-            equipmentMethod={equipmentMethod}
-            setEquipmentMethod={setEquipmentMethod}
-            handleNext={handleNext}
-            handleBack={handleBack}
-            gymName={gymName}
-            setGymName={setGymName}
+          <OnboardingStep4_GymSetupAndConsent
+            equipmentMethod={equipmentMethod} setEquipmentMethod={setEquipmentMethod}
+            handleNext={handleNext} handleBack={handleBack}
+            handleSubmit={handleSubmit}
+            gymName={gymName} setGymName={setGymName}
+            consentGiven={consentGiven} setConsentGiven={setConsentGiven}
+            loading={loading}
           />
         );
       case 5:
@@ -124,42 +99,8 @@ export default function OnboardingPage() {
             removeIdentifiedExercise={removeIdentifiedExercise}
             confirmedExercises={confirmedExercises}
             toggleConfirmedExercise={toggleConfirmedExercise}
-            handleNext={handleNext}
+            handleNext={handleSubmit} // The "Next" button here is the final submission
             handleBack={handleBack}
-          />
-        );
-      case 6:
-        return (
-          <OnboardingStep6_SessionPreferences
-            sessionLength={sessionLength}
-            setSessionLength={setSessionLength}
-            handleNext={handleNext}
-            handleBack={handleBack}
-          />
-        );
-      case 7:
-        return (
-          <OnboardingStep7_AppFeatures
-            handleNext={handleNext}
-            handleBack={handleBack}
-          />
-        );
-      case 8:
-        return (
-          <OnboardingStep8_FinalDetails
-            consentGiven={consentGiven}
-            setConsentGiven={setConsentGiven}
-            handleSubmit={handleSubmit}
-            handleBack={handleBack}
-            loading={loading}
-            fullName={fullName}
-            setFullName={setFullName}
-            heightCm={heightCm}
-            setHeightCm={setHeightCm}
-            weightKg={weightKg}
-            setWeightKg={setWeightKg}
-            bodyFatPct={bodyFatPct}
-            setBodyFatPct={setBodyFatPct}
           />
         );
       default:
@@ -169,31 +110,27 @@ export default function OnboardingPage() {
 
   const getStepTitle = () => {
     switch (currentStep) {
-      case 1: return "Choose Your Transformation Path";
-      case 2: return "Your Experience Level";
-      case 3: return "Goal Focus";
-      case 4: return "Gym Setup";
+      case 1: return "Let's Get to Know You";
+      case 2: return "Training Setup";
+      case 3: return "Goals & Session Preferences";
+      case 4: return "Gym Setup & Consent";
       case 5: return "Analyse Your Gym";
-      case 6: return "Session Preferences";
-      case 7: return "App Features";
-      case 8: return "Final Details & Consent";
       default: return "";
     }
   };
 
   const getStepDescription = () => {
     switch (currentStep) {
-      case 1: return "Select the workout structure that best fits your goals";
-      case 2: return "Help us tailor your program to your experience level";
-      case 3: return "What are you primarily trying to achieve?";
-      case 4: return "Let's set up your gym equipment";
-      case 5: return "Upload photos of your gym equipment for the AI to analyse";
-      case 6: return "How long do you prefer your workout sessions to be?";
-      case 7: return "Here's a quick look at what you can do with the app.";
-      case 8: return "Just a few more details to personalise your experience.";
+      case 1: return "Your personal details help us tailor your experience.";
+      case 2: return "Select the workout structure and your experience level.";
+      case 3: return "Tell us what you want to achieve and how long you like to train.";
+      case 4: return "Let's set up your gym equipment and confirm your consent.";
+      case 5: return "Upload photos of your gym equipment for the AI to analyse.";
       default: return "";
     }
   };
+
+  const totalSteps = 5;
 
   return (
     <>
@@ -208,26 +145,21 @@ export default function OnboardingPage() {
 
           <div className="mb-6">
             <div className="flex justify-between items-start">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((step) => (
-                <React.Fragment key={step}>
-                  <div className="flex-shrink-0 text-center">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto ${
-                      currentStep >= step 
-                        ? "bg-primary text-primary-foreground" 
-                        : "bg-muted text-muted-foreground"
-                    }`}>
-                      {step}
+              {Array.from({ length: totalSteps }).map((_, i) => {
+                const step = i + 1;
+                return (
+                  <React.Fragment key={step}>
+                    <div className="flex-shrink-0 text-center">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto ${currentStep >= step ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                        {step}
+                      </div>
                     </div>
-                  </div>
-                  {step < 8 && (
-                    <div className={`flex-grow h-1 mt-4 ${
-                      currentStep > step 
-                        ? "bg-primary" 
-                        : "bg-muted"
-                    }`}></div>
-                  )}
-                </React.Fragment>
-              ))}
+                    {step < totalSteps && (
+                      <div className={`flex-grow h-1 mt-4 ${currentStep > step ? "bg-primary" : "bg-muted"}`}></div>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </div>
           </div>
 
