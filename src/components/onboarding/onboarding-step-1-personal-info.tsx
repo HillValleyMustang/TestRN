@@ -8,6 +8,7 @@ import { Info } from 'lucide-react';
 import { BodyFatInfoModal } from './body-fat-info-modal';
 import { InteractiveSliderInput } from './interactive-slider-input';
 import { cmToFeetAndInches, convertWeight } from '@/lib/unit-conversions';
+import { OnboardingProgress } from './onboarding-progress';
 
 interface OnboardingStep1Props {
   handleNext: () => void;

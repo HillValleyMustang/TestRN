@@ -6,6 +6,7 @@ import { useOnboardingForm } from "@/hooks/use-onboarding-form";
 import { useSession } from "@/components/session-context-provider";
 import { LoadingOverlay } from "@/components/loading-overlay";
 import { OnboardingSummaryModal } from "@/components/onboarding/onboarding-summary-modal";
+import { OnboardingProgress } from "@/components/onboarding/onboarding-progress"; // Import the new progress component
 
 // Import new step components
 import { OnboardingStep1_PersonalInfo } from "@/components/onboarding/onboarding-step-1-personal-info";
@@ -143,25 +144,7 @@ export default function OnboardingPage() {
             </p>
           </header>
 
-          <div className="mb-6">
-            <div className="flex justify-between items-start">
-              {Array.from({ length: totalSteps }).map((_, i) => {
-                const step = i + 1;
-                return (
-                  <React.Fragment key={step}>
-                    <div className="flex-shrink-0 text-center">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto ${currentStep >= step ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-                        {step}
-                      </div>
-                    </div>
-                    {step < totalSteps && (
-                      <div className={`flex-grow h-1 mt-4 ${currentStep > step ? "bg-primary" : "bg-muted"}`}></div>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </div>
-          </div>
+          <OnboardingProgress currentStep={currentStep} totalSteps={totalSteps} />
 
           <Card>
             <CardHeader>
