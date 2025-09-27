@@ -312,8 +312,11 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
                   <div 
-                    className="absolute top-1/2 w-8 h-8 bg-gradient-to-br from-onboarding-primary to-onboarding-primary-light rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-4 border-white ring-2 ring-inset ring-white/30 cursor-pointer transition-transform duration-200 hover:scale-110"
-                    style={{ left: `${getSliderProgress(formData.heightCm, 100, 250)}%` }}
+                    className="absolute top-1/2 w-8 h-8 rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-4 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
+                    style={{ 
+                      left: `${getSliderProgress(formData.heightCm, 100, 250)}%`,
+                      backgroundImage: 'radial-gradient(circle at 30% 30%, hsl(var(--onboarding-primary-light)), hsl(var(--onboarding-primary)))'
+                    }}
                   />
                 </div>
                 <div className="flex justify-between text-xs text-gray-500 mt-2">
@@ -416,13 +419,14 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
                     <div 
-                      className="absolute top-1/2 w-8 h-8 bg-gradient-to-br from-onboarding-primary to-onboarding-primary-light rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-4 border-white ring-2 ring-inset ring-white/30 cursor-pointer transition-transform duration-200 hover:scale-110"
+                      className="absolute top-1/2 w-8 h-8 rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-4 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
                       style={{ 
                         left: `${getSliderProgress(
                           formData.weight, 
                           formData.weightUnit === 'kg' ? 30 : 66, 
                           formData.weightUnit === 'kg' ? 200 : 440
-                        )}%` 
+                        )}%`,
+                        backgroundImage: 'radial-gradient(circle at 30% 30%, hsl(var(--onboarding-primary-light)), hsl(var(--onboarding-primary)))'
                       }}
                     />
                   </div>
@@ -490,8 +494,11 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
                     <div 
-                      className="absolute top-1/2 w-8 h-8 bg-gradient-to-br from-onboarding-primary to-onboarding-primary-light rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-4 border-white ring-2 ring-inset ring-white/30 cursor-pointer transition-transform duration-200 hover:scale-110"
-                      style={{ left: `${getSliderProgress(formData.bodyFatPct || 15, 5, 50)}%` }}
+                      className="absolute top-1/2 w-8 h-8 rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-4 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
+                      style={{ 
+                        left: `${getSliderProgress(formData.bodyFatPct || 15, 5, 50)}%`,
+                        backgroundImage: 'radial-gradient(circle at 30% 30%, hsl(var(--onboarding-primary-light)), hsl(var(--onboarding-primary)))'
+                      }}
                     />
                   </div>
                   <div className="flex justify-between text-xs text-gray-500 mt-2">
