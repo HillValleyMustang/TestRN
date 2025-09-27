@@ -9,11 +9,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { LoadingOverlay } from "@/components/loading-overlay";
 import { OnboardingSummaryModal } from "@/components/onboarding/onboarding-summary-modal";
 import { OnboardingProgress } from "@/components/onboarding/onboarding-progress";
-import { OnboardingStep1_PersonalInfo } from "@/components/onboarding/onboarding-step-1-personal-info";
+import OnboardingStep1 from "@/components/OnboardingStep1"; // Import the new OnboardingStep1
 import { OnboardingStep2_TrainingSetup } from "@/components/onboarding/onboarding-step-2-training-setup";
 import { OnboardingStep3_GoalsAndPreferences } from "@/components/onboarding/onboarding-step-3-goals-and-preferences";
 import { OnboardingStep4_GymSetupAndConsent } from "@/components/onboarding/onboarding-step-4-gym-setup-and-consent";
 import { OnboardingStep5_GymPhotoUpload } from "@/components/onboarding/onboarding-step-5-gym-photo-upload";
+import { FormData as OnboardingStep1FormData } from '@/lib/onboarding-schemas'; // Import FormData type
 
 type OnboardingSummaryData = {
   profile: Tables<'profiles'>;
@@ -30,11 +31,8 @@ export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   
-  // Step 1 State
-  const [fullName, setFullName] = useState('');
-  const [heightCm, setHeightCm] = useState<number | null>(175);
-  const [weightKg, setWeightKg] = useState<number | null>(70);
-  const [bodyFatPct, setBodyFatPct] = useState<number | null>(15);
+  // Step 1 State (now stored after completion)
+  const [step1FormData, setStep1FormData] = useState<OnboardingStep1FormData | null>(null);
 
   // Step 2 State
   const [tPathType, setTPathType] = useState<"ulul" | "ppl" | null>(null);
@@ -64,6 +62,8 @@ export default function OnboardingPage() {
     ppl: { title: "3-Day Push/Pull/Legs (PPL)", pros: ["Logical split by movement pattern", "Allows for high volume per session", "Feels intuitive"], cons: ["Lower frequency per muscle group (once every 5-7 days)", "Missing a day can unbalance the week", "Can be demanding for beginners"], research: ["PPL is effective for building strength and muscle mass by allowing high volume for specific movement patterns.", "Grouping exercises by push, pull, and legs can optimize recovery and performance for each session.", "This split is popular among intermediate to advanced lifters for its structured approach to progressive overload."] }
   };
 
+  const totalSteps = 5; // Moved declaration to the top
+
   const addIdentifiedExercise = useCallback((exercise: Partial<FetchedExerciseDefinition>) => {
     setIdentifiedExercises(prev => {
       if (prev.some(e => e.name === exercise.name)) return prev;
@@ -91,18 +91,23 @@ export default function OnboardingPage() {
   }, []);
 
   const handleSubmit = useCallback(async () => {
-    if (!memoizedSessionUserId) {
-      toast.error("You must be logged in to complete onboarding.");
+    if (!memoizedSessionUserId || !step1FormData) { // Ensure step1FormData is available
+      toast.error("Personal information is missing. Please complete Step 1.");
       return;
     }
     setLoading(true);
 
     try {
       const payload = {
+        // Data from Step 1
+        fullName: step1FormData.fullName,
+        heightCm: step1FormData.heightCm,
+        weightKg: step1FormData.weight, // Use 'weight' from step1FormData
+        bodyFatPct: step1FormData.bodyFatPct,
+        // Data from other steps
         tPathType, experience, goalFocus, preferredMuscles, constraints,
         sessionLength, equipmentMethod, gymName,
         confirmedExercises: identifiedExercises.filter(ex => confirmedExercises.has(ex.name!)),
-        fullName, heightCm, weightKg, bodyFatPct,
       };
 
       const response = await fetch('/api/complete-onboarding', {
@@ -126,18 +131,20 @@ export default function OnboardingPage() {
   }, [
     memoizedSessionUserId, session, router, tPathType, experience, goalFocus, preferredMuscles,
     constraints, sessionLength, equipmentMethod, gymName, identifiedExercises, confirmedExercises,
-    fullName, heightCm, weightKg, bodyFatPct
+    step1FormData, totalSteps // Added totalSteps to dependencies
   ]);
 
-  const handleNext = useCallback(() => {
-    if (currentStep === 4 && equipmentMethod === 'skip') {
+  const handleNext = useCallback((data?: OnboardingStep1FormData) => { // Accept data for step 1
+    if (currentStep === 1 && data) {
+      setStep1FormData(data); // Store step 1 data
+      setCurrentStep(prev => prev + 1);
+    } else if (currentStep === 4 && equipmentMethod === 'skip') {
       handleSubmit();
       return;
-    }
-    if (currentStep < 5) {
+    } else if (currentStep < totalSteps) {
       setCurrentStep(prev => prev + 1);
     }
-  }, [currentStep, equipmentMethod, handleSubmit]);
+  }, [currentStep, equipmentMethod, handleSubmit, totalSteps]);
 
   const handleBack = useCallback(() => {
     if (currentStep > 1) {
@@ -158,12 +165,9 @@ export default function OnboardingPage() {
     switch (currentStep) {
       case 1:
         return (
-          <OnboardingStep1_PersonalInfo
-            handleNext={handleNext}
-            fullName={fullName} setFullName={setFullName}
-            heightCm={heightCm} setHeightCm={setHeightCm}
-            weightKg={weightKg} setWeightKg={setWeightKg}
-            bodyFatPct={bodyFatPct} setBodyFatPct={setBodyFatPct}
+          <OnboardingStep1
+            onNext={handleNext}
+            onBack={handleBack}
           />
         );
       case 2:
@@ -235,30 +239,34 @@ export default function OnboardingPage() {
     }
   };
 
-  const totalSteps = 5;
-
   return (
     <>
       <div className="min-h-screen bg-background p-2 sm:p-4">
         <div className="max-w-2xl mx-auto">
-          <header className="mb-8 text-center">
-            <h1 className="text-3xl font-bold">Welcome to Your Fitness Journey</h1>
-            <p className="text-muted-foreground mt-2">
-              Let's set up your personalised Transformation Path
-            </p>
-          </header>
+          {currentStep > 1 && ( // Only show OnboardingProgress for steps > 1
+            <header className="mb-8 text-center">
+              <h1 className="text-3xl font-bold">Welcome to Your Fitness Journey</h1>
+              <p className="text-muted-foreground mt-2">
+                Let's set up your personalised Transformation Path
+              </p>
+            </header>
+          )}
 
-          <OnboardingProgress currentStep={currentStep} totalSteps={totalSteps} />
+          {currentStep > 1 && <OnboardingProgress currentStep={currentStep} totalSteps={totalSteps} />}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>{getStepTitle()}</CardTitle>
-              <CardDescription>{getStepDescription()}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {renderStepContent()}
-            </CardContent>
-          </Card>
+          {currentStep === 1 ? ( // Render OnboardingStep1 directly for step 1
+            renderStepContent()
+          ) : ( // Wrap other steps in Card
+            <Card>
+              <CardHeader>
+                <CardTitle>{getStepTitle()}</CardTitle>
+                <CardDescription>{getStepDescription()}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {renderStepContent()}
+              </CardContent>
+            </Card>
+          )}
         </div>
         <LoadingOverlay 
           isOpen={loading}
