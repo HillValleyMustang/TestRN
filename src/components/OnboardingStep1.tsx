@@ -6,7 +6,18 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { z } from 'zod'
-import { onboardingStep1Schema, FormData } from '@/lib/onboarding-schemas'; // Import from new schema file
+
+// Zod Schema
+export const onboardingStep1Schema = z.object({
+  fullName: z.string().min(1, "Your name is required."),
+  heightCm: z.number().int().positive().min(100).max(250),
+  weight: z.number().int().positive().min(30).max(200),
+  bodyFatPct: z.number().int().min(5).max(50).nullable(),
+  heightUnit: z.enum(['cm', 'ft']),
+  weightUnit: z.enum(['kg', 'lbs'])
+})
+
+export type FormData = z.infer<typeof onboardingStep1Schema>
 
 interface OnboardingStep1Props {
   onNext: (data: FormData) => void
@@ -410,7 +421,9 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                     />
                     <div 
                       className="absolute top-1/2 w-7 h-7 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-3 border-white cursor-pointer transition-transform duration-200 hover:scale-110"
-                      style={{ left: `${getSliderProgress(formData.weight, 
+                      style={{ 
+                        left: `${getSliderProgress(
+                          formData.weight, 
                           formData.weightUnit === 'kg' ? 30 : 66, 
                           formData.weightUnit === 'kg' ? 200 : 440
                         )}%` 

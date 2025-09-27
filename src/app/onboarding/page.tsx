@@ -9,12 +9,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { LoadingOverlay } from "@/components/loading-overlay";
 import { OnboardingSummaryModal } from "@/components/onboarding/onboarding-summary-modal";
 import { OnboardingProgress } from "@/components/onboarding/onboarding-progress";
-import OnboardingStep1 from "@/components/OnboardingStep1"; // Import the new OnboardingStep1
+import OnboardingStep1, { FormData as OnboardingStep1FormData } from "@/components/OnboardingStep1"; // Import FormData from OnboardingStep1
 import { OnboardingStep2_TrainingSetup } from "@/components/onboarding/onboarding-step-2-training-setup";
 import { OnboardingStep3_GoalsAndPreferences } from "@/components/onboarding/onboarding-step-3-goals-and-preferences";
 import { OnboardingStep4_GymSetupAndConsent } from "@/components/onboarding/onboarding-step-4-gym-setup-and-consent";
 import { OnboardingStep5_GymPhotoUpload } from "@/components/onboarding/onboarding-step-5-gym-photo-upload";
-import { FormData as OnboardingStep1FormData } from '@/lib/onboarding-schemas'; // Import FormData type
 
 type OnboardingSummaryData = {
   profile: Tables<'profiles'>;
