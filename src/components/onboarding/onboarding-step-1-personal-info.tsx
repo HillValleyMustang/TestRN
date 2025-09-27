@@ -8,7 +8,6 @@ import { Info } from 'lucide-react';
 import { BodyFatInfoModal } from './body-fat-info-modal';
 import { InteractiveSliderInput } from './interactive-slider-input';
 import { cmToFeetAndInches, convertWeight } from '@/lib/unit-conversions';
-import { OnboardingProgress } from './onboarding-progress';
 
 interface OnboardingStep1Props {
   handleNext: () => void;
@@ -56,10 +55,10 @@ export const OnboardingStep1_PersonalInfo = ({
     <>
       <div className="space-y-4">
         <div>
-          <Label htmlFor="fullName" className="text-sm font-medium">Preferred Name</Label>
+          <Label htmlFor="fullName" className="text-sm font-medium">What should we call you?</Label>
           <Input 
             id="fullName" 
-            placeholder="e.g., John Doe" 
+            placeholder="Enter your name" 
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             required
@@ -69,7 +68,7 @@ export const OnboardingStep1_PersonalInfo = ({
         
         <InteractiveSliderInput
           id="heightCm"
-          label="Height (cm)"
+          label="How tall are you?"
           value={heightCm}
           onValueChange={setHeightCm}
           unit="cm"
@@ -79,35 +78,37 @@ export const OnboardingStep1_PersonalInfo = ({
           step={1}
         />
 
-        <InteractiveSliderInput
-          id="weightKg"
-          label="Weight (kg)"
-          value={weightKg}
-          onValueChange={setWeightKg}
-          unit="kg"
-          subtitle={weightSubtitle}
-          min={40}
-          max={150}
-          step={1}
-        />
-
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Label htmlFor="bodyFatPct" className="text-sm font-medium">Body Fat (%) (Optional)</Label>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsBodyFatInfoModalOpen(true)}>
-              <Info className="h-4 w-4 text-muted-foreground" />
-            </Button>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <InteractiveSliderInput
-            id="bodyFatPct"
-            value={bodyFatPct}
-            onValueChange={setBodyFatPct}
-            unit="%"
-            subtitle={bodyFatSubtitle}
-            min={5}
-            max={50}
+            id="weightKg"
+            label="Current weight?"
+            value={weightKg}
+            onValueChange={setWeightKg}
+            unit="kg"
+            subtitle={weightSubtitle}
+            min={40}
+            max={150}
             step={1}
           />
+
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Label htmlFor="bodyFatPct" className="text-sm font-medium">Body Fat % <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsBodyFatInfoModalOpen(true)}>
+                <Info className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            </div>
+            <InteractiveSliderInput
+              id="bodyFatPct"
+              value={bodyFatPct}
+              onValueChange={setBodyFatPct}
+              unit="%"
+              subtitle={bodyFatSubtitle}
+              min={5}
+              max={50}
+              step={1}
+            />
+          </div>
         </div>
       </div>
       
