@@ -249,6 +249,57 @@ export type Database = {
           },
         ];
       };
+      media_posts: {
+        Row: {
+          id: string;
+          title: string;
+          description: string | null;
+          youtube_video_id: string;
+          creator_name: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          description?: string | null;
+          youtube_video_id: string;
+          creator_name?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          description?: string | null;
+          youtube_video_id?: string;
+          creator_name?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      notifications: {
+        Row: {
+          created_at: string | null;
+          id: string;
+          message: string;
+          title: string;
+          type: string;
+        };
+        Insert: {
+          created_at?: string | null;
+          id?: string;
+          message: string;
+          title: string;
+          type?: string;
+        };
+        Update: {
+          created_at?: string | null;
+          id?: string;
+          message?: string;
+          title?: string;
+          type?: string;
+        };
+        Relationships: [];
+      };
       progress_photos: {
         Row: {
           id: string;

@@ -31,6 +31,7 @@ import { Button } from '@/components/ui/button';
 import { PhotoCaptureFlow } from '@/components/profile/photo-journey/photo-capture-flow';
 import { MobileNavigation } from '@/components/profile/mobile-navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { MediaFeedScreen } from '@/components/media/media-feed-screen'; // NEW: Import MediaFeedScreen
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
@@ -441,16 +442,8 @@ export default function ProfilePage() {
               </div>
 
               <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
-                <Card className="mt-6">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Film className="h-5 w-5" /> Media
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-center text-muted-foreground py-16">
-                    <p>Media gallery coming soon!</p>
-                  </CardContent>
-                </Card>
+                {/* Replaced placeholder with MediaFeedScreen */}
+                <MediaFeedScreen />
               </div>
 
               <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
