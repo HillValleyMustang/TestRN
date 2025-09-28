@@ -254,7 +254,7 @@ export type Database = {
           id: string;
           title: string;
           description: string | null;
-          youtube_video_id: string;
+          video_url: string; // Changed from youtube_video_id
           creator_name: string | null;
           created_at: string;
         };
@@ -262,7 +262,7 @@ export type Database = {
           id?: string;
           title: string;
           description?: string | null;
-          youtube_video_id: string;
+          video_url: string; // Changed from youtube_video_id
           creator_name?: string | null;
           created_at?: string;
         };
@@ -270,7 +270,7 @@ export type Database = {
           id?: string;
           title?: string;
           description?: string | null;
-          youtube_video_id?: string;
+          video_url?: string; // Changed from youtube_video_id
           creator_name?: string | null;
           created_at?: string;
         };
@@ -408,7 +408,6 @@ export type Database = {
           preferred_distance_unit?: string | null;
           preferred_muscles?: string | null;
           preferred_session_length?: string | null;
-          preferred_weight_unit?: string | null;
           primary_goal?: string | null;
           programme_type?: string | null;
           rolling_workout_status?: string | null;

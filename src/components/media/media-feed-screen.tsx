@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'; // Import Button component
 type MediaPost = Tables<'media_posts'>;
 
 export const MediaFeedScreen = () => {
-  const { session } = useSession();
+  const { session, supabase } = useSession(); // Use the supabase client from session context
   const [mediaPosts, setMediaPosts] = useState<MediaPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,55 +25,45 @@ export const MediaFeedScreen = () => {
   const fetchMediaPosts = useCallback(async () => {
     console.log("[MediaFeedScreen] fetchMediaPosts called. Session status check initiated.");
     if (!session) {
-      console.warn("[MediaFeedScreen] WARNING: Session is NULL. Cannot proceed with API fetch.");
+      console.warn("[MediaFeedScreen] WARNING: Session is NULL. Cannot proceed with Supabase fetch.");
       setLoading(false);
       return;
     }
-    console.log("[MediaFeedScreen] INFO: Session is VALID. Proceeding with API fetch.");
-    console.log("[MediaFeedScreen] Session object details:", session);
-    console.log("[MediaFeedScreen] Access token details:", session.access_token);
+    console.log("[MediaFeedScreen] INFO: Session is VALID. Proceeding with Supabase fetch.");
 
     setLoading(true);
     setError(null);
-    console.log("[MediaFeedScreen] Attempting to fetch media posts...");
-    console.log("[MediaFeedScreen] Session object:", session);
-    console.log("[MediaFeedScreen] Access token:", session.access_token);
+    console.log("[MediaFeedScreen] Attempting to fetch media posts directly from Supabase...");
 
     try {
-      const response = await fetch('/api/media', {
-        method: 'GET', // Explicitly set method
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        cache: 'no-store', // Force no caching
-      });
+      const { data, error: fetchError } = await supabase
+        .from('media_posts')
+        .select('*')
+        .order('created_at', { ascending: false }); // Order by most recent first
 
-      const data = await response.json();
-      console.log("[MediaFeedScreen] API response data:", data);
-
-      if (!response.ok) {
-        console.error("[MediaFeedScreen] API response not OK:", data.error || 'Failed to fetch media posts.');
-        throw new Error(data.error || 'Failed to fetch media posts.');
+      if (fetchError) {
+        console.error("[MediaFeedScreen] Supabase fetch error:", fetchError);
+        throw new Error(fetchError.message || 'Failed to fetch media posts directly from Supabase.');
       }
 
-      setMediaPosts(data);
-      console.log("[MediaFeedScreen] Successfully fetched media posts:", data);
+      setMediaPosts(data || []);
+      console.log("[MediaFeedScreen] Successfully fetched media posts directly from Supabase:", data);
     } catch (err: any) {
-      console.error("[MediaFeedScreen] Error fetching media posts:", err);
+      console.error("[MediaFeedScreen] Error fetching media posts directly from Supabase:", err);
       setError(err.message || "Failed to load media library.");
       toast.error(err.message || "Failed to load media library.");
     } finally {
       setLoading(false);
       console.log("[MediaFeedScreen] Fetching complete. Loading:", false);
     }
-  }, [session]);
+  }, [session, supabase]); // Depend on session and supabase
 
   useEffect(() => {
     fetchMediaPosts();
   }, [fetchMediaPosts]);
 
   const handlePostClick = (post: MediaPost) => {
-    setSelectedVideo({ youtubeVideoId: post.youtube_video_id, title: post.title });
+    setSelectedVideo({ youtubeVideoId: post.video_url, title: post.title }); // Pass video_url directly
     setIsVideoPlayerOpen(true);
   };
 

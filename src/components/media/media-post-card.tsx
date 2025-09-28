@@ -14,8 +14,17 @@ interface MediaPostCardProps {
   className?: string;
 }
 
+// Helper function to extract YouTube video ID from various URL formats
+const getYouTubeVideoId = (url: string | null | undefined): string | null => {
+  if (!url) return null;
+  const regExp = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([\w-]{11})(?:\S+)?/;
+  const match = url.match(regExp);
+  return match && match[1] ? match[1] : null;
+};
+
 export const MediaPostCard = ({ post, onClick, className }: MediaPostCardProps) => {
-  const thumbnailUrl = `https://img.youtube.com/vi/${post.youtube_video_id}/0.jpg`;
+  const youtubeVideoId = getYouTubeVideoId(post.video_url); // Extract ID from video_url
+  const thumbnailUrl = youtubeVideoId ? `https://img.youtube.com/vi/${youtubeVideoId}/0.jpg` : "/placeholder-video.jpg";
 
   return (
     <Card
