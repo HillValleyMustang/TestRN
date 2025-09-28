@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Film } from 'lucide-react';
+import { Loader2, Film, RefreshCw } from 'lucide-react';
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { Tables } from '@/types/supabase';
 import { MediaPostCard } from './media-post-card';
-import { VideoPlayerScreen } from './video-player-screen'; // Import the new VideoPlayerScreen
+import { VideoPlayerScreen } from './video-player-screen';
+import { Button } from '@/components/ui/button'; // Import Button component
 
 type MediaPost = Tables<'media_posts'>;
 
@@ -18,44 +19,43 @@ export const MediaFeedScreen = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // State for VideoPlayerScreen
   const [isVideoPlayerOpen, setIsVideoPlayerOpen] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<{ youtubeVideoId: string; title: string } | null>(null);
 
-  useEffect(() => {
-    const fetchMediaPosts = async () => {
-      if (!session) {
-        setLoading(false);
-        return;
+  const fetchMediaPosts = useCallback(async () => {
+    if (!session) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/media', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch media posts.');
       }
 
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fetch('/api/media', {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to fetch media posts.');
-        }
-
-        setMediaPosts(data);
-      } catch (err: any) {
-        console.error("Error fetching media posts:", err);
-        setError(err.message || "Failed to load media library.");
-        toast.error(err.message || "Failed to load media library.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMediaPosts();
+      setMediaPosts(data);
+    } catch (err: any) {
+      console.error("Error fetching media posts:", err);
+      setError(err.message || "Failed to load media library.");
+      toast.error(err.message || "Failed to load media library.");
+    } finally {
+      setLoading(false);
+    }
   }, [session]);
+
+  useEffect(() => {
+    fetchMediaPosts();
+  }, [fetchMediaPosts]);
 
   const handlePostClick = (post: MediaPost) => {
     setSelectedVideo({ youtubeVideoId: post.youtube_video_id, title: post.title });
@@ -65,10 +65,14 @@ export const MediaFeedScreen = () => {
   return (
     <>
       <Card className="mt-6">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="flex items-center gap-2">
             <Film className="h-5 w-5" /> Media Library
           </CardTitle>
+          <Button variant="outline" size="sm" onClick={fetchMediaPosts} disabled={loading}>
+            <RefreshCw className={loading ? "h-4 w-4 mr-2 animate-spin" : "h-4 w-4 mr-2"} />
+            Refresh
+          </Button>
         </CardHeader>
         <CardContent>
           {loading ? (
