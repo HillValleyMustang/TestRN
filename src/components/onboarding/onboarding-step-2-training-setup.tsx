@@ -95,9 +95,11 @@ export const OnboardingStep2_TrainingSetup = ({
             <Card
               key={option.id}
               className={cn(
-                "cursor-pointer transition-all duration-200 hover:shadow-md border-2",
+                "cursor-pointer transition-all duration-200 hover:shadow-md border-2 relative overflow-hidden",
+                "before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-onboarding-primary before:scale-x-0 before:origin-left before:transition-transform before:duration-300",
+                "hover:before:scale-x-100",
                 tPathType === option.id
-                  ? "border-onboarding-primary shadow-lg"
+                  ? "border-onboarding-primary shadow-lg before:scale-x-100"
                   : "border-border hover:border-onboarding-primary/50"
               )}
               onClick={() => setTPathType(option.id)}
@@ -183,9 +185,11 @@ export const OnboardingStep2_TrainingSetup = ({
             <Card
               key={option.id}
               className={cn(
-                "cursor-pointer transition-all duration-200 hover:shadow-md border-2",
+                "cursor-pointer transition-all duration-200 hover:shadow-md border-2 relative overflow-hidden",
+                "before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-onboarding-primary before:scale-x-0 before:origin-left before:transition-transform before:duration-300",
+                "hover:before:scale-x-100",
                 experience === option.id
-                  ? "border-onboarding-primary shadow-lg"
+                  ? "border-onboarding-primary shadow-lg before:scale-x-100"
                   : "border-border hover:border-onboarding-primary/50"
               )}
               onClick={() => setExperience(option.id)}
