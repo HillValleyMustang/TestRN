@@ -23,18 +23,21 @@ export const MediaFeedScreen = () => {
   const [selectedVideo, setSelectedVideo] = useState<{ youtubeVideoId: string; title: string } | null>(null);
 
   const fetchMediaPosts = useCallback(async () => {
-    console.log("[MediaFeedScreen] fetchMediaPosts called."); // NEW LOG
+    console.log("[MediaFeedScreen] fetchMediaPosts called. Session status check initiated.");
     if (!session) {
-      console.log("[MediaFeedScreen] Session is null, skipping fetch."); // NEW LOG
+      console.warn("[MediaFeedScreen] WARNING: Session is NULL. Cannot proceed with API fetch.");
       setLoading(false);
       return;
     }
+    console.log("[MediaFeedScreen] INFO: Session is VALID. Proceeding with API fetch.");
+    console.log("[MediaFeedScreen] Session object details:", session);
+    console.log("[MediaFeedScreen] Access token details:", session.access_token);
 
     setLoading(true);
     setError(null);
     console.log("[MediaFeedScreen] Attempting to fetch media posts...");
-    console.log("[MediaFeedScreen] Session object:", session); // NEW LOG
-    console.log("[MediaFeedScreen] Access token:", session.access_token); // NEW LOG
+    console.log("[MediaFeedScreen] Session object:", session);
+    console.log("[MediaFeedScreen] Access token:", session.access_token);
 
     try {
       const response = await fetch('/api/media', {
