@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
-import { LayoutGrid, BarChart3, Camera, Film, Users, Settings } from 'lucide-react';
+// Removed Lucide React imports as we are switching to emojis
+// import { LayoutGrid, BarChart3, Camera, Film, Users, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils'; // Assuming cn utility is available
 
 interface MobileNavigationProps {
@@ -11,12 +12,12 @@ interface MobileNavigationProps {
 }
 
 const pages = [
-  { id: 'overview', icon: LayoutGrid, label: 'Overview' },
-  { id: 'stats', icon: BarChart3, label: 'Stats' },
-  { id: 'photo', icon: Camera, label: 'Photo' },
-  { id: 'media', icon: Film, label: 'Media' },
-  { id: 'social', icon: Users, label: 'Social' },
-  { id: 'settings', icon: Settings, label: 'Settings' }
+  { id: 'overview', icon: '📊', label: 'Overview' },
+  { id: 'stats', icon: '📈', label: 'Stats' },
+  { id: 'photo', icon: '📸', label: 'Photo' },
+  { id: 'media', icon: '🎬', label: 'Media' },
+  { id: 'social', icon: '👥', label: 'Social' },
+  { id: 'settings', icon: '⚙️', label: 'Settings' }
 ];
 
 export const MobileNavigation = ({ onPageChange, initialPage = 'overview', className }: MobileNavigationProps) => {
@@ -86,7 +87,7 @@ export const MobileNavigation = ({ onPageChange, initialPage = 'overview', class
     >
       <nav className="flex justify-between items-center p-1 gap-0.5"> {/* Minimal padding, tight spacing */}
         {pages.map((page) => {
-          const IconComponent = page.icon;
+          // const IconComponent = page.icon; // No longer a component, now a string
           const isActive = currentPage === page.id;
           return (
             <button
@@ -108,16 +109,17 @@ export const MobileNavigation = ({ onPageChange, initialPage = 'overview', class
                 )}
               />
               
-              {/* Icon */}
-              <IconComponent 
+              {/* Icon - now rendering emoji directly */}
+              <span 
                 className={cn(
-                  "h-5 w-5 mb-1 transition-all duration-300", // Icon size
+                  "text-xl mb-1 transition-all duration-300", // Adjusted size for emojis
                   isActive 
                     ? 'opacity-100 scale-110' 
                     : 'opacity-80 scale-100'
                 )}
-                strokeWidth={isActive ? 2.5 : 2} // Dynamic stroke width for active icon
-              />
+              >
+                {page.icon}
+              </span>
               
               {/* Label */}
               <span 
