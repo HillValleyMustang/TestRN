@@ -27,7 +27,7 @@ export const ProfileNavMenu = ({ activeTab, onTabChange }: ProfileNavMenuProps) 
   };
 
   return (
-    <div className="bg-card border border-border rounded-xl shadow-lg">
+    <div className="w-full bg-card border border-border rounded-xl shadow-sm mb-6">
       <nav className="flex justify-between items-center p-1 gap-0.5">
         {pages.map((page) => {
           const Icon = page.icon;
@@ -37,25 +37,33 @@ export const ProfileNavMenu = ({ activeTab, onTabChange }: ProfileNavMenuProps) 
               key={page.id}
               onClick={() => handleNavClick(page.id)}
               className={cn(
-                "relative flex flex-col items-center justify-center p-1 rounded-lg transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md active:scale-95 flex-1",
+                "relative flex flex-col items-center justify-center py-1 px-0 rounded-lg transition-all duration-300",
+                "hover:-translate-y-0.5 active:scale-95 flex-1 min-h-[50px]",
                 isActive
-                  ? 'bg-muted text-foreground transform -translate-y-1 shadow-lg border-2 border-border'
+                  ? 'bg-muted text-foreground font-semibold'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
               )}
-              style={{ minHeight: '60px' }}
             >
+              {/* Top border indicator - black */}
               <div 
-                className="absolute top-0 left-0 w-full h-1 bg-foreground rounded-t-lg transition-transform duration-400"
-                style={{
-                  transform: isActive ? 'translateX(0)' : 'translateX(-100%)'
-                }}
+                className={cn(
+                  "absolute top-0 left-0 w-full h-0.5 bg-foreground rounded-t-xl transition-transform duration-300 ease-out",
+                  isActive ? 'scale-x-100' : 'scale-x-0'
+                )}
               />
               
+              {/* Icon */}
               <Icon 
-                className="w-5 h-5 mb-1 transition-all duration-300"
+                className={cn(
+                  "h-5 w-5 mb-1 transition-all duration-300",
+                  isActive 
+                    ? 'opacity-100 scale-110' 
+                    : 'opacity-80 scale-100'
+                )}
                 strokeWidth={isActive ? 2.5 : 2}
               />
               
+              {/* Label */}
               <span 
                 className={cn(
                   "text-xs font-semibold leading-tight text-center transition-all duration-300",
