@@ -7,6 +7,7 @@ import { Loader2, Film } from 'lucide-react';
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { Tables } from '@/types/supabase';
+import { MediaPostCard } from './media-post-card'; // Import the new component
 
 type MediaPost = Tables<'media_posts'>;
 
@@ -51,6 +52,12 @@ export const MediaFeedScreen = () => {
     fetchMediaPosts();
   }, [session]);
 
+  const handlePostClick = (post: MediaPost) => {
+    // For now, just log the click. In a later step, we might open a video player.
+    console.log("Clicked on post:", post.title);
+    toast.info(`Clicked on: ${post.title}`);
+  };
+
   return (
     <Card className="mt-6">
       <CardHeader>
@@ -73,17 +80,9 @@ export const MediaFeedScreen = () => {
           </div>
         ) : (
           <ScrollArea className="h-[500px] pr-4">
-            <div className="space-y-4">
-              {/* Placeholder for individual video posts */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {mediaPosts.map((post) => (
-                <div key={post.id} className="border rounded-md p-4">
-                  <h3 className="font-semibold text-lg">{post.title}</h3>
-                  {post.description && <p className="text-sm text-muted-foreground">{post.description}</p>}
-                  {/* You'll add the actual video embed here in a later step */}
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    By {post.creator_name || 'Unknown'} • {new Date(post.created_at).toLocaleDateString()}
-                  </div>
-                </div>
+                <MediaPostCard key={post.id} post={post} onClick={handlePostClick} />
               ))}
             </div>
           </ScrollArea>
