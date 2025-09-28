@@ -263,7 +263,7 @@ export default function OnboardingPage() {
         <LoadingOverlay 
           isOpen={loading}
           title="Completing Setup..."
-          description="Finalizing your profile details."
+          description="Finalising your profile details."
         />
       </div>
       <OnboardingSummaryModal

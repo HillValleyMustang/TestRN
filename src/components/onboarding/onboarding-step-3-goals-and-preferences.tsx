@@ -41,10 +41,9 @@ export const OnboardingStep3_GoalsAndPreferences = ({
   const selectedMusclesArray = preferredMuscles ? preferredMuscles.split(',').map(m => m.trim()) : [];
 
   const goals = [
-    { id: 'muscle_tone', icon: '💪', text: 'Build Muscle & Tone' },
-    { id: 'general_fitness', icon: '🏃', text: 'General Fitness' },
-    { id: 'strength', icon: '🏋️', text: 'Build Strength' },
-    { id: 'mobility', icon: '🧘', text: 'Mobility' }
+    { id: 'muscle_gain', icon: '💪', text: 'Muscle Gain' },
+    { id: 'fat_loss', icon: '🏃', text: 'Fat Loss' },
+    { id: 'strength_increase', icon: '🏋️', text: 'Strength Increase' },
   ];
 
   const muscles = [
