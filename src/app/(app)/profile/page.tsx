@@ -29,7 +29,7 @@ import { PhotoJourneyTab } from '@/components/profile/photo-journey/photo-journe
 import { UploadPhotoDialog } from '@/components/profile/photo-journey/upload-photo-dialog';
 import { Button } from '@/components/ui/button';
 import { PhotoCaptureFlow } from '@/components/profile/photo-journey/photo-capture-flow';
-import { MobileNavigation } from '@/components/profile/mobile-navigation'; // Updated import
+import { MobileNavigation } from '@/components/profile/mobile-navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 type Profile = ProfileType;
@@ -404,9 +404,14 @@ export default function ProfilePage() {
             <span className="text-muted-foreground text-sm">Member since {new Date(profile.created_at!).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
           </div>
         </div>
+      </div>
 
+      {/* NEW: Full-width container for MobileNavigation */}
+      <div className="w-full px-2 sm:px-4"> {/* Apply page-level padding here */}
         <MobileNavigation currentPage={activeTab} onPageChange={handleTabChange} />
-        
+      </div>
+      
+      <div className="p-2 sm:p-4 max-w-4xl mx-auto"> {/* This div now contains the carousel and other content */}
         <div className="relative">
           <div className="overflow-hidden" ref={emblaRef}>
             <div className="flex">
