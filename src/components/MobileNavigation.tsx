@@ -148,28 +148,20 @@ export const MobileNavigation = ({ onPageChange, initialPage = 'overview', class
               key={page.id}
               onClick={() => handleNavClick(page.id)}
               className={cn(
-                "relative flex flex-col items-center justify-center py-1 px-0 rounded-lg", // Minimal padding, app radius
+                "relative flex flex-col items-center justify-center py-1 px-0 rounded-xl", // Minimal padding, app radius
                 "transition-all duration-300 hover:-translate-y-0.5 active:scale-95 flex-1 min-h-[60px]", // Max width, min height
                 isActive
-                  ? 'bg-muted text-foreground font-semibold' // Active state background and text
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50' // Inactive state
+                  ? 'bg-muted text-foreground font-semibold border-t-2 border-foreground rounded-t-xl' // Active state background, text, and top border
+                  : 'bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50 border-2 border-transparent' // Inactive state
               )}
             >
-              {/* Top border indicator - black accent */}
-              <div 
-                className={cn(
-                  "absolute top-0 left-0 w-full h-0.5 bg-foreground rounded-t-xl transition-transform duration-300 ease-out",
-                  isActive ? 'scale-x-100' : 'scale-x-0'
-                )}
-              />
-              
               {/* Icon */}
               <div 
                 className={cn(
                   "mb-1 transition-all duration-300", // Wrapper div for icon
                   isActive 
-                    ? 'opacity-100 scale-110' 
-                    : 'opacity-80 scale-100'
+                    ? 'opacity-100 scale-110 text-foreground [&>svg]:stroke-[2.5px]' // Active icon: black, bolder stroke
+                    : 'opacity-80 scale-100 text-muted-foreground [&>svg]:stroke-[2px]' // Inactive icon: gray, normal stroke
                 )}
               >
                 {page.icon}
