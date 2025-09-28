@@ -23,8 +23,9 @@ export const MediaFeedScreen = () => {
   const [selectedVideo, setSelectedVideo] = useState<{ youtubeVideoId: string; title: string } | null>(null);
 
   const fetchMediaPosts = useCallback(async () => {
+    console.log("[MediaFeedScreen] fetchMediaPosts called."); // NEW LOG
     if (!session) {
-      console.log("[MediaFeedScreen] Not logged in, skipping fetch.");
+      console.log("[MediaFeedScreen] Session is null, skipping fetch."); // NEW LOG
       setLoading(false);
       return;
     }
@@ -32,6 +33,9 @@ export const MediaFeedScreen = () => {
     setLoading(true);
     setError(null);
     console.log("[MediaFeedScreen] Attempting to fetch media posts...");
+    console.log("[MediaFeedScreen] Session object:", session); // NEW LOG
+    console.log("[MediaFeedScreen] Access token:", session.access_token); // NEW LOG
+
     try {
       const response = await fetch('/api/media', {
         method: 'GET', // Explicitly set method
