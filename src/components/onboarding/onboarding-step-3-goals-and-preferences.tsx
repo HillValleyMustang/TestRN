@@ -54,7 +54,7 @@ export const OnboardingStep3_GoalsAndPreferences = ({
   const timeOptions = [
     { id: '15-30', label: 'Quick Sessions', desc: 'Short & efficient', fill: 25 },
     { id: '30-45', label: 'Balanced', desc: 'Perfect middle ground', fill: 50 },
-    { id: '45-60', label: 'Full Workouts', desc: 'Comprehensive training', fill: 75 },
+    { id: '45-60', label: 'Full Workouts', desc: 'Complete training', fill: 75 }, // Changed to 'Complete training'
     { id: '60-90', label: 'Extended', desc: 'Maximum dedication', fill: 100 }
   ];
 
@@ -233,12 +233,15 @@ export const OnboardingStep3_GoalsAndPreferences = ({
                 <div className={cn(
                   `relative z-10 text-xs font-medium transition-colors duration-300`,
                   sessionLength === option.id ? 'text-white' : 'text-slate-500',
-                  option.id === '45-60' && 'text-center' // Centered for 'comprehensive training'
+                  option.id === '45-60' && 'text-center' // Centered for 'Complete training'
                 )}>
                   {option.desc}
                 </div>
               </div>
             ))}
+          </div>
+          <div className="text-xs text-slate-500 italic text-left mt-3"> {/* Left aligned */}
+            You can change this later in your Profile
           </div>
         </div>
 
