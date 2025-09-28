@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useSession } from '@/components/session-context-provider';
+import { useSession } from "@/components/session-context-provider";
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,7 +29,7 @@ import { PhotoJourneyTab } from '@/components/profile/photo-journey/photo-journe
 import { UploadPhotoDialog } from '@/components/profile/photo-journey/upload-photo-dialog';
 import { Button } from '@/components/ui/button';
 import { PhotoCaptureFlow } from '@/components/profile/photo-journey/photo-capture-flow';
-import { ProfileNavMenu } from '@/components/profile/profile-nav-menu';
+import { MobileNavigation } from '@/components/profile/mobile-navigation'; // Updated import
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 type Profile = ProfileType;
@@ -405,7 +405,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <ProfileNavMenu activeTab={activeTab} onTabChange={handleTabChange} />
+        <MobileNavigation activeTab={activeTab} onTabChange={handleTabChange} />
         
         <div className="relative">
           <div className="overflow-hidden" ref={emblaRef}>
