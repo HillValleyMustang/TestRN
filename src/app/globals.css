@@ -41,6 +41,9 @@
     --action-primary-light: 217 91% 70%; /* Lighter shade for gradient */
     --action-primary-foreground: 0 0% 100%;
 
+    --success: 142.1 76.2% 36.3%; /* NEW: A green color for success states */
+    --success-foreground: 0 0% 98%; /* NEW: Foreground for success */
+
     --border: 0 0% 89.8%;
 
     --input: 0 0% 89.8%;
@@ -161,6 +164,9 @@
     --action-primary-light: 217 91% 70%;
     --action-primary-foreground: 0 0% 100%;
 
+    --success: 142.1 76.2% 36.3%; /* NEW: A green color for success states */
+    --success-foreground: 0 0% 98%; /* NEW: Foreground for success */
+
     --border: 0 0% 14.9%;
 
     --input: 0 0% 14.9%;
@@ -193,11 +199,6 @@
     --sidebar-border: 240 3.7% 15.9%;
 
     --sidebar-ring: 217.2 91.2% 59.8%;
-
-    /* New Onboarding Theme Colors (Dark) */
-    --onboarding-primary: 220 68% 52%;
-    --onboarding-primary-light: 220 68% 62%;
-    --onboarding-primary-faint: 220 68% 10%;
 
     /* Dark mode adjustments for new workout colors - Directly from 90s Retro Palette */
     --workout-upper-body-a: 220 68% 32%; /* #1e3a8a */

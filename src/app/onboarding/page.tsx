@@ -56,11 +56,6 @@ export default function OnboardingPage() {
   const [summaryData, setSummaryData] = useState<OnboardingSummaryData | null>(null);
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
 
-  const tPathDescriptions = {
-    ulul: { title: "4-Day Upper/Lower (ULUL)", pros: ["Higher frequency per muscle group (2x/week)", "Good for hypertrophy", "Flexible scheduling"], cons: ["Sessions can be longer", "Potential for upper body fatigue", "Less focus on single 'big lift' days"], research: ["Studies show that training muscle groups twice a week can lead to greater muscle growth than once a week.", "Allows for more recovery time for individual muscle groups compared to full-body splits.", "Provides a balanced approach to training, hitting all major muscle groups effectively."] },
-    ppl: { title: "3-Day Push/Pull/Legs (PPL)", pros: ["Logical split by movement pattern", "Allows for high volume per session", "Feels intuitive"], cons: ["Lower frequency per muscle group (once every 5-7 days)", "Missing a day can unbalance the week", "Can be demanding for beginners"], research: ["PPL is effective for building strength and muscle mass by allowing high volume for specific movement patterns.", "Grouping exercises by push, pull, and legs can optimize recovery and performance for each session.", "This split is popular among intermediate to advanced lifters for its structured approach to progressive overload."] }
-  };
-
   const totalSteps = 5; // Moved declaration to the top
 
   const addIdentifiedExercise = useCallback((exercise: Partial<FetchedExerciseDefinition>) => {
@@ -175,7 +170,6 @@ export default function OnboardingPage() {
             tPathType={tPathType} setTPathType={setTPathType}
             experience={experience} setExperience={setExperience}
             handleNext={handleNext} handleBack={handleBack}
-            tPathDescriptions={tPathDescriptions}
           />
         );
       case 3:
