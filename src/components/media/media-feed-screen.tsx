@@ -34,9 +34,11 @@ export const MediaFeedScreen = () => {
     console.log("[MediaFeedScreen] Attempting to fetch media posts...");
     try {
       const response = await fetch('/api/media', {
+        method: 'GET', // Explicitly set method
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
         },
+        cache: 'no-store', // Force no caching
       });
 
       const data = await response.json();
