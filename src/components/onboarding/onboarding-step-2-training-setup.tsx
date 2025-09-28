@@ -76,7 +76,14 @@ export const OnboardingStep2_TrainingSetup = ({
 
   return (
     <div className={cn("space-y-8")}>
+      {/* Section Header */}
       {/* Removed duplicate header as per user request */}
+      <div className="text-center space-y-2">
+        <h2 className="text-2xl font-bold text-foreground">Training Setup</h2>
+        <p className="text-muted-foreground">
+          Select the workout structure and your experience level.
+        </p>
+      </div>
 
       {/* Transformation Path */}
       <div className="space-y-6">

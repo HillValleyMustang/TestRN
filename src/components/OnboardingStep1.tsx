@@ -180,6 +180,27 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
     setTouched(prev => ({ ...prev, [name]: true }));
   };
 
+  const handleHeightFocus = () => {
+    setActiveSlider('height');
+    if (formData.heightCm === null) {
+      setFormData(prev => ({ ...prev, heightCm: 175, heightFt: 5, heightIn: 9 })); // Default to 175cm / 5ft 9in
+    }
+  };
+
+  const handleWeightFocus = () => {
+    setActiveSlider('weight');
+    if (formData.weight === null) {
+      setFormData(prev => ({ ...prev, weight: formData.weightUnit === 'kg' ? 30 : 66 })); // Default to 30kg / 66lbs
+    }
+  };
+
+  const handleBodyFatFocus = () => {
+    setActiveSlider('bodyFat');
+    if (formData.bodyFatPct === null) {
+      setFormData(prev => ({ ...prev, bodyFatPct: 25 })); // Default to 25%
+    }
+  };
+
   return (
     <div className={cn("max-w-md mx-auto p-6 space-y-8 bg-white", className)}>
       {/* Header */}
@@ -242,14 +263,15 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
         {/* Height Field */}
         <div className="space-y-2">
           <Label className="text-base font-semibold text-gray-900">How tall are you?</Label>
-          <div className="relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) { setActiveSlider(null); }}}>
+          <div className="relative">
             {formData.heightUnit === 'cm' ? (
               <Input
                 type="number"
                 inputMode="numeric"
                 value={formData.heightCm ?? ''}
                 onChange={(e) => handleHeightCmChange(Number(e.target.value))}
-                onFocus={() => setActiveSlider('height')}
+                onFocus={handleHeightFocus}
+                onBlur={() => handleTouch('heightCm')}
                 className={cn(
                   "h-12 px-4 pr-20 text-base border-2 rounded-xl transition-all duration-200",
                   "focus:ring-2 focus:ring-onboarding-primary/20 focus:border-onboarding-primary",
@@ -264,7 +286,8 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                   inputMode="numeric"
                   value={formData.heightFt ?? ''}
                   onChange={(e) => handleHeightFtInChange(Number(e.target.value), formData.heightIn)}
-                  onFocus={() => setActiveSlider('height')}
+                  onFocus={handleHeightFocus}
+                  onBlur={() => handleTouch('heightCm')}
                   className={cn(
                     "h-12 px-3 text-base border-2 rounded-xl transition-all duration-200 w-20 text-center",
                     "focus:ring-2 focus:ring-onboarding-primary/20 focus:border-onboarding-primary",
@@ -277,7 +300,8 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                   inputMode="numeric"
                   value={formData.heightIn ?? ''}
                   onChange={(e) => handleHeightFtInChange(formData.heightFt, Number(e.target.value))}
-                  onFocus={() => setActiveSlider('height')}
+                  onFocus={handleHeightFocus}
+                  onBlur={() => handleTouch('heightCm')}
                   className={cn(
                     "h-12 px-3 text-base border-2 rounded-xl transition-all duration-200 w-20 text-center",
                     "focus:ring-2 focus:ring-onboarding-primary/20 focus:border-onboarding-primary",
@@ -317,10 +341,10 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) { setActiveSlider(null); }}}>
+          <div className="space-y-2">
             <Label className="text-base font-semibold text-gray-900">Current weight?</Label>
             <div className="relative">
-              <Input type="number" inputMode="numeric" value={formData.weight ?? ''} onChange={(e) => handleWeightChange(e.target.value)} onFocus={() => setActiveSlider('weight')} className={cn("h-12 px-4 pr-16 text-base border-2 rounded-xl transition-all duration-200", "focus:ring-2 focus:ring-onboarding-primary/20 focus:border-onboarding-primary", "hover:border-gray-400", activeSlider === 'weight' ? "border-onboarding-primary bg-onboarding-primary-faint" : "border-gray-300")} />
+              <Input type="number" inputMode="numeric" value={formData.weight ?? ''} onChange={(e) => handleWeightChange(e.target.value)} onFocus={handleWeightFocus} onBlur={() => handleTouch('weight')} className={cn("h-12 px-4 pr-16 text-base border-2 rounded-xl transition-all duration-200", "focus:ring-2 focus:ring-onboarding-primary/20 focus:border-onboarding-primary", "hover:border-gray-400", activeSlider === 'weight' ? "border-onboarding-primary bg-onboarding-primary-faint" : "border-gray-300")} />
               <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex space-x-1">
                 <Button type="button" variant="outline" size="sm" className={cn("h-7 px-2 text-xs font-medium border transition-all duration-200", formData.weightUnit === 'kg' ? "bg-onboarding-primary text-white border-onboarding-primary shadow-sm" : "bg-white text-gray-600 border-gray-300 hover:border-gray-400")} onClick={() => handleWeightUnitChange('kg')}>kg</Button>
                 <Button type="button" variant="outline" size="sm" className={cn("h-7 px-2 text-xs font-medium border transition-all duration-200", formData.weightUnit === 'lbs' ? "bg-onboarding-primary text-white border-onboarding-primary shadow-sm" : "bg-white text-gray-600 border-gray-300 hover:border-gray-400")} onClick={() => handleWeightUnitChange('lbs')}>lbs</Button>
@@ -350,9 +374,9 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
             {errors.weight && touched.weight && <p className="text-sm text-red-500">{errors.weight}</p>}
           </div>
 
-          <div className="space-y-2" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) { setActiveSlider(null); }}}>
+          <div className="space-y-2">
             <Label className="text-base font-semibold text-gray-900">Body fat %<span className="text-sm font-normal text-gray-500 ml-1">(optional)</span><span className="inline-flex items-center justify-center w-4 h-4 ml-1 text-xs text-white bg-onboarding-primary rounded-full cursor-help" title="If you don't know, you can skip this">i</span></Label>
-            <Input type="number" inputMode="numeric" value={formData.bodyFatPct || ''} onChange={(e) => handleBodyFatChange(e.target.value)} onFocus={() => setActiveSlider('bodyFat')} className={cn("h-12 px-4 text-base border-2 rounded-xl transition-all duration-200", "focus:ring-2 focus:ring-onboarding-primary/20 focus:border-onboarding-primary", "hover:border-gray-400", activeSlider === 'bodyFat' ? "border-onboarding-primary bg-onboarding-primary-faint" : "border-gray-300")} />
+            <Input type="number" inputMode="numeric" value={formData.bodyFatPct || ''} onChange={(e) => handleBodyFatChange(e.target.value)} onFocus={handleBodyFatFocus} onBlur={() => handleTouch('bodyFatPct')} className={cn("h-12 px-4 text-base border-2 rounded-xl transition-all duration-200", "focus:ring-2 focus:ring-onboarding-primary/20 focus:border-onboarding-primary", "hover:border-gray-400", activeSlider === 'bodyFat' ? "border-onboarding-primary bg-onboarding-primary-faint" : "border-gray-300")} />
             {activeSlider === 'bodyFat' && (
               <div className="mt-4 p-5 bg-onboarding-primary-faint border-2 border-onboarding-primary rounded-xl shadow-lg animate-in slide-in-from-top-2 duration-300">
                 <div className="text-center mb-4">
