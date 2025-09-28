@@ -81,7 +81,7 @@ export const MobileNavigation = ({ currentPage = 'overview', onPageChange }: Mob
             key={page.id}
             onClick={() => handleNavClick(page.id)}
             className={cn(
-              "relative flex flex-col items-center justify-center rounded-lg transition-all duration-300 flex-1 overflow-hidden",
+              "relative flex flex-col items-center justify-center rounded-lg transition-all duration-300 flex-auto", // Changed flex-1 to flex-auto, removed overflow-hidden
               currentPage === page.id 
                 ? 'bg-muted border-2 border-border transform -translate-y-1 shadow-md' 
                 : 'hover:bg-muted/50 hover:-translate-y-0.5 hover:shadow-sm'
@@ -117,7 +117,7 @@ export const MobileNavigation = ({ currentPage = 'overview', onPageChange }: Mob
             {/* Label */}
             <span 
               className={cn(
-                "text-center transition-all duration-300",
+                "text-center transition-all duration-300 text-wrap", // Added text-wrap
                 currentPage === page.id 
                   ? 'text-foreground font-bold' 
                   : 'text-muted-foreground font-semibold'
