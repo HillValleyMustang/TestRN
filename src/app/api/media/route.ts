@@ -1,7 +1,13 @@
+// This log should appear if the file is even loaded by Next.js
+console.log('[API/media - FILE LOADED]');
+
 import { supabase } from '@/integrations/supabase/client';
 import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
+  // This log should appear if the GET function is entered
+  console.log('[API/media - GET FUNCTION ENTERED]');
+
   try {
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) {
@@ -9,7 +15,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Authorization header missing' }, { status: 401 });
     }
 
-    // Use the Supabase client with the user's JWT for RLS
     const token = authHeader.split(' ')[1];
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
 
@@ -19,10 +24,15 @@ export async function GET(request: Request) {
     }
     console.log(`[API/media] User authenticated: ${user.id}`);
 
+    // This log should appear before the Supabase query
+    console.log('[API/media] Preparing Supabase query for media_posts...');
     const { data: mediaPosts, error: fetchError } = await supabase
       .from('media_posts')
       .select('*')
       .order('created_at', { ascending: false });
+
+    // This log should appear after the Supabase query, showing raw data/error
+    console.log('[API/media] Supabase query result - data:', mediaPosts, 'error:', fetchError);
 
     if (fetchError) {
       console.error('[API/media] Error fetching media posts from Supabase:', fetchError.message);
