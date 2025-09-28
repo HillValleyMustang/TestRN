@@ -131,13 +131,17 @@ export const WeeklyTargetWidget = ({ onViewSummary, summary, loading, error, pro
               {displayItems.map((item, index) => {
                 const label = item.name.includes('Upper') ? 'U' : item.name.includes('Lower') ? 'L' : item.name[0];
                 const colorClass = getWorkoutColorClass(item.name, 'bg');
+                const borderColorClass = getWorkoutColorClass(item.name, 'border');
+                const textColorClass = getWorkoutColorClass(item.name, 'text');
                 return (
                   <Tooltip key={index}>
                     <TooltipTrigger asChild>
                       <div
                         className={cn(
                           "h-10 w-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-200",
-                          item.isCompleted ? `${colorClass} text-white` : 'bg-muted text-muted-foreground',
+                          item.isCompleted
+                            ? `${colorClass} text-white`
+                            : `bg-card border ${borderColorClass} ${textColorClass}`,
                           item.isCompleted && item.id && 'cursor-pointer hover:scale-110'
                         )}
                         onClick={() => item.isCompleted && item.id && onViewSummary(item.id)}
