@@ -405,7 +405,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <MobileNavigation activeTab={activeTab} onTabChange={handleTabChange} />
+        <MobileNavigation currentPage={activeTab} onPageChange={handleTabChange} />
         
         <div className="relative">
           <div className="overflow-hidden" ref={emblaRef}>

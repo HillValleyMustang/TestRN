@@ -1,41 +1,39 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Grid3X3, BarChart3, Camera, Video, Users, Settings } from 'lucide-react';
-import { cn } from '@/lib/utils'; // Assuming cn utility is available
+// Removed lucide-react imports as emoji icons are used directly
+import { cn } from '@/lib/utils';
 
 interface MobileNavigationProps {
-  activeTab: string; // Changed to activeTab
-  onTabChange: (value: string) => void; // Changed to onTabChange
+  currentPage?: string; // Changed to currentPage
+  onPageChange: (pageId: string) => void;
 }
 
-export const MobileNavigation = ({ activeTab, onTabChange }: MobileNavigationProps) => {
-  // Removed internal currentPage state, now controlled by activeTab prop
+export const MobileNavigation = ({ currentPage = 'overview', onPageChange }: MobileNavigationProps) => {
   const [startX, setStartX] = useState(0);
   const [isSwipe, setIsSwipe] = useState(false);
 
   const pages = [
-    { id: 'overview', icon: Grid3X3, label: 'Overview' },
-    { id: 'stats', icon: BarChart3, label: 'Stats' },
-    { id: 'photo', icon: Camera, label: 'Photo' },
-    { id: 'media', icon: Video, label: 'Media' },
-    { id: 'social', icon: Users, label: 'Social' },
-    { id: 'settings', icon: Settings, label: 'Settings' }
+    { id: 'overview', icon: '📊', label: 'Overview' },
+    { id: 'stats', icon: '📈', label: 'Stats' },
+    { id: 'photo', icon: '📸', label: 'Photo' },
+    { id: 'media', icon: '🎬', label: 'Media' },
+    { id: 'social', icon: '👥', label: 'Social' },
+    { id: 'settings', icon: '⚙️', label: 'Settings' }
   ];
 
   const handleNavClick = (pageId: string) => {
-    // Call the onTabChange prop to update the parent's state
-    if (onTabChange) {
-      onTabChange(pageId);
+    if (onPageChange) {
+      onPageChange(pageId);
     }
     
-    // Haptic feedback if supported
+    // Haptic feedback
     if ('vibrate' in navigator) {
-      navigator.vibrate(10);
+      navigator.vibrate(12);
     }
   };
 
-  // Swipe gesture handlers
+  // Swipe handlers
   const handleTouchStart = (e: React.TouchEvent) => {
     setStartX(e.touches[0].clientX);
     setIsSwipe(false);
@@ -43,7 +41,6 @@ export const MobileNavigation = ({ activeTab, onTabChange }: MobileNavigationPro
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!startX) return;
-    
     const deltaX = Math.abs(e.touches[0].clientX - startX);
     if (deltaX > 30) {
       setIsSwipe(true);
@@ -58,13 +55,11 @@ export const MobileNavigation = ({ activeTab, onTabChange }: MobileNavigationPro
     const threshold = 80;
     
     if (Math.abs(deltaX) > threshold) {
-      const currentIndex = pages.findIndex(p => p.id === activeTab); // Use activeTab for current index
+      const currentIndex = pages.findIndex(p => p.id === currentPage);
       
       if (deltaX > 0 && currentIndex < pages.length - 1) {
-        // Swipe left - next page
         handleNavClick(pages[currentIndex + 1].id);
       } else if (deltaX < 0 && currentIndex > 0) {
-        // Swipe right - previous page
         handleNavClick(pages[currentIndex - 1].id);
       }
     }
@@ -75,58 +70,68 @@ export const MobileNavigation = ({ activeTab, onTabChange }: MobileNavigationPro
 
   return (
     <div 
-      className="w-full bg-card border border-border rounded-xl shadow-sm mx-2 my-2"
+      className="bg-card border border-border rounded-xl p-1 mx-2 my-2 shadow-sm"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      <nav className="flex justify-between items-center p-1 gap-0.5">
-        {pages.map((page) => {
-          const IconComponent = page.icon;
-          return (
-            <button
-              key={page.id}
-              onClick={() => handleNavClick(page.id)}
+      <div className="flex justify-between items-center gap-0.5">
+        {pages.map((page) => (
+          <button
+            key={page.id}
+            onClick={() => handleNavClick(page.id)}
+            className={cn(
+              "relative flex flex-col items-center justify-center rounded-lg transition-all duration-300 flex-1 overflow-hidden",
+              currentPage === page.id 
+                ? 'bg-muted border-2 border-border transform -translate-y-1 shadow-md' 
+                : 'hover:bg-muted/50 hover:-translate-y-0.5 hover:shadow-sm'
+            )}
+            style={{ 
+              minHeight: '60px', 
+              padding: '4px 0px'
+            }}
+          >
+            {/* Black top border */}
+            <div 
               className={cn(
-                `relative flex flex-col items-center justify-center p-1 rounded-lg 
-                transition-all duration-300 hover:-translate-y-0.5 active:scale-95 flex-1`,
-                activeTab === page.id // Use activeTab here
-                  ? 'bg-muted text-foreground transform -translate-y-1 shadow-lg border-2 border-border'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                "absolute top-0 left-0 w-full bg-foreground rounded-t-lg transition-transform duration-400"
               )}
-              style={{ minHeight: '60px' }}
+              style={{ 
+                height: '3px',
+                transform: currentPage === page.id ? 'translateX(0)' : 'translateX(-100%)'
+              }}
+            />
+            
+            {/* Icon */}
+            <div 
+              className="mb-1 transition-all duration-300"
+              style={{
+                fontSize: '18px',
+                opacity: currentPage === page.id ? 1 : 0.8,
+                transform: currentPage === page.id ? 'scale(1.1)' : 'scale(1)'
+              }}
             >
-              {/* Top border indicator - black */}
-              <div 
-                className="absolute top-0 left-0 w-full h-1 bg-foreground rounded-t-lg transition-transform duration-400"
-                style={{
-                  transform: activeTab === page.id ? 'translateX(0)' : 'translateX(-100%)' // Use activeTab here
-                }}
-              />
-              
-              {/* Icon */}
-              <IconComponent 
-                className={cn(
-                  `w-5 h-5 mb-1 transition-all duration-300`,
-                  activeTab === page.id // Use activeTab here
-                    ? 'opacity-100 scale-110' 
-                    : 'opacity-80 scale-100'
-                )}
-              />
-              
-              {/* Label */}
-              <span 
-                className={cn(
-                  `text-xs font-semibold leading-tight text-center transition-all duration-300`,
-                  activeTab === page.id ? 'font-bold' : 'font-medium' // Use activeTab here
-                )}
-              >
-                {page.label}
-              </span>
-            </button>
-          );
-        })}
-      </nav>
+              {page.icon}
+            </div>
+            
+            {/* Label */}
+            <span 
+              className={cn(
+                "text-center transition-all duration-300",
+                currentPage === page.id 
+                  ? 'text-foreground font-bold' 
+                  : 'text-muted-foreground font-semibold'
+              )}
+              style={{ 
+                fontSize: '11px',
+                lineHeight: '1.1'
+              }}
+            >
+              {page.label}
+            </span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 };
