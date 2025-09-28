@@ -70,7 +70,7 @@ export const MobileNavigation = ({ currentPage = 'overview', onPageChange }: Mob
 
   return (
     <div 
-      className="bg-card border border-border rounded-xl p-1 mx-2 my-2 shadow-sm"
+      className="bg-card border border-border rounded-xl p-1 my-2 shadow-sm"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
