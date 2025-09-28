@@ -129,6 +129,7 @@ export default function OnboardingPage() {
   ]);
 
   const handleNext = useCallback((data?: OnboardingStep1FormData) => { // Accept data for step 1
+    window.scrollTo(0, 0); // Scroll to top on next step
     if (currentStep === 1 && data) {
       setStep1FormData(data); // Store step 1 data
       setCurrentStep(prev => prev + 1);
@@ -141,6 +142,7 @@ export default function OnboardingPage() {
   }, [currentStep, equipmentMethod, handleSubmit, totalSteps]);
 
   const handleBack = useCallback(() => {
+    window.scrollTo(0, 0); // Scroll to top on back step
     if (currentStep > 1) {
       setCurrentStep(prev => prev - 1);
     }
