@@ -10,8 +10,7 @@ import *as z from "zod";
 import { toast } from 'sonner';
 import { Profile as ProfileType, ProfileUpdate, Tables, LocalUserAchievement } from '@/types/supabase';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart2, User, Settings, ChevronLeft, ChevronRight, Flame, Dumbbell, Trophy, Star, Footprints, ListChecks, Image, Camera } from 'lucide-react';
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BarChart2, User, Settings, ChevronLeft, ChevronRight, Flame, Dumbbell, Trophy, Star, Footprints, ListChecks, Image, Camera, Film, Users } from 'lucide-react';
 import { cn, getLevelFromPoints, formatAthleteName } from '@/lib/utils';
 import { AchievementDetailDialog } from '@/components/profile/achievement-detail-dialog';
 import useEmblaCarousel from 'embla-carousel-react';
@@ -30,6 +29,8 @@ import { PhotoJourneyTab } from '@/components/profile/photo-journey/photo-journe
 import { UploadPhotoDialog } from '@/components/profile/photo-journey/upload-photo-dialog';
 import { Button } from '@/components/ui/button';
 import { PhotoCaptureFlow } from '@/components/profile/photo-journey/photo-capture-flow';
+import { ProfileNavMenu } from '@/components/profile/profile-nav-menu';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
@@ -350,7 +351,7 @@ export default function ProfilePage() {
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
     if (emblaApi) {
-      const index = ["overview", "stats", "photo", "settings"].indexOf(value);
+      const index = ["overview", "stats", "photo", "media", "social", "settings"].indexOf(value);
       if (index !== -1) {
         emblaApi.scrollTo(index);
       }
@@ -362,7 +363,7 @@ export default function ProfilePage() {
 
     const onSelect = () => {
       const selectedIndex = emblaApi.selectedScrollSnap();
-      const tabNames = ["overview", "stats", "photo", "settings"];
+      const tabNames = ["overview", "stats", "photo", "media", "social", "settings"];
       setActiveTab(tabNames[selectedIndex]);
     };
 
@@ -404,76 +405,95 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-muted">
-            <TabsTrigger value="overview"><User className="h-4 w-4 mr-2" />Overview</TabsTrigger>
-            <TabsTrigger value="stats"><BarChart2 className="h-4 w-4 mr-2" />Stats</TabsTrigger>
-            <TabsTrigger value="photo"><Image className="h-4 w-4 mr-2" />Photo</TabsTrigger>
-            <TabsTrigger value="settings"><Settings className="h-4 w-4 mr-2" />Settings</TabsTrigger>
-          </TabsList>
-          
-          <div className="relative">
-            <div className="overflow-hidden" ref={emblaRef}>
-              <div className="flex">
-                <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
-                  <ProfileOverviewTab
+        <ProfileNavMenu activeTab={activeTab} onTabChange={handleTabChange} />
+        
+        <div className="relative">
+          <div className="overflow-hidden" ref={emblaRef}>
+            <div className="flex">
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
+                <ProfileOverviewTab
+                  profile={profile}
+                  bmi={bmi}
+                  dailyCalories={dailyCalories}
+                  achievements={achievementsList}
+                  unlockedAchievements={unlockedAchievements}
+                  onAchievementClick={handleAchievementClick}
+                  onOpenPointsExplanation={() => setIsPointsExplanationOpen(true)}
+                  totalWorkoutsCount={totalWorkoutsCount}
+                  totalExercisesCount={totalExercisesCount}
+                />
+              </div>
+
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
+                <ProfileStatsTab
+                  fitnessLevel={fitnessLevel}
+                  profile={profile}
+                />
+              </div>
+
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
+                <PhotoJourneyTab photos={photos} loading={loadingPhotos} />
+              </div>
+
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
+                <Card className="mt-6">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Film className="h-5 w-5" /> Media
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-center text-muted-foreground py-16">
+                    <p>Media gallery coming soon!</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
+                <Card className="mt-6">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5" /> Social
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-center text-muted-foreground py-16">
+                    <p>Social features coming soon!</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
+                <FormProvider {...form}>
+                  <ProfileSettingsTab
+                    form={form}
+                    mainMuscleGroups={mainMuscleGroups}
+                    aiCoachUsageToday={aiCoachUsageToday}
+                    AI_COACH_DAILY_LIMIT={AI_COACH_DAILY_LIMIT}
+                    onSignOut={handleSignOut}
                     profile={profile}
-                    bmi={bmi}
-                    dailyCalories={dailyCalories}
-                    achievements={achievementsList}
-                    unlockedAchievements={unlockedAchievements}
-                    onAchievementClick={handleAchievementClick}
-                    onOpenPointsExplanation={() => setIsPointsExplanationOpen(true)}
-                    totalWorkoutsCount={totalWorkoutsCount}
-                    totalExercisesCount={totalExercisesCount}
+                    onDataChange={refreshProfileData}
+                    setIsSaving={setIsSaving}
+                    setTempStatusMessage={setTempStatusMessage}
                   />
-                </div>
-
-                <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
-                  <ProfileStatsTab
-                    fitnessLevel={fitnessLevel}
-                    profile={profile}
-                  />
-                </div>
-
-                <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
-                  <PhotoJourneyTab photos={photos} loading={loadingPhotos} />
-                </div>
-
-                <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
-                  <FormProvider {...form}>
-                    <ProfileSettingsTab
-                      form={form}
-                      mainMuscleGroups={mainMuscleGroups}
-                      aiCoachUsageToday={aiCoachUsageToday}
-                      AI_COACH_DAILY_LIMIT={AI_COACH_DAILY_LIMIT}
-                      onSignOut={handleSignOut}
-                      profile={profile}
-                      onDataChange={refreshProfileData}
-                      setIsSaving={setIsSaving}
-                      setTempStatusMessage={setTempStatusMessage}
-                    />
-                  </FormProvider>
-                </div>
+                </FormProvider>
               </div>
             </div>
-            
-            <button
-              onClick={scrollPrev}
-              className="absolute left-2 top-1/2 -translate-y-1/2 z-10 hidden sm:flex p-2 rounded-full bg-background/50 hover:bg-background/70 transition-colors"
-              disabled={activeTab === "overview"}
-            >
-              <ChevronLeft className="h-6 w-6" />
-            </button>
-            <button
-              onClick={scrollNext}
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 hidden sm:flex p-2 rounded-full bg-background/50 hover:bg-background/70 transition-colors"
-              disabled={activeTab === "settings"}
-            >
-              <ChevronRight className="h-6 w-6" />
-            </button>
           </div>
-        </Tabs>
+          
+          <button
+            onClick={scrollPrev}
+            className="absolute left-2 top-1/2 -translate-y-1/2 z-10 hidden sm:flex p-2 rounded-full bg-background/50 hover:bg-background/70 transition-colors"
+            disabled={activeTab === "overview"}
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </button>
+          <button
+            onClick={scrollNext}
+            className="absolute right-2 top-1/2 -translate-y-1/2 z-10 hidden sm:flex p-2 rounded-full bg-background/50 hover:bg-background/70 transition-colors"
+            disabled={activeTab === "settings"}
+          >
+            <ChevronRight className="h-6 w-6" />
+          </button>
+        </div>
       </div>
 
       {activeTab === 'photo' && (
