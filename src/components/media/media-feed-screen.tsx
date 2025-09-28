@@ -7,7 +7,8 @@ import { Loader2, Film } from 'lucide-react';
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { Tables } from '@/types/supabase';
-import { MediaPostCard } from './media-post-card'; // Import the new component
+import { MediaPostCard } from './media-post-card';
+import { VideoPlayerScreen } from './video-player-screen'; // Import the new VideoPlayerScreen
 
 type MediaPost = Tables<'media_posts'>;
 
@@ -16,6 +17,10 @@ export const MediaFeedScreen = () => {
   const [mediaPosts, setMediaPosts] = useState<MediaPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // State for VideoPlayerScreen
+  const [isVideoPlayerOpen, setIsVideoPlayerOpen] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<{ youtubeVideoId: string; title: string } | null>(null);
 
   useEffect(() => {
     const fetchMediaPosts = async () => {
@@ -53,41 +58,51 @@ export const MediaFeedScreen = () => {
   }, [session]);
 
   const handlePostClick = (post: MediaPost) => {
-    // For now, just log the click. In a later step, we might open a video player.
-    console.log("Clicked on post:", post.title);
-    toast.info(`Clicked on: ${post.title}`);
+    setSelectedVideo({ youtubeVideoId: post.youtube_video_id, title: post.title });
+    setIsVideoPlayerOpen(true);
   };
 
   return (
-    <Card className="mt-6">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Film className="h-5 w-5" /> Media Library
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : error ? (
-          <div className="text-center text-destructive py-16">
-            <p>Error: {error}</p>
-          </div>
-        ) : mediaPosts.length === 0 ? (
-          <div className="text-center text-muted-foreground py-16">
-            <p>No video posts available yet.</p>
-          </div>
-        ) : (
-          <ScrollArea className="h-[500px] pr-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {mediaPosts.map((post) => (
-                <MediaPostCard key={post.id} post={post} onClick={handlePostClick} />
-              ))}
+    <>
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Film className="h-5 w-5" /> Media Library
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          </ScrollArea>
-        )}
-      </CardContent>
-    </Card>
+          ) : error ? (
+            <div className="text-center text-destructive py-16">
+              <p>Error: {error}</p>
+            </div>
+          ) : mediaPosts.length === 0 ? (
+            <div className="text-center text-muted-foreground py-16">
+              <p>No video posts available yet.</p>
+            </div>
+          ) : (
+            <ScrollArea className="h-[500px] pr-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {mediaPosts.map((post) => (
+                  <MediaPostCard key={post.id} post={post} onClick={handlePostClick} />
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+        </CardContent>
+      </Card>
+
+      {selectedVideo && (
+        <VideoPlayerScreen
+          open={isVideoPlayerOpen}
+          onOpenChange={setIsVideoPlayerOpen}
+          youtubeVideoId={selectedVideo.youtubeVideoId}
+          title={selectedVideo.title}
+        />
+      )}
+    </>
   );
 };
