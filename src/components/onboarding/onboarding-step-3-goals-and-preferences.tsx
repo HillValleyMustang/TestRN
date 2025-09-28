@@ -34,7 +34,8 @@ export const OnboardingStep3_GoalsAndPreferences = ({
   handleNext, // This is the submit action
   handleBack,
 }: OnboardingStep3Props) => {
-  const [showTyping, setShowTyping] = useState(false);
+  // Removed showTyping state as it's no longer needed for the "Next" button
+  // const [showTyping, setShowTyping] = useState(false);
 
   // Convert preferredMuscles string to array for multi-select logic
   const selectedMusclesArray = preferredMuscles ? preferredMuscles.split(',').map(m => m.trim()) : [];
@@ -79,12 +80,10 @@ export const OnboardingStep3_GoalsAndPreferences = ({
 
   return (
     <div className="max-w-md mx-auto bg-white rounded-3xl shadow-lg min-h-screen flex flex-col">
-      {/* Header */}
+      {/* Header - Removed introductory text */}
       <div className="p-6 text-center">
-        <h1 className="text-xl font-bold text-slate-900 mb-2">
-          Let's personalise your plan
-        </h1>
-        <p className="text-sm text-slate-500">Just a few quick questions</p>
+        {/* Removed: <h1 className="text-xl font-bold text-slate-900 mb-2">Let's personalise your plan</h1> */}
+        {/* Removed: <p className="text-sm text-slate-500">Just a few quick questions</p> */}
       </div>
 
       {/* Content */}
@@ -168,10 +167,10 @@ export const OnboardingStep3_GoalsAndPreferences = ({
               </div>
             ))}
           </div>
-          <div className="text-xs text-slate-500 italic mt-2">
+          <div className="text-xs text-slate-500 italic mt-2 text-left"> {/* Left aligned */}
             This helps our AI tailor exercise suggestions
           </div>
-          <div className="text-xs text-slate-500 italic text-center mt-3">
+          <div className="text-xs text-slate-500 italic text-left mt-3"> {/* Left aligned */}
             You can change this later in your Profile
           </div>
         </div>
@@ -207,22 +206,12 @@ export const OnboardingStep3_GoalsAndPreferences = ({
                 <div className="relative z-10 mb-3">
                   <div className="w-15 h-15 mx-auto mb-3 relative flex items-center justify-center">
                     <div className={cn(
-                      `w-full h-full border-[3px] rounded-full relative transition-all duration-300`,
+                      `w-full h-full relative transition-all duration-300`,
                       sessionLength === option.id 
-                        ? 'border-red-500' 
-                        : 'border-slate-200'
+                        ? 'text-white' 
+                        : 'text-slate-500'
                     )}>
-                      {/* Progress fill */}
-                      <div 
-                        className={cn(
-                          `absolute -top-[3px] -left-[3px] -right-[3px] -bottom-[3px] rounded-full`,
-                          `transition-opacity duration-300`,
-                          sessionLength === option.id ? 'opacity-100' : 'opacity-0'
-                        )}
-                        style={{
-                          background: `conic-gradient(from 0deg, #ef4444 0%, #ef4444 ${option.fill}%, transparent ${option.fill}%)`
-                        }}
-                      />
+                      <Clock className="absolute inset-0 w-full h-full opacity-20" /> {/* Clock icon behind text */}
                     </div>
                     
                     {/* Time text */}
@@ -243,7 +232,8 @@ export const OnboardingStep3_GoalsAndPreferences = ({
                 </div>
                 <div className={cn(
                   `relative z-10 text-xs font-medium transition-colors duration-300`,
-                  sessionLength === option.id ? 'text-white' : 'text-slate-500'
+                  sessionLength === option.id ? 'text-white' : 'text-slate-500',
+                  option.id === '45-60' && 'text-center' // Centered for 'comprehensive training'
                 )}>
                   {option.desc}
                 </div>
@@ -271,8 +261,8 @@ export const OnboardingStep3_GoalsAndPreferences = ({
           </div>
         </div>
 
-        {/* Typing Indicator */}
-        {showTyping && (
+        {/* Typing Indicator - Removed as per user request */}
+        {/* {showTyping && (
           <div className="flex items-center gap-1 text-slate-500 text-sm mb-4">
             <span>AI is thinking</span>
             <div className="flex gap-0.5">
@@ -285,7 +275,7 @@ export const OnboardingStep3_GoalsAndPreferences = ({
               ))}
             </div>
           </div>
-        )}
+        )} */}
       </div>
 
       {/* Navigation */}
@@ -300,8 +290,7 @@ export const OnboardingStep3_GoalsAndPreferences = ({
         </button>
         <button 
           onClick={handleNext} // Call the handleNext prop for submission
-          onMouseEnter={() => setShowTyping(true)}
-          onMouseLeave={() => setShowTyping(false)}
+          // Removed onMouseEnter and onMouseLeave props
           disabled={!isValid}
           className={cn(
             `flex-1 h-12 bg-gradient-to-r from-red-500 to-red-600 text-white`, 
@@ -310,7 +299,7 @@ export const OnboardingStep3_GoalsAndPreferences = ({
             `disabled:bg-gray-300 disabled:text-gray-500 disabled:hover:transform-none disabled:hover:shadow-none disabled:cursor-not-allowed`
           )}
         >
-          Create My Plan
+          Next {/* Changed button text to 'Next' */}
         </button>
       </div>
     </div>
