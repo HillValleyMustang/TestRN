@@ -77,6 +77,7 @@ export const OnboardingStep2_TrainingSetup = ({
   return (
     <div className={cn("space-y-8")}>
       {/* Section Header */}
+      {/* Removed duplicate header as per user request */}
       <div className="text-center space-y-2">
         <h2 className="text-2xl font-bold text-foreground">Training Setup</h2>
         <p className="text-muted-foreground">
@@ -96,11 +97,11 @@ export const OnboardingStep2_TrainingSetup = ({
               key={option.id}
               className={cn(
                 "cursor-pointer transition-all duration-200 hover:shadow-md border-2 relative overflow-hidden",
-                "before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-onboarding-primary before:scale-x-0 before:origin-left before:transition-transform before:duration-300",
+                "before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-workout-lower-body-a before:scale-x-0 before:origin-left before:transition-transform before:duration-300", // Use workout-lower-body-a
                 "hover:before:scale-x-100",
                 tPathType === option.id
-                  ? "border-onboarding-primary shadow-lg before:scale-x-100"
-                  : "border-border hover:border-onboarding-primary/50"
+                  ? "border-workout-lower-body-a shadow-lg before:scale-x-100" // Use workout-lower-body-a
+                  : "border-border hover:border-workout-lower-body-a/50" // Use workout-lower-body-a
               )}
               onClick={() => setTPathType(option.id)}
             >
@@ -110,7 +111,7 @@ export const OnboardingStep2_TrainingSetup = ({
                     <h4 className="text-lg font-bold text-foreground">
                       {option.title}
                     </h4>
-                    <p className="text-sm text-onboarding-primary font-semibold uppercase tracking-wide">
+                    <p className="text-sm text-workout-lower-body-a font-semibold uppercase tracking-wide"> {/* Use workout-lower-body-a */}
                       {option.subtitle}
                     </p>
                   </div>
@@ -118,7 +119,7 @@ export const OnboardingStep2_TrainingSetup = ({
                     className={cn(
                       "w-5 h-5 rounded-full border-2 flex items-center justify-center",
                       tPathType === option.id
-                        ? "border-onboarding-primary bg-onboarding-primary"
+                        ? "border-workout-lower-body-a bg-workout-lower-body-a" // Use workout-lower-body-a
                         : "border-gray-300 bg-card"
                     )}
                   >
@@ -132,7 +133,7 @@ export const OnboardingStep2_TrainingSetup = ({
               <CardContent className="space-y-4">
                 <Badge 
                   variant="secondary" 
-                  className="bg-onboarding-primary-faint text-onboarding-primary hover:bg-onboarding-primary-faint"
+                  className="bg-workout-lower-body-a-light/20 text-workout-lower-body-a hover:bg-workout-lower-body-a-light/20" // Use workout-lower-body-a
                 >
                   {option.frequency}
                 </Badge>
@@ -186,11 +187,11 @@ export const OnboardingStep2_TrainingSetup = ({
               key={option.id}
               className={cn(
                 "cursor-pointer transition-all duration-200 hover:shadow-md border-2 relative overflow-hidden",
-                "before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-onboarding-primary before:scale-x-0 before:origin-left before:transition-transform before:duration-300",
+                "before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-workout-lower-body-a before:scale-x-0 before:origin-left before:transition-transform before:duration-300", // Use workout-lower-body-a
                 "hover:before:scale-x-100",
                 experience === option.id
-                  ? "border-onboarding-primary shadow-lg before:scale-x-100"
-                  : "border-border hover:border-onboarding-primary/50"
+                  ? "border-workout-lower-body-a shadow-lg before:scale-x-100" // Use workout-lower-body-a
+                  : "border-border hover:border-workout-lower-body-a/50" // Use workout-lower-body-a
               )}
               onClick={() => setExperience(option.id)}
             >
@@ -203,7 +204,7 @@ export const OnboardingStep2_TrainingSetup = ({
                     className={cn(
                       "w-5 h-5 rounded-full border-2 flex items-center justify-center",
                       experience === option.id
-                        ? "border-onboarding-primary bg-onboarding-primary"
+                        ? "border-workout-lower-body-a bg-workout-lower-body-a" // Use workout-lower-body-a
                         : "border-gray-300 bg-card"
                     )}
                   >
@@ -238,7 +239,7 @@ export const OnboardingStep2_TrainingSetup = ({
           disabled={!isValid}
           className={cn(
             "flex-1 h-12 text-base font-semibold",
-            "bg-gradient-to-r from-onboarding-primary to-onboarding-primary-light hover:from-onboarding-primary-light hover:to-onboarding-primary",
+            "bg-gradient-to-r from-workout-lower-body-a to-workout-lower-body-a-light hover:from-workout-lower-body-a-light hover:to-workout-lower-body-a", // Use workout-lower-body-a
             "disabled:bg-gray-300 disabled:text-gray-500"
           )}
         >

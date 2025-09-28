@@ -80,9 +80,9 @@
     --sidebar-ring: 217.2 91.2% 59.8%;
 
     /* New Onboarding Theme Colors */
-    --onboarding-primary: 190 86% 36%; /* Teal */
-    --onboarding-primary-light: 190 86% 46%; /* Lighter Teal */
-    --onboarding-primary-faint: 190 86% 98%; /* Faint Teal */
+    --onboarding-primary: 220 68% 32%; /* Blue, matching workout-upper-body-a */
+    --onboarding-primary-light: 220 68% 42%; /* Lighter Blue */
+    --onboarding-primary-faint: 220 68% 98%; /* Faint Blue */
 
     /* New Workout Pill Colors (from user's specific hex codes) */
     --workout-upper-body-a: 220 68% 32%; /* #1e3a8a */
@@ -222,6 +222,7 @@
     --workout-activity: var(--chart-2); /* Generic activity color */
     --workout-activity-light: 173 58% 49%;
 
+
     /* NEW Activity Colors */
     --activity-running: 25 80% 55%; /* coral/salmon */
     --activity-running-light: 25 80% 65%;
@@ -268,7 +269,7 @@
     content: '';
     position: fixed;
     top: 0;
-    left: 0;
+  left: 0;
     width: 100vw;
     height: 100vh;
     background-image: url(/noise.svg);

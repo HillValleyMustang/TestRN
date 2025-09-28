@@ -11,7 +11,7 @@ import { z } from 'zod'
 export const onboardingStep1Schema = z.object({
   fullName: z.string().min(1, "Your name is required."),
   heightCm: z.number().int().positive().min(100).max(250),
-  weight: z.number().int().positive().min(30).max(200),
+  weight: z.number().int().positive().min(30).max(150), // Adjusted max weight to 150kg
   bodyFatPct: z.number().int().min(5).max(50).nullable(),
   heightUnit: z.enum(['cm', 'ft']),
   weightUnit: z.enum(['kg', 'lbs'])
@@ -38,7 +38,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
     heightCm: 175,
     heightFt: 5,
     heightIn: 9,
-    weight: null,
+    weight: null, // Start empty
     bodyFatPct: null,
     heightUnit: 'ft',
     weightUnit: 'kg'
@@ -233,7 +233,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
               <Input
                 type="number"
                 inputMode="numeric"
-                placeholder="175"
+                placeholder="" // Removed placeholder
                 value={formData.heightCm}
                 onChange={(e) => handleHeightCmChange(Number(e.target.value))}
                 onFocus={() => setActiveSlider('height')}
@@ -249,7 +249,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                 <Input
                   type="number"
                   inputMode="numeric"
-                  placeholder="5"
+                  placeholder="" // Removed placeholder
                   value={formData.heightFt}
                   onChange={(e) => handleHeightFtInChange(Number(e.target.value), formData.heightIn)}
                   onFocus={() => setActiveSlider('height')}
@@ -263,7 +263,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                 <Input
                   type="number"
                   inputMode="numeric"
-                  placeholder="9"
+                  placeholder="" // Removed placeholder
                   value={formData.heightIn}
                   onChange={(e) => handleHeightFtInChange(formData.heightFt, Number(e.target.value))}
                   onFocus={() => setActiveSlider('height')}
@@ -278,8 +278,8 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
             )}
             
             <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex space-x-1">
-              <Button type="button" variant="outline" size="sm" className={cn("h-7 px-2 text-xs font-medium border transition-all duration-200", formData.heightUnit === 'cm' ? "bg-onboarding-primary text-white border-onboarding-primary shadow-sm" : "bg-white text-gray-600 border-gray-300 hover:border-gray-400")} onClick={() => handleHeightUnitChange('cm')}>cm</Button>
               <Button type="button" variant="outline" size="sm" className={cn("h-7 px-2 text-xs font-medium border transition-all duration-200", formData.heightUnit === 'ft' ? "bg-onboarding-primary text-white border-onboarding-primary shadow-sm" : "bg-white text-gray-600 border-gray-300 hover:border-gray-400")} onClick={() => handleHeightUnitChange('ft')}>ft</Button>
+              <Button type="button" variant="outline" size="sm" className={cn("h-7 px-2 text-xs font-medium border transition-all duration-200", formData.heightUnit === 'cm' ? "bg-onboarding-primary text-white border-onboarding-primary shadow-sm" : "bg-white text-gray-600 border-gray-300 hover:border-gray-400")} onClick={() => handleHeightUnitChange('cm')}>cm</Button>
             </div>
           </div>
 
@@ -309,7 +309,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
           <div className="space-y-2">
             <Label className="text-base font-semibold text-gray-900">Current weight?</Label>
             <div className="relative">
-              <Input type="number" inputMode="numeric" placeholder={formData.weightUnit === 'kg' ? '70' : '154'} value={formData.weight ?? ''} onChange={(e) => handleWeightChange(e.target.value)} onFocus={() => setActiveSlider('weight')} onBlur={() => { handleTouch('weight'); }} className={cn("h-12 px-4 pr-16 text-base border-2 rounded-xl transition-all duration-200", "focus:ring-2 focus:ring-onboarding-primary/20 focus:border-onboarding-primary", "hover:border-gray-400", activeSlider === 'weight' ? "border-onboarding-primary bg-onboarding-primary-faint" : "border-gray-300")} />
+              <Input type="number" inputMode="numeric" placeholder="" value={formData.weight ?? ''} onChange={(e) => handleWeightChange(e.target.value)} onFocus={() => setActiveSlider('weight')} onBlur={() => { handleTouch('weight'); setActiveSlider(null); }} className={cn("h-12 px-4 pr-16 text-base border-2 rounded-xl transition-all duration-200", "focus:ring-2 focus:ring-onboarding-primary/20 focus:border-onboarding-primary", "hover:border-gray-400", activeSlider === 'weight' ? "border-onboarding-primary bg-onboarding-primary-faint" : "border-gray-300")} />
               <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex space-x-1">
                 <Button type="button" variant="outline" size="sm" className={cn("h-7 px-2 text-xs font-medium border transition-all duration-200", formData.weightUnit === 'kg' ? "bg-onboarding-primary text-white border-onboarding-primary shadow-sm" : "bg-white text-gray-600 border-gray-300 hover:border-gray-400")} onClick={() => handleWeightUnitChange('kg')}>kg</Button>
                 <Button type="button" variant="outline" size="sm" className={cn("h-7 px-2 text-xs font-medium border transition-all duration-200", formData.weightUnit === 'lbs' ? "bg-onboarding-primary text-white border-onboarding-primary shadow-sm" : "bg-white text-gray-600 border-gray-300 hover:border-gray-400")} onClick={() => handleWeightUnitChange('lbs')}>lbs</Button>
@@ -325,14 +325,14 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
                 </div>
                 <div className="relative h-8 flex items-center">
                   <div className="relative w-full h-2 bg-gray-200 rounded-full">
-                    <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-onboarding-primary to-onboarding-primary-light rounded-full" style={{ width: `${getSliderProgress(formData.weight || 0, formData.weightUnit === 'kg' ? 30 : 66, formData.weightUnit === 'kg' ? 200 : 440)}%` }} />
-                    <div className="absolute top-1/2 w-8 h-8 rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-4 border-white cursor-pointer transition-transform duration-200 hover:scale-110" style={{ left: `${getSliderProgress(formData.weight || 0, formData.weightUnit === 'kg' ? 30 : 66, formData.weightUnit === 'kg' ? 200 : 440)}%`, backgroundImage: 'radial-gradient(circle at 30% 30%, hsl(var(--onboarding-primary-light)), hsl(var(--onboarding-primary)))' }} />
+                    <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-onboarding-primary to-onboarding-primary-light rounded-full" style={{ width: `${getSliderProgress(formData.weight || 0, formData.weightUnit === 'kg' ? 30 : 66, formData.weightUnit === 'kg' ? 150 : 330)}%` }} /> {/* Adjusted max to 150kg/330lbs */}
+                    <div className="absolute top-1/2 w-8 h-8 rounded-full shadow-lg transform -translate-y-1/2 -translate-x-1/2 border-4 border-white cursor-pointer transition-transform duration-200 hover:scale-110" style={{ left: `${getSliderProgress(formData.weight || 0, formData.weightUnit === 'kg' ? 30 : 66, formData.weightUnit === 'kg' ? 150 : 330)}%`, backgroundImage: 'radial-gradient(circle at 30% 30%, hsl(var(--onboarding-primary-light)), hsl(var(--onboarding-primary)))' }} />
                   </div>
-                  <input type="range" min={formData.weightUnit === 'kg' ? 30 : 66} max={formData.weightUnit === 'kg' ? 200 : 440} value={formData.weight || 0} onChange={(e) => handleWeightChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                  <input type="range" min={formData.weightUnit === 'kg' ? 30 : 66} max={formData.weightUnit === 'kg' ? 150 : 330} value={formData.weight || 0} onChange={(e) => handleWeightChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                 </div>
                 <div className="flex justify-between text-xs text-gray-500 mt-2">
                   <span>{formData.weightUnit === 'kg' ? '30 kg' : '66 lbs'}</span>
-                  <span>{formData.weightUnit === 'kg' ? '200 kg' : '440 lbs'}</span>
+                  <span>{formData.weightUnit === 'kg' ? '150 kg' : '330 lbs'}</span> {/* Adjusted max to 150kg/330lbs */}
                 </div>
               </div>
             )}
@@ -342,7 +342,7 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
           <div className="space-y-2" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) { setActiveSlider(null); }}}>
             <Label className="text-base font-semibold text-gray-900">Body fat %<span className="text-sm font-normal text-gray-500 ml-1">(optional)</span><span className="inline-flex items-center justify-center w-4 h-4 ml-1 text-xs text-white bg-onboarding-primary rounded-full cursor-help" title="If you don't know, you can skip this">i</span></Label>
             <Input type="number" inputMode="numeric" placeholder="" value={formData.bodyFatPct || ''} onChange={(e) => setFormData(prev => ({ ...prev, bodyFatPct: e.target.value ? Number(e.target.value) : null }))} onFocus={() => setActiveSlider('bodyFat')} onBlur={() => handleTouch('bodyFatPct')} className={cn("h-12 px-4 text-base border-2 rounded-xl transition-all duration-200", "focus:ring-2 focus:ring-onboarding-primary/20 focus:border-onboarding-primary", "hover:border-gray-400", activeSlider === 'bodyFat' ? "border-onboarding-primary bg-onboarding-primary-faint" : "border-gray-300")} />
-            {activeSlider === 'bodyFat' && formData.bodyFatPct !== null && (
+            {activeSlider === 'bodyFat' && ( // Always show slider if activeSlider is 'bodyFat'
               <div className="mt-4 p-5 bg-onboarding-primary-faint border-2 border-onboarding-primary rounded-xl shadow-lg animate-in slide-in-from-top-2 duration-300">
                 <div className="text-center mb-4">
                   <div className="text-2xl font-bold text-onboarding-primary">{formData.bodyFatPct || 15}%</div>
