@@ -150,7 +150,8 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
     }))
   }
 
-  const getBodyFatCategory = (percentage: number): string => {
+  const getBodyFatCategory = (percentage: number | null): string => {
+    if (percentage === null) return '-';
     if (percentage < 10) return "Essential fat"
     if (percentage < 15) return "Athletic"
     if (percentage < 20) return "Fitness"
@@ -182,23 +183,14 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
 
   const handleHeightFocus = () => {
     setActiveSlider('height');
-    if (formData.heightCm === null) {
-      setFormData(prev => ({ ...prev, heightCm: 175, heightFt: 5, heightIn: 9 })); // Default to 175cm / 5ft 9in
-    }
   };
 
   const handleWeightFocus = () => {
     setActiveSlider('weight');
-    if (formData.weight === null) {
-      setFormData(prev => ({ ...prev, weight: formData.weightUnit === 'kg' ? 30 : 66 })); // Default to 30kg / 66lbs
-    }
   };
 
   const handleBodyFatFocus = () => {
     setActiveSlider('bodyFat');
-    if (formData.bodyFatPct === null) {
-      setFormData(prev => ({ ...prev, bodyFatPct: 25 })); // Default to 25%
-    }
   };
 
   return (
@@ -321,8 +313,8 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
           {activeSlider === 'height' && (
             <div className="mt-4 p-5 bg-onboarding-primary-faint border-2 border-onboarding-primary rounded-xl shadow-lg animate-in slide-in-from-top-2 duration-300">
               <div className="text-center mb-4">
-                <div className="text-2xl font-bold text-onboarding-primary">{formData.heightCm || 0} cm</div>
-                <div className="text-sm text-gray-600">{formData.heightFt || 0} ft {formData.heightIn || 0} in</div>
+                <div className="text-2xl font-bold text-onboarding-primary">{formData.heightCm ? `${formData.heightCm} cm` : '-'}</div>
+                <div className="text-sm text-gray-600">{formData.heightFt !== null && formData.heightIn !== null ? `${formData.heightFt} ft ${formData.heightIn} in` : '-'}</div>
               </div>
               <div className="relative h-8 flex items-center">
                 <div className="relative w-full h-2 bg-gray-200 rounded-full">
@@ -353,9 +345,17 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
             {activeSlider === 'weight' && (
               <div className="mt-4 p-5 bg-onboarding-primary-faint border-2 border-onboarding-primary rounded-xl shadow-lg animate-in slide-in-from-top-2 duration-300">
                 <div className="text-center mb-4">
-                  <div className="text-2xl font-bold text-onboarding-primary">{formData.weight || 0} {formData.weightUnit}</div>
+                  <div className="text-2xl font-bold text-onboarding-primary">{formData.weight !== null ? `${formData.weight} ${formData.weightUnit}` : '-'}</div>
                   <div className="text-sm text-gray-600">
-                    {formData.weightUnit === 'kg' ? `${convertKgToLbs(formData.weight || 0)} lbs` : `${convertLbsToKg(formData.weight || 0)} kg`} / {convertKgToStLbs(formData.weightUnit === 'kg' ? (formData.weight || 0) : convertLbsToKg(formData.weight || 0)).stone}st {convertKgToStLbs(formData.weightUnit === 'kg' ? (formData.weight || 0) : convertLbsToKg(formData.weight || 0)).pounds}lbs
+                    {formData.weight !== null ? (
+                      <>
+                        {formData.weightUnit === 'kg' ? `${convertKgToLbs(formData.weight)} lbs` : `${convertLbsToKg(formData.weight)} kg`}
+                        {' / '}
+                        {`${convertKgToStLbs(formData.weightUnit === 'kg' ? formData.weight : convertLbsToKg(formData.weight)).stone}st ${convertKgToStLbs(formData.weightUnit === 'kg' ? formData.weight : convertLbsToKg(formData.weight)).pounds}lbs`}
+                      </>
+                    ) : (
+                      '-'
+                    )}
                   </div>
                 </div>
                 <div className="relative h-8 flex items-center">
@@ -380,8 +380,8 @@ const OnboardingStep1: React.FC<OnboardingStep1Props> = ({ onNext, onBack, class
             {activeSlider === 'bodyFat' && (
               <div className="mt-4 p-5 bg-onboarding-primary-faint border-2 border-onboarding-primary rounded-xl shadow-lg animate-in slide-in-from-top-2 duration-300">
                 <div className="text-center mb-4">
-                  <div className="text-2xl font-bold text-onboarding-primary">{formData.bodyFatPct || 15}%</div>
-                  <div className="text-sm text-gray-600">{getBodyFatCategory(formData.bodyFatPct || 15)}</div>
+                  <div className="text-2xl font-bold text-onboarding-primary">{formData.bodyFatPct !== null ? `${formData.bodyFatPct}%` : '-'}</div>
+                  <div className="text-sm text-gray-600">{getBodyFatCategory(formData.bodyFatPct)}</div>
                 </div>
                 <div className="relative h-8 flex items-center">
                   <div className="relative w-full h-2 bg-gray-200 rounded-full">
