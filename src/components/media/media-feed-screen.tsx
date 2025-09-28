@@ -24,12 +24,14 @@ export const MediaFeedScreen = () => {
 
   const fetchMediaPosts = useCallback(async () => {
     if (!session) {
+      console.log("[MediaFeedScreen] Not logged in, skipping fetch.");
       setLoading(false);
       return;
     }
 
     setLoading(true);
     setError(null);
+    console.log("[MediaFeedScreen] Attempting to fetch media posts...");
     try {
       const response = await fetch('/api/media', {
         headers: {
@@ -38,18 +40,22 @@ export const MediaFeedScreen = () => {
       });
 
       const data = await response.json();
+      console.log("[MediaFeedScreen] API response data:", data);
 
       if (!response.ok) {
+        console.error("[MediaFeedScreen] API response not OK:", data.error || 'Failed to fetch media posts.');
         throw new Error(data.error || 'Failed to fetch media posts.');
       }
 
       setMediaPosts(data);
+      console.log("[MediaFeedScreen] Successfully fetched media posts:", data);
     } catch (err: any) {
-      console.error("Error fetching media posts:", err);
+      console.error("[MediaFeedScreen] Error fetching media posts:", err);
       setError(err.message || "Failed to load media library.");
       toast.error(err.message || "Failed to load media library.");
     } finally {
       setLoading(false);
+      console.log("[MediaFeedScreen] Fetching complete. Loading:", false);
     }
   }, [session]);
 
@@ -61,6 +67,8 @@ export const MediaFeedScreen = () => {
     setSelectedVideo({ youtubeVideoId: post.youtube_video_id, title: post.title });
     setIsVideoPlayerOpen(true);
   };
+
+  console.log("[MediaFeedScreen] Current state - loading:", loading, "error:", error, "posts count:", mediaPosts.length);
 
   return (
     <>
