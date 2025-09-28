@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { LayoutGrid, BarChart2, Image, Film, Users, Settings } from 'lucide-react';
+import { LayoutGrid, BarChart3, Camera, Film, Users, Settings } from 'lucide-react';
 
 interface ProfileNavMenuProps {
   activeTab: string;
@@ -11,8 +11,8 @@ interface ProfileNavMenuProps {
 
 const pages = [
   { id: 'overview', icon: LayoutGrid, label: 'Overview' },
-  { id: 'stats', icon: BarChart2, label: 'Stats' },
-  { id: 'photo', icon: Image, label: 'Photo' },
+  { id: 'stats', icon: BarChart3, label: 'Stats' },
+  { id: 'photo', icon: Camera, label: 'Photo' },
   { id: 'media', icon: Film, label: 'Media' },
   { id: 'social', icon: Users, label: 'Social' },
   { id: 'settings', icon: Settings, label: 'Settings' }
