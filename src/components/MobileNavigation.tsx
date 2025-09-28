@@ -1,8 +1,6 @@
 "use client";
 
 import React, { useState } from 'react';
-// Removed Lucide React imports as we are switching to emojis
-// import { LayoutGrid, BarChart3, Camera, Film, Users, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils'; // Assuming cn utility is available
 
 interface MobileNavigationProps {
@@ -12,12 +10,69 @@ interface MobileNavigationProps {
 }
 
 const pages = [
-  { id: 'overview', icon: '📊', label: 'Overview' },
-  { id: 'stats', icon: '📈', label: 'Stats' },
-  { id: 'photo', icon: '📸', label: 'Photo' },
-  { id: 'media', icon: '🎬', label: 'Media' },
-  { id: 'social', icon: '👥', label: 'Social' },
-  { id: 'settings', icon: '⚙️', label: 'Settings' }
+  { 
+    id: 'overview', 
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="7" height="7"/>
+        <rect x="14" y="3" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/>
+        <rect x="3" y="14" width="7" height="7"/>
+      </svg>
+    ), 
+    label: 'Overview' 
+  },
+  { 
+    id: 'stats', 
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <line x1="12" y1="20" x2="12" y2="10"/>
+        <line x1="18" y1="20" x2="18" y2="4"/>
+        <line x1="6" y1="20" x2="6" y2="16"/>
+      </svg>
+    ), 
+    label: 'Stats' 
+  },
+  { 
+    id: 'photo', 
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+    ), 
+    label: 'Photo' 
+  },
+  { 
+    id: 'media', 
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <polygon points="23,7 16,12 23,17"/>
+        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+      </svg>
+    ), 
+    label: 'Media' 
+  },
+  { 
+    id: 'social', 
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+    ), 
+    label: 'Social' 
+  },
+  { 
+    id: 'settings', 
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 -1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    ), 
+    label: 'Settings' 
+  }
 ];
 
 export const MobileNavigation = ({ onPageChange, initialPage = 'overview', className }: MobileNavigationProps) => {
@@ -87,7 +142,6 @@ export const MobileNavigation = ({ onPageChange, initialPage = 'overview', class
     >
       <nav className="flex justify-between items-center p-1 gap-0.5"> {/* Minimal padding, tight spacing */}
         {pages.map((page) => {
-          // const IconComponent = page.icon; // No longer a component, now a string
           const isActive = currentPage === page.id;
           return (
             <button
@@ -95,7 +149,7 @@ export const MobileNavigation = ({ onPageChange, initialPage = 'overview', class
               onClick={() => handleNavClick(page.id)}
               className={cn(
                 "relative flex flex-col items-center justify-center py-1 px-0 rounded-lg", // Minimal padding, app radius
-                "transition-all duration-300 hover:-translate-y-0.5 active:scale-95 flex-1 min-h-[50px]", // Max width, min height
+                "transition-all duration-300 hover:-translate-y-0.5 active:scale-95 flex-1 min-h-[60px]", // Max width, min height
                 isActive
                   ? 'bg-muted text-foreground font-semibold' // Active state background and text
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50' // Inactive state
@@ -109,17 +163,17 @@ export const MobileNavigation = ({ onPageChange, initialPage = 'overview', class
                 )}
               />
               
-              {/* Icon - now rendering emoji directly */}
-              <span 
+              {/* Icon */}
+              <div 
                 className={cn(
-                  "text-xl mb-1 transition-all duration-300", // Adjusted size for emojis
+                  "mb-1 transition-all duration-300", // Wrapper div for icon
                   isActive 
                     ? 'opacity-100 scale-110' 
                     : 'opacity-80 scale-100'
                 )}
               >
                 {page.icon}
-              </span>
+              </div>
               
               {/* Label */}
               <span 
