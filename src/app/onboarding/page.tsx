@@ -128,18 +128,19 @@ export default function OnboardingPage() {
     step1FormData, totalSteps // Added totalSteps to dependencies
   ]);
 
-  const handleNext = useCallback((data?: OnboardingStep1FormData) => {
-    window.scrollTo(0, 0);
+  const handleNext = useCallback((data?: OnboardingStep1FormData) => { // Accept data for step 1
     if (currentStep === 1 && data) {
-      setStep1FormData(data);
-    }
-    if (currentStep < totalSteps) {
+      setStep1FormData(data); // Store step 1 data
+      setCurrentStep(prev => prev + 1);
+    } else if (currentStep === 4 && equipmentMethod === 'skip') {
+      handleSubmit();
+      return;
+    } else if (currentStep < totalSteps) {
       setCurrentStep(prev => prev + 1);
     }
-  }, [currentStep, totalSteps]);
+  }, [currentStep, equipmentMethod, handleSubmit, totalSteps]);
 
   const handleBack = useCallback(() => {
-    window.scrollTo(0, 0); // Scroll to top on back step
     if (currentStep > 1) {
       setCurrentStep(prev => prev - 1);
     }
