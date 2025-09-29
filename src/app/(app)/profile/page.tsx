@@ -66,7 +66,7 @@ const mainMuscleGroups = [
 ];
 
 export default function ProfilePage() {
-  const { session, supabase, memoizedSessionUserId } = useSession();
+  const { session, supabase } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isSaving, setIsSaving] = useState(false);
@@ -101,7 +101,6 @@ export default function ProfilePage() {
   });
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
-  const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const { data: cachedProfile, loading: loadingProfile, error: profileError, refresh: refreshProfileCache } = useCacheAndRevalidate<Profile>({
     cacheTable: 'profiles_cache',
@@ -353,8 +352,16 @@ export default function ProfilePage() {
   }, [router]);
 
   useEffect(() => {
-    if (!emblaApi) return;
+    if (emblaApi) {
+      const index = ["overview", "stats", "photo", "media", "social", "settings"].indexOf(activeTab);
+      if (index !== -1 && emblaApi.selectedScrollSnap() !== index) {
+        emblaApi.scrollTo(index);
+      }
+    }
+  }, [activeTab, emblaApi]);
 
+  useEffect(() => {
+    if (!emblaApi) return;
     const onSelect = () => {
       const selectedIndex = emblaApi.selectedScrollSnap();
       const tabNames = ["overview", "stats", "photo", "media", "social", "settings"];
@@ -363,25 +370,8 @@ export default function ProfilePage() {
         handleTabChange(newTab);
       }
     };
-
     emblaApi.on("select", onSelect);
-    onSelect();
-
-    // Use ResizeObserver to re-initialize Embla when slide content changes height
-    const resizeObserver = new ResizeObserver(() => {
-      if (emblaApi) {
-        emblaApi.reInit();
-      }
-    });
-
-    slideRefs.current.forEach(slide => {
-      if (slide) resizeObserver.observe(slide);
-    });
-
-    return () => {
-      emblaApi.off("select", onSelect);
-      resizeObserver.disconnect();
-    };
+    return () => { emblaApi.off("select", onSelect); };
   }, [emblaApi, activeTab, handleTabChange]);
 
   useEffect(() => {
@@ -434,8 +424,8 @@ export default function ProfilePage() {
       )}>
         <div className="relative">
           <div className="overflow-hidden" ref={emblaRef}>
-            <div className="flex items-start">
-              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0" ref={(el) => { slideRefs.current[0] = el; }}>
+            <div className="flex items-start"> {/* Apply items-start here */}
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0"> {/* Added min-w-0 */}
                 <ProfileOverviewTab
                   profile={profile}
                   bmi={bmi}
@@ -449,22 +439,22 @@ export default function ProfilePage() {
                 />
               </div>
 
-              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0" ref={(el) => { slideRefs.current[1] = el; }}>
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0"> {/* Added min-w-0 */}
                 <ProfileStatsTab
                   fitnessLevel={fitnessLevel}
                   profile={profile}
                 />
               </div>
 
-              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0" ref={(el) => { slideRefs.current[2] = el; }}>
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0"> {/* Added min-w-0 */}
                 <PhotoJourneyTab photos={photos} loading={loadingPhotos} />
               </div>
 
-              <div className="embla__slide flex-[0_0_100%] min-w-0 p-0" ref={(el) => { slideRefs.current[3] = el; }}>
+              <div className="embla__slide flex-[0_0_100%] min-w-0 p-0"> {/* Added min-w-0 */}
                 <MediaFeedScreen />
               </div>
 
-              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0" ref={(el) => { slideRefs.current[4] = el; }}>
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0"> {/* Added min-w-0 */}
                 <Card className="mt-6">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -477,7 +467,7 @@ export default function ProfilePage() {
                 </Card>
               </div>
 
-              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0" ref={(el) => { slideRefs.current[5] = el; }}>
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0"> {/* Added min-w-0 */}
                 <FormProvider {...form}>
                   <ProfileSettingsTab
                     form={form}
