@@ -31,9 +31,8 @@ export default function WorkoutPage() {
     if (finishedSessionId) {
       setSummarySessionId(finishedSessionId);
       setShowSummaryModal(true);
-      // Trigger refresh for profile and achievements after workout completion
-      workoutFlowManager.refreshProfile();
-      workoutFlowManager.refreshAchievements();
+      // Trigger a full refresh of all data after workout completion
+      await workoutFlowManager.refreshAllData();
     }
     return finishedSessionId;
   };

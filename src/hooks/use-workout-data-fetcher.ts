@@ -5,7 +5,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { Tables, WorkoutExercise, WorkoutWithLastCompleted, GroupedTPath, LocalUserAchievement, Profile, FetchedExerciseDefinition } from '@/types/supabase';
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
-import { db, LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise, LocalGym, LocalGymExercise } from '@/lib/db';
+import { db, LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise, LocalGym, LocalGymExercise, LocalWorkoutSession, LocalActivityLog } from '@/lib/db';
 import { useSession } from '@/components/session-context-provider';
 import { useUserProfile } from '@/hooks/data/useUserProfile';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -13,9 +13,6 @@ import { getMaxMinutes, areSetsEqual } from '@/lib/utils'; // Import getMaxMinut
 
 const ULUL_ORDER = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
 const PPL_ORDER = ['Push', 'Pull', 'Legs'];
-
-type TPath = Tables<'t_paths'>;
-type ExerciseDefinition = Tables<'exercise_definitions'>;
 
 interface WeeklySummary {
   completed_workouts: { id: string; name: string }[];
@@ -49,6 +46,16 @@ interface UseWorkoutDataFetcherReturn {
   loadingWeeklySummary: boolean;
   addActivityToWeeklySummary: (newActivity: Tables<'activity_logs'>) => void;
 }
+
+// Helper to get the start of the week (Monday) in UTC
+const getStartOfWeekUTC = (date: Date): Date => {
+  const d = new Date(date);
+  d.setUTCHours(0, 0, 0, 0);
+  const day = d.getUTCDay();
+  const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
+  d.setUTCDate(diff);
+  return d;
+};
 
 export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const { session, supabase, memoizedSessionUserId } = useSession();
@@ -171,8 +178,30 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     }
   }, [liveCachedGymExercises]);
 
-  const baseLoading = useMemo(() => loadingExercises || loadingTPaths || loadingProfile || loadingTPathExercises || loadingAchievements || loadingUserGyms || loadingGymExercises, [loadingExercises, loadingTPaths, loadingProfile, loadingTPathExercises, loadingAchievements, loadingUserGyms, loadingGymExercises]);
-  const dataError = useMemo(() => exercisesError || tPathsError || profileError || tPathExercisesError || achievementsError || userGymsError || gymExercisesError, [exercisesError, tPathsError, profileError, tPathExercisesError, achievementsError, userGymsError, gymExercisesError]);
+  const { data: cachedSessions, loading: loadingSessions, error: sessionsError, refresh: refreshSessions } = useCacheAndRevalidate<LocalWorkoutSession>({
+    cacheTable: 'workout_sessions',
+    supabaseQuery: useCallback(async (client: SupabaseClient) => {
+      if (!memoizedSessionUserId) return { data: [], error: null };
+      return client.from('workout_sessions').select('*').eq('user_id', memoizedSessionUserId);
+    }, [memoizedSessionUserId]),
+    queryKey: 'data_fetcher_sessions',
+    supabase,
+    sessionUserId: memoizedSessionUserId,
+  });
+
+  const { data: cachedActivities, loading: loadingActivities, error: activitiesError, refresh: refreshActivities } = useCacheAndRevalidate<LocalActivityLog>({
+    cacheTable: 'activity_logs',
+    supabaseQuery: useCallback(async (client: SupabaseClient) => {
+      if (!memoizedSessionUserId) return { data: [], error: null };
+      return client.from('activity_logs').select('*').eq('user_id', memoizedSessionUserId);
+    }, [memoizedSessionUserId]),
+    queryKey: 'data_fetcher_activities',
+    supabase,
+    sessionUserId: memoizedSessionUserId,
+  });
+
+  const baseLoading = useMemo(() => loadingExercises || loadingTPaths || loadingProfile || loadingTPathExercises || loadingAchievements || loadingUserGyms || loadingGymExercises || loadingSessions || loadingActivities, [loadingExercises, loadingTPaths, loadingProfile, loadingTPathExercises, loadingAchievements, loadingUserGyms, loadingGymExercises, loadingSessions, loadingActivities]);
+  const dataError = useMemo(() => exercisesError || tPathsError || profileError || tPathExercisesError || achievementsError || userGymsError || gymExercisesError || sessionsError || activitiesError, [exercisesError, tPathsError, profileError, tPathExercisesError, achievementsError, userGymsError, gymExercisesError, sessionsError, activitiesError]);
 
   const allAvailableExercises = useMemo(() => (cachedExercises || []).map(ex => ({ ...ex, id: ex.id, is_favorited_by_current_user: false, movement_type: ex.movement_type, movement_pattern: ex.movement_pattern })), [cachedExercises]);
   const availableMuscleGroups = useMemo(() => Array.from(new Set((cachedExercises || []).map(ex => ex.main_muscle))).sort(), [cachedExercises]);
@@ -241,48 +270,66 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     return newWorkoutExercisesCache;
   }, [baseLoading, dataError, memoizedSessionUserId, cachedTPaths, cachedTPathExercises, cachedExercises]);
 
-  const fetchWeeklySummary = useCallback(async () => {
-    if (!memoizedSessionUserId) {
+  useEffect(() => {
+    if (baseLoading || dataError || !profile) {
+      setLoadingWeeklySummary(baseLoading);
+      return;
+    }
+
+    setLoadingWeeklySummary(true);
+    
+    let programmeType = profile?.programme_type;
+    if (profile?.active_t_path_id) {
+      const activeTPath = (cachedTPaths || []).find(tp => tp.id === profile.active_t_path_id);
+      if (activeTPath?.settings && typeof activeTPath.settings === 'object' && 'tPathType' in activeTPath.settings) {
+        programmeType = (activeTPath.settings as { tPathType: string }).tPathType;
+      }
+    }
+
+    if (!programmeType) {
+      setWeeklySummary(null);
       setLoadingWeeklySummary(false);
       return;
     }
-    setLoadingWeeklySummary(true);
-    try {
-      const response = await fetch('/api/get-weekly-workout-summary', {
-        headers: { 'Authorization': `Bearer ${session?.access_token}` },
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to fetch weekly summary.');
-      setWeeklySummary(data);
-    } catch (err: any) {
-      console.error("[WorkoutDataFetcher] Error fetching weekly summary:", err);
-      toast.error("Failed to load weekly target.");
-    } finally {
-      setLoadingWeeklySummary(false);
-    }
-  }, [memoizedSessionUserId, session?.access_token]);
 
-  const addActivityToWeeklySummary = useCallback((newActivity: Tables<'activity_logs'>) => {
-    setWeeklySummary(prevSummary => {
-      if (!prevSummary) return null;
+    const goal_total = programmeType === 'ulul' ? 4 : 3;
+    const startOfWeek = getStartOfWeekUTC(new Date());
 
-      const newActivityFormatted = {
-        id: newActivity.id,
-        type: newActivity.activity_type,
-        distance: newActivity.distance,
-        time: newActivity.time,
-        date: newActivity.log_date,
-      };
+    const completed_workouts_sorted = (cachedSessions || [])
+      .filter(s => s.completed_at && new Date(s.completed_at) >= startOfWeek)
+      .sort((a, b) => new Date(a.completed_at!).getTime() - new Date(b.completed_at!).getTime())
+      .map(s => ({ id: s.id, name: s.template_name || 'Ad Hoc Workout' }));
 
-      if (prevSummary.completed_activities.some(act => act.id === newActivity.id)) {
-        return prevSummary;
-      }
+    const completed_activities = (cachedActivities || [])
+      .filter(a => new Date(a.log_date) >= startOfWeek)
+      .map(a => ({
+        id: a.id,
+        type: a.activity_type,
+        distance: a.distance,
+        time: a.time,
+        date: a.log_date,
+      }));
 
-      return {
-        ...prevSummary,
-        completed_activities: [...prevSummary.completed_activities, newActivityFormatted],
-      };
+    setWeeklySummary({
+      completed_workouts: completed_workouts_sorted,
+      goal_total,
+      programme_type: programmeType as 'ulul' | 'ppl',
+      completed_activities,
     });
+
+    setLoadingWeeklySummary(false);
+
+  }, [baseLoading, dataError, profile, cachedSessions, cachedActivities, cachedTPaths]);
+
+  const addActivityToWeeklySummary = useCallback(async (newActivity: Tables<'activity_logs'>) => {
+    try {
+      await db.activity_logs.put({
+        ...newActivity,
+        user_id: newActivity.user_id!,
+      });
+    } catch (error) {
+      console.error("Failed to add new activity to local cache:", error);
+    }
   }, []);
 
   useEffect(() => {
@@ -411,9 +458,10 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       refreshAchievements(),
       refreshUserGyms(),
       fetchGymExercises(),
-      fetchWeeklySummary(),
+      refreshSessions(),
+      refreshActivities(),
     ]);
-  }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, refreshAchievements, refreshUserGyms, fetchGymExercises, fetchWeeklySummary]);
+  }, [refreshExercises, refreshTPaths, refreshProfile, refreshTPathExercises, refreshAchievements, refreshUserGyms, fetchGymExercises, refreshSessions, refreshActivities]);
 
   const status = profile?.t_path_generation_status;
   useEffect(() => {

@@ -100,9 +100,13 @@ export function useCacheAndRevalidate<T extends CacheItem>( // Updated generic c
         const itemsToDelete: any[] = [];
         const itemsToPut: T[] = [];
 
+        // Check sync queue before deleting
+        const syncQueueItems = await db.sync_queue.where('table').equals(cacheTable).toArray();
+        const itemsInSyncQueue = new Set(syncQueueItems.map(item => getItemKey(item.payload, primaryKey)));
+
         // Identify items to delete
         for (const localKey of localDataMap.keys()) {
-          if (!remoteDataMap.has(localKey as string)) {
+          if (!remoteDataMap.has(localKey as string) && !itemsInSyncQueue.has(localKey as string)) {
             itemsToDelete.push(localKey);
           }
         }
