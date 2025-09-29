@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Camera, Copy, Sparkles, PlusSquare } from 'lucide-react';
 import { Tables } from '@/types/supabase';
