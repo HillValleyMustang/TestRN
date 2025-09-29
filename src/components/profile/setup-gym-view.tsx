@@ -128,7 +128,7 @@ export const SetupGymView = ({ gym, onClose, onSelectAiSetup, setTempStatusMessa
 
   return (
     <>
-      <DialogHeader className="px-5 pt-5 pb-2 border-b border-slate-100">
+      <DialogHeader className="px-2 pt-5 pb-2 border-b border-slate-100">
         <DialogTitle className="text-xl font-bold text-slate-900">
           Setup "{gym.name}"
         </DialogTitle>
@@ -137,7 +137,7 @@ export const SetupGymView = ({ gym, onClose, onSelectAiSetup, setTempStatusMessa
         </DialogDescription>
       </DialogHeader>
 
-      <div className="px-5 pt-2 pb-4 flex-1 overflow-y-auto">
+      <div className="px-2 pt-2 pb-4 flex-1 overflow-y-auto">
         <div className="grid gap-2.5">
           {options.map((option) => (
             <React.Fragment key={option.id}>
