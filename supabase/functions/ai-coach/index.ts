@@ -33,7 +33,7 @@ interface WorkoutSession {
 // @ts-ignore
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 // @ts-ignore
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${GEMINI_API_KEY}`;
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${GEMINI_API_KEY}`;
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
