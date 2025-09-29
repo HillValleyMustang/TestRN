@@ -102,11 +102,11 @@ export default function ProfilePage() {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
 
   const handleSearchFocus = useCallback(() => {
-    if (emblaApi) emblaApi.destroy();
+    if (emblaApi) emblaApi.reInit({ watchDrag: false });
   }, [emblaApi]);
 
   const handleSearchBlur = useCallback(() => {
-    if (emblaApi) emblaApi.reInit({ loop: false });
+    if (emblaApi) emblaApi.reInit({ watchDrag: true });
   }, [emblaApi]);
 
   const { data: cachedProfile, loading: loadingProfile, error: profileError, refresh: refreshProfileCache } = useCacheAndRevalidate<Profile>({
