@@ -8,31 +8,30 @@ import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { Tables } from '@/types/supabase';
 import { SetupGymView } from './setup-gym-view';
+import { GymPhotoSetupStep } from './gym-photo-setup-step';
 
 type Gym = Tables<'gyms'>;
 
 interface AddGymDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSaveSuccess: () => void; // To refresh the parent list
+  onSaveSuccess: () => void;
   gymCount: number;
   setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void;
 }
 
 export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount, setTempStatusMessage }: AddGymDialogProps) => {
   const { session, supabase, memoizedSessionUserId } = useSession();
-  const [step, setStep] = useState<'name' | 'configure'>('name');
+  const [step, setStep] = useState<'name' | 'configure' | 'ai-upload'>('name');
   const [newGymName, setNewGymName] = useState("");
   const [createdGym, setCreatedGym] = useState<Gym | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const handleClose = () => {
-    // If a gym was created during this flow, trigger the parent's success callback to refresh data
     if (createdGym) {
       onSaveSuccess();
     }
     onOpenChange(false);
-    // Reset state after a short delay to allow for closing animation
     setTimeout(() => {
       setStep('name');
       setNewGymName("");
@@ -70,7 +69,6 @@ export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount, setT
 
       setCreatedGym(insertedGym);
       setStep('configure');
-      // DO NOT call onSaveSuccess here, as it interrupts the flow. It's now called in handleClose.
       setTempStatusMessage({ message: "Added!", type: 'success' });
       setTimeout(() => setTempStatusMessage(null), 3000);
     } catch (err: any) {
@@ -110,7 +108,20 @@ export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount, setT
           </>
         )}
         {step === 'configure' && createdGym && (
-          <SetupGymView gym={createdGym} onClose={handleClose} setTempStatusMessage={setTempStatusMessage} />
+          <SetupGymView
+            gym={createdGym}
+            onClose={handleClose}
+            onSelectAiSetup={() => setStep('ai-upload')}
+            setTempStatusMessage={setTempStatusMessage}
+          />
+        )}
+        {step === 'ai-upload' && createdGym && (
+          <GymPhotoSetupStep
+            gym={createdGym}
+            onBack={() => setStep('configure')}
+            onFinish={handleClose}
+            setTempStatusMessage={setTempStatusMessage}
+          />
         )}
       </DialogContent>
     </Dialog>

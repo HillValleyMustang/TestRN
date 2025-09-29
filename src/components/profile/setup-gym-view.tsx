@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { Copy, PlusSquare, Sparkles } from 'lucide-react';
+import { Copy, PlusSquare, Sparkles, Camera } from 'lucide-react';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { useSession } from '@/components/session-context-provider';
@@ -15,22 +15,23 @@ type Gym = Tables<'gyms'>;
 interface SetupGymViewProps {
   gym: Gym;
   onClose: () => void;
-  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
+  onSelectAiSetup: () => void;
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void;
 }
 
-export const SetupGymView = ({ gym, onClose, setTempStatusMessage }: SetupGymViewProps) => {
-  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
+export const SetupGymView = ({ gym, onClose, onSelectAiSetup, setTempStatusMessage }: SetupGymViewProps) => {
+  const { session, supabase, memoizedSessionUserId } = useSession();
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
   const [sourceGyms, setSourceGyms] = useState<Gym[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchOtherGyms = async () => {
-      if (!memoizedSessionUserId) return; // Use memoized ID
+      if (!memoizedSessionUserId) return;
       const { data, error } = await supabase
         .from('gyms')
         .select('*')
-        .eq('user_id', memoizedSessionUserId) // Use memoized ID
+        .eq('user_id', memoizedSessionUserId)
         .neq('id', gym.id);
 
       if (error) {
@@ -42,7 +43,7 @@ export const SetupGymView = ({ gym, onClose, setTempStatusMessage }: SetupGymVie
       }
     };
     fetchOtherGyms();
-  }, [memoizedSessionUserId, supabase, gym.id, setTempStatusMessage]); // Depend on memoized ID
+  }, [memoizedSessionUserId, supabase, gym.id, setTempStatusMessage]);
 
   const handleSetupOption = async (option: 'copy' | 'defaults' | 'empty') => {
     switch (option) {
@@ -55,7 +56,7 @@ export const SetupGymView = ({ gym, onClose, setTempStatusMessage }: SetupGymVie
         }
         break;
       case 'defaults':
-        if (!memoizedSessionUserId) { // Use memoized ID
+        if (!memoizedSessionUserId) {
           setTempStatusMessage({ message: "Error!", type: 'error' });
           setTimeout(() => setTempStatusMessage(null), 3000);
           return;
@@ -64,16 +65,11 @@ export const SetupGymView = ({ gym, onClose, setTempStatusMessage }: SetupGymVie
         try {
           const response = await fetch('/api/setup-default-gym', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session?.access_token}`, // Use session?.access_token
-            },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
             body: JSON.stringify({ gymId: gym.id }),
           });
           const data = await response.json();
-          if (!response.ok) {
-            throw new Error(data.error || 'Failed to set up default gym.');
-          }
+          if (!response.ok) throw new Error(data.error || 'Failed to set up default gym.');
           setTempStatusMessage({ message: "Updated!", type: 'success' });
           setTimeout(() => setTempStatusMessage(null), 3000);
           onClose();
@@ -102,6 +98,15 @@ export const SetupGymView = ({ gym, onClose, setTempStatusMessage }: SetupGymVie
         </DialogDescription>
       </DialogHeader>
       <div className="py-4 space-y-3">
+        <Card className="cursor-pointer hover:border-primary" onClick={onSelectAiSetup}>
+          <CardHeader className="flex-row items-center gap-4 space-y-0 p-4">
+            <Camera className="h-6 w-6 text-primary" />
+            <div>
+              <CardTitle className="text-base">Analyse Gym Photos with AI</CardTitle>
+              <p className="text-xs text-muted-foreground">Upload photos to automatically create a plan.</p>
+            </div>
+          </CardHeader>
+        </Card>
         <Card className="cursor-pointer hover:border-primary" onClick={() => handleSetupOption('copy')}>
           <CardHeader className="flex-row items-center gap-4 space-y-0 p-4">
             <Copy className="h-6 w-6 text-primary" />
@@ -136,8 +141,8 @@ export const SetupGymView = ({ gym, onClose, setTempStatusMessage }: SetupGymVie
           onOpenChange={setIsCopyDialogOpen}
           targetGym={gym}
           sourceGyms={sourceGyms}
-          onCopySuccess={async () => onClose()} // Close the main setup view on success
-          setTempStatusMessage={setTempStatusMessage} // NEW
+          onCopySuccess={async () => onClose()}
+          setTempStatusMessage={setTempStatusMessage}
         />
       )}
     </>
