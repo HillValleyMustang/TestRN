@@ -136,10 +136,19 @@ async function generateWorkoutPlanForTPath(
       if (activeGymLinksError) throw activeGymLinksError;
       activeGymExerciseIds = new Set((activeGymLinks || []).map((l: { exercise_id: string }) => l.exercise_id));
     }
+    
+    // --- START OF THE CHANGE ---
+    // Tier 1: User's custom exercises.
     const tier1Pool = candidatePool.filter((ex: ExerciseDefinition) => ex.user_id === userId);
-    const tier2Pool = candidatePool.filter((ex: ExerciseDefinition) => ex.user_id === null && !allLinkedExerciseIds.has(ex.id));
-    const tier3Pool = candidatePool.filter((ex: ExerciseDefinition) => ex.user_id === null && activeGymExerciseIds.has(ex.id));
-    const finalPool = [...tier1Pool, ...tier2Pool, ...tier3Pool];
+    // Tier 2: Global exercises linked to the active gym.
+    const tier2Pool_gymLinkedGlobal = candidatePool.filter((ex: ExerciseDefinition) => ex.user_id === null && activeGymExerciseIds.has(ex.id));
+    // Tier 3: Global exercises NOT linked to any gym (fallback).
+    const tier3Pool_unlinkedGlobal = candidatePool.filter((ex: ExerciseDefinition) => ex.user_id === null && !allLinkedExerciseIds.has(ex.id));
+    
+    // Combine pools in the new priority order.
+    const finalPool = [...tier1Pool, ...tier2Pool_gymLinkedGlobal, ...tier3Pool_unlinkedGlobal];
+    // --- END OF THE CHANGE ---
+
     const finalUniquePool = [...new Map(finalPool.map(item => [item.id, item])).values()];
     const mainExercisesForWorkout = finalUniquePool.slice(0, maxMainExercises);
     const bonusExercisesForWorkout = finalUniquePool.slice(maxMainExercises, maxMainExercises + maxBonusExercises);
