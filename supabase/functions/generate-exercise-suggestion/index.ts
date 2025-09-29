@@ -13,7 +13,7 @@ const corsHeaders = {
 // @ts-ignore
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 // @ts-ignore
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`;
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
 
 // Define an interface for the structure of existing exercise data fetched from Supabase
 interface ExistingExercise {
