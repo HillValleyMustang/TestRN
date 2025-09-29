@@ -46,8 +46,11 @@ export const GymPhotoSetupStep = ({ gym, onBack, onFinish, setTempStatusMessage 
   const toggleConfirmedExercise = useCallback((exerciseName: string) => {
     setConfirmedExercises(prevConfirmed => {
       const newSet = new Set(prevConfirmed);
-      if (newSet.has(exerciseName)) newSet.delete(exerciseName);
-      else newSet.add(exerciseName);
+      if (newSet.has(exerciseName)) {
+        newSet.delete(exerciseName);
+      } else {
+        newSet.add(exerciseName);
+      }
       return newSet;
     });
   }, []);
@@ -58,7 +61,7 @@ export const GymPhotoSetupStep = ({ gym, onBack, onFinish, setTempStatusMessage 
       return;
     }
     exercises.forEach(ex => {
-      addIdentifiedExercise(ex as Partial<Tables<'exercise_definitions'>>);
+      addIdentifiedExercise(ex);
     });
   }, [addIdentifiedExercise]);
 
@@ -101,7 +104,7 @@ export const GymPhotoSetupStep = ({ gym, onBack, onFinish, setTempStatusMessage 
         <DialogTitle>Analyse "{gym.name}" with AI</DialogTitle>
         <DialogDescription>Upload photos of your equipment. The AI will identify exercises and build a plan.</DialogDescription>
       </DialogHeader>
-      <div className="py-4 space-y-6">
+      <div className="flex-grow overflow-y-auto py-4 space-y-6 pr-4 -mr-4">
         <div className="p-4 border-2 border-dashed rounded-lg text-center">
           <p className="text-muted-foreground mb-4 text-sm">
             Upload photos of your gym equipment. Our AI will identify exercises you can do. You can upload multiple photos.
@@ -142,7 +145,7 @@ export const GymPhotoSetupStep = ({ gym, onBack, onFinish, setTempStatusMessage 
           </div>
         )}
       </div>
-      <DialogFooter>
+      <DialogFooter className="flex-col sm:flex-row gap-2">
         <Button variant="outline" onClick={onBack} disabled={loading}>Back</Button>
         <Button onClick={handleSubmit} disabled={loading || (identifiedExercises.length > 0 && confirmedExercises.size === 0)}>
           {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
