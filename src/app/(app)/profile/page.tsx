@@ -348,7 +348,7 @@ export default function ProfilePage() {
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
     localStorage.setItem('profileActiveTab', value);
-    router.replace(`/profile?tab=${value}`, { scroll: false }); // Update URL without reloading
+    router.replace(`/profile?tab=${value}`, { scroll: false });
   }, [router]);
 
   useEffect(() => {
