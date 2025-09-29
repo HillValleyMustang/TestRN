@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Loader2, Film, RefreshCw, Search, Filter } from 'lucide-react';
+import { Loader2, Film, RefreshCw, Filter } from 'lucide-react';
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { MediaPost } from '@/types/supabase';
@@ -11,7 +11,6 @@ import { MediaPostCard } from './media-post-card';
 import { VideoPlayerScreen } from './video-player-screen';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Sheet,
@@ -22,18 +21,16 @@ import {
 } from "@/components/ui/sheet";
 
 interface MediaFeedScreenProps {
-  onSearchFocus?: () => void;
-  onSearchBlur?: () => void;
+  // No props needed now
 }
 
-export const MediaFeedScreen = ({ onSearchFocus, onSearchBlur }: MediaFeedScreenProps) => {
+export const MediaFeedScreen = ({}: MediaFeedScreenProps) => {
   const { session, supabase } = useSession();
   const [mediaPosts, setMediaPosts] = useState<MediaPost[]>([]);
   const [categories, setCategories] = useState<string[]>(['All']);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('All');
-  const [searchTerm, setSearchTerm] = useState('');
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 
   const [isVideoPlayerOpen, setIsVideoPlayerOpen] = useState(false);
@@ -77,11 +74,6 @@ export const MediaFeedScreen = ({ onSearchFocus, onSearchBlur }: MediaFeedScreen
         query = query.eq('category', activeCategory);
       }
 
-      if (searchTerm.trim() !== '') {
-        const searchTermWithWildcards = `%${searchTerm.trim()}%`;
-        query = query.or(`title.ilike.${searchTermWithWildcards},description.ilike.${searchTermWithWildcards}`);
-      }
-
       const { data, error: fetchError } = await query;
 
       if (fetchError) {
@@ -96,7 +88,7 @@ export const MediaFeedScreen = ({ onSearchFocus, onSearchBlur }: MediaFeedScreen
     } finally {
       setLoading(false);
     }
-  }, [session, supabase, activeCategory, searchTerm]);
+  }, [session, supabase, activeCategory]);
 
   useEffect(() => {
     fetchMediaPosts();
@@ -145,22 +137,12 @@ export const MediaFeedScreen = ({ onSearchFocus, onSearchBlur }: MediaFeedScreen
           ) : (
             <>
               <div className="p-4 sm:p-0">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search for tips, exercises..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-9"
-                      onFocus={onSearchFocus}
-                      onBlur={onSearchBlur}
-                    />
-                  </div>
+                <div className="flex items-center justify-end gap-2 mb-4">
                   <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
                     <SheetTrigger asChild>
-                      <Button variant="outline" size="icon">
+                      <Button variant="outline" size="sm" className="h-8 gap-1">
                         <Filter className="h-4 w-4" />
+                        <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Filter</span>
                       </Button>
                     </SheetTrigger>
                     <SheetContent side="bottom" className="h-fit max-h-[80vh]">
@@ -186,7 +168,7 @@ export const MediaFeedScreen = ({ onSearchFocus, onSearchBlur }: MediaFeedScreen
 
               {mediaPosts.length === 0 ? (
                 <div className="text-center text-muted-foreground py-16">
-                  <p>No video posts available for this category or search term.</p>
+                  <p>No video posts available for this category.</p>
                 </div>
               ) : (
                 <ScrollArea className="h-[500px] px-4 sm:px-0 sm:pr-4">

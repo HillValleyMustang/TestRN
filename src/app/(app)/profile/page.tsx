@@ -101,14 +101,6 @@ export default function ProfilePage() {
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
 
-  const handleSearchFocus = useCallback(() => {
-    if (emblaApi) emblaApi.reInit({ watchDrag: false });
-  }, [emblaApi]);
-
-  const handleSearchBlur = useCallback(() => {
-    if (emblaApi) emblaApi.reInit({ watchDrag: true });
-  }, [emblaApi]);
-
   const { data: cachedProfile, loading: loadingProfile, error: profileError, refresh: refreshProfileCache } = useCacheAndRevalidate<Profile>({
     cacheTable: 'profiles_cache',
     supabaseQuery: useCallback(async (client) => {
@@ -455,10 +447,7 @@ export default function ProfilePage() {
               </div>
 
               <div className="embla__slide flex-[0_0_100%] min-w-0 p-0">
-                <MediaFeedScreen
-                  onSearchFocus={handleSearchFocus}
-                  onSearchBlur={handleSearchBlur}
-                />
+                <MediaFeedScreen />
               </div>
 
               <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
