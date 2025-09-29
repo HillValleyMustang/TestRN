@@ -250,8 +250,8 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     if (baseLoading || dataError || !memoizedSessionUserId || !cachedTPaths || !cachedTPathExercises || !cachedExercises) {
       return {};
     }
-    const exerciseDefMap = new Map<string, ExerciseDefinition>();
-    (cachedExercises || []).forEach(def => exerciseDefMap.set(def.id, def as ExerciseDefinition));
+    const exerciseDefMap = new Map<string, LocalExerciseDefinition>();
+    (cachedExercises || []).forEach(def => exerciseDefMap.set(def.id, def as LocalExerciseDefinition));
 
     const newWorkoutExercisesCache: Record<string, WorkoutExercise[]> = {};
     const allChildWorkouts = (cachedTPaths || []).filter(tp => tp.user_id === memoizedSessionUserId && tp.parent_t_path_id);
@@ -326,6 +326,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
       await db.activity_logs.put({
         ...newActivity,
         user_id: newActivity.user_id!,
+        created_at: newActivity.created_at || new Date().toISOString(),
       });
     } catch (error) {
       console.error("Failed to add new activity to local cache:", error);

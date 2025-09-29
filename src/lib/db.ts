@@ -186,10 +186,10 @@ export class AppDatabase extends Dexie {
 
   constructor() {
     super('WorkoutTrackerDB');
-    this.version(13).stores({ // Increment version number
+    this.version(14).stores({ // Increment version number
       workout_sessions: '&id, user_id, session_date, t_path_id, template_name',
       set_logs: '&id, session_id, exercise_id',
-      sync_queue: '++id, timestamp',
+      sync_queue: '++id, timestamp, table', // ADDED 'table' INDEX
       draft_set_logs: '[exercise_id+set_index], session_id, exercise_id',
       supabase_session: '&id',
       exercise_definitions_cache: '&id, user_id, library_id',
