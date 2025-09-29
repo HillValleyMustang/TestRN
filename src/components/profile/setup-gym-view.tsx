@@ -128,7 +128,7 @@ export const SetupGymView = ({ gym, onClose, onSelectAiSetup, setTempStatusMessa
 
   return (
     <>
-      <DialogHeader className="px-5 pt-5 pb-4 border-b border-slate-100">
+      <DialogHeader className="px-5 pt-5 pb-2 border-b border-slate-100">
         <DialogTitle className="text-xl font-bold text-slate-900">
           Setup "{gym.name}"
         </DialogTitle>
