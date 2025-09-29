@@ -96,7 +96,7 @@ export const MediaFeedScreen = () => {
 
   return (
     <>
-      <Card className="mt-6">
+      <Card className="mt-6 border-x-0 rounded-none shadow-none sm:border-x sm:rounded-lg sm:shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="flex items-center gap-2">
             <Film className="h-5 w-5" /> Media Library

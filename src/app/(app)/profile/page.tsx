@@ -446,7 +446,7 @@ export default function ProfilePage() {
                 <PhotoJourneyTab photos={photos} loading={loadingPhotos} />
               </div>
 
-              <div className="embla__slide flex-[0_0_100%] min-w-0 pt-0">
+              <div className="embla__slide flex-[0_0_100%] min-w-0 p-0">
                 <MediaFeedScreen />
               </div>
 
