@@ -43,14 +43,10 @@ export function useCacheAndRevalidate<T extends CacheItem>( // Updated generic c
   const isRevalidatingRef = useRef(false); // Use ref for isRevalidating
 
   const data = useLiveQuery(
-    async () => { // Make the query function async
+    async () => {
       const table = db[cacheTable] as any;
+      if (!sessionUserId) return [];
 
-      if (!sessionUserId) {
-        return [];
-      }
-
-      // Special case for set_logs: filter by session_ids belonging to the user
       if (cacheTable === 'set_logs') {
         const userSessionIds = await db.workout_sessions
           .where({ user_id: sessionUserId })
@@ -58,21 +54,21 @@ export function useCacheAndRevalidate<T extends CacheItem>( // Updated generic c
         return userSessionIds.length > 0 ? table.where('session_id').anyOf(userSessionIds).toArray() : [];
       }
 
-      // Default filtering logic for other tables
-      // This covers profiles, gyms, activities, achievements (user_id or id)
-      // and exercises/t_paths (user_id or null)
-      return table.filter((item: T) => {
-        if ('user_id' in item && item.user_id !== undefined) {
-          return item.user_id === sessionUserId || item.user_id === null;
-        }
-        if ('id' in item && cacheTable === 'profiles_cache') {
-          return item.id === sessionUserId;
-        }
-        // For tables without user_id like t_path_exercises, we fetch all and filter later
-        return true; 
-      }).toArray();
+      // More specific queries for better reactivity
+      if (cacheTable === 'profiles_cache') {
+        return table.where({ id: sessionUserId }).toArray();
+      }
+      if (['workout_sessions', 'gyms_cache', 'activity_logs', 'user_achievements_cache'].includes(cacheTable)) {
+        return table.where({ user_id: sessionUserId }).toArray();
+      }
+      if (['exercise_definitions_cache', 't_paths_cache'].includes(cacheTable)) {
+        return table.where('user_id').equals(sessionUserId).or('user_id').equals(null).toArray();
+      }
+      
+      // Fallback for tables without a simple user_id index (e.g., t_path_exercises, gym_exercises_cache)
+      return table.toArray();
     },
-    [cacheTable, sessionUserId], // Dependencies for useLiveQuery
+    [cacheTable, sessionUserId],
     []
   );
 
