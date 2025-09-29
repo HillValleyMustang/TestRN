@@ -69,7 +69,8 @@ export function useCacheAndRevalidate<T extends CacheItem>( // Updated generic c
         return table.where({ user_id: sessionUserId }).toArray();
       }
       if (['exercise_definitions_cache', 't_paths_cache'].includes(cacheTable)) {
-        return table.where('user_id').equals(sessionUserId).or('user_id').equals(null).toArray();
+        // Use a filter for more complex OR logic. This is safer than chained where clauses.
+        return table.filter((item: T) => item.user_id === sessionUserId || item.user_id === null).toArray();
       }
       
       // Fallback for tables without a simple user_id index (e.g., t_path_exercises, gym_exercises_cache)
