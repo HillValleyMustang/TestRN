@@ -115,7 +115,7 @@ export const MediaFeedScreen = () => {
             </Tooltip>
           </TooltipProvider>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0 sm:p-6">
           {loading ? (
             <div className="flex justify-center items-center h-64">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -126,43 +126,44 @@ export const MediaFeedScreen = () => {
             </div>
           ) : (
             <>
-              <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search for tips, exercises..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9"
-                  onTouchStartCapture={(e) => e.stopPropagation()}
-                  onTouchMoveCapture={(e) => e.stopPropagation()}
-                />
-              </div>
-
-              <ScrollArea className="w-full whitespace-nowrap rounded-md border mb-4 hide-scrollbar">
-                <div className="flex w-max space-x-2 p-2">
-                  {categories.map(category => (
-                    <Button
-                      key={category}
-                      variant={activeCategory === category ? "default" : "outline"}
-                      onClick={() => setActiveCategory(category)}
-                      className={cn(
-                        "h-8 px-3 text-sm",
-                        activeCategory === category ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent"
-                      )}
-                    >
-                      {category}
-                    </Button>
-                  ))}
+              <div className="p-4 sm:p-0">
+                <div className="relative mb-4">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search for tips, exercises..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
+                    onPointerDownCapture={(e) => e.stopPropagation()}
+                  />
                 </div>
-                <ScrollBar orientation="horizontal" className="hidden" />
-              </ScrollArea>
+
+                <ScrollArea className="w-full whitespace-nowrap rounded-md border mb-4 hide-scrollbar">
+                  <div className="flex w-max space-x-2 p-2">
+                    {categories.map(category => (
+                      <Button
+                        key={category}
+                        variant={activeCategory === category ? "default" : "outline"}
+                        onClick={() => setActiveCategory(category)}
+                        className={cn(
+                          "h-8 px-3 text-sm",
+                          activeCategory === category ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent"
+                        )}
+                      >
+                        {category}
+                      </Button>
+                    ))}
+                  </div>
+                  <ScrollBar orientation="horizontal" className="hidden" />
+                </ScrollArea>
+              </div>
 
               {mediaPosts.length === 0 ? (
                 <div className="text-center text-muted-foreground py-16">
                   <p>No video posts available for this category or search term.</p>
                 </div>
               ) : (
-                <ScrollArea className="h-[500px] pr-4">
+                <ScrollArea className="h-[500px] px-4 sm:px-0 sm:pr-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {mediaPosts.map((post: MediaPost) => (
                       <MediaPostCard key={post.id} post={post} onClick={handlePostClick} />
