@@ -38,22 +38,23 @@ serve(async (req: Request) => {
     }
 
     // Find the main T-Path associated with the target gym for this user
-    const { data: tPathForGym, error: tPathError } = await supabaseServiceRoleClient
+    // Using .limit(1) and checking the array is more robust than .single() in some edge cases.
+    const { data: tPaths, error: tPathError } = await supabaseServiceRoleClient
       .from('t_paths')
-      .select('id, template_name, gym_id, user_id, parent_t_path_id') // Select more fields for debugging
+      .select('id')
       .eq('gym_id', gymId)
       .eq('user_id', user.id)
       .is('parent_t_path_id', null) // Ensure it's a main plan
-      .single();
+      .limit(1);
 
-    // It's okay if a tPath isn't found (unconfigured gym), it will be set to null.
-    if (tPathError && tPathError.code !== 'PGRST116') { // PGRST116 = no rows found, which is acceptable
+    if (tPathError) {
       console.error(`Error finding T-Path for gym ${gymId}:`, tPathError.message);
       throw tPathError;
     }
-    console.log(`[switch-active-gym] Found T-Path for gym ${gymId}:`, tPathForGym); // ADD THIS LOG
+    
+    const newActiveTPathId = (tPaths && tPaths.length > 0) ? tPaths[0].id : null;
+    console.log(`[switch-active-gym] For gym ${gymId}, found new active T-Path ID: ${newActiveTPathId}`);
 
-    const newActiveTPathId = tPathForGym ? tPathForGym.id : null;
 
     // Perform a single, safe update on the user's profile
     const { error: updateProfileError } = await supabaseServiceRoleClient
