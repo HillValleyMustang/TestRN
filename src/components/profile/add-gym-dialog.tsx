@@ -16,17 +16,21 @@ interface AddGymDialogProps {
   onOpenChange: (open: boolean) => void;
   onSaveSuccess: () => void; // To refresh the parent list
   gymCount: number;
-  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void;
 }
 
 export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount, setTempStatusMessage }: AddGymDialogProps) => {
-  const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
+  const { session, supabase, memoizedSessionUserId } = useSession();
   const [step, setStep] = useState<'name' | 'configure'>('name');
   const [newGymName, setNewGymName] = useState("");
   const [createdGym, setCreatedGym] = useState<Gym | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const handleClose = () => {
+    // If a gym was created during this flow, trigger the parent's success callback to refresh data
+    if (createdGym) {
+      onSaveSuccess();
+    }
     onOpenChange(false);
     // Reset state after a short delay to allow for closing animation
     setTimeout(() => {
@@ -38,7 +42,7 @@ export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount, setT
   };
 
   const handleNameSubmit = async () => {
-    if (!memoizedSessionUserId) { // Use memoized ID
+    if (!memoizedSessionUserId) {
       setTempStatusMessage({ message: "Error!", type: 'error' });
       setTimeout(() => setTempStatusMessage(null), 3000);
       return;
@@ -58,7 +62,7 @@ export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount, setT
     try {
       const { data: insertedGym, error } = await supabase
         .from('gyms')
-        .insert({ name: newGymName, user_id: memoizedSessionUserId }) // Use memoized ID
+        .insert({ name: newGymName, user_id: memoizedSessionUserId })
         .select('*')
         .single();
 
@@ -66,7 +70,7 @@ export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount, setT
 
       setCreatedGym(insertedGym);
       setStep('configure');
-      onSaveSuccess(); // Refresh the list in the background
+      // DO NOT call onSaveSuccess here, as it interrupts the flow. It's now called in handleClose.
       setTempStatusMessage({ message: "Added!", type: 'success' });
       setTimeout(() => setTempStatusMessage(null), 3000);
     } catch (err: any) {
