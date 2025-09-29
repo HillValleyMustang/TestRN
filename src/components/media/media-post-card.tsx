@@ -48,6 +48,7 @@ export const MediaPostCard = ({ post, onClick, className }: MediaPostCardProps) 
             src={thumbnailUrl}
             alt={post.title}
             className="w-full h-full object-cover"
+            loading="lazy" // Added lazy loading attribute
             onError={(e) => {
               e.currentTarget.src = "/placeholder-video.jpg"; // Fallback image
               e.currentTarget.onerror = null;
