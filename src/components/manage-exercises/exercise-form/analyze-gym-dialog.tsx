@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Camera, Upload, Loader2, ImageOff, Sparkles, XCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -193,11 +193,11 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
               </Button>
             )}
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t">
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading} className="flex-1">
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancel
             </Button>
-            <Button onClick={handleAnalyseImage} disabled={base64Images.length === 0 || loading} className="flex-1">
+            <Button onClick={handleAnalyseImage} disabled={base64Images.length === 0 || loading}>
               {loading ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
@@ -205,7 +205,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
               )}
               {loading ? "Analysing..." : `Analyse ${base64Images.length} Image(s)`}
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
       <LoadingOverlay

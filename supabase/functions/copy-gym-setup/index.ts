@@ -55,10 +55,10 @@ serve(async (req: Request) => {
     const { data: currentProfile, error: currentProfileError } = await supabaseServiceRoleClient.from('profiles').select('active_gym_id').eq('id', user.id).single();
     if (currentProfileError) throw currentProfileError;
 
-    // If no gym is active, make this new one active.
-    if (currentProfile.active_gym_id === null) {
+    // If no gym is active, OR if the target gym is the active gym, update the active_t_path_id
+    if (currentProfile.active_gym_id === null || currentProfile.active_gym_id === targetGymId) {
       await supabaseServiceRoleClient.from('profiles').update({ 
-        active_gym_id: targetGymId,
+        active_gym_id: targetGymId, // Also set active_gym_id in case it was null
         active_t_path_id: newMainTPathId 
       }).eq('id', user.id);
     }

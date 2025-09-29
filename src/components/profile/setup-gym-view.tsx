@@ -97,43 +97,35 @@ export const SetupGymView = ({ gym, onClose, onSelectAiSetup, setTempStatusMessa
           How would you like to add exercises to your new gym?
         </DialogDescription>
       </DialogHeader>
-      <div className="py-4 space-y-3">
-        <Card className="cursor-pointer hover:border-primary" onClick={onSelectAiSetup}>
-          <CardHeader className="flex-row items-center gap-4 space-y-0 p-4">
-            <Camera className="h-8 w-8 text-primary flex-shrink-0" />
-            <div className="flex-1">
-              <CardTitle className="text-base">Analyse Gym Photos with AI</CardTitle>
-              <p className="text-sm text-muted-foreground">Upload photos to automatically create a plan.</p>
-            </div>
-          </CardHeader>
-        </Card>
-        <Card className="cursor-pointer hover:border-primary" onClick={() => handleSetupOption('copy')}>
-          <CardHeader className="flex-row items-center gap-4 space-y-0 p-4">
-            <Copy className="h-8 w-8 text-primary flex-shrink-0" />
-            <div className="flex-1">
-              <CardTitle className="text-base">Copy from Existing Gym</CardTitle>
-              <p className="text-sm text-muted-foreground">Duplicate the setup from another of your gyms.</p>
-            </div>
-          </CardHeader>
-        </Card>
-        <Card className="cursor-pointer hover:border-primary" onClick={() => handleSetupOption('defaults')}>
-          <CardHeader className="flex-row items-center gap-4 space-y-0 p-4">
-            <Sparkles className="h-8 w-8 text-primary flex-shrink-0" />
-            <div className="flex-1">
-              <CardTitle className="text-base">Use App Defaults</CardTitle>
-              <p className="text-sm text-muted-foreground">Start with a standard set of common gym equipment.</p>
-            </div>
-          </CardHeader>
-        </Card>
-        <Card className="cursor-pointer hover:border-primary" onClick={() => handleSetupOption('empty')}>
-          <CardHeader className="flex-row items-center gap-4 space-y-0 p-4">
-            <PlusSquare className="h-8 w-8 text-primary flex-shrink-0" />
-            <div className="flex-1">
-              <CardTitle className="text-base">Start from Empty</CardTitle>
-              <p className="text-sm text-muted-foreground">Manually add exercises to this gym later.</p>
-            </div>
-          </CardHeader>
-        </Card>
+      <div className="py-4 space-y-2">
+        <Button variant="outline" className="h-auto p-4 flex items-center justify-start gap-4 text-left w-full" onClick={onSelectAiSetup}>
+          <Camera className="h-6 w-6 text-primary flex-shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold">Analyse Gym Photos with AI</p>
+            <p className="text-sm text-muted-foreground">Upload photos to automatically create a plan.</p>
+          </div>
+        </Button>
+        <Button variant="outline" className="h-auto p-4 flex items-center justify-start gap-4 text-left w-full" onClick={() => handleSetupOption('copy')}>
+          <Copy className="h-6 w-6 text-primary flex-shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold">Copy from Existing Gym</p>
+            <p className="text-sm text-muted-foreground">Duplicate the setup from another of your gyms.</p>
+          </div>
+        </Button>
+        <Button variant="outline" className="h-auto p-4 flex items-center justify-start gap-4 text-left w-full" onClick={() => handleSetupOption('defaults')}>
+          <Sparkles className="h-6 w-6 text-primary flex-shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold">Use App Defaults</p>
+            <p className="text-sm text-muted-foreground">Start with a standard set of common gym equipment.</p>
+          </div>
+        </Button>
+        <Button variant="outline" className="h-auto p-4 flex items-center justify-start gap-4 text-left w-full" onClick={() => handleSetupOption('empty')}>
+          <PlusSquare className="h-6 w-6 text-primary flex-shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold">Start from Empty</p>
+            <p className="text-sm text-muted-foreground">Manually add exercises to this gym later.</p>
+          </div>
+        </Button>
       </div>
       {isCopyDialogOpen && (
         <CopyGymSetupDialog

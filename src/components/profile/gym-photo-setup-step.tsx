@@ -145,7 +145,7 @@ export const GymPhotoSetupStep = ({ gym, onBack, onFinish, setTempStatusMessage 
           </div>
         )}
       </div>
-      <DialogFooter className="flex-col sm:flex-row gap-2">
+      <DialogFooter>
         <Button variant="outline" onClick={onBack} disabled={loading}>Back</Button>
         <Button onClick={handleSubmit} disabled={loading || (identifiedExercises.length > 0 && confirmedExercises.size === 0)}>
           {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
