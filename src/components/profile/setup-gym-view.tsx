@@ -3,12 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { Copy, PlusSquare, Sparkles, Camera } from 'lucide-react';
+import { Camera, Copy, Sparkles, PlusSquare } from 'lucide-react';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { useSession } from '@/components/session-context-provider';
 import { CopyGymSetupDialog } from './copy-gym-setup-dialog';
+import { cn } from '@/lib/utils';
 
 type Gym = Tables<'gyms'>;
 
@@ -89,43 +89,102 @@ export const SetupGymView = ({ gym, onClose, onSelectAiSetup, setTempStatusMessa
     }
   };
 
+  const options = [
+    {
+      id: 'ai-photo' as const,
+      title: 'Analyse Gym Photos',
+      description: 'Upload photos to automatically create your equipment list',
+      icon: Camera,
+      recommended: true,
+      badge: 'AI',
+      action: onSelectAiSetup,
+    },
+    {
+      id: 'copy-existing' as const,
+      title: 'Copy from Existing Gym',
+      description: "Duplicate the setup from another gym you've created",
+      icon: Copy,
+      recommended: false,
+      action: () => handleSetupOption('copy'),
+    },
+    {
+      id: 'app-defaults' as const,
+      title: 'Use App Defaults',
+      description: 'Start with a standard set of common gym equipment',
+      icon: Sparkles,
+      recommended: false,
+      dividerBefore: true,
+      action: () => handleSetupOption('defaults'),
+    },
+    {
+      id: 'empty' as const,
+      title: 'Start from Empty',
+      description: 'Manually add exercises to this gym from scratch',
+      icon: PlusSquare,
+      recommended: false,
+      action: () => handleSetupOption('empty'),
+    },
+  ];
+
   return (
     <>
-      <DialogHeader>
-        <DialogTitle>Setup "{gym.name}"</DialogTitle>
-        <DialogDescription>
+      <DialogHeader className="px-5 pt-5 pb-4 border-b border-slate-100">
+        <DialogTitle className="text-xl font-bold text-slate-900">
+          Setup "{gym.name}"
+        </DialogTitle>
+        <DialogDescription className="text-[13px] text-slate-500 leading-tight">
           How would you like to add exercises to your new gym?
         </DialogDescription>
       </DialogHeader>
-      <div className="py-4 space-y-2">
-        <Button variant="outline" className="h-auto p-4 flex items-center justify-start gap-4 text-left w-full" onClick={onSelectAiSetup}>
-          <Camera className="h-6 w-6 text-primary flex-shrink-0" />
-          <div className="flex-1">
-            <p className="font-semibold">Analyse Gym Photos with AI</p>
-            <p className="text-sm text-muted-foreground">Upload photos to automatically create a plan.</p>
-          </div>
-        </Button>
-        <Button variant="outline" className="h-auto p-4 flex items-center justify-start gap-4 text-left w-full" onClick={() => handleSetupOption('copy')}>
-          <Copy className="h-6 w-6 text-primary flex-shrink-0" />
-          <div className="flex-1">
-            <p className="font-semibold">Copy from Existing Gym</p>
-            <p className="text-sm text-muted-foreground">Duplicate the setup from another of your gyms.</p>
-          </div>
-        </Button>
-        <Button variant="outline" className="h-auto p-4 flex items-center justify-start gap-4 text-left w-full" onClick={() => handleSetupOption('defaults')}>
-          <Sparkles className="h-6 w-6 text-primary flex-shrink-0" />
-          <div className="flex-1">
-            <p className="font-semibold">Use App Defaults</p>
-            <p className="text-sm text-muted-foreground">Start with a standard set of common gym equipment.</p>
-          </div>
-        </Button>
-        <Button variant="outline" className="h-auto p-4 flex items-center justify-start gap-4 text-left w-full" onClick={() => handleSetupOption('empty')}>
-          <PlusSquare className="h-6 w-6 text-primary flex-shrink-0" />
-          <div className="flex-1">
-            <p className="font-semibold">Start from Empty</p>
-            <p className="text-sm text-muted-foreground">Manually add exercises to this gym later.</p>
-          </div>
-        </Button>
+
+      <div className="px-5 py-4 flex-1 overflow-y-auto">
+        <div className="grid gap-2.5">
+          {options.map((option) => (
+            <React.Fragment key={option.id}>
+              {option.dividerBefore && (
+                <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent my-2" />
+              )}
+              
+              <button
+                onClick={option.action}
+                className={cn(
+                  `relative w-full text-left rounded-xl p-3 border-2 group`,
+                  `transition-all duration-300 ease-out overflow-hidden`,
+                  `before:absolute before:top-0 before:left-0 before:w-1 before:h-full`,
+                  `before:bg-slate-900 before:scale-y-0 before:transition-transform`,
+                  `before:duration-300 before:ease-out before:origin-center`,
+                  `hover:translate-x-1 hover:shadow-md hover:border-slate-300`,
+                  `hover:before:scale-y-100`,
+                  option.recommended
+                    ? 'bg-gradient-to-br from-slate-900/[0.03] to-slate-900/[0.01] border-slate-900'
+                    : 'bg-white border-slate-200'
+                )}
+              >
+                <div className="flex gap-2.5 items-start">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 bg-slate-50 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-300 group-hover:bg-slate-900 group-hover:scale-105">
+                    <option.icon className="w-[18px] h-[18px] sm:w-5 sm:h-5 text-slate-900 transition-colors duration-300 group-hover:text-white" />
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <h3 className="text-sm font-bold text-slate-900">
+                        {option.title}
+                      </h3>
+                      {option.recommended && option.badge && (
+                        <span className="bg-slate-900 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md">
+                          {option.badge}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 leading-snug">
+                      {option.description}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            </React.Fragment>
+          ))}
+        </div>
       </div>
       {isCopyDialogOpen && (
         <CopyGymSetupDialog
