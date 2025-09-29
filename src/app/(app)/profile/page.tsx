@@ -347,8 +347,7 @@ export default function ProfilePage() {
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
     localStorage.setItem('profileActiveTab', value);
-    router.replace(`/profile?tab=${value}`, { scroll: false });
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     if (emblaApi) {
@@ -423,8 +422,8 @@ export default function ProfilePage() {
       )}>
         <div className="relative">
           <div className="overflow-hidden" ref={emblaRef}>
-            <div className="flex">
-              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0 self-start">
+            <div className="flex items-start">
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
                 <ProfileOverviewTab
                   profile={profile}
                   bmi={bmi}
@@ -438,22 +437,22 @@ export default function ProfilePage() {
                 />
               </div>
 
-              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0 self-start">
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
                 <ProfileStatsTab
                   fitnessLevel={fitnessLevel}
                   profile={profile}
                 />
               </div>
 
-              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0 self-start">
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
                 <PhotoJourneyTab photos={photos} loading={loadingPhotos} />
               </div>
 
-              <div className="embla__slide flex-[0_0_100%] min-w-0 p-0 self-start">
+              <div className="embla__slide flex-[0_0_100%] min-w-0 p-0">
                 <MediaFeedScreen />
               </div>
 
-              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0 self-start">
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
                 <Card className="mt-6">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -466,7 +465,7 @@ export default function ProfilePage() {
                 </Card>
               </div>
 
-              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0 self-start">
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
                 <FormProvider {...form}>
                   <ProfileSettingsTab
                     form={form}
