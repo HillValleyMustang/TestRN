@@ -181,7 +181,12 @@ export const GymManagementSection = ({ profile, onDataChange, setIsSaving, setTe
             <ul className="space-y-2">
               {userGyms.map(gym => ( // Use userGyms from context
                 <li key={gym.id} className="flex items-center justify-between p-2 border rounded-md">
-                  <span className="font-medium">{gym.name}</span>
+                  <div>
+                    <span className="font-medium">{gym.name}</span>
+                    <p className="text-xs text-muted-foreground">
+                      Added: {new Date(gym.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
                   {isEditing && (
                     <div className="flex gap-1">
                       <Button type="button" variant="ghost" size="icon" title="Manage Exercises" onClick={() => { setSelectedGym(gym); setIsManageExercisesDialogOpen(true); }}>
