@@ -163,7 +163,7 @@ export const MediaFeedScreen = () => {
                 </div>
               ) : (
                 <ScrollArea className="h-[500px] pr-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                     {mediaPosts.map((post: MediaPost) => (
                       <MediaPostCard key={post.id} post={post} onClick={handlePostClick} />
                     ))}
