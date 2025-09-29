@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Loader2, Film, RefreshCw, Search } from 'lucide-react';
+import { Loader2, Film, RefreshCw, Search, Filter } from 'lucide-react';
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { MediaPost } from '@/types/supabase';
@@ -13,6 +13,13 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 export const MediaFeedScreen = () => {
   const { session, supabase } = useSession();
@@ -22,6 +29,7 @@ export const MediaFeedScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState('');
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 
   const [isVideoPlayerOpen, setIsVideoPlayerOpen] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<{ youtubeVideoId: string; title: string } | null>(null);
@@ -94,6 +102,11 @@ export const MediaFeedScreen = () => {
     setIsVideoPlayerOpen(true);
   };
 
+  const handleCategorySelect = (category: string) => {
+    setActiveCategory(category);
+    setIsFilterSheetOpen(false); // Close sheet after selection
+  };
+
   return (
     <>
       <Card className="mt-6 border-x-0 rounded-none shadow-none sm:border-x sm:rounded-lg sm:shadow-sm">
@@ -127,35 +140,42 @@ export const MediaFeedScreen = () => {
           ) : (
             <>
               <div className="p-4 sm:p-0">
-                <div className="relative mb-4">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search for tips, exercises..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9"
-                    onPointerDownCapture={(e) => e.stopPropagation()}
-                  />
-                </div>
-
-                <ScrollArea className="w-full whitespace-nowrap rounded-md border mb-4 hide-scrollbar">
-                  <div className="flex w-max space-x-2 p-2">
-                    {categories.map(category => (
-                      <Button
-                        key={category}
-                        variant={activeCategory === category ? "default" : "outline"}
-                        onClick={() => setActiveCategory(category)}
-                        className={cn(
-                          "h-8 px-3 text-sm",
-                          activeCategory === category ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent"
-                        )}
-                      >
-                        {category}
-                      </Button>
-                    ))}
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search for tips, exercises..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9"
+                      onPointerDownCapture={(e) => e.stopPropagation()}
+                    />
                   </div>
-                  <ScrollBar orientation="horizontal" className="hidden" />
-                </ScrollArea>
+                  <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
+                    <SheetTrigger asChild>
+                      <Button variant="outline" size="icon">
+                        <Filter className="h-4 w-4" />
+                      </Button>
+                    </SheetTrigger>
+                    <SheetContent side="bottom" className="h-fit max-h-[80vh]">
+                      <SheetHeader>
+                        <SheetTitle>Filter by Category</SheetTitle>
+                      </SheetHeader>
+                      <div className="py-4 flex flex-col space-y-2">
+                        {categories.map(category => (
+                          <Button
+                            key={category}
+                            variant={activeCategory === category ? "default" : "outline"}
+                            onClick={() => handleCategorySelect(category)}
+                            className="justify-start"
+                          >
+                            {category}
+                          </Button>
+                        ))}
+                      </div>
+                    </SheetContent>
+                  </Sheet>
+                </div>
               </div>
 
               {mediaPosts.length === 0 ? (
