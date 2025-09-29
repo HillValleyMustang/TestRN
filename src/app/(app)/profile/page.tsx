@@ -32,6 +32,7 @@ import { PhotoCaptureFlow } from '@/components/profile/photo-journey/photo-captu
 import { MobileNavigation } from '@/components/profile/mobile-navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MediaFeedScreen } from '@/components/media/media-feed-screen';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'; // Import Tabs components
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
@@ -347,7 +348,8 @@ export default function ProfilePage() {
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
     localStorage.setItem('profileActiveTab', value);
-  }, []);
+    router.replace(`/profile?tab=${value}`, { scroll: false }); // Update URL without reloading
+  }, [router]);
 
   useEffect(() => {
     if (emblaApi) {
@@ -417,12 +419,12 @@ export default function ProfilePage() {
       <div className={cn(
         "transition-all duration-300",
         activeTab === 'media' 
-          ? 'w-full'
-          : 'p-2 sm:p-4 mx-auto max-w-4xl'
+          ? 'w-full' // Take full width for media tab
+          : 'p-2 sm:p-4 mx-auto max-w-4xl' // Constrain other tabs
       )}>
         <div className="relative">
           <div className="overflow-hidden" ref={emblaRef}>
-            <div className="flex items-start">
+            <div className="flex items-start"> {/* Apply items-start here */}
               <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
                 <ProfileOverviewTab
                   profile={profile}
