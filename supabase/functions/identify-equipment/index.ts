@@ -86,85 +86,92 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: 'No images provided.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // 1. Fetch ALL exercises ONCE (user-owned and global) for efficient lookup.
+    // 1. Fetch ALL exercises ONCE for efficient lookup.
     const { data: allDbExercises, error: fetchAllError } = await supabaseServiceRoleClient
       .from('exercise_definitions')
       .select('*');
     if (fetchAllError) throw fetchAllError;
 
-    const allIdentifiedExerciseNames = new Set<string>();
+    // 2. Construct a single, comprehensive prompt for all images.
+    const prompt = `
+      You are an expert fitness coach. Analyze the gym equipment in the following image(s).
+      Your task is to identify all possible exercises and provide their details.
 
-    for (const base64Image of base64Images) {
-      // 2. SIMPLIFIED PROMPT: Ask only for exercise names.
-      const prompt = `
-        You are an expert fitness coach. Analyze the gym equipment in this image.
-        Your task is to identify exercises that can be performed with it.
-
-        Instructions:
-        1. Identify the equipment.
-        2. List the most common and effective exercises for that equipment.
-        3. Your entire response MUST be a single, clean JSON array of strings, where each string is an exercise name. Do not include any other text, markdown, or explanations.
-
-        Example response:
-        ["Bench Press", "Dumbbell Row", "Squat", "Overhead Press"]
-      `;
-
-      const geminiResponse = await fetch(GEMINI_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { text: prompt },
-                { inlineData: { mimeType: 'image/jpeg', data: base64Image } }
-              ]
-            }
-          ],
-        }),
-      });
-
-      if (!geminiResponse.ok) {
-        const errorBody = await geminiResponse.text();
-        console.error(`Gemini API error for one image: ${geminiResponse.status} - ${errorBody}`);
-        continue;
+      Instructions:
+      1. Identify all pieces of equipment shown across all images.
+      2. For each piece of equipment, list the most common and effective exercises.
+      3. Consolidate all exercises into a single list, removing duplicates.
+      4. Your entire response MUST be a single, clean JSON array of objects. Each object must have the following structure:
+      {
+        "name": "Exercise Name",
+        "main_muscle": "Main Muscle Group (MUST be one of: ${VALID_MUSCLE_GROUPS.join(', ')})",
+        "type": "weight" | "timed" | "bodyweight",
+        "category": "Bilateral" | "Unilateral" | null,
+        "movement_type": "compound" | "isolation",
+        "movement_pattern": "Push" | "Pull" | "Legs" | "Core",
+        "description": "A brief description of the exercise.",
+        "pro_tip": "A short, actionable pro tip for performing the exercise.",
+        "video_url": "Optional YouTube or instructional video URL (can be empty string if none)"
       }
+      5. Do not include any other text, markdown, or explanations outside the JSON array.
+    `;
 
-      const geminiData = await geminiResponse.json();
-      const generatedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!generatedText) {
-        console.warn("AI did not return a valid response for one image.");
-        continue;
-      }
+    // Prepare parts for Gemini API call, including the prompt and all images
+    const geminiParts = [
+      { text: prompt },
+      ...base64Images.map(img => ({ inlineData: { mimeType: 'image/jpeg', data: img } }))
+    ];
 
-      let exerciseNamesFromAI: string[];
-      try {
-        const jsonMatch = generatedText.match(/\[[\s\S]*\]/);
-        if (!jsonMatch) continue;
-        const sanitizedJsonString = jsonMatch[0].replace(/,(?=\s*[\]}])/g, '');
-        exerciseNamesFromAI = JSON.parse(sanitizedJsonString);
-        if (!Array.isArray(exerciseNamesFromAI) || !exerciseNamesFromAI.every(item => typeof item === 'string')) {
-            console.warn("AI response was not a simple array of strings.", generatedText);
-            continue;
-        }
-      } catch (parseError) {
-        console.error("AI returned an invalid format for one image:", parseError, "Raw text:", generatedText);
-        continue;
-      }
-      
-      exerciseNamesFromAI.forEach(name => allIdentifiedExerciseNames.add(name));
+    const geminiResponse = await fetch(GEMINI_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: geminiParts }],
+      }),
+    });
+
+    if (!geminiResponse.ok) {
+      const errorBody = await geminiResponse.text();
+      console.error(`Gemini API error: ${geminiResponse.status} - ${errorBody}`);
+      throw new Error("The AI model failed to process the images.");
     }
 
-    if (allIdentifiedExerciseNames.size === 0) {
+    const geminiData = await geminiResponse.json();
+    const generatedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!generatedText) {
+      console.warn("AI did not return a valid response.");
       return new Response(JSON.stringify({ identifiedExercises: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // 3. Match AI names against our database and determine duplicate status.
+    // 3. Robustly parse and validate the AI's response.
+    let exercisesFromAI: any[];
+    try {
+      const jsonMatch = generatedText.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        throw new Error("No valid JSON array found in AI response.");
+      }
+      const sanitizedJsonString = jsonMatch[0].replace(/,(?=\s*[\]}])/g, '');
+      exercisesFromAI = JSON.parse(sanitizedJsonString);
+      if (!Array.isArray(exercisesFromAI)) {
+        throw new Error("AI response was not a JSON array.");
+      }
+    } catch (parseError) {
+      console.error("AI returned an invalid format:", parseError, "Raw text:", generatedText);
+      throw new Error("The AI returned data in an unexpected format. Please try again.");
+    }
+
+    // 4. Validate each exercise and check for duplicates.
     const finalResults: any[] = [];
     const seenNormalizedNames = new Set<string>();
 
-    for (const aiName of allIdentifiedExerciseNames) {
-      const normalizedAiName = normalizeName(aiName);
+    for (const aiExercise of exercisesFromAI) {
+      // Basic validation
+      if (!aiExercise || typeof aiExercise.name !== 'string' || aiExercise.name.trim() === '' || typeof aiExercise.main_muscle !== 'string' || !VALID_MUSCLE_GROUPS.includes(aiExercise.main_muscle)) {
+        console.warn("Skipping invalid exercise object from AI:", aiExercise);
+        continue;
+      }
+
+      const normalizedAiName = normalizeName(aiExercise.name);
       if (seenNormalizedNames.has(normalizedAiName)) continue;
 
       let duplicate_status: 'none' | 'global' | 'my-exercises' = 'none';
@@ -188,63 +195,15 @@ serve(async (req: Request) => {
           duplicate_status: duplicate_status,
           existing_id: foundExercise.id,
         });
-        seenNormalizedNames.add(normalizedAiName);
       } else {
-        // 4. If not found, make a second, focused AI call for details.
-        const detailPrompt = `
-          You are an expert fitness coach. Provide details for the following exercise.
-          Exercise Name: "${aiName}"
-
-          Provide the response in a strict JSON format with the following fields:
-          {
-            "name": "${aiName}",
-            "main_muscle": "Main Muscle Group (MUST be one of: ${VALID_MUSCLE_GROUPS.join(', ')})",
-            "type": "weight" | "timed" | "bodyweight",
-            "category": "Bilateral" | "Unilateral" | null,
-            "movement_type": "compound" | "isolation",
-            "movement_pattern": "Push" | "Pull" | "Legs" | "Core",
-            "description": "A brief description of the exercise.",
-            "pro_tip": "A short, actionable pro tip for performing the exercise.",
-            "video_url": "Optional YouTube or instructional video URL (can be empty string if none)"
-          }
-          
-          Do not include any other text or markdown outside the JSON object.
-        `;
-
-        const detailResponse = await fetch(GEMINI_API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: detailPrompt }] }] }),
+        finalResults.push({
+          ...aiExercise,
+          video_url: getYouTubeEmbedUrl(aiExercise.video_url),
+          duplicate_status: 'none',
+          existing_id: null,
         });
-
-        if (!detailResponse.ok) {
-          console.error(`Gemini detail API error for "${aiName}": ${detailResponse.status}`);
-          continue;
-        }
-
-        const detailData = await detailResponse.json();
-        const detailText = detailData.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!detailText) continue;
-
-        try {
-          const jsonMatch = detailText.match(/{[\s\S]*}/);
-          if (!jsonMatch) continue;
-          const sanitizedJsonString = jsonMatch[0].replace(/,(?=\s*[\]}])/g, '');
-          const newExerciseData = JSON.parse(sanitizedJsonString);
-
-          if (newExerciseData.name && newExerciseData.name.trim() !== '') {
-            finalResults.push({
-              ...newExerciseData,
-              video_url: getYouTubeEmbedUrl(newExerciseData.video_url),
-              duplicate_status: 'none',
-              existing_id: null,
-            });
-            seenNormalizedNames.add(normalizedAiName);
-          }
-        } catch (parseError) {
-          console.error(`Failed to parse details for "${aiName}":`, parseError, "Raw text:", detailText);
-        }
       }
+      seenNormalizedNames.add(normalizedAiName);
     }
 
     return new Response(JSON.stringify({ identifiedExercises: finalResults }), {
