@@ -101,6 +101,34 @@ export default function ProfilePage() {
   });
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
+  const [viewportHeight, setViewportHeight] = useState<number | undefined>(undefined);
+
+  const updateViewportHeight = useCallback(() => {
+    if (emblaApi) {
+      const slide = emblaApi.slideNodes()[emblaApi.selectedScrollSnap()];
+      if (slide) {
+        // Use a timeout to ensure we get the height after any potential reflows
+        setTimeout(() => {
+          setViewportHeight(slide.offsetHeight);
+        }, 0);
+      }
+    }
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (emblaApi) {
+      emblaApi.on('select', updateViewportHeight);
+      emblaApi.on('resize', updateViewportHeight);
+      // Initial set
+      updateViewportHeight();
+    }
+    return () => {
+      if (emblaApi) {
+        emblaApi.off('select', updateViewportHeight);
+        emblaApi.off('resize', updateViewportHeight);
+      }
+    };
+  }, [emblaApi, updateViewportHeight]);
 
   const { data: cachedProfile, loading: loadingProfile, error: profileError, refresh: refreshProfileCache } = useCacheAndRevalidate<Profile>({
     cacheTable: 'profiles_cache',
@@ -423,7 +451,7 @@ export default function ProfilePage() {
           : 'p-2 sm:p-4 mx-auto max-w-4xl' // Constrain other tabs
       )}>
         <div className="relative">
-          <div className="overflow-hidden" ref={emblaRef}>
+          <div className="overflow-hidden" ref={emblaRef} style={{ height: viewportHeight ? `${viewportHeight}px` : 'auto', transition: 'height 0.2s ease-out' }}>
             <div className="flex items-start"> {/* Apply items-start here */}
               <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0"> {/* Added min-w-0 */}
                 <ProfileOverviewTab
