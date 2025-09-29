@@ -23,8 +23,11 @@ const VALID_MUSCLE_GROUPS = [ "Pectorals", "Deltoids", "Lats", "Traps", "Biceps"
 const normalizeName = (name: string): string => name ? name.toLowerCase().replace(/\s+/g, ' ').trim().replace(/s$/, '').replace(/[^a-z0-9\s]/g, '') : '';
 const getYouTubeEmbedUrl = (url: string | null | undefined): string | null => {
   if (!url) return null;
+  if (url.includes('youtube.com/embed/')) {
+    return url;
+  }
   const match = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([a-zA-Z0-9_-]{11})(?:\S+)?/);
-  return (match && match[1]) ? `https://www.youtube.com/embed/${match[1]}` : null;
+  return (match && match[1]) ? `https://www.youtube.com/embed/${match[1]}` : url;
 };
 
 serve(async (req: Request) => {

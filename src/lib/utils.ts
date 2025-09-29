@@ -308,3 +308,15 @@ export function formatAthleteName(fullName: string | null | undefined): string {
     return `Athlete ${initials.slice(0, 3).join('')}`;
   }
 }
+
+export function getYouTubeEmbedUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  // Check if it's already an embed link
+  if (url.includes('youtube.com/embed/')) {
+    return url;
+  }
+  const regExp = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([a-zA-Z0-9_-]{11})(?:\S+)?/;
+  const match = url.match(regExp);
+  // If it's a valid YouTube link, convert it. Otherwise, return the original URL.
+  return match && match[1] ? `https://www.youtube.com/embed/${match[1]}` : url;
+}

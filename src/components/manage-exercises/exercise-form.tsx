@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/popover";
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
-import { cn } from '@/lib/utils';
+import { cn, getYouTubeEmbedUrl } from '@/lib/utils';
 import { Badge } from "@/components/ui/badge";
 
 // Import new modular components with corrected paths
@@ -170,7 +170,7 @@ export const ExerciseForm = React.forwardRef<HTMLDivElement, ExerciseFormProps>(
       category: values.category,
       description: values.description,
       pro_tip: values.pro_tip,
-      video_url: values.video_url,
+      video_url: getYouTubeEmbedUrl(values.video_url),
       movement_type: values.movement_type,
       movement_pattern: values.movement_pattern,
     };
