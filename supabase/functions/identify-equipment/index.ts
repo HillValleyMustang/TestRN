@@ -154,7 +154,9 @@ serve(async (req: Request) => {
 
       let identifiedExercisesForImage;
       try {
-        identifiedExercisesForImage = JSON.parse(jsonString);
+        // Sanitize the string to remove potential trailing commas before parsing
+        const sanitizedJsonString = jsonString.replace(/,(?=\s*[\]}])/g, '');
+        identifiedExercisesForImage = JSON.parse(sanitizedJsonString);
         if (!Array.isArray(identifiedExercisesForImage)) {
           identifiedExercisesForImage = [identifiedExercisesForImage]; // Wrap single object in an array
         }
@@ -169,7 +171,7 @@ serve(async (req: Request) => {
         allIdentifiedExercises.push(...validatedExercises); // Push only validated exercises
         // --- End Validation ---
       } catch (parseError) {
-        console.error("AI returned an invalid format for one image:", parseError);
+        console.error("AI returned an invalid format for one image:", parseError, "Raw text:", generatedText);
         continue;
       }
     }
