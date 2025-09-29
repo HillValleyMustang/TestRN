@@ -48,6 +48,7 @@ export const MediaFeedScreen = () => {
 
       setMediaPosts(data || []);
       console.log("[MediaFeedScreen] Successfully fetched media posts directly from Supabase:", data);
+      (data || []).forEach(post => console.log(`[MediaFeedScreen] Post ID: ${post.id}, Video URL: ${post.video_url}`)); // DEBUG: Log each video_url
     } catch (err: any) {
       console.error("[MediaFeedScreen] Error fetching media posts directly from Supabase:", err);
       setError(err.message || "Failed to load media library.");

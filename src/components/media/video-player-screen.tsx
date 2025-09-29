@@ -19,11 +19,14 @@ const getYouTubeVideoId = (url: string | null | undefined): string | null => {
   // Regex to match various YouTube URL formats and extract the 11-character video ID
   const match = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([a-zA-Z0-9_-]{11})(?:\S+)?/);
   
+  console.log(`[VideoPlayerScreen] getYouTubeVideoId - Input URL: ${url}, Match: ${match ? match[1] : 'No Match'}`); // DEBUG
   return (match && match[1]) ? match[1] : null;
 };
 
 export const VideoPlayerScreen = ({ open, onOpenChange, youtubeVideoId, title }: VideoPlayerScreenProps) => {
   const videoIdToPlay = getYouTubeVideoId(youtubeVideoId); // Extract the actual video ID here
+
+  console.log(`[VideoPlayerScreen] Prop youtubeVideoId: ${youtubeVideoId}, Extracted videoIdToPlay: ${videoIdToPlay}`); // DEBUG
 
   const opts: YouTubeProps['opts'] = {
     height: '390',
