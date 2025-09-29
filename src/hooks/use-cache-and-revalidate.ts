@@ -28,11 +28,18 @@ interface UseCacheAndRevalidateProps<T extends CacheItem> {
 }
 
 // Helper to get a stable key for map lookups, handling composite keys
-const getItemKey = (item: any, primaryKey: string | string[]): string => {
+const getItemKey = (item: any, primaryKey: string | string[]): string | undefined => {
   if (Array.isArray(primaryKey)) {
-    return JSON.stringify(primaryKey.map(key => item[key]));
+    const keyParts = primaryKey.map(key => item[key]);
+    // Ensure all parts of a composite key are present
+    if (keyParts.some(part => part === undefined || part === null)) {
+      return undefined;
+    }
+    return JSON.stringify(keyParts);
   }
-  return item[primaryKey];
+  const key = item[primaryKey];
+  // Ensure single key is present and convert to string for map key consistency
+  return key === undefined || key === null ? undefined : String(key);
 };
 
 export function useCacheAndRevalidate<T extends CacheItem>( // Updated generic constraint
@@ -96,20 +103,49 @@ export function useCacheAndRevalidate<T extends CacheItem>( // Updated generic c
 
         const localData = await table.toArray();
         
-        const localDataMap = new Map(localData.map((item: any) => [getItemKey(item, primaryKey), item]));
-        const remoteDataMap = new Map(remoteData.map((item: any) => [getItemKey(item, primaryKey), item]));
+        // Create maps using the safe key getter, filtering out items with invalid keys
+        const localDataMap = new Map<string, T>();
+        for (const item of localData) {
+          const key = getItemKey(item, primaryKey);
+          if (key !== undefined) {
+            localDataMap.set(key, item);
+          }
+        }
+
+        const remoteDataMap = new Map<string, T>();
+        for (const item of remoteData) {
+          const key = getItemKey(item, primaryKey);
+          if (key !== undefined) {
+            remoteDataMap.set(key, item);
+          }
+        }
 
         const itemsToDelete: any[] = [];
         const itemsToPut: T[] = [];
 
         // Check sync queue before deleting
         const syncQueueItems = await db.sync_queue.where('table').equals(cacheTable).toArray();
-        const itemsInSyncQueue = new Set(syncQueueItems.map(item => getItemKey(item.payload, primaryKey)));
+        const itemsInSyncQueue = new Set<string>();
+        for (const item of syncQueueItems) {
+            const key = getItemKey(item.payload, primaryKey);
+            if (key !== undefined) {
+                itemsInSyncQueue.add(key);
+            }
+        }
 
-        // Identify items to delete
-        for (const localKey of localDataMap.keys()) {
-          if (!remoteDataMap.has(localKey as string) && !itemsInSyncQueue.has(localKey as string)) {
-            itemsToDelete.push(localKey);
+        // Identify items to delete by reconstructing the original key
+        for (const [localKey, localItem] of localDataMap.entries()) {
+          if (!remoteDataMap.has(localKey) && !itemsInSyncQueue.has(localKey)) {
+            const primaryKeyValue = Array.isArray(primaryKey)
+              ? primaryKey.map(pkPart => (localItem as any)[pkPart])
+              : (localItem as any)[primaryKey];
+            
+            // Final check to ensure we don't push an invalid key
+            if (primaryKeyValue !== undefined && primaryKeyValue !== null) {
+              if (!Array.isArray(primaryKeyValue) || !primaryKeyValue.some(p => p === undefined || p === null)) {
+                itemsToDelete.push(primaryKeyValue);
+              }
+            }
           }
         }
 
