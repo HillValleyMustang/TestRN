@@ -21,7 +21,12 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-export const MediaFeedScreen = () => {
+interface MediaFeedScreenProps {
+  onSearchFocus?: () => void;
+  onSearchBlur?: () => void;
+}
+
+export const MediaFeedScreen = ({ onSearchFocus, onSearchBlur }: MediaFeedScreenProps) => {
   const { session, supabase } = useSession();
   const [mediaPosts, setMediaPosts] = useState<MediaPost[]>([]);
   const [categories, setCategories] = useState<string[]>(['All']);
@@ -148,8 +153,8 @@ export const MediaFeedScreen = () => {
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-9"
-                      onTouchStart={(e) => e.stopPropagation()}
-                      onMouseDown={(e) => e.stopPropagation()}
+                      onFocus={onSearchFocus}
+                      onBlur={onSearchBlur}
                     />
                   </div>
                   <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
