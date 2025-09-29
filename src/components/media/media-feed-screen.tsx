@@ -1,74 +1,82 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Loader2, Film, RefreshCw } from 'lucide-react';
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
-import { Tables } from '@/types/supabase';
+import { MediaPost } from '@/types/supabase'; // UPDATED: Import MediaPost directly
 import { MediaPostCard } from './media-post-card';
 import { VideoPlayerScreen } from './video-player-screen';
-import { Button } from '@/components/ui/button'; // Import Button component
-
-type MediaPost = Tables<'media_posts'>;
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export const MediaFeedScreen = () => {
-  const { session, supabase } = useSession(); // Use the supabase client from session context
+  const { session, supabase } = useSession();
   const [mediaPosts, setMediaPosts] = useState<MediaPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string>('All');
 
   const [isVideoPlayerOpen, setIsVideoPlayerOpen] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<{ youtubeVideoId: string; title: string } | null>(null);
 
   const fetchMediaPosts = useCallback(async () => {
-    console.log("[MediaFeedScreen] fetchMediaPosts called. Session status check initiated.");
     if (!session) {
-      console.warn("[MediaFeedScreen] WARNING: Session is NULL. Cannot proceed with Supabase fetch.");
       setLoading(false);
       return;
     }
-    console.log("[MediaFeedScreen] INFO: Session is VALID. Proceeding with Supabase fetch.");
 
     setLoading(true);
     setError(null);
-    console.log("[MediaFeedScreen] Attempting to fetch media posts directly from Supabase...");
 
     try {
       const { data, error: fetchError } = await supabase
         .from('media_posts')
-        .select('*')
-        .order('created_at', { ascending: false }); // Order by most recent first
+        .select('*, category')
+        .order('created_at', { ascending: false });
 
       if (fetchError) {
-        console.error("[MediaFeedScreen] Supabase fetch error:", fetchError);
-        throw new Error(fetchError.message || 'Failed to fetch media posts directly from Supabase.');
+        throw new Error(fetchError.message || 'Failed to fetch media posts.');
       }
 
-      setMediaPosts(data || []);
-      console.log("[MediaFeedScreen] Successfully fetched media posts directly from Supabase:", data);
-      (data || []).forEach(post => console.log(`[MediaFeedScreen] Post ID: ${post.id}, Video URL: ${post.video_url}`)); // DEBUG: Log each video_url
+      // Explicitly cast data to MediaPost[]
+      setMediaPosts((data as MediaPost[]) || []);
     } catch (err: any) {
-      console.error("[MediaFeedScreen] Error fetching media posts directly from Supabase:", err);
+      console.error("[MediaFeedScreen] Error fetching media posts:", err);
       setError(err.message || "Failed to load media library.");
       toast.error(err.message || "Failed to load media library.");
     } finally {
       setLoading(false);
-      console.log("[MediaFeedScreen] Fetching complete. Loading:", false);
     }
-  }, [session, supabase]); // Depend on session and supabase
+  }, [session, supabase]);
 
   useEffect(() => {
     fetchMediaPosts();
   }, [fetchMediaPosts]);
 
   const handlePostClick = (post: MediaPost) => {
-    setSelectedVideo({ youtubeVideoId: post.video_url, title: post.title }); // Pass video_url directly
+    setSelectedVideo({ youtubeVideoId: post.video_url, title: post.title });
     setIsVideoPlayerOpen(true);
   };
 
-  console.log("[MediaFeedScreen] Current state - loading:", loading, "error:", error, "posts count:", mediaPosts.length);
+  const uniqueCategories = useMemo(() => {
+    const categories = new Set<string>();
+    mediaPosts.forEach(post => {
+      if (post.category) {
+        categories.add(post.category);
+      }
+    });
+    return ['All', ...Array.from(categories).sort()];
+  }, [mediaPosts]);
+
+  const filteredPosts = useMemo(() => {
+    if (activeCategory === 'All') {
+      return mediaPosts;
+    }
+    return mediaPosts.filter(post => post.category === activeCategory);
+  }, [mediaPosts, activeCategory]);
 
   return (
     <>
@@ -91,18 +99,42 @@ export const MediaFeedScreen = () => {
             <div className="text-center text-destructive py-16">
               <p>Error: {error}</p>
             </div>
-          ) : mediaPosts.length === 0 ? (
-            <div className="text-center text-muted-foreground py-16">
-              <p>No video posts available yet.</p>
-            </div>
           ) : (
-            <ScrollArea className="h-[500px] pr-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {mediaPosts.map((post) => (
-                  <MediaPostCard key={post.id} post={post} onClick={handlePostClick} />
-                ))}
-              </div>
-            </ScrollArea>
+            <>
+              {/* Category Filter Buttons */}
+              <ScrollArea className="w-full whitespace-nowrap rounded-md border mb-4">
+                <div className="flex w-max space-x-2 p-2">
+                  {uniqueCategories.map(category => (
+                    <Button
+                      key={category}
+                      variant={activeCategory === category ? "default" : "outline"}
+                      onClick={() => setActiveCategory(category)}
+                      className={cn(
+                        "h-8 px-3 text-sm",
+                        activeCategory === category ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent"
+                      )}
+                    >
+                      {category}
+                    </Button>
+                  ))}
+                </div>
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
+
+              {filteredPosts.length === 0 ? (
+                <div className="text-center text-muted-foreground py-16">
+                  <p>No video posts available for this category yet.</p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[500px] pr-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredPosts.map((post) => (
+                      <MediaPostCard key={post.id} post={post} onClick={handlePostClick} />
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

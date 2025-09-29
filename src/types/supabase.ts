@@ -19,6 +19,7 @@ import type { GetTotalCompletedExerciseInstancesArgs, GetTotalCompletedExerciseI
 import type { BodyFatReferenceImagesRow } from "./supabase-generated/tables/body_fat_reference_images";
 import type { UserAlertsRow } from "./supabase-generated/tables/user_alerts";
 import type { ExerciseDefinitionsRow } from "./supabase-generated/tables/exercise_definitions"; // Import ExerciseDefinitionsRow
+import type { MediaPostsRow } from "./supabase-generated/tables/media_posts"; // NEW: Import MediaPostsRow
 
 export type { Json, Database, Tables, TablesInsert, TablesUpdate, Enums, GetLastExerciseSetsForExerciseReturns, GetTotalCompletedExerciseInstancesArgs, GetTotalCompletedExerciseInstancesReturns };
 
@@ -134,3 +135,6 @@ export type ExerciseDefinition = ExerciseDefinitionsRow & {
   movement_type: string | null;
   movement_pattern: string | null;
 };
+
+// NEW: Explicitly define MediaPost using MediaPostsRow
+export type MediaPost = MediaPostsRow;

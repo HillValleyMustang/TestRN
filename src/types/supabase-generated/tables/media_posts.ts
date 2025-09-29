@@ -4,23 +4,26 @@ export type MediaPostsRow = {
   id: string;
   title: string;
   description: string | null;
-  video_url: string; // Changed from youtube_video_id
+  video_url: string;
   creator_name: string | null;
   created_at: string;
+  category: string | null; // ADDED
 };
 export type MediaPostsInsert = {
   id?: string;
   title: string;
   description?: string | null;
-  video_url: string; // Changed from youtube_video_id
+  video_url: string;
   creator_name?: string | null;
   created_at?: string;
+  category?: string | null; // ADDED
 };
 export type MediaPostsUpdate = {
   id?: string;
   title?: string;
   description?: string | null;
-  video_url?: string; // Changed from youtube_video_id
+  video_url?: string;
   creator_name?: string | null;
   created_at?: string;
+  category?: string | null; // ADDED
 };
