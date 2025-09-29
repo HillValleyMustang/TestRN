@@ -414,7 +414,7 @@ export default function ProfilePage() {
       
       <div className={cn(
         "p-2 sm:p-4 mx-auto transition-all duration-300",
-        activeTab === 'media' ? 'max-w-7xl' : 'max-w-4xl'
+        activeTab === 'media' ? 'max-w-full' : 'max-w-4xl'
       )}>
         <div className="relative">
           <div className="overflow-hidden" ref={emblaRef}>

@@ -126,7 +126,11 @@ export const MediaFeedScreen = () => {
             </div>
           ) : (
             <>
-              <div className="relative mb-4">
+              <div
+                className="relative mb-4"
+                onMouseDownCapture={(e) => e.stopPropagation()}
+                onTouchStartCapture={(e) => e.stopPropagation()}
+              >
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search for tips, exercises..."
@@ -136,7 +140,7 @@ export const MediaFeedScreen = () => {
                 />
               </div>
 
-              <ScrollArea className="w-full whitespace-nowrap rounded-md border mb-4">
+              <ScrollArea className="w-full whitespace-nowrap rounded-md border mb-4 hide-scrollbar">
                 <div className="flex w-max space-x-2 p-2">
                   {categories.map(category => (
                     <Button
@@ -152,7 +156,7 @@ export const MediaFeedScreen = () => {
                     </Button>
                   ))}
                 </div>
-                <ScrollBar orientation="horizontal" />
+                <ScrollBar orientation="horizontal" className="hidden" />
               </ScrollArea>
 
               {mediaPosts.length === 0 ? (
