@@ -1,63 +1,72 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { useSession } from '@/components/session-context-provider';
-import { Tables, FetchedExerciseDefinition, LocalUserAchievement, Profile as ProfileType } from '@/types/supabase';
-import { AchievementDetailDialog } from './achievement-detail-dialog';
-import { PointsExplanationModal } from './points-explanation-modal';
-import { PhotoJourneyTab } from './photo-journey/photo-journey-tab';
-import { UploadPhotoDialog } from './photo-journey/upload-photo-dialog';
-import { PhotoCaptureFlow } from './photo-journey/photo-capture-flow';
-import { MobileNavigation } from '@/components/layout/mobile-navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
-import { AchievementGrid } from './achievement-grid';
-import { useManageExercisesData } from '@/hooks/use-manage-exercises-data';
-import { EditExerciseDialog } from '@/components/manage-exercises/edit-exercise-dialog';
-import { Badge } from '@/components/ui/badge';
-import { GymManagementSection } from './gym-management-section';
-import { ProgrammeTypeSection } from './programme-type-section';
-import { WorkoutPreferencesForm } from './workout-preferences-form';
-import { PersonalInfoForm } from './personal-info-form';
-import { AICoachUsageSection } from './ai-coach-usage-section';
-import { DataExportSection } from './data-export-section';
-import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher';
-import { useEmblaCarousel, EmblaCarouselType } from 'embla-carousel-react'; // Corrected import
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
-import { ProfileOverviewTab } from '@/components/profile/profile-overview-tab'; // Corrected import path
-import { ProfileStatsTab } from '@/components/profile/profile-stats-tab';
-import { MediaFeedScreen } from '@/components/media/media-feed-screen';
-import { Users } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useSession } from "@/components/session-context-provider";
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { formatAthleteName } from '@/lib/utils';
-import { getLevelFromPoints } from '@/lib/utils';
+import { FormProvider, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import *as z from "zod";
+import { toast } from 'sonner';
+import { Profile as ProfileType, ProfileUpdate, Tables, LocalUserAchievement } from '@/types/supabase';
+import { Skeleton } from '@/components/ui/skeleton';
+import { BarChart2, User, Settings, ChevronLeft, ChevronRight, Flame, Dumbbell, Trophy, Star, Footprints, ListChecks, Image, Camera, Film, Users } from 'lucide-react';
+import { cn, getLevelFromPoints, formatAthleteName } from '@/lib/utils';
+import { AchievementDetailDialog } from '@/components/profile/achievement-detail-dialog';
+import useEmblaCarousel from 'embla-carousel-react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/lib/db';
+import { useCacheAndRevalidate } from '@/hooks/use-cache-and-revalidate';
+
+import { ProfileOverviewTab } from '@/components/profile/profile-overview-tab';
+import { ProfileStatsTab } from '@/components/profile/profile-stats-tab';
+import { ProfileSettingsTab } from '@/components/profile/profile-settings-tab';
+import { PointsExplanationModal } from '@/components/profile/points-explanation-modal';
+import { achievementsList } from '@/lib/achievements';
 import { LoadingOverlay } from '@/components/loading-overlay';
-import { Form, FormProvider, useForm } from 'react-hook-form'; // Import FormProvider and useForm
-import { zodResolver } from '@hookform/resolvers/zod'; // Import zodResolver
-import * as z from 'zod'; // Import zod
-import { profileSchema } from '@/lib/schemas/profileSchema'; // Assuming profileSchema is defined here
+import { useWorkoutFlow } from '@/components/workout-flow/workout-flow-context-provider';
+import { PhotoJourneyTab } from '@/components/profile/photo-journey/photo-journey-tab';
+import { UploadPhotoDialog } from '@/components/profile/photo-journey/upload-photo-dialog';
+import { Button } from '@/components/ui/button';
+import { PhotoCaptureFlow } from '@/components/profile/photo-journey/photo-capture-flow';
+import { MobileNavigation } from '@/components/profile/mobile-navigation';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { MediaFeedScreen } from '@/components/media/media-feed-screen';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'; // Import Tabs components
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
 
-const profileTabs = [
-  { id: "overview", label: "Overview" },
-  { id: "stats", label: "Stats" },
-  { id: "photo", label: "Photo Journey" },
-  { id: "media", label: "Media" },
-  { id: "social", label: "Social" },
-  { id: "settings", label: "Settings" },
+const profileSchema = z.object({
+  full_name: z.string().min(1, "Your name is required."),
+  height_cm: z.coerce.number()
+    .int("Height must be a whole number.")
+    .positive("Height must be positive.")
+    .optional().nullable(),
+  weight_kg: z.coerce.number()
+    .int("Weight must be a whole number.")
+    .positive("Weight must be positive.")
+    .optional().nullable(),
+  body_fat_pct: z.coerce.number()
+    .int("Body Fat % must be a whole number.")
+    .min(0, "Cannot be negative.")
+    .max(100, "Cannot exceed 100.")
+    .optional().nullable(),
+  primary_goal: z.string().optional().nullable(),
+  health_notes: z.string().optional().nullable(),
+  preferred_session_length: z.string().optional().nullable(),
+  preferred_muscles: z.array(z.string()).optional().nullable(),
+  programme_type: z.string().optional().nullable(),
+});
+
+const mainMuscleGroups = [
+  "Pectorals", "Deltoids", "Lats", "Traps", "Biceps", 
+  "Triceps", "Quadriceps", "Hamstrings", "Glutes", "Calves", 
+  "Abdominals", "Core", "Full Body"
 ];
 
 export default function ProfilePage() {
-  const { session, supabase, memoizedSessionUserId } = useSession();
+  const { session, supabase } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isSaving, setIsSaving] = useState(false);
@@ -96,57 +105,60 @@ export default function ProfilePage() {
   const { data: cachedProfile, loading: loadingProfile, error: profileError, refresh: refreshProfileCache } = useCacheAndRevalidate<Profile>({
     cacheTable: 'profiles_cache',
     supabaseQuery: useCallback(async (client) => {
-      if (!memoizedSessionUserId) return { data: [], error: null };
-      const { data, error } = await client.from('profiles').select('*').eq('id', memoizedSessionUserId);
+      if (!session?.user.id) return { data: [], error: null };
+      const { data, error } = await client.from('profiles').select('*').eq('id', session.user.id);
       return { data: data || [], error };
-    }, [memoizedSessionUserId]),
+    }, [session?.user.id]),
     queryKey: 'user_profile_page',
     supabase,
-    sessionUserId: memoizedSessionUserId,
+    sessionUserId: session?.user.id ?? null,
   });
   const profile = cachedProfile?.[0] || null;
 
   const { data: cachedAchievements, loading: loadingAchievements, error: achievementsError, refresh: refreshAchievementsCache } = useCacheAndRevalidate<LocalUserAchievement>({
     cacheTable: 'user_achievements_cache',
     supabaseQuery: useCallback(async (client) => {
-      if (!memoizedSessionUserId) return { data: [], error: null };
-      const { data, error } = await client.from('user_achievements').select('id, user_id, achievement_id, unlocked_at').eq('user_id', memoizedSessionUserId);
+      if (!session?.user.id) return { data: [], error: null };
+      const { data, error } = await client.from('user_achievements').select('id, user_id, achievement_id, unlocked_at').eq('user_id', session.user.id);
       return { data: data as LocalUserAchievement[] || [], error };
-    }, [memoizedSessionUserId]),
+    }, [session?.user.id]),
     queryKey: 'user_achievements_page',
     supabase,
-    sessionUserId: memoizedSessionUserId,
+    sessionUserId: session?.user.id ?? null,
   });
   const unlockedAchievements = useMemo(() => new Set((cachedAchievements || []).map(a => a.achievement_id)), [cachedAchievements]);
 
   const { refresh: refreshTPathsCache } = useCacheAndRevalidate<TPath>({
     cacheTable: 't_paths_cache',
     supabaseQuery: useCallback(async (client) => {
-      if (!memoizedSessionUserId) return { data: [], error: null };
-      return client.from('t_paths').select('*').eq('user_id', memoizedSessionUserId);
-    }, [memoizedSessionUserId]),
+      if (!session?.user.id) return { data: [], error: null };
+      return client.from('t_paths').select('*').eq('user_id', session.user.id);
+    }, [session?.user.id]),
     queryKey: 't_paths_profile_page',
     supabase,
-    sessionUserId: memoizedSessionUserId,
+    sessionUserId: session?.user.id ?? null,
   });
 
   const { refresh: refreshTPathExercisesCache } = useCacheAndRevalidate<Tables<'t_path_exercises'>>({
     cacheTable: 't_path_exercises_cache',
     supabaseQuery: useCallback(async (client) => {
-      if (!memoizedSessionUserId) return { data: [], error: null };
-      const { data, error } = await client.from('t_path_exercises').select('id, exercise_id, template_id, order_index, is_bonus_exercise, created_at');
-      return { data: data || [], error };
-    }, [memoizedSessionUserId]),
+      if (!session?.user.id) return { data: [], error: null };
+      const { data: userTPaths, error: tPathsError } = await client.from('t_paths').select('id').eq('user_id', session.user.id);
+      if (tPathsError) throw tPathsError;
+      if (!userTPaths) return { data: [], error: null };
+      const tpathIds = userTPaths.map(p => p.id);
+      return client.from('t_path_exercises').select('*').in('template_id', tpathIds);
+    }, [session?.user.id]),
     queryKey: 't_path_exercises_profile_page',
     supabase,
-    sessionUserId: memoizedSessionUserId,
+    sessionUserId: session?.user.id ?? null,
   });
 
   const totalWorkoutsCount = useLiveQuery(async () => {
-    if (!memoizedSessionUserId) return 0;
+    if (!session?.user.id) return 0;
     try {
       const count = await db.workout_sessions
-        .where('user_id').equals(memoizedSessionUserId)
+        .where('user_id').equals(session.user.id)
         .and(s => s.completed_at !== null)
         .count();
       return count;
@@ -155,15 +167,15 @@ export default function ProfilePage() {
       toast.error("Failed to load total workouts count.");
       return 0;
     }
-  }, [memoizedSessionUserId]) || 0;
+  }, [session?.user.id]) || 0;
 
   const totalExercisesCount = useLiveQuery(async () => {
-    if (!memoizedSessionUserId) return 0;
+    if (!session?.user.id) return 0;
     try {
       const uniqueExerciseInstances = new Set<string>();
       const setLogs = await db.set_logs.toArray();
       const workoutSessions = await db.workout_sessions.toArray();
-      const userSessionIds = new Set(workoutSessions.filter(ws => ws.user_id === memoizedSessionUserId && ws.completed_at !== null).map(ws => ws.id));
+      const userSessionIds = new Set(workoutSessions.filter(ws => ws.user_id === session.user.id && ws.completed_at !== null).map(ws => ws.id));
 
       setLogs.forEach(sl => {
         if (sl.session_id && userSessionIds.has(sl.session_id) && sl.exercise_id) {
@@ -176,9 +188,10 @@ export default function ProfilePage() {
       toast.error("Failed to load total exercises count.");
       return 0;
     }
-  }, [memoizedSessionUserId]) || 0;
+  }, [session?.user.id]) || 0;
 
   const refreshProfileData = useCallback(async () => {
+    console.log("[ProfilePage] refreshProfileData called.");
     await refreshProfileCache();
     await refreshAchievementsCache();
     await refreshTPathsCache();
@@ -186,13 +199,13 @@ export default function ProfilePage() {
   }, [refreshProfileCache, refreshAchievementsCache, refreshTPathsCache, refreshTPathExercisesCache]);
 
   const fetchPhotos = useCallback(async () => {
-    if (!memoizedSessionUserId) return;
+    if (!session?.user.id) return;
     setLoadingPhotos(true);
     try {
       const { data, error } = await supabase
         .from('progress_photos')
         .select('*')
-        .eq('user_id', memoizedSessionUserId)
+        .eq('user_id', session.user.id)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -205,7 +218,7 @@ export default function ProfilePage() {
     } finally {
       setLoadingPhotos(false);
     }
-  }, [memoizedSessionUserId, supabase]);
+  }, [session?.user.id, supabase]);
 
   useEffect(() => {
     if (activeTab === 'photo') {
@@ -214,13 +227,13 @@ export default function ProfilePage() {
   }, [activeTab, fetchPhotos]);
 
   useEffect(() => {
-    if (!memoizedSessionUserId || loadingProfile) {
+    if (!session?.user.id || loadingProfile) {
       return;
     }
 
     if (profile) {
       const profileFullName = [profile.first_name, profile.last_name].filter(Boolean).join(' ');
-      const profilePreferredMuscles = profile.preferred_muscles ? profile.preferred_physiques.split(',').map((m: string) => m.trim()) : []; // Corrected property name
+      const profilePreferredMuscles = profile.preferred_muscles ? profile.preferred_muscles.split(',').map((m: string) => m.trim()) : [];
 
       const currentFormValues = form.getValues();
 
@@ -237,6 +250,7 @@ export default function ProfilePage() {
         JSON.stringify(currentFormValues.preferred_muscles) !== JSON.stringify(profilePreferredMuscles);
 
       if (needsUpdate) {
+        console.log("[ProfilePage] Profile data loaded and form needs update. Resetting form defaults:", profile);
         form.reset({
           full_name: profileFullName,
           height_cm: profile.height_cm,
@@ -248,6 +262,8 @@ export default function ProfilePage() {
           preferred_muscles: profilePreferredMuscles,
           programme_type: profile.programme_type,
         });
+      } else {
+        console.log("[ProfilePage] Profile data loaded, and form values match. Skipping reset.");
       }
 
       if (profile.last_ai_coach_use_at) {
@@ -258,6 +274,7 @@ export default function ProfilePage() {
         setAiCoachUsageToday(0);
       }
     } else {
+      console.log("[ProfilePage] Profile is null or not yet loaded. Resetting form to initial defaults.");
       form.reset();
       setAiCoachUsageToday(0);
     }
@@ -268,7 +285,8 @@ export default function ProfilePage() {
       router.push('/login');
       return;
     }
-    refreshProfileData();
+    
+    refreshProfileData(); 
   }, [session, router, refreshProfileData]);
 
   const { bmi, dailyCalories } = useMemo(() => {
@@ -280,7 +298,7 @@ export default function ProfilePage() {
     const bmr = (10 * weight) + (6.25 * height) - (5 * 30) + 5;
     const caloriesValue = Math.round(bmr * 1.375);
     return { bmi: bmiValue, dailyCalories: caloriesValue.toLocaleString() };
-  }, [profile?.weight_kg, profile?.height_cm, profile?.body_fat_pct]);
+  }, [profile]);
 
   const getFitnessLevel = useCallback(() => {
     const totalPoints = profile?.total_points || 0;
@@ -335,18 +353,25 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (emblaApi) {
-      const onSelect = () => {
-        const selectedIndex = emblaApi.selectedScrollSnap();
-        const tabNames = ["overview", "stats", "photo", "media", "social", "settings"];
-        const newTab = tabNames[selectedIndex];
-        if (activeTab !== newTab) {
-          handleTabChange(newTab);
-        }
-      };
-      emblaApi.on("select", onSelect);
-      onSelect(); // Initial call to sync state
-      return () => { emblaApi.off("select", onSelect); };
+      const index = ["overview", "stats", "photo", "media", "social", "settings"].indexOf(activeTab);
+      if (index !== -1 && emblaApi.selectedScrollSnap() !== index) {
+        emblaApi.scrollTo(index);
+      }
     }
+  }, [activeTab, emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    const onSelect = () => {
+      const selectedIndex = emblaApi.selectedScrollSnap();
+      const tabNames = ["overview", "stats", "photo", "media", "social", "settings"];
+      const newTab = tabNames[selectedIndex];
+      if (activeTab !== newTab) {
+        handleTabChange(newTab);
+      }
+    };
+    emblaApi.on("select", onSelect);
+    return () => { emblaApi.off("select", onSelect); };
   }, [emblaApi, activeTab, handleTabChange]);
 
   useEffect(() => {
@@ -354,33 +379,52 @@ export default function ProfilePage() {
     const lastTab = localStorage.getItem('profileActiveTab');
     const initialTab = tabParam || lastTab || 'overview';
     setActiveTab(initialTab);
-  }, []);
+  }, []); // Only on mount
 
-  const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
-  const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
+  const scrollPrev = useCallback(() => {
+    emblaApi && emblaApi.scrollPrev();
+  }, [emblaApi]);
+
+  const scrollNext = useCallback(() => {
+    emblaApi && emblaApi.scrollNext();
+  }, [emblaApi]);
+
+  const { setTempStatusMessage } = useWorkoutFlow();
+
+  if (loadingProfile || loadingAchievements) return <div className="p-4"><Skeleton className="h-screen w-full" /></div>;
+  if (!profile) return <div className="p-4">Could not load profile.</div>;
+
+  const userInitial = profile.first_name ? profile.first_name[0].toUpperCase() : (session?.user.email ? session.user.email[0].toUpperCase() : '?');
 
   return (
     <>
-      <div className="p-2 sm:p-4">
-        <div className="max-w-2xl mx-auto">
-          <header className="mb-8 text-center">
-            <Avatar className="w-24 h-24 mx-auto mb-4 ring-4 ring-primary/20">
-              <AvatarFallback className="text-4xl font-bold">{userInitial}</AvatarFallback>
-            </Avatar>
-            <h1 className="text-3xl font-bold">{profile.first_name} {profile.last_name}</h1>
-            <div className="flex items-center justify-center space-x-2 mt-2">
-              <span className={cn("px-3 py-1 rounded-full text-xs font-bold", fitnessLevel.color, "text-white")}>{fitnessLevel.level}</span>
-              <span className="text-muted-foreground text-sm">•</span>
-              <span className="text-muted-foreground text-sm">Member since {new Date(profile.created_at!).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
-            </div>
-          </header>
+      <div className="p-2 sm:p-4 max-w-4xl mx-auto">
+        <div className="text-center mb-8">
+          <Avatar className="w-24 h-24 mx-auto mb-4 ring-4 ring-primary/20">
+            <AvatarFallback className="text-4xl font-bold">{userInitial}</AvatarFallback>
+          </Avatar>
+          <h1 className="text-3xl font-bold">{profile.first_name} {profile.last_name}</h1>
+          <div className="flex items-center justify-center space-x-2 mt-2">
+            <span className={cn("px-3 py-1 rounded-full text-xs font-bold !text-white", fitnessLevel.color)}>{fitnessLevel.level}</span>
+            <span className="text-muted-foreground text-sm">•</span>
+            <span className="text-muted-foreground text-sm">Member since {new Date(profile.created_at!).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+          </div>
         </div>
-        
+      </div>
+
+      <div className="w-full px-2 sm:px-4">
         <MobileNavigation currentPage={activeTab} onPageChange={handleTabChange} />
-        
-        <div className="relative w-full px-2 sm:px-4">
+      </div>
+      
+      <div className={cn(
+        "transition-all duration-300",
+        activeTab === 'media' 
+          ? 'w-full' // Take full width for media tab
+          : 'p-2 sm:p-4 mx-auto max-w-4xl' // Constrain other tabs
+      )}>
+        <div className="relative">
           <div className="overflow-hidden" ref={emblaRef}>
-            <div className="flex items-start"> {/* Ensure slides align correctly */}
+            <div className="flex items-start"> {/* Apply items-start here */}
               <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0"> {/* Added min-w-0 */}
                 <ProfileOverviewTab
                   profile={profile}
@@ -394,26 +438,35 @@ export default function ProfilePage() {
                   totalExercisesCount={totalExercisesCount}
                 />
               </div>
+
               <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0"> {/* Added min-w-0 */}
                 <ProfileStatsTab
                   fitnessLevel={fitnessLevel}
                   profile={profile}
                 />
               </div>
+
               <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0"> {/* Added min-w-0 */}
                 <PhotoJourneyTab photos={photos} loading={loadingPhotos} />
               </div>
+
               <div className="embla__slide flex-[0_0_100%] min-w-0 p-0"> {/* Added min-w-0 */}
                 <MediaFeedScreen />
               </div>
+
               <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0"> {/* Added min-w-0 */}
                 <Card className="mt-6">
-                  <CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> Social</CardTitle></CardHeader>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5" /> Social
+                    </CardTitle>
+                  </CardHeader>
                   <CardContent className="text-center text-muted-foreground py-16">
                     <p>Social features coming soon!</p>
                   </CardContent>
                 </Card>
               </div>
+
               <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0"> {/* Added min-w-0 */}
                 <FormProvider {...form}>
                   <ProfileSettingsTab
@@ -474,10 +527,10 @@ export default function ProfilePage() {
         open={isPointsExplanationOpen}
         onOpenChange={setIsPointsExplanationOpen}
       />
-      <LoadingOverlay
-        isOpen={isSaving}
-        title="Saving Profile"
-        description="Please wait while we update your profile and workout plan."
+      <LoadingOverlay 
+        isOpen={isSaving} 
+        title="Saving Profile" 
+        description="Please wait while we update your profile and workout plan." 
       />
       <UploadPhotoDialog
         open={isUploadDialogOpen}
