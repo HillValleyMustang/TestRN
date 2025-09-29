@@ -14,23 +14,24 @@ interface MediaPostCardProps {
   className?: string;
 }
 
-// Helper function to extract YouTube video ID from various URL formats
+// Helper function to extract YouTube video ID from various URL formats, or return if it's already just the ID
 const getYouTubeVideoId = (url: string | null | undefined): string | null => {
   if (!url) return null;
 
-  // Regex to match various YouTube URL formats and extract the 11-character video ID
+  // Check if it's already just an 11-character YouTube ID
+  if (url.length === 11 && /^[a-zA-Z0-9_-]{11}$/.test(url)) {
+    return url;
+  }
+
+  // Otherwise, try to extract from a full URL
   const match = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([a-zA-Z0-9_-]{11})(?:\S+)?/);
   
-  console.log(`[MediaPostCard] getYouTubeVideoId - Input URL: ${url}, Match: ${match ? match[1] : 'No Match'}`); // DEBUG
   return (match && match[1]) ? match[1] : null;
 };
 
 export const MediaPostCard = ({ post, onClick, className }: MediaPostCardProps) => {
-  console.log(`[MediaPostCard] Rendering post ID: ${post.id}, Raw video_url: ${post.video_url}`); // NEW DEBUG LOG
-  const youtubeVideoId = getYouTubeVideoId(post.video_url); // Extract ID from video_url
+  const youtubeVideoId = getYouTubeVideoId(post.video_url);
   const thumbnailUrl = youtubeVideoId ? `https://img.youtube.com/vi/${youtubeVideoId}/0.jpg` : "/placeholder-video.jpg";
-
-  console.log(`[MediaPostCard] Post ID: ${post.id}, video_url: ${post.video_url}, Extracted YouTube ID: ${youtubeVideoId}, Thumbnail URL: ${thumbnailUrl}`); // DEBUG
 
   return (
     <Card
@@ -50,7 +51,6 @@ export const MediaPostCard = ({ post, onClick, className }: MediaPostCardProps) 
             onError={(e) => {
               e.currentTarget.src = "/placeholder-video.jpg"; // Fallback image
               e.currentTarget.onerror = null;
-              console.error(`[MediaPostCard] Failed to load thumbnail for post ${post.id}. Using fallback.`); // DEBUG
             }}
           />
           {/* Play icon overlay */}

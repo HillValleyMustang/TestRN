@@ -12,21 +12,23 @@ interface VideoPlayerScreenProps {
   title: string;
 }
 
-// Helper function to extract YouTube video ID from various URL formats
+// Helper function to extract YouTube video ID from various URL formats, or return if it's already just the ID
 const getYouTubeVideoId = (url: string | null | undefined): string | null => {
   if (!url) return null;
 
-  // Regex to match various YouTube URL formats and extract the 11-character video ID
+  // Check if it's already just an 11-character YouTube ID
+  if (url.length === 11 && /^[a-zA-Z0-9_-]{11}$/.test(url)) {
+    return url;
+  }
+
+  // Otherwise, try to extract from a full URL
   const match = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([a-zA-Z0-9_-]{11})(?:\S+)?/);
   
-  console.log(`[VideoPlayerScreen] getYouTubeVideoId - Input URL: ${url}, Match: ${match ? match[1] : 'No Match'}`); // DEBUG
   return (match && match[1]) ? match[1] : null;
 };
 
 export const VideoPlayerScreen = ({ open, onOpenChange, youtubeVideoId, title }: VideoPlayerScreenProps) => {
   const videoIdToPlay = getYouTubeVideoId(youtubeVideoId); // Extract the actual video ID here
-
-  console.log(`[VideoPlayerScreen] Prop youtubeVideoId: ${youtubeVideoId}, Extracted videoIdToPlay: ${videoIdToPlay}`); // DEBUG
 
   const opts: YouTubeProps['opts'] = {
     height: '390',
