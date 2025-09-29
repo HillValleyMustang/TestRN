@@ -194,8 +194,13 @@ serve(async (req: Request) => {
 
     await generateWorkoutPlanForTPath(supabaseServiceRoleClient, user.id, newTPath.id, profile.preferred_session_length, gymId, true);
 
-    if (profile.active_gym_id === gymId) {
-      await supabaseServiceRoleClient.from('profiles').update({ active_t_path_id: newTPath.id }).eq('id', user.id);
+    // If no gym is active, make this new one active.
+    // Or if this gym was already active, ensure its new T-Path is set as active.
+    if (profile.active_gym_id === null || profile.active_gym_id === gymId) {
+      await supabaseServiceRoleClient.from('profiles').update({ 
+        active_gym_id: gymId,
+        active_t_path_id: newTPath.id 
+      }).eq('id', user.id);
     }
 
     await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'completed', t_path_generation_error: null }).eq('id', userId);

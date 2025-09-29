@@ -51,8 +51,17 @@ serve(async (req: Request) => {
       throw new Error("The source gym does not have a valid workout plan to copy.");
     }
 
-    // IMPORTANT: This function NO LONGER updates the user's active gym.
-    // That responsibility is now correctly handled by the switch-active-gym function.
+    // After successful copy, check if we need to make the new gym active.
+    const { data: currentProfile, error: currentProfileError } = await supabaseServiceRoleClient.from('profiles').select('active_gym_id').eq('id', user.id).single();
+    if (currentProfileError) throw currentProfileError;
+
+    // If no gym is active, make this new one active.
+    if (currentProfile.active_gym_id === null) {
+      await supabaseServiceRoleClient.from('profiles').update({ 
+        active_gym_id: targetGymId,
+        active_t_path_id: newMainTPathId 
+      }).eq('id', user.id);
+    }
 
     await supabaseServiceRoleClient.from('profiles').update({ t_path_generation_status: 'completed', t_path_generation_error: null }).eq('id', userId);
 
