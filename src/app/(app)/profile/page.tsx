@@ -99,8 +99,15 @@ export default function ProfilePage() {
     },
   });
 
-  const [isSwipingEnabled, setIsSwipingEnabled] = useState(true);
-  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, watchDrag: isSwipingEnabled });
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
+
+  const handleSearchFocus = useCallback(() => {
+    if (emblaApi) emblaApi.destroy();
+  }, [emblaApi]);
+
+  const handleSearchBlur = useCallback(() => {
+    if (emblaApi) emblaApi.reInit({ loop: false });
+  }, [emblaApi]);
 
   const { data: cachedProfile, loading: loadingProfile, error: profileError, refresh: refreshProfileCache } = useCacheAndRevalidate<Profile>({
     cacheTable: 'profiles_cache',
@@ -449,8 +456,8 @@ export default function ProfilePage() {
 
               <div className="embla__slide flex-[0_0_100%] min-w-0 p-0">
                 <MediaFeedScreen
-                  onSearchFocus={() => setIsSwipingEnabled(false)}
-                  onSearchBlur={() => setIsSwipingEnabled(true)}
+                  onSearchFocus={handleSearchFocus}
+                  onSearchBlur={handleSearchBlur}
                 />
               </div>
 
