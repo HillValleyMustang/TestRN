@@ -351,41 +351,30 @@ export default function ProfilePage() {
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
-    router.push(`/profile?tab=${value}`, { scroll: false });
     if (emblaApi) {
       const index = ["overview", "stats", "photo", "media", "social", "settings"].indexOf(value);
       if (index !== -1) {
         emblaApi.scrollTo(index);
       }
     }
-  }, [emblaApi, router]);
+  }, [emblaApi]);
 
   useEffect(() => {
     if (!emblaApi) return;
 
-    const tabNames = ["overview", "stats", "photo", "media", "social", "settings"];
     const onSelect = () => {
       const selectedIndex = emblaApi.selectedScrollSnap();
-      const newTab = tabNames[selectedIndex];
-      if (activeTab !== newTab) {
-        setActiveTab(newTab);
-        router.push(`/profile?tab=${newTab}`, { scroll: false });
-      }
+      const tabNames = ["overview", "stats", "photo", "media", "social", "settings"];
+      setActiveTab(tabNames[selectedIndex]);
     };
 
     emblaApi.on("select", onSelect);
-    // Set initial position based on URL param
-    const tabParam = searchParams.get('tab');
-    const initialIndex = tabNames.indexOf(tabParam || 'overview');
-    if (initialIndex !== -1) {
-      emblaApi.scrollTo(initialIndex, true); // true for instant scroll
-    }
-
+    onSelect();
 
     return () => {
       emblaApi.off("select", onSelect);
     };
-  }, [emblaApi, activeTab, router, searchParams]);
+  }, [emblaApi]);
 
   const scrollPrev = useCallback(() => {
     emblaApi && emblaApi.scrollPrev();

@@ -46,62 +46,32 @@ serve(async (req: Request) => {
     }
     userId = user.id;
 
-    // 1. Fetch the user's profile to get active_gym_id
+    // 1. Fetch the user's workout_plan (programme_type) from their profile
     const { data: profile, error: profileError } = await supabaseServiceRoleClient
       .from('profiles')
-      .select('active_gym_id')
+      .select('programme_type')
       .eq('id', userId)
       .single();
 
     if (profileError) {
       if (profileError.code === 'PGRST116') { // No rows found
-        return new Response(JSON.stringify({ error: 'User profile not found.' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify({ error: 'User profile not found or programme type not set.' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
       throw profileError;
     }
 
-    const activeGymId = profile?.active_gym_id;
-    let programmeType: string | null = null;
-    let goal_total = 3; // Default to 3 (PPL)
-
-    if (activeGymId) {
-      // 2. Find the main T-Path for the active gym
-      const { data: activeTPath, error: tPathError } = await supabaseServiceRoleClient
-        .from('t_paths')
-        .select('settings')
-        .eq('user_id', userId)
-        .eq('gym_id', activeGymId)
-        .is('parent_t_path_id', null)
-        .single();
-      
-      if (tPathError && tPathError.code !== 'PGRST116') throw tPathError;
-
-      if (activeTPath?.settings && typeof activeTPath.settings === 'object' && 'tPathType' in activeTPath.settings) {
-        programmeType = (activeTPath.settings as { tPathType: string }).tPathType;
-      }
-    } else {
-      // Fallback for users without an active gym (e.g., just onboarded, no gyms created)
-      // We can check their profile's programme_type as a last resort.
-      const { data: fallbackProfile, error: fallbackProfileError } = await supabaseServiceRoleClient
-        .from('profiles')
-        .select('programme_type')
-        .eq('id', userId)
-        .single();
-      if (fallbackProfileError && fallbackProfileError.code !== 'PGRST116') throw fallbackProfileError;
-      programmeType = fallbackProfile?.programme_type || null;
-    }
-    
-    // 3. Determine goal total based on the determined programme type
-    if (programmeType === 'ulul') {
-      goal_total = 4;
-    } else { // 'ppl' or default
-      goal_total = 3;
+    const programmeType = profile?.programme_type;
+    if (!programmeType) {
+      return new Response(JSON.stringify({ error: 'User programme type not defined.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // 4. Get start of week
+    // 2. Determine goal total
+    const goal_total = programmeType === 'ulul' ? 4 : 3;
+
+    // 3. Get start of week
     const startOfWeek = getStartOfWeekUTC(new Date());
 
-    // 5. Query completed workout sessions for the week (across ALL gyms)
+    // 4. Query completed workout sessions for the week
     const { data: completedSessions, error: sessionsError } = await supabaseServiceRoleClient
       .from('workout_sessions')
       .select('id, template_name, completed_at')
@@ -112,7 +82,7 @@ serve(async (req: Request) => {
 
     if (sessionsError) throw sessionsError;
 
-    // 6. Query completed activities for the week
+    // NEW: Query completed activities for the week
     const { data: completedActivities, error: activitiesError } = await supabaseServiceRoleClient
       .from('activity_logs')
       .select('id, activity_type, distance, time, log_date')
@@ -121,13 +91,13 @@ serve(async (req: Request) => {
 
     if (activitiesError) throw activitiesError;
 
-    // 7. Format the completed workouts
+    // 5. Format the completed workouts
     const completed_workouts = (completedSessions || []).map((session: { id: string, template_name: string | null }) => ({
       id: session.id,
       name: session.template_name || 'Ad Hoc Workout'
     }));
 
-    // 8. Format completed activities
+    // NEW: Format completed activities
     const completed_activities_details = (completedActivities || []).map((activity: any) => ({
         id: activity.id,
         type: activity.activity_type,
@@ -136,7 +106,7 @@ serve(async (req: Request) => {
         date: activity.log_date,
     }));
 
-    // 9. Return the new data structure
+    // 6. Return the new data structure
     return new Response(
       JSON.stringify({
         completed_workouts: completed_workouts,
