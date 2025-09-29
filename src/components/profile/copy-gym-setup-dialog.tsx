@@ -17,16 +17,16 @@ interface CopyGymSetupDialogProps {
   targetGym: Gym;
   sourceGyms: Gym[];
   onCopySuccess: () => Promise<void>; // Changed to return a Promise
-  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void; // NEW
+  setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void;
 }
 
 export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, onCopySuccess, setTempStatusMessage }: CopyGymSetupDialogProps) => {
-  const { session, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
+  const { session, memoizedSessionUserId } = useSession();
   const [selectedSourceGymId, setSelectedSourceGymId] = useState<string>("");
   const [isCopying, setIsCopying] = useState(false);
 
   const handleCopySetup = async () => {
-    if (!memoizedSessionUserId) { // Use memoized ID
+    if (!memoizedSessionUserId) {
       setTempStatusMessage({ message: "Error!", type: 'error' });
       setTimeout(() => setTempStatusMessage(null), 3000);
       return;
@@ -42,7 +42,7 @@ export const CopyGymSetupDialog = ({ open, onOpenChange, targetGym, sourceGyms, 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`, // Use session?.access_token
+          'Authorization': `Bearer ${session?.access_token}`,
         },
         body: JSON.stringify({ sourceGymId: selectedSourceGymId, targetGymId: targetGym.id }),
       });

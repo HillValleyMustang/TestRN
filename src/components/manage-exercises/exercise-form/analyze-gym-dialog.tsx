@@ -19,7 +19,7 @@ interface AnalyseGymDialogProps {
 }
 
 export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: AnalyseGymDialogProps) => {
-  const { session, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
+  const { session, memoizedSessionUserId } = useSession();
   const [imagePreviews, setImagePreviews] = useState<string[]>([]
 );
   const [base64Images, setBase64Images] = useState<string[]>([]);
@@ -36,12 +36,12 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
 
     files.forEach(file => {
       if (!file.type.startsWith('image/')) {
-        toast.error(`File '${file.name}' is not an image.`); // Changed to toast.error
+        toast.error(`File '${file.name}' is not an image.`);
         hasError = true;
         return;
       }
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        toast.error(`File '${file.name}' exceeds 5MB limit.`); // Changed to toast.error
+        toast.error(`File '${file.name}' exceeds 5MB limit.`);
         hasError = true;
         return;
       }
@@ -76,11 +76,11 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
 
   const handleAnalyseImage = async () => {
     if (base64Images.length === 0) {
-      toast.error("Please upload at least one image first."); // Changed to toast.error
+      toast.error("Please upload at least one image first.");
       return;
     }
-    if (!memoizedSessionUserId) { // Use memoized ID
-      toast.error("You must be logged in to use this feature."); // Changed to toast.error
+    if (!memoizedSessionUserId) {
+      toast.error("You must be logged in to use this feature.");
       return;
     }
 
@@ -90,7 +90,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`, // Use session?.access_token
+          'Authorization': `Bearer ${session?.access_token}`,
         },
         body: JSON.stringify({ base64Images }),
       });
@@ -113,7 +113,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
       resetForm();
     } catch (err: any) {
       console.error("Error analysing images:", err);
-      toast.error("Image analysis failed."); // Changed to toast.error
+      toast.error("Image analysis failed.");
     } finally {
       setLoading(false);
     }
@@ -178,7 +178,7 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
                   </div>
                 </ScrollArea>
               ) : (
-                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center"> {/* Added text-center */}
+                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
                   <Upload className="w-8 h-8 mb-3 text-muted-foreground" />
                   <p className="mb-2 text-sm text-muted-foreground">
                     <span className="font-semibold">Click to upload</span> or drag and drop
@@ -193,11 +193,11 @@ export const AnalyseGymDialog = ({ open, onOpenChange, onExerciseIdentified }: A
               </Button>
             )}
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t"> {/* Made buttons responsive */}
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading} size="sm" className="flex-1">
+          <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading} className="flex-1">
               Cancel
             </Button>
-            <Button onClick={handleAnalyseImage} disabled={base64Images.length === 0 || loading} size="sm" className="flex-1">
+            <Button onClick={handleAnalyseImage} disabled={base64Images.length === 0 || loading} className="flex-1">
               {loading ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (

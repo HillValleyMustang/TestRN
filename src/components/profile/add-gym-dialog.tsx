@@ -27,9 +27,9 @@ export const AddGymDialog = ({ open, onOpenChange, onSaveSuccess, gymCount, setT
   const [createdGym, setCreatedGym] = useState<Gym | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleClose = () => {
+  const handleClose = async () => {
     if (createdGym) {
-      onSaveSuccess();
+      await onSaveSuccess();
     }
     onOpenChange(false);
     setTimeout(() => {
