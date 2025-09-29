@@ -43,28 +43,34 @@ export function useCacheAndRevalidate<T extends CacheItem>( // Updated generic c
   const isRevalidatingRef = useRef(false); // Use ref for isRevalidating
 
   const data = useLiveQuery(
-    () => {
+    async () => { // Make the query function async
       const table = db[cacheTable] as any;
 
-      // If no user, return empty array immediately.
-      // This prevents trying to read from a potentially closed/deleted DB.
-      if (sessionUserId === undefined || sessionUserId === null) {
+      if (!sessionUserId) {
         return [];
       }
 
-      // Special handling for tables with composite keys or no user_id filter
-      if (cacheTable === 't_path_exercises_cache' || cacheTable === 'gym_exercises_cache') {
-        return table.toArray();
+      // Special case for set_logs: filter by session_ids belonging to the user
+      if (cacheTable === 'set_logs') {
+        const userSessionIds = await db.workout_sessions
+          .where({ user_id: sessionUserId })
+          .primaryKeys();
+        return userSessionIds.length > 0 ? table.where('session_id').anyOf(userSessionIds).toArray() : [];
       }
 
-      const filteredData = table.filter((item: T) => {
-        if (cacheTable === 'profiles_cache') {
+      // Default filtering logic for other tables
+      // This covers profiles, gyms, activities, achievements (user_id or id)
+      // and exercises/t_paths (user_id or null)
+      return table.filter((item: T) => {
+        if ('user_id' in item && item.user_id !== undefined) {
+          return item.user_id === sessionUserId || item.user_id === null;
+        }
+        if ('id' in item && cacheTable === 'profiles_cache') {
           return item.id === sessionUserId;
         }
-        // This is correct for exercises and t_paths
-        return item.user_id === null || item.user_id === sessionUserId;
+        // For tables without user_id like t_path_exercises, we fetch all and filter later
+        return true; 
       }).toArray();
-      return filteredData;
     },
     [cacheTable, sessionUserId], // Dependencies for useLiveQuery
     []
