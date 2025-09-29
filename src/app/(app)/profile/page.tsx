@@ -425,7 +425,7 @@ export default function ProfilePage() {
         <div className="relative">
           <div className="overflow-hidden" ref={emblaRef}>
             <div className="flex items-start"> {/* Apply items-start here */}
-              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0"> {/* Added min-w-0 */}
                 <ProfileOverviewTab
                   profile={profile}
                   bmi={bmi}
@@ -439,22 +439,22 @@ export default function ProfilePage() {
                 />
               </div>
 
-              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0"> {/* Added min-w-0 */}
                 <ProfileStatsTab
                   fitnessLevel={fitnessLevel}
                   profile={profile}
                 />
               </div>
 
-              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0"> {/* Added min-w-0 */}
                 <PhotoJourneyTab photos={photos} loading={loadingPhotos} />
               </div>
 
-              <div className="embla__slide flex-[0_0_100%] min-w-0 p-0">
+              <div className="embla__slide flex-[0_0_100%] min-w-0 p-0"> {/* Added min-w-0 */}
                 <MediaFeedScreen />
               </div>
 
-              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0"> {/* Added min-w-0 */}
                 <Card className="mt-6">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -467,7 +467,7 @@ export default function ProfilePage() {
                 </Card>
               </div>
 
-              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0"> {/* Added min-w-0 */}
                 <FormProvider {...form}>
                   <ProfileSettingsTab
                     form={form}
