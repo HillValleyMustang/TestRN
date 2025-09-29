@@ -1,107 +1,82 @@
 "use client";
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Flame, Dumbbell, BarChart2, ListChecks, Star } from 'lucide-react';
-import { Profile as ProfileType } from '@/types/supabase';
-import { AchievementGrid } from './achievement-grid';
-import { ACHIEVEMENT_IDS, achievementsList } from '@/lib/achievements'; // Import achievementsList
+import React, { useState, useEffect, useCallback } from 'react'; // Import React and necessary hooks
+import { Button } from "@/components/ui/button";
+import { cn } from '@/lib/utils';
+import { ACHIEVEMENT_DISPLAY_INFO } from '@/lib/achievements';
+import { useEmblaCarousel, EmblaCarouselType } from 'embla-carousel-react'; // Corrected import for useEmblaCarousel and its type
+import { ChevronLeft, ChevronRight } from 'lucide-react'; // Import navigation icons
 
-interface ProfileOverviewTabProps {
-  profile: ProfileType | null;
-  bmi: string | null;
-  dailyCalories: string | null;
-  achievements: { id: string; name: string; icon: string }[]; // Added achievements prop
+interface AchievementGridProps {
+  achievements: { id: string; name: string; icon: string }[];
   unlockedAchievements: Set<string>;
   onAchievementClick: (achievement: { id: string; name: string; icon: string }) => void;
-  onOpenPointsExplanation: () => void;
-  totalWorkoutsCount: number;
-  totalExercisesCount: number;
 }
 
-export const ProfileOverviewTab = ({
-  profile,
-  bmi,
-  dailyCalories,
-  achievements, // Destructure achievements prop
-  unlockedAchievements,
-  onAchievementClick,
-  onOpenPointsExplanation,
-  totalWorkoutsCount,
-  totalExercisesCount,
-}: ProfileOverviewTabProps) => {
-  if (!profile) return null;
+export const AchievementGrid = ({ achievements, unlockedAchievements, onAchievementClick }: AchievementGridProps) => {
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    loop: false,
+    align: 'start',
+    containScroll: 'trimSnaps'
+  });
+
+  // Effect to re-initialize Embla when the achievements data changes
+  useEffect(() => {
+    if (!emblaApi) return;
+
+    // Re-initialize Embla when the number of achievements changes.
+    // This helps Embla recalculate the carousel's dimensions and slides.
+    emblaApi.reInit();
+
+  }, [emblaApi, achievements.length]); // Depend on emblaApi and achievements length
+
+  const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
+  const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
 
   return (
-    <div className="mt-6 space-y-6 border-none p-0">
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card className="bg-gradient-to-br from-orange-400 to-orange-500 text-primary-foreground shadow-lg flex flex-col justify-between p-4">
-          <CardHeader className="flex-row items-center justify-between pb-2 p-0">
-            <CardTitle className="text-sm font-medium">Current Streak</CardTitle>
-            <Flame className="h-4 w-4" />
-          </CardHeader>
-          <CardContent className="p-0 pt-2">
-            <div className="text-2xl font-bold">{profile.current_streak || 0} Days</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-br from-blue-400 to-blue-500 text-primary-foreground shadow-lg flex flex-col justify-between p-4">
-          <CardHeader className="flex-row items-center justify-between pb-2 p-0">
-            <CardTitle className="text-sm font-medium">Total Workouts</CardTitle>
-            <Dumbbell className="h-4 w-4" />
-          </CardHeader>
-          <CardContent className="p-0 pt-2">
-            <div className="text-2xl font-bold">{totalWorkoutsCount}</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-br from-purple-400 to-purple-500 text-primary-foreground shadow-lg flex flex-col justify-between p-4">
-          <CardHeader className="flex-row items-center justify-between pb-2 p-0">
-            <CardTitle className="text-sm font-medium">Total Unique Exercises</CardTitle>
-            <ListChecks className="h-4 w-4" />
-          </CardHeader>
-          <CardContent className="p-0 pt-2">
-            <div className="text-2xl font-bold">{totalExercisesCount}</div>
-          </CardContent>
-        </Card>
-        <Card 
-          className="bg-gradient-to-br from-yellow-400 to-yellow-500 text-primary-foreground shadow-lg flex flex-col justify-between p-4 cursor-pointer hover:scale-[1.02] transition-transform duration-200 ease-in-out"
-          onClick={onOpenPointsExplanation}
-        >
-          <CardHeader className="flex-row items-center justify-between pb-2 p-0">
-            <CardTitle className="text-sm font-medium">Total Points</CardTitle>
-            <Star className="h-4 w-4" />
-          </CardHeader>
-          <CardContent className="p-0 pt-2">
-            <div className="text-2xl font-bold">{profile.total_points || 0}</div>
-          </CardContent>
-        </Card>
+    <div className="relative">
+      <div className="embla" ref={emblaRef}>
+        <div className="embla__container">
+          <div className="embla__slide flex items-stretch"> {/* Ensure slides take full height */}
+            <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 w-full"> {/* Added w-full */}
+              {achievements.map((a) => {
+                const isAchUnlocked = unlockedAchievements.has(a.id);
+                const displayInfo = ACHIEVEMENT_DISPLAY_INFO[a.id];
+                return (
+                  <Button
+                    key={a.id}
+                    variant="ghost"
+                    className={cn(
+                      "flex flex-col items-center justify-center min-h-[7rem] w-full p-3 rounded-xl border-2 transition-all duration-200 ease-in-out group",
+                      isAchUnlocked
+                        ? 'bg-yellow-50 dark:bg-yellow-950/30 border-yellow-400 dark:border-yellow-700 text-yellow-800 dark:text-yellow-300 hover:scale-105'
+                        : 'bg-gray-50 dark:bg-gray-900/30 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:scale-105'
+                    )}
+                    onClick={() => onAchievementClick(a)}
+                  >
+                    <div className="text-2xl mb-1 transition-transform duration-200 ease-in-out group-hover:scale-110">{displayInfo?.icon || a.icon}</div>
+                    <div className={cn(
+                      "text-xs font-medium text-center leading-tight whitespace-normal",
+                      isAchUnlocked ? "text-yellow-800 dark:text-yellow-300" : "text-gray-500 dark:text-gray-400"
+                    )}>
+                      {displayInfo?.name || a.name}
+                    </div>
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart2 className="h-5 w-5" /> Body Metrics
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 text-center">
-          <div><p className="text-2xl font-bold">{bmi || 'N/A'}</p><p className="text-xs text-muted-foreground">BMI</p></div>
-          <div><p className="text-2xl font-bold">{profile.height_cm || 'N/A'}<span className="text-base">cm</span></p><p className="text-xs text-muted-foreground">Height</p></div>
-          <div><p className="text-2xl font-bold">{profile.weight_kg || 'N/A'}<span className="text-base">kg</span></p><p className="text-xs text-muted-foreground">Weight</p></div>
-          <div><p className="text-2xl font-bold">{dailyCalories || 'N/A'}</p><p className="text-xs text-muted-foreground">Daily Cal (Est.)</p></div>
-          <div><p className="text-2xl font-bold">{profile.body_fat_pct || 'N/A'}%</p><p className="text-xs text-muted-foreground">Body Fat</p></div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader><CardTitle>Achievements</CardTitle></CardHeader>
-        <CardContent>
-          <AchievementGrid
-            achievements={achievements} // Use the achievements prop
-            unlockedAchievements={unlockedAchievements}
-            onAchievementClick={onAchievementClick}
-          />
-          <p className="text-center text-muted-foreground text-sm mt-4">
-            Tap to see requirements
-          </p>
-        </CardContent>
-      </Card>
+      {/* Navigation Buttons */}
+      <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 flex gap-2">
+        <Button variant="outline" size="icon" onClick={scrollPrev} disabled={!emblaApi || emblaApi.selectedScrollSnap() === 0} className="h-8 w-8">
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <Button variant="outline" size="icon" onClick={scrollNext} disabled={!emblaApi || emblaApi.canScrollNext()} className="h-8 w-8">
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 };
