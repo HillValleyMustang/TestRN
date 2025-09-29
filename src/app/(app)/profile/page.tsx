@@ -286,12 +286,7 @@ export default function ProfilePage() {
     }
     
     refreshProfileData(); 
-
-    const tabParam = searchParams.get('tab');
-    if (tabParam) {
-      setActiveTab(tabParam);
-    }
-  }, [session, router, refreshProfileData, searchParams]);
+  }, [session, router, refreshProfileData]);
 
   const { bmi, dailyCalories } = useMemo(() => {
     const weight = profile?.weight_kg;
@@ -351,32 +346,39 @@ export default function ProfilePage() {
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
-    // Update URL without reloading the page to maintain state on refresh
+    localStorage.setItem('profileActiveTab', value);
     router.replace(`/profile?tab=${value}`, { scroll: false });
+  }, [router]);
+
+  useEffect(() => {
     if (emblaApi) {
-      const index = ["overview", "stats", "photo", "media", "social", "settings"].indexOf(value);
-      if (index !== -1) {
+      const index = ["overview", "stats", "photo", "media", "social", "settings"].indexOf(activeTab);
+      if (index !== -1 && emblaApi.selectedScrollSnap() !== index) {
         emblaApi.scrollTo(index);
       }
     }
-  }, [emblaApi, router]);
+  }, [activeTab, emblaApi]);
 
   useEffect(() => {
     if (!emblaApi) return;
-
     const onSelect = () => {
       const selectedIndex = emblaApi.selectedScrollSnap();
       const tabNames = ["overview", "stats", "photo", "media", "social", "settings"];
-      setActiveTab(tabNames[selectedIndex]);
+      const newTab = tabNames[selectedIndex];
+      if (activeTab !== newTab) {
+        handleTabChange(newTab);
+      }
     };
-
     emblaApi.on("select", onSelect);
-    onSelect();
+    return () => { emblaApi.off("select", onSelect); };
+  }, [emblaApi, activeTab, handleTabChange]);
 
-    return () => {
-      emblaApi.off("select", onSelect);
-    };
-  }, [emblaApi]);
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    const lastTab = localStorage.getItem('profileActiveTab');
+    const initialTab = tabParam || lastTab || 'overview';
+    setActiveTab(initialTab);
+  }, []); // Only on mount
 
   const scrollPrev = useCallback(() => {
     emblaApi && emblaApi.scrollPrev();
@@ -409,21 +411,20 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* NEW: Full-width container for MobileNavigation */}
-      <div className="w-full px-2 sm:px-4"> {/* Apply page-level padding here */}
+      <div className="w-full px-2 sm:px-4">
         <MobileNavigation currentPage={activeTab} onPageChange={handleTabChange} />
       </div>
       
       <div className={cn(
         "transition-all duration-300",
         activeTab === 'media' 
-          ? 'w-full' // Take full width
-          : 'p-2 sm:p-4 mx-auto max-w-4xl' // Constrain other tabs
+          ? 'w-full'
+          : 'p-2 sm:p-4 mx-auto max-w-4xl'
       )}>
         <div className="relative">
           <div className="overflow-hidden" ref={emblaRef}>
-            <div className="flex items-start">
-              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
+            <div className="flex">
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0 self-start">
                 <ProfileOverviewTab
                   profile={profile}
                   bmi={bmi}
@@ -437,22 +438,22 @@ export default function ProfilePage() {
                 />
               </div>
 
-              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0 self-start">
                 <ProfileStatsTab
                   fitnessLevel={fitnessLevel}
                   profile={profile}
                 />
               </div>
 
-              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0 self-start">
                 <PhotoJourneyTab photos={photos} loading={loadingPhotos} />
               </div>
 
-              <div className="embla__slide flex-[0_0_100%] min-w-0 p-0">
+              <div className="embla__slide flex-[0_0_100%] min-w-0 p-0 self-start">
                 <MediaFeedScreen />
               </div>
 
-              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0 self-start">
                 <Card className="mt-6">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -465,7 +466,7 @@ export default function ProfilePage() {
                 </Card>
               </div>
 
-              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
+              <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0 self-start">
                 <FormProvider {...form}>
                   <ProfileSettingsTab
                     form={form}
