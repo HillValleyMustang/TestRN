@@ -13,8 +13,23 @@ const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 // @ts-ignore
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
 
+// Type definitions for clarity
 interface ExistingExercise {
-  id: string; name: string; user_id: string | null;
+  id: string;
+  name: string;
+  user_id: string | null;
+  // Add all fields to return the full object on match
+  main_muscle: string;
+  type: string;
+  category: string | null;
+  description: string | null;
+  pro_tip: string | null;
+  video_url: string | null;
+  library_id: string | null;
+  is_favorite: boolean | null;
+  icon_url: string | null;
+  movement_type: string | null;
+  movement_pattern: string | null;
 }
 
 const VALID_MUSCLE_GROUPS = [
@@ -23,11 +38,13 @@ const VALID_MUSCLE_GROUPS = [
   "Abdominals", "Core", "Full Body"
 ];
 
+// Helper function to normalize exercise names for comparison
 const normalizeName = (name: string): string => {
   if (!name) return '';
   return name.toLowerCase().replace(/\s+/g, ' ').trim().replace(/s$/, '').replace(/[^a-z0-9\s]/g, '');
 };
 
+// Helper function to get YouTube embed URL
 const getYouTubeEmbedUrl = (url: string | null | undefined): string | null => {
   if (!url) return null;
   const match = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([a-zA-Z0-9_-]{11})(?:\S+)?/);
@@ -44,6 +61,7 @@ serve(async (req: Request) => {
       // @ts-ignore
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) throw new Error('Authorization header missing');
     const { data: { user }, error: userError } = await supabase.auth.getUser(authHeader.split(' ')[1]);
@@ -156,7 +174,7 @@ serve(async (req: Request) => {
       if (seenNormalizedNames.has(normalizedAiName)) continue;
 
       let duplicate_status: 'none' | 'global' | 'my-exercises' = 'none';
-      let foundExercise: any | null = null;
+      let foundExercise: ExistingExercise | null = null;
 
       const userMatch = (allDbExercises || []).find((dbEx: ExistingExercise) => dbEx.user_id === user.id && normalizeName(dbEx.name) === normalizedAiName);
       if (userMatch) {
