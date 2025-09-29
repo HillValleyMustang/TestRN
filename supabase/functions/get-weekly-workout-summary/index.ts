@@ -46,21 +46,38 @@ serve(async (req: Request) => {
     }
     userId = user.id;
 
-    // 1. Fetch the user's workout_plan (programme_type) from their profile
+    // 1. Fetch the user's profile to get active T-Path and fallback programme type
     const { data: profile, error: profileError } = await supabaseServiceRoleClient
       .from('profiles')
-      .select('programme_type')
+      .select('programme_type, active_t_path_id') // Select both fields
       .eq('id', userId)
       .single();
 
     if (profileError) {
       if (profileError.code === 'PGRST116') { // No rows found
-        return new Response(JSON.stringify({ error: 'User profile not found or programme type not set.' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify({ error: 'User profile not found.' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
       throw profileError;
     }
 
-    const programmeType = profile?.programme_type;
+    let programmeType = profile?.programme_type; // Fallback value
+
+    // If an active T-Path is set, use its settings as the source of truth
+    if (profile?.active_t_path_id) {
+      const { data: activeTPath, error: tPathError } = await supabaseServiceRoleClient
+        .from('t_paths')
+        .select('settings')
+        .eq('id', profile.active_t_path_id)
+        .single();
+      
+      if (tPathError && tPathError.code !== 'PGRST116') {
+        console.error(`Error fetching active T-Path (${profile.active_t_path_id}) settings:`, tPathError.message);
+        // Don't throw, just log and fall back to profile.programme_type
+      } else if (activeTPath?.settings && typeof activeTPath.settings === 'object' && 'tPathType' in activeTPath.settings) {
+        programmeType = (activeTPath.settings as { tPathType: string }).tPathType;
+      }
+    }
+
     if (!programmeType) {
       return new Response(JSON.stringify({ error: 'User programme type not defined.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
