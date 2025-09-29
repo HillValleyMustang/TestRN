@@ -6,7 +6,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Loader2, Film, RefreshCw } from 'lucide-react';
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
-import { MediaPost } from '@/types/supabase'; // UPDATED: Import MediaPost directly
+import { MediaPost } from '@/types/supabase';
 import { MediaPostCard } from './media-post-card';
 import { VideoPlayerScreen } from './video-player-screen';
 import { Button } from '@/components/ui/button';
@@ -41,7 +41,6 @@ export const MediaFeedScreen = () => {
         throw new Error(fetchError.message || 'Failed to fetch media posts.');
       }
 
-      // Explicitly cast data to MediaPost[]
       setMediaPosts((data as MediaPost[]) || []);
     } catch (err: any) {
       console.error("[MediaFeedScreen] Error fetching media posts:", err);
@@ -128,7 +127,7 @@ export const MediaFeedScreen = () => {
               ) : (
                 <ScrollArea className="h-[500px] pr-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredPosts.map((post) => (
+                    {filteredPosts.map((post: MediaPost) => (
                       <MediaPostCard key={post.id} post={post} onClick={handlePostClick} />
                     ))}
                   </div>
