@@ -413,8 +413,10 @@ export default function ProfilePage() {
       </div>
       
       <div className={cn(
-        "p-2 sm:p-4 mx-auto transition-all duration-300",
-        activeTab === 'media' ? 'max-w-full' : 'max-w-4xl'
+        "transition-all duration-300",
+        activeTab === 'media' 
+          ? 'w-full' // Take full width
+          : 'p-2 sm:p-4 mx-auto max-w-4xl' // Constrain other tabs
       )}>
         <div className="relative">
           <div className="overflow-hidden" ref={emblaRef}>
