@@ -148,7 +148,8 @@ export const MediaFeedScreen = () => {
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-9"
-                      onPointerDownCapture={(e) => e.stopPropagation()}
+                      onTouchStart={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
                     />
                   </div>
                   <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
