@@ -64,6 +64,11 @@ export const MediaFeedScreen = () => {
         query = query.eq('category', activeCategory);
       }
 
+      if (searchTerm.trim() !== '') {
+        const searchTermWithWildcards = `%${searchTerm.trim()}%`;
+        query = query.or(`title.ilike.${searchTermWithWildcards},description.ilike.${searchTermWithWildcards}`);
+      }
+
       const { data, error: fetchError } = await query;
 
       if (fetchError) {
@@ -78,7 +83,7 @@ export const MediaFeedScreen = () => {
     } finally {
       setLoading(false);
     }
-  }, [session, supabase, activeCategory]);
+  }, [session, supabase, activeCategory, searchTerm]);
 
   useEffect(() => {
     fetchMediaPosts();
@@ -88,24 +93,6 @@ export const MediaFeedScreen = () => {
     setSelectedVideo({ youtubeVideoId: post.video_url, title: post.title });
     setIsVideoPlayerOpen(true);
   };
-
-  const filteredPosts = useMemo(() => {
-    let posts = mediaPosts;
-
-    if (activeCategory !== 'All') {
-      posts = posts.filter(post => post.category === activeCategory);
-    }
-
-    if (searchTerm.trim() !== '') {
-      const lowercasedTerm = searchTerm.toLowerCase();
-      posts = posts.filter(post =>
-        post.title.toLowerCase().includes(lowercasedTerm) ||
-        (post.description && post.description.toLowerCase().includes(lowercasedTerm))
-      );
-    }
-
-    return posts;
-  }, [mediaPosts, activeCategory, searchTerm]);
 
   return (
     <>
@@ -168,14 +155,14 @@ export const MediaFeedScreen = () => {
                 <ScrollBar orientation="horizontal" />
               </ScrollArea>
 
-              {filteredPosts.length === 0 ? (
+              {mediaPosts.length === 0 ? (
                 <div className="text-center text-muted-foreground py-16">
                   <p>No video posts available for this category or search term.</p>
                 </div>
               ) : (
                 <ScrollArea className="h-[500px] pr-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredPosts.map((post: MediaPost) => (
+                    {mediaPosts.map((post: MediaPost) => (
                       <MediaPostCard key={post.id} post={post} onClick={handlePostClick} />
                     ))}
                   </div>
