@@ -351,13 +351,15 @@ export default function ProfilePage() {
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
+    // Update URL without reloading the page to maintain state on refresh
+    router.replace(`/profile?tab=${value}`, { scroll: false });
     if (emblaApi) {
       const index = ["overview", "stats", "photo", "media", "social", "settings"].indexOf(value);
       if (index !== -1) {
         emblaApi.scrollTo(index);
       }
     }
-  }, [emblaApi]);
+  }, [emblaApi, router]);
 
   useEffect(() => {
     if (!emblaApi) return;
@@ -420,7 +422,7 @@ export default function ProfilePage() {
       )}>
         <div className="relative">
           <div className="overflow-hidden" ref={emblaRef}>
-            <div className="flex">
+            <div className="flex items-start">
               <div className="embla__slide flex-[0_0_100%] min-w-0 px-2 pt-0">
                 <ProfileOverviewTab
                   profile={profile}
