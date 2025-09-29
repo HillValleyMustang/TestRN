@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Loader2, Film, RefreshCw } from 'lucide-react';
+import { Loader2, Film, RefreshCw, Search } from 'lucide-react';
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { MediaPost } from '@/types/supabase';
@@ -11,6 +11,8 @@ import { MediaPostCard } from './media-post-card';
 import { VideoPlayerScreen } from './video-player-screen';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export const MediaFeedScreen = () => {
   const { session, supabase } = useSession();
@@ -19,11 +21,11 @@ export const MediaFeedScreen = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const [isVideoPlayerOpen, setIsVideoPlayerOpen] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<{ youtubeVideoId: string; title: string } | null>(null);
 
-  // Fetch unique categories once on mount
   useEffect(() => {
     const fetchCategories = async () => {
       if (!session) return;
@@ -38,13 +40,11 @@ export const MediaFeedScreen = () => {
         setCategories(uniqueCategories);
       } catch (err) {
         console.error("Failed to fetch categories:", err);
-        // This is not a critical error, so we don't show a toast
       }
     };
     fetchCategories();
   }, [session, supabase]);
 
-  // Fetch posts whenever the active category changes
   const fetchMediaPosts = useCallback(async () => {
     if (!session) {
       setLoading(false);
@@ -89,6 +89,24 @@ export const MediaFeedScreen = () => {
     setIsVideoPlayerOpen(true);
   };
 
+  const filteredPosts = useMemo(() => {
+    let posts = mediaPosts;
+
+    if (activeCategory !== 'All') {
+      posts = posts.filter(post => post.category === activeCategory);
+    }
+
+    if (searchTerm.trim() !== '') {
+      const lowercasedTerm = searchTerm.toLowerCase();
+      posts = posts.filter(post =>
+        post.title.toLowerCase().includes(lowercasedTerm) ||
+        (post.description && post.description.toLowerCase().includes(lowercasedTerm))
+      );
+    }
+
+    return posts;
+  }, [mediaPosts, activeCategory, searchTerm]);
+
   return (
     <>
       <Card className="mt-6">
@@ -96,10 +114,19 @@ export const MediaFeedScreen = () => {
           <CardTitle className="flex items-center gap-2">
             <Film className="h-5 w-5" /> Media Library
           </CardTitle>
-          <Button variant="outline" size="sm" onClick={fetchMediaPosts} disabled={loading}>
-            <RefreshCw className={loading ? "h-4 w-4 mr-2 animate-spin" : "h-4 w-4 mr-2"} />
-            Refresh
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={fetchMediaPosts} disabled={loading}>
+                  <RefreshCw className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+                  <span className="sr-only">Refresh</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Refresh Feed</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -112,7 +139,16 @@ export const MediaFeedScreen = () => {
             </div>
           ) : (
             <>
-              {/* Category Filter Buttons */}
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search for tips, exercises..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+
               <ScrollArea className="w-full whitespace-nowrap rounded-md border mb-4">
                 <div className="flex w-max space-x-2 p-2">
                   {categories.map(category => (
@@ -132,14 +168,14 @@ export const MediaFeedScreen = () => {
                 <ScrollBar orientation="horizontal" />
               </ScrollArea>
 
-              {mediaPosts.length === 0 ? (
+              {filteredPosts.length === 0 ? (
                 <div className="text-center text-muted-foreground py-16">
-                  <p>No video posts available for this category yet.</p>
+                  <p>No video posts available for this category or search term.</p>
                 </div>
               ) : (
                 <ScrollArea className="h-[500px] pr-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {mediaPosts.map((post: MediaPost) => (
+                    {filteredPosts.map((post: MediaPost) => (
                       <MediaPostCard key={post.id} post={post} onClick={handlePostClick} />
                     ))}
                   </div>

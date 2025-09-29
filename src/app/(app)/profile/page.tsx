@@ -31,7 +31,7 @@ import { Button } from '@/components/ui/button';
 import { PhotoCaptureFlow } from '@/components/profile/photo-journey/photo-capture-flow';
 import { MobileNavigation } from '@/components/profile/mobile-navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MediaFeedScreen } from '@/components/media/media-feed-screen'; // NEW: Import MediaFeedScreen
+import { MediaFeedScreen } from '@/components/media/media-feed-screen';
 
 type Profile = ProfileType;
 type TPath = Tables<'t_paths'>;
@@ -412,7 +412,10 @@ export default function ProfilePage() {
         <MobileNavigation currentPage={activeTab} onPageChange={handleTabChange} />
       </div>
       
-      <div className="p-2 sm:p-4 max-w-4xl mx-auto"> {/* This div now contains the carousel and other content */}
+      <div className={cn(
+        "p-2 sm:p-4 mx-auto transition-all duration-300",
+        activeTab === 'media' ? 'max-w-7xl' : 'max-w-4xl'
+      )}>
         <div className="relative">
           <div className="overflow-hidden" ref={emblaRef}>
             <div className="flex">
