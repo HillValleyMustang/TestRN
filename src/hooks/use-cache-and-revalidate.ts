@@ -66,6 +66,9 @@ export function useCacheAndRevalidate<T extends CacheItem>( // Updated generic c
         return table.where({ id: sessionUserId }).toArray();
       }
       if (['workout_sessions', 'gyms_cache', 'activity_logs', 'user_achievements_cache'].includes(cacheTable)) {
+        if (cacheTable === 'workout_sessions') {
+          return table.where({ user_id: sessionUserId }).reverse().sortBy('session_date');
+        }
         return table.where({ user_id: sessionUserId }).toArray();
       }
       if (['exercise_definitions_cache', 't_paths_cache'].includes(cacheTable)) {
