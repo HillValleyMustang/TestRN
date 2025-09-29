@@ -20,16 +20,43 @@ interface ExistingExercise {
   user_id: string | null;
 }
 
+// NEW: List of valid muscle groups
+const VALID_MUSCLE_GROUPS = [
+  "Pectorals", "Deltoids", "Lats", "Traps", "Biceps", 
+  "Triceps", "Quadriceps", "Hamstrings", "Glutes", "Calves", 
+  "Abdominals", "Core", "Full Body"
+];
+
 // Helper function to normalize exercise names for comparison
 const normalizeName = (name: string): string => {
   if (!name) return '';
   let normalized = name.toLowerCase();
+
+  // 1. Normalize spaces (multiple to single, then trim)
   normalized = normalized.replace(/\s+/g, ' ').trim();
+
+  // 2. Remove plural 's' from the end of the entire string
   if (normalized.endsWith('s')) {
     normalized = normalized.slice(0, -1);
   }
+
+  // 3. Remove non-alphanumeric characters, but keep spaces
   normalized = normalized.replace(/[^a-z0-9\s]/g, '');
+
   return normalized;
+};
+
+// Helper function to get YouTube embed URL
+const getYouTubeEmbedUrl = (url: string | null | undefined): string | null => {
+  if (!url) {
+    return null;
+  }
+  const regExp = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([\w-]{11})(?:\S+)?/;
+  const match = url.match(regExp);
+  if (match && match[1]) {
+    return `https://www.youtube.com/embed/${match[1]}`;
+  }
+  return null;
 };
 
 serve(async (req: Request) => {
@@ -162,6 +189,61 @@ serve(async (req: Request) => {
           existing_id: foundExercise.id,
         });
         seenNormalizedNames.add(normalizedAiName);
+      } else {
+        // 4. If not found, make a second, focused AI call for details.
+        const detailPrompt = `
+          You are an expert fitness coach. Provide details for the following exercise.
+          Exercise Name: "${aiName}"
+
+          Provide the response in a strict JSON format with the following fields:
+          {
+            "name": "${aiName}",
+            "main_muscle": "Main Muscle Group (MUST be one of: ${VALID_MUSCLE_GROUPS.join(', ')})",
+            "type": "weight" | "timed" | "bodyweight",
+            "category": "Bilateral" | "Unilateral" | null,
+            "movement_type": "compound" | "isolation",
+            "movement_pattern": "Push" | "Pull" | "Legs" | "Core",
+            "description": "A brief description of the exercise.",
+            "pro_tip": "A short, actionable pro tip for performing the exercise.",
+            "video_url": "Optional YouTube or instructional video URL (can be empty string if none)"
+          }
+          
+          Do not include any other text or markdown outside the JSON object.
+        `;
+
+        const detailResponse = await fetch(GEMINI_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: detailPrompt }] }] }),
+        });
+
+        if (!detailResponse.ok) {
+          console.error(`Gemini detail API error for "${aiName}": ${detailResponse.status}`);
+          continue;
+        }
+
+        const detailData = await detailResponse.json();
+        const detailText = detailData.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!detailText) continue;
+
+        try {
+          const jsonMatch = detailText.match(/{[\s\S]*}/);
+          if (!jsonMatch) continue;
+          const sanitizedJsonString = jsonMatch[0].replace(/,(?=\s*[\]}])/g, '');
+          const newExerciseData = JSON.parse(sanitizedJsonString);
+
+          if (newExerciseData.name && newExerciseData.name.trim() !== '') {
+            finalResults.push({
+              ...newExerciseData,
+              video_url: getYouTubeEmbedUrl(newExerciseData.video_url),
+              duplicate_status: 'none',
+              existing_id: null,
+            });
+            seenNormalizedNames.add(normalizedAiName);
+          }
+        } catch (parseError) {
+          console.error(`Failed to parse details for "${aiName}":`, parseError, "Raw text:", detailText);
+        }
       }
     }
 
