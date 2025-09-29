@@ -254,25 +254,28 @@ export type Database = {
           id: string;
           title: string;
           description: string | null;
-          video_url: string; // Changed from youtube_video_id
+          video_url: string;
           creator_name: string | null;
           created_at: string;
+          category: string | null;
         };
         Insert: {
           id?: string;
           title: string;
           description?: string | null;
-          video_url: string; // Changed from youtube_video_id
+          video_url: string;
           creator_name?: string | null;
           created_at?: string;
+          category?: string | null;
         };
         Update: {
           id?: string;
           title?: string;
           description?: string | null;
-          video_url?: string; // Changed from youtube_video_id
+          video_url?: string;
           creator_name?: string | null;
           created_at?: string;
+          category?: string | null;
         };
         Relationships: [];
       };

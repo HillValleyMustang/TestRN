@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 export const MediaFeedScreen = () => {
   const { session, supabase } = useSession();
   const [mediaPosts, setMediaPosts] = useState<MediaPost[]>([]);
+  const [categories, setCategories] = useState<string[]>(['All']);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('All');
@@ -22,6 +23,28 @@ export const MediaFeedScreen = () => {
   const [isVideoPlayerOpen, setIsVideoPlayerOpen] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<{ youtubeVideoId: string; title: string } | null>(null);
 
+  // Fetch unique categories once on mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      if (!session) return;
+      try {
+        const { data, error } = await supabase
+          .from('media_posts')
+          .select('category');
+
+        if (error) throw error;
+
+        const uniqueCategories = ['All', ...Array.from(new Set((data || []).map(p => p.category).filter(Boolean) as string[])).sort()];
+        setCategories(uniqueCategories);
+      } catch (err) {
+        console.error("Failed to fetch categories:", err);
+        // This is not a critical error, so we don't show a toast
+      }
+    };
+    fetchCategories();
+  }, [session, supabase]);
+
+  // Fetch posts whenever the active category changes
   const fetchMediaPosts = useCallback(async () => {
     if (!session) {
       setLoading(false);
@@ -32,10 +55,16 @@ export const MediaFeedScreen = () => {
     setError(null);
 
     try {
-      const { data, error: fetchError } = await supabase
+      let query = supabase
         .from('media_posts')
-        .select('*, category')
+        .select('*')
         .order('created_at', { ascending: false });
+
+      if (activeCategory !== 'All') {
+        query = query.eq('category', activeCategory);
+      }
+
+      const { data, error: fetchError } = await query;
 
       if (fetchError) {
         throw new Error(fetchError.message || 'Failed to fetch media posts.');
@@ -49,7 +78,7 @@ export const MediaFeedScreen = () => {
     } finally {
       setLoading(false);
     }
-  }, [session, supabase]);
+  }, [session, supabase, activeCategory]);
 
   useEffect(() => {
     fetchMediaPosts();
@@ -59,23 +88,6 @@ export const MediaFeedScreen = () => {
     setSelectedVideo({ youtubeVideoId: post.video_url, title: post.title });
     setIsVideoPlayerOpen(true);
   };
-
-  const uniqueCategories = useMemo(() => {
-    const categories = new Set<string>();
-    mediaPosts.forEach(post => {
-      if (post.category) {
-        categories.add(post.category);
-      }
-    });
-    return ['All', ...Array.from(categories).sort()];
-  }, [mediaPosts]);
-
-  const filteredPosts = useMemo(() => {
-    if (activeCategory === 'All') {
-      return mediaPosts;
-    }
-    return mediaPosts.filter(post => post.category === activeCategory);
-  }, [mediaPosts, activeCategory]);
 
   return (
     <>
@@ -103,7 +115,7 @@ export const MediaFeedScreen = () => {
               {/* Category Filter Buttons */}
               <ScrollArea className="w-full whitespace-nowrap rounded-md border mb-4">
                 <div className="flex w-max space-x-2 p-2">
-                  {uniqueCategories.map(category => (
+                  {categories.map(category => (
                     <Button
                       key={category}
                       variant={activeCategory === category ? "default" : "outline"}
@@ -120,14 +132,14 @@ export const MediaFeedScreen = () => {
                 <ScrollBar orientation="horizontal" />
               </ScrollArea>
 
-              {filteredPosts.length === 0 ? (
+              {mediaPosts.length === 0 ? (
                 <div className="text-center text-muted-foreground py-16">
                   <p>No video posts available for this category yet.</p>
                 </div>
               ) : (
                 <ScrollArea className="h-[500px] pr-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredPosts.map((post: MediaPost) => (
+                    {mediaPosts.map((post: MediaPost) => (
                       <MediaPostCard key={post.id} post={post} onClick={handlePostClick} />
                     ))}
                   </div>
