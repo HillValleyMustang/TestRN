@@ -57,10 +57,11 @@ serve(async (req: Request) => {
       
       IMPORTANT INSTRUCTIONS:
       1. Identify all pieces of equipment shown across all images.
-      2. For each piece of equipment, list the most common and effective exercises.
-      3. Consolidate all exercises into a single list, removing duplicates.
-      4. Your entire response MUST be a single, clean JSON object with a key "exercises" which contains an array of exercise objects. Do not include any other text, markdown, or explanations outside the JSON object.
-      5. Each object in the array MUST have the following structure:
+      2. For each piece of equipment, provide a comprehensive list of possible exercises, including common variations (e.g., incline, decline, single-arm, wide grip, narrow grip). Be creative and thorough.
+      3. Aim to provide between 5 to 15 exercises in total, depending on the equipment identified. The goal is a thorough list, not just the top 3-4 most common ones.
+      4. Consolidate all exercises into a single list, removing duplicates.
+      5. Your entire response MUST be a single, clean JSON object with a key "exercises" which contains an array of exercise objects. Do not include any other text, markdown, or explanations outside the JSON object.
+      6. Each object in the array MUST have the following structure:
          {
            "name": "Exercise Name",
            "main_muscle": "Main Muscle Group (MUST be one of: ${VALID_MUSCLE_GROUPS.join(', ')})",
