@@ -15,9 +15,11 @@ interface VideoPlayerScreenProps {
 // Helper function to extract YouTube video ID from various URL formats
 const getYouTubeVideoId = (url: string | null | undefined): string | null => {
   if (!url) return null;
-  const regExp = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([\w-]{11})(?:\S+)?/;
-  const match = url.match(regExp);
-  return match && match[1] ? match[1] : null;
+
+  // Regex to match various YouTube URL formats and extract the 11-character video ID
+  const match = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([a-zA-Z0-9_-]{11})(?:\S+)?/);
+  
+  return (match && match[1]) ? match[1] : null;
 };
 
 export const VideoPlayerScreen = ({ open, onOpenChange, youtubeVideoId, title }: VideoPlayerScreenProps) => {
