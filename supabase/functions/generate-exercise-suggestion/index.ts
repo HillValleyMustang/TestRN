@@ -13,7 +13,7 @@ const corsHeaders = {
 // @ts-ignore
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 // @ts-ignore
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`;
 
 // Define an interface for the structure of existing exercise data fetched from Supabase
 interface ExistingExercise {
@@ -55,7 +55,7 @@ const getYouTubeEmbedUrl = (url: string | null | undefined): string | null => {
     return null;
   }
   console.log(`[getYouTubeEmbedUrl] Processing URL: ${url}`);
-  const regExp = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([\w-]{11})(?:\S+)?/;
+  const regExp = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([a-zA-Z0-9_-]{11})(?:\S+)?/;
   const match = url.match(regExp);
   if (match && match[1]) {
     const embedUrl = `https://www.youtube.com/embed/${match[1]}`;
