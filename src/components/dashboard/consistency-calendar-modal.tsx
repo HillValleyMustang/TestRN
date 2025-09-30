@@ -18,33 +18,6 @@ interface CalendarEvent {
   date: Date;
 }
 
-// This component is now much simpler, only handling the content inside the day cell
-const CustomDayContent = ({ date, activityMap }: { date: Date; activityMap: Map<string, CalendarEvent[]> }) => {
-  const dateKey = date.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' });
-  const eventsForDay = activityMap.get(dateKey) || [];
-  const tertiaryEvent = eventsForDay[2];
-
-  return (
-    <div className="relative w-full h-full flex items-center justify-center">
-      {date.getDate()}
-      {tertiaryEvent && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '2px',
-            left: '2px',
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            backgroundColor: getCalendarItemColorCssVar(tertiaryEvent.name, tertiaryEvent.type),
-          }}
-        ></div>
-      )}
-    </div>
-  );
-};
-
-
 export const ConsistencyCalendarModal = ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void; }) => {
   const { session, supabase, memoizedSessionUserId } = useSession();
   const [loading, setLoading] = useState(true);
@@ -194,9 +167,6 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: { open: boolean
                 className="rounded-md border w-full"
                 modifiers={modifiers}
                 modifiersStyles={modifiersStyles}
-                components={{
-                  DayContent: (props) => <CustomDayContent date={props.date} activityMap={activityMap} />,
-                }}
               />
               <div className="mt-6 w-full px-4">
                 <div className="grid grid-cols-2 gap-3 text-sm">
