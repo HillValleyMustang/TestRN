@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
 import { getCalendarItemColorCssVar, getCalendarItemDisplayName } from '@/lib/utils'; // Import new utilities
-import { DayContentProps, ActiveModifiers } from 'react-day-picker'; // Import DayContentProps and ActiveModifiers
+import { DayProps } from 'react-day-picker'; // Import DayProps
 import { db } from '@/lib/db'; // Import db for fetching profile
 import { Tables } from '@/types/supabase'; // Import Tables for Profile type
 
@@ -19,14 +19,14 @@ interface CalendarEvent {
   date: Date; // ADDED: The actual date of the event
 }
 
-interface CustomDayContentProps extends DayContentProps {
+interface CustomDayProps extends DayProps {
   activityMap: Map<string, CalendarEvent[]>;
 }
 
-const CustomDayContent = (props: CustomDayContentProps) => {
-  const { date, activeModifiers, activityMap } = props;
-  const isSelected = activeModifiers.selected;
-  const isToday = activeModifiers.today;
+const CustomDay = (props: CustomDayProps) => {
+  const { date, modifiers, activityMap } = props;
+  const isSelected = modifiers.selected;
+  const isToday = modifiers.today;
 
   const dateKey = date.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' });
   const eventsForDay = activityMap.get(dateKey) || [];
@@ -227,9 +227,9 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: { open: boolean
                 selected={Array.from(activityMap.values()).flatMap(events => events.map(e => e.date))}
                 className="rounded-md border w-full"
                 modifiers={calendarModifiers.modifiers}
-                modifiersStyles={calendarModifiers.styles}
+                modifiersClassNames={calendarModifiers.styles}
                 components={{
-                  DayContent: (props) => <CustomDayContent {...props} activityMap={activityMap} />,
+                  Day: (props) => <CustomDay {...props} activityMap={activityMap} />,
                 }}
                 // Removed classNames as CustomDayContent handles styling
               />
