@@ -6,7 +6,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
 import { getCalendarItemColorCssVar, getCalendarItemDisplayName } from '@/lib/utils';
-import { DayProps } from 'react-day-picker';
 import { db } from '@/lib/db';
 import { Tables } from '@/types/supabase';
 
@@ -19,59 +18,14 @@ interface CalendarEvent {
   date: Date;
 }
 
-interface CustomDayProps extends DayProps {
-  activityMap: Map<string, CalendarEvent[]>;
-}
-
-const CustomDay = (props: CustomDayProps) => {
-  const { date, modifiers, activityMap } = props;
-  const isSelected = modifiers.selected;
-  const isToday = modifiers.today;
-
+// This component is now much simpler, only handling the content inside the day cell
+const CustomDayContent = ({ date, activityMap }: { date: Date; activityMap: Map<string, CalendarEvent[]> }) => {
   const dateKey = date.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' });
   const eventsForDay = activityMap.get(dateKey) || [];
-
-  const primaryEvent = eventsForDay[0];
-  const secondaryEvent = eventsForDay[1];
   const tertiaryEvent = eventsForDay[2];
 
-  let backgroundColor = 'transparent';
-  let borderColor = 'transparent';
-  let dotColor = 'transparent';
-  let textColor = 'hsl(var(--muted-foreground))';
-
-  if (primaryEvent) {
-    backgroundColor = getCalendarItemColorCssVar(primaryEvent.name, primaryEvent.type);
-    textColor = 'hsl(0 0% 100%)';
-  } else if (isToday && !isSelected) {
-    backgroundColor = 'hsl(var(--muted))';
-  }
-
-  if (secondaryEvent) {
-    borderColor = getCalendarItemColorCssVar(secondaryEvent.name, secondaryEvent.type);
-  }
-
-  if (tertiaryEvent) {
-    dotColor = getCalendarItemColorCssVar(tertiaryEvent.name, tertiaryEvent.type);
-  }
-
   return (
-    <span
-      style={{
-        backgroundColor: backgroundColor,
-        color: textColor,
-        borderRadius: '0.375rem',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '100%',
-        height: '100%',
-        border: secondaryEvent ? `2px solid ${borderColor}` : 'none',
-        position: 'relative',
-        padding: '6px',
-      }}
-      className="relative z-10"
-    >
+    <div className="relative w-full h-full flex items-center justify-center">
       {date.getDate()}
       {tertiaryEvent && (
         <div
@@ -82,11 +36,11 @@ const CustomDay = (props: CustomDayProps) => {
             width: '6px',
             height: '6px',
             borderRadius: '50%',
-            backgroundColor: dotColor,
+            backgroundColor: getCalendarItemColorCssVar(tertiaryEvent.name, tertiaryEvent.type),
           }}
         ></div>
       )}
-    </span>
+    </div>
   );
 };
 
@@ -184,6 +138,35 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: { open: boolean
     }
   }, [open, memoizedSessionUserId, supabase]);
 
+  const { modifiers, modifiersStyles } = useMemo(() => {
+    const mods: Record<string, Date[]> = {};
+    const styles: Record<string, React.CSSProperties> = {};
+
+    activityMap.forEach((events, dateKey) => {
+      const date = new Date(dateKey);
+      const primaryEvent = events[0];
+      const secondaryEvent = events[1];
+
+      if (primaryEvent) {
+        const primaryModName = `primary-${dateKey}`;
+        mods[primaryModName] = [date];
+        styles[primaryModName] = {
+          backgroundColor: getCalendarItemColorCssVar(primaryEvent.name, primaryEvent.type),
+          color: 'hsl(0 0% 100%)', // white text
+        };
+      }
+      if (secondaryEvent) {
+        const secondaryModName = `secondary-${dateKey}`;
+        mods[secondaryModName] = [date];
+        styles[secondaryModName] = {
+          border: `2px solid ${getCalendarItemColorCssVar(secondaryEvent.name, secondaryEvent.type)}`,
+        };
+      }
+    });
+
+    return { modifiers: mods, modifiersStyles: styles };
+  }, [activityMap]);
+
   const sortedUniqueActivityTypes = useMemo(() => {
     const allEventTypes = new Set<string>();
     activityMap.forEach(events => {
@@ -209,8 +192,10 @@ export const ConsistencyCalendarModal = ({ open, onOpenChange }: { open: boolean
                 mode="multiple"
                 selected={Array.from(activityMap.values()).flatMap(events => events.map(e => e.date))}
                 className="rounded-md border w-full"
+                modifiers={modifiers}
+                modifiersStyles={modifiersStyles}
                 components={{
-                  Day: (props) => <CustomDay {...props} activityMap={activityMap} />,
+                  DayContent: (props) => <CustomDayContent date={props.date} activityMap={activityMap} />,
                 }}
               />
               <div className="mt-6 w-full px-4">
