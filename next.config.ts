@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import withPWA from "next-pwa";
 
 const nextConfig: NextConfig = {
   // Removed custom webpack configuration for diagnostic purposes.
@@ -6,4 +7,9 @@ const nextConfig: NextConfig = {
   // or finding an alternative solution if needed.
 };
 
-export default nextConfig;
+export default withPWA({
+  dest: "public",
+  register: true,
+  skipWaiting: true,
+  disable: process.env.NODE_ENV === "development",
+})(nextConfig);
