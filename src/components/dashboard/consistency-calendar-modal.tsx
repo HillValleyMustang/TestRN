@@ -12,12 +12,6 @@ import { Tables } from '@/types/supabase'; // Import Tables for Profile type
 
 type Profile = Tables<'profiles'>;
 
-interface ConsistencyCalendarModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
-// Define a new interface for events
 interface CalendarEvent {
   type: 'workout' | 'activity' | 'ad-hoc';
   name: string | null;
@@ -25,18 +19,15 @@ interface CalendarEvent {
   date: Date; // ADDED: The actual date of the event
 }
 
-// Define a new interface for CustomDayContent's props
 interface CustomDayContentProps extends DayContentProps {
   activityMap: Map<string, CalendarEvent[]>;
 }
 
-// Custom Day Content component
 const CustomDayContent = (props: CustomDayContentProps) => {
   const { date, activeModifiers, activityMap } = props;
   const isSelected = activeModifiers.selected;
   const isToday = activeModifiers.today;
 
-  // Use toLocaleDateString to get the local date string (YYYY-MM-DD) for map key
   const dateKey = date.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' });
   const eventsForDay = activityMap.get(dateKey) || [];
 
@@ -100,7 +91,7 @@ const CustomDayContent = (props: CustomDayContentProps) => {
 };
 
 
-export const ConsistencyCalendarModal = ({ open, onOpenChange }: ConsistencyCalendarModalProps) => {
+export const ConsistencyCalendarModal = ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void; }) => {
   const { session, supabase, memoizedSessionUserId } = useSession(); // Destructure memoizedSessionUserId
   const [loading, setLoading] = useState(true);
   const [activityMap, setActivityMap] = useState<Map<string, CalendarEvent[]>>(new Map()); // Map<YYYY-MM-DD, CalendarEvent[]>
