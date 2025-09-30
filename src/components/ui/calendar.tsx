@@ -57,56 +57,46 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        Chevron: ({ ...props }) => {
-          const orientation = props.name === 'chevron-left' ? 'left' : 'right';
-          return (
-            orientation === "left" ? (
-              <ChevronLeft className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )
-          )
-        },
-        Dropdown: ({ value, onChange, children, ...props }: DropdownProps) => {
-          const options = React.Children.toArray(
-            children
-          ) as React.ReactElement<React.HTMLProps<HTMLOptionElement>>[]
-          const selected = options.find((child) => child.props.value === value)
-          const handleChange = (value: string) => {
+        IconLeft: () => <ChevronLeft className="h-4 w-4" />,
+        IconRight: () => <ChevronRight className="h-4 w-4" />,
+        Dropdown: ({ value, onChange, options }: DropdownProps) => {
+          const selected = options?.find((option) => String(option.value) === String(value));
+          const handleChange = (newValue: string) => {
             const changeEvent = {
-              target: { value },
-            } as React.ChangeEvent<HTMLSelectElement>
-            onChange?.(changeEvent)
-          }
+              target: { value: newValue },
+            } as React.ChangeEvent<HTMLSelectElement>;
+            onChange?.(changeEvent);
+          };
           return (
             <Select
               value={value?.toString()}
-              onValueChange={(value) => {
-                handleChange(value)
+              onValueChange={(newValue) => {
+                handleChange(newValue);
               }}
             >
               <SelectTrigger className="pr-1.5 focus:ring-0">
-                <SelectValue>{selected?.props?.children}</SelectValue>
+                <SelectValue>{selected?.label}</SelectValue>
               </SelectTrigger>
               <SelectContent position="popper">
                 <ScrollArea className="h-80">
-                  {options.map((option, id: number) => (
+                  {options?.map((option, id: number) => (
                     <SelectItem
-                      key={`${option.props.value}-${id}`}
-                      value={option.props.value?.toString() ?? ""}
+                      key={`${option.value}-${id}`}
+                      value={option.value?.toString() ?? ""}
+                      disabled={option.disabled}
                     >
-                      {option.props.children}
+                      {option.label}
                     </SelectItem>
                   ))}
                 </ScrollArea>
               </SelectContent>
             </Select>
-          )
+          );
         },
       }}
       {...props}
     />
-  )
+  );
 }
 Calendar.displayName = "Calendar"
 

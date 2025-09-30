@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
 import { getCalendarItemColorCssVar, getCalendarItemDisplayName } from '@/lib/utils';
-import { DayProps, useDayRender } from 'react-day-picker';
+import { DayProps } from 'react-day-picker';
 import { db } from '@/lib/db';
 import { Tables } from '@/types/supabase';
 
@@ -24,16 +24,9 @@ interface CustomDayProps extends DayProps {
 }
 
 const CustomDay = (props: CustomDayProps) => {
-  const { date, displayMonth, activityMap } = props;
-  const { buttonProps, isButton, isHidden, dayProps } = useDayRender(date, displayMonth);
-  const { selected: isSelected, today: isToday } = buttonProps.modifiers;
-
-  if (isHidden) {
-    return <></>;
-  }
-  if (!isButton) {
-    return <div {...dayProps} />;
-  }
+  const { date, modifiers, activityMap } = props;
+  const isSelected = modifiers.selected;
+  const isToday = modifiers.today;
 
   const dateKey = date.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' });
   const eventsForDay = activityMap.get(dateKey) || [];
@@ -63,8 +56,7 @@ const CustomDay = (props: CustomDayProps) => {
   }
 
   return (
-    <button
-      {...buttonProps}
+    <span
       style={{
         backgroundColor: backgroundColor,
         color: textColor,
@@ -94,7 +86,7 @@ const CustomDay = (props: CustomDayProps) => {
           }}
         ></div>
       )}
-    </button>
+    </span>
   );
 };
 
