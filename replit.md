@@ -87,14 +87,15 @@ The project is configured for deployment with:
 
 ## Recent Changes (October 5, 2025)
 
-**Latest Update - Phase 8 Complete:**
-- ✅ User preferences system with database persistence
-- ✅ Unit system toggle (metric ⇄ imperial) for weight and distance
-- ✅ Profile/Settings screen with account information display
-- ✅ Preference state management with cross-account data protection
-- ✅ useUnitConversion hook for seamless unit handling throughout app
-- ✅ Key-based component reset pattern to prevent user data leakage
-- ✅ Navigation to settings from home screen
+**Latest Update - Phase 9 Complete:**
+- ✅ Body measurements tracking system with comprehensive data capture
+- ✅ Database schema for weight, body fat %, and 9 body measurements (chest, waist, hips, arms, thighs)
+- ✅ DateTimePicker for easy date selection on measurement entry
+- ✅ Measurements history screen with chronological ordering
+- ✅ Unit conversion integration for weight display (kg ⇄ lbs)
+- ✅ Delete functionality with confirmation prompts
+- ✅ Pull-to-refresh on history screen
+- ✅ Navigation from home screen to measurements
 **Phase 1 - Monorepo Restructuring:**
 - ✅ Moved web app from root `src/` to `apps/web/src/`
 - ✅ Created shared `tsconfig.base.json` with path aliases
@@ -232,6 +233,31 @@ The project is configured for deployment with:
 - ✅ Navigation: Home screen button to Profile/Settings
 - ✅ Security: State management prevents user A's preferences from appearing to user B during account switching
 
+**Phase 9 - Body Measurements & Weight Tracking (Complete):**
+- ✅ Database schema for body measurements:
+  - saveBodyMeasurement, getBodyMeasurements, getWeightHistory, deleteBodyMeasurement methods
+  - Tracks weight_kg, body_fat_percentage, chest/waist/hips/arms/thighs measurements in cm
+  - Optional notes field for each measurement entry
+  - Properly indexed by user_id and measurement_date
+- ✅ Measurements input screen:
+  - DateTimePicker component for user-friendly date selection
+  - Platform-specific date picker (spinner on iOS, calendar on Android)
+  - Enforces maximum date (today) to prevent future dates
+  - Unit conversion for weight input based on user preferences
+  - All measurements optional (at least one required)
+  - Notes field for additional context
+- ✅ Measurements history screen:
+  - Chronological ordering (newest first) with dual-sort stability
+  - Grid layout displaying all recorded measurements
+  - Delete functionality with confirmation prompts
+  - Pull-to-refresh to reload data
+  - Empty state guidance for new users
+  - Weight values display in user's preferred unit
+- ✅ DataContext integration:
+  - Exposed all body measurement CRUD operations
+  - Type-safe BodyMeasurement interface
+- ✅ Navigation: Home screen button to Body Measurements history
+
 **Current Features (Mobile):**
 - ✅ User authentication (email/password) with session persistence
 - ✅ Exercise library (16 exercises across chest, back, legs, shoulders, arms, core, cardio)
@@ -248,6 +274,9 @@ The project is configured for deployment with:
 - ✅ Volume tracking over time
 - ✅ PR progression charts per exercise
 - ✅ Workout streak tracking (current & longest)
+- ✅ Body measurements tracking (weight, body fat %, 9 body measurements)
+- ✅ Measurements history with chronological display
+- ✅ DateTimePicker for easy measurement date selection
 - ✅ User preferences with unit system toggle (kg ⇄ lbs)
 - ✅ Profile/Settings screen with account info
 - ✅ Offline-first data persistence with SQLite
