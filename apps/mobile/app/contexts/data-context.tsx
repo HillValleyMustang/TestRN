@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useMemo } from '
 import { database, addToSyncQueue } from '../lib/database';
 import { useSyncQueueProcessor } from '@data/hooks/use-sync-queue-processor';
 import { useAuth } from './auth-context';
-import type { WorkoutSession, SetLog } from '@data/storage/models';
+import type { WorkoutSession, SetLog, WorkoutTemplate } from '@data/storage/models';
 import NetInfo from '@react-native-community/netinfo';
 
 interface DataContextType {
@@ -11,6 +11,10 @@ interface DataContextType {
   getWorkoutSessions: (userId: string) => Promise<WorkoutSession[]>;
   getSetLogs: (sessionId: string) => Promise<SetLog[]>;
   getPersonalRecord: (userId: string, exerciseId: string) => Promise<number>;
+  saveTemplate: (template: WorkoutTemplate) => Promise<void>;
+  getTemplates: (userId: string) => Promise<WorkoutTemplate[]>;
+  getTemplate: (templateId: string) => Promise<WorkoutTemplate | null>;
+  deleteTemplate: (templateId: string) => Promise<void>;
   isSyncing: boolean;
   queueLength: number;
   isOnline: boolean;
@@ -63,6 +67,22 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     return await database.getPersonalRecord(userId, exerciseId);
   };
 
+  const saveTemplate = async (template: WorkoutTemplate): Promise<void> => {
+    await database.saveTemplate(template);
+  };
+
+  const getTemplates = async (userId: string): Promise<WorkoutTemplate[]> => {
+    return await database.getTemplates(userId);
+  };
+
+  const getTemplate = async (templateId: string): Promise<WorkoutTemplate | null> => {
+    return await database.getTemplate(templateId);
+  };
+
+  const deleteTemplate = async (templateId: string): Promise<void> => {
+    await database.deleteTemplate(templateId);
+  };
+
   const value = useMemo(
     () => ({
       addWorkoutSession,
@@ -70,6 +90,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       getWorkoutSessions,
       getSetLogs,
       getPersonalRecord,
+      saveTemplate,
+      getTemplates,
+      getTemplate,
+      deleteTemplate,
       isSyncing,
       queueLength,
       isOnline,

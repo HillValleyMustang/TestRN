@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import type { SyncQueueItem, SyncQueueStore, WorkoutSession, SetLog } from '@data/storage';
+import type { SyncQueueItem, SyncQueueStore, WorkoutSession, SetLog, WorkoutTemplate, TemplateExercise } from '@data/storage';
 
 const DB_NAME = 'fitness_tracker.db';
 
@@ -48,9 +48,20 @@ class Database {
         error TEXT
       );
       
+      CREATE TABLE IF NOT EXISTS workout_templates (
+        id TEXT PRIMARY KEY NOT NULL,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        exercises TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      
       CREATE INDEX IF NOT EXISTS idx_session_date ON workout_sessions(session_date);
       CREATE INDEX IF NOT EXISTS idx_set_logs_session ON set_logs(session_id);
       CREATE INDEX IF NOT EXISTS idx_sync_queue_timestamp ON sync_queue(timestamp);
+      CREATE INDEX IF NOT EXISTS idx_templates_user ON workout_templates(user_id);
     `);
   }
 
@@ -133,6 +144,54 @@ class Database {
       [userId, exerciseId]
     );
     return result?.max_weight || 0;
+  }
+
+  async saveTemplate(template: WorkoutTemplate): Promise<void> {
+    const db = this.getDB();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO workout_templates 
+       (id, user_id, name, description, exercises, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        template.id,
+        template.user_id,
+        template.name,
+        template.description,
+        JSON.stringify(template.exercises),
+        template.created_at,
+        template.updated_at,
+      ]
+    );
+  }
+
+  async getTemplates(userId: string): Promise<WorkoutTemplate[]> {
+    const db = this.getDB();
+    const result = await db.getAllAsync<any>(
+      'SELECT * FROM workout_templates WHERE user_id = ? ORDER BY updated_at DESC',
+      [userId]
+    );
+    return result.map(row => ({
+      ...row,
+      exercises: JSON.parse(row.exercises),
+    }));
+  }
+
+  async getTemplate(templateId: string): Promise<WorkoutTemplate | null> {
+    const db = this.getDB();
+    const result = await db.getFirstAsync<any>(
+      'SELECT * FROM workout_templates WHERE id = ?',
+      [templateId]
+    );
+    if (!result) return null;
+    return {
+      ...result,
+      exercises: JSON.parse(result.exercises),
+    };
+  }
+
+  async deleteTemplate(templateId: string): Promise<void> {
+    const db = this.getDB();
+    await db.runAsync('DELETE FROM workout_templates WHERE id = ?', [templateId]);
   }
 
   syncQueue: SyncQueueStore = {

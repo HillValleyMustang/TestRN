@@ -35,3 +35,21 @@ export interface ExerciseDefinition {
   equipment: string | null;
   created_at: string;
 }
+
+export interface WorkoutTemplate {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  exercises: TemplateExercise[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TemplateExercise {
+  exercise_id: string;
+  order_index: number;
+  default_sets: number;
+  default_weight_kg: number | null;
+  default_reps: number | null;
+}

@@ -62,6 +62,13 @@ export default function Index() {
 
         <TouchableOpacity 
           style={styles.primaryButton} 
+          onPress={() => router.push('/templates')}
+        >
+          <Text style={styles.primaryButtonText}>📋 Templates</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.primaryButton} 
           onPress={() => router.push('/history')}
         >
           <Text style={styles.primaryButtonText}>📊 History</Text>

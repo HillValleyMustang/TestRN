@@ -5,6 +5,7 @@ import { useData } from './contexts/data-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getExerciseById } from '@data/exercises';
 import { RestTimer } from './components/rest-timer';
+import { TemplateSaveModal } from './components/template-save-modal';
 
 interface ExerciseSet {
   weight: string;
@@ -18,21 +19,63 @@ interface WorkoutExercise {
 
 export default function WorkoutScreen() {
   const { userId } = useAuth();
-  const { addWorkoutSession, addSetLog, getPersonalRecord, isSyncing, queueLength, isOnline } = useData();
+  const { addWorkoutSession, addSetLog, getPersonalRecord, getTemplate, saveTemplate, isSyncing, queueLength, isOnline } = useData();
   const router = useRouter();
-  const params = useLocalSearchParams<{ selectedExerciseId?: string }>();
+  const params = useLocalSearchParams<{ selectedExerciseId?: string; templateId?: string }>();
   
   const [templateName, setTemplateName] = useState('');
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
   const [loading, setLoading] = useState(false);
   const [personalRecords, setPersonalRecords] = useState<Record<string, number>>({});
   const [showRestTimer, setShowRestTimer] = useState(false);
+  const [showTemplateSaveModal, setShowTemplateSaveModal] = useState(false);
+  const [loadedTemplateId, setLoadedTemplateId] = useState<string | null>(null);
+  const [currentTemplateDescription, setCurrentTemplateDescription] = useState<string>('');
 
   useEffect(() => {
     if (params.selectedExerciseId) {
       addExercise(params.selectedExerciseId);
     }
   }, [params.selectedExerciseId]);
+
+  useEffect(() => {
+    if (params.templateId && userId) {
+      loadTemplate(params.templateId);
+    }
+  }, [params.templateId, userId]);
+
+  const loadTemplate = async (templateId: string) => {
+    try {
+      const template = await getTemplate(templateId);
+      if (!template) {
+        Alert.alert('Error', 'Template not found');
+        return;
+      }
+
+      setTemplateName(template.name);
+      setLoadedTemplateId(templateId);
+      setCurrentTemplateDescription(template.description || '');
+
+      const loadedExercises: WorkoutExercise[] = template.exercises.map(ex => ({
+        exerciseId: ex.exercise_id,
+        sets: Array(ex.default_sets).fill(null).map(() => ({
+          weight: ex.default_weight_kg?.toString() || '',
+          reps: ex.default_reps?.toString() || '',
+        })),
+      }));
+
+      setExercises(loadedExercises);
+
+      for (const ex of template.exercises) {
+        if (userId && !personalRecords[ex.exercise_id]) {
+          const pr = await getPersonalRecord(userId, ex.exercise_id);
+          setPersonalRecords(prev => ({ ...prev, [ex.exercise_id]: pr }));
+        }
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to load template');
+    }
+  };
 
   const addExercise = async (exerciseId: string) => {
     const existingIndex = exercises.findIndex(e => e.exerciseId === exerciseId);
@@ -154,11 +197,66 @@ export default function WorkoutScreen() {
       setTemplateName('');
       setExercises([]);
       setPersonalRecords({});
+      setLoadedTemplateId(null);
       router.back();
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to save workout');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveAsTemplate = () => {
+    if (!userId) {
+      Alert.alert('Error', 'Not authenticated');
+      return;
+    }
+
+    if (!templateName.trim()) {
+      Alert.alert('Error', 'Please enter a workout name first');
+      return;
+    }
+
+    if (exercises.length === 0) {
+      Alert.alert('Error', 'Please add at least one exercise');
+      return;
+    }
+
+    setShowTemplateSaveModal(true);
+  };
+
+  const handleConfirmSaveTemplate = async (description: string) => {
+    try {
+      const templateId = loadedTemplateId || `template_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const now = new Date().toISOString();
+      
+      let existingTemplate = null;
+      if (loadedTemplateId) {
+        existingTemplate = await getTemplate(loadedTemplateId);
+      }
+
+      const template = {
+        id: templateId,
+        user_id: userId!,
+        name: templateName,
+        description: description || null,
+        exercises: exercises.map((ex, idx) => ({
+          exercise_id: ex.exerciseId,
+          order_index: idx,
+          default_sets: ex.sets.length,
+          default_weight_kg: ex.sets[0]?.weight ? parseFloat(ex.sets[0].weight) : null,
+          default_reps: ex.sets[0]?.reps ? parseInt(ex.sets[0].reps) : null,
+        })),
+        created_at: existingTemplate?.created_at || now,
+        updated_at: now,
+      };
+
+      await saveTemplate(template);
+      setLoadedTemplateId(templateId);
+      setCurrentTemplateDescription(description || existingTemplate?.description || '');
+      Alert.alert('Success', 'Template saved!');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to save template');
     }
   };
 
@@ -275,6 +373,15 @@ export default function WorkoutScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity 
+          style={styles.templateButton}
+          onPress={handleSaveAsTemplate}
+        >
+          <Text style={styles.templateButtonText}>
+            {loadedTemplateId ? '💾 Update Template' : '📋 Save as Template'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
           style={[styles.saveButton, loading && styles.saveButtonDisabled]} 
           onPress={saveWorkout}
           disabled={loading}
@@ -286,6 +393,14 @@ export default function WorkoutScreen() {
       <RestTimer 
         visible={showRestTimer}
         onClose={() => setShowRestTimer(false)}
+      />
+
+      <TemplateSaveModal
+        visible={showTemplateSaveModal}
+        onClose={() => setShowTemplateSaveModal(false)}
+        onSave={handleConfirmSaveTemplate}
+        isUpdate={!!loadedTemplateId}
+        initialDescription={currentTemplateDescription}
       />
     </ScrollView>
   );
@@ -446,6 +561,19 @@ const styles = StyleSheet.create({
   timerButtonText: {
     color: '#0a0',
     fontSize: 18,
+    fontWeight: 'bold',
+  },
+  templateButton: {
+    backgroundColor: '#222',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#0a0',
+  },
+  templateButtonText: {
+    color: '#0a0',
+    fontSize: 16,
     fontWeight: 'bold',
   },
   saveButton: {
