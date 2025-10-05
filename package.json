@@ -8,14 +8,16 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "next dev -p 5000 -H 0.0.0.0",
-    "build": "next build",
-    "start": "next start -p 5000 -H 0.0.0.0",
-    "lint": "next lint",
+    "dev": "npm --prefix apps/web dev",
+    "web:dev": "npm --prefix apps/web dev",
+    "web:build": "npm --prefix apps/web build",
+    "web:start": "npm --prefix apps/web start",
+    "web:lint": "npm --prefix apps/web lint",
     "mobile:start": "npm --prefix apps/mobile start",
     "mobile:ios": "npm --prefix apps/mobile run ios",
     "mobile:android": "npm --prefix apps/mobile run android",
-    "lint:mobile": "npm --prefix apps/mobile run lint",
+    "mobile:lint": "npm --prefix apps/mobile run lint",
+    "lint:all": "npm run web:lint && npm run mobile:lint",
     "format": "prettier --check .",
     "format:write": "prettier --write ."
   },
