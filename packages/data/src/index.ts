@@ -9,3 +9,6 @@ export * from './exercises';
 export * from './supabase/config';
 export * from './storage/sync-queue';
 export * from './storage/models';
+export * from './ai/openai-client';
+export * from './ai/workout-generator';
+export * from './ai/coaching';
