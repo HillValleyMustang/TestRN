@@ -19,9 +19,9 @@ interface WorkoutExercise {
 
 export default function WorkoutScreen() {
   const { userId } = useAuth();
-  const { addWorkoutSession, addSetLog, getPersonalRecord, getTemplate, saveTemplate, isSyncing, queueLength, isOnline } = useData();
+  const { addWorkoutSession, addSetLog, getPersonalRecord, getTemplate, getTPath, saveTemplate, isSyncing, queueLength, isOnline } = useData();
   const router = useRouter();
-  const params = useLocalSearchParams<{ selectedExerciseId?: string; templateId?: string }>();
+  const params = useLocalSearchParams<{ selectedExerciseId?: string; templateId?: string; tPathId?: string }>();
   
   const [templateName, setTemplateName] = useState('');
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
@@ -30,6 +30,7 @@ export default function WorkoutScreen() {
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [showTemplateSaveModal, setShowTemplateSaveModal] = useState(false);
   const [loadedTemplateId, setLoadedTemplateId] = useState<string | null>(null);
+  const [loadedTPathId, setLoadedTPathId] = useState<string | null>(null);
   const [currentTemplateDescription, setCurrentTemplateDescription] = useState<string>('');
 
   useEffect(() => {
@@ -43,6 +44,12 @@ export default function WorkoutScreen() {
       loadTemplate(params.templateId);
     }
   }, [params.templateId, userId]);
+
+  useEffect(() => {
+    if (params.tPathId && userId) {
+      loadTPath(params.tPathId);
+    }
+  }, [params.tPathId, userId]);
 
   const loadTemplate = async (templateId: string) => {
     try {
@@ -74,6 +81,41 @@ export default function WorkoutScreen() {
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to load template');
+    }
+  };
+
+  const loadTPath = async (tPathId: string) => {
+    try {
+      const tPath = await getTPath(tPathId);
+      if (!tPath) {
+        Alert.alert('Error', 'Workout program not found');
+        return;
+      }
+
+      setTemplateName(tPath.template_name);
+      setLoadedTPathId(tPathId);
+      setCurrentTemplateDescription(tPath.description || '');
+
+      const loadedExercises: WorkoutExercise[] = tPath.exercises
+        .filter(ex => !ex.is_bonus_exercise)
+        .map(ex => ({
+          exerciseId: ex.exercise_id,
+          sets: Array(ex.target_sets || 3).fill(null).map(() => ({
+            weight: '',
+            reps: ex.target_reps_min?.toString() || '',
+          })),
+        }));
+
+      setExercises(loadedExercises);
+
+      for (const ex of tPath.exercises) {
+        if (userId && !personalRecords[ex.exercise_id]) {
+          const pr = await getPersonalRecord(userId, ex.exercise_id);
+          setPersonalRecords(prev => ({ ...prev, [ex.exercise_id]: pr }));
+        }
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to load workout program');
     }
   };
 
@@ -149,7 +191,7 @@ export default function WorkoutScreen() {
         completed_at: now,
         rating: null,
         duration_string: null,
-        t_path_id: null,
+        t_path_id: loadedTPathId,
         created_at: now,
       };
 
@@ -198,6 +240,7 @@ export default function WorkoutScreen() {
       setExercises([]);
       setPersonalRecords({});
       setLoadedTemplateId(null);
+      setLoadedTPathId(null);
       router.back();
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to save workout');

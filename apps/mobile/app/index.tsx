@@ -76,6 +76,13 @@ export default function Index() {
 
         <TouchableOpacity 
           style={styles.primaryButton} 
+          onPress={() => router.push('/t-paths')}
+        >
+          <Text style={styles.primaryButtonText}>🎯 Workout Programs</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.primaryButton} 
           onPress={() => router.push('/history')}
         >
           <Text style={styles.primaryButtonText}>📊 History</Text>
