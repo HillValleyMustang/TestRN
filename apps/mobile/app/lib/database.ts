@@ -64,11 +64,30 @@ class Database {
         theme TEXT DEFAULT 'dark',
         updated_at TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS body_measurements (
+        id TEXT PRIMARY KEY NOT NULL,
+        user_id TEXT NOT NULL,
+        measurement_date TEXT NOT NULL,
+        weight_kg REAL,
+        body_fat_percentage REAL,
+        chest_cm REAL,
+        waist_cm REAL,
+        hips_cm REAL,
+        left_arm_cm REAL,
+        right_arm_cm REAL,
+        left_thigh_cm REAL,
+        right_thigh_cm REAL,
+        notes TEXT,
+        created_at TEXT NOT NULL
+      );
       
       CREATE INDEX IF NOT EXISTS idx_session_date ON workout_sessions(session_date);
       CREATE INDEX IF NOT EXISTS idx_set_logs_session ON set_logs(session_id);
       CREATE INDEX IF NOT EXISTS idx_sync_queue_timestamp ON sync_queue(timestamp);
       CREATE INDEX IF NOT EXISTS idx_templates_user ON workout_templates(user_id);
+      CREATE INDEX IF NOT EXISTS idx_measurements_user ON body_measurements(user_id);
+      CREATE INDEX IF NOT EXISTS idx_measurements_date ON body_measurements(measurement_date);
     `);
   }
 
@@ -380,6 +399,80 @@ class Database {
         ]
       );
     }
+  }
+
+  async saveBodyMeasurement(measurement: {
+    id: string;
+    user_id: string;
+    measurement_date: string;
+    weight_kg?: number;
+    body_fat_percentage?: number;
+    chest_cm?: number;
+    waist_cm?: number;
+    hips_cm?: number;
+    left_arm_cm?: number;
+    right_arm_cm?: number;
+    left_thigh_cm?: number;
+    right_thigh_cm?: number;
+    notes?: string;
+    created_at: string;
+  }): Promise<void> {
+    const db = this.getDB();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO body_measurements 
+       (id, user_id, measurement_date, weight_kg, body_fat_percentage, chest_cm, waist_cm, hips_cm, left_arm_cm, right_arm_cm, left_thigh_cm, right_thigh_cm, notes, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        measurement.id,
+        measurement.user_id,
+        measurement.measurement_date,
+        measurement.weight_kg || null,
+        measurement.body_fat_percentage || null,
+        measurement.chest_cm || null,
+        measurement.waist_cm || null,
+        measurement.hips_cm || null,
+        measurement.left_arm_cm || null,
+        measurement.right_arm_cm || null,
+        measurement.left_thigh_cm || null,
+        measurement.right_thigh_cm || null,
+        measurement.notes || null,
+        measurement.created_at,
+      ]
+    );
+  }
+
+  async getBodyMeasurements(userId: string): Promise<any[]> {
+    const db = this.getDB();
+    const result = await db.getAllAsync<any>(
+      'SELECT * FROM body_measurements WHERE user_id = ? ORDER BY measurement_date DESC',
+      [userId]
+    );
+    return result;
+  }
+
+  async getWeightHistory(userId: string, days?: number): Promise<Array<{ date: string; weight: number }>> {
+    const db = this.getDB();
+    let query = `SELECT DATE(measurement_date) as date, weight_kg as weight
+                 FROM body_measurements
+                 WHERE user_id = ? AND weight_kg IS NOT NULL`;
+    const params: any[] = [userId];
+    
+    if (days) {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      query += ' AND measurement_date >= ?';
+      params.push(startDate.toISOString());
+    }
+    
+    query += ' ORDER BY measurement_date ASC';
+    
+    const result = await db.getAllAsync<{ date: string; weight: number }>(query, params);
+    return result;
+  }
+
+  async deleteBodyMeasurement(measurementId: string): Promise<void> {
+    const db = this.getDB();
+    await db.runAsync('DELETE FROM body_measurements WHERE id = ?', [measurementId]);
   }
 
   syncQueue: SyncQueueStore = {
