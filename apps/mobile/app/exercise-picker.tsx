@@ -67,6 +67,7 @@ export default function ExercisePickerScreen() {
       <TouchableOpacity
         style={[styles.exerciseCard, !isAvailable && styles.exerciseCardUnavailable]}
         onPress={() => handleSelectExercise(item)}
+        disabled={!isAvailable}
       >
         <View style={styles.exerciseInfo}>
           <View style={styles.exerciseHeader}>
