@@ -81,6 +81,29 @@ class Database {
         notes TEXT,
         created_at TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS user_goals (
+        id TEXT PRIMARY KEY NOT NULL,
+        user_id TEXT NOT NULL,
+        goal_type TEXT NOT NULL,
+        target_value REAL NOT NULL,
+        current_value REAL,
+        start_date TEXT NOT NULL,
+        target_date TEXT,
+        status TEXT DEFAULT 'active',
+        exercise_id TEXT,
+        notes TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS user_achievements (
+        id TEXT PRIMARY KEY NOT NULL,
+        user_id TEXT NOT NULL,
+        achievement_id TEXT NOT NULL,
+        unlocked_at TEXT NOT NULL,
+        progress_value REAL
+      );
       
       CREATE INDEX IF NOT EXISTS idx_session_date ON workout_sessions(session_date);
       CREATE INDEX IF NOT EXISTS idx_set_logs_session ON set_logs(session_id);
@@ -88,6 +111,8 @@ class Database {
       CREATE INDEX IF NOT EXISTS idx_templates_user ON workout_templates(user_id);
       CREATE INDEX IF NOT EXISTS idx_measurements_user ON body_measurements(user_id);
       CREATE INDEX IF NOT EXISTS idx_measurements_date ON body_measurements(measurement_date);
+      CREATE INDEX IF NOT EXISTS idx_goals_user ON user_goals(user_id);
+      CREATE INDEX IF NOT EXISTS idx_achievements_user ON user_achievements(user_id);
     `);
   }
 
@@ -473,6 +498,129 @@ class Database {
   async deleteBodyMeasurement(measurementId: string): Promise<void> {
     const db = this.getDB();
     await db.runAsync('DELETE FROM body_measurements WHERE id = ?', [measurementId]);
+  }
+
+  async saveGoal(goal: {
+    id: string;
+    user_id: string;
+    goal_type: string;
+    target_value: number;
+    current_value?: number;
+    start_date: string;
+    target_date?: string;
+    status?: string;
+    exercise_id?: string;
+    notes?: string;
+    created_at: string;
+    updated_at: string;
+  }): Promise<void> {
+    const db = this.getDB();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO user_goals 
+       (id, user_id, goal_type, target_value, current_value, start_date, target_date, status, exercise_id, notes, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        goal.id,
+        goal.user_id,
+        goal.goal_type,
+        goal.target_value,
+        goal.current_value || null,
+        goal.start_date,
+        goal.target_date || null,
+        goal.status || 'active',
+        goal.exercise_id || null,
+        goal.notes || null,
+        goal.created_at,
+        goal.updated_at,
+      ]
+    );
+  }
+
+  async getGoals(userId: string, status?: string): Promise<any[]> {
+    const db = this.getDB();
+    let query = 'SELECT * FROM user_goals WHERE user_id = ?';
+    const params: any[] = [userId];
+    
+    if (status) {
+      query += ' AND status = ?';
+      params.push(status);
+    }
+    
+    query += ' ORDER BY created_at DESC';
+    
+    const result = await db.getAllAsync<any>(query, params);
+    return result;
+  }
+
+  async getGoal(goalId: string): Promise<any | null> {
+    const db = this.getDB();
+    const result = await db.getFirstAsync<any>(
+      'SELECT * FROM user_goals WHERE id = ?',
+      [goalId]
+    );
+    return result || null;
+  }
+
+  async updateGoalProgress(goalId: string, currentValue: number, status?: string): Promise<void> {
+    const db = this.getDB();
+    const now = new Date().toISOString();
+    
+    if (status) {
+      await db.runAsync(
+        'UPDATE user_goals SET current_value = ?, status = ?, updated_at = ? WHERE id = ?',
+        [currentValue, status, now, goalId]
+      );
+    } else {
+      await db.runAsync(
+        'UPDATE user_goals SET current_value = ?, updated_at = ? WHERE id = ?',
+        [currentValue, now, goalId]
+      );
+    }
+  }
+
+  async deleteGoal(goalId: string): Promise<void> {
+    const db = this.getDB();
+    await db.runAsync('DELETE FROM user_goals WHERE id = ?', [goalId]);
+  }
+
+  async unlockAchievement(achievement: {
+    id: string;
+    user_id: string;
+    achievement_id: string;
+    unlocked_at: string;
+    progress_value?: number;
+  }): Promise<void> {
+    const db = this.getDB();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO user_achievements 
+       (id, user_id, achievement_id, unlocked_at, progress_value)
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        achievement.id,
+        achievement.user_id,
+        achievement.achievement_id,
+        achievement.unlocked_at,
+        achievement.progress_value || null,
+      ]
+    );
+  }
+
+  async getUserAchievements(userId: string): Promise<any[]> {
+    const db = this.getDB();
+    const result = await db.getAllAsync<any>(
+      'SELECT * FROM user_achievements WHERE user_id = ? ORDER BY unlocked_at DESC',
+      [userId]
+    );
+    return result;
+  }
+
+  async hasAchievement(userId: string, achievementId: string): Promise<boolean> {
+    const db = this.getDB();
+    const result = await db.getFirstAsync<{ count: number }>(
+      'SELECT COUNT(*) as count FROM user_achievements WHERE user_id = ? AND achievement_id = ?',
+      [userId, achievementId]
+    );
+    return (result?.count || 0) > 0;
   }
 
   syncQueue: SyncQueueStore = {
