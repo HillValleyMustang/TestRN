@@ -96,3 +96,14 @@ export interface TPathWithExercises extends TPath {
   exercises: TPathExercise[];
   progress?: TPathProgress;
 }
+
+export interface Gym {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  equipment: string[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}

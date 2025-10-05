@@ -2,6 +2,7 @@ export * from './hooks/use-sync-queue-processor';
 export * from './utils/unit-conversions';
 export * from './utils/workout-helpers';
 export * from './constants/achievements';
+export * from './constants/equipment';
 export * from './achievements';
 export * from './exercises';
 export * from './supabase/config';

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useMemo } from '
 import { database, addToSyncQueue } from '../lib/database';
 import { useSyncQueueProcessor } from '@data/hooks/use-sync-queue-processor';
 import { useAuth } from './auth-context';
-import type { WorkoutSession, SetLog, WorkoutTemplate, TPath, TPathExercise, TPathProgress, TPathWithExercises } from '@data/storage/models';
+import type { WorkoutSession, SetLog, WorkoutTemplate, TPath, TPathExercise, TPathProgress, TPathWithExercises, Gym } from '@data/storage/models';
 import NetInfo from '@react-native-community/netinfo';
 
 interface WorkoutStats {
@@ -92,6 +92,13 @@ interface DataContextType {
   updateTPathProgress: (progress: TPathProgress) => Promise<void>;
   getTPathProgress: (userId: string, tPathId: string) => Promise<TPathProgress | null>;
   getAllTPathProgress: (userId: string) => Promise<TPathProgress[]>;
+  addGym: (gym: Gym) => Promise<void>;
+  getGym: (gymId: string) => Promise<Gym | null>;
+  getGyms: (userId: string) => Promise<Gym[]>;
+  getActiveGym: (userId: string) => Promise<Gym | null>;
+  updateGym: (gymId: string, updates: Partial<Gym>) => Promise<void>;
+  setActiveGym: (userId: string, gymId: string) => Promise<void>;
+  deleteGym: (gymId: string) => Promise<void>;
   isSyncing: boolean;
   queueLength: number;
   isOnline: boolean;
@@ -317,6 +324,34 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     return await database.getAllTPathProgress(userId);
   };
 
+  const addGym = async (gym: Gym): Promise<void> => {
+    await database.addGym(gym);
+  };
+
+  const getGym = async (gymId: string): Promise<Gym | null> => {
+    return await database.getGym(gymId);
+  };
+
+  const getGyms = async (userId: string): Promise<Gym[]> => {
+    return await database.getGyms(userId);
+  };
+
+  const getActiveGym = async (userId: string): Promise<Gym | null> => {
+    return await database.getActiveGym(userId);
+  };
+
+  const updateGym = async (gymId: string, updates: Partial<Gym>): Promise<void> => {
+    await database.updateGym(gymId, updates);
+  };
+
+  const setActiveGym = async (userId: string, gymId: string): Promise<void> => {
+    await database.setActiveGym(userId, gymId);
+  };
+
+  const deleteGym = async (gymId: string): Promise<void> => {
+    await database.deleteGym(gymId);
+  };
+
   const value = useMemo(
     () => ({
       addWorkoutSession,
@@ -357,6 +392,13 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       updateTPathProgress,
       getTPathProgress,
       getAllTPathProgress,
+      addGym,
+      getGym,
+      getGyms,
+      getActiveGym,
+      updateGym,
+      setActiveGym,
+      deleteGym,
       isSyncing,
       queueLength,
       isOnline,

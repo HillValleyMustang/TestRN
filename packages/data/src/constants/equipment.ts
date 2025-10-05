@@ -1,0 +1,48 @@
+export const EQUIPMENT_TYPES = [
+  { id: 'barbell', name: 'Barbell', category: 'free_weights' },
+  { id: 'dumbbell', name: 'Dumbbell', category: 'free_weights' },
+  { id: 'kettlebell', name: 'Kettlebell', category: 'free_weights' },
+  { id: 'ez_bar', name: 'EZ Bar', category: 'free_weights' },
+  { id: 'trap_bar', name: 'Trap Bar', category: 'free_weights' },
+  { id: 'weight_plates', name: 'Weight Plates', category: 'free_weights' },
+  { id: 'medicine_ball', name: 'Medicine Ball', category: 'free_weights' },
+  { id: 'cable_machine', name: 'Cable Machine', category: 'cables' },
+  { id: 'lat_pulldown', name: 'Lat Pulldown', category: 'cables' },
+  { id: 'cable_crossover', name: 'Cable Crossover', category: 'cables' },
+  { id: 'leg_press', name: 'Leg Press Machine', category: 'machines' },
+  { id: 'leg_extension', name: 'Leg Extension Machine', category: 'machines' },
+  { id: 'leg_curl', name: 'Leg Curl Machine', category: 'machines' },
+  { id: 'chest_press', name: 'Chest Press Machine', category: 'machines' },
+  { id: 'shoulder_press', name: 'Shoulder Press Machine', category: 'machines' },
+  { id: 'pec_deck', name: 'Pec Deck', category: 'machines' },
+  { id: 'smith_machine', name: 'Smith Machine', category: 'machines' },
+  { id: 'hack_squat', name: 'Hack Squat Machine', category: 'machines' },
+  { id: 'calf_raise', name: 'Calf Raise Machine', category: 'machines' },
+  { id: 'pull_up_bar', name: 'Pull-up Bar', category: 'bodyweight' },
+  { id: 'dip_station', name: 'Dip Station', category: 'bodyweight' },
+  { id: 'bodyweight', name: 'Bodyweight Only', category: 'bodyweight' },
+  { id: 'resistance_bands', name: 'Resistance Bands', category: 'accessories' },
+  { id: 'trx', name: 'TRX / Suspension Trainer', category: 'accessories' },
+  { id: 'plyo_box', name: 'Plyo Box', category: 'accessories' },
+  { id: 'battle_ropes', name: 'Battle Ropes', category: 'accessories' },
+  { id: 'bench', name: 'Bench (Flat/Adjustable)', category: 'benches' },
+  { id: 'power_rack', name: 'Power Rack / Squat Rack', category: 'racks' },
+  { id: 'treadmill', name: 'Treadmill', category: 'cardio' },
+  { id: 'rowing_machine', name: 'Rowing Machine', category: 'cardio' },
+  { id: 'stationary_bike', name: 'Stationary Bike', category: 'cardio' },
+  { id: 'elliptical', name: 'Elliptical', category: 'cardio' },
+] as const;
+
+export const EQUIPMENT_CATEGORIES = [
+  { id: 'free_weights', name: 'Free Weights' },
+  { id: 'cables', name: 'Cable Machines' },
+  { id: 'machines', name: 'Strength Machines' },
+  { id: 'bodyweight', name: 'Bodyweight' },
+  { id: 'accessories', name: 'Accessories' },
+  { id: 'benches', name: 'Benches & Racks' },
+  { id: 'racks', name: 'Racks' },
+  { id: 'cardio', name: 'Cardio Equipment' },
+] as const;
+
+export type EquipmentId = typeof EQUIPMENT_TYPES[number]['id'];
+export type EquipmentCategoryId = typeof EQUIPMENT_CATEGORIES[number]['id'];

@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import type { SyncQueueItem, SyncQueueStore, WorkoutSession, SetLog, WorkoutTemplate, TemplateExercise, TPath, TPathExercise, TPathProgress, TPathWithExercises } from '@data/storage';
+import type { SyncQueueItem, SyncQueueStore, WorkoutSession, SetLog, WorkoutTemplate, TemplateExercise, TPath, TPathExercise, TPathProgress, TPathWithExercises, Gym } from '@data/storage';
 
 const DB_NAME = 'fitness_tracker.db';
 
@@ -145,6 +145,17 @@ class Database {
         updated_at TEXT NOT NULL,
         FOREIGN KEY (t_path_id) REFERENCES t_paths(id)
       );
+
+      CREATE TABLE IF NOT EXISTS gyms (
+        id TEXT PRIMARY KEY NOT NULL,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        equipment TEXT NOT NULL,
+        is_active INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
       
       CREATE INDEX IF NOT EXISTS idx_session_date ON workout_sessions(session_date);
       CREATE INDEX IF NOT EXISTS idx_set_logs_session ON set_logs(session_id);
@@ -159,6 +170,8 @@ class Database {
       CREATE INDEX IF NOT EXISTS idx_t_path_exercises_tpath ON t_path_exercises(t_path_id);
       CREATE INDEX IF NOT EXISTS idx_t_path_progress_user ON t_path_progress(user_id);
       CREATE INDEX IF NOT EXISTS idx_t_path_progress_tpath ON t_path_progress(t_path_id);
+      CREATE INDEX IF NOT EXISTS idx_gyms_user ON gyms(user_id);
+      CREATE INDEX IF NOT EXISTS idx_gyms_active ON gyms(is_active);
     `);
   }
 
@@ -864,6 +877,113 @@ class Database {
       [userId]
     );
     return result;
+  }
+
+  async addGym(gym: Gym): Promise<void> {
+    const db = this.getDB();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO gyms 
+       (id, user_id, name, description, equipment, is_active, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        gym.id,
+        gym.user_id,
+        gym.name,
+        gym.description,
+        JSON.stringify(gym.equipment),
+        gym.is_active ? 1 : 0,
+        gym.created_at,
+        gym.updated_at,
+      ]
+    );
+  }
+
+  async getGym(gymId: string): Promise<Gym | null> {
+    const db = this.getDB();
+    const result = await db.getFirstAsync<any>(
+      'SELECT * FROM gyms WHERE id = ?',
+      [gymId]
+    );
+    if (!result) return null;
+    return {
+      ...result,
+      equipment: JSON.parse(result.equipment),
+      is_active: Boolean(result.is_active),
+    };
+  }
+
+  async getGyms(userId: string): Promise<Gym[]> {
+    const db = this.getDB();
+    const result = await db.getAllAsync<any>(
+      'SELECT * FROM gyms WHERE user_id = ? ORDER BY is_active DESC, name ASC',
+      [userId]
+    );
+    return result.map(row => ({
+      ...row,
+      equipment: JSON.parse(row.equipment),
+      is_active: Boolean(row.is_active),
+    }));
+  }
+
+  async getActiveGym(userId: string): Promise<Gym | null> {
+    const db = this.getDB();
+    const result = await db.getFirstAsync<any>(
+      'SELECT * FROM gyms WHERE user_id = ? AND is_active = 1 LIMIT 1',
+      [userId]
+    );
+    if (!result) return null;
+    return {
+      ...result,
+      equipment: JSON.parse(result.equipment),
+      is_active: Boolean(result.is_active),
+    };
+  }
+
+  async updateGym(gymId: string, updates: Partial<Gym>): Promise<void> {
+    const db = this.getDB();
+    const now = new Date().toISOString();
+    
+    const fields: string[] = [];
+    const values: any[] = [];
+    
+    if (updates.name !== undefined) {
+      fields.push('name = ?');
+      values.push(updates.name);
+    }
+    if (updates.description !== undefined) {
+      fields.push('description = ?');
+      values.push(updates.description);
+    }
+    if (updates.equipment !== undefined) {
+      fields.push('equipment = ?');
+      values.push(JSON.stringify(updates.equipment));
+    }
+    if (updates.is_active !== undefined) {
+      fields.push('is_active = ?');
+      values.push(updates.is_active ? 1 : 0);
+    }
+    
+    fields.push('updated_at = ?');
+    values.push(now);
+    values.push(gymId);
+    
+    if (fields.length > 1) {
+      await db.runAsync(
+        `UPDATE gyms SET ${fields.join(', ')} WHERE id = ?`,
+        values
+      );
+    }
+  }
+
+  async setActiveGym(userId: string, gymId: string): Promise<void> {
+    const db = this.getDB();
+    await db.runAsync('UPDATE gyms SET is_active = 0 WHERE user_id = ?', [userId]);
+    await db.runAsync('UPDATE gyms SET is_active = 1 WHERE id = ?', [gymId]);
+  }
+
+  async deleteGym(gymId: string): Promise<void> {
+    const db = this.getDB();
+    await db.runAsync('DELETE FROM gyms WHERE id = ?', [gymId]);
   }
 
   syncQueue: SyncQueueStore = {
