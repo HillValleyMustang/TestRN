@@ -62,7 +62,7 @@ npm run mobile
 - **Tailwind Config** (`apps/web/tailwind.config.ts`): Custom color scheme and animations
 
 ### Shared Packages
-- **@data**: Unit conversions, achievements constants, workout helpers, storage interfaces, sync queue processor
+- **@data**: Unit conversions, achievements constants, workout helpers, storage interfaces, sync queue processor, exercise library
 - **@features**: Business logic hooks (future)
 - **@ui**: Cross-platform components (future)
 
@@ -122,9 +122,22 @@ The project is configured for deployment with:
 - ✅ Fixed critical bug with optional chaining in session access
 - ✅ Mobile app now connects to Supabase for authentication
 
+**Phase 4 - View & History Screens (Complete):**
+- ✅ Created exercise library with 16 common exercises across 7 categories
+- ✅ Built workout history screen with pull-to-refresh functionality
+- ✅ Implemented workout detail view showing exercises and sets in table format
+- ✅ Created exercise picker with category filtering and search
+- ✅ Updated home screen with navigation buttons to all features
+- ✅ Integrated exercise selection into workout logging flow
+- ✅ Fixed data loading bugs in workout detail screen
+
 **Current Features (Mobile):**
 - ✅ User authentication (email/password) with session persistence
-- ✅ Workout logging with sets tracking (weight, reps)
+- ✅ Exercise library (16 exercises across chest, back, legs, shoulders, arms, core, cardio)
+- ✅ Exercise picker with category filtering and search
+- ✅ Workout logging with exercise selection and sets tracking (weight, reps)
+- ✅ Workout history with pull-to-refresh
+- ✅ Workout detail view with exercise breakdown
 - ✅ Offline-first data persistence with SQLite
 - ✅ Automatic background sync to Supabase when online
 - ✅ Network status monitoring and sync queue visibility
