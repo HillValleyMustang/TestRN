@@ -55,6 +55,7 @@
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/cli-server-api": "^20.0.2",
     "@react-native-community/netinfo": "^11.3.3",
     "@supabase/auth-ui-react": "^0.4.7",
