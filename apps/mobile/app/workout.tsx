@@ -4,6 +4,7 @@ import { useAuth } from './contexts/auth-context';
 import { useData } from './contexts/data-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getExerciseById } from '@data/exercises';
+import { RestTimer } from './components/rest-timer';
 
 interface ExerciseSet {
   weight: string;
@@ -25,6 +26,7 @@ export default function WorkoutScreen() {
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
   const [loading, setLoading] = useState(false);
   const [personalRecords, setPersonalRecords] = useState<Record<string, number>>({});
+  const [showRestTimer, setShowRestTimer] = useState(false);
 
   useEffect(() => {
     if (params.selectedExerciseId) {
@@ -114,7 +116,7 @@ export default function WorkoutScreen() {
       let newPRs = 0;
       
       for (const exercise of exercises) {
-        const currentPR = personalRecords[exercise.exerciseId] || 0;
+        let currentPR = personalRecords[exercise.exerciseId] || 0;
         
         for (const set of exercise.sets) {
           if (set.weight && set.reps) {
@@ -123,6 +125,7 @@ export default function WorkoutScreen() {
             
             if (isPR) {
               newPRs++;
+              currentPR = weight;
             }
             
             const setLog = {
@@ -263,13 +266,27 @@ export default function WorkoutScreen() {
         )}
       </View>
 
-      <TouchableOpacity 
-        style={[styles.saveButton, loading && styles.saveButtonDisabled]} 
-        onPress={saveWorkout}
-        disabled={loading}
-      >
-        <Text style={styles.saveButtonText}>{loading ? 'Saving...' : 'Save Workout'}</Text>
-      </TouchableOpacity>
+      <View style={styles.bottomButtons}>
+        <TouchableOpacity 
+          style={styles.timerButton}
+          onPress={() => setShowRestTimer(true)}
+        >
+          <Text style={styles.timerButtonText}>⏱ Rest Timer</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.saveButton, loading && styles.saveButtonDisabled]} 
+          onPress={saveWorkout}
+          disabled={loading}
+        >
+          <Text style={styles.saveButtonText}>{loading ? 'Saving...' : 'Save Workout'}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <RestTimer 
+        visible={showRestTimer}
+        onClose={() => setShowRestTimer(false)}
+      />
     </ScrollView>
   );
 }
@@ -413,13 +430,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
+  bottomButtons: {
+    gap: 12,
+    marginTop: 16,
+    marginBottom: 32,
+  },
+  timerButton: {
+    backgroundColor: '#222',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  timerButtonText: {
+    color: '#0a0',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   saveButton: {
     backgroundColor: '#0a0',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 32,
   },
   saveButtonDisabled: {
     opacity: 0.6,
