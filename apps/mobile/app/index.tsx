@@ -1,22 +1,60 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { formatWeight, convertWeight } from '@data/utils/unit-conversions';
 import { ACHIEVEMENT_IDS, achievementsList } from '@data/constants/achievements';
+import { useAuth } from './contexts/auth-context';
+import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
 
 export default function Index() {
+  const { session, userId, loading, supabase } = useAuth();
+  const router = useRouter();
   const weight = 100;
   const weightInLbs = convertWeight(weight, 'kg', 'lbs');
+
+  useEffect(() => {
+    if (!loading && !session) {
+      router.replace('/login');
+    }
+  }, [loading, session, router]);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.replace('/login');
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#0a0" />
+      </View>
+    );
+  }
+
+  if (!session) {
+    return null;
+  }
   
   return (
     <View style={styles.container}>
       <Text style={styles.title}>My Fitness Trainer</Text>
-      <Text style={styles.subtitle}>Mobile App - Coming Soon</Text>
+      <Text style={styles.subtitle}>Mobile App</Text>
       <Text style={styles.info}>Expo SDK 54 • React Native 0.81</Text>
       
+      <View style={styles.testSection}>
+        <Text style={styles.testLabel}>Authentication Test:</Text>
+        <Text style={styles.testValue}>User ID: {userId}</Text>
+        <Text style={styles.testValue}>Email: {session?.user?.email}</Text>
+      </View>
+
       <View style={styles.testSection}>
         <Text style={styles.testLabel}>Shared Package Test:</Text>
         <Text style={styles.testValue}>{formatWeight(weight, 'kg')} = {formatWeight(weightInLbs, 'lbs')}</Text>
         <Text style={styles.testValue}>Achievements loaded: {achievementsList.length}</Text>
       </View>
+
+      <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+        <Text style={styles.signOutText}>Sign Out</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -62,5 +100,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#0f0',
     marginBottom: 4,
+  },
+  signOutButton: {
+    marginTop: 24,
+    backgroundColor: '#a00',
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 8,
+  },
+  signOutText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

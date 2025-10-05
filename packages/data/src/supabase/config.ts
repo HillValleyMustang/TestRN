@@ -1,0 +1,2 @@
+export const SUPABASE_URL = "https://mgbfevrzrbjjiajkqpti.supabase.co";
+export const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nYmZldnJ6cmJqamlhamtxcHRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyMDA0NTIsImV4cCI6MjA3MDc3NjQ1Mn0.TBOWI0Q3pXfSVWsL2yHuHEnQUfPV6tHefU6-gqUblUI";
