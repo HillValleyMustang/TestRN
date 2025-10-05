@@ -1,18 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { EXERCISES, EXERCISE_CATEGORIES, type Exercise } from '@data/exercises';
+import { canPerformExercise } from '@data/utils/equipment-mapping';
+import { useAuth } from './contexts/auth-context';
+import { useData } from './contexts/data-context';
+import type { Gym } from '@data/storage/models';
 
 export default function ExercisePickerScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { userId } = useAuth();
+  const { getActiveGym } = useData();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAvailableOnly, setShowAvailableOnly] = useState(true);
+  const [activeGym, setActiveGym] = useState<Gym | null>(null);
+
+  useEffect(() => {
+    loadActiveGym();
+  }, [userId]);
+
+  const loadActiveGym = async () => {
+    if (!userId) return;
+    const gym = await getActiveGym(userId);
+    setActiveGym(gym);
+    setShowAvailableOnly(!!gym);
+  };
 
   const filteredExercises = EXERCISES.filter(exercise => {
     const matchesCategory = !selectedCategory || exercise.category === selectedCategory;
     const matchesSearch = exercise.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+    const matchesEquipment = !showAvailableOnly || !activeGym || canPerformExercise(exercise.equipment, activeGym.equipment);
+    return matchesCategory && matchesSearch && matchesEquipment;
   });
 
   const handleSelectExercise = (exercise: Exercise) => {
@@ -40,20 +60,33 @@ export default function ExercisePickerScreen() {
     </TouchableOpacity>
   );
 
-  const renderExercise = ({ item }: { item: Exercise }) => (
-    <TouchableOpacity
-      style={styles.exerciseCard}
-      onPress={() => handleSelectExercise(item)}
-    >
-      <View style={styles.exerciseInfo}>
-        <Text style={styles.exerciseName}>{item.name}</Text>
-        <Text style={styles.exerciseDetails}>
-          {item.equipment} • {item.primaryMuscles.join(', ')}
-        </Text>
-      </View>
-      <Text style={styles.arrow}>›</Text>
-    </TouchableOpacity>
-  );
+  const renderExercise = ({ item }: { item: Exercise }) => {
+    const isAvailable = !activeGym || canPerformExercise(item.equipment, activeGym.equipment);
+    
+    return (
+      <TouchableOpacity
+        style={[styles.exerciseCard, !isAvailable && styles.exerciseCardUnavailable]}
+        onPress={() => handleSelectExercise(item)}
+      >
+        <View style={styles.exerciseInfo}>
+          <View style={styles.exerciseHeader}>
+            <Text style={[styles.exerciseName, !isAvailable && styles.exerciseNameUnavailable]}>
+              {item.name}
+            </Text>
+            {!isAvailable && (
+              <View style={styles.unavailableBadge}>
+                <Text style={styles.unavailableBadgeText}>No Equipment</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.exerciseDetails}>
+            {item.equipment} • {item.primaryMuscles.join(', ')}
+          </Text>
+        </View>
+        <Text style={styles.arrow}>›</Text>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -66,6 +99,25 @@ export default function ExercisePickerScreen() {
           onChangeText={setSearchQuery}
         />
       </View>
+
+      {activeGym && (
+        <View style={styles.filterContainer}>
+          <View style={styles.gymInfo}>
+            <Text style={styles.gymLabel}>Gym: <Text style={styles.gymName}>{activeGym.name}</Text></Text>
+          </View>
+          <TouchableOpacity
+            style={styles.filterToggle}
+            onPress={() => setShowAvailableOnly(!showAvailableOnly)}
+          >
+            <Text style={styles.filterToggleText}>
+              {showAvailableOnly ? 'Available Only' : 'Show All'}
+            </Text>
+            <View style={[styles.toggle, showAvailableOnly && styles.toggleActive]}>
+              <View style={[styles.toggleCircle, showAvailableOnly && styles.toggleCircleActive]} />
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <FlatList
         data={EXERCISE_CATEGORIES}
@@ -161,11 +213,33 @@ const styles = StyleSheet.create({
   exerciseInfo: {
     flex: 1,
   },
+  exerciseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
   exerciseName: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 4,
+  },
+  exerciseNameUnavailable: {
+    color: '#888',
+  },
+  exerciseCardUnavailable: {
+    opacity: 0.6,
+  },
+  unavailableBadge: {
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  unavailableBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '600',
   },
   exerciseDetails: {
     color: '#888',
@@ -175,6 +249,59 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 24,
     fontWeight: '300',
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#1a1a1a',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#333',
+  },
+  gymInfo: {
+    flex: 1,
+  },
+  gymLabel: {
+    color: '#888',
+    fontSize: 14,
+  },
+  gymName: {
+    color: '#10b981',
+    fontWeight: '600',
+  },
+  filterToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  filterToggleText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  toggle: {
+    width: 50,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#333',
+    padding: 2,
+    justifyContent: 'center',
+  },
+  toggleActive: {
+    backgroundColor: '#10b981',
+  },
+  toggleCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#666',
+  },
+  toggleCircleActive: {
+    backgroundColor: '#fff',
+    alignSelf: 'flex-end',
   },
   emptyState: {
     padding: 32,

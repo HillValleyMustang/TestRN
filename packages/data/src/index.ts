@@ -1,6 +1,7 @@
 export * from './hooks/use-sync-queue-processor';
 export * from './utils/unit-conversions';
 export * from './utils/workout-helpers';
+export * from './utils/equipment-mapping';
 export * from './constants/achievements';
 export * from './constants/equipment';
 export * from './achievements';
