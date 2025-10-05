@@ -1,6 +1,7 @@
 import { getOpenAIClient, AI_MODEL } from './openai-client';
 import type { EquipmentId } from '../constants/equipment';
 import type { TPath, TPathExercise } from '../storage/models';
+import { EXERCISES } from '../exercises';
 
 export interface WorkoutGenerationParams {
   goal: 'strength' | 'hypertrophy' | 'endurance' | 'weight_loss' | 'general_fitness';
@@ -27,10 +28,21 @@ export interface GeneratedWorkout {
 
 export interface GeneratedExercise {
   exerciseName: string;
+  exerciseId?: string; // Will be matched to actual exercise
   sets: number;
   reps: string; // Can be range like "8-12" or specific like "10"
   restSeconds: number;
   notes?: string;
+}
+
+function findExerciseIdByName(name: string): string | null {
+  const normalized = name.toLowerCase().trim();
+  const exercise = EXERCISES.find(ex => 
+    ex.name.toLowerCase() === normalized ||
+    ex.name.toLowerCase().includes(normalized) ||
+    normalized.includes(ex.name.toLowerCase())
+  );
+  return exercise?.id || null;
 }
 
 export async function generateWorkoutProgram(
@@ -99,6 +111,17 @@ Respond with valid JSON in this exact format:
     }
 
     const program = JSON.parse(content) as GeneratedProgram;
+    
+    // Map exercise names to actual exercise IDs
+    program.workouts.forEach(workout => {
+      workout.exercises.forEach(exercise => {
+        const exerciseId = findExerciseIdByName(exercise.exerciseName);
+        if (exerciseId) {
+          exercise.exerciseId = exerciseId;
+        }
+      });
+    });
+    
     return program;
   } catch (error) {
     console.error('Failed to generate workout program:', error);

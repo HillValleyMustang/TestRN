@@ -65,34 +65,41 @@ export default function AIProgramGeneratorScreen() {
       const program = await generateWorkoutProgram(params);
 
       const tPathId = `tpath_${Date.now()}`;
+      const now = new Date().toISOString();
       const tPath = {
         id: tPathId,
         user_id: userId,
-        name: program.name,
+        template_name: program.name,
         description: program.description,
-        duration_weeks: program.durationWeeks,
-        is_active: true,
-        ai_generated: true,
-        ai_params: JSON.stringify(params),
-        created_at: new Date().toISOString(),
+        is_main_program: true,
+        is_ai_generated: true,
+        ai_generation_params: JSON.stringify(params),
+        created_at: now,
+        updated_at: now,
+        order_index: 0,
       };
 
       await saveTPath(tPath);
 
       for (let i = 0; i < program.workouts.length; i++) {
         const workout = program.workouts[i];
-        const exercises = workout.exercises.map((ex, idx) => ({
-          t_path_id: tPathId,
-          exercise_name: ex.exerciseName,
-          sets: ex.sets,
-          reps: ex.reps,
-          rest_seconds: ex.restSeconds,
-          notes: ex.notes,
-          order_index: idx,
-          day_number: i + 1,
-        }));
+        const exercises = workout.exercises
+          .filter(ex => ex.exerciseId)
+          .map((ex, idx) => ({
+            t_path_id: tPathId,
+            exercise_id: ex.exerciseId!,
+            target_sets: ex.sets,
+            target_reps_min: parseInt(ex.reps.split('-')[0]) || parseInt(ex.reps) || 10,
+            target_reps_max: parseInt(ex.reps.split('-')[1]) || parseInt(ex.reps) || 12,
+            rest_seconds: ex.restSeconds,
+            notes: ex.notes || null,
+            is_bonus_exercise: false,
+            order_index: idx,
+          }));
 
-        await saveTPathExercises(exercises);
+        if (exercises.length > 0) {
+          await saveTPathExercises(exercises);
+        }
       }
 
       Alert.alert(
