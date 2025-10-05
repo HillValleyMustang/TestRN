@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Dumbbell, Settings, Sparkles, Search, Heart, Home, Filter, ChevronsUpDown, Check } from 'lucide-react';
 import { Tables, WorkoutWithLastCompleted, GroupedTPath, SetLogState, WorkoutExercise, FetchedExerciseDefinition, Profile, ExerciseDefinition } from '@/types/supabase';
-import { cn, formatTimeAgo, getPillStyles } from '@/lib/utils';
+import { cn, formatTimeAgo, getPillStyles } from '@/lib/utils'; // Keep web-specific utils;
 import { ExerciseCard } from '@/components/workout-session/exercise-card';
 import { WorkoutBadge } from '../workout-badge';
 import { LoadingOverlay } from '../loading-overlay';

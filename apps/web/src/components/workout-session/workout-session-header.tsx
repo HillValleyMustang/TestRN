@@ -4,7 +4,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { cn, getWorkoutColorClass } from '@/lib/utils';
+import { cn, getWorkoutColorClass } from '@/lib/utils'; // Keep web-specific utils;
 
 interface WorkoutSessionHeaderProps {
   tPathName: string;

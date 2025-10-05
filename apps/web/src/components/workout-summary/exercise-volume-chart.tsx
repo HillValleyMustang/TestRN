@@ -6,7 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { useSession } from '@/components/session-context-provider';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
-import { formatWeight } from '@data/utils/unit-conversions';
+import { formatWeight } from '@/lib/unit-conversions';
 
 type SetLog = Tables<'set_logs'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;

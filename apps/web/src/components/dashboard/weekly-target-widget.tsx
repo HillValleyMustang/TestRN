@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dumbbell, CheckCircle, Loader2, AlertCircle, CalendarDays } from 'lucide-react';
-import { cn, getWorkoutColorClass } from '@/lib/utils';
+import { cn, getWorkoutColorClass } from '@/lib/utils'; // Keep web-specific utils;
 import { useSession } from '@/components/session-context-provider';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';

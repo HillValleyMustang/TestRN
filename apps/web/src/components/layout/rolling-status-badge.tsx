@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSession } from '@/components/session-context-provider';
 import { Badge } from "@/components/ui/badge";
 import { Flame, Dumbbell, CheckCircle, Clock, AlertCircle, WifiOff, Loader2, Heart } from "lucide-react"; // Added WifiOff, Loader2, Heart
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils'; // Keep web-specific utils;
 import { useSyncManager } from '@/hooks/use-sync-manager'; // Import useSyncManager
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'; // Import Dialog components
 import { ScrollArea } from '@/components/ui/scroll-area'; // Import ScrollArea

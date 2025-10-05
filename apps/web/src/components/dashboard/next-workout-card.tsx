@@ -8,7 +8,7 @@ import { Dumbbell, Clock } from 'lucide-react';
 import { Tables, WorkoutWithLastCompleted, Profile, GroupedTPath } from '@/types/supabase';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { cn, getWorkoutColorClass, getExerciseCounts } from '@/lib/utils';
+import { cn, getWorkoutColorClass, getExerciseCounts } from '@/lib/utils'; // Keep web-specific utils;
 import { useUserProfile } from '@/hooks/data/useUserProfile';
 import { useWorkoutPlans } from '@/hooks/data/useWorkoutPlans';
 import { Skeleton } from '@/components/ui/skeleton';

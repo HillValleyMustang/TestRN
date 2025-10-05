@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { ChevronDown, XCircle } from "lucide-react";
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils'; // Keep web-specific utils;
 
 interface MainMuscleSelectProps {
   form: UseFormReturn<any>; // Use any for now, schema is in parent

@@ -3,7 +3,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from "@/components/ui/progress";
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils'; // Keep web-specific utils;
 import { MonthlyMomentumBars } from './monthly-momentum-bars'; // Import the renamed component
 import { Tables } from '@/types/supabase'; // Import Tables for Profile type
 

@@ -4,10 +4,10 @@ import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Flame, Dumbbell, Trophy, Star, Footprints, Bot, Crown, Sunrise, CalendarCheck, Weight, LayoutTemplate, Text } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils'; // Keep web-specific utils;
 import { Profile as ProfileType, Tables, UserAchievement } from '@/types/supabase';
 import { Session, SupabaseClient } from '@supabase/supabase-js';
-import { ACHIEVEMENT_DISPLAY_INFO, ACHIEVEMENT_IDS } from '@data/constants/achievements'; // Import from new utility file
+import { ACHIEVEMENT_DISPLAY_INFO, ACHIEVEMENT_IDS } from '@/lib/achievements'; // Import from new utility file
 import { useSession } from '@/components/session-context-provider'; // Import useSession
 
 interface AchievementDetailDialogProps {

@@ -10,7 +10,7 @@ import { MediaPost } from '@/types/supabase';
 import { MediaPostCard } from './media-post-card';
 import { VideoPlayerScreen } from './video-player-screen';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils'; // Keep web-specific utils;
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Sheet,

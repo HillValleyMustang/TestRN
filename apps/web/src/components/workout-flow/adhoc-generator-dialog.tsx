@@ -10,7 +10,7 @@ import { Sparkles, Loader2 } from 'lucide-react';
 import { useSession } from '@/components/session-context-provider';
 import { toast } from 'sonner';
 import { ExerciseDefinition } from '@/types/supabase';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils'; // Keep web-specific utils;
 
 interface AdHocGeneratorDialogProps {
   open: boolean;

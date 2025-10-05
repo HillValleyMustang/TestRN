@@ -6,7 +6,7 @@ import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrate
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { WorkoutExerciseWithDetails } from '../gym-exercise-manager';
 import { SortableGymExerciseItem } from './sortable-gym-exercise-item';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils'; // Keep web-specific utils;
 
 interface SortableGymExerciseListProps {
   id: string; // Unique ID for this sortable list (e.g., 'core-exercises', 'bonus-exercises')

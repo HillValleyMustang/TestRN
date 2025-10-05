@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CheckCircle, LayoutTemplate, Dumbbell, User, Info, Sparkles } from "lucide-react";
 import { Tables, FetchedExerciseDefinition } from '@/types/supabase';
-import { cn, getWorkoutColorClass, getWorkoutIcon } from '@/lib/utils';
+import { cn, getWorkoutColorClass, getWorkoutIcon } from '@/lib/utils'; // Keep web-specific utils;
 import { WorkoutBadge } from '../workout-badge';
 import { Badge } from '@/components/ui/badge'; // Import the base Badge component
 

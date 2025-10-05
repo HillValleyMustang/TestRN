@@ -10,13 +10,13 @@ import { WorkoutStatsCard } from '@/components/workout-summary/workout-stats-car
 import { WorkoutRatingCard } from '@/components/workout-summary/workout-rating-card';
 import { WorkoutVolumeHistoryCard } from '@/components/workout-summary/workout-volume-history-card';
 import { AiSessionAnalysisCard } from '@/components/workout-summary/ai-session-analysis-card';
-import { ACHIEVEMENT_DISPLAY_INFO } from '@data/constants/achievements';
+import { ACHIEVEMENT_DISPLAY_INFO } from '@/lib/achievements';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArrowLeft, Trophy } from 'lucide-react';
 import { db, LocalWorkoutSession, LocalSetLog, LocalExerciseDefinition } from '@/lib/db';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatWeight, formatTime } from '@data/utils/unit-conversions';
+import { formatWeight, formatTime } from '@/lib/unit-conversions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 type WorkoutSession = Tables<'workout_sessions'>;

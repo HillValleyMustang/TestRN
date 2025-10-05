@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { cn, formatTimeAgo, getPillStyles } from '@/lib/utils';
+import { cn, formatTimeAgo, getPillStyles } from '@/lib/utils'; // Keep web-specific utils;
 
 export interface WorkoutPillProps {
   id: string;

@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { PlusCircle, Search, Filter, XCircle } from 'lucide-react';
 import { Tables, FetchedExerciseDefinition } from '@/types/supabase';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils'; // Keep web-specific utils;
 import { useManageExercisesData } from '@/hooks/use-manage-exercises-data'; // NEW: Import useManageExercisesData
 import { useSession } from '@/components/session-context-provider'; // NEW: Import useSession
 import { toast } from "sonner"; // Import toast

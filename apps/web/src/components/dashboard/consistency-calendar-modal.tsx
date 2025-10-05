@@ -5,7 +5,7 @@ import { useSession } from '@/components/session-context-provider';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
-import { getCalendarItemColorCssVar, getCalendarItemDisplayName } from '@/lib/utils';
+import { getCalendarItemColorCssVar, getCalendarItemDisplayName } from '@/lib/utils'; // Keep web-specific utils;
 import { db } from '@/lib/db';
 import { Tables } from '@/types/supabase';
 

@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { Progress } from '@/components/ui/progress';
-import { cn, getWorkoutColorClass } from '@/lib/utils';
+import { cn, getWorkoutColorClass } from '@/lib/utils'; // Keep web-specific utils;
 import { Tables, WorkoutExercise } from '@/types/supabase';
 import { Dumbbell } from 'lucide-react';
 

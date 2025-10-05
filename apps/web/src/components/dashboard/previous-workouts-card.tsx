@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { History, ArrowRight, Eye, Dumbbell, Timer } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatTimeAgo, getWorkoutColorClass, cn } from '@/lib/utils';
+import { formatTimeAgo, getWorkoutColorClass, cn } from '@/lib/utils'; // Keep web-specific utils;
 import { useWorkoutHistory } from '@/hooks/data/useWorkoutHistory'; // Import the new hook
 
 interface PreviousWorkoutsCardProps {

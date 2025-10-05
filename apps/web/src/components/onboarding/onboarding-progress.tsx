@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils'; // Keep web-specific utils;
 
 interface OnboardingProgressProps {
   currentStep: number;

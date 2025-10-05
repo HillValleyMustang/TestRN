@@ -13,7 +13,7 @@ import *as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useSession } from "@/components/session-context-provider";
 import { TablesInsert, Tables } from "@/types/supabase";
-import { convertDistance, KM_TO_MILES } from '@data/utils/unit-conversions';
+import { convertDistance, KM_TO_MILES } from '@/lib/unit-conversions';
 import { useWorkoutFlow } from "./workout-flow/workout-flow-context-provider";
 
 type ActivityLog = Tables<'activity_logs'>;

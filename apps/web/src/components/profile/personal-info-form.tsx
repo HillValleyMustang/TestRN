@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Button } from '@/components/ui/button';
 import { User, ChevronDown, X, Info, Edit, Save, Loader2 } from 'lucide-react'; // Added Edit, Save, Loader2
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils'; // Keep web-specific utils;
 import { useFormContext } from 'react-hook-form'; // Import useFormContext
 import { BodyFatInfoModal } from '../onboarding/body-fat-info-modal';
 import { toast } from 'sonner'; // Import toast

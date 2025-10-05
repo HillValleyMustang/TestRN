@@ -9,7 +9,7 @@ import { ArrowLeft, Trash2, Dumbbell, Timer, ListChecks, Trophy, CalendarDays } 
 import { Tables, WorkoutSessionWithAggregatedDetails } from '@/types/supabase';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatTimeAgo, getWorkoutColorClass, cn } from '@/lib/utils';
+import { formatTimeAgo, getWorkoutColorClass, cn } from '@/lib/utils'; // Keep web-specific utils;
 import { WorkoutBadge } from '@/components/workout-badge';
 import { WorkoutSummaryModal } from '@/components/workout-summary/workout-summary-modal';
 import { ConsistencyCalendarModal } from '@/components/dashboard/consistency-calendar-modal';

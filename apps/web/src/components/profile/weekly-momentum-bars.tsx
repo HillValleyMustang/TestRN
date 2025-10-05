@@ -5,7 +5,7 @@ import { useSession } from '@/components/session-context-provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils'; // Keep web-specific utils;
 import { CalendarDays } from 'lucide-react';
 
 type Profile = Tables<'profiles'>;

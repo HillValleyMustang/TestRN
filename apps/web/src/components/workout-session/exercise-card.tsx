@@ -11,7 +11,7 @@ import { Tables, SetLogState, WorkoutExercise, UserExercisePR } from '@/types/su
 import { useExerciseSets } from '@/hooks/use-exercise-sets';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { useSession } from '@/components/session-context-provider';
-import { formatWeight, convertWeight } from '@data/utils/unit-conversions';
+import { formatWeight, convertWeight } from '@/lib/unit-conversions';
 import { ExerciseSwapDialog } from './exercise-swap-dialog';
 import { CantDoToggle } from './cant-do-toggle';
 import { WorkoutBadge } from '../workout-badge';
@@ -21,7 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn, getWorkoutColorClass } from '@/lib/utils';
+import { cn, getWorkoutColorClass } from '@/lib/utils'; // Keep web-specific utils;
 import { toast } from 'sonner';
 import { Separator } from '@/components/ui/separator';
 

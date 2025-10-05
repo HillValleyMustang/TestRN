@@ -4,7 +4,7 @@ import React from "react";
 import { UseFormReturn } from "react-hook-form";
 import { Dumbbell, Timer, Footprints } from "lucide-react"; // Import Footprints for Bodyweight
 import { FormLabel, FormMessage } from "@/components/ui/form";
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils'; // Keep web-specific utils;
 
 interface ExerciseTypeSelectorProps {
   form: UseFormReturn<any>; // Use any for now, schema is in parent

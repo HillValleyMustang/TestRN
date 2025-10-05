@@ -2,8 +2,8 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { ACHIEVEMENT_DISPLAY_INFO } from '@data/constants/achievements';
+import { cn } from '@/lib/utils'; // Keep web-specific utils;
+import { ACHIEVEMENT_DISPLAY_INFO } from '@/lib/achievements';
 
 interface AchievementGridProps {
   achievements: { id: string; name: string; icon: string }[];

@@ -9,7 +9,7 @@ import { db, LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExerci
 import { useSession } from '@/components/session-context-provider';
 import { useUserProfile } from '@/hooks/data/useUserProfile';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { getMaxMinutes, areSetsEqual } from '@/lib/utils'; // Import getMaxMinutes and areSetsEqual
+import { getMaxMinutes, areSetsEqual } from '@/lib/utils'; // Keep web-specific utils; // Import getMaxMinutes and areSetsEqual
 
 const ULUL_ORDER = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
 const PPL_ORDER = ['Push', 'Pull', 'Legs'];

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Flame, Dumbbell, BarChart2, ListChecks, Star } from 'lucide-react';
 import { Profile as ProfileType } from '@/types/supabase';
 import { AchievementGrid } from './achievement-grid';
-import { ACHIEVEMENT_IDS, achievementsList } from '@data/constants/achievements'; // Import achievementsList
+import { ACHIEVEMENT_IDS, achievementsList } from '@/lib/achievements'; // Import achievementsList
 
 interface ProfileOverviewTabProps {
   profile: ProfileType | null;

@@ -8,7 +8,7 @@ import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
 import { useSession } from '@/components/session-context-provider';
 import { CopyGymSetupDialog } from './copy-gym-setup-dialog';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils'; // Keep web-specific utils;
 
 type Gym = Tables<'gyms'>;
 

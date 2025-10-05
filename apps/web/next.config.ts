@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import withPWA from "next-pwa";
 
 const nextConfig: NextConfig = {
+  transpilePackages: ["@workspace/data", "@workspace/features", "@workspace/ui"],
   experimental: {
     serverActions: {
       allowedOrigins: ["*"],

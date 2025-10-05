@@ -4,7 +4,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tables } from '@/types/supabase';
 import { PlayCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils'; // Keep web-specific utils;
 
 type MediaPost = Tables<'media_posts'>;
 

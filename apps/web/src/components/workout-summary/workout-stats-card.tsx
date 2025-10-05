@@ -4,8 +4,8 @@ import React from "react";
 import { Tables } from "@/types/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dumbbell, Timer, Trophy, Calendar, ListChecks } from "lucide-react";
-import { formatTime } from '@data/utils/unit-conversions';
-import { cn, getWorkoutColorClass } from '@/lib/utils';
+import { formatTime } from '@/lib/unit-conversions';
+import { cn, getWorkoutColorClass } from '@/lib/utils'; // Keep web-specific utils;
 
 type WorkoutSession = Tables<'workout_sessions'>;
 

@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/popover";
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
-import { cn, getYouTubeEmbedUrl } from '@/lib/utils';
+import { cn, getYouTubeEmbedUrl } from '@/lib/utils'; // Keep web-specific utils;
 import { Badge } from "@/components/ui/badge";
 
 // Import new modular components with corrected paths

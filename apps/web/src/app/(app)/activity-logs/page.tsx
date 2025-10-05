@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Bike, Activity, CalendarDays, Clock, Gauge, Trophy } from 'lucide-react'; // Replaced 'Run' with 'Activity'
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
-import { convertDistance, formatDistance, KM_TO_MILES } from '@data/utils/unit-conversions';
-import { cn } from '@/lib/utils'; // Import cn for conditional classes
+import { convertDistance, formatDistance, KM_TO_MILES } from '@/lib/unit-conversions';
+import { cn } from '@/lib/utils'; // Keep web-specific utils; // Import cn for conditional classes
 
 type ActivityLog = Tables<'activity_logs'>;
 type Profile = Tables<'profiles'>;

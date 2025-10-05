@@ -17,7 +17,7 @@ import { useGym } from '@/components/gym-context-provider';
 import { useWorkoutDataFetcher } from '@/hooks/use-workout-data-fetcher';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { formatAthleteName } from '@/lib/utils';
+import { formatAthleteName } from '@/lib/utils'; // Keep web-specific utils;
 import { WeeklyTargetWidget } from '@/components/dashboard/weekly-target-widget';
 
 type Profile = Tables<'profiles'>;

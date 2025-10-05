@@ -3,7 +3,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { formatDistance, formatTime } from '@data/utils/unit-conversions';
+import { formatDistance, formatTime } from '@/lib/unit-conversions';
 import { useActivityChartData } from '@/hooks/data/useActivityChartData'; // Import the new hook
 
 export const ActivityChart = () => {

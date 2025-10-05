@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSession } from '@/components/session-context-provider';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
-import { formatTime } from '@data/utils/unit-conversions';
+import { formatTime } from '@/lib/unit-conversions';
 
 interface PersonalRecord {
   exerciseName: string;

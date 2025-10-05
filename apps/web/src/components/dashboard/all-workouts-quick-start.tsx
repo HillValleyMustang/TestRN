@@ -9,7 +9,7 @@ import { Tables, WorkoutWithLastCompleted, Profile, GroupedTPath, WorkoutExercis
 import { WorkoutPill, WorkoutPillProps } from '@/components/workout-flow/workout-pill';
 import { useUserProfile } from '@/hooks/data/useUserProfile';
 import { useWorkoutPlans } from '@/hooks/data/useWorkoutPlans';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils'; // Keep web-specific utils;
 import { Skeleton } from '@/components/ui/skeleton';
 import { useGym } from '@/components/gym-context-provider'; // Import useGym
 import Link from 'next/link'; // Import Link

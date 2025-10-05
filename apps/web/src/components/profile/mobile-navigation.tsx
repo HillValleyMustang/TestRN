@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 // Removed lucide-react imports as emoji icons are used directly
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils'; // Keep web-specific utils;
 
 interface MobileNavigationProps {
   currentPage?: string; // Changed to currentPage

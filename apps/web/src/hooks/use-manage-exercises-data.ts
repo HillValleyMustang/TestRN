@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from "sonner";
 import { Tables, FetchedExerciseDefinition } from "@/types/supabase";
-import { getMaxMinutes, areSetsEqual } from '@/lib/utils'; // Import getMaxMinutes and areSetsEqual
+import { getMaxMinutes, areSetsEqual } from '@/lib/utils'; // Keep web-specific utils; // Import getMaxMinutes and areSetsEqual
 import { useCacheAndRevalidate } from './use-cache-and-revalidate';
 import { LocalExerciseDefinition, LocalTPath, LocalProfile, LocalTPathExercise, LocalGym, LocalGymExercise } from '@/lib/db'; // Import LocalGym and LocalGymExercise
 import { useSession } from '@/components/session-context-provider'; // Import useSession
