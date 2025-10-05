@@ -52,6 +52,13 @@ export default function Index() {
         <Text style={styles.testValue}>Achievements loaded: {achievementsList.length}</Text>
       </View>
 
+      <TouchableOpacity 
+        style={styles.workoutButton} 
+        onPress={() => router.push('/workout')}
+      >
+        <Text style={styles.workoutButtonText}>Log Workout</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
         <Text style={styles.signOutText}>Sign Out</Text>
       </TouchableOpacity>
@@ -101,8 +108,20 @@ const styles = StyleSheet.create({
     color: '#0f0',
     marginBottom: 4,
   },
-  signOutButton: {
+  workoutButton: {
     marginTop: 24,
+    backgroundColor: '#0a0',
+    paddingVertical: 16,
+    paddingHorizontal: 48,
+    borderRadius: 8,
+  },
+  workoutButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  signOutButton: {
+    marginTop: 16,
     backgroundColor: '#a00',
     paddingVertical: 12,
     paddingHorizontal: 32,
