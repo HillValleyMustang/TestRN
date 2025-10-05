@@ -119,7 +119,12 @@ export default function AchievementsScreen() {
               {achievement.requirement.type === 'total_volume' &&
                 `Lift ${achievement.requirement.value.toLocaleString()} kg total`}
               {achievement.requirement.type === 'max_weight' &&
-                `Lift ${achievement.requirement.value} kg max`}
+                achievement.requirement.exercise_id &&
+                `Lift ${achievement.requirement.value} kg max on ${achievement.requirement.exercise_id.replace(/_/g, ' ')}`}
+              {achievement.requirement.type === 'weight_lost' &&
+                `Lose ${achievement.requirement.value} kg`}
+              {achievement.requirement.type === 'weight_gained' &&
+                `Gain ${achievement.requirement.value} kg`}
             </Text>
           </View>
         )}
