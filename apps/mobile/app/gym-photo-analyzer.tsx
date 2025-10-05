@@ -11,7 +11,9 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from './contexts/auth-context';
+import { useData } from './contexts/data-context';
 import { useRouter } from 'expo-router';
+import { supabase } from './lib/supabase';
 
 interface DetectedExercise {
   id?: string;
@@ -29,11 +31,14 @@ interface DetectedExercise {
 }
 
 export default function GymPhotoAnalyzerScreen() {
-  const { session } = useAuth();
+  const { session, userId } = useAuth();
+  const { getGyms } = useData();
   const router = useRouter();
   const [images, setImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [detectedExercises, setDetectedExercises] = useState<DetectedExercise[]>([]);
+  const [selectedExercises, setSelectedExercises] = useState<Set<number>>(new Set());
 
   const requestPermissions = async () => {
     const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
@@ -161,6 +166,116 @@ export default function GymPhotoAnalyzerScreen() {
     }
   };
 
+  const toggleExerciseSelection = (index: number) => {
+    setSelectedExercises(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(index)) {
+        newSet.delete(index);
+      } else {
+        newSet.add(index);
+      }
+      return newSet;
+    });
+  };
+
+  const saveSelectedExercises = async () => {
+    if (selectedExercises.size === 0) {
+      Alert.alert('No Selection', 'Please select at least one exercise to save.');
+      return;
+    }
+
+    const gyms = await getGyms(userId);
+    const activeGym = gyms.find(g => g.is_active);
+    
+    if (!activeGym) {
+      Alert.alert('No Active Gym', 'Please set an active gym first before saving exercises.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const exercisesToSave = Array.from(selectedExercises).map(idx => detectedExercises[idx]);
+      const newExerciseIds: string[] = [];
+
+      for (const exercise of exercisesToSave) {
+        if (exercise.duplicate_status !== 'none') {
+          continue;
+        }
+
+        const exerciseId = `exercise_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const now = new Date().toISOString();
+
+        const { error: insertError } = await supabase
+          .from('exercise_definitions')
+          .insert({
+            id: exerciseId,
+            name: exercise.name,
+            main_muscle: exercise.main_muscle,
+            type: exercise.type,
+            category: exercise.category,
+            movement_type: exercise.movement_type,
+            movement_pattern: exercise.movement_pattern,
+            description: exercise.description,
+            pro_tip: exercise.pro_tip,
+            video_url: exercise.video_url || null,
+            user_id: userId,
+            library_id: null,
+            created_at: now,
+          });
+
+        if (insertError) {
+          console.error('Error saving exercise:', insertError);
+          continue;
+        }
+
+        newExerciseIds.push(exerciseId);
+      }
+
+      if (newExerciseIds.length > 0) {
+        const gymLinks = newExerciseIds.map(exId => ({
+          gym_id: activeGym.id,
+          exercise_id: exId,
+          created_at: new Date().toISOString(),
+        }));
+
+        const { error: linkError } = await supabase
+          .from('gym_exercises')
+          .insert(gymLinks);
+
+        if (linkError) {
+          console.error('Error linking exercises to gym:', linkError);
+          Alert.alert(
+            'Partial Success',
+            `Saved ${newExerciseIds.length} exercises but failed to link some to your gym.`
+          );
+        } else {
+          Alert.alert(
+            'Success!',
+            `Saved ${newExerciseIds.length} new exercises to "${activeGym.name}"`,
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  setDetectedExercises([]);
+                  setSelectedExercises(new Set());
+                  setImages([]);
+                  router.back();
+                },
+              },
+            ]
+          );
+        }
+      } else {
+        Alert.alert('No New Exercises', 'All selected exercises already exist in your library.');
+      }
+    } catch (error: any) {
+      console.error('Error saving exercises:', error);
+      Alert.alert('Save Failed', error.message || 'An error occurred while saving exercises.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.header}>
@@ -217,9 +332,19 @@ export default function GymPhotoAnalyzerScreen() {
 
       {detectedExercises.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Detected Exercises ({detectedExercises.length})</Text>
+          <Text style={styles.sectionTitle}>
+            Detected Exercises ({detectedExercises.length}) - Select to Save
+          </Text>
           {detectedExercises.map((exercise, index) => (
-            <View key={index} style={styles.exerciseCard}>
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.exerciseCard,
+                selectedExercises.has(index) && styles.exerciseCardSelected,
+              ]}
+              onPress={() => toggleExerciseSelection(index)}
+              disabled={exercise.duplicate_status !== 'none'}
+            >
               <View style={styles.exerciseHeader}>
                 <Text style={styles.exerciseName}>{exercise.name}</Text>
                 <View
@@ -246,8 +371,29 @@ export default function GymPhotoAnalyzerScreen() {
                   <Text style={styles.proTipText}>{exercise.pro_tip}</Text>
                 </View>
               )}
-            </View>
+              {selectedExercises.has(index) && exercise.duplicate_status === 'none' && (
+                <View style={styles.checkmark}>
+                  <Text style={styles.checkmarkText}>✓</Text>
+                </View>
+              )}
+            </TouchableOpacity>
           ))}
+          
+          {selectedExercises.size > 0 && (
+            <TouchableOpacity
+              style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+              onPress={saveSelectedExercises}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.saveButtonText}>
+                  💾 Save {selectedExercises.size} Exercise(s) to Active Gym
+                </Text>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -436,5 +582,41 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  exerciseCardSelected: {
+    borderColor: '#10B981',
+    borderWidth: 2,
+    backgroundColor: '#0a1a14',
+  },
+  checkmark: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: '#10B981',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkmarkText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  saveButton: {
+    backgroundColor: '#10B981',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  saveButtonDisabled: {
+    opacity: 0.5,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

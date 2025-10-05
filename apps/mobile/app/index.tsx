@@ -103,6 +103,13 @@ export default function Index() {
         </TouchableOpacity>
 
         <TouchableOpacity 
+          style={[styles.primaryButton, { backgroundColor: '#8B5CF6' }]} 
+          onPress={() => router.push('/gym-photo-analyzer')}
+        >
+          <Text style={styles.primaryButtonText}>📸 Analyze Gym</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
           style={styles.primaryButton} 
           onPress={() => router.push('/measurements-history')}
         >
