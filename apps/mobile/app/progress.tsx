@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions } from
 import { useAuth } from './contexts/auth-context';
 import { useData } from './contexts/data-context';
 import { useRouter } from 'expo-router';
+import { exerciseList } from '@data/exercises';
 
 const { width } = Dimensions.get('window');
 const CHART_WIDTH = width - 40;
@@ -10,7 +11,7 @@ const CHART_HEIGHT = 200;
 
 export default function ProgressScreen() {
   const { userId } = useAuth();
-  const { getWorkoutStats, getWorkoutFrequency, getVolumeHistory } = useData();
+  const { getWorkoutStats, getWorkoutFrequency, getVolumeHistory, getPRHistory } = useData();
   const router = useRouter();
   
   const [stats, setStats] = useState({
@@ -22,6 +23,8 @@ export default function ProgressScreen() {
   });
   const [frequencyData, setFrequencyData] = useState<Array<{ date: string; count: number }>>([]);
   const [volumeData, setVolumeData] = useState<Array<{ date: string; volume: number }>>([]);
+  const [prData, setPrData] = useState<Array<{ date: string; weight: number }>>([]);
+  const [selectedExercise, setSelectedExercise] = useState<string>('bench-press');
   const [timeRange, setTimeRange] = useState(30);
   const [loading, setLoading] = useState(true);
 
@@ -30,15 +33,17 @@ export default function ProgressScreen() {
     
     setLoading(true);
     try {
-      const [statsData, freqData, volData] = await Promise.all([
+      const [statsData, freqData, volData, prDataResult] = await Promise.all([
         getWorkoutStats(userId, timeRange),
         getWorkoutFrequency(userId, timeRange),
         getVolumeHistory(userId, timeRange),
+        getPRHistory(userId, selectedExercise),
       ]);
       
       setStats(statsData);
       setFrequencyData(freqData);
       setVolumeData(volData);
+      setPrData(prDataResult);
     } catch (error) {
       console.error('Failed to load analytics:', error);
     } finally {
@@ -48,9 +53,9 @@ export default function ProgressScreen() {
 
   useEffect(() => {
     loadData();
-  }, [userId, timeRange]);
+  }, [userId, timeRange, selectedExercise]);
 
-  const renderBarChart = (data: Array<{ date: string; count?: number; volume?: number }>, label: string) => {
+  const renderBarChart = (data: Array<{ date: string; count?: number; volume?: number; weight?: number }>, label: string) => {
     if (data.length === 0) {
       return (
         <View style={styles.emptyChart}>
@@ -59,7 +64,7 @@ export default function ProgressScreen() {
       );
     }
 
-    const values = data.map(d => d.count || d.volume || 0);
+    const values = data.map(d => d.count || d.volume || d.weight || 0);
     const maxValue = Math.max(...values, 1);
     const barWidth = Math.max(CHART_WIDTH / data.length - 4, 8);
 
@@ -68,7 +73,7 @@ export default function ProgressScreen() {
         <Text style={styles.chartLabel}>{label}</Text>
         <View style={styles.chart}>
           {data.map((item, idx) => {
-            const value = item.count || item.volume || 0;
+            const value = item.count || item.volume || item.weight || 0;
             const heightPercent = (value / maxValue) * 100;
             
             return (
@@ -91,7 +96,9 @@ export default function ProgressScreen() {
           })}
         </View>
         <View style={styles.chartAxis}>
-          <Text style={styles.axisLabel}>Last {timeRange} days</Text>
+          <Text style={styles.axisLabel}>
+            {data[0]?.weight !== undefined ? 'All time' : `Last ${timeRange} days`}
+          </Text>
         </View>
       </View>
     );
@@ -152,6 +159,30 @@ export default function ProgressScreen() {
 
           <View style={styles.section}>
             {renderBarChart(volumeData, 'Volume Over Time (kg)')}
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.chartLabel}>Personal Record Progression</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.exerciseSelector}>
+              {exerciseList.slice(0, 8).map(ex => (
+                <TouchableOpacity
+                  key={ex.id}
+                  style={[
+                    styles.exercisePill,
+                    selectedExercise === ex.id && styles.exercisePillActive
+                  ]}
+                  onPress={() => setSelectedExercise(ex.id)}
+                >
+                  <Text style={[
+                    styles.exercisePillText,
+                    selectedExercise === ex.id && styles.exercisePillTextActive
+                  ]}>
+                    {ex.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            {renderBarChart(prData, `${exerciseList.find(e => e.id === selectedExercise)?.name || 'Exercise'} Max Weight (kg)`)}
           </View>
 
           <View style={styles.section}>
@@ -318,5 +349,29 @@ const styles = StyleSheet.create({
   axisLabel: {
     color: '#666',
     fontSize: 12,
+  },
+  exerciseSelector: {
+    marginBottom: 16,
+  },
+  exercisePill: {
+    backgroundColor: '#111',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  exercisePillActive: {
+    backgroundColor: '#0a0',
+    borderColor: '#0a0',
+  },
+  exercisePillText: {
+    color: '#888',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  exercisePillTextActive: {
+    color: '#fff',
   },
 });
