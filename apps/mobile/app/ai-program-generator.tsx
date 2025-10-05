@@ -84,24 +84,50 @@ export default function AIProgramGeneratorScreen() {
 
       await saveTPath(tPath);
 
-      for (let i = 0; i < program.workouts.length; i++) {
-        const workout = program.workouts[i];
-        const exercises = workout.exercises
-          .filter(ex => ex.exerciseId)
-          .map((ex, idx) => ({
-            t_path_id: tPathId,
-            exercise_id: ex.exerciseId!,
-            target_sets: ex.sets,
-            target_reps_min: parseInt(ex.reps.split('-')[0]) || parseInt(ex.reps) || 10,
-            target_reps_max: parseInt(ex.reps.split('-')[1]) || parseInt(ex.reps) || 12,
-            rest_seconds: ex.restSeconds,
-            notes: ex.notes || null,
-            is_bonus_exercise: false,
-            order_index: idx,
-          }));
+      // Generate child workouts based on split type
+      const childWorkoutNames = splitType === 'ppl' 
+        ? ['Push', 'Pull', 'Legs']
+        : ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
 
-        if (exercises.length > 0) {
-          await saveTPathExercises(exercises);
+      for (let i = 0; i < childWorkoutNames.length; i++) {
+        const childWorkoutId = `tpath_child_${Date.now()}_${i}`;
+        const childTPath = {
+          id: childWorkoutId,
+          user_id: userId,
+          template_name: childWorkoutNames[i],
+          description: `${childWorkoutNames[i]} workout`,
+          is_main_program: false,
+          parent_t_path_id: tPathId,
+          is_ai_generated: true,
+          settings: { tPathType: splitType },
+          gym_id: activeGym.id,
+          created_at: now,
+          updated_at: now,
+          order_index: i,
+        };
+
+        await saveTPath(childTPath);
+
+        // Add exercises from the generated program if available
+        if (program.workouts[i]) {
+          const workout = program.workouts[i];
+          const exercises = workout.exercises
+            .filter((ex: any) => ex.exerciseId)
+            .map((ex: any, idx: any) => ({
+              t_path_id: childWorkoutId,
+              exercise_id: ex.exerciseId!,
+              target_sets: ex.sets,
+              target_reps_min: parseInt(ex.reps.split('-')[0]) || parseInt(ex.reps) || 10,
+              target_reps_max: parseInt(ex.reps.split('-')[1]) || parseInt(ex.reps) || 12,
+              rest_seconds: ex.restSeconds,
+              notes: ex.notes || null,
+              is_bonus_exercise: false,
+              order_index: idx,
+            }));
+
+          if (exercises.length > 0) {
+            await saveTPathExercises(exercises);
+          }
         }
       }
 

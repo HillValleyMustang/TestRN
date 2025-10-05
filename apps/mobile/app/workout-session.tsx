@@ -6,28 +6,59 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import type { TPath } from '@data/storage/models';
 
 // Color mapping for different workout types
-const WORKOUT_COLORS = {
-  // PPL Colors
-  'Push': { bg: '#10B981', text: '#FFFFFF', border: '#059669' },
-  'Pull': { bg: '#F59E0B', text: '#FFFFFF', border: '#D97706' },
-  'Legs': { bg: '#8B5CF6', text: '#FFFFFF', border: '#7C3AED' },
-  // ULUL Colors
-  'Upper Body A': { bg: '#EF4444', text: '#FFFFFF', border: '#DC2626' },
-  'Upper Body B': { bg: '#EC4899', text: '#FFFFFF', border: '#DB2777' },
-  'Lower Body A': { bg: '#06B6D4', text: '#FFFFFF', border: '#0891B2' },
-  'Lower Body B': { bg: '#14B8A6', text: '#FFFFFF', border: '#0D9488' },
+function getWorkoutColors(workoutName: string, splitType: 'ppl' | 'ulul' | null) {
+  const name = workoutName.toLowerCase();
+  
+  // PPL Colors - match variations
+  if (name.includes('push')) {
+    return { bg: '#10B981', text: '#FFFFFF', border: '#059669' };
+  }
+  if (name.includes('pull')) {
+    return { bg: '#F59E0B', text: '#FFFFFF', border: '#D97706' };
+  }
+  if (name.includes('leg')) {
+    return { bg: '#8B5CF6', text: '#FFFFFF', border: '#7C3AED' };
+  }
+  
+  // ULUL Colors - match variations
+  if (name.includes('upper') && (name.includes('a') || name.includes('1') || !name.includes('b'))) {
+    return { bg: '#EF4444', text: '#FFFFFF', border: '#DC2626' };
+  }
+  if (name.includes('upper') && (name.includes('b') || name.includes('2'))) {
+    return { bg: '#EC4899', text: '#FFFFFF', border: '#DB2777' };
+  }
+  if (name.includes('lower') && (name.includes('a') || name.includes('1') || !name.includes('b'))) {
+    return { bg: '#06B6D4', text: '#FFFFFF', border: '#0891B2' };
+  }
+  if (name.includes('lower') && (name.includes('b') || name.includes('2'))) {
+    return { bg: '#14B8A6', text: '#FFFFFF', border: '#0D9488' };
+  }
+  
   // Default
-  'default': { bg: '#6366F1', text: '#FFFFFF', border: '#4F46E5' },
-};
-
-function getWorkoutColors(workoutName: string) {
-  return WORKOUT_COLORS[workoutName as keyof typeof WORKOUT_COLORS] || WORKOUT_COLORS.default;
+  return { bg: '#6366F1', text: '#FFFFFF', border: '#4F46E5' };
 }
 
 function getSplitTypeFromTPath(tPath: TPath | null): 'ppl' | 'ulul' | null {
   if (!tPath) return null;
-  if (tPath.template_name.includes('Push/Pull/Legs') || tPath.template_name.includes('PPL')) return 'ppl';
-  if (tPath.template_name.includes('Upper/Lower') || tPath.template_name.includes('ULUL')) return 'ulul';
+  
+  // First, check settings for explicit split type
+  const settings = tPath.settings as any;
+  if (settings?.tPathType === 'ppl' || settings?.tPathType === 'ulul') {
+    return settings.tPathType;
+  }
+  
+  // Fallback to template name detection
+  if (tPath.template_name.toLowerCase().includes('push') || 
+      tPath.template_name.toLowerCase().includes('pull') || 
+      tPath.template_name.toLowerCase().includes('ppl')) {
+    return 'ppl';
+  }
+  if (tPath.template_name.toLowerCase().includes('upper') || 
+      tPath.template_name.toLowerCase().includes('lower') || 
+      tPath.template_name.toLowerCase().includes('ulul')) {
+    return 'ulul';
+  }
+  
   return null;
 }
 
@@ -211,7 +242,7 @@ export default function WorkoutSessionScreen() {
           </View>
         ) : (
           childWorkouts.map((workout) => {
-            const colors = getWorkoutColors(workout.template_name);
+            const colors = getWorkoutColors(workout.template_name, splitType);
             const lastTrained = getLastTrainedText(workout.id);
             
             return (
