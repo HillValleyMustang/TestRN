@@ -5,7 +5,7 @@ Complete feature parity migration from Next.js web app to React Native mobile ap
 
 ---
 
-## ✅ Completed Features (60% Parity)
+## ✅ Completed Features (~75% Parity)
 
 ### Core Infrastructure
 - ✅ **Authentication** - Supabase email/password auth with session persistence
@@ -28,7 +28,8 @@ Complete feature parity migration from Next.js web app to React Native mobile ap
 
 ### AI Integration
 - ✅ **AI Coaching** - Real-time motivation & form tips during workouts
-- ⚠️ **AI Program Generation** - Generic workout generation (NOT PPL/ULUL specific)
+- ✅ **AI Program Generation** - PPL/ULUL-specific workout generation with equipment awareness
+- ✅ **AI Exercise Detection** - Photo-based equipment identification via OpenAI GPT-4o
 
 ### Progress & Analytics
 - ✅ **Dashboard** - Key metrics, workout frequency, volume tracking
@@ -41,60 +42,17 @@ Complete feature parity migration from Next.js web app to React Native mobile ap
 - ✅ **Unit System** - Metric/Imperial toggle
 - ✅ **Theme** - Dark/light mode preference
 
----
+### Onboarding
+- ✅ **5-Step Onboarding** - Complete flow with personal info, training setup, goals, gym setup, and optional photo analysis
 
-## ❌ Missing Critical Features (40% Gap)
-
-### 🔴 PHASE 14: PPL/ULUL Split System (CRITICAL - CORE DIFFERENTIATOR)
-**Status**: In Progress  
-**Priority**: 🔴 HIGHEST  
-**Estimated Effort**: 2-3 days
-
-**What the Web App Does**:
-- Users select PPL (3-day) or ULUL (4-day) split during onboarding Step 2
-- Edge Function generates workouts based on split type:
-  - **PPL**: Push (chest/shoulders/triceps), Pull (back/biceps), Legs
-  - **ULUL**: Upper Body A/B, Lower Body A/B
-- Workout session screen shows colored workout buttons (Green=Push, Orange=Pull, Purple=Legs)
-- Exercise grouping respects movement patterns (Push/Pull/Legs) or muscle groups (Upper/Lower)
-
-**Implementation Tasks**:
-1. Split selection UI component
-2. PPL workout structure logic
-3. ULUL workout structure logic  
-4. Update AI generator to respect split type
-5. Workout session screen with split-specific UI
-6. Color-coded workout buttons matching web app design
-7. Integration with existing T-Paths system
+### PPL/ULUL Split System
+- ✅ **Split Selection** - PPL (3-day) or ULUL (4-day) split selection
+- ✅ **Split-Aware Workouts** - Workout generation based on split type
+- ✅ **Color-Coded UI** - Workout session screen with split-specific colored buttons
 
 ---
 
-### 🔴 PHASE 15: Photo Upload + AI Exercise Detection (CRITICAL - UNIQUE DIFFERENTIATOR)
-**Status**: Not Started  
-**Priority**: 🔴 HIGHEST  
-**Estimated Effort**: 3-4 days
-
-**What We Need to Build**:
-1. Camera/photo picker UI for React Native
-2. Multiple image upload support
-3. Call existing `/api/identify-equipment` endpoint
-4. Exercise confirmation/review screen
-5. Save identified exercises to SQLite + Supabase
-6. Tag exercises to gym profile
-
----
-
-### 🟠 PHASE 16: Complete 5-Step Onboarding Flow (HIGH PRIORITY)
-**Status**: Not Started  
-**Priority**: 🟠 HIGH  
-**Estimated Effort**: 2-3 days
-
-**5 Steps**:
-1. Personal info (name, height, weight, body fat %)
-2. Training setup (PPL/ULUL selection + experience level)
-3. Goals & session preferences
-4. Gym setup & consent
-5. Gym photo upload (if selected)
+## ❌ Missing Features (~25% Gap)
 
 ---
 
@@ -121,19 +79,19 @@ Complete feature parity migration from Next.js web app to React Native mobile ap
 
 ## 📋 Implementation Order
 
-### **Immediate Priority** (Next 1-2 weeks)
-1. ✅ **PHASE 14**: PPL/ULUL Split System (2-3 days)
-2. **PHASE 15**: Photo Upload + AI Detection (3-4 days)
-3. **PHASE 16**: Complete Onboarding Flow (2-3 days)
+### **Completed** ✅
+1. ✅ **PHASE 14**: PPL/ULUL Split System
+2. ✅ **PHASE 15**: Photo Upload + AI Detection
+3. ✅ **PHASE 16**: Complete Onboarding Flow
 
-### **Secondary Priority** (Next 2-3 weeks)
+### **Remaining Priority** (Next 1-2 weeks)
 4. **PHASE 17**: Media Library (2-3 days)
 5. **PHASE 18**: Progress Photos (1-2 days)
 6. **PHASE 19**: UI/UX Polish (1-2 days)
 
-### **Total Estimated Time to Full Parity**: ~12-18 days
+### **Total Estimated Time to Full Parity**: ~5-8 days
 
 ---
 
 *Last Updated: January 2025*
-*Migration Progress: 60% → Target: 100%*
+*Migration Progress: ~75% → Target: 100%*
