@@ -14,7 +14,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from './contexts/auth-context';
 import { useData, type Goal } from './contexts/data-context';
 import { useUnitConversion } from './hooks/use-unit-conversion';
-import { EXERCISES } from '@data/exercise-library';
+import { EXERCISES, type Exercise } from '@data/exercises';
 
 export default function CreateGoalScreen() {
   const { userId } = useAuth();
@@ -37,7 +37,7 @@ export default function CreateGoalScreen() {
     { id: 'body_fat', label: 'Body Fat %', requiresExercise: false },
   ];
 
-  const strengthExercises = EXERCISES.filter(e =>
+  const strengthExercises = EXERCISES.filter((e: Exercise) =>
     ['chest', 'back', 'legs', 'shoulders', 'arms'].includes(e.category)
   );
 
@@ -162,7 +162,7 @@ export default function CreateGoalScreen() {
           <View style={styles.section}>
             <Text style={styles.label}>Exercise *</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {strengthExercises.map(exercise => (
+              {strengthExercises.map((exercise: Exercise) => (
                 <TouchableOpacity
                   key={exercise.id}
                   style={[

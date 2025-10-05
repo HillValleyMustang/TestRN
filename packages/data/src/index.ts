@@ -3,6 +3,7 @@ export * from './utils/unit-conversions';
 export * from './utils/workout-helpers';
 export * from './constants/achievements';
 export * from './achievements';
+export * from './exercises';
 export * from './supabase/config';
 export * from './storage/sync-queue';
 export * from './storage/models';

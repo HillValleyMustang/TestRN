@@ -97,6 +97,20 @@ export default function Index() {
 
         <TouchableOpacity 
           style={styles.primaryButton} 
+          onPress={() => router.push('/goals-list')}
+        >
+          <Text style={styles.primaryButtonText}>🎯 Goals</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.primaryButton} 
+          onPress={() => router.push('/achievements')}
+        >
+          <Text style={styles.primaryButtonText}>🏆 Achievements</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.primaryButton} 
           onPress={() => router.push('/settings')}
         >
           <Text style={styles.primaryButtonText}>⚙️ Settings</Text>
