@@ -13,6 +13,23 @@ interface WorkoutStats {
   longestStreak: number;
 }
 
+interface BodyMeasurement {
+  id: string;
+  user_id: string;
+  measurement_date: string;
+  weight_kg?: number;
+  body_fat_percentage?: number;
+  chest_cm?: number;
+  waist_cm?: number;
+  hips_cm?: number;
+  left_arm_cm?: number;
+  right_arm_cm?: number;
+  left_thigh_cm?: number;
+  right_thigh_cm?: number;
+  notes?: string;
+  created_at: string;
+}
+
 interface DataContextType {
   addWorkoutSession: (session: WorkoutSession) => Promise<void>;
   addSetLog: (setLog: SetLog) => Promise<void>;
@@ -27,6 +44,10 @@ interface DataContextType {
   getWorkoutFrequency: (userId: string, days?: number) => Promise<Array<{ date: string; count: number }>>;
   getVolumeHistory: (userId: string, days?: number) => Promise<Array<{ date: string; volume: number }>>;
   getPRHistory: (userId: string, exerciseId: string) => Promise<Array<{ date: string; weight: number }>>;
+  saveBodyMeasurement: (measurement: BodyMeasurement) => Promise<void>;
+  getBodyMeasurements: (userId: string) => Promise<BodyMeasurement[]>;
+  getWeightHistory: (userId: string, days?: number) => Promise<Array<{ date: string; weight: number }>>;
+  deleteBodyMeasurement: (measurementId: string) => Promise<void>;
   isSyncing: boolean;
   queueLength: number;
   isOnline: boolean;
@@ -111,6 +132,22 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     return await database.getPRHistory(userId, exerciseId);
   };
 
+  const saveBodyMeasurement = async (measurement: BodyMeasurement): Promise<void> => {
+    await database.saveBodyMeasurement(measurement);
+  };
+
+  const getBodyMeasurements = async (userId: string): Promise<BodyMeasurement[]> => {
+    return await database.getBodyMeasurements(userId);
+  };
+
+  const getWeightHistory = async (userId: string, days?: number): Promise<Array<{ date: string; weight: number }>> => {
+    return await database.getWeightHistory(userId, days);
+  };
+
+  const deleteBodyMeasurement = async (measurementId: string): Promise<void> => {
+    await database.deleteBodyMeasurement(measurementId);
+  };
+
   const value = useMemo(
     () => ({
       addWorkoutSession,
@@ -126,6 +163,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       getWorkoutFrequency,
       getVolumeHistory,
       getPRHistory,
+      saveBodyMeasurement,
+      getBodyMeasurements,
+      getWeightHistory,
+      deleteBodyMeasurement,
       isSyncing,
       queueLength,
       isOnline,
