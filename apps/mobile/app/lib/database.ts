@@ -123,6 +123,18 @@ class Database {
     }));
   }
 
+  async getPersonalRecord(userId: string, exerciseId: string): Promise<number> {
+    const db = this.getDB();
+    const result = await db.getFirstAsync<{ max_weight: number }>(
+      `SELECT MAX(weight_kg) as max_weight 
+       FROM set_logs sl
+       JOIN workout_sessions ws ON sl.session_id = ws.id
+       WHERE ws.user_id = ? AND sl.exercise_id = ?`,
+      [userId, exerciseId]
+    );
+    return result?.max_weight || 0;
+  }
+
   syncQueue: SyncQueueStore = {
     getAll: async (): Promise<SyncQueueItem[]> => {
       const db = this.getDB();

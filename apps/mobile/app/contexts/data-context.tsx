@@ -10,6 +10,7 @@ interface DataContextType {
   addSetLog: (setLog: SetLog) => Promise<void>;
   getWorkoutSessions: (userId: string) => Promise<WorkoutSession[]>;
   getSetLogs: (sessionId: string) => Promise<SetLog[]>;
+  getPersonalRecord: (userId: string, exerciseId: string) => Promise<number>;
   isSyncing: boolean;
   queueLength: number;
   isOnline: boolean;
@@ -58,12 +59,17 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     return await database.getSetLogs(sessionId);
   };
 
+  const getPersonalRecord = async (userId: string, exerciseId: string): Promise<number> => {
+    return await database.getPersonalRecord(userId, exerciseId);
+  };
+
   const value = useMemo(
     () => ({
       addWorkoutSession,
       addSetLog,
       getWorkoutSessions,
       getSetLogs,
+      getPersonalRecord,
       isSyncing,
       queueLength,
       isOnline,

@@ -5,31 +5,74 @@ import { useData } from './contexts/data-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getExerciseById } from '@data/exercises';
 
+interface ExerciseSet {
+  weight: string;
+  reps: string;
+}
+
+interface WorkoutExercise {
+  exerciseId: string;
+  sets: ExerciseSet[];
+}
+
 export default function WorkoutScreen() {
   const { userId } = useAuth();
-  const { addWorkoutSession, addSetLog, isSyncing, queueLength, isOnline } = useData();
+  const { addWorkoutSession, addSetLog, getPersonalRecord, isSyncing, queueLength, isOnline } = useData();
   const router = useRouter();
   const params = useLocalSearchParams<{ selectedExerciseId?: string }>();
   
   const [templateName, setTemplateName] = useState('');
-  const [selectedExerciseId, setSelectedExerciseId] = useState<string>('bench_press');
-  const [sets, setSets] = useState<Array<{ weight: string; reps: string }>>([{ weight: '', reps: '' }]);
+  const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
   const [loading, setLoading] = useState(false);
+  const [personalRecords, setPersonalRecords] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (params.selectedExerciseId) {
-      setSelectedExerciseId(params.selectedExerciseId);
+      addExercise(params.selectedExerciseId);
     }
   }, [params.selectedExerciseId]);
 
-  const addSet = () => {
-    setSets([...sets, { weight: '', reps: '' }]);
+  const addExercise = async (exerciseId: string) => {
+    const existingIndex = exercises.findIndex(e => e.exerciseId === exerciseId);
+    if (existingIndex >= 0) {
+      Alert.alert('Already Added', 'This exercise is already in your workout');
+      return;
+    }
+    
+    setExercises([...exercises, {
+      exerciseId,
+      sets: [{ weight: '', reps: '' }]
+    }]);
+
+    if (userId && !personalRecords[exerciseId]) {
+      const pr = await getPersonalRecord(userId, exerciseId);
+      setPersonalRecords(prev => ({ ...prev, [exerciseId]: pr }));
+    }
   };
 
-  const updateSet = (index: number, field: 'weight' | 'reps', value: string) => {
-    const newSets = [...sets];
-    newSets[index][field] = value;
-    setSets(newSets);
+  const removeExercise = (index: number) => {
+    const newExercises = exercises.filter((_, i) => i !== index);
+    setExercises(newExercises);
+  };
+
+  const addSet = (exerciseIndex: number) => {
+    const newExercises = [...exercises];
+    newExercises[exerciseIndex].sets.push({ weight: '', reps: '' });
+    setExercises(newExercises);
+  };
+
+  const updateSet = (exerciseIndex: number, setIndex: number, field: 'weight' | 'reps', value: string) => {
+    const newExercises = [...exercises];
+    newExercises[exerciseIndex].sets[setIndex][field] = value;
+    setExercises(newExercises);
+  };
+
+  const removeSet = (exerciseIndex: number, setIndex: number) => {
+    const newExercises = [...exercises];
+    if (newExercises[exerciseIndex].sets.length > 1) {
+      newExercises[exerciseIndex].sets = newExercises[exerciseIndex].sets.filter((_, i) => i !== setIndex);
+      setExercises(newExercises);
+    }
   };
 
   const saveWorkout = async () => {
@@ -40,6 +83,11 @@ export default function WorkoutScreen() {
 
     if (!templateName.trim()) {
       Alert.alert('Error', 'Please enter a workout name');
+      return;
+    }
+
+    if (exercises.length === 0) {
+      Alert.alert('Error', 'Please add at least one exercise');
       return;
     }
 
@@ -62,27 +110,47 @@ export default function WorkoutScreen() {
 
       await addWorkoutSession(session);
 
-      const exerciseId = selectedExerciseId;
-      for (let i = 0; i < sets.length; i++) {
-        const set = sets[i];
-        if (set.weight && set.reps) {
-          const setLog = {
-            id: `set_${sessionId}_${i}`,
-            session_id: sessionId,
-            exercise_id: exerciseId,
-            weight_kg: parseFloat(set.weight) || null,
-            reps: parseInt(set.reps) || null,
-            reps_l: null,
-            reps_r: null,
-            time_seconds: null,
-            is_pb: false,
-            created_at: now,
-          };
-          await addSetLog(setLog);
+      let setCounter = 0;
+      let newPRs = 0;
+      
+      for (const exercise of exercises) {
+        const currentPR = personalRecords[exercise.exerciseId] || 0;
+        
+        for (const set of exercise.sets) {
+          if (set.weight && set.reps) {
+            const weight = parseFloat(set.weight);
+            const isPR = weight > currentPR;
+            
+            if (isPR) {
+              newPRs++;
+            }
+            
+            const setLog = {
+              id: `set_${sessionId}_${setCounter}`,
+              session_id: sessionId,
+              exercise_id: exercise.exerciseId,
+              weight_kg: weight || null,
+              reps: parseInt(set.reps) || null,
+              reps_l: null,
+              reps_r: null,
+              time_seconds: null,
+              is_pb: isPR,
+              created_at: now,
+            };
+            await addSetLog(setLog);
+            setCounter++;
+          }
         }
       }
 
-      Alert.alert('Success', `Workout saved! ${queueLength + 1} items in sync queue`);
+      const message = newPRs > 0 
+        ? `Workout saved! 🎉 ${newPRs} new personal record${newPRs > 1 ? 's' : ''}!`
+        : `Workout saved! ${exercises.length} exercises logged`;
+      
+      Alert.alert('Success', message);
+      setTemplateName('');
+      setExercises([]);
+      setPersonalRecords({});
       router.back();
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to save workout');
@@ -111,45 +179,88 @@ export default function WorkoutScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.label}>Exercise</Text>
-        <TouchableOpacity 
-          style={styles.exerciseSelector}
-          onPress={() => router.push('/exercise-picker')}
-        >
-          <Text style={styles.exerciseName}>
-            {getExerciseById(selectedExerciseId)?.name || 'Select Exercise'}
-          </Text>
-          <Text style={styles.arrow}>›</Text>
-        </TouchableOpacity>
-      </View>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.label}>Exercises ({exercises.length})</Text>
+          <TouchableOpacity 
+            style={styles.addExerciseButton}
+            onPress={() => router.push('/exercise-picker')}
+          >
+            <Text style={styles.addExerciseText}>+ Add Exercise</Text>
+          </TouchableOpacity>
+        </View>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>Sets</Text>
-        {sets.map((set, index) => (
-          <View key={index} style={styles.setRow}>
-            <Text style={styles.setNumber}>#{index + 1}</Text>
-            <TextInput
-              style={[styles.input, styles.setInput]}
-              placeholder="Weight (kg)"
-              placeholderTextColor="#666"
-              keyboardType="numeric"
-              value={set.weight}
-              onChangeText={(value) => updateSet(index, 'weight', value)}
-            />
-            <TextInput
-              style={[styles.input, styles.setInput]}
-              placeholder="Reps"
-              placeholderTextColor="#666"
-              keyboardType="numeric"
-              value={set.reps}
-              onChangeText={(value) => updateSet(index, 'reps', value)}
-            />
+        {exercises.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>No exercises added yet</Text>
+            <Text style={styles.emptySubtext}>Tap "+ Add Exercise" to get started</Text>
           </View>
-        ))}
-        
-        <TouchableOpacity style={styles.addSetButton} onPress={addSet}>
-          <Text style={styles.addSetText}>+ Add Set</Text>
-        </TouchableOpacity>
+        ) : (
+          exercises.map((exercise, exerciseIndex) => {
+            const exerciseData = getExerciseById(exercise.exerciseId);
+            return (
+              <View key={exerciseIndex} style={styles.exerciseCard}>
+                <View style={styles.exerciseHeader}>
+                  <View style={styles.exerciseInfo}>
+                    <Text style={styles.exerciseTitle}>{exerciseData?.name || exercise.exerciseId}</Text>
+                    {exerciseData?.category && (
+                      <Text style={styles.exerciseCategory}>{exerciseData.category}</Text>
+                    )}
+                  </View>
+                  <TouchableOpacity onPress={() => removeExercise(exerciseIndex)}>
+                    <Text style={styles.removeButton}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.setsContainer}>
+                  {personalRecords[exercise.exerciseId] > 0 && (
+                    <Text style={styles.prHint}>
+                      PR: {personalRecords[exercise.exerciseId]} kg
+                    </Text>
+                  )}
+                  {exercise.sets.map((set, setIndex) => {
+                    const weight = parseFloat(set.weight);
+                    const isPotentialPR = weight > (personalRecords[exercise.exerciseId] || 0) && !isNaN(weight);
+                    
+                    return (
+                      <View key={setIndex} style={styles.setRow}>
+                        <Text style={styles.setNumber}>#{setIndex + 1}</Text>
+                        <TextInput
+                          style={[styles.input, styles.setInput, isPotentialPR && styles.prInput]}
+                          placeholder="kg"
+                          placeholderTextColor="#666"
+                          keyboardType="numeric"
+                          value={set.weight}
+                          onChangeText={(value) => updateSet(exerciseIndex, setIndex, 'weight', value)}
+                        />
+                        <TextInput
+                          style={[styles.input, styles.setInput]}
+                          placeholder="reps"
+                          placeholderTextColor="#666"
+                          keyboardType="numeric"
+                          value={set.reps}
+                          onChangeText={(value) => updateSet(exerciseIndex, setIndex, 'reps', value)}
+                        />
+                        {isPotentialPR && <Text style={styles.prBadge}>🎉 PR!</Text>}
+                        {exercise.sets.length > 1 && (
+                          <TouchableOpacity onPress={() => removeSet(exerciseIndex, setIndex)}>
+                            <Text style={styles.removeSetButton}>−</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    );
+                  })}
+                  
+                  <TouchableOpacity 
+                    style={styles.addSetButton} 
+                    onPress={() => addSet(exerciseIndex)}
+                  >
+                    <Text style={styles.addSetText}>+ Add Set</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })
+        )}
       </View>
 
       <TouchableOpacity 
@@ -183,11 +294,16 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 24,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   label: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 8,
   },
   input: {
     backgroundColor: '#111',
@@ -197,6 +313,71 @@ const styles = StyleSheet.create({
     padding: 12,
     color: '#fff',
     fontSize: 16,
+  },
+  addExerciseButton: {
+    backgroundColor: '#0a0',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+  },
+  addExerciseText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  emptyState: {
+    padding: 32,
+    alignItems: 'center',
+    backgroundColor: '#111',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  emptyText: {
+    color: '#888',
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  emptySubtext: {
+    color: '#666',
+    fontSize: 14,
+  },
+  exerciseCard: {
+    backgroundColor: '#111',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  exerciseHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  exerciseInfo: {
+    flex: 1,
+  },
+  exerciseTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  exerciseCategory: {
+    color: '#0a0',
+    fontSize: 14,
+    textTransform: 'capitalize',
+  },
+  removeButton: {
+    color: '#f00',
+    fontSize: 24,
+    fontWeight: 'bold',
+    paddingHorizontal: 8,
+  },
+  setsContainer: {
+    marginTop: 8,
   },
   setRow: {
     flexDirection: 'row',
@@ -212,6 +393,12 @@ const styles = StyleSheet.create({
   setInput: {
     flex: 1,
   },
+  removeSetButton: {
+    color: '#f00',
+    fontSize: 24,
+    fontWeight: 'bold',
+    paddingHorizontal: 4,
+  },
   addSetButton: {
     backgroundColor: '#222',
     padding: 12,
@@ -219,7 +406,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#333',
     borderStyle: 'dashed',
-    marginTop: 8,
+    marginTop: 4,
   },
   addSetText: {
     color: '#0a0',
@@ -242,24 +429,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  exerciseSelector: {
-    backgroundColor: '#111',
-    borderWidth: 1,
-    borderColor: '#333',
-    borderRadius: 8,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  prHint: {
+    color: '#0a0',
+    fontSize: 12,
+    marginBottom: 8,
+    fontWeight: 'bold',
   },
-  exerciseName: {
-    color: '#fff',
-    fontSize: 16,
-    flex: 1,
+  prInput: {
+    borderColor: '#0a0',
+    borderWidth: 2,
   },
-  arrow: {
-    color: '#888',
-    fontSize: 24,
-    fontWeight: '300',
+  prBadge: {
+    fontSize: 14,
+    marginLeft: 4,
   },
 });
