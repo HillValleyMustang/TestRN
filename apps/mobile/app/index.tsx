@@ -90,6 +90,13 @@ export default function Index() {
 
         <TouchableOpacity 
           style={styles.primaryButton} 
+          onPress={() => router.push('/measurements-history')}
+        >
+          <Text style={styles.primaryButtonText}>📏 Body Measurements</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.primaryButton} 
           onPress={() => router.push('/settings')}
         >
           <Text style={styles.primaryButtonText}>⚙️ Settings</Text>
