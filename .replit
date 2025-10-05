@@ -13,10 +13,6 @@ externalPort = 80
 localPort = 8000
 externalPort = 8000
 
-[[ports]]
-localPort = 43441
-externalPort = 3000
-
 [workflows]
 runButton = "Project"
 
@@ -54,7 +50,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd apps/mobile && npx expo start --port 8000"
+args = "cd apps/mobile && npx expo start --port 8000 --tunnel"
 waitForPort = 8000
 
 [deployment]
