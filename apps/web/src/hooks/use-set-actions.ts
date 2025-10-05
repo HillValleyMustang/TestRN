@@ -4,7 +4,7 @@ import { useCallback } from 'react';
 import { toast } from 'sonner';
 import { SetLogState, Tables } from '@/types/supabase';
 import { useSetDrafts } from './use-set-drafts';
-import { convertWeight } from '@/lib/unit-conversions';
+import { convertWeight } from '@data/utils/unit-conversions';
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;
 type Profile = Tables<'profiles'>;

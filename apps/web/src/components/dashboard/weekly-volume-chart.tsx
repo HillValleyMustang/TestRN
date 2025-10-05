@@ -3,7 +3,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { formatWeight } from '@/lib/unit-conversions';
+import { formatWeight } from '@data/utils/unit-conversions';
 import { useWeeklyVolumeData } from '@/hooks/data/useWeeklyVolumeData';
 import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
 

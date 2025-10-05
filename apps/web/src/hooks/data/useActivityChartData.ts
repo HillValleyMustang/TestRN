@@ -6,7 +6,7 @@ import { Tables, Profile } from '@/types/supabase';
 import { useCacheAndRevalidate } from '@/hooks/use-cache-and-revalidate';
 import { db, LocalProfile, LocalActivityLog } from '@/lib/db';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { convertDistance } from '@/lib/unit-conversions';
+import { convertDistance } from '@data/utils/unit-conversions';
 
 type ActivityLog = Tables<'activity_logs'>;
 

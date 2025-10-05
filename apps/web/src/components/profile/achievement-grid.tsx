@@ -3,7 +3,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { ACHIEVEMENT_DISPLAY_INFO } from '@/lib/achievements';
+import { ACHIEVEMENT_DISPLAY_INFO } from '@data/constants/achievements';
 
 interface AchievementGridProps {
   achievements: { id: string; name: string; icon: string }[];

@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tables } from '@/types/supabase';
-import { convertWeight, formatWeight } from '@/lib/unit-conversions';
+import { convertWeight, formatWeight } from '@data/utils/unit-conversions';
 import { useExerciseHistory } from '@/hooks/data/useExerciseHistory';
 import { useSession } from '@/components/session-context-provider'; // Import useSession
 

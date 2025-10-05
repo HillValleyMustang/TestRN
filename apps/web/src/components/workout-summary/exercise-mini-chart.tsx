@@ -5,7 +5,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { useSession } from '@/components/session-context-provider';
 import { Tables } from '@/types/supabase';
 import { toast } from 'sonner';
-import { formatWeight, formatTime } from '@/lib/unit-conversions';
+import { formatWeight, formatTime } from '@data/utils/unit-conversions';
 
 type SetLog = Tables<'set_logs'>;
 type ExerciseDefinition = Tables<'exercise_definitions'>;

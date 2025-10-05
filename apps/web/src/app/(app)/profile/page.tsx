@@ -22,7 +22,7 @@ import { ProfileOverviewTab } from '@/components/profile/profile-overview-tab';
 import { ProfileStatsTab } from '@/components/profile/profile-stats-tab';
 import { ProfileSettingsTab } from '@/components/profile/profile-settings-tab';
 import { PointsExplanationModal } from '@/components/profile/points-explanation-modal';
-import { achievementsList } from '@/lib/achievements';
+import { achievementsList } from '@data/constants/achievements';
 import { LoadingOverlay } from '@/components/loading-overlay';
 import { useWorkoutFlow } from '@/components/workout-flow/workout-flow-context-provider';
 import { PhotoJourneyTab } from '@/components/profile/photo-journey/photo-journey-tab';

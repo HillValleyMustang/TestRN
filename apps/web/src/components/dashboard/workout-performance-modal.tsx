@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Dumbbell, History, Trash2, CalendarDays, Timer, ListChecks } from 'lucide-react';
 import { formatTimeAgo, getWorkoutColorClass, cn } from '@/lib/utils';
-import { formatTime } from '@/lib/unit-conversions';
+import { formatTime } from '@data/utils/unit-conversions';
 import { useWorkoutPerformanceData } from '@/hooks/data/useWorkoutPerformanceData'; // Import the new hook
 
 type WorkoutSession = Tables<'workout_sessions'>;

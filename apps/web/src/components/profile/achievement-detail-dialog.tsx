@@ -7,7 +7,7 @@ import { Flame, Dumbbell, Trophy, Star, Footprints, Bot, Crown, Sunrise, Calenda
 import { cn } from '@/lib/utils';
 import { Profile as ProfileType, Tables, UserAchievement } from '@/types/supabase';
 import { Session, SupabaseClient } from '@supabase/supabase-js';
-import { ACHIEVEMENT_DISPLAY_INFO, ACHIEVEMENT_IDS } from '@/lib/achievements'; // Import from new utility file
+import { ACHIEVEMENT_DISPLAY_INFO, ACHIEVEMENT_IDS } from '@data/constants/achievements'; // Import from new utility file
 import { useSession } from '@/components/session-context-provider'; // Import useSession
 
 interface AchievementDetailDialogProps {

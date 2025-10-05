@@ -10,7 +10,7 @@ export function convertWeight(value: number | null | undefined, fromUnit: 'kg' |
   } else if (fromUnit === 'lbs' && toUnit === 'kg') {
     return value / KG_TO_LBS;
   }
-  return value; // Should not happen
+  return value;
 }
 
 export function convertDistance(value: number | null | undefined, fromUnit: 'km' | 'miles', toUnit: 'km' | 'miles'): number | null {
@@ -22,7 +22,7 @@ export function convertDistance(value: number | null | undefined, fromUnit: 'km'
   } else if (fromUnit === 'miles' && toUnit === 'km') {
     return value / KM_TO_MILES;
   }
-  return value; // Should not happen
+  return value;
 }
 
 export function formatWeight(value: number | null | undefined, unit: 'kg' | 'lbs', decimals: number = 1): string {

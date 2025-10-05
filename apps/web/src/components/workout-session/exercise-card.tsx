@@ -11,7 +11,7 @@ import { Tables, SetLogState, WorkoutExercise, UserExercisePR } from '@/types/su
 import { useExerciseSets } from '@/hooks/use-exercise-sets';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { useSession } from '@/components/session-context-provider';
-import { formatWeight, convertWeight } from '@/lib/unit-conversions';
+import { formatWeight, convertWeight } from '@data/utils/unit-conversions';
 import { ExerciseSwapDialog } from './exercise-swap-dialog';
 import { CantDoToggle } from './cant-do-toggle';
 import { WorkoutBadge } from '../workout-badge';

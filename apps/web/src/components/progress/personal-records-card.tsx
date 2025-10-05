@@ -4,7 +4,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Trophy } from 'lucide-react';
-import { formatTime } from '@/lib/unit-conversions';
+import { formatTime } from '@data/utils/unit-conversions';
 import { usePersonalRecordsData } from '@/hooks/data/usePersonalRecordsData'; // Import the new hook
 
 export const PersonalRecordsCard = () => {

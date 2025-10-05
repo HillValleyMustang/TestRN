@@ -4,7 +4,7 @@ import { useCallback } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { Tables, SetLogState } from '@/types/supabase';
-import { convertWeight, formatWeight } from '@/lib/unit-conversions';
+import { convertWeight, formatWeight } from '@data/utils/unit-conversions';
 import { useSession } from '@/components/session-context-provider'; // Import useSession
 
 type ExerciseDefinition = Tables<'exercise_definitions'>;

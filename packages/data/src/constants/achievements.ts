@@ -1,4 +1,3 @@
-// Achievement IDs (must match those in process-achievements Edge Function)
 export const ACHIEVEMENT_IDS = {
   FIRST_WORKOUT: 'first_workout',
   TEN_DAY_STREAK: 'ten_day_streak',
@@ -14,7 +13,6 @@ export const ACHIEVEMENT_IDS = {
   AI_APPRENTICE: 'ai_apprentice',
 };
 
-// Map achievement IDs to display names and icons
 export const ACHIEVEMENT_DISPLAY_INFO: Record<string, { name: string; icon: string; description: string }> = {
   [ACHIEVEMENT_IDS.FIRST_WORKOUT]: { 
     name: 'First Workout', 
@@ -78,7 +76,6 @@ export const ACHIEVEMENT_DISPLAY_INFO: Record<string, { name: string; icon: stri
   },
 };
 
-// List of all achievements for display purposes
 export const achievementsList = [
   { id: ACHIEVEMENT_IDS.FIRST_WORKOUT, name: 'First Workout', icon: '🏃' },
   { id: ACHIEVEMENT_IDS.AI_APPRENTICE, name: 'AI Apprentice', icon: '🤖' },
