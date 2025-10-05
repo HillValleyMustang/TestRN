@@ -444,7 +444,7 @@ class Database {
   async getBodyMeasurements(userId: string): Promise<any[]> {
     const db = this.getDB();
     const result = await db.getAllAsync<any>(
-      'SELECT * FROM body_measurements WHERE user_id = ? ORDER BY measurement_date DESC',
+      'SELECT * FROM body_measurements WHERE user_id = ? ORDER BY measurement_date DESC, created_at DESC',
       [userId]
     );
     return result;

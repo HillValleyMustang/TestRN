@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from './contexts/auth-context';
 import { useData } from './contexts/data-context';
 import { useUnitConversion } from './hooks/use-unit-conversion';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function MeasurementsScreen() {
   const router = useRouter();
@@ -11,7 +12,8 @@ export default function MeasurementsScreen() {
   const { saveBodyMeasurement } = useData();
   const { displayWeight, parseWeight, weightUnit } = useUnitConversion();
 
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [weight, setWeight] = useState('');
   const [bodyFat, setBodyFat] = useState('');
   const [chest, setChest] = useState('');
@@ -37,7 +39,7 @@ export default function MeasurementsScreen() {
       const measurement = {
         id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         user_id: userId,
-        measurement_date: new Date(date).toISOString(),
+        measurement_date: date.toISOString(),
         weight_kg: weight ? parseWeight(weight) : undefined,
         body_fat_percentage: bodyFat ? parseFloat(bodyFat) : undefined,
         chest_cm: chest ? parseFloat(chest) : undefined,
@@ -63,6 +65,17 @@ export default function MeasurementsScreen() {
     }
   };
 
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      setDate(selectedDate);
+    }
+  };
+
+  const formatDisplayDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -76,13 +89,21 @@ export default function MeasurementsScreen() {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Date</Text>
-          <TextInput
-            style={styles.input}
-            value={date}
-            onChangeText={setDate}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor="#666"
-          />
+          <TouchableOpacity 
+            style={styles.datePickerButton}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text style={styles.datePickerText}>{formatDisplayDate(date)}</Text>
+          </TouchableOpacity>
+          {showDatePicker && (
+            <DateTimePicker
+              value={date}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={onDateChange}
+              maximumDate={new Date()}
+            />
+          )}
         </View>
 
         <View style={styles.section}>
@@ -279,6 +300,17 @@ const styles = StyleSheet.create({
   textArea: {
     height: 100,
     textAlignVertical: 'top',
+  },
+  datePickerButton: {
+    backgroundColor: '#111',
+    borderWidth: 1,
+    borderColor: '#333',
+    borderRadius: 8,
+    padding: 12,
+  },
+  datePickerText: {
+    color: '#fff',
+    fontSize: 16,
   },
   saveButton: {
     backgroundColor: '#0a0',
