@@ -1,17 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useAuth } from './contexts/auth-context';
 import { useData } from './contexts/data-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { getExerciseById } from '@data/exercises';
 
 export default function WorkoutScreen() {
   const { userId } = useAuth();
   const { addWorkoutSession, addSetLog, isSyncing, queueLength, isOnline } = useData();
   const router = useRouter();
+  const params = useLocalSearchParams<{ selectedExerciseId?: string }>();
   
   const [templateName, setTemplateName] = useState('');
+  const [selectedExerciseId, setSelectedExerciseId] = useState<string>('bench_press');
   const [sets, setSets] = useState<Array<{ weight: string; reps: string }>>([{ weight: '', reps: '' }]);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (params.selectedExerciseId) {
+      setSelectedExerciseId(params.selectedExerciseId);
+    }
+  }, [params.selectedExerciseId]);
 
   const addSet = () => {
     setSets([...sets, { weight: '', reps: '' }]);
@@ -53,7 +62,7 @@ export default function WorkoutScreen() {
 
       await addWorkoutSession(session);
 
-      const exerciseId = 'exercise_1';
+      const exerciseId = selectedExerciseId;
       for (let i = 0; i < sets.length; i++) {
         const set = sets[i];
         if (set.weight && set.reps) {
@@ -99,6 +108,19 @@ export default function WorkoutScreen() {
           value={templateName}
           onChangeText={setTemplateName}
         />
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.label}>Exercise</Text>
+        <TouchableOpacity 
+          style={styles.exerciseSelector}
+          onPress={() => router.push('/exercise-picker')}
+        >
+          <Text style={styles.exerciseName}>
+            {getExerciseById(selectedExerciseId)?.name || 'Select Exercise'}
+          </Text>
+          <Text style={styles.arrow}>›</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.section}>
@@ -219,5 +241,25 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  exerciseSelector: {
+    backgroundColor: '#111',
+    borderWidth: 1,
+    borderColor: '#333',
+    borderRadius: 8,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  exerciseName: {
+    color: '#fff',
+    fontSize: 16,
+    flex: 1,
+  },
+  arrow: {
+    color: '#888',
+    fontSize: 24,
+    fontWeight: '300',
   },
 });

@@ -14,6 +14,9 @@ export default function RootLayout() {
             <Stack.Screen name="index" options={{ headerShown: false }} />
             <Stack.Screen name="login" options={{ headerShown: false }} />
             <Stack.Screen name="workout" options={{ title: 'Log Workout' }} />
+            <Stack.Screen name="history" options={{ title: 'Workout History' }} />
+            <Stack.Screen name="workout-detail" options={{ title: 'Workout Details' }} />
+            <Stack.Screen name="exercise-picker" options={{ title: 'Select Exercise' }} />
           </Stack>
         </DataProvider>
       </AuthProvider>

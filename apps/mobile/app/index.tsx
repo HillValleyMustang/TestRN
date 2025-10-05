@@ -52,12 +52,28 @@ export default function Index() {
         <Text style={styles.testValue}>Achievements loaded: {achievementsList.length}</Text>
       </View>
 
-      <TouchableOpacity 
-        style={styles.workoutButton} 
-        onPress={() => router.push('/workout')}
-      >
-        <Text style={styles.workoutButtonText}>Log Workout</Text>
-      </TouchableOpacity>
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity 
+          style={styles.primaryButton} 
+          onPress={() => router.push('/workout')}
+        >
+          <Text style={styles.primaryButtonText}>📝 Log Workout</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.primaryButton} 
+          onPress={() => router.push('/history')}
+        >
+          <Text style={styles.primaryButtonText}>📊 History</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.primaryButton} 
+          onPress={() => router.push('/exercise-picker')}
+        >
+          <Text style={styles.primaryButtonText}>💪 Exercises</Text>
+        </TouchableOpacity>
+      </View>
 
       <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
         <Text style={styles.signOutText}>Sign Out</Text>
@@ -108,14 +124,19 @@ const styles = StyleSheet.create({
     color: '#0f0',
     marginBottom: 4,
   },
-  workoutButton: {
+  buttonContainer: {
+    width: '100%',
+    gap: 12,
     marginTop: 24,
+  },
+  primaryButton: {
     backgroundColor: '#0a0',
     paddingVertical: 16,
-    paddingHorizontal: 48,
+    paddingHorizontal: 32,
     borderRadius: 8,
+    alignItems: 'center',
   },
-  workoutButtonText: {
+  primaryButtonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
