@@ -1,10 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, TextInput } from 'react-native';
-import { useAuth } from './contexts/auth-context';
-import { useData } from './contexts/data-context';
-import { useRouter } from 'expo-router';
-import { getExerciseById } from '@data/exercises';
-import type { WorkoutTemplate } from '@data/storage/models';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  TextInput,
+} from "react-native";
+import { useAuth } from "./_contexts/auth-context";
+import { useData } from "./_contexts/data-context";
+import { useRouter } from "expo-router";
+import { getExerciseById } from "@data/exercises";
+import type { WorkoutTemplate } from "@data/storage/models";
 
 export default function TemplatesScreen() {
   const { userId } = useAuth();
@@ -14,13 +22,15 @@ export default function TemplatesScreen() {
   const [loading, setLoading] = useState(true);
 
   const loadTemplates = async () => {
-    if (!userId) return;
+    if (!userId) {
+      return;
+    }
     setLoading(true);
     try {
       const data = await getTemplates(userId);
       setTemplates(data);
     } catch (error) {
-      Alert.alert('Error', 'Failed to load templates');
+      Alert.alert("Error", "Failed to load templates");
     } finally {
       setLoading(false);
     }
@@ -32,30 +42,30 @@ export default function TemplatesScreen() {
 
   const handleDelete = (template: WorkoutTemplate) => {
     Alert.alert(
-      'Delete Template',
+      "Delete Template",
       `Are you sure you want to delete "${template.name}"?`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: "Cancel", style: "cancel" },
         {
-          text: 'Delete',
-          style: 'destructive',
+          text: "Delete",
+          style: "destructive",
           onPress: async () => {
             try {
               await deleteTemplate(template.id);
               await loadTemplates();
-              Alert.alert('Success', 'Template deleted');
+              Alert.alert("Success", "Template deleted");
             } catch (error) {
-              Alert.alert('Error', 'Failed to delete template');
+              Alert.alert("Error", "Failed to delete template");
             }
           },
         },
-      ]
+      ],
     );
   };
 
   const handleStartWorkout = (template: WorkoutTemplate) => {
     router.push({
-      pathname: '/workout',
+      pathname: "/workout",
       params: { templateId: template.id },
     });
   };
@@ -65,7 +75,7 @@ export default function TemplatesScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Workout Templates</Text>
         <Text style={styles.subtitle}>
-          {templates.length} template{templates.length !== 1 ? 's' : ''}
+          {templates.length} template{templates.length !== 1 ? "s" : ""}
         </Text>
       </View>
 
@@ -87,10 +97,13 @@ export default function TemplatesScreen() {
               <View style={styles.templateInfo}>
                 <Text style={styles.templateName}>{template.name}</Text>
                 {template.description && (
-                  <Text style={styles.templateDescription}>{template.description}</Text>
+                  <Text style={styles.templateDescription}>
+                    {template.description}
+                  </Text>
                 )}
                 <Text style={styles.templateMeta}>
-                  {template.exercises.length} exercise{template.exercises.length !== 1 ? 's' : ''}
+                  {template.exercises.length} exercise
+                  {template.exercises.length !== 1 ? "s" : ""}
                 </Text>
               </View>
             </View>
@@ -138,47 +151,47 @@ export default function TemplatesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: "#000",
     padding: 20,
   },
   header: {
     marginBottom: 24,
   },
   title: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 4,
   },
   subtitle: {
-    color: '#888',
+    color: "#888",
     fontSize: 16,
   },
   emptyState: {
     padding: 48,
-    alignItems: 'center',
-    backgroundColor: '#111',
+    alignItems: "center",
+    backgroundColor: "#111",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: "#333",
   },
   emptyText: {
-    color: '#888',
+    color: "#888",
     fontSize: 18,
     marginBottom: 8,
   },
   emptySubtext: {
-    color: '#666',
+    color: "#666",
     fontSize: 14,
-    textAlign: 'center',
+    textAlign: "center",
   },
   templateCard: {
-    backgroundColor: '#111',
+    backgroundColor: "#111",
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: "#333",
   },
   templateHeader: {
     marginBottom: 12,
@@ -187,70 +200,70 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   templateName: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 4,
   },
   templateDescription: {
-    color: '#888',
+    color: "#888",
     fontSize: 14,
     marginBottom: 4,
   },
   templateMeta: {
-    color: '#0a0',
+    color: "#0a0",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   exercisesList: {
     marginBottom: 16,
   },
   exerciseItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 4,
   },
   exerciseBullet: {
-    color: '#0a0',
+    color: "#0a0",
     fontSize: 16,
     marginRight: 8,
   },
   exerciseText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 14,
     flex: 1,
   },
   exerciseSets: {
-    color: '#888',
+    color: "#888",
     fontSize: 12,
   },
   templateActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
   },
   startButton: {
     flex: 1,
-    backgroundColor: '#0a0',
+    backgroundColor: "#0a0",
     padding: 14,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   startButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   deleteButton: {
-    backgroundColor: '#222',
+    backgroundColor: "#222",
     padding: 14,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#f00',
+    borderColor: "#f00",
     paddingHorizontal: 20,
   },
   deleteButtonText: {
-    color: '#f00',
+    color: "#f00",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 });

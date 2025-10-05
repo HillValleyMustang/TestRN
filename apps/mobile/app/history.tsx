@@ -1,10 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
-import { useAuth } from './contexts/auth-context';
-import { useData } from './contexts/data-context';
-import { useRouter } from 'expo-router';
-import type { WorkoutSession } from '@data/storage/models';
-import { formatTimeAgo } from '@data/utils/workout-helpers';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  RefreshControl,
+} from "react-native";
+import { useAuth } from "./_contexts/auth-context";
+import { useData } from "./_contexts/data-context";
+import { useRouter } from "expo-router";
+import type { WorkoutSession } from "@data/storage/models";
+import { formatTimeAgo } from "@data/utils/workout-helpers";
 
 export default function HistoryScreen() {
   const { userId } = useAuth();
@@ -14,12 +21,14 @@ export default function HistoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const loadWorkouts = async () => {
-    if (!userId) return;
+    if (!userId) {
+      return;
+    }
     try {
       const sessions = await getWorkoutSessions(userId);
       setWorkouts(sessions);
     } catch (error) {
-      console.error('Failed to load workouts:', error);
+      console.error("Failed to load workouts:", error);
     }
   };
 
@@ -38,14 +47,16 @@ export default function HistoryScreen() {
     const timeAgo = formatTimeAgo(date);
 
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.workoutCard}
         onPress={() => router.push(`/workout-detail?id=${item.id}`)}
       >
         <View style={styles.cardHeader}>
-          <Text style={styles.workoutName}>{item.template_name || 'Unnamed Workout'}</Text>
+          <Text style={styles.workoutName}>
+            {item.template_name || "Unnamed Workout"}
+          </Text>
           {item.rating && (
-            <Text style={styles.rating}>{'⭐'.repeat(item.rating)}</Text>
+            <Text style={styles.rating}>{"⭐".repeat(item.rating)}</Text>
           )}
         </View>
         <View style={styles.cardDetails}>
@@ -63,10 +74,12 @@ export default function HistoryScreen() {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyText}>No workouts yet</Text>
-        <Text style={styles.emptySubtext}>Start logging your workouts to see them here!</Text>
-        <TouchableOpacity 
+        <Text style={styles.emptySubtext}>
+          Start logging your workouts to see them here!
+        </Text>
+        <TouchableOpacity
           style={styles.addButton}
-          onPress={() => router.push('/workout')}
+          onPress={() => router.push("/workout")}
         >
           <Text style={styles.addButtonText}>+ Log First Workout</Text>
         </TouchableOpacity>
@@ -82,7 +95,11 @@ export default function HistoryScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0a0" />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#0a0"
+          />
         }
       />
     </View>
@@ -92,76 +109,76 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: "#000",
   },
   listContent: {
     padding: 16,
   },
   workoutCard: {
-    backgroundColor: '#111',
+    backgroundColor: "#111",
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: "#333",
   },
   cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 8,
   },
   workoutName: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     flex: 1,
   },
   rating: {
     fontSize: 14,
   },
   cardDetails: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 16,
     marginBottom: 4,
   },
   detailText: {
-    color: '#888',
+    color: "#888",
     fontSize: 14,
   },
   duration: {
-    color: '#0a0',
+    color: "#0a0",
     fontSize: 14,
     marginTop: 4,
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#000',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#000",
     padding: 32,
   },
   emptyText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 8,
   },
   emptySubtext: {
-    color: '#888',
+    color: "#888",
     fontSize: 16,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 32,
   },
   addButton: {
-    backgroundColor: '#0a0',
+    backgroundColor: "#0a0",
     paddingVertical: 16,
     paddingHorizontal: 48,
     borderRadius: 8,
   },
   addButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 });

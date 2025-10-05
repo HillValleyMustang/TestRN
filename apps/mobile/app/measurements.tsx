@@ -1,10 +1,19 @@
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
-import { useState } from 'react';
-import { useRouter } from 'expo-router';
-import { useAuth } from './contexts/auth-context';
-import { useData } from './contexts/data-context';
-import { useUnitConversion } from './hooks/use-unit-conversion';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  Platform,
+} from "react-native";
+import { useState } from "react";
+import { useRouter } from "expo-router";
+import { useAuth } from "./_contexts/auth-context";
+import { useData } from "./_contexts/data-context";
+import { useUnitConversion } from "./_hooks/use-unit-conversion";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 export default function MeasurementsScreen() {
   const router = useRouter();
@@ -14,23 +23,35 @@ export default function MeasurementsScreen() {
 
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [weight, setWeight] = useState('');
-  const [bodyFat, setBodyFat] = useState('');
-  const [chest, setChest] = useState('');
-  const [waist, setWaist] = useState('');
-  const [hips, setHips] = useState('');
-  const [leftArm, setLeftArm] = useState('');
-  const [rightArm, setRightArm] = useState('');
-  const [leftThigh, setLeftThigh] = useState('');
-  const [rightThigh, setRightThigh] = useState('');
-  const [notes, setNotes] = useState('');
+  const [weight, setWeight] = useState("");
+  const [bodyFat, setBodyFat] = useState("");
+  const [chest, setChest] = useState("");
+  const [waist, setWaist] = useState("");
+  const [hips, setHips] = useState("");
+  const [leftArm, setLeftArm] = useState("");
+  const [rightArm, setRightArm] = useState("");
+  const [leftThigh, setLeftThigh] = useState("");
+  const [rightThigh, setRightThigh] = useState("");
+  const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
-    if (!userId) return;
+    if (!userId) {
+      return;
+    }
 
-    if (!weight && !bodyFat && !chest && !waist && !hips && !leftArm && !rightArm && !leftThigh && !rightThigh) {
-      Alert.alert('No Data', 'Please enter at least one measurement');
+    if (
+      !weight &&
+      !bodyFat &&
+      !chest &&
+      !waist &&
+      !hips &&
+      !leftArm &&
+      !rightArm &&
+      !leftThigh &&
+      !rightThigh
+    ) {
+      Alert.alert("No Data", "Please enter at least one measurement");
       return;
     }
 
@@ -54,42 +75,52 @@ export default function MeasurementsScreen() {
       };
 
       await saveBodyMeasurement(measurement);
-      Alert.alert('Success', 'Measurements saved!', [
-        { text: 'OK', onPress: () => router.back() }
+      Alert.alert("Success", "Measurements saved!", [
+        { text: "OK", onPress: () => router.back() },
       ]);
     } catch (error) {
-      console.error('Error saving measurement:', error);
-      Alert.alert('Error', 'Failed to save measurement. Please try again.');
+      console.error("Error saving measurement:", error);
+      Alert.alert("Error", "Failed to save measurement. Please try again.");
     } finally {
       setSaving(false);
     }
   };
 
   const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(Platform.OS === 'ios');
+    setShowDatePicker(Platform.OS === "ios");
     if (selectedDate) {
       setDate(selectedDate);
     }
   };
 
   const formatDisplayDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Add Measurements</Text>
         <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+      >
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Date</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.datePickerButton}
             onPress={() => setShowDatePicker(true)}
           >
@@ -99,7 +130,7 @@ export default function MeasurementsScreen() {
             <DateTimePicker
               value={date}
               mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              display={Platform.OS === "ios" ? "spinner" : "default"}
               onChange={onDateChange}
               maximumDate={new Date()}
             />
@@ -226,12 +257,14 @@ export default function MeasurementsScreen() {
           />
         </View>
 
-        <TouchableOpacity 
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]} 
+        <TouchableOpacity
+          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
           onPress={handleSave}
           disabled={saving}
         >
-          <Text style={styles.saveButtonText}>{saving ? 'Saving...' : 'Save Measurements'}</Text>
+          <Text style={styles.saveButtonText}>
+            {saving ? "Saving..." : "Save Measurements"}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -241,29 +274,29 @@ export default function MeasurementsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: "#000",
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingTop: Platform.OS === "ios" ? 60 : 40,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: "#333",
   },
   backButton: {
     padding: 8,
   },
   backButtonText: {
-    color: '#0a0',
+    color: "#0a0",
     fontSize: 16,
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: "bold",
+    color: "#fff",
   },
   scrollView: {
     flex: 1,
@@ -276,8 +309,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: "bold",
+    color: "#fff",
     marginBottom: 12,
   },
   inputRow: {
@@ -285,47 +318,47 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 14,
-    color: '#888',
+    color: "#888",
     marginBottom: 4,
   },
   input: {
-    backgroundColor: '#111',
+    backgroundColor: "#111",
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: "#333",
     borderRadius: 8,
     padding: 12,
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
   },
   textArea: {
     height: 100,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   datePickerButton: {
-    backgroundColor: '#111',
+    backgroundColor: "#111",
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: "#333",
     borderRadius: 8,
     padding: 12,
   },
   datePickerText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
   },
   saveButton: {
-    backgroundColor: '#0a0',
+    backgroundColor: "#0a0",
     padding: 16,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 8,
     marginBottom: 32,
   },
   saveButtonDisabled: {
-    backgroundColor: '#555',
+    backgroundColor: "#555",
   },
   saveButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 });

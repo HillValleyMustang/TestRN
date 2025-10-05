@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,28 +6,36 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
-} from 'react-native';
-import { router } from 'expo-router';
-import { useAuth } from './contexts/auth-context';
-import { useData, type UserAchievement } from './contexts/data-context';
-import { ACHIEVEMENTS, getAchievementById, type AchievementCategory } from '@data/achievements';
+} from "react-native";
+import { router } from "expo-router";
+import { useAuth } from "./_contexts/auth-context";
+import { useData, type UserAchievement } from "./_contexts/data-context";
+import {
+  ACHIEVEMENTS,
+  getAchievementById,
+  type AchievementCategory,
+} from "@data/achievements";
 
 export default function AchievementsScreen() {
   const { userId } = useAuth();
   const { getUserAchievements, checkAndUnlockAchievements } = useData();
-  const [unlockedAchievements, setUnlockedAchievements] = useState<UserAchievement[]>([]);
+  const [unlockedAchievements, setUnlockedAchievements] = useState<
+    UserAchievement[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<AchievementCategory | 'all'>('all');
+  const [filter, setFilter] = useState<AchievementCategory | "all">("all");
 
   const loadAchievements = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      return;
+    }
     try {
       await checkAndUnlockAchievements(userId);
       const unlocked = await getUserAchievements(userId);
       setUnlockedAchievements(unlocked);
     } catch (error) {
-      console.error('Error loading achievements:', error);
+      console.error("Error loading achievements:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -44,37 +52,42 @@ export default function AchievementsScreen() {
   };
 
   const isUnlocked = (achievementId: string): boolean => {
-    return unlockedAchievements.some(a => a.achievement_id === achievementId);
+    return unlockedAchievements.some((a) => a.achievement_id === achievementId);
   };
 
   const getUnlockDate = (achievementId: string): string | null => {
-    const achievement = unlockedAchievements.find(a => a.achievement_id === achievementId);
-    return achievement ? new Date(achievement.unlocked_at).toLocaleDateString() : null;
+    const achievement = unlockedAchievements.find(
+      (a) => a.achievement_id === achievementId,
+    );
+    return achievement
+      ? new Date(achievement.unlocked_at).toLocaleDateString()
+      : null;
   };
 
   const getTierColor = (tier: string): string => {
     const colors: Record<string, string> = {
-      bronze: '#CD7F32',
-      silver: '#C0C0C0',
-      gold: '#FFD700',
-      platinum: '#E5E4E2',
+      bronze: "#CD7F32",
+      silver: "#C0C0C0",
+      gold: "#FFD700",
+      platinum: "#E5E4E2",
     };
-    return colors[tier] || '#999';
+    return colors[tier] || "#999";
   };
 
   const filteredAchievements = ACHIEVEMENTS.filter(
-    a => filter === 'all' || a.category === filter
+    (a) => filter === "all" || a.category === filter,
   );
 
-  const categories: Array<{ id: AchievementCategory | 'all'; label: string }> = [
-    { id: 'all', label: 'All' },
-    { id: 'workouts', label: 'Workouts' },
-    { id: 'strength', label: 'Strength' },
-    { id: 'consistency', label: 'Consistency' },
-    { id: 'volume', label: 'Volume' },
-  ];
+  const categories: Array<{ id: AchievementCategory | "all"; label: string }> =
+    [
+      { id: "all", label: "All" },
+      { id: "workouts", label: "Workouts" },
+      { id: "strength", label: "Strength" },
+      { id: "consistency", label: "Consistency" },
+      { id: "volume", label: "Volume" },
+    ];
 
-  const renderAchievement = (achievement: typeof ACHIEVEMENTS[0]) => {
+  const renderAchievement = (achievement: (typeof ACHIEVEMENTS)[0]) => {
     const unlocked = isUnlocked(achievement.id);
     const unlockDate = getUnlockDate(achievement.id);
     const tierColor = getTierColor(achievement.tier);
@@ -88,11 +101,15 @@ export default function AchievementsScreen() {
         ]}
       >
         <View style={styles.achievementHeader}>
-          <Text style={[styles.achievementIcon, !unlocked && styles.lockedIcon]}>
+          <Text
+            style={[styles.achievementIcon, !unlocked && styles.lockedIcon]}
+          >
             {achievement.icon}
           </Text>
           <View style={styles.achievementInfo}>
-            <Text style={[styles.achievementName, !unlocked && styles.lockedText]}>
+            <Text
+              style={[styles.achievementName, !unlocked && styles.lockedText]}
+            >
               {achievement.name}
             </Text>
             <Text style={styles.achievementTier} style={{ color: tierColor }}>
@@ -101,7 +118,12 @@ export default function AchievementsScreen() {
           </View>
         </View>
 
-        <Text style={[styles.achievementDescription, !unlocked && styles.lockedText]}>
+        <Text
+          style={[
+            styles.achievementDescription,
+            !unlocked && styles.lockedText,
+          ]}
+        >
           {achievement.description}
         </Text>
 
@@ -112,18 +134,18 @@ export default function AchievementsScreen() {
         {!unlocked && (
           <View style={styles.requirementContainer}>
             <Text style={styles.requirementText}>
-              {achievement.requirement.type === 'workout_count' &&
+              {achievement.requirement.type === "workout_count" &&
                 `Complete ${achievement.requirement.value} workouts`}
-              {achievement.requirement.type === 'streak_days' &&
+              {achievement.requirement.type === "streak_days" &&
                 `Maintain ${achievement.requirement.value}-day streak`}
-              {achievement.requirement.type === 'total_volume' &&
+              {achievement.requirement.type === "total_volume" &&
                 `Lift ${achievement.requirement.value.toLocaleString()} kg total`}
-              {achievement.requirement.type === 'max_weight' &&
+              {achievement.requirement.type === "max_weight" &&
                 achievement.requirement.exercise_id &&
-                `Lift ${achievement.requirement.value} kg max on ${achievement.requirement.exercise_id.replace(/_/g, ' ')}`}
-              {achievement.requirement.type === 'weight_lost' &&
+                `Lift ${achievement.requirement.value} kg max on ${achievement.requirement.exercise_id.replace(/_/g, " ")}`}
+              {achievement.requirement.type === "weight_lost" &&
                 `Lose ${achievement.requirement.value} kg`}
-              {achievement.requirement.type === 'weight_gained' &&
+              {achievement.requirement.type === "weight_gained" &&
                 `Gain ${achievement.requirement.value} kg`}
             </Text>
           </View>
@@ -176,13 +198,21 @@ export default function AchievementsScreen() {
         style={styles.filterScroll}
         contentContainerStyle={styles.filterContainer}
       >
-        {categories.map(cat => (
+        {categories.map((cat) => (
           <TouchableOpacity
             key={cat.id}
-            style={[styles.filterButton, filter === cat.id && styles.filterButtonActive]}
+            style={[
+              styles.filterButton,
+              filter === cat.id && styles.filterButtonActive,
+            ]}
             onPress={() => setFilter(cat.id)}
           >
-            <Text style={[styles.filterText, filter === cat.id && styles.filterTextActive]}>
+            <Text
+              style={[
+                styles.filterText,
+                filter === cat.id && styles.filterTextActive,
+              ]}
+            >
               {cat.label}
             </Text>
           </TouchableOpacity>
@@ -191,7 +221,9 @@ export default function AchievementsScreen() {
 
       <ScrollView
         style={styles.scrollView}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {filteredAchievements.map(renderAchievement)}
       </ScrollView>
@@ -202,54 +234,54 @@ export default function AchievementsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: "#0a0a0a",
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     paddingTop: 60,
-    backgroundColor: '#111',
+    backgroundColor: "#111",
     borderBottomWidth: 1,
-    borderBottomColor: '#222',
+    borderBottomColor: "#222",
   },
   backButton: {
-    color: '#60a5fa',
+    color: "#60a5fa",
     fontSize: 16,
     marginRight: 16,
   },
   title: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   statsContainer: {
     padding: 16,
-    backgroundColor: '#111',
+    backgroundColor: "#111",
     borderBottomWidth: 1,
-    borderBottomColor: '#222',
+    borderBottomColor: "#222",
   },
   statsText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 8,
-    textAlign: 'center',
+    textAlign: "center",
   },
   progressBar: {
     height: 8,
-    backgroundColor: '#333',
+    backgroundColor: "#333",
     borderRadius: 4,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   progressFill: {
-    height: '100%',
-    backgroundColor: '#60a5fa',
+    height: "100%",
+    backgroundColor: "#60a5fa",
   },
   filterScroll: {
-    backgroundColor: '#111',
+    backgroundColor: "#111",
     borderBottomWidth: 1,
-    borderBottomColor: '#222',
+    borderBottomColor: "#222",
   },
   filterContainer: {
     paddingHorizontal: 16,
@@ -260,19 +292,19 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 16,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: "#1a1a1a",
     marginRight: 8,
   },
   filterButtonActive: {
-    backgroundColor: '#60a5fa',
+    backgroundColor: "#60a5fa",
   },
   filterText: {
-    color: '#999',
+    color: "#999",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   filterTextActive: {
-    color: '#fff',
+    color: "#fff",
   },
   scrollView: {
     flex: 1,
@@ -285,17 +317,17 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   achievementUnlocked: {
-    backgroundColor: '#1a2942',
-    borderColor: '#60a5fa',
+    backgroundColor: "#1a2942",
+    borderColor: "#60a5fa",
   },
   achievementLocked: {
-    backgroundColor: '#1a1a1a',
-    borderColor: '#333',
+    backgroundColor: "#1a1a1a",
+    borderColor: "#333",
     opacity: 0.6,
   },
   achievementHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 12,
   },
   achievementIcon: {
@@ -309,17 +341,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   achievementName: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 4,
   },
   achievementTier: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   achievementDescription: {
-    color: '#999',
+    color: "#999",
     fontSize: 14,
     marginBottom: 8,
   },
@@ -327,27 +359,27 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   unlockDate: {
-    color: '#4ade80',
+    color: "#4ade80",
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   requirementContainer: {
-    backgroundColor: '#0a0a0a',
+    backgroundColor: "#0a0a0a",
     padding: 8,
     borderRadius: 6,
     marginTop: 4,
   },
   requirementText: {
-    color: '#999',
+    color: "#999",
     fontSize: 12,
   },
   centered: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingText: {
-    color: '#999',
+    color: "#999",
     fontSize: 16,
   },
 });

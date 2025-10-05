@@ -1,10 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { useAuth } from './contexts/auth-context';
-import { useData } from './contexts/data-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { getExerciseById } from '@data/exercises';
-import type { TPathWithExercises } from '@data/storage/models';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
+import { useAuth } from "./_contexts/auth-context";
+import { useData } from "./_contexts/data-context";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { getExerciseById } from "@data/exercises";
+import type { TPathWithExercises } from "@data/storage/models";
 
 export default function TPathDetailScreen() {
   const { userId } = useAuth();
@@ -18,7 +26,9 @@ export default function TPathDetailScreen() {
   const [lastAccessed, setLastAccessed] = useState<string | null>(null);
 
   const loadTPath = async () => {
-    if (!tPathId || !userId) return;
+    if (!tPathId || !userId) {
+      return;
+    }
     setLoading(true);
     try {
       const data = await getTPath(tPathId);
@@ -40,7 +50,7 @@ export default function TPathDetailScreen() {
         updated_at: new Date().toISOString(),
       });
     } catch (error) {
-      Alert.alert('Error', 'Failed to load program details');
+      Alert.alert("Error", "Failed to load program details");
     } finally {
       setLoading(false);
     }
@@ -51,9 +61,11 @@ export default function TPathDetailScreen() {
   }, [tPathId, userId]);
 
   const handleStartWorkout = () => {
-    if (!tPath) return;
+    if (!tPath) {
+      return;
+    }
     router.push({
-      pathname: '/workout',
+      pathname: "/workout",
       params: { tPathId: tPath.id },
     });
   };
@@ -74,7 +86,7 @@ export default function TPathDetailScreen() {
       <View style={styles.container}>
         <View style={styles.emptyState}>
           <Text style={styles.emptyText}>Program not found</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
           >
@@ -107,7 +119,9 @@ export default function TPathDetailScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Exercises ({tPath.exercises.length})</Text>
+        <Text style={styles.sectionTitle}>
+          Exercises ({tPath.exercises.length})
+        </Text>
         {tPath.exercises.map((exercise, index) => {
           const exerciseData = getExerciseById(exercise.exercise_id);
           return (
@@ -133,7 +147,8 @@ export default function TPathDetailScreen() {
                 )}
                 {(exercise.target_reps_min || exercise.target_reps_max) && (
                   <Text style={styles.exerciseDetail}>
-                    Reps: {exercise.target_reps_min || '?'}-{exercise.target_reps_max || '?'}
+                    Reps: {exercise.target_reps_min || "?"}-
+                    {exercise.target_reps_max || "?"}
                   </Text>
                 )}
                 {exercise.notes && (
@@ -152,7 +167,7 @@ export default function TPathDetailScreen() {
         >
           <Text style={styles.startButtonText}>Start This Workout</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
         >
@@ -166,132 +181,132 @@ export default function TPathDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: "#0a0a0a",
     paddingTop: 60,
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingText: {
-    color: '#888',
+    color: "#888",
     marginTop: 16,
     fontSize: 16,
   },
   emptyState: {
     flex: 1,
     padding: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   emptyText: {
     fontSize: 18,
-    color: '#888',
+    color: "#888",
     marginBottom: 24,
   },
   header: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
+    borderBottomColor: "#1a1a1a",
   },
   titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 12,
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: "bold",
+    color: "#fff",
     flex: 1,
   },
   aiTag: {
-    backgroundColor: '#0a0',
+    backgroundColor: "#0a0",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
     marginLeft: 12,
   },
   aiTagText: {
-    color: '#000',
+    color: "#000",
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   description: {
     fontSize: 16,
-    color: '#aaa',
+    color: "#aaa",
     lineHeight: 24,
     marginBottom: 12,
   },
   lastAccessed: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   section: {
     padding: 20,
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: "bold",
+    color: "#fff",
     marginBottom: 16,
   },
   exerciseCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: "#1a1a1a",
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#2a2a2a',
+    borderColor: "#2a2a2a",
   },
   exerciseHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 12,
   },
   exerciseNumber: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#0a0',
+    fontWeight: "bold",
+    color: "#0a0",
     marginRight: 12,
     minWidth: 30,
   },
   exerciseInfo: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   exerciseName: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
+    fontWeight: "600",
+    color: "#fff",
     flex: 1,
   },
   bonusTag: {
-    backgroundColor: '#fa0',
+    backgroundColor: "#fa0",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
     marginLeft: 8,
   },
   bonusTagText: {
-    color: '#000',
+    color: "#000",
     fontSize: 11,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   exerciseDetails: {
     paddingLeft: 42,
   },
   exerciseDetail: {
     fontSize: 14,
-    color: '#aaa',
+    color: "#aaa",
     marginBottom: 4,
   },
   exerciseNotes: {
     fontSize: 14,
-    color: '#888',
-    fontStyle: 'italic',
+    color: "#888",
+    fontStyle: "italic",
     marginTop: 8,
   },
   actions: {
@@ -299,26 +314,26 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   startButton: {
-    backgroundColor: '#0a0',
+    backgroundColor: "#0a0",
     padding: 16,
     borderRadius: 12,
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 12,
   },
   startButtonText: {
-    color: '#000',
+    color: "#000",
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   backButton: {
     padding: 16,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: "#1a1a1a",
     borderRadius: 12,
-    alignItems: 'center',
+    alignItems: "center",
   },
   backButtonText: {
-    color: '#0a0',
+    color: "#0a0",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -8,62 +8,71 @@ import {
   ScrollView,
   Alert,
   Platform,
-} from 'react-native';
-import { router } from 'expo-router';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { useAuth } from './contexts/auth-context';
-import { useData, type Goal } from './contexts/data-context';
-import { useUnitConversion } from './hooks/use-unit-conversion';
-import { EXERCISES, type Exercise } from '@data/exercises';
+} from "react-native";
+import { router } from "expo-router";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { useAuth } from "./_contexts/auth-context";
+import { useData, type Goal } from "./_contexts/data-context";
+import { useUnitConversion } from "./_hooks/use-unit-conversion";
+import { EXERCISES, type Exercise } from "@data/exercises";
 
 export default function CreateGoalScreen() {
   const { userId } = useAuth();
   const { saveGoal } = useData();
   const { displayWeight, parseWeight, weightUnit } = useUnitConversion();
 
-  const [goalType, setGoalType] = useState<string>('');
-  const [targetValue, setTargetValue] = useState('');
+  const [goalType, setGoalType] = useState<string>("");
+  const [targetValue, setTargetValue] = useState("");
   const [targetDate, setTargetDate] = useState<Date | undefined>(undefined);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [exerciseId, setExerciseId] = useState<string>('');
-  const [notes, setNotes] = useState('');
+  const [exerciseId, setExerciseId] = useState<string>("");
+  const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
   const goalTypes = [
-    { id: 'weight_loss', label: 'Weight Loss', requiresExercise: false },
-    { id: 'weight_gain', label: 'Weight Gain', requiresExercise: false },
-    { id: 'strength', label: 'Strength Goal', requiresExercise: true },
-    { id: 'workout_frequency', label: 'Workout Frequency', requiresExercise: false },
-    { id: 'body_fat', label: 'Body Fat %', requiresExercise: false },
+    { id: "weight_loss", label: "Weight Loss", requiresExercise: false },
+    { id: "weight_gain", label: "Weight Gain", requiresExercise: false },
+    { id: "strength", label: "Strength Goal", requiresExercise: true },
+    {
+      id: "workout_frequency",
+      label: "Workout Frequency",
+      requiresExercise: false,
+    },
+    { id: "body_fat", label: "Body Fat %", requiresExercise: false },
   ];
 
   const strengthExercises = EXERCISES.filter((e: Exercise) =>
-    ['chest', 'back', 'legs', 'shoulders', 'arms'].includes(e.category)
+    ["chest", "back", "legs", "shoulders", "arms"].includes(e.category),
   );
 
   const handleDateChange = (_event: any, selectedDate?: Date) => {
-    setShowDatePicker(Platform.OS === 'ios');
+    setShowDatePicker(Platform.OS === "ios");
     if (selectedDate) {
       setTargetDate(selectedDate);
     }
   };
 
   const handleSave = async () => {
-    if (!userId) return;
+    if (!userId) {
+      return;
+    }
 
     if (!goalType) {
-      Alert.alert('Missing Information', 'Please select a goal type');
+      Alert.alert("Missing Information", "Please select a goal type");
       return;
     }
 
     if (!targetValue || isNaN(parseFloat(targetValue))) {
-      Alert.alert('Missing Information', 'Please enter a valid target value');
+      Alert.alert("Missing Information", "Please enter a valid target value");
       return;
     }
 
-    const selectedGoalType = goalTypes.find(g => g.id === goalType);
+    const selectedGoalType = goalTypes.find((g) => g.id === goalType);
     if (selectedGoalType?.requiresExercise && !exerciseId) {
-      Alert.alert('Missing Information', 'Please select an exercise for this goal');
+      Alert.alert(
+        "Missing Information",
+        "Please select an exercise for this goal",
+      );
       return;
     }
 
@@ -71,7 +80,11 @@ export default function CreateGoalScreen() {
     try {
       let targetValueParsed = parseFloat(targetValue);
 
-      if (goalType === 'weight_loss' || goalType === 'weight_gain' || goalType === 'strength') {
+      if (
+        goalType === "weight_loss" ||
+        goalType === "weight_gain" ||
+        goalType === "strength"
+      ) {
         targetValueParsed = parseWeight(targetValue);
       }
 
@@ -83,7 +96,7 @@ export default function CreateGoalScreen() {
         current_value: undefined,
         start_date: new Date().toISOString(),
         target_date: targetDate?.toISOString(),
-        status: 'active',
+        status: "active",
         exercise_id: exerciseId || undefined,
         notes: notes || undefined,
         created_at: new Date().toISOString(),
@@ -91,12 +104,12 @@ export default function CreateGoalScreen() {
       };
 
       await saveGoal(newGoal);
-      Alert.alert('Success', 'Goal created successfully!', [
-        { text: 'OK', onPress: () => router.back() },
+      Alert.alert("Success", "Goal created successfully!", [
+        { text: "OK", onPress: () => router.back() },
       ]);
     } catch (error) {
-      console.error('Error saving goal:', error);
-      Alert.alert('Error', 'Failed to save goal');
+      console.error("Error saving goal:", error);
+      Alert.alert("Error", "Failed to save goal");
     } finally {
       setSaving(false);
     }
@@ -104,21 +117,21 @@ export default function CreateGoalScreen() {
 
   const getTargetValuePlaceholder = (): string => {
     switch (goalType) {
-      case 'weight_loss':
-      case 'weight_gain':
+      case "weight_loss":
+      case "weight_gain":
         return `Target weight (${weightUnit})`;
-      case 'strength':
+      case "strength":
         return `Target weight (${weightUnit})`;
-      case 'workout_frequency':
-        return 'Number of workouts per week';
-      case 'body_fat':
-        return 'Target body fat %';
+      case "workout_frequency":
+        return "Number of workouts per week";
+      case "body_fat":
+        return "Target body fat %";
       default:
-        return 'Target value';
+        return "Target value";
     }
   };
 
-  const selectedGoalType = goalTypes.find(g => g.id === goalType);
+  const selectedGoalType = goalTypes.find((g) => g.id === goalType);
 
   return (
     <View style={styles.container}>
@@ -133,7 +146,7 @@ export default function CreateGoalScreen() {
         <View style={styles.section}>
           <Text style={styles.label}>Goal Type *</Text>
           <View style={styles.goalTypeContainer}>
-            {goalTypes.map(type => (
+            {goalTypes.map((type) => (
               <TouchableOpacity
                 key={type.id}
                 style={[
@@ -142,7 +155,7 @@ export default function CreateGoalScreen() {
                 ]}
                 onPress={() => {
                   setGoalType(type.id);
-                  setExerciseId('');
+                  setExerciseId("");
                 }}
               >
                 <Text
@@ -206,14 +219,14 @@ export default function CreateGoalScreen() {
             <Text style={styles.dateButtonText}>
               {targetDate
                 ? targetDate.toLocaleDateString()
-                : 'Select target date'}
+                : "Select target date"}
             </Text>
           </TouchableOpacity>
           {showDatePicker && (
             <DateTimePicker
               value={targetDate || new Date()}
               mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              display={Platform.OS === "ios" ? "spinner" : "default"}
               onChange={handleDateChange}
               minimumDate={new Date()}
             />
@@ -239,7 +252,7 @@ export default function CreateGoalScreen() {
           disabled={saving}
         >
           <Text style={styles.saveButtonText}>
-            {saving ? 'Saving...' : 'Create Goal'}
+            {saving ? "Saving..." : "Create Goal"}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -250,26 +263,26 @@ export default function CreateGoalScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: "#0a0a0a",
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     paddingTop: 60,
-    backgroundColor: '#111',
+    backgroundColor: "#111",
     borderBottomWidth: 1,
-    borderBottomColor: '#222',
+    borderBottomColor: "#222",
   },
   backButton: {
-    color: '#60a5fa',
+    color: "#60a5fa",
     fontSize: 16,
     marginRight: 16,
   },
   title: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   scrollView: {
     flex: 1,
@@ -279,82 +292,82 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   label: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 8,
   },
   goalTypeContainer: {
     gap: 8,
   },
   goalTypeButton: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: "#1a1a1a",
     padding: 16,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#333',
+    borderColor: "#333",
   },
   goalTypeButtonActive: {
-    borderColor: '#60a5fa',
-    backgroundColor: '#1a2942',
+    borderColor: "#60a5fa",
+    backgroundColor: "#1a2942",
   },
   goalTypeText: {
-    color: '#999',
+    color: "#999",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   goalTypeTextActive: {
-    color: '#60a5fa',
+    color: "#60a5fa",
   },
   exerciseButton: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: "#1a1a1a",
     padding: 12,
     borderRadius: 8,
     marginRight: 8,
     borderWidth: 2,
-    borderColor: '#333',
+    borderColor: "#333",
   },
   exerciseButtonActive: {
-    borderColor: '#60a5fa',
-    backgroundColor: '#1a2942',
+    borderColor: "#60a5fa",
+    backgroundColor: "#1a2942",
   },
   exerciseText: {
-    color: '#999',
+    color: "#999",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   exerciseTextActive: {
-    color: '#60a5fa',
+    color: "#60a5fa",
   },
   input: {
-    backgroundColor: '#1a1a1a',
-    color: '#fff',
+    backgroundColor: "#1a1a1a",
+    color: "#fff",
     padding: 16,
     borderRadius: 8,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: "#333",
   },
   textArea: {
     height: 100,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   dateButton: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: "#1a1a1a",
     padding: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: "#333",
   },
   dateButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
   },
   saveButton: {
-    backgroundColor: '#60a5fa',
+    backgroundColor: "#60a5fa",
     padding: 16,
     borderRadius: 12,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 16,
     marginBottom: 32,
   },
@@ -362,8 +375,8 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   saveButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 });

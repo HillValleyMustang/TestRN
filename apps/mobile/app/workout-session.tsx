@@ -1,70 +1,135 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { useAuth } from './contexts/auth-context';
-import { useData } from './contexts/data-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import type { TPath } from '@data/storage/models';
-import { Colors, Spacing, BorderRadius, Typography, ButtonStyles } from '../constants/design-system';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
+import { useAuth } from "./_contexts/auth-context";
+import { useData } from "./_contexts/data-context";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import type { TPath } from "@data/storage/models";
+import {
+  Colors,
+  Spacing,
+  BorderRadius,
+  Typography,
+  ButtonStyles,
+} from "../constants/design-system";
 
 // Color mapping for different workout types - using design system colors
-function getWorkoutColors(workoutName: string, splitType: 'ppl' | 'ulul' | null) {
+function getWorkoutColors(
+  workoutName: string,
+  splitType: "ppl" | "ulul" | null,
+) {
   const name = workoutName.toLowerCase();
-  
+
   // PPL Colors - match web app design system
-  if (name.includes('push')) {
-    return { bg: Colors.workoutPush, text: Colors.foreground, border: Colors.workoutPushLight };
+  if (name.includes("push")) {
+    return {
+      bg: Colors.workoutPush,
+      text: Colors.foreground,
+      border: Colors.workoutPushLight,
+    };
   }
-  if (name.includes('pull')) {
-    return { bg: Colors.workoutPull, text: Colors.foreground, border: Colors.workoutPullLight };
+  if (name.includes("pull")) {
+    return {
+      bg: Colors.workoutPull,
+      text: Colors.foreground,
+      border: Colors.workoutPullLight,
+    };
   }
-  if (name.includes('leg')) {
-    return { bg: Colors.workoutLegs, text: Colors.foreground, border: Colors.workoutLegsLight };
+  if (name.includes("leg")) {
+    return {
+      bg: Colors.workoutLegs,
+      text: Colors.foreground,
+      border: Colors.workoutLegsLight,
+    };
   }
-  
+
   // ULUL Colors - match web app design system
-  if (name.includes('upper') && (name.includes('a') || name.includes('1') || !name.includes('b'))) {
-    return { bg: Colors.workoutUpperA, text: Colors.foreground, border: Colors.workoutUpperALight };
+  if (
+    name.includes("upper") &&
+    (name.includes("a") || name.includes("1") || !name.includes("b"))
+  ) {
+    return {
+      bg: Colors.workoutUpperA,
+      text: Colors.foreground,
+      border: Colors.workoutUpperALight,
+    };
   }
-  if (name.includes('upper') && (name.includes('b') || name.includes('2'))) {
-    return { bg: Colors.workoutUpperB, text: Colors.foreground, border: Colors.workoutUpperBLight };
+  if (name.includes("upper") && (name.includes("b") || name.includes("2"))) {
+    return {
+      bg: Colors.workoutUpperB,
+      text: Colors.foreground,
+      border: Colors.workoutUpperBLight,
+    };
   }
-  if (name.includes('lower') && (name.includes('a') || name.includes('1') || !name.includes('b'))) {
-    return { bg: Colors.workoutLowerA, text: Colors.foreground, border: Colors.workoutLowerALight };
+  if (
+    name.includes("lower") &&
+    (name.includes("a") || name.includes("1") || !name.includes("b"))
+  ) {
+    return {
+      bg: Colors.workoutLowerA,
+      text: Colors.foreground,
+      border: Colors.workoutLowerALight,
+    };
   }
-  if (name.includes('lower') && (name.includes('b') || name.includes('2'))) {
-    return { bg: Colors.workoutLowerB, text: Colors.foreground, border: Colors.workoutLowerBLight };
+  if (name.includes("lower") && (name.includes("b") || name.includes("2"))) {
+    return {
+      bg: Colors.workoutLowerB,
+      text: Colors.foreground,
+      border: Colors.workoutLowerBLight,
+    };
   }
-  
+
   // Bonus workouts
-  if (name.includes('bonus')) {
-    return { bg: Colors.workoutBonus, text: Colors.foreground, border: Colors.workoutBonusLight };
+  if (name.includes("bonus")) {
+    return {
+      bg: Colors.workoutBonus,
+      text: Colors.foreground,
+      border: Colors.workoutBonusLight,
+    };
   }
-  
+
   // Default
-  return { bg: Colors.actionPrimary, text: Colors.foreground, border: Colors.actionPrimaryLight };
+  return {
+    bg: Colors.actionPrimary,
+    text: Colors.foreground,
+    border: Colors.actionPrimaryLight,
+  };
 }
 
-function getSplitTypeFromTPath(tPath: TPath | null): 'ppl' | 'ulul' | null {
-  if (!tPath) return null;
-  
+function getSplitTypeFromTPath(tPath: TPath | null): "ppl" | "ulul" | null {
+  if (!tPath) {
+    return null;
+  }
+
   // First, check settings for explicit split type
   const settings = tPath.settings as any;
-  if (settings?.tPathType === 'ppl' || settings?.tPathType === 'ulul') {
+  if (settings?.tPathType === "ppl" || settings?.tPathType === "ulul") {
     return settings.tPathType;
   }
-  
+
   // Fallback to template name detection
-  if (tPath.template_name.toLowerCase().includes('push') || 
-      tPath.template_name.toLowerCase().includes('pull') || 
-      tPath.template_name.toLowerCase().includes('ppl')) {
-    return 'ppl';
+  if (
+    tPath.template_name.toLowerCase().includes("push") ||
+    tPath.template_name.toLowerCase().includes("pull") ||
+    tPath.template_name.toLowerCase().includes("ppl")
+  ) {
+    return "ppl";
   }
-  if (tPath.template_name.toLowerCase().includes('upper') || 
-      tPath.template_name.toLowerCase().includes('lower') || 
-      tPath.template_name.toLowerCase().includes('ulul')) {
-    return 'ulul';
+  if (
+    tPath.template_name.toLowerCase().includes("upper") ||
+    tPath.template_name.toLowerCase().includes("lower") ||
+    tPath.template_name.toLowerCase().includes("ulul")
+  ) {
+    return "ulul";
   }
-  
+
   return null;
 }
 
@@ -77,28 +142,33 @@ export default function WorkoutSessionScreen() {
 
   const [mainTPath, setMainTPath] = useState<TPath | null>(null);
   const [childWorkouts, setChildWorkouts] = useState<TPath[]>([]);
-  const [workoutProgress, setWorkoutProgress] = useState<Record<string, { last_accessed: string | null }>>({});
+  const [workoutProgress, setWorkoutProgress] = useState<
+    Record<string, { last_accessed: string | null }>
+  >({});
   const [loading, setLoading] = useState(true);
-  const [activeGymName, setActiveGymName] = useState<string>('My Gym');
+  const [activeGymName, setActiveGymName] = useState<string>("My Gym");
 
   const loadWorkouts = async () => {
-    if (!userId) return;
+    if (!userId) {
+      return;
+    }
     setLoading(true);
     try {
       const allTPaths = await getTPaths(userId, true);
-      
+
       // Find the main T-Path (either from params or the first main program)
       let selectedMainTPath: TPath | null = null;
       if (tPathId) {
-        selectedMainTPath = allTPaths.find(tp => tp.id === tPathId) || null;
+        selectedMainTPath = allTPaths.find((tp) => tp.id === tPathId) || null;
       } else {
         // Find first main program (PPL or ULUL)
-        selectedMainTPath = allTPaths.find(tp => 
-          tp.is_main_program && (
-            tp.template_name.includes('Push/Pull/Legs') || 
-            tp.template_name.includes('Upper/Lower')
-          )
-        ) || null;
+        selectedMainTPath =
+          allTPaths.find(
+            (tp) =>
+              tp.is_main_program &&
+              (tp.template_name.includes("Push/Pull/Legs") ||
+                tp.template_name.includes("Upper/Lower")),
+          ) || null;
       }
 
       if (!selectedMainTPath) {
@@ -109,7 +179,9 @@ export default function WorkoutSessionScreen() {
       setMainTPath(selectedMainTPath);
 
       // Get child workouts
-      const children = allTPaths.filter(tp => tp.parent_t_path_id === selectedMainTPath.id);
+      const children = allTPaths.filter(
+        (tp) => tp.parent_t_path_id === selectedMainTPath.id,
+      );
       setChildWorkouts(children);
 
       // Load progress for each child workout
@@ -128,8 +200,8 @@ export default function WorkoutSessionScreen() {
         setActiveGymName(settings.gymName);
       }
     } catch (error) {
-      console.error('Error loading workouts:', error);
-      Alert.alert('Error', 'Failed to load workouts');
+      console.error("Error loading workouts:", error);
+      Alert.alert("Error", "Failed to load workouts");
     } finally {
       setLoading(false);
     }
@@ -141,28 +213,38 @@ export default function WorkoutSessionScreen() {
 
   const handleStartWorkout = (workout: TPath) => {
     router.push({
-      pathname: '/workout',
+      pathname: "/workout",
       params: { workoutId: workout.id },
     });
   };
 
   const handleStartAdHoc = () => {
-    router.push('/workout');
+    router.push("/workout");
   };
 
   const getLastTrainedText = (workoutId: string): string => {
     const progress = workoutProgress[workoutId];
-    if (!progress?.last_accessed) return 'Never';
-    
+    if (!progress?.last_accessed) {
+      return "Never";
+    }
+
     const lastDate = new Date(progress.last_accessed);
     const now = new Date();
     const diffMs = now.getTime() - lastDate.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+
+    if (diffDays === 0) {
+      return "Today";
+    }
+    if (diffDays === 1) {
+      return "Yesterday";
+    }
+    if (diffDays < 7) {
+      return `${diffDays} days ago`;
+    }
+    if (diffDays < 30) {
+      return `${Math.floor(diffDays / 7)} weeks ago`;
+    }
     return `${Math.floor(diffDays / 30)} months ago`;
   };
 
@@ -184,12 +266,15 @@ export default function WorkoutSessionScreen() {
         </View>
 
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>You don't have a workout program yet</Text>
-          <Text style={styles.emptySubtext}>Create one using the AI Program Generator</Text>
-          
-          <TouchableOpacity 
+          <Text style={styles.emptyText}>
+            You don't have a workout program yet
+          </Text>
+          <Text style={styles.emptySubtext}>
+            Create one using the AI Program Generator
+          </Text>
+          <TouchableOpacity
             style={styles.generateButton}
-            onPress={() => router.push('/ai-program-generator')}
+            onPress={() => router.push("/ai-program-generator")}
           >
             <Text style={styles.generateButtonText}>✨ Generate Program</Text>
           </TouchableOpacity>
@@ -197,8 +282,10 @@ export default function WorkoutSessionScreen() {
 
         <View style={styles.adHocSection}>
           <Text style={styles.adHocTitle}>⚡ Start Ad-Hoc Workout</Text>
-          <Text style={styles.adHocSubtitle}>Start a workout without a T-Path. Add exercises as you go.</Text>
-          <TouchableOpacity 
+          <Text style={styles.adHocSubtitle}>
+            Start a workout without a T-Path. Add exercises as you go.
+          </Text>
+          <TouchableOpacity
             style={styles.adHocButton}
             onPress={handleStartAdHoc}
           >
@@ -206,7 +293,7 @@ export default function WorkoutSessionScreen() {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
         >
@@ -222,7 +309,9 @@ export default function WorkoutSessionScreen() {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Workout Session</Text>
-        <Text style={styles.subtitle}>Select a workout or start an ad-hoc session.</Text>
+        <Text style={styles.subtitle}>
+          Select a workout or start an ad-hoc session.
+        </Text>
       </View>
 
       {/* Active Gym */}
@@ -244,33 +333,50 @@ export default function WorkoutSessionScreen() {
       <View style={styles.workoutsContainer}>
         {childWorkouts.length === 0 ? (
           <View style={styles.noWorkoutsState}>
-            <Text style={styles.noWorkoutsText}>No workouts in this program</Text>
+            <Text style={styles.noWorkoutsText}>
+              No workouts in this program
+            </Text>
           </View>
         ) : (
           childWorkouts.map((workout) => {
             const colors = getWorkoutColors(workout.template_name, splitType);
             const lastTrained = getLastTrainedText(workout.id);
-            
+
             return (
               <TouchableOpacity
                 key={workout.id}
-                style={[styles.workoutButton, { backgroundColor: colors.bg, borderColor: colors.border }]}
+                style={[
+                  styles.workoutButton,
+                  { backgroundColor: colors.bg, borderColor: colors.border },
+                ]}
                 onPress={() => handleStartWorkout(workout)}
               >
                 <View style={styles.workoutButtonContent}>
                   <View style={styles.workoutButtonLeft}>
-                    <Text style={[styles.workoutButtonIcon, { color: colors.text }]}>
-                      {workout.template_name.includes('Push') && '↗️'}
-                      {workout.template_name.includes('Pull') && '↙️'}
-                      {workout.template_name.includes('Legs') && '🦵'}
-                      {workout.template_name.includes('Upper') && '💪'}
-                      {workout.template_name.includes('Lower') && '🏃'}
+                    <Text
+                      style={[styles.workoutButtonIcon, { color: colors.text }]}
+                    >
+                      {workout.template_name.includes("Push") && "↗️"}
+                      {workout.template_name.includes("Pull") && "↙️"}
+                      {workout.template_name.includes("Legs") && "🦵"}
+                      {workout.template_name.includes("Upper") && "💪"}
+                      {workout.template_name.includes("Lower") && "🏃"}
                     </Text>
                     <View>
-                      <Text style={[styles.workoutButtonTitle, { color: colors.text }]}>
+                      <Text
+                        style={[
+                          styles.workoutButtonTitle,
+                          { color: colors.text },
+                        ]}
+                      >
                         {workout.template_name}
                       </Text>
-                      <Text style={[styles.workoutButtonStatus, { color: colors.text, opacity: 0.8 }]}>
+                      <Text
+                        style={[
+                          styles.workoutButtonStatus,
+                          { color: colors.text, opacity: 0.8 },
+                        ]}
+                      >
                         {lastTrained}
                       </Text>
                     </View>
@@ -285,29 +391,27 @@ export default function WorkoutSessionScreen() {
       {/* Ad-Hoc Workout Section */}
       <View style={styles.adHocSection}>
         <Text style={styles.adHocTitle}>⚡ Start Ad-Hoc Workout</Text>
-        <Text style={styles.adHocSubtitle}>Start a workout without a T-Path. Add exercises as you go.</Text>
-        
+        <Text style={styles.adHocSubtitle}>
+          Start a workout without a T-Path. Add exercises as you go.
+        </Text>
         <View style={styles.adHocButtons}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.adHocButton}
             onPress={handleStartAdHoc}
           >
             <Text style={styles.adHocButtonText}>Start Empty</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.generateButton}
-            onPress={() => router.push('/ai-program-generator')}
+            onPress={() => router.push("/ai-program-generator")}
           >
             <Text style={styles.generateButtonText}>✨ Generate</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      <TouchableOpacity 
-        style={styles.backButton}
-        onPress={() => router.back()}
-      >
+      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
         <Text style={styles.backButtonText}>← Back</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -317,56 +421,56 @@ export default function WorkoutSessionScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: "#F9FAFB",
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#F9FAFB",
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#6B7280',
+    color: "#6B7280",
   },
   header: {
     paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: "#E5E7EB",
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontWeight: "bold",
+    color: "#111827",
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: "#6B7280",
   },
   gymSelector: {
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    borderBottomColor: "#E5E7EB",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   gymLabel: {
     fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '600',
+    color: "#6B7280",
+    fontWeight: "600",
   },
   gymBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F3F4F6",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -377,17 +481,17 @@ const styles = StyleSheet.create({
   },
   gymBadgeText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
+    fontWeight: "600",
+    color: "#111827",
   },
   programHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: "#E5E7EB",
   },
   programIcon: {
     fontSize: 24,
@@ -395,8 +499,8 @@ const styles = StyleSheet.create({
   },
   programName: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontWeight: "bold",
+    color: "#111827",
   },
   workoutsContainer: {
     padding: 20,
@@ -408,13 +512,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   workoutButtonContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   workoutButtonLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
   workoutButtonIcon: {
@@ -423,7 +527,7 @@ const styles = StyleSheet.create({
   },
   workoutButtonTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   workoutButtonStatus: {
     fontSize: 14,
@@ -431,91 +535,91 @@ const styles = StyleSheet.create({
   },
   adHocSection: {
     padding: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     margin: 20,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#E5E7EB',
-    borderStyle: 'dashed',
+    borderColor: "#E5E7EB",
+    borderStyle: "dashed",
   },
   adHocTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontWeight: "bold",
+    color: "#111827",
     marginBottom: 8,
   },
   adHocSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: "#6B7280",
     marginBottom: 16,
   },
   adHocButtons: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
   },
   adHocButton: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
     padding: 12,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   adHocButtonText: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontWeight: "bold",
+    color: "#111827",
   },
   generateButton: {
     flex: 1,
-    backgroundColor: '#111827',
+    backgroundColor: "#111827",
     padding: 12,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   generateButtonText: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontWeight: "bold",
+    color: "#FFFFFF",
   },
   emptyState: {
     padding: 40,
-    alignItems: 'center',
+    alignItems: "center",
   },
   emptyText: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#6B7280',
+    fontWeight: "600",
+    color: "#6B7280",
     marginBottom: 8,
-    textAlign: 'center',
+    textAlign: "center",
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#9CA3AF',
-    textAlign: 'center',
+    color: "#9CA3AF",
+    textAlign: "center",
     marginBottom: 24,
   },
   noWorkoutsState: {
     padding: 32,
-    alignItems: 'center',
+    alignItems: "center",
   },
   noWorkoutsText: {
     fontSize: 16,
-    color: '#9CA3AF',
+    color: "#9CA3AF",
   },
   backButton: {
     margin: 20,
     padding: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    alignItems: 'center',
+    borderColor: "#E5E7EB",
+    alignItems: "center",
   },
   backButtonText: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#6366F1',
+    fontWeight: "bold",
+    color: "#6366F1",
   },
 });

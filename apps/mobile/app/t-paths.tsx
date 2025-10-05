@@ -1,9 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
-import { useAuth } from './contexts/auth-context';
-import { useData } from './contexts/data-context';
-import { useRouter } from 'expo-router';
-import type { TPath } from '@data/storage/models';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+} from "react-native";
+import { useAuth } from "./_contexts/auth-context";
+import { useData } from "./_contexts/data-context";
+import { useRouter } from "expo-router";
+import type { TPath } from "@data/storage/models";
 
 export default function TPathsScreen() {
   const { userId } = useAuth();
@@ -13,13 +20,15 @@ export default function TPathsScreen() {
   const [loading, setLoading] = useState(true);
 
   const loadTPaths = async () => {
-    if (!userId) return;
+    if (!userId) {
+      return;
+    }
     setLoading(true);
     try {
       const data = await getTPaths(userId, true);
       setTPaths(data);
     } catch (error) {
-      Alert.alert('Error', 'Failed to load workout programs');
+      Alert.alert("Error", "Failed to load workout programs");
     } finally {
       setLoading(false);
     }
@@ -31,30 +40,30 @@ export default function TPathsScreen() {
 
   const handleDelete = (tPath: TPath) => {
     Alert.alert(
-      'Delete Program',
+      "Delete Program",
       `Are you sure you want to delete "${tPath.template_name}"?`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: "Cancel", style: "cancel" },
         {
-          text: 'Delete',
-          style: 'destructive',
+          text: "Delete",
+          style: "destructive",
           onPress: async () => {
             try {
               await deleteTPath(tPath.id);
               await loadTPaths();
-              Alert.alert('Success', 'Program deleted');
+              Alert.alert("Success", "Program deleted");
             } catch (error) {
-              Alert.alert('Error', 'Failed to delete program');
+              Alert.alert("Error", "Failed to delete program");
             }
           },
         },
-      ]
+      ],
     );
   };
 
   const handleViewDetails = (tPath: TPath) => {
     router.push({
-      pathname: '/t-path-detail',
+      pathname: "/t-path-detail",
       params: { tPathId: tPath.id },
     });
   };
@@ -64,7 +73,7 @@ export default function TPathsScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Workout Programs</Text>
         <Text style={styles.subtitle}>
-          {tPaths.length} program{tPaths.length !== 1 ? 's' : ''}
+          {tPaths.length} program{tPaths.length !== 1 ? "s" : ""}
         </Text>
       </View>
 
@@ -97,10 +106,12 @@ export default function TPathsScreen() {
                   )}
                 </View>
                 {tPath.description && (
-                  <Text style={styles.tPathDescription}>{tPath.description}</Text>
+                  <Text style={styles.tPathDescription}>
+                    {tPath.description}
+                  </Text>
                 )}
                 <Text style={styles.tPathMeta}>
-                  {tPath.is_main_program ? 'Main Program' : 'Workout'}
+                  {tPath.is_main_program ? "Main Program" : "Workout"}
                 </Text>
               </View>
             </View>
@@ -123,10 +134,7 @@ export default function TPathsScreen() {
         ))
       )}
 
-      <TouchableOpacity 
-        style={styles.backButton}
-        onPress={() => router.back()}
-      >
+      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
         <Text style={styles.backButtonText}>← Back</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -136,45 +144,45 @@ export default function TPathsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: "#0a0a0a",
     paddingTop: 60,
   },
   header: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
+    borderBottomColor: "#1a1a1a",
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: "bold",
+    color: "#fff",
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#888',
+    color: "#888",
   },
   emptyState: {
     padding: 40,
-    alignItems: 'center',
+    alignItems: "center",
   },
   emptyText: {
     fontSize: 18,
-    color: '#888',
+    color: "#888",
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
+    color: "#666",
+    textAlign: "center",
   },
   tPathCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: "#1a1a1a",
     margin: 16,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#2a2a2a',
+    borderColor: "#2a2a2a",
   },
   tPathHeader: {
     marginBottom: 16,
@@ -183,73 +191,73 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
   },
   tPathName: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: "bold",
+    color: "#fff",
     flex: 1,
   },
   aiTag: {
-    backgroundColor: '#0a0',
+    backgroundColor: "#0a0",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
     marginLeft: 8,
   },
   aiTagText: {
-    color: '#000',
+    color: "#000",
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   tPathDescription: {
     fontSize: 14,
-    color: '#aaa',
+    color: "#aaa",
     marginBottom: 8,
   },
   tPathMeta: {
     fontSize: 12,
-    color: '#666',
+    color: "#666",
   },
   tPathActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
   },
   viewButton: {
     flex: 1,
-    backgroundColor: '#0a0',
+    backgroundColor: "#0a0",
     padding: 12,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   viewButtonText: {
-    color: '#000',
+    color: "#000",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   deleteButton: {
-    backgroundColor: '#2a2a2a',
+    backgroundColor: "#2a2a2a",
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 8,
   },
   deleteButtonText: {
-    color: '#f44',
+    color: "#f44",
     fontSize: 16,
   },
   backButton: {
     margin: 16,
     padding: 16,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: "#1a1a1a",
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   backButtonText: {
-    color: '#0a0',
+    color: "#0a0",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 });

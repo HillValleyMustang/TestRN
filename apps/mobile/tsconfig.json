@@ -4,7 +4,15 @@
     "jsx": "react-native",
     "lib": ["DOM", "ESNext"],
     "customConditions": ["react-native"],
-    "allowJs": true
+    "allowJs": true,
+    "paths": {
+      "@app/*": ["./app/*"],
+      "@mobile/*": ["./app/*"],
+      "@data/*": ["../../packages/data/src/*"],
+      "@features/*": ["../../packages/features/src/*"],
+      "@ui/*": ["../../packages/ui/src/*"],
+      "@shared/*": ["../../packages/*"]
+    }
   },
   "exclude": ["node_modules", "babel.config.js", "metro.config.js", "android", "ios"]
 }
