@@ -1,0 +1,231 @@
+# 🧭 Continuity Guide — WorkoutAppReactN
+
+**Project:** Cross-platform fitness tracking app (web + mobile)  
+**Environment:** United Kingdom (UK English)  
+**Author:** Craig Duffill  
+**Intended Reader:** AI Developer (or human developer) continuing active development  
+**Last Updated:** October 2025  
+
+---
+
+## 1. 🎯 Purpose & Vision
+
+WorkoutAppReactN is a **Next.js + React Native (Expo)** monorepo that delivers a unified fitness tracking experience across web and mobile.  
+
+- The **web app** serves as the original client (Next.js).  
+- The **mobile app** (Expo) provides feature parity, built atop shared logic and data layers.  
+- Both connect to **Supabase** for authentication, data persistence, and synchronisation.  
+
+**Primary Goal:**  
+Enable users to log workouts, sync progress across devices, and receive **AI-assisted coaching and planning** — including feedback, exercise suggestions, and adaptive workout plans.
+
+---
+
+## 2. 🧱 Monorepo Architecture
+
+### Folder Layout
+```
+/
+├─ apps/
+│  ├─ web/           → Next.js (existing web client)
+│  └─ mobile/        → Expo Router (React Native mobile client)
+│
+├─ packages/
+│  ├─ ui/            → Cross-platform visual components (NativeWind + React Native Paper)
+│  ├─ features/      → Shared domain logic (hooks, view models, contexts)
+│  └─ data/          → Supabase client, offline sync logic, adapters
+│
+└─ docs/             → Project and migration documentation
+```
+
+### Core Dependencies
+| Layer | Key Libraries |
+|-------|----------------|
+| Web | Next.js, Tailwind, Radix UI |
+| Mobile | Expo SDK 51+, React Native 0.76, Expo Router, NativeWind |
+| Shared | TypeScript, Supabase JS v2, AsyncStorage / Dexie adapters |
+| Dev | ESLint, Prettier, Jest (planned), Expo EAS, Vercel CI/CD |
+
+---
+
+## 3. 🔗 Supabase Integration
+
+Supabase provides authentication, data storage, and sync between platforms.
+
+- **Current schema works. Do not alter it.**  
+  The AI developer must treat all tables as **read/write only through existing hooks**.
+- **Session Handling:**  
+  - Web uses `localStorage` via Dexie  
+  - Mobile uses `AsyncStorage` via `asyncStorageSessionStore`
+- **Shared client:**  
+  Located in `packages/data` — wraps `@supabase/supabase-js` with platform-specific storage adapters.
+
+**Guidelines for AI Developers:**
+- Use Supabase through exported hooks and utilities only.  
+- Do not run migrations, alter tables, or generate SQL directly.  
+- Ensure new Supabase calls are platform-agnostic and follow existing async patterns.
+
+---
+
+## 4. ⚙️ Development Setup
+
+### Prerequisites
+- Node.js ≥ 18
+- NPM or PNPM workspaces enabled
+- Expo CLI installed globally
+
+### Commands
+| Action | Command |
+|--------|----------|
+| Run web client | `npm run web:dev` |
+| Run mobile client | `npm run mobile:start` |
+| Lint (web) | `npm run web:lint` |
+| Lint (mobile) | `npm run lint:mobile` |
+| Format code | `npm run format:write` |
+
+### Environment Variables
+Define these in `.env.local` for both web and mobile:
+```
+SUPABASE_URL=https://<your-supabase-project>.supabase.co
+SUPABASE_ANON_KEY=<your-public-anon-key>
+```
+
+Ensure Supabase API keys match the existing project.  
+**Do not regenerate keys** unless authorised by Craig Duffill.
+
+---
+
+## 5. 🧩 Current Progress Overview
+
+Migration follows the `docs/react-native-migration.md` plan.
+
+| Phase | Description | Status |
+|-------|--------------|--------|
+| 1️⃣ Preparation | Monorepo + shared tooling | ✅ Complete |
+| 2️⃣ Platform Foundations | Expo setup, Supabase client, AsyncStorage adapter | ✅ Complete |
+| 3️⃣ Shared Domain Logic | Hooks + data logic shared | ✅ Complete |
+| 4️⃣ UI/UX Parity | Rebuild mobile UI with shared logic (in progress) | 🟨 Active |
+| 5️⃣ Offline Sync & Background Tasks | Background sync + offline queue | ⏳ Next |
+| 6️⃣ QA & Deployment | Device testing + EAS builds | ⏳ Pending |
+
+---
+
+## 6. 📲 Current Features Implemented
+
+- Mobile set logging (functional)
+- Supabase auth + session persistence
+- Shared Supabase hooks (`useSession`, `useWorkoutHistory`, etc.)
+- Sync banner (mobile)
+- AI exercise generation endpoint (via Supabase Functions)
+- Shared domain hooks for personal records, activity aggregation, and workout plans
+
+---
+
+## 7. 🚧 Outstanding Issues
+
+| Area | Description | Action |
+|------|--------------|--------|
+| Web Lint Coverage | Next/SWC conflict prevents `npm run lint:all` from passing on web | Resolve ESLint + SWC config compatibility |
+| UI Parity | Mobile missing workout summary + in-session substitution screens | Implement per migration plan |
+| Offline Sync | Dexie-to-SQLite schema migration scripts pending | Build with Expo SQLite or Drizzle |
+| Testing | Jest + Detox/E2E not yet configured | Add before QA phase |
+
+---
+
+## 8. 🔮 Next Steps for Development
+
+### Short-Term (Weeks 1–2)
+1. Finalise **Workout Summary** screen parity using `victory-native` charts.  
+2. Implement **in-session substitution** (use `exercise-swap-dialog.tsx` and shared hooks).  
+3. Ensure consistent styling across mobile using **NativeWind** theme tokens.  
+4. Fix `next lint / SWC` issue to restore full CI coverage.
+
+### Medium-Term (Weeks 3–5)
+1. Implement **Offline Sync Manager** using `expo-task-manager` for background refresh.  
+2. Validate **conflict resolution** between web Dexie and mobile AsyncStorage queues.  
+3. Introduce **AI feedback loops**:
+   - Post-set feedback messages (read from Supabase)
+   - Generate adaptive workout plan suggestions
+   - Ensure Supabase writes use safe stored functions
+
+### Long-Term (Weeks 6–8)
+1. Complete **QA & Deployment Phase**:
+   - Snapshot & device testing
+   - OTA updates via EAS
+   - Deep link configuration for Supabase Auth redirect
+2. Prepare final parity release and internal test build.
+
+---
+
+## 9. 🤖 AI Integration Guidelines
+
+**Objective:**  
+Integrate AI functionality from the start to provide coaching feedback, progress insights, and adaptive workout planning.
+
+### Rules
+- AI operates purely through existing data interfaces.  
+  It must not modify Supabase schema or structure.
+- All AI-generated recommendations should be **non-destructive**: stored as new entries or cached data.
+- AI outputs should remain **explainable** and editable by the user.
+
+### Suggested Entry Points
+- `packages/features/ai/` (to be created) — for shared AI hooks  
+- Supabase Functions — e.g., `generate-exercise-suggestion`  
+- Mobile UI — `Workout Summary`, `Exercise Substitution`, `AI Suggestion` buttons  
+
+### AI Developer Behaviour
+When resuming development, follow these conventions:
+1. Use **TypeScript-first** patterns — strong typing, no `any`.  
+2. Maintain **Supabase function-based calls** for all writes.  
+3. Respect **monorepo boundaries** (no importing from `apps/web` into shared packages).  
+4. When generating UI components, use **NativeWind** and **react-native-paper**.  
+5. Format all code with Prettier and ensure ESLint passes.  
+6. Document new hooks or functions inline with JSDoc comments.
+
+---
+
+## 10. 🧠 Coding & Style Conventions
+
+| Area | Convention |
+|------|-------------|
+| Styling | Tailwind via NativeWind (`className` style) |
+| Components | Functional components only (`React.FC`) |
+| State | React hooks (`useState`, `useReducer`, `useContext`) |
+| Forms | `react-hook-form` + `zod` |
+| Icons | `lucide-react` |
+| Toasts | `react-native-toast-message` (mobile) / `sonner` (web) |
+| Linting | ESLint + Prettier; fix before commit |
+| Commits | Conventional commits (`feat:`, `fix:`, `chore:` etc.) |
+
+---
+
+## 11. 🧩 Guidance for Future AI Developers
+
+When continuing this project:
+
+1. **Read `docs/react-native-migration.md` first** — it defines the architectural strategy.  
+2. **Review this guide fully** — it sets your constraints and safe operating bounds.  
+3. **When proposing code changes**, explain the reasoning and intended effect in a single paragraph before generating the code.  
+4. **Never modify Supabase schema** — only consume and write via existing functions or hooks.  
+5. **Work iteratively** — make atomic, reviewable changes per task (UI parity → offline sync → QA).  
+6. **Test on device** (Expo Go / EAS preview) before merging any mobile feature.  
+7. **Always maintain TypeScript safety** and avoid implicit `any` or untyped Supabase calls.  
+
+When uncertain, query or regenerate this guide for context — it is the authoritative project baseline.
+
+---
+
+## 12. ✅ Definition of Done (End of Migration)
+
+- Shared domain logic fully extracted to `/packages`
+- Web and mobile feature parity reached
+- Offline sync operational across both clients
+- Lint + test pipelines green
+- AI feedback functional and integrated into workout flow
+- CI/CD builds both apps (web on Vercel, mobile via EAS)
+- Documentation (this file) updated with final state
+
+---
+
+**End of Continuity Guide**  
+*This document defines the authoritative baseline for any AI or human developer continuing this project.*
