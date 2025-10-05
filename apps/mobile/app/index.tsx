@@ -54,6 +54,13 @@ export default function Index() {
 
       <View style={styles.buttonContainer}>
         <TouchableOpacity 
+          style={[styles.primaryButton, { backgroundColor: '#14B8A6' }]} 
+          onPress={() => router.push('/onboarding')}
+        >
+          <Text style={styles.primaryButtonText}>🚀 Start Onboarding</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
           style={styles.primaryButton} 
           onPress={() => router.push('/workout-session')}
         >
