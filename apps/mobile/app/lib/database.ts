@@ -57,6 +57,13 @@ class Database {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS user_preferences (
+        user_id TEXT PRIMARY KEY NOT NULL,
+        unit_system TEXT DEFAULT 'metric',
+        theme TEXT DEFAULT 'dark',
+        updated_at TEXT NOT NULL
+      );
       
       CREATE INDEX IF NOT EXISTS idx_session_date ON workout_sessions(session_date);
       CREATE INDEX IF NOT EXISTS idx_set_logs_session ON set_logs(session_id);
@@ -332,6 +339,47 @@ class Database {
     );
 
     return result;
+  }
+
+  async getUserPreferences(userId: string): Promise<{ unit_system: string; theme: string } | null> {
+    const db = this.getDB();
+    const result = await db.getFirstAsync<{ unit_system: string; theme: string }>(
+      'SELECT unit_system, theme FROM user_preferences WHERE user_id = ?',
+      [userId]
+    );
+    return result || null;
+  }
+
+  async saveUserPreferences(userId: string, preferences: { unit_system?: string; theme?: string }): Promise<void> {
+    const db = this.getDB();
+    const now = new Date().toISOString();
+    
+    const existing = await this.getUserPreferences(userId);
+    
+    if (existing) {
+      await db.runAsync(
+        `UPDATE user_preferences 
+         SET unit_system = ?, theme = ?, updated_at = ?
+         WHERE user_id = ?`,
+        [
+          preferences.unit_system || existing.unit_system,
+          preferences.theme || existing.theme,
+          now,
+          userId
+        ]
+      );
+    } else {
+      await db.runAsync(
+        `INSERT INTO user_preferences (user_id, unit_system, theme, updated_at)
+         VALUES (?, ?, ?, ?)`,
+        [
+          userId,
+          preferences.unit_system || 'metric',
+          preferences.theme || 'dark',
+          now
+        ]
+      );
+    }
   }
 
   syncQueue: SyncQueueStore = {

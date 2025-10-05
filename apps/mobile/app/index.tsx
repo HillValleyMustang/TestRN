@@ -87,11 +87,14 @@ export default function Index() {
         >
           <Text style={styles.primaryButtonText}>💪 Exercises</Text>
         </TouchableOpacity>
-      </View>
 
-      <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-        <Text style={styles.signOutText}>Sign Out</Text>
-      </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.primaryButton} 
+          onPress={() => router.push('/settings')}
+        >
+          <Text style={styles.primaryButtonText}>⚙️ Settings</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
