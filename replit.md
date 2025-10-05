@@ -1,12 +1,27 @@
 # My Fitness Trainer - Replit Setup
 
 ## Overview
-This is a Next.js fitness tracking application with Supabase as the backend. The application includes features for workout planning, exercise tracking, AI coaching, progress monitoring, and gamification.
+This is a cross-platform fitness tracking application with both web (Next.js) and mobile (React Native/Expo) apps sharing code through a monorepo structure. The application uses Supabase as the backend and includes features for workout planning, exercise tracking, AI coaching, progress monitoring, and gamification.
 
-## Project Structure
-- **Web App**: Next.js 15.5.4 application in the root directory (`src/`)
-- **Mobile App**: React Native/Expo app in `apps/mobile/` (not active in Replit)
-- **Supabase Functions**: Edge functions in `supabase/functions/`
+## Project Structure (Monorepo)
+```
+/
+├── apps/
+│   ├── web/              ← Next.js 15.5.4 web app
+│   │   ├── src/          ← Web app source code
+│   │   ├── public/       ← Static assets
+│   │   └── package.json
+│   └── mobile/           ← React Native/Expo mobile app
+│       ├── app/          ← Expo Router app directory
+│       ├── metro.config.js ← Metro bundler config with package aliases
+│       └── package.json
+├── packages/
+│   ├── data/             ← Shared data utilities (unit conversions, achievements, helpers)
+│   ├── features/         ← Shared business logic hooks (future)
+│   └── ui/               ← Shared UI components (future)
+├── supabase/functions/   ← Edge functions
+└── tsconfig.base.json    ← Shared TypeScript configuration
+```
 
 ## Tech Stack
 - **Framework**: Next.js 15.5.4 (App Router)
@@ -24,19 +39,32 @@ This is a Next.js fitness tracking application with Supabase as the backend. The
 
 ## Development Setup
 
-### Running the Application
-The app runs on port 5000 and is configured to work with Replit's proxy:
+### Running the Applications
+
+**Web App** (port 5000):
 ```bash
 npm run dev
 ```
 
+**Mobile App** (Expo tunnel on port 8000):
+```bash
+npm run mobile
+```
+
 ### Key Configuration
-- **Next.js Config** (`next.config.ts`): Configured with server actions allowed origins for Replit compatibility
-- **PostCSS Config** (`postcss.config.mjs`): Uses Tailwind CSS v3 and autoprefixer
-- **Tailwind Config** (`tailwind.config.ts`): Custom color scheme and animations
+- **Next.js Config** (`apps/web/next.config.ts`): Configured with server actions allowed origins and transpilePackages for monorepo
+- **Metro Config** (`apps/mobile/metro.config.js`): Configured with module aliases for shared packages (@data, @features, @ui)
+- **TypeScript**: Shared base config with path aliases for all packages
+- **PostCSS Config** (`apps/web/postcss.config.mjs`): Uses Tailwind CSS v3 and autoprefixer
+- **Tailwind Config** (`apps/web/tailwind.config.ts`): Custom color scheme and animations
+
+### Shared Packages
+- **@data**: Unit conversions, achievements constants, workout helpers
+- **@features**: Business logic hooks (future)
+- **@ui**: Cross-platform components (future)
 
 ### Environment Variables
-The application uses Supabase for backend services. The Supabase URL and public key are in `src/integrations/supabase/client.ts`.
+The application uses Supabase for backend services. The Supabase URL and public key are in `apps/web/src/integrations/supabase/client.ts`.
 
 ## Deployment
 The project is configured for deployment with:
@@ -52,13 +80,29 @@ The project is configured for deployment with:
 - ✅ Deployment configuration set
 
 ## Recent Changes (October 5, 2025)
-- Installed Next.js and all required dependencies
-- Configured Next.js to run on port 5000 with 0.0.0.0 host
-- Fixed Tailwind CSS configuration (downgraded from v4 to v3.4 for compatibility)
-- Added Supabase auth UI components
-- Configured deployment settings for Autoscale
-- Added Radix UI components for the UI library
+**Phase 1 - Monorepo Restructuring:**
+- ✅ Moved web app from root `src/` to `apps/web/src/`
+- ✅ Created shared `tsconfig.base.json` with path aliases
+- ✅ Scaffolded `packages/data`, `packages/features`, and `packages/ui`
+- ✅ Updated root scripts to delegate to app-specific commands
+- ✅ Both apps inherit shared TypeScript configuration
+
+**Phase 3 - Shared Logic Extraction:**
+- ✅ Created shared data utilities in `packages/data`:
+  - Unit conversions (kg⇄lbs, km⇄miles, time formatting)
+  - Achievement constants and display info
+  - Workout helpers (session length, time ago formatting)
+- ✅ Configured Metro bundler for mobile app to use shared packages
+- ✅ Mobile app successfully imports and uses shared utilities
+- ⏳ Web app uses local copies (Next.js module resolution needs build pipeline)
+
+**Mobile App Setup:**
+- ✅ Fixed react-native-worklets-core dependency
+- ✅ Expo Metro bundler running with tunnel on port 8000
+- ✅ QR code available for testing with Expo Go
+- ✅ Successfully importing from shared packages (@data/*)
 
 ## Known Issues
-- Minor LSP warning about next-pwa types (doesn't affect functionality)
-- Metadata viewport warning (Next.js recommendation to use viewport export)
+- Minor LSP warnings about module resolution (doesn't affect runtime)
+- Web app needs build tooling (Turborepo/Nx) to use shared packages
+- Metadata viewport warning in Next.js (cosmetic)
