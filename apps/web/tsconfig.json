@@ -7,13 +7,7 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"],
-      "@app/*": ["./src/*"],
-      "@mobile/*": ["../mobile/*"],
-      "@data/*": ["../../packages/data/*"],
-      "@features/*": ["../../packages/features/*"],
-      "@ui/*": ["../../packages/ui/*"],
-      "@shared/*": ["../../packages/*"]
+      "@/*": ["./src/*"]
     },
     "allowImportingTsExtensions": true
   },

@@ -1,13 +1,10 @@
 {
-  "extends": "expo/tsconfig.base",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "paths": {
-      "@mobile/*": ["./*"],
-      "@app/*": ["../web/src/*"],
-      "@data/*": ["../../packages/data/*"],
-      "@features/*": ["../../packages/features/*"],
-      "@ui/*": ["../../packages/ui/*"],
-      "@shared/*": ["../../packages/*"]
-    }
-  }
+    "jsx": "react-native",
+    "lib": ["DOM", "ESNext"],
+    "customConditions": ["react-native"],
+    "allowJs": true
+  },
+  "exclude": ["node_modules", "babel.config.js", "metro.config.js", "android", "ios"]
 }
