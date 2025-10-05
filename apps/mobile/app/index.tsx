@@ -118,6 +118,20 @@ export default function Index() {
 
         <TouchableOpacity 
           style={styles.primaryButton} 
+          onPress={() => router.push('/gyms')}
+        >
+          <Text style={styles.primaryButtonText}>🏋️ Gyms</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.primaryButton} 
+          onPress={() => router.push('/ai-program-generator')}
+        >
+          <Text style={styles.primaryButtonText}>✨ AI Program Generator</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.primaryButton} 
           onPress={() => router.push('/settings')}
         >
           <Text style={styles.primaryButtonText}>⚙️ Settings</Text>
