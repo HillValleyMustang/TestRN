@@ -10,7 +10,11 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 39549
+localPort = 8000
+externalPort = 8000
+
+[[ports]]
+localPort = 36369
 externalPort = 3000
 
 [workflows]
@@ -25,6 +29,10 @@ author = "agent"
 task = "workflow.run"
 args = "Web App"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Mobile App"
+
 [[workflows.workflow]]
 name = "Web App"
 author = "agent"
@@ -36,6 +44,18 @@ waitForPort = 5000
 
 [workflows.workflow.metadata]
 outputType = "webview"
+
+[[workflows.workflow]]
+name = "Mobile App"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd apps/mobile && npx expo start --port 8000"
+waitForPort = 8000
 
 [deployment]
 deploymentTarget = "autoscale"
