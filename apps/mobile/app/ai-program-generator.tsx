@@ -17,6 +17,7 @@ export default function AIProgramGeneratorScreen() {
   
   const [goal, setGoal] = useState<WorkoutGenerationParams['goal']>('general_fitness');
   const [experienceLevel, setExperienceLevel] = useState<WorkoutGenerationParams['experienceLevel']>('intermediate');
+  const [splitType, setSplitType] = useState<'ppl' | 'ulul'>('ppl');
   const [daysPerWeek, setDaysPerWeek] = useState(3);
   const [sessionDuration, setSessionDuration] = useState(60);
   const [focusAreas, setFocusAreas] = useState('');
@@ -56,7 +57,7 @@ export default function AIProgramGeneratorScreen() {
         goal,
         experienceLevel,
         equipment: activeGym.equipment,
-        daysPerWeek,
+        daysPerWeek: splitType === 'ppl' ? 3 : 4,
         sessionDuration,
         focusAreas: focusAreas.trim() ? focusAreas.split(',').map(a => a.trim()) : undefined,
         restrictions: restrictions.trim() ? restrictions.split(',').map(r => r.trim()) : undefined,
@@ -69,11 +70,13 @@ export default function AIProgramGeneratorScreen() {
       const tPath = {
         id: tPathId,
         user_id: userId,
-        template_name: program.name,
+        template_name: splitType === 'ppl' ? '3-Day Push/Pull/Legs' : '4-Day Upper/Lower',
         description: program.description,
         is_main_program: true,
         is_ai_generated: true,
         ai_generation_params: JSON.stringify(params),
+        settings: { tPathType: splitType, ...params },
+        gym_id: activeGym.id,
         created_at: now,
         updated_at: now,
         order_index: 0,
@@ -183,6 +186,68 @@ export default function AIProgramGeneratorScreen() {
       </View>
 
       <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Workout Split</Text>
+        <Text style={styles.inputHint}>Choose your training structure</Text>
+        <View style={styles.splitContainer}>
+          <TouchableOpacity
+            style={[styles.splitCard, splitType === 'ppl' && styles.splitCardActive]}
+            onPress={() => setSplitType('ppl')}
+          >
+            <View style={styles.splitHeader}>
+              <Text style={[styles.splitTitle, splitType === 'ppl' && styles.splitTitleActive]}>
+                3-Day Push/Pull/Legs
+              </Text>
+              <Text style={[styles.splitSubtitle, splitType === 'ppl' && styles.splitSubtitleActive]}>
+                PPL
+              </Text>
+            </View>
+            <Text style={[styles.splitFrequency, splitType === 'ppl' && styles.splitFrequencyActive]}>
+              3 days per week
+            </Text>
+            <View style={styles.splitProsContainer}>
+              <Text style={[styles.splitProText, splitType === 'ppl' && styles.splitProTextActive]}>
+                ✓ Time efficient
+              </Text>
+              <Text style={[styles.splitProText, splitType === 'ppl' && styles.splitProTextActive]}>
+                ✓ Better recovery
+              </Text>
+              <Text style={[styles.splitProText, splitType === 'ppl' && styles.splitProTextActive]}>
+                ✓ Logical grouping
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.splitCard, splitType === 'ulul' && styles.splitCardActive]}
+            onPress={() => setSplitType('ulul')}
+          >
+            <View style={styles.splitHeader}>
+              <Text style={[styles.splitTitle, splitType === 'ulul' && styles.splitTitleActive]}>
+                4-Day Upper/Lower
+              </Text>
+              <Text style={[styles.splitSubtitle, splitType === 'ulul' && styles.splitSubtitleActive]}>
+                ULUL
+              </Text>
+            </View>
+            <Text style={[styles.splitFrequency, splitType === 'ulul' && styles.splitFrequencyActive]}>
+              4 days per week
+            </Text>
+            <View style={styles.splitProsContainer}>
+              <Text style={[styles.splitProText, splitType === 'ulul' && styles.splitProTextActive]}>
+                ✓ Higher frequency
+              </Text>
+              <Text style={[styles.splitProText, splitType === 'ulul' && styles.splitProTextActive]}>
+                ✓ Muscle growth
+              </Text>
+              <Text style={[styles.splitProText, splitType === 'ulul' && styles.splitProTextActive]}>
+                ✓ Flexible scheduling
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Experience Level</Text>
         <View style={styles.optionsRow}>
           {levels.map((l) => (
@@ -199,22 +264,6 @@ export default function AIProgramGeneratorScreen() {
         </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Days Per Week</Text>
-        <View style={styles.daysSelector}>
-          {[2, 3, 4, 5, 6].map((days) => (
-            <TouchableOpacity
-              key={days}
-              style={[styles.dayButton, daysPerWeek === days && styles.dayButtonActive]}
-              onPress={() => setDaysPerWeek(days)}
-            >
-              <Text style={[styles.dayButtonText, daysPerWeek === days && styles.dayButtonTextActive]}>
-                {days}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Session Duration (minutes)</Text>
@@ -460,5 +509,57 @@ const styles = StyleSheet.create({
   },
   buttonSpinner: {
     marginRight: 8,
+  },
+  splitContainer: {
+    gap: 12,
+  },
+  splitCard: {
+    backgroundColor: '#111',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#333',
+  },
+  splitCardActive: {
+    backgroundColor: '#1a1a1a',
+    borderColor: '#10b981',
+  },
+  splitHeader: {
+    marginBottom: 8,
+  },
+  splitTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  splitTitleActive: {
+    color: '#10b981',
+  },
+  splitSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '600',
+  },
+  splitSubtitleActive: {
+    color: '#10b981',
+  },
+  splitFrequency: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 12,
+  },
+  splitFrequencyActive: {
+    color: '#10b981',
+  },
+  splitProsContainer: {
+    gap: 4,
+  },
+  splitProText: {
+    fontSize: 13,
+    color: '#888',
+  },
+  splitProTextActive: {
+    color: '#10b981',
   },
 });

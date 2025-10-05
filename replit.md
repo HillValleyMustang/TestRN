@@ -65,7 +65,8 @@ The application employs a monorepo structure to share code between its web (Next
 - **PWA Integration:** next-pwa
 - **Network Connectivity:** @react-native-community/netinfo (Mobile)
 
-## Recent Changes (October 2025)
+## Recent Changes (October 2025 - January 2025)
 - **Phase 12 Complete (Oct 5):** AI Integration - Equipment-aware workout program generation using OpenAI GPT-5, AI coaching with real-time motivation and form tips, intelligent exercise name mapping, full T-Path schema alignment for generated programs
 - **Phase 13 Complete (Oct 5):** Gym & Equipment Management - 32 equipment types, gym CRUD operations, active gym selection, equipment-aware exercise filtering with visual indicators
 - **Equipment Filtering Complete (Oct 5):** Exercise picker now filters by active gym's equipment with smart mapping system and "Available Only" toggle
+- **Phase 14 In Progress (Jan 2025):** PPL/ULUL Split System - Workout session screen with color-coded workout buttons (Green=Push, Orange=Pull, Purple=Legs, Red/Pink=Upper, Cyan=Lower), AI program generator now supports PPL (3-day) and ULUL (4-day) split selection, T-Path generation respects split type
