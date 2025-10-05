@@ -87,13 +87,14 @@ The project is configured for deployment with:
 
 ## Recent Changes (October 5, 2025)
 
-**Latest Update - Phase 7 Complete:**
-- ✅ Added comprehensive progress tracking and analytics system
-- ✅ Created visual charts for workout frequency, volume, and PR progression
-- ✅ Implemented intelligent streak calculation (current and longest)
-- ✅ Built stats dashboard showing key metrics at a glance
-- ✅ Added exercise-specific PR progression with interactive selector
-- ✅ Integrated time range filtering for all analytics (7d, 14d, 30d, 90d)
+**Latest Update - Phase 8 Complete:**
+- ✅ User preferences system with database persistence
+- ✅ Unit system toggle (metric ⇄ imperial) for weight and distance
+- ✅ Profile/Settings screen with account information display
+- ✅ Preference state management with cross-account data protection
+- ✅ useUnitConversion hook for seamless unit handling throughout app
+- ✅ Key-based component reset pattern to prevent user data leakage
+- ✅ Navigation to settings from home screen
 **Phase 1 - Monorepo Restructuring:**
 - ✅ Moved web app from root `src/` to `apps/web/src/`
 - ✅ Created shared `tsconfig.base.json` with path aliases
@@ -205,6 +206,32 @@ The project is configured for deployment with:
   - Color-coded active states and visual feedback
 - ✅ Home screen navigation to progress analytics
 
+**Phase 8 - Profile & Settings (Complete):**
+- ✅ User preferences database schema:
+  - getUserPreferences, saveUserPreferences methods
+  - Stores unit_system (metric/imperial) and theme (dark/light)
+  - Persisted to SQLite with user_id isolation
+- ✅ PreferencesContext with PreferencesProvider:
+  - App-wide state for unit system and theme preferences
+  - Key-based component reset (key={userId || 'no-user'}) to prevent cross-account data leakage
+  - Database initialization gating to ensure safe access
+  - Automatic preference loading on user sign-in
+  - State reset to defaults on sign-out
+- ✅ useUnitConversion custom hook:
+  - formatWeight(kg): converts to user's preferred unit
+  - parseWeight(value): converts user input back to kg for storage
+  - formatDistance(km): converts to user's preferred unit
+  - parseDistance(value): converts user input back to km for storage
+  - Returns current unit labels ('kg'/'lbs', 'km'/'mi')
+- ✅ Settings screen features:
+  - Account information display (email)
+  - Unit system toggle switch with persistence
+  - Theme preference (ready for future implementation)
+  - Sign out button
+  - Loading states while preferences fetch
+- ✅ Navigation: Home screen button to Profile/Settings
+- ✅ Security: State management prevents user A's preferences from appearing to user B during account switching
+
 **Current Features (Mobile):**
 - ✅ User authentication (email/password) with session persistence
 - ✅ Exercise library (16 exercises across chest, back, legs, shoulders, arms, core, cardio)
@@ -221,6 +248,8 @@ The project is configured for deployment with:
 - ✅ Volume tracking over time
 - ✅ PR progression charts per exercise
 - ✅ Workout streak tracking (current & longest)
+- ✅ User preferences with unit system toggle (kg ⇄ lbs)
+- ✅ Profile/Settings screen with account info
 - ✅ Offline-first data persistence with SQLite
 - ✅ Automatic background sync to Supabase when online
 - ✅ Network status monitoring and sync queue visibility
