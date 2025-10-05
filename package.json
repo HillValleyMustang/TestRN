@@ -69,6 +69,7 @@
     "date-fns": "^4.1.0",
     "dexie": "^4.2.0",
     "dexie-react-hooks": "^4.2.0",
+    "expo-image-picker": "^17.0.8",
     "expo-sqlite": "^16.0.8",
     "lucide-react": "^0.544.0",
     "metro-minify-terser": "^0.83.1",
