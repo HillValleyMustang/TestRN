@@ -6,6 +6,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getExerciseById } from '@data/exercises';
 import { RestTimer } from './components/rest-timer';
 import { TemplateSaveModal } from './components/template-save-modal';
+import { AICoachingCard } from './components/ai-coaching-card';
 
 interface ExerciseSet {
   weight: string;
@@ -401,6 +402,13 @@ export default function WorkoutScreen() {
                     <Text style={styles.addSetText}>+ Add Set</Text>
                   </TouchableOpacity>
                 </View>
+
+                <AICoachingCard
+                  exerciseName={exerciseData?.name || exercise.exerciseId}
+                  currentSet={exercise.sets.filter(s => s.weight && s.reps).length + 1}
+                  totalSets={exercise.sets.length}
+                  targetReps={exercise.sets[0]?.reps}
+                />
               </View>
             );
           })
