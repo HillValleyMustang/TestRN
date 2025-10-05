@@ -4,38 +4,44 @@ import { useAuth } from './contexts/auth-context';
 import { useData } from './contexts/data-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import type { TPath } from '@data/storage/models';
+import { Colors, Spacing, BorderRadius, Typography, ButtonStyles } from '../constants/design-system';
 
-// Color mapping for different workout types
+// Color mapping for different workout types - using design system colors
 function getWorkoutColors(workoutName: string, splitType: 'ppl' | 'ulul' | null) {
   const name = workoutName.toLowerCase();
   
-  // PPL Colors - match variations
+  // PPL Colors - match web app design system
   if (name.includes('push')) {
-    return { bg: '#10B981', text: '#FFFFFF', border: '#059669' };
+    return { bg: Colors.workoutPush, text: Colors.foreground, border: Colors.workoutPushLight };
   }
   if (name.includes('pull')) {
-    return { bg: '#F59E0B', text: '#FFFFFF', border: '#D97706' };
+    return { bg: Colors.workoutPull, text: Colors.foreground, border: Colors.workoutPullLight };
   }
   if (name.includes('leg')) {
-    return { bg: '#8B5CF6', text: '#FFFFFF', border: '#7C3AED' };
+    return { bg: Colors.workoutLegs, text: Colors.foreground, border: Colors.workoutLegsLight };
   }
   
-  // ULUL Colors - match variations
+  // ULUL Colors - match web app design system
   if (name.includes('upper') && (name.includes('a') || name.includes('1') || !name.includes('b'))) {
-    return { bg: '#EF4444', text: '#FFFFFF', border: '#DC2626' };
+    return { bg: Colors.workoutUpperA, text: Colors.foreground, border: Colors.workoutUpperALight };
   }
   if (name.includes('upper') && (name.includes('b') || name.includes('2'))) {
-    return { bg: '#EC4899', text: '#FFFFFF', border: '#DB2777' };
+    return { bg: Colors.workoutUpperB, text: Colors.foreground, border: Colors.workoutUpperBLight };
   }
   if (name.includes('lower') && (name.includes('a') || name.includes('1') || !name.includes('b'))) {
-    return { bg: '#06B6D4', text: '#FFFFFF', border: '#0891B2' };
+    return { bg: Colors.workoutLowerA, text: Colors.foreground, border: Colors.workoutLowerALight };
   }
   if (name.includes('lower') && (name.includes('b') || name.includes('2'))) {
-    return { bg: '#14B8A6', text: '#FFFFFF', border: '#0D9488' };
+    return { bg: Colors.workoutLowerB, text: Colors.foreground, border: Colors.workoutLowerBLight };
+  }
+  
+  // Bonus workouts
+  if (name.includes('bonus')) {
+    return { bg: Colors.workoutBonus, text: Colors.foreground, border: Colors.workoutBonusLight };
   }
   
   // Default
-  return { bg: '#6366F1', text: '#FFFFFF', border: '#4F46E5' };
+  return { bg: Colors.actionPrimary, text: Colors.foreground, border: Colors.actionPrimaryLight };
 }
 
 function getSplitTypeFromTPath(tPath: TPath | null): 'ppl' | 'ulul' | null {
