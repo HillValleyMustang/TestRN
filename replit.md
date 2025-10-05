@@ -87,15 +87,17 @@ The project is configured for deployment with:
 
 ## Recent Changes (October 5, 2025)
 
-**Latest Update - Phase 9 Complete:**
-- ✅ Body measurements tracking system with comprehensive data capture
-- ✅ Database schema for weight, body fat %, and 9 body measurements (chest, waist, hips, arms, thighs)
-- ✅ DateTimePicker for easy date selection on measurement entry
-- ✅ Measurements history screen with chronological ordering
-- ✅ Unit conversion integration for weight display (kg ⇄ lbs)
-- ✅ Delete functionality with confirmation prompts
-- ✅ Pull-to-refresh on history screen
-- ✅ Navigation from home screen to measurements
+**Latest Update - Phase 10 Complete:**
+- ✅ Goals & Achievements system with comprehensive tracking
+- ✅ Database schema for user_goals and user_achievements tables
+- ✅ CRUD methods for goal management (create, read, update, delete)
+- ✅ 21 predefined achievements across 5 categories (workouts, strength, consistency, volume, weight)
+- ✅ Goals list screen with active/completed filtering and progress bars
+- ✅ Goal creation screen supporting 5 goal types (weight loss/gain, strength, frequency, body fat)
+- ✅ Achievements showcase screen with locked/unlocked states and progress tracking
+- ✅ Automatic achievement unlock detection based on user stats
+- ✅ Navigation from home screen to goals and achievements
+- ✅ Full offline-first architecture integration
 **Phase 1 - Monorepo Restructuring:**
 - ✅ Moved web app from root `src/` to `apps/web/src/`
 - ✅ Created shared `tsconfig.base.json` with path aliases
@@ -258,6 +260,73 @@ The project is configured for deployment with:
   - Type-safe BodyMeasurement interface
 - ✅ Navigation: Home screen button to Body Measurements history
 
+**Phase 10 - Goals & Achievements System (Complete):**
+- ✅ Database schema for body measurements:
+  - saveBodyMeasurement, getBodyMeasurements, getWeightHistory, deleteBodyMeasurement methods
+  - Tracks weight_kg, body_fat_percentage, chest/waist/hips/arms/thighs measurements in cm
+  - Optional notes field for each measurement entry
+  - Properly indexed by user_id and measurement_date
+- ✅ Measurements input screen:
+  - DateTimePicker component for user-friendly date selection
+  - Platform-specific date picker (spinner on iOS, calendar on Android)
+  - Enforces maximum date (today) to prevent future dates
+  - Unit conversion for weight input based on user preferences
+  - All measurements optional (at least one required)
+  - Notes field for additional context
+- ✅ Measurements history screen:
+  - Chronological ordering (newest first) with dual-sort stability
+  - Grid layout displaying all recorded measurements
+  - Delete functionality with confirmation prompts
+  - Pull-to-refresh to reload data
+  - Empty state guidance for new users
+  - Weight values display in user's preferred unit
+- ✅ DataContext integration:
+  - Exposed all body measurement CRUD operations
+  - Type-safe BodyMeasurement interface
+- ✅ Navigation: Home screen button to Body Measurements history
+
+**Phase 10 - Goals & Achievements System (Complete):**
+- ✅ Database schema for goals and achievements:
+  - user_goals table with support for multiple goal types
+  - user_achievements table linking users to unlocked achievements
+  - saveGoal, getGoals, getGoal, updateGoalProgress, deleteGoal methods
+  - unlockAchievement, getUserAchievements, hasAchievement, checkAndUnlockAchievements methods
+  - Properly indexed for efficient queries
+- ✅ Achievement definitions (packages/data/src/achievements.ts):
+  - 21 achievements across 5 categories
+  - Bronze, silver, gold, and platinum tiers
+  - Workout count milestones (1, 10, 25, 50, 100, 250 workouts)
+  - Streak achievements (3, 7, 14, 30, 100 days)
+  - Volume milestones (10k, 50k, 100k, 250k kg)
+  - Strength achievements for bench press, squat, deadlift
+  - Comprehensive requirement definitions
+- ✅ Goals list screen:
+  - View active, completed, or all goals
+  - Progress bars showing goal completion
+  - Delete functionality with confirmation
+  - Pull-to-refresh to reload data
+  - Empty state with call-to-action
+  - Filter tabs for goal status
+- ✅ Goal creation screen:
+  - 5 goal types: weight loss, weight gain, strength, workout frequency, body fat %
+  - Exercise selection for strength goals
+  - Optional target date with DateTimePicker
+  - Optional notes field
+  - Unit conversion for weight-based goals
+  - Validation and error handling
+- ✅ Achievements showcase screen:
+  - Progress overview (X/21 unlocked with percentage)
+  - Category filtering (all, workouts, strength, consistency, volume)
+  - Locked/unlocked states with visual distinction
+  - Unlock dates for completed achievements
+  - Requirement text for locked achievements
+  - Automatic achievement detection on data load
+- ✅ DataContext integration:
+  - All goal and achievement methods exposed
+  - checkAndUnlockAchievements evaluates requirements automatically
+  - Type-safe Goal and UserAchievement interfaces
+- ✅ Navigation: Home screen buttons to Goals and Achievements
+
 **Current Features (Mobile):**
 - ✅ User authentication (email/password) with session persistence
 - ✅ Exercise library (16 exercises across chest, back, legs, shoulders, arms, core, cardio)
@@ -277,6 +346,9 @@ The project is configured for deployment with:
 - ✅ Body measurements tracking (weight, body fat %, 9 body measurements)
 - ✅ Measurements history with chronological display
 - ✅ DateTimePicker for easy measurement date selection
+- ✅ Goals system with 5 goal types and progress tracking
+- ✅ Achievements system with 21 milestones across 5 categories
+- ✅ Automatic achievement unlock detection
 - ✅ User preferences with unit system toggle (kg ⇄ lbs)
 - ✅ Profile/Settings screen with account info
 - ✅ Offline-first data persistence with SQLite
