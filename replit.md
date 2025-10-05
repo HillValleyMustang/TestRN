@@ -22,6 +22,12 @@ The application employs a monorepo structure to share code between its web (Next
     - **Forms:** React Hook Form with Zod for validation.
 - **Workout Tracking:** Multi-exercise logging, set management, personal record (PR) detection and celebration, rest timer.
 - **Workout Templates:** CRUD operations for saving, loading, and managing workout configurations.
+- **T-Paths System (Workout Programs):** 
+    - **Database Schema:** SQLite tables for t_paths, t_path_exercises, and t_path_progress with offline-first support.
+    - **Program Management:** Browse, view, and start workouts from structured training programs.
+    - **Progress Tracking:** Automatic tracking of last access and workout completion for each program.
+    - **Hierarchical Structure:** Support for main programs with child workouts and bonus exercises.
+    - **AI Integration Ready:** Schema supports AI-generated programs with generation parameters storage.
 - **Progress & Analytics:** Dashboard with key metrics, workout frequency charts, volume tracking, PR progression charts, and streak tracking.
 - **Body Measurements:** Tracking for weight, body fat percentage, and various body measurements, with historical views.
 - **Goals & Achievements:**
