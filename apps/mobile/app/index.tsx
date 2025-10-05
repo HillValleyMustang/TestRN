@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView
 import { useAuth } from './contexts/auth-context';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
+import { Colors, Spacing, BorderRadius, Typography, Shadows, ButtonStyles } from '../constants/design-system';
 
 export default function Index() {
   const { session, userId, loading, supabase } = useAuth();
@@ -170,87 +171,79 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: Colors.background,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: Colors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
   scrollContent: {
-    padding: 20,
-    paddingTop: 60,
-    paddingBottom: 40,
+    padding: Spacing.xl,
+    paddingTop: Spacing['6xl'],
+    paddingBottom: Spacing['4xl'],
   },
   header: {
-    marginBottom: 24,
+    marginBottom: Spacing['2xl'],
   },
   title: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: '#fff',
-    marginBottom: 8,
+    fontSize: Typography['4xl'],
+    fontWeight: Typography.extrabold,
+    color: Colors.foreground,
+    marginBottom: Spacing.sm,
     letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#888',
-    fontWeight: '400',
+    fontSize: Typography.base,
+    color: Colors.gray400,
+    fontWeight: Typography.regular,
   },
   infoCard: {
-    marginBottom: 32,
-    padding: 16,
-    backgroundColor: '#0a0a0a',
-    borderRadius: 12,
+    marginBottom: Spacing['3xl'],
+    padding: Spacing.lg,
+    backgroundColor: Colors.cardBackground,
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: '#1a1a1a',
+    borderColor: Colors.cardBorder,
   },
   infoLabel: {
-    fontSize: 12,
-    color: '#10B981',
-    fontWeight: '600',
-    marginBottom: 6,
+    fontSize: Typography.xs,
+    color: Colors.success,
+    fontWeight: Typography.semibold,
+    marginBottom: Spacing.xs,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   infoValue: {
-    fontSize: 15,
-    color: '#d1d5db',
+    fontSize: Typography.sm,
+    color: Colors.gray300,
   },
   buttonContainer: {
-    gap: 12,
+    gap: Spacing.md,
   },
   primaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#10B981',
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    ...ButtonStyles.success,
   },
   onboardingButton: {
-    backgroundColor: '#14B8A6',
-    shadowColor: '#14B8A6',
+    backgroundColor: Colors.onboardingPrimary,
+    shadowColor: Colors.onboardingPrimary,
   },
   photoButton: {
-    backgroundColor: '#8B5CF6',
-    shadowColor: '#8B5CF6',
+    backgroundColor: Colors.photoPrimary,
+    shadowColor: Colors.photoPrimary,
   },
   buttonEmoji: {
-    fontSize: 20,
-    marginRight: 12,
+    fontSize: Typography.xl,
+    marginRight: Spacing.md,
   },
   primaryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
+    color: Colors.foreground,
+    fontSize: Typography.base,
+    fontWeight: Typography.bold,
     letterSpacing: 0.3,
   },
 });

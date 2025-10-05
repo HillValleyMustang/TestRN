@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { useAuth } from './contexts/auth-context';
 import { useRouter } from 'expo-router';
+import { Colors, Spacing, BorderRadius, Typography, ButtonStyles } from '../constants/design-system';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -55,7 +56,7 @@ export default function LoginScreen() {
         <TextInput
           style={styles.input}
           placeholder="Email"
-          placeholderTextColor="#666"
+          placeholderTextColor={Colors.gray500}
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
@@ -65,7 +66,7 @@ export default function LoginScreen() {
         <TextInput
           style={styles.input}
           placeholder="Password"
-          placeholderTextColor="#666"
+          placeholderTextColor={Colors.gray500}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -97,55 +98,52 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: Colors.background,
   },
   content: {
     flex: 1,
     justifyContent: 'center',
-    padding: 24,
+    padding: Spacing['2xl'],
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
+    fontSize: Typography['3xl'],
+    fontWeight: Typography.bold,
+    color: Colors.foreground,
+    marginBottom: Spacing.sm,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 18,
-    color: '#888',
-    marginBottom: 32,
+    fontSize: Typography.lg,
+    color: Colors.gray400,
+    marginBottom: Spacing['3xl'],
     textAlign: 'center',
   },
   input: {
-    backgroundColor: '#111',
+    backgroundColor: Colors.cardBackground,
     borderWidth: 1,
-    borderColor: '#333',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    color: '#fff',
-    fontSize: 16,
+    borderColor: Colors.cardBorder,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+    color: Colors.foreground,
+    fontSize: Typography.base,
   },
   button: {
-    backgroundColor: '#0a0',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
+    ...ButtonStyles.primary,
+    marginTop: Spacing.sm,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: Colors.foreground,
+    fontSize: Typography.base,
+    fontWeight: Typography.bold,
   },
   switchText: {
-    color: '#0a0',
+    color: Colors.actionPrimary,
     textAlign: 'center',
-    marginTop: 16,
-    fontSize: 14,
+    marginTop: Spacing.lg,
+    fontSize: Typography.sm,
   },
 });
