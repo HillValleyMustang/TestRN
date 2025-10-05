@@ -5,6 +5,14 @@ import { useAuth } from './auth-context';
 import type { WorkoutSession, SetLog, WorkoutTemplate } from '@data/storage/models';
 import NetInfo from '@react-native-community/netinfo';
 
+interface WorkoutStats {
+  totalWorkouts: number;
+  totalVolume: number;
+  averageVolume: number;
+  currentStreak: number;
+  longestStreak: number;
+}
+
 interface DataContextType {
   addWorkoutSession: (session: WorkoutSession) => Promise<void>;
   addSetLog: (setLog: SetLog) => Promise<void>;
@@ -15,6 +23,10 @@ interface DataContextType {
   getTemplates: (userId: string) => Promise<WorkoutTemplate[]>;
   getTemplate: (templateId: string) => Promise<WorkoutTemplate | null>;
   deleteTemplate: (templateId: string) => Promise<void>;
+  getWorkoutStats: (userId: string, days?: number) => Promise<WorkoutStats>;
+  getWorkoutFrequency: (userId: string, days?: number) => Promise<Array<{ date: string; count: number }>>;
+  getVolumeHistory: (userId: string, days?: number) => Promise<Array<{ date: string; volume: number }>>;
+  getPRHistory: (userId: string, exerciseId: string) => Promise<Array<{ date: string; weight: number }>>;
   isSyncing: boolean;
   queueLength: number;
   isOnline: boolean;
@@ -83,6 +95,22 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     await database.deleteTemplate(templateId);
   };
 
+  const getWorkoutStats = async (userId: string, days: number = 30): Promise<WorkoutStats> => {
+    return await database.getWorkoutStats(userId, days);
+  };
+
+  const getWorkoutFrequency = async (userId: string, days: number = 30): Promise<Array<{ date: string; count: number }>> => {
+    return await database.getWorkoutFrequency(userId, days);
+  };
+
+  const getVolumeHistory = async (userId: string, days: number = 30): Promise<Array<{ date: string; volume: number }>> => {
+    return await database.getVolumeHistory(userId, days);
+  };
+
+  const getPRHistory = async (userId: string, exerciseId: string): Promise<Array<{ date: string; weight: number }>> => {
+    return await database.getPRHistory(userId, exerciseId);
+  };
+
   const value = useMemo(
     () => ({
       addWorkoutSession,
@@ -94,6 +122,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       getTemplates,
       getTemplate,
       deleteTemplate,
+      getWorkoutStats,
+      getWorkoutFrequency,
+      getVolumeHistory,
+      getPRHistory,
       isSyncing,
       queueLength,
       isOnline,

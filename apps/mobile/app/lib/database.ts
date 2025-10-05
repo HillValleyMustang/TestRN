@@ -194,6 +194,146 @@ class Database {
     await db.runAsync('DELETE FROM workout_templates WHERE id = ?', [templateId]);
   }
 
+  async getWorkoutStats(userId: string, days: number = 30): Promise<{
+    totalWorkouts: number;
+    totalVolume: number;
+    averageVolume: number;
+    currentStreak: number;
+    longestStreak: number;
+  }> {
+    const db = this.getDB();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    
+    const workouts = await db.getAllAsync<WorkoutSession>(
+      `SELECT * FROM workout_sessions 
+       WHERE user_id = ? AND session_date >= ? 
+       ORDER BY session_date DESC`,
+      [userId, startDate.toISOString()]
+    );
+
+    const volumeResult = await db.getFirstAsync<{ total_volume: number }>(
+      `SELECT SUM(sl.weight_kg * sl.reps) as total_volume
+       FROM set_logs sl
+       JOIN workout_sessions ws ON sl.session_id = ws.id
+       WHERE ws.user_id = ? AND ws.session_date >= ?`,
+      [userId, startDate.toISOString()]
+    );
+
+    const totalVolume = volumeResult?.total_volume || 0;
+    const totalWorkouts = workouts.length;
+    const averageVolume = totalWorkouts > 0 ? totalVolume / totalWorkouts : 0;
+
+    const allWorkouts = await db.getAllAsync<{ session_date: string }>(
+      `SELECT session_date FROM workout_sessions 
+       WHERE user_id = ? 
+       ORDER BY session_date DESC`,
+      [userId]
+    );
+
+    const { currentStreak, longestStreak } = this.calculateStreaks(allWorkouts.map(w => w.session_date));
+
+    return {
+      totalWorkouts,
+      totalVolume,
+      averageVolume,
+      currentStreak,
+      longestStreak,
+    };
+  }
+
+  private calculateStreaks(dates: string[]): { currentStreak: number; longestStreak: number } {
+    if (dates.length === 0) return { currentStreak: 0, longestStreak: 0 };
+
+    const uniqueDates = [...new Set(dates.map(d => d.split('T')[0]))].sort().reverse();
+    
+    let currentStreak = 0;
+    let longestStreak = 0;
+    let tempStreak = 0;
+    let lastDate: Date | null = null;
+
+    for (const dateStr of uniqueDates) {
+      const date = new Date(dateStr);
+      
+      if (lastDate === null) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const daysDiff = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysDiff <= 1) {
+          currentStreak = 1;
+          tempStreak = 1;
+        }
+      } else {
+        const daysDiff = Math.floor((lastDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysDiff === 1) {
+          tempStreak++;
+          if (currentStreak > 0) currentStreak++;
+        } else {
+          if (currentStreak > 0) currentStreak = 0;
+          tempStreak = 1;
+        }
+      }
+      
+      longestStreak = Math.max(longestStreak, tempStreak);
+      lastDate = date;
+    }
+
+    return { currentStreak, longestStreak };
+  }
+
+  async getWorkoutFrequency(userId: string, days: number = 30): Promise<Array<{ date: string; count: number }>> {
+    const db = this.getDB();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const result = await db.getAllAsync<{ date: string; count: number }>(
+      `SELECT DATE(session_date) as date, COUNT(*) as count
+       FROM workout_sessions
+       WHERE user_id = ? AND session_date >= ?
+       GROUP BY DATE(session_date)
+       ORDER BY date ASC`,
+      [userId, startDate.toISOString()]
+    );
+
+    return result;
+  }
+
+  async getVolumeHistory(userId: string, days: number = 30): Promise<Array<{ date: string; volume: number }>> {
+    const db = this.getDB();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const result = await db.getAllAsync<{ date: string; volume: number }>(
+      `SELECT DATE(ws.session_date) as date, SUM(sl.weight_kg * sl.reps) as volume
+       FROM set_logs sl
+       JOIN workout_sessions ws ON sl.session_id = ws.id
+       WHERE ws.user_id = ? AND ws.session_date >= ?
+       GROUP BY DATE(ws.session_date)
+       ORDER BY date ASC`,
+      [userId, startDate.toISOString()]
+    );
+
+    return result;
+  }
+
+  async getPRHistory(userId: string, exerciseId: string): Promise<Array<{ date: string; weight: number }>> {
+    const db = this.getDB();
+    
+    const result = await db.getAllAsync<{ date: string; weight: number }>(
+      `SELECT DATE(ws.session_date) as date, MAX(sl.weight_kg) as weight
+       FROM set_logs sl
+       JOIN workout_sessions ws ON sl.session_id = ws.id
+       WHERE ws.user_id = ? AND sl.exercise_id = ?
+       GROUP BY DATE(ws.session_date)
+       ORDER BY date ASC`,
+      [userId, exerciseId]
+    );
+
+    return result;
+  }
+
   syncQueue: SyncQueueStore = {
     getAll: async (): Promise<SyncQueueItem[]> => {
       const db = this.getDB();
