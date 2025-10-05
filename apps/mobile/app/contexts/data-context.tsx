@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useMemo } from '
 import { database, addToSyncQueue } from '../lib/database';
 import { useSyncQueueProcessor } from '@data/hooks/use-sync-queue-processor';
 import { useAuth } from './auth-context';
-import type { WorkoutSession, SetLog, WorkoutTemplate } from '@data/storage/models';
+import type { WorkoutSession, SetLog, WorkoutTemplate, TPath, TPathExercise, TPathProgress, TPathWithExercises } from '@data/storage/models';
 import NetInfo from '@react-native-community/netinfo';
 
 interface WorkoutStats {
@@ -80,6 +80,18 @@ interface DataContextType {
   getUserAchievements: (userId: string) => Promise<UserAchievement[]>;
   hasAchievement: (userId: string, achievementId: string) => Promise<boolean>;
   checkAndUnlockAchievements: (userId: string) => Promise<void>;
+  addTPath: (tPath: TPath) => Promise<void>;
+  getTPath: (tPathId: string) => Promise<TPathWithExercises | null>;
+  getTPaths: (userId: string, mainProgramsOnly?: boolean) => Promise<TPath[]>;
+  getTPathsByParent: (parentId: string) => Promise<TPath[]>;
+  updateTPath: (tPathId: string, updates: Partial<TPath>) => Promise<void>;
+  deleteTPath: (tPathId: string) => Promise<void>;
+  addTPathExercise: (exercise: TPathExercise) => Promise<void>;
+  getTPathExercises: (tPathId: string) => Promise<TPathExercise[]>;
+  deleteTPathExercise: (exerciseId: string) => Promise<void>;
+  updateTPathProgress: (progress: TPathProgress) => Promise<void>;
+  getTPathProgress: (userId: string, tPathId: string) => Promise<TPathProgress | null>;
+  getAllTPathProgress: (userId: string) => Promise<TPathProgress[]>;
   isSyncing: boolean;
   queueLength: number;
   isOnline: boolean;
@@ -257,6 +269,54 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const addTPath = async (tPath: TPath): Promise<void> => {
+    await database.addTPath(tPath);
+  };
+
+  const getTPath = async (tPathId: string): Promise<TPathWithExercises | null> => {
+    return await database.getTPath(tPathId);
+  };
+
+  const getTPaths = async (userId: string, mainProgramsOnly?: boolean): Promise<TPath[]> => {
+    return await database.getTPaths(userId, mainProgramsOnly);
+  };
+
+  const getTPathsByParent = async (parentId: string): Promise<TPath[]> => {
+    return await database.getTPathsByParent(parentId);
+  };
+
+  const updateTPath = async (tPathId: string, updates: Partial<TPath>): Promise<void> => {
+    await database.updateTPath(tPathId, updates);
+  };
+
+  const deleteTPath = async (tPathId: string): Promise<void> => {
+    await database.deleteTPath(tPathId);
+  };
+
+  const addTPathExercise = async (exercise: TPathExercise): Promise<void> => {
+    await database.addTPathExercise(exercise);
+  };
+
+  const getTPathExercises = async (tPathId: string): Promise<TPathExercise[]> => {
+    return await database.getTPathExercises(tPathId);
+  };
+
+  const deleteTPathExercise = async (exerciseId: string): Promise<void> => {
+    await database.deleteTPathExercise(exerciseId);
+  };
+
+  const updateTPathProgress = async (progress: TPathProgress): Promise<void> => {
+    await database.updateTPathProgress(progress);
+  };
+
+  const getTPathProgress = async (userId: string, tPathId: string): Promise<TPathProgress | null> => {
+    return await database.getTPathProgress(userId, tPathId);
+  };
+
+  const getAllTPathProgress = async (userId: string): Promise<TPathProgress[]> => {
+    return await database.getAllTPathProgress(userId);
+  };
+
   const value = useMemo(
     () => ({
       addWorkoutSession,
@@ -285,6 +345,18 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       getUserAchievements,
       hasAchievement,
       checkAndUnlockAchievements,
+      addTPath,
+      getTPath,
+      getTPaths,
+      getTPathsByParent,
+      updateTPath,
+      deleteTPath,
+      addTPathExercise,
+      getTPathExercises,
+      deleteTPathExercise,
+      updateTPathProgress,
+      getTPathProgress,
+      getAllTPathProgress,
       isSyncing,
       queueLength,
       isOnline,

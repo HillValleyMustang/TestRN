@@ -53,3 +53,46 @@ export interface TemplateExercise {
   default_weight_kg: number | null;
   default_reps: number | null;
 }
+
+export interface TPath {
+  id: string;
+  user_id: string;
+  template_name: string;
+  description: string | null;
+  is_main_program: boolean;
+  parent_t_path_id: string | null;
+  order_index: number | null;
+  is_ai_generated: boolean;
+  ai_generation_params: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TPathExercise {
+  id: string;
+  t_path_id: string;
+  exercise_id: string;
+  order_index: number;
+  is_bonus_exercise: boolean;
+  target_sets: number | null;
+  target_reps_min: number | null;
+  target_reps_max: number | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface TPathProgress {
+  id: string;
+  user_id: string;
+  t_path_id: string;
+  completed_at: string | null;
+  last_accessed_at: string | null;
+  total_workouts_completed: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TPathWithExercises extends TPath {
+  exercises: TPathExercise[];
+  progress?: TPathProgress;
+}

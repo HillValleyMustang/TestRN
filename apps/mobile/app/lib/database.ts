@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import type { SyncQueueItem, SyncQueueStore, WorkoutSession, SetLog, WorkoutTemplate, TemplateExercise } from '@data/storage';
+import type { SyncQueueItem, SyncQueueStore, WorkoutSession, SetLog, WorkoutTemplate, TemplateExercise, TPath, TPathExercise, TPathProgress, TPathWithExercises } from '@data/storage';
 
 const DB_NAME = 'fitness_tracker.db';
 
@@ -104,6 +104,47 @@ class Database {
         unlocked_at TEXT NOT NULL,
         progress_value REAL
       );
+
+      CREATE TABLE IF NOT EXISTS t_paths (
+        id TEXT PRIMARY KEY NOT NULL,
+        user_id TEXT NOT NULL,
+        template_name TEXT NOT NULL,
+        description TEXT,
+        is_main_program INTEGER DEFAULT 0,
+        parent_t_path_id TEXT,
+        order_index INTEGER,
+        is_ai_generated INTEGER DEFAULT 0,
+        ai_generation_params TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (parent_t_path_id) REFERENCES t_paths(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS t_path_exercises (
+        id TEXT PRIMARY KEY NOT NULL,
+        t_path_id TEXT NOT NULL,
+        exercise_id TEXT NOT NULL,
+        order_index INTEGER NOT NULL,
+        is_bonus_exercise INTEGER DEFAULT 0,
+        target_sets INTEGER,
+        target_reps_min INTEGER,
+        target_reps_max INTEGER,
+        notes TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (t_path_id) REFERENCES t_paths(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS t_path_progress (
+        id TEXT PRIMARY KEY NOT NULL,
+        user_id TEXT NOT NULL,
+        t_path_id TEXT NOT NULL,
+        completed_at TEXT,
+        last_accessed_at TEXT,
+        total_workouts_completed INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (t_path_id) REFERENCES t_paths(id)
+      );
       
       CREATE INDEX IF NOT EXISTS idx_session_date ON workout_sessions(session_date);
       CREATE INDEX IF NOT EXISTS idx_set_logs_session ON set_logs(session_id);
@@ -113,6 +154,11 @@ class Database {
       CREATE INDEX IF NOT EXISTS idx_measurements_date ON body_measurements(measurement_date);
       CREATE INDEX IF NOT EXISTS idx_goals_user ON user_goals(user_id);
       CREATE INDEX IF NOT EXISTS idx_achievements_user ON user_achievements(user_id);
+      CREATE INDEX IF NOT EXISTS idx_t_paths_user ON t_paths(user_id);
+      CREATE INDEX IF NOT EXISTS idx_t_paths_parent ON t_paths(parent_t_path_id);
+      CREATE INDEX IF NOT EXISTS idx_t_path_exercises_tpath ON t_path_exercises(t_path_id);
+      CREATE INDEX IF NOT EXISTS idx_t_path_progress_user ON t_path_progress(user_id);
+      CREATE INDEX IF NOT EXISTS idx_t_path_progress_tpath ON t_path_progress(t_path_id);
     `);
   }
 
@@ -621,6 +667,203 @@ class Database {
       [userId, achievementId]
     );
     return (result?.count || 0) > 0;
+  }
+
+  async addTPath(tPath: TPath): Promise<void> {
+    const db = this.getDB();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO t_paths 
+       (id, user_id, template_name, description, is_main_program, parent_t_path_id, order_index, is_ai_generated, ai_generation_params, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        tPath.id,
+        tPath.user_id,
+        tPath.template_name,
+        tPath.description,
+        tPath.is_main_program ? 1 : 0,
+        tPath.parent_t_path_id,
+        tPath.order_index,
+        tPath.is_ai_generated ? 1 : 0,
+        tPath.ai_generation_params,
+        tPath.created_at,
+        tPath.updated_at,
+      ]
+    );
+  }
+
+  async getTPath(tPathId: string): Promise<TPathWithExercises | null> {
+    const db = this.getDB();
+    const tPath = await db.getFirstAsync<any>(
+      'SELECT * FROM t_paths WHERE id = ?',
+      [tPathId]
+    );
+    
+    if (!tPath) return null;
+
+    const exercises = await db.getAllAsync<any>(
+      'SELECT * FROM t_path_exercises WHERE t_path_id = ? ORDER BY order_index ASC',
+      [tPathId]
+    );
+
+    return {
+      ...tPath,
+      is_main_program: Boolean(tPath.is_main_program),
+      is_ai_generated: Boolean(tPath.is_ai_generated),
+      exercises: exercises.map(ex => ({
+        ...ex,
+        is_bonus_exercise: Boolean(ex.is_bonus_exercise),
+      })),
+    };
+  }
+
+  async getTPaths(userId: string, mainProgramsOnly: boolean = false): Promise<TPath[]> {
+    const db = this.getDB();
+    let query = 'SELECT * FROM t_paths WHERE user_id = ?';
+    const params: any[] = [userId];
+    
+    if (mainProgramsOnly) {
+      query += ' AND is_main_program = 1';
+    }
+    
+    query += ' ORDER BY order_index ASC, created_at DESC';
+    
+    const result = await db.getAllAsync<any>(query, params);
+    return result.map(row => ({
+      ...row,
+      is_main_program: Boolean(row.is_main_program),
+      is_ai_generated: Boolean(row.is_ai_generated),
+    }));
+  }
+
+  async getTPathsByParent(parentId: string): Promise<TPath[]> {
+    const db = this.getDB();
+    const result = await db.getAllAsync<any>(
+      'SELECT * FROM t_paths WHERE parent_t_path_id = ? ORDER BY order_index ASC',
+      [parentId]
+    );
+    return result.map(row => ({
+      ...row,
+      is_main_program: Boolean(row.is_main_program),
+      is_ai_generated: Boolean(row.is_ai_generated),
+    }));
+  }
+
+  async updateTPath(tPathId: string, updates: Partial<TPath>): Promise<void> {
+    const db = this.getDB();
+    const now = new Date().toISOString();
+    
+    const fields: string[] = [];
+    const values: any[] = [];
+    
+    if (updates.template_name !== undefined) {
+      fields.push('template_name = ?');
+      values.push(updates.template_name);
+    }
+    if (updates.description !== undefined) {
+      fields.push('description = ?');
+      values.push(updates.description);
+    }
+    if (updates.is_main_program !== undefined) {
+      fields.push('is_main_program = ?');
+      values.push(updates.is_main_program ? 1 : 0);
+    }
+    if (updates.order_index !== undefined) {
+      fields.push('order_index = ?');
+      values.push(updates.order_index);
+    }
+    
+    fields.push('updated_at = ?');
+    values.push(now);
+    values.push(tPathId);
+    
+    if (fields.length > 1) {
+      await db.runAsync(
+        `UPDATE t_paths SET ${fields.join(', ')} WHERE id = ?`,
+        values
+      );
+    }
+  }
+
+  async deleteTPath(tPathId: string): Promise<void> {
+    const db = this.getDB();
+    await db.runAsync('DELETE FROM t_path_exercises WHERE t_path_id = ?', [tPathId]);
+    await db.runAsync('DELETE FROM t_path_progress WHERE t_path_id = ?', [tPathId]);
+    await db.runAsync('DELETE FROM t_paths WHERE id = ?', [tPathId]);
+  }
+
+  async addTPathExercise(exercise: TPathExercise): Promise<void> {
+    const db = this.getDB();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO t_path_exercises 
+       (id, t_path_id, exercise_id, order_index, is_bonus_exercise, target_sets, target_reps_min, target_reps_max, notes, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        exercise.id,
+        exercise.t_path_id,
+        exercise.exercise_id,
+        exercise.order_index,
+        exercise.is_bonus_exercise ? 1 : 0,
+        exercise.target_sets,
+        exercise.target_reps_min,
+        exercise.target_reps_max,
+        exercise.notes,
+        exercise.created_at,
+      ]
+    );
+  }
+
+  async getTPathExercises(tPathId: string): Promise<TPathExercise[]> {
+    const db = this.getDB();
+    const result = await db.getAllAsync<any>(
+      'SELECT * FROM t_path_exercises WHERE t_path_id = ? ORDER BY order_index ASC',
+      [tPathId]
+    );
+    return result.map(row => ({
+      ...row,
+      is_bonus_exercise: Boolean(row.is_bonus_exercise),
+    }));
+  }
+
+  async deleteTPathExercise(exerciseId: string): Promise<void> {
+    const db = this.getDB();
+    await db.runAsync('DELETE FROM t_path_exercises WHERE id = ?', [exerciseId]);
+  }
+
+  async updateTPathProgress(progress: TPathProgress): Promise<void> {
+    const db = this.getDB();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO t_path_progress 
+       (id, user_id, t_path_id, completed_at, last_accessed_at, total_workouts_completed, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        progress.id,
+        progress.user_id,
+        progress.t_path_id,
+        progress.completed_at,
+        progress.last_accessed_at,
+        progress.total_workouts_completed,
+        progress.created_at,
+        progress.updated_at,
+      ]
+    );
+  }
+
+  async getTPathProgress(userId: string, tPathId: string): Promise<TPathProgress | null> {
+    const db = this.getDB();
+    const result = await db.getFirstAsync<any>(
+      'SELECT * FROM t_path_progress WHERE user_id = ? AND t_path_id = ?',
+      [userId, tPathId]
+    );
+    return result || null;
+  }
+
+  async getAllTPathProgress(userId: string): Promise<TPathProgress[]> {
+    const db = this.getDB();
+    const result = await db.getAllAsync<any>(
+      'SELECT * FROM t_path_progress WHERE user_id = ? ORDER BY last_accessed_at DESC',
+      [userId]
+    );
+    return result;
   }
 
   syncQueue: SyncQueueStore = {
