@@ -1,361 +1,50 @@
 # My Fitness Trainer - Replit Setup
 
 ## Overview
-This is a cross-platform fitness tracking application with both web (Next.js) and mobile (React Native/Expo) apps sharing code through a monorepo structure. The application uses Supabase as the backend and includes features for workout planning, exercise tracking, AI coaching, progress monitoring, and gamification.
+This project is a cross-platform fitness tracking application designed to run as both a web app (Next.js) and a mobile app (React Native/Expo) from a single monorepo. It aims to provide users with comprehensive tools for workout planning, exercise tracking, AI coaching, progress monitoring, and gamification, all backed by Supabase. The application's business vision is to offer a seamless and engaging fitness experience across devices, leveraging AI for personalized guidance and robust tracking to help users achieve their health and fitness goals.
 
-## Project Structure (Monorepo)
-```
-/
-├── apps/
-│   ├── web/              ← Next.js 15.5.4 web app
-│   │   ├── src/          ← Web app source code
-│   │   ├── public/       ← Static assets
-│   │   └── package.json
-│   └── mobile/           ← React Native/Expo mobile app
-│       ├── app/          ← Expo Router app directory
-│       ├── metro.config.js ← Metro bundler config with package aliases
-│       └── package.json
-├── packages/
-│   ├── data/             ← Shared data utilities (unit conversions, achievements, helpers)
-│   ├── features/         ← Shared business logic hooks (future)
-│   └── ui/               ← Shared UI components (future)
-├── supabase/functions/   ← Edge functions
-└── tsconfig.base.json    ← Shared TypeScript configuration
-```
+## User Preferences
+I prefer iterative development with clear communication at each step. Please ask before making major architectural changes or implementing complex features. I value well-structured, readable code, and I appreciate detailed explanations when new concepts or patterns are introduced.
 
-## Tech Stack
-- **Framework**: Next.js 15.5.4 (App Router) + React Native/Expo
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS v3.4 (web), React Native StyleSheet (mobile)
-- **UI Components**: Shadcn/UI (Radix UI primitives) for web
-- **Icons**: Lucide React
-- **Forms**: React Hook Form + Zod
-- **State Management**: React Context API
-- **Notifications**: Sonner
-- **Charts**: Recharts
-- **Backend**: Supabase (authentication, database, edge functions)
-- **Offline Storage**: 
-  - Web: Dexie (IndexedDB wrapper)
-  - Mobile: expo-sqlite with automatic sync queue
-- **PWA**: next-pwa (disabled in development)
-- **Network Monitoring**: @react-native-community/netinfo (mobile)
+## System Architecture
+The application employs a monorepo structure to share code between its web (Next.js 15.5.4 App Router) and mobile (React Native/Expo) clients. TypeScript is used throughout for type safety.
 
-## Development Setup
+**UI/UX Decisions:**
+- **Web:** Tailwind CSS v3.4 for styling, Shadcn/UI (Radix UI primitives) for components, Lucide React for icons.
+- **Mobile:** React Native StyleSheet for styling.
+- **General:** Custom color scheme, responsive design for charts (Recharts), visual feedback for PRs and timers.
 
-### Running the Applications
+**Technical Implementations & Feature Specifications:**
+- **Authentication:** Supabase for email/password authentication with session persistence.
+- **Data Management:**
+    - **Offline-First:** Mobile app uses `expo-sqlite` and a sync queue for offline data persistence, automatically syncing with Supabase when online. Web app uses Dexie (IndexedDB).
+    - **State Management:** React Context API.
+    - **Forms:** React Hook Form with Zod for validation.
+- **Workout Tracking:** Multi-exercise logging, set management, personal record (PR) detection and celebration, rest timer.
+- **Workout Templates:** CRUD operations for saving, loading, and managing workout configurations.
+- **Progress & Analytics:** Dashboard with key metrics, workout frequency charts, volume tracking, PR progression charts, and streak tracking.
+- **Body Measurements:** Tracking for weight, body fat percentage, and various body measurements, with historical views.
+- **Goals & Achievements:**
+    - **Goals:** Support for 5 goal types (weight loss/gain, strength, frequency, body fat) with progress tracking.
+    - **Achievements:** 21 predefined achievements across 5 categories (workouts, strength, consistency, volume, weight) with automatic unlock detection.
+- **User Preferences:** Unit system toggle (metric/imperial) and theme preference, persisted per user.
 
-**Web App** (port 5000):
-```bash
-npm run dev
-```
+**System Design Choices:**
+- **Monorepo:** Facilitates code sharing (`packages/data`, `packages/features`, `packages/ui`) between web and mobile applications.
+- **Supabase Edge Functions:** For server-side logic and real-time capabilities.
+- **TypeScript:** Ensures code quality and maintainability across the entire stack.
+- **PWA:** `next-pwa` for web app progressive web app capabilities (disabled in dev).
+- **Network Monitoring:** `@react-native-community/netinfo` for mobile app connectivity awareness.
 
-**Mobile App** (Expo tunnel on port 8000):
-```bash
-npm run mobile
-```
-
-### Key Configuration
-- **Next.js Config** (`apps/web/next.config.ts`): Configured with server actions allowed origins and transpilePackages for monorepo
-- **Metro Config** (`apps/mobile/metro.config.js`): Configured with module aliases for shared packages (@data, @features, @ui)
-- **TypeScript**: Shared base config with path aliases for all packages
-- **PostCSS Config** (`apps/web/postcss.config.mjs`): Uses Tailwind CSS v3 and autoprefixer
-- **Tailwind Config** (`apps/web/tailwind.config.ts`): Custom color scheme and animations
-
-### Shared Packages
-- **@data**: Unit conversions, achievements constants, workout helpers, storage interfaces, sync queue processor, exercise library
-- **@features**: Business logic hooks (future)
-- **@ui**: Cross-platform components (future)
-
-### Environment Variables
-The application uses Supabase for backend services. The Supabase URL and public key are in `apps/web/src/integrations/supabase/client.ts`.
-
-## Deployment
-The project is configured for deployment with:
-- **Deployment Type**: Autoscale
-- **Build Command**: `npm run build`
-- **Run Command**: `npm run start`
-
-## Current State
-- ✅ All dependencies installed
-- ✅ Next.js dev server running on port 5000
-- ✅ Expo mobile app running on port 8000
-- ✅ Tailwind CSS v3 configured
-- ✅ Authentication UI working (both web and mobile)
-- ✅ Local storage and sync queue working on mobile
-- ✅ First feature complete: Workout logging with offline-first architecture
-- ✅ Deployment configuration set
-
-## Recent Changes (October 5, 2025)
-
-**Latest Update - Phase 10 Complete:**
-- ✅ Goals & Achievements system with comprehensive tracking
-- ✅ Database schema for user_goals and user_achievements tables
-- ✅ CRUD methods for goal management (create, read, update, delete)
-- ✅ 21 predefined achievements across 5 categories (workouts, strength, consistency, volume, weight)
-- ✅ Goals list screen with active/completed filtering and progress bars
-- ✅ Goal creation screen supporting 5 goal types (weight loss/gain, strength, frequency, body fat)
-- ✅ Achievements showcase screen with locked/unlocked states and progress tracking
-- ✅ Automatic achievement unlock detection based on user stats
-- ✅ Navigation from home screen to goals and achievements
-- ✅ Full offline-first architecture integration
-**Phase 1 - Monorepo Restructuring:**
-- ✅ Moved web app from root `src/` to `apps/web/src/`
-- ✅ Created shared `tsconfig.base.json` with path aliases
-- ✅ Scaffolded `packages/data`, `packages/features`, and `packages/ui`
-- ✅ Updated root scripts to delegate to app-specific commands
-- ✅ Both apps inherit shared TypeScript configuration
-
-**Phase 3 - Shared Logic & Local Storage:**
-- ✅ Created shared data utilities in `packages/data`:
-  - Unit conversions (kg⇄lbs, km⇄miles, time formatting)
-  - Achievement constants and display info
-  - Workout helpers (session length, time ago formatting)
-  - Storage interfaces: SyncQueueItem, SyncQueueStore, data models
-- ✅ Built SQLite database adapter for mobile (`apps/mobile/app/lib/database.ts`)
-- ✅ Configured Metro bundler for mobile app to use shared packages
-- ✅ Mobile app successfully imports and uses shared utilities
-- ✅ Created DataProvider context with automatic sync queue processing
-- ✅ Implemented network connectivity monitoring with NetInfo
-- ✅ Built first functional feature: Workout logging screen
-- ⏳ Web app uses local copies (Next.js module resolution needs build pipeline)
-
-**Mobile App Setup:**
-- ✅ Fixed react-native-worklets-core dependency
-- ✅ Expo Metro bundler running with tunnel on port 8000
-- ✅ QR code available for testing with Expo Go
-- ✅ Successfully importing from shared packages (@data/*)
-
-**Phase 2 - Supabase Authentication Integration:**
-- ✅ Created shared Supabase configuration in `packages/data/src/supabase/`
-- ✅ Built mobile-specific Supabase client with AsyncStorage for session persistence
-- ✅ Implemented AuthProvider context with useAuth hook for mobile app
-- ✅ Created login/signup screen with email/password authentication
-- ✅ Added authentication redirect logic and sign-out functionality
-- ✅ Fixed critical bug with optional chaining in session access
-- ✅ Mobile app now connects to Supabase for authentication
-
-**Phase 4 - View & History Screens (Complete):**
-- ✅ Created exercise library with 16 common exercises across 7 categories
-- ✅ Built workout history screen with pull-to-refresh functionality
-- ✅ Implemented workout detail view showing exercises and sets in table format
-- ✅ Created exercise picker with category filtering and search
-- ✅ Updated home screen with navigation buttons to all features
-- ✅ Integrated exercise selection into workout logging flow
-- ✅ Fixed data loading bugs in workout detail screen
-
-**Phase 5 - Enhanced Workout Features (Complete):**
-- ✅ Multi-exercise workout support - users can add multiple exercises per session
-- ✅ Exercise card UI with remove functionality
-- ✅ Per-exercise set management (add/remove sets)
-- ✅ Personal Record (PR) detection system:
-  - Queries historical max weight per exercise from database
-  - Compares current sets against historical max
-  - Tracks running maximum within workout to avoid false positives
-  - Visual PR indicators (green border, 🎉 badge) on input fields
-  - Success message showing count of new PRs after save
-- ✅ Rest timer component:
-  - Modal overlay with countdown timer
-  - Pause/resume functionality
-  - Reset button
-  - Quick preset durations (30s, 60s, 90s, 120s, 180s)
-  - Visual feedback when timer reaches zero
-- ✅ Database method for fetching personal records (getPersonalRecord)
-- ✅ Data context integration with PR tracking
-
-**Phase 6 - Workout Templates (Complete):**
-- ✅ Database schema and CRUD operations for templates:
-  - Save/update templates with exercises, sets, and default weights
-  - Get template list for user
-  - Get single template by ID
-  - Delete templates
-- ✅ Templates list screen:
-  - View all saved templates with exercise count
-  - See exercise breakdown with default sets/weights
-  - Delete templates with confirmation
-  - Start workout from template button
-- ✅ Save as Template feature:
-  - Save current workout configuration as reusable template
-  - Add optional description
-  - Update existing templates
-  - Cross-platform modal (iOS and Android compatible)
-- ✅ Start from Template flow:
-  - Pre-populate workout with template exercises
-  - Load default sets and weights from template
-  - Fetch personal records for each exercise
-  - Preserve template reference for updates
-- ✅ Home screen navigation to templates
-- ✅ Bug fixes:
-  - Fixed useEffect dependency for template loading with userId
-  - Replaced iOS-only Alert.prompt with cross-platform modal
-  - Description state preservation during template updates
-
-**Phase 7 - Progress Tracking & Analytics (Complete):**
-- ✅ Database analytics queries:
-  - getWorkoutStats: total workouts, volume, average volume, streaks
-  - getWorkoutFrequency: daily workout counts over time
-  - getVolumeHistory: total weight lifted per day
-  - getPRHistory: personal record progression per exercise
-  - Streak calculation: current streak and longest streak
-- ✅ Progress/Analytics screen:
-  - Stats dashboard with 5 key metrics
-  - Time range selector (7d, 14d, 30d, 90d)
-  - Workout frequency bar chart
-  - Volume over time bar chart
-  - PR progression chart with exercise selector
-  - Motivational streak messaging
-- ✅ Visual analytics:
-  - Responsive bar charts with automatic scaling
-  - Exercise selector for viewing PR progression across different lifts
-  - Color-coded active states and visual feedback
-- ✅ Home screen navigation to progress analytics
-
-**Phase 8 - Profile & Settings (Complete):**
-- ✅ User preferences database schema:
-  - getUserPreferences, saveUserPreferences methods
-  - Stores unit_system (metric/imperial) and theme (dark/light)
-  - Persisted to SQLite with user_id isolation
-- ✅ PreferencesContext with PreferencesProvider:
-  - App-wide state for unit system and theme preferences
-  - Key-based component reset (key={userId || 'no-user'}) to prevent cross-account data leakage
-  - Database initialization gating to ensure safe access
-  - Automatic preference loading on user sign-in
-  - State reset to defaults on sign-out
-- ✅ useUnitConversion custom hook:
-  - formatWeight(kg): converts to user's preferred unit
-  - parseWeight(value): converts user input back to kg for storage
-  - formatDistance(km): converts to user's preferred unit
-  - parseDistance(value): converts user input back to km for storage
-  - Returns current unit labels ('kg'/'lbs', 'km'/'mi')
-- ✅ Settings screen features:
-  - Account information display (email)
-  - Unit system toggle switch with persistence
-  - Theme preference (ready for future implementation)
-  - Sign out button
-  - Loading states while preferences fetch
-- ✅ Navigation: Home screen button to Profile/Settings
-- ✅ Security: State management prevents user A's preferences from appearing to user B during account switching
-
-**Phase 9 - Body Measurements & Weight Tracking (Complete):**
-- ✅ Database schema for body measurements:
-  - saveBodyMeasurement, getBodyMeasurements, getWeightHistory, deleteBodyMeasurement methods
-  - Tracks weight_kg, body_fat_percentage, chest/waist/hips/arms/thighs measurements in cm
-  - Optional notes field for each measurement entry
-  - Properly indexed by user_id and measurement_date
-- ✅ Measurements input screen:
-  - DateTimePicker component for user-friendly date selection
-  - Platform-specific date picker (spinner on iOS, calendar on Android)
-  - Enforces maximum date (today) to prevent future dates
-  - Unit conversion for weight input based on user preferences
-  - All measurements optional (at least one required)
-  - Notes field for additional context
-- ✅ Measurements history screen:
-  - Chronological ordering (newest first) with dual-sort stability
-  - Grid layout displaying all recorded measurements
-  - Delete functionality with confirmation prompts
-  - Pull-to-refresh to reload data
-  - Empty state guidance for new users
-  - Weight values display in user's preferred unit
-- ✅ DataContext integration:
-  - Exposed all body measurement CRUD operations
-  - Type-safe BodyMeasurement interface
-- ✅ Navigation: Home screen button to Body Measurements history
-
-**Phase 10 - Goals & Achievements System (Complete):**
-- ✅ Database schema for body measurements:
-  - saveBodyMeasurement, getBodyMeasurements, getWeightHistory, deleteBodyMeasurement methods
-  - Tracks weight_kg, body_fat_percentage, chest/waist/hips/arms/thighs measurements in cm
-  - Optional notes field for each measurement entry
-  - Properly indexed by user_id and measurement_date
-- ✅ Measurements input screen:
-  - DateTimePicker component for user-friendly date selection
-  - Platform-specific date picker (spinner on iOS, calendar on Android)
-  - Enforces maximum date (today) to prevent future dates
-  - Unit conversion for weight input based on user preferences
-  - All measurements optional (at least one required)
-  - Notes field for additional context
-- ✅ Measurements history screen:
-  - Chronological ordering (newest first) with dual-sort stability
-  - Grid layout displaying all recorded measurements
-  - Delete functionality with confirmation prompts
-  - Pull-to-refresh to reload data
-  - Empty state guidance for new users
-  - Weight values display in user's preferred unit
-- ✅ DataContext integration:
-  - Exposed all body measurement CRUD operations
-  - Type-safe BodyMeasurement interface
-- ✅ Navigation: Home screen button to Body Measurements history
-
-**Phase 10 - Goals & Achievements System (Complete):**
-- ✅ Database schema for goals and achievements:
-  - user_goals table with support for multiple goal types
-  - user_achievements table linking users to unlocked achievements
-  - saveGoal, getGoals, getGoal, updateGoalProgress, deleteGoal methods
-  - unlockAchievement, getUserAchievements, hasAchievement, checkAndUnlockAchievements methods
-  - Properly indexed for efficient queries
-- ✅ Achievement definitions (packages/data/src/achievements.ts):
-  - 21 achievements across 5 categories
-  - Bronze, silver, gold, and platinum tiers
-  - Workout count milestones (1, 10, 25, 50, 100, 250 workouts)
-  - Streak achievements (3, 7, 14, 30, 100 days)
-  - Volume milestones (10k, 50k, 100k, 250k kg)
-  - Strength achievements for bench press, squat, deadlift
-  - Comprehensive requirement definitions
-- ✅ Goals list screen:
-  - View active, completed, or all goals
-  - Progress bars showing goal completion
-  - Delete functionality with confirmation
-  - Pull-to-refresh to reload data
-  - Empty state with call-to-action
-  - Filter tabs for goal status
-- ✅ Goal creation screen:
-  - 5 goal types: weight loss, weight gain, strength, workout frequency, body fat %
-  - Exercise selection for strength goals
-  - Optional target date with DateTimePicker
-  - Optional notes field
-  - Unit conversion for weight-based goals
-  - Validation and error handling
-- ✅ Achievements showcase screen:
-  - Progress overview (X/21 unlocked with percentage)
-  - Category filtering (all, workouts, strength, consistency, volume)
-  - Locked/unlocked states with visual distinction
-  - Unlock dates for completed achievements
-  - Requirement text for locked achievements
-  - Automatic achievement detection on data load
-- ✅ DataContext integration:
-  - All goal and achievement methods exposed
-  - checkAndUnlockAchievements evaluates requirements automatically
-  - Type-safe Goal and UserAchievement interfaces
-- ✅ Navigation: Home screen buttons to Goals and Achievements
-
-**Current Features (Mobile):**
-- ✅ User authentication (email/password) with session persistence
-- ✅ Exercise library (16 exercises across chest, back, legs, shoulders, arms, core, cardio)
-- ✅ Exercise picker with category filtering and search
-- ✅ Multi-exercise workout logging with unlimited sets per exercise
-- ✅ Personal record (PR) tracking and celebration
-- ✅ Rest timer with customizable durations
-- ✅ Workout templates (save, load, update, delete)
-- ✅ Start workouts from templates with pre-populated exercises
-- ✅ Workout history with pull-to-refresh
-- ✅ Workout detail view with exercise breakdown
-- ✅ Progress tracking & analytics dashboard
-- ✅ Workout frequency charts
-- ✅ Volume tracking over time
-- ✅ PR progression charts per exercise
-- ✅ Workout streak tracking (current & longest)
-- ✅ Body measurements tracking (weight, body fat %, 9 body measurements)
-- ✅ Measurements history with chronological display
-- ✅ DateTimePicker for easy measurement date selection
-- ✅ Goals system with 5 goal types and progress tracking
-- ✅ Achievements system with 21 milestones across 5 categories
-- ✅ Automatic achievement unlock detection
-- ✅ User preferences with unit system toggle (kg ⇄ lbs)
-- ✅ Profile/Settings screen with account info
-- ✅ Offline-first data persistence with SQLite
-- ✅ Automatic background sync to Supabase when online
-- ✅ Network status monitoring and sync queue visibility
-
-## Known Issues
-- Minor LSP warnings about module resolution (doesn't affect runtime)
-- Web app needs build tooling (Turborepo/Nx) to use shared packages
-- Metadata viewport warning in Next.js (cosmetic)
+## External Dependencies
+- **Backend-as-a-Service (BaaS):** Supabase (Authentication, PostgreSQL Database, Edge Functions)
+- **Frontend Frameworks:** Next.js (Web), React Native / Expo (Mobile)
+- **Styling:** Tailwind CSS (Web), React Native StyleSheet (Mobile)
+- **UI Libraries:** Shadcn/UI (Web), Radix UI (Primitives for Shadcn/UI)
+- **Icons:** Lucide React
+- **Form Management:** React Hook Form, Zod
+- **Charting:** Recharts
+- **Notifications:** Sonner
+- **Offline Data Storage:** Dexie (Web - IndexedDB wrapper), expo-sqlite (Mobile)
+- **PWA Integration:** next-pwa
+- **Network Connectivity:** @react-native-community/netinfo (Mobile)
