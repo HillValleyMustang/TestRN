@@ -30,6 +30,29 @@ interface BodyMeasurement {
   created_at: string;
 }
 
+export interface Goal {
+  id: string;
+  user_id: string;
+  goal_type: string;
+  target_value: number;
+  current_value?: number;
+  start_date: string;
+  target_date?: string;
+  status: string;
+  exercise_id?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserAchievement {
+  id: string;
+  user_id: string;
+  achievement_id: string;
+  unlocked_at: string;
+  progress_value?: number;
+}
+
 interface DataContextType {
   addWorkoutSession: (session: WorkoutSession) => Promise<void>;
   addSetLog: (setLog: SetLog) => Promise<void>;
@@ -48,6 +71,15 @@ interface DataContextType {
   getBodyMeasurements: (userId: string) => Promise<BodyMeasurement[]>;
   getWeightHistory: (userId: string, days?: number) => Promise<Array<{ date: string; weight: number }>>;
   deleteBodyMeasurement: (measurementId: string) => Promise<void>;
+  saveGoal: (goal: Goal) => Promise<void>;
+  getGoals: (userId: string, status?: string) => Promise<Goal[]>;
+  getGoal: (goalId: string) => Promise<Goal | null>;
+  updateGoalProgress: (goalId: string, currentValue: number, status?: string) => Promise<void>;
+  deleteGoal: (goalId: string) => Promise<void>;
+  unlockAchievement: (achievement: UserAchievement) => Promise<void>;
+  getUserAchievements: (userId: string) => Promise<UserAchievement[]>;
+  hasAchievement: (userId: string, achievementId: string) => Promise<boolean>;
+  checkAndUnlockAchievements: (userId: string) => Promise<void>;
   isSyncing: boolean;
   queueLength: number;
   isOnline: boolean;
@@ -148,6 +180,83 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     await database.deleteBodyMeasurement(measurementId);
   };
 
+  const saveGoal = async (goal: Goal): Promise<void> => {
+    await database.saveGoal(goal);
+  };
+
+  const getGoals = async (userId: string, status?: string): Promise<Goal[]> => {
+    return await database.getGoals(userId, status);
+  };
+
+  const getGoal = async (goalId: string): Promise<Goal | null> => {
+    return await database.getGoal(goalId);
+  };
+
+  const updateGoalProgress = async (goalId: string, currentValue: number, status?: string): Promise<void> => {
+    await database.updateGoalProgress(goalId, currentValue, status);
+  };
+
+  const deleteGoal = async (goalId: string): Promise<void> => {
+    await database.deleteGoal(goalId);
+  };
+
+  const unlockAchievement = async (achievement: UserAchievement): Promise<void> => {
+    await database.unlockAchievement(achievement);
+  };
+
+  const getUserAchievements = async (userId: string): Promise<UserAchievement[]> => {
+    return await database.getUserAchievements(userId);
+  };
+
+  const hasAchievement = async (userId: string, achievementId: string): Promise<boolean> => {
+    return await database.hasAchievement(userId, achievementId);
+  };
+
+  const checkAndUnlockAchievements = async (userId: string): Promise<void> => {
+    const { ACHIEVEMENTS } = await import('@data/achievements');
+    const stats = await database.getWorkoutStats(userId);
+    const unlockedAchievements = await database.getUserAchievements(userId);
+    const unlockedIds = new Set(unlockedAchievements.map(a => a.achievement_id));
+
+    for (const achievement of ACHIEVEMENTS) {
+      if (unlockedIds.has(achievement.id)) continue;
+
+      let shouldUnlock = false;
+      let progressValue = 0;
+
+      switch (achievement.requirement.type) {
+        case 'workout_count':
+          progressValue = stats.totalWorkouts;
+          shouldUnlock = progressValue >= achievement.requirement.value;
+          break;
+        case 'streak_days':
+          progressValue = stats.currentStreak;
+          shouldUnlock = progressValue >= achievement.requirement.value;
+          break;
+        case 'total_volume':
+          progressValue = stats.totalVolume;
+          shouldUnlock = progressValue >= achievement.requirement.value;
+          break;
+        case 'max_weight':
+          if (achievement.requirement.exercise_id) {
+            progressValue = await database.getPersonalRecord(userId, achievement.requirement.exercise_id);
+            shouldUnlock = progressValue >= achievement.requirement.value;
+          }
+          break;
+      }
+
+      if (shouldUnlock) {
+        await database.unlockAchievement({
+          id: `${userId}_${achievement.id}_${Date.now()}`,
+          user_id: userId,
+          achievement_id: achievement.id,
+          unlocked_at: new Date().toISOString(),
+          progress_value: progressValue,
+        });
+      }
+    }
+  };
+
   const value = useMemo(
     () => ({
       addWorkoutSession,
@@ -167,6 +276,15 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       getBodyMeasurements,
       getWeightHistory,
       deleteBodyMeasurement,
+      saveGoal,
+      getGoals,
+      getGoal,
+      updateGoalProgress,
+      deleteGoal,
+      unlockAchievement,
+      getUserAchievements,
+      hasAchievement,
+      checkAndUnlockAchievements,
       isSyncing,
       queueLength,
       isOnline,
