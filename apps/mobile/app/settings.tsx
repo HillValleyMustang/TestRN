@@ -50,6 +50,23 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Fitness Settings</Text>
+        
+        <TouchableOpacity 
+          style={styles.navigationRow}
+          onPress={() => router.push('/gyms')}
+        >
+          <View>
+            <Text style={styles.settingLabel}>My Gyms</Text>
+            <Text style={styles.settingDescription}>
+              Manage gym profiles and equipment
+            </Text>
+          </View>
+          <Text style={styles.chevron}>›</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Preferences</Text>
         
         <TouchableOpacity 
@@ -141,6 +158,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
+  navigationRow: {
+    backgroundColor: '#111',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+    marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   settingRow: {
     backgroundColor: '#111',
     padding: 16,
@@ -151,6 +179,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  chevron: {
+    color: '#888',
+    fontSize: 24,
+    fontWeight: '300',
   },
   settingLabel: {
     color: '#fff',
