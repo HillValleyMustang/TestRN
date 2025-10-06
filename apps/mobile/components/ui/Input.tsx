@@ -13,6 +13,7 @@ import {
   TextStyle,
   StyleSheet,
   TextInputProps,
+  StyleProp,
 } from 'react-native';
 import { Colors, BorderRadius, Spacing } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
@@ -21,8 +22,8 @@ interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
   helperText?: string;
-  containerStyle?: ViewStyle;
-  inputStyle?: TextStyle;
+  containerStyle?: StyleProp<ViewStyle>;
+  inputStyle?: StyleProp<TextStyle>;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
 }

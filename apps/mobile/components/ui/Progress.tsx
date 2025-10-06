@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { View, ViewStyle, StyleSheet, Text } from 'react-native';
+import { View, ViewStyle, StyleSheet, Text, StyleProp } from 'react-native';
 import { Colors, BorderRadius, Spacing } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
 import Svg, { Circle } from 'react-native-svg';
@@ -19,7 +19,7 @@ interface ProgressProps {
   size?: number; // For circular variant
   strokeWidth?: number; // For circular variant
   showLabel?: boolean;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function Progress({
@@ -76,7 +76,7 @@ interface CircularProgressProps {
   color: string;
   backgroundColor: string;
   showLabel: boolean;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 function CircularProgress({

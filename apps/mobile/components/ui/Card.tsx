@@ -5,12 +5,12 @@
  */
 
 import React from 'react';
-import { View, ViewStyle, StyleSheet } from 'react-native';
+import { View, ViewStyle, StyleSheet, StyleProp } from 'react-native';
 import { Colors, BorderRadius, Spacing, Shadows } from '../../constants/Theme';
 
 interface CardProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   variant?: 'default' | 'elevated';
   accentColor?: string; // For workout color accent (border-bottom)
   accentWidth?: number; // Width of bottom accent border (default: 4)
@@ -23,22 +23,22 @@ export function Card({
   accentColor,
   accentWidth = 4
 }: CardProps) {
-  const cardStyle: ViewStyle[] = [
+  const cardStyle = StyleSheet.flatten([
     styles.card,
-    variant === 'elevated' ? Shadows.sm : {},
-    accentColor ? {
+    variant === 'elevated' && Shadows.sm,
+    accentColor && {
       borderBottomWidth: accentWidth,
       borderBottomColor: accentColor,
-    } : {},
-    style || {},
-  ].filter(Boolean);
+    },
+    style,
+  ]);
 
   return <View style={cardStyle}>{children}</View>;
 }
 
 interface CardHeaderProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function CardHeader({ children, style }: CardHeaderProps) {
@@ -51,7 +51,7 @@ export function CardHeader({ children, style }: CardHeaderProps) {
 
 interface CardTitleProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function CardTitle({ children, style }: CardTitleProps) {
@@ -64,7 +64,7 @@ export function CardTitle({ children, style }: CardTitleProps) {
 
 interface CardDescriptionProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function CardDescription({ children, style }: CardDescriptionProps) {
@@ -77,7 +77,7 @@ export function CardDescription({ children, style }: CardDescriptionProps) {
 
 interface CardContentProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function CardContent({ children, style }: CardContentProps) {
@@ -90,7 +90,7 @@ export function CardContent({ children, style }: CardContentProps) {
 
 interface CardFooterProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function CardFooter({ children, style }: CardFooterProps) {

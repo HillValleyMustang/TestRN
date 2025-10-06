@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { View, Text, ViewStyle, TextStyle, StyleSheet } from 'react-native';
+import { View, Text, ViewStyle, TextStyle, StyleSheet, StyleProp } from 'react-native';
 import { Colors, BorderRadius, Spacing } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
 
@@ -16,8 +16,8 @@ interface BadgeProps {
   children: React.ReactNode;
   variant?: BadgeVariant;
   size?: BadgeSize;
-  style?: ViewStyle;
-  textStyle?: TextStyle;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
   color?: string; // For custom workout colors
 }
 

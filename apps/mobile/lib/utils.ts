@@ -3,15 +3,20 @@
  * Adapted from web app utils for React Native
  */
 
-import { ViewStyle, TextStyle } from 'react-native';
+import { ViewStyle, TextStyle, StyleSheet, StyleProp } from 'react-native';
 import { Colors } from '../constants/Theme';
 
 /**
  * Merge styles (React Native equivalent of cn/clsx)
- * Usage: cn(styles.base, condition && styles.active)
+ * Works with StyleSheet.create registered styles, arrays, and objects
+ * Usage: cn(styles.base, condition && styles.active, { color: 'red' })
  */
-export function cn(...styles: (ViewStyle | TextStyle | false | undefined | null)[]): ViewStyle | TextStyle {
-  return Object.assign({}, ...styles.filter(Boolean));
+export function cn(...styles: Array<StyleProp<ViewStyle | TextStyle> | false | undefined | null>): ViewStyle | TextStyle {
+  // Filter out falsy values and flatten using StyleSheet
+  const filtered = styles.filter(Boolean);
+  if (filtered.length === 0) return {};
+  if (filtered.length === 1) return StyleSheet.flatten(filtered[0]) as ViewStyle | TextStyle;
+  return StyleSheet.flatten(filtered) as ViewStyle | TextStyle;
 }
 
 /**
