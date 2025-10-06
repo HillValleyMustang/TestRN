@@ -10,9 +10,9 @@ import { useFocusEffect } from "expo-router";
 import { useAuth } from "../_contexts/auth-context";
 import { useData } from "../_contexts/data-context";
 import { Colors, Spacing } from "../../constants/Theme";
+import { DashboardHeader } from "../../components/DashboardHeader";
 import {
   WelcomeHeader,
-  RollingStatusBadge,
   WeeklyTargetWidget,
   ActionHubWidget,
   GymToggle,
@@ -45,10 +45,9 @@ export default function DashboardScreen() {
   const [recentWorkouts, setRecentWorkouts] = useState<any[]>([]);
   const [nextWorkout, setNextWorkout] = useState<any>(null);
 
-  // Animation values for staggered entrance
+  // Animation values for staggered entrance (reduced by 1 since we removed RollingStatusBadge from body)
   const fadeAnims = useRef([
     new Animated.Value(0), // Welcome Header - 0.0s
-    new Animated.Value(0), // Rolling Status Badge - 0.05s
     new Animated.Value(0), // Weekly Target - 0.1s
     new Animated.Value(0), // Action Hub - 0.2s
     new Animated.Value(0), // Gym Toggle - 0.3s
@@ -67,12 +66,11 @@ export default function DashboardScreen() {
     new Animated.Value(-10),
     new Animated.Value(-10),
     new Animated.Value(-10),
-    new Animated.Value(-10),
   ]).current;
 
   // Staggered animation on mount
   useEffect(() => {
-    const delays = [0, 100, 200, 300, 400, 500, 600, 700, 800]; // milliseconds (0.0s → 0.8s in 0.1s increments)
+    const delays = [0, 100, 200, 300, 400, 500, 600, 700]; // milliseconds (0.0s → 0.7s in 0.1s increments)
     
     const animations = fadeAnims.map((fadeAnim, index) => {
       return Animated.parallel([
@@ -215,95 +213,98 @@ export default function DashboardScreen() {
   );
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      {/* 1. Welcome Header - 0.0s */}
-      <AnimatedView index={0}>
-        <WelcomeHeader 
-          userName={userName} 
-          accountCreatedAt={accountCreatedAt}
-        />
-      </AnimatedView>
+    <View style={styles.container}>
+      {/* Aurora Background Gradient */}
+      <View style={styles.auroraBackground} />
+      
+      {/* Dashboard Header with Rolling Status Badge */}
+      <DashboardHeader />
 
-      {/* 2. Rolling Status Badge - 0.05s */}
-      <AnimatedView index={1}>
-        <RollingStatusBadge />
-      </AnimatedView>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {/* 1. Welcome Header - 0.0s */}
+        <AnimatedView index={0}>
+          <WelcomeHeader 
+            userName={userName} 
+            accountCreatedAt={accountCreatedAt}
+          />
+        </AnimatedView>
 
-      {/* 3. Weekly Target - 0.1s */}
-      <AnimatedView index={2}>
-        <WeeklyTargetWidget
-          completedWorkouts={weeklySummary?.completed_workouts || []}
-          goalTotal={weeklySummary?.goal_total || 3}
-          programmeType={weeklySummary?.programme_type || 'ppl'}
-          onViewCalendar={() => console.log('View calendar')}
-          onViewWorkoutSummary={(sessionId) => console.log('View summary:', sessionId)}
-          loading={loading}
-        />
-      </AnimatedView>
+        {/* 2. Weekly Target - 0.1s */}
+        <AnimatedView index={1}>
+          <WeeklyTargetWidget
+            completedWorkouts={weeklySummary?.completed_workouts || []}
+            goalTotal={weeklySummary?.goal_total || 3}
+            programmeType={weeklySummary?.programme_type || 'ppl'}
+            onViewCalendar={() => console.log('View calendar')}
+            onViewWorkoutSummary={(sessionId) => console.log('View summary:', sessionId)}
+            loading={loading}
+          />
+        </AnimatedView>
 
-      {/* 4. Action Hub - 0.2s */}
-      <AnimatedView index={3}>
-        <ActionHubWidget
-          onLogActivity={() => console.log('Log activity')}
-          onAICoach={() => console.log('AI Coach')}
-          onWorkoutLog={() => console.log('Workout log')}
-          onConsistencyCalendar={() => console.log('Consistency calendar')}
-        />
-      </AnimatedView>
+        {/* 3. Action Hub - 0.2s */}
+        <AnimatedView index={2}>
+          <ActionHubWidget
+            onLogActivity={() => console.log('Log activity')}
+            onAICoach={() => console.log('AI Coach')}
+            onWorkoutLog={() => console.log('Workout log')}
+            onConsistencyCalendar={() => console.log('Consistency calendar')}
+          />
+        </AnimatedView>
 
-      {/* 5. Gym Toggle (conditional) - 0.3s */}
-      <AnimatedView index={4}>
-        <GymToggle />
-      </AnimatedView>
+        {/* 4. Gym Toggle (conditional) - 0.3s */}
+        <AnimatedView index={3}>
+          <GymToggle />
+        </AnimatedView>
 
-      {/* 6. Next Workout Card - 0.4s */}
-      <AnimatedView index={5}>
-        <NextWorkoutCard
-          workoutId={nextWorkout?.id}
-          workoutName={nextWorkout?.template_name}
-          estimatedDuration="45 minutes"
-          loading={loading}
-          noActiveGym={!activeGym}
-          noActiveTPath={!activeTPath}
-        />
-      </AnimatedView>
+        {/* 5. Next Workout Card - 0.4s */}
+        <AnimatedView index={4}>
+          <NextWorkoutCard
+            workoutId={nextWorkout?.id}
+            workoutName={nextWorkout?.template_name}
+            estimatedDuration="45 minutes"
+            loading={loading}
+            noActiveGym={!activeGym}
+            noActiveTPath={!activeTPath}
+          />
+        </AnimatedView>
 
-      {/* 7. All Workouts Quick Start - 0.5s */}
-      <AnimatedView index={6}>
-        <AllWorkoutsQuickStart
-          programName={activeTPath?.template_name}
-          workouts={tpathWorkouts}
-          loading={loading}
-        />
-      </AnimatedView>
+        {/* 6. All Workouts Quick Start - 0.5s */}
+        <AnimatedView index={5}>
+          <AllWorkoutsQuickStart
+            programName={activeTPath?.template_name}
+            workouts={tpathWorkouts}
+            loading={loading}
+          />
+        </AnimatedView>
 
-      {/* 8. Weekly Volume Chart - 0.6s */}
-      <AnimatedView index={7}>
-        <SimpleVolumeChart data={volumeData} />
-      </AnimatedView>
+        {/* 7. Weekly Volume Chart - 0.6s */}
+        <AnimatedView index={6}>
+          <SimpleVolumeChart data={volumeData} />
+        </AnimatedView>
 
-      {/* 9. Previous Workouts - 0.7s */}
-      <AnimatedView index={8}>
-        <PreviousWorkoutsWidget
-          workouts={recentWorkouts.map(w => ({
-            id: w.id,
-            sessionId: w.id,
-            template_name: w.template_name || 'Ad Hoc Workout',
-            completed_at: w.completed_at || w.session_date,
-            exercise_count: 0, // TODO: fetch from workout data
-            duration_string: 'N/A', // TODO: calculate from workout data
-          }))}
-          onViewSummary={(sessionId) => console.log('View summary:', sessionId)}
-          loading={loading}
-        />
-      </AnimatedView>
-    </ScrollView>
+        {/* 8. Previous Workouts - 0.7s */}
+        <AnimatedView index={7}>
+          <PreviousWorkoutsWidget
+            workouts={recentWorkouts.map(w => ({
+              id: w.id,
+              sessionId: w.id,
+              template_name: w.template_name || 'Ad Hoc Workout',
+              completed_at: w.completed_at || w.session_date,
+              exercise_count: 0, // TODO: fetch from workout data
+              duration_string: 'N/A', // TODO: calculate from workout data
+            }))}
+            onViewSummary={(sessionId) => console.log('View summary:', sessionId)}
+            loading={loading}
+          />
+        </AnimatedView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -312,8 +313,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
+  auroraBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 300,
+    backgroundColor: Colors.auroraBlue,
+    opacity: 0.03,
+  },
+  scrollView: {
+    flex: 1,
+  },
   content: {
-    padding: Spacing.sm,
+    padding: Spacing.md,
     gap: Spacing.lg,
   },
 });

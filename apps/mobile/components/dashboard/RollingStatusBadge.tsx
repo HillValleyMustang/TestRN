@@ -10,127 +10,20 @@
  * - On Fire: 8+ weeks (50+ days)
  */
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import NetInfo from '@react-native-community/netinfo';
 import { Card } from '../ui/Card';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
-import { useAuth } from '../../app/_contexts/auth-context';
-
-type WorkoutStatus = 'Getting into it' | 'Building Momentum' | 'In the Zone' | 'On Fire' | 'Offline';
-
-interface StatusConfig {
-  icon: keyof typeof Ionicons.glyphMap;
-  color: string;
-  backgroundColor: string;
-  description: string;
-}
-
-const STATUS_CONFIG: Record<WorkoutStatus, StatusConfig> = {
-  'Getting into it': {
-    icon: 'barbell',
-    color: Colors.mutedForeground,
-    backgroundColor: Colors.muted,
-    description: "You're just getting started or have had a break. Keep it up!",
-  },
-  'Building Momentum': {
-    icon: 'checkmark-circle',
-    color: '#2563eb',
-    backgroundColor: '#dbeafe',
-    description: "You've been working out consistently for 1-3 weeks.",
-  },
-  'In the Zone': {
-    icon: 'flame',
-    color: '#f97316',
-    backgroundColor: '#ffedd5',
-    description: "You've maintained your workout habit for 4-7 weeks.",
-  },
-  'On Fire': {
-    icon: 'flame',
-    color: '#ef4444',
-    backgroundColor: '#fee2e2',
-    description: "Incredible consistency! You've been working out for 8+ weeks straight.",
-  },
-  'Offline': {
-    icon: 'cloud-offline',
-    color: '#ef4444',
-    backgroundColor: '#fee2e2',
-    description: 'Your progress is being saved locally and will sync when you reconnect.',
-  },
-};
+import { useRollingStatus } from '../../hooks/useRollingStatus';
 
 interface RollingStatusBadgeProps {
   onPress?: () => void;
 }
 
 export function RollingStatusBadge({ onPress }: RollingStatusBadgeProps) {
-  const { userId, supabase } = useAuth();
-  const [status, setStatus] = useState<WorkoutStatus>('Getting into it');
-  const [loading, setLoading] = useState(true);
-  const [isOnline, setIsOnline] = useState(true);
-
-  useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener(state => {
-      setIsOnline(state.isConnected ?? true);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (!isOnline) {
-      setStatus('Offline');
-      setLoading(false);
-      return;
-    }
-
-    fetchStatus();
-  }, [userId, isOnline]);
-
-  const fetchStatus = async () => {
-    if (!userId || !supabase) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      
-      const { data: profileData, error } = await supabase
-        .from('profiles')
-        .select('rolling_workout_status')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching rolling status:', error);
-        setStatus('Getting into it');
-      } else if (profileData?.rolling_workout_status) {
-        const dbStatus = profileData.rolling_workout_status;
-        
-        if (dbStatus === 'Ready to Start') {
-          setStatus('Getting into it');
-        } else if (isValidStatus(dbStatus)) {
-          setStatus(dbStatus as WorkoutStatus);
-        } else {
-          setStatus('Getting into it');
-        }
-      } else {
-        setStatus('Getting into it');
-      }
-    } catch (error) {
-      console.error('Error fetching rolling status:', error);
-      setStatus('Getting into it');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const isValidStatus = (status: string): boolean => {
-    return ['Getting into it', 'Building Momentum', 'In the Zone', 'On Fire'].includes(status);
-  };
+  const { status, loading, config } = useRollingStatus();
 
   const handlePress = () => {
     if (onPress) {
@@ -162,8 +55,6 @@ export function RollingStatusBadge({ onPress }: RollingStatusBadgeProps) {
       </Card>
     );
   }
-
-  const config = STATUS_CONFIG[status];
 
   return (
     <Pressable onPress={handlePress}>

@@ -4,19 +4,16 @@ import { Colors } from "../../constants/Theme";
 import { useWorkoutFlow } from "../_contexts/workout-flow-context";
 
 const tabBarOptions = {
-  tabBarActiveTintColor: Colors.actionPrimary,
-  tabBarInactiveTintColor: Colors.mutedForeground,
+  tabBarActiveTintColor: Colors.foreground, // Black icons when active
+  tabBarInactiveTintColor: Colors.mutedForeground, // Gray icons when inactive
+  tabBarShowLabel: false, // Hide text labels for cleaner look
   tabBarStyle: {
     backgroundColor: Colors.card,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
-    height: 64,
-    paddingBottom: 8,
-    paddingTop: 8,
-  },
-  tabBarLabelStyle: {
-    fontSize: 12,
-    fontWeight: '500' as const,
+    height: 72, // Increased height for better spacing
+    paddingBottom: 16, // More padding for breathing room
+    paddingTop: 12,
   },
   headerShown: false,
 };
@@ -44,7 +41,7 @@ export default function TabsLayout() {
         options={{
           title: "Dashboard",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
+            <Ionicons name="home" size={26} color={color} />
           ),
         }}
         listeners={withGuard("dashboard")}
@@ -54,7 +51,7 @@ export default function TabsLayout() {
         options={{
           title: "Workout",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="barbell" size={size} color={color} />
+            <Ionicons name="barbell" size={26} color={color} />
           ),
         }}
         listeners={withGuard("workout")}
@@ -64,7 +61,7 @@ export default function TabsLayout() {
         options={{
           title: "Exercises",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="book" size={size} color={color} />
+            <Ionicons name="book" size={26} color={color} />
           ),
         }}
         listeners={withGuard("exercises")}
@@ -74,7 +71,7 @@ export default function TabsLayout() {
         options={{
           title: "Progress",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bar-chart" size={size} color={color} />
+            <Ionicons name="bar-chart" size={26} color={color} />
           ),
         }}
         listeners={withGuard("progress")}
@@ -84,7 +81,7 @@ export default function TabsLayout() {
         options={{
           title: "Profile",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
+            <Ionicons name="person" size={26} color={color} />
           ),
         }}
         listeners={withGuard("profile")}

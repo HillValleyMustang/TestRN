@@ -90,7 +90,7 @@ export function ActionHubWidget({
             ]}
             onPress={handleLogActivity}
           >
-            <Ionicons name="fitness" size={20} color="#F97316" />
+            <Ionicons name="fitness" size={20} color={Colors.foreground} />
             <Text style={styles.buttonText}>Log Activity</Text>
           </Pressable>
 
@@ -102,7 +102,7 @@ export function ActionHubWidget({
             ]}
             onPress={handleAICoach}
           >
-            <Ionicons name="sparkles" size={20} color="#FBBF24" />
+            <Ionicons name="sparkles" size={20} color={Colors.foreground} />
             <Text style={styles.buttonText}>AI Coach</Text>
           </Pressable>
 
@@ -114,7 +114,7 @@ export function ActionHubWidget({
             ]}
             onPress={handleWorkoutLog}
           >
-            <Ionicons name="time" size={20} color="#3B82F6" />
+            <Ionicons name="time" size={20} color={Colors.foreground} />
             <Text style={styles.buttonText}>Workout Log</Text>
           </Pressable>
 
@@ -127,7 +127,7 @@ export function ActionHubWidget({
             ]}
             onPress={handleConsistencyCalendar}
           >
-            <Ionicons name="calendar" size={20} color="#8B5CF6" />
+            <Ionicons name="calendar" size={20} color={Colors.foreground} />
             <Text style={styles.buttonText}>Consistency Calendar</Text>
           </Pressable>
 
