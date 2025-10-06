@@ -142,12 +142,11 @@ export function ActionHubWidget({
             <Text style={styles.buttonText}>Consistency Calendar</Text>
           </Pressable>
 
-          {/* More - wider to align with Workout Log button above */}
+          {/* More - same width as Workout Log button to align right edges */}
           <View ref={moreButtonRef} collapsable={false}>
             <Pressable
               style={({ pressed }) => [
                 styles.button,
-                styles.buttonWide,
                 pressed && styles.buttonPressed,
               ]}
               onPress={handleMorePress}
