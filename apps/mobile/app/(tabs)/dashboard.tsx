@@ -72,7 +72,7 @@ export default function DashboardScreen() {
 
   // Staggered animation on mount
   useEffect(() => {
-    const delays = [0, 50, 100, 200, 300, 400, 500, 600, 700]; // milliseconds
+    const delays = [0, 100, 200, 300, 400, 500, 600, 700, 800]; // milliseconds (0.0s → 0.8s in 0.1s increments)
     
     const animations = fadeAnims.map((fadeAnim, index) => {
       return Animated.parallel([
