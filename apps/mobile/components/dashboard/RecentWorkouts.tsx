@@ -7,13 +7,15 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../ui/Card';
-import { Colors, Spacing } from '../../constants/Theme';
+import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
+import { getWorkoutColor } from '../../lib/workout-colors';
 
 interface WorkoutItem {
   id: string;
   name: string;
   completedAt: string;
+  workoutType?: string;
 }
 
 interface RecentWorkoutsProps {
@@ -47,23 +49,28 @@ export function RecentWorkouts({ workouts, onViewAll }: RecentWorkoutsProps) {
       </View>
 
       <View style={styles.workoutList}>
-        {workouts.map((workout, index) => (
-          <View 
-            key={workout.id} 
-            style={[
-              styles.workoutItem,
-              index < workouts.length - 1 && styles.workoutItemBorder,
-            ]}
-          >
-            <View style={styles.workoutIcon}>
-              <Ionicons name="checkmark-circle" size={24} color={Colors.success} />
+        {workouts.map((workout, index) => {
+          const workoutColor = workout.workoutType ? getWorkoutColor(workout.workoutType).main : null;
+          
+          return (
+            <View 
+              key={workout.id} 
+              style={[
+                styles.workoutItem,
+                index < workouts.length - 1 && styles.workoutItemBorder,
+                workoutColor && { borderLeftWidth: 3, borderLeftColor: workoutColor, paddingLeft: Spacing.sm },
+              ]}
+            >
+              <View style={styles.workoutIcon}>
+                <Ionicons name="checkmark-circle" size={24} color={workoutColor || Colors.success} />
+              </View>
+              <View style={styles.workoutInfo}>
+                <Text style={styles.workoutName}>{workout.name}</Text>
+                <Text style={styles.workoutDate}>{workout.completedAt}</Text>
+              </View>
             </View>
-            <View style={styles.workoutInfo}>
-              <Text style={styles.workoutName}>{workout.name}</Text>
-              <Text style={styles.workoutDate}>{workout.completedAt}</Text>
-            </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
     </Card>
   );

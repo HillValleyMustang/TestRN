@@ -10,6 +10,7 @@ import { Card } from '../ui/Card';
 import { SetRow } from './SetRow';
 import { Colors, Spacing } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
+import { getWorkoutColor } from '../../lib/workout-colors';
 
 interface ExerciseSet {
   weight: string;
@@ -23,6 +24,7 @@ interface ExerciseCardProps {
   muscleGroup?: string;
   sets: ExerciseSet[];
   isCompleted: boolean;
+  workoutType?: string;
   onSetChange: (setIndex: number, field: 'weight' | 'reps', value: string) => void;
   onToggleSetComplete: (setIndex: number) => void;
   onRemove?: () => void;
@@ -34,15 +36,21 @@ export function ExerciseCard({
   muscleGroup,
   sets,
   isCompleted,
+  workoutType,
   onSetChange,
   onToggleSetComplete,
   onRemove,
   onAddSet,
 }: ExerciseCardProps) {
   const completedSets = sets.filter(s => s.isCompleted).length;
+  const workoutColor = workoutType ? getWorkoutColor(workoutType).main : null;
 
   return (
-    <Card style={[styles.container, isCompleted && styles.containerCompleted]}>
+    <Card style={[
+      styles.container, 
+      isCompleted && styles.containerCompleted,
+      workoutColor && { borderLeftWidth: 4, borderLeftColor: workoutColor }
+    ]}>
       <View style={styles.header}>
         <View style={styles.titleContainer}>
           <Text style={styles.exerciseName}>{exerciseName}</Text>
