@@ -3,9 +3,9 @@
  * Simplified workout tracking with new design system
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Alert, StyleSheet, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../_contexts/auth-context';
 import { useData } from '../_contexts/data-context';
 import { useWorkoutFlow } from '../_contexts/workout-flow-context';
@@ -27,25 +27,134 @@ interface WorkoutExercise {
 
 export default function WorkoutScreen() {
   const { userId } = useAuth();
-  const { addWorkoutSession, addSetLog, getPersonalRecord } = useData();
-  const { setHasUnsavedChanges, completeSession } = useWorkoutFlow();
+  const { addWorkoutSession, addSetLog, getPersonalRecord, getTemplate, getTPath } = useData();
+  const { startSession, completeSession, setHasUnsavedChanges } = useWorkoutFlow();
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    selectedExerciseId?: string;
+    templateId?: string;
+    tPathId?: string;
+  }>();
 
   const [workoutName, setWorkoutName] = useState('Quick Workout');
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
   const [startTime] = useState(new Date());
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [personalRecords, setPersonalRecords] = useState<Record<string, number>>({});
+  const [loadedTPathId, setLoadedTPathId] = useState<string | null>(null);
 
-  const totalSets = useMemo(() => 
-    exercises.reduce((sum, ex) => sum + ex.sets.length, 0),
-    [exercises]
-  );
+  const loadTemplate = useCallback(async (templateId: string) => {
+    try {
+      const template = await getTemplate(templateId);
+      if (!template) {
+        Alert.alert('Error', 'Template not found');
+        return;
+      }
 
-  const completedSets = useMemo(() => 
-    exercises.reduce((sum, ex) => sum + ex.sets.filter(s => s.isCompleted).length, 0),
-    [exercises]
-  );
+      setWorkoutName(template.name);
+      const loadedExercises: WorkoutExercise[] = template.exercises.map(ex => ({
+        exerciseId: ex.exercise_id,
+        sets: Array(ex.default_sets).fill(null).map(() => ({
+          weight: ex.default_weight_kg?.toString() || '',
+          reps: ex.default_reps?.toString() || '',
+          isCompleted: false,
+        })),
+      }));
+
+      setExercises(loadedExercises);
+      setHasUnsavedChanges(false);
+
+      for (const ex of template.exercises) {
+        if (userId) {
+          const pr = await getPersonalRecord(userId, ex.exercise_id);
+          setPersonalRecords(prev => ({ ...prev, [ex.exercise_id]: pr }));
+        }
+      }
+    } catch {
+      Alert.alert('Error', 'Failed to load template');
+    }
+  }, [getPersonalRecord, getTemplate, setHasUnsavedChanges, userId]);
+
+  const loadTPath = useCallback(async (tPathId: string) => {
+    try {
+      const tPath = await getTPath(tPathId);
+      if (!tPath) {
+        Alert.alert('Error', 'Workout program not found');
+        return;
+      }
+
+      setWorkoutName(tPath.template_name);
+      setLoadedTPathId(tPathId);
+
+      const loadedExercises: WorkoutExercise[] = tPath.exercises
+        .filter(ex => !ex.is_bonus_exercise)
+        .map(ex => ({
+          exerciseId: ex.exercise_id,
+          sets: Array(ex.target_sets || 3).fill(null).map(() => ({
+            weight: '',
+            reps: ex.target_reps_min?.toString() || '',
+            isCompleted: false,
+          })),
+        }));
+
+      setExercises(loadedExercises);
+      setHasUnsavedChanges(false);
+
+      for (const ex of tPath.exercises) {
+        if (userId) {
+          const pr = await getPersonalRecord(userId, ex.exercise_id);
+          setPersonalRecords(prev => ({ ...prev, [ex.exercise_id]: pr }));
+        }
+      }
+    } catch {
+      Alert.alert('Error', 'Failed to load workout program');
+    }
+  }, [getPersonalRecord, getTPath, setHasUnsavedChanges, userId]);
+
+  const addExercise = useCallback(async (exerciseId: string) => {
+    setExercises(prev => {
+      if (prev.some(ex => ex.exerciseId === exerciseId)) {
+        Alert.alert('Already Added', 'This exercise is already in your workout');
+        return prev;
+      }
+      return [...prev, {
+        exerciseId,
+        sets: [{ weight: '', reps: '', isCompleted: false }],
+      }];
+    });
+    setHasUnsavedChanges(true);
+
+    if (userId) {
+      const pr = await getPersonalRecord(userId, exerciseId);
+      setPersonalRecords(prev => ({ ...prev, [exerciseId]: pr }));
+    }
+  }, [getPersonalRecord, setHasUnsavedChanges, userId]);
+
+  useEffect(() => {
+    startSession(params.templateId ?? params.tPathId ?? null);
+    return () => {
+      completeSession();
+      setHasUnsavedChanges(false);
+    };
+  }, [completeSession, params.templateId, params.tPathId, setHasUnsavedChanges, startSession]);
+
+  useEffect(() => {
+    if (params.selectedExerciseId) {
+      addExercise(params.selectedExerciseId);
+    }
+  }, [params.selectedExerciseId, addExercise]);
+
+  useEffect(() => {
+    if (params.templateId && userId) {
+      loadTemplate(params.templateId);
+    }
+  }, [params.templateId, userId, loadTemplate]);
+
+  useEffect(() => {
+    if (params.tPathId && userId) {
+      loadTPath(params.tPathId);
+    }
+  }, [params.tPathId, userId, loadTPath]);
 
   const handleAddExercise = useCallback(() => {
     router.push('/exercise-picker');
@@ -95,7 +204,8 @@ export default function WorkoutScreen() {
 
       return updated;
     });
-  }, [personalRecords]);
+    setHasUnsavedChanges(true);
+  }, [personalRecords, setHasUnsavedChanges]);
 
   const handleAddSet = useCallback((exerciseIndex: number) => {
     setExercises(prev => {
@@ -108,7 +218,8 @@ export default function WorkoutScreen() {
       });
       return updated;
     });
-  }, []);
+    setHasUnsavedChanges(true);
+  }, [setHasUnsavedChanges]);
 
   const handleRemoveExercise = useCallback((exerciseIndex: number) => {
     Alert.alert(
@@ -121,11 +232,12 @@ export default function WorkoutScreen() {
           style: 'destructive',
           onPress: () => {
             setExercises(prev => prev.filter((_, i) => i !== exerciseIndex));
+            setHasUnsavedChanges(true);
           },
         },
       ]
     );
-  }, []);
+  }, [setHasUnsavedChanges]);
 
   const handleFinishWorkout = useCallback(async () => {
     if (exercises.length === 0) {
@@ -164,7 +276,7 @@ export default function WorkoutScreen() {
                 completed_at: now,
                 rating: null,
                 duration_string: null,
-                t_path_id: null,
+                t_path_id: loadedTPathId,
                 created_at: now,
               });
 
@@ -205,7 +317,7 @@ export default function WorkoutScreen() {
         },
       ]
     );
-  }, [exercises, workoutName, userId, addWorkoutSession, addSetLog, setHasUnsavedChanges, completeSession, router]);
+  }, [exercises, workoutName, userId, loadedTPathId, addWorkoutSession, addSetLog, setHasUnsavedChanges, completeSession, router]);
 
   if (exercises.length === 0) {
     return (
