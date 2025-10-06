@@ -3,6 +3,66 @@
 
 ---
 
+## VISUAL PARITY REFERENCE
+
+**Purpose:** These screenshots serve as the visual source of truth. Spacing, typography, component order, and color application must match exactly.
+
+**Reference Screenshots:**
+1. **Dashboard (full scroll)** - Shows complete component order and staggered animations
+2. **Weekly Target with circles** - Shows color-coded completion states
+3. **Previous Workouts "View Summary"** - Shows workout cards with colored borders
+4. **Action Hub grid** - Shows 3×2 button layout
+5. **All Workouts pills** - Shows workout pills with play buttons
+
+**Acceptance Criteria:**
+- Spacing, typography, and order must match sections 1.2 and 1.3 exactly
+- Component order must be: Header → Weekly Target → Action Hub → Gym Toggle (conditional) → Next Workout → All Workouts → Volume Chart → Previous Workouts
+- Staggered animation timing must be: 0.0s → 0.7s in 0.1s increments
+
+---
+
+## ROUTING REFERENCE
+
+### Workout Color System
+All workout-type styling uses the centralized utility:
+
+```typescript
+import { getWorkoutColor } from '@/lib/workout-colors';
+
+// Returns { main: string, light: string }
+const colors = getWorkoutColor('Push'); // { main: '#228B22', light: '#2ea32e' }
+```
+
+**Implementation:** `apps/mobile/lib/workout-colors.ts` (already implemented)
+
+**Used in:** Weekly Target circles, Next Workout button, All Workout pills, Previous Workouts borders
+
+### Navigation Targets
+Explicit navigation destinations from Dashboard:
+
+**Primary Actions:**
+- "Start Workout" (Next Workout card) → `/workout?workoutId={id}`
+- "Play" button (All Workouts) → `/workout?workoutId={id}`
+- "View All History" button → `/workout-history`
+
+**Quick Links (Action Hub):**
+- Log Activity → Opens Activity Logging Dialog
+- AI Coach → Opens AI Coach Dialog
+- Workout Log → Opens Workout Performance Modal
+- Consistency Calendar → Opens Consistency Calendar Modal
+- More → Dropdown with:
+  - Start Workout → `/workout`
+  - Manage Exercises → `/manage-exercises`
+  - Manage T-Paths → `/manage-t-paths`
+  - Profile Settings → `/profile?tab=settings&edit=true`
+
+**Other Navigations:**
+- Completed circle (Weekly Target) → Opens Workout Summary Modal with `sessionId`
+- Calendar icon (Weekly Target) → Opens Consistency Calendar Modal
+- "View Summary" (Previous Workouts) → Opens Workout Summary Modal with `sessionId`
+
+---
+
 ## 1. PAGE STRUCTURE
 
 ### 1.1 Layout Container
@@ -13,17 +73,19 @@
 
 ### 1.2 Component Order (Top to Bottom)
 1. Welcome Header
-2. Weekly Target Widget
-3. Action Hub (Quick Links)
-4. Gym Toggle (conditional: only if >1 gym)
-5. Next Workout Card
-6. All Workouts Quick Start
-7. Weekly Volume Chart
-8. Previous Workouts Card
+2. **Rolling Status Badge** (immediately below header)
+3. Weekly Target Widget
+4. Action Hub (Quick Links)
+5. Gym Toggle (conditional: only if >1 gym)
+6. Next Workout Card
+7. All Workouts Quick Start
+8. Weekly Volume Chart
+9. Previous Workouts Card
 
 ### 1.3 Staggered Animations
 Each card has a fade-in-slide-up animation with delays:
-- Header: 0s
+- Header: 0.0s
+- Rolling Status Badge: 0.05s
 - Weekly Target: 0.1s
 - Action Hub: 0.2s
 - Gym Toggle: 0.3s
@@ -64,6 +126,22 @@ Each card has a fade-in-slide-up animation with delays:
   - Size: 14px (text-sm)
   - Color: Muted foreground
   - Top Margin: 8px (mt-2)
+
+---
+
+## 2.5 ROLLING STATUS BADGE (Dashboard Placement)
+
+**📌 Note:** This badge mirrors the header badge state. See MOBILE_SPEC_01_LAYOUT_NAVIGATION.md Section 1.3 for complete specifications.
+
+**Placement:** Immediately below Welcome Header, before Weekly Target Widget
+
+**Behavior:**
+- Renders same component as header badge
+- Shows same state (7 possible states)
+- Tap opens "Workout Status Explained" modal
+- Animation delay: 0.05s (between header and Weekly Target)
+
+**States:** Getting into it, Building Momentum, In the Zone, On Fire, Offline, Updating Plan, Temp Success Message
 
 ---
 
@@ -111,34 +189,34 @@ Each card has a fade-in-slide-up animation with delays:
 **Circle States:**
 
 1. **Completed Circle:**
-   - Background: Workout color (e.g., `bg-workout-push` #228B22 for Push)
+   - Background: **Dynamic workout color** from `getWorkoutColor(workoutName).main`
    - Icon: CheckCircle (20px, white)
    - Text Color: White
    - No border
    - Cursor: Pointer
    - Hover: Scale 110%
-   - Click: Opens workout summary modal
+   - **Action:** Opens Workout Summary Modal with `sessionId`
 
 2. **Incomplete Circle:**
    - Background: Card background
-   - Border: 2px solid workout color
+   - Border: 2px solid **dynamic workout color** from `getWorkoutColor(workoutName).main`
    - Text: First letter of workout name
      - "U" for Upper Body A/B
      - "L" for Lower Body A/B
      - "P" for Push
-     - "P" for Pull
+     - "P" for Pull (yes, same letter)
      - "L" for Legs
-   - Text Color: Workout color
+   - Text Color: **Dynamic workout color**
    - No hover/click
 
-**Workout Colors:**
-- Push: #228B22 (forest green)
-- Pull: #F89C4D (orange)
-- Legs: #B645D9 (purple)
-- Upper Body A: #1e3a8a (dark blue)
-- Upper Body B: #EF4444 (red)
-- Lower Body A: #0891b2 (cyan)
-- Lower Body B: #6b21a8 (purple)
+**Workout Color Examples:**
+- Push → `getWorkoutColor('Push')` → #228B22
+- Pull → `getWorkoutColor('Pull')` → #F89C4D
+- Legs → `getWorkoutColor('Legs')` → #B645D9
+- Upper Body A → `getWorkoutColor('Upper Body A')` → #1e3a8a
+- Upper Body B → `getWorkoutColor('Upper Body B')` → #EF4444
+- Lower Body A → `getWorkoutColor('Lower Body A')` → #0891b2
+- Lower Body B → `getWorkoutColor('Lower Body B')` → #6b21a8
 
 **Display Logic:**
 - PPL: Show 3 circles (Push, Pull, Legs)
@@ -254,16 +332,16 @@ Each card has a fade-in-slide-up animation with delays:
 - **Items:**
   1. Start Workout
      - Icon: Dumbbell (16px)
-     - Action: Navigate to /workout
+     - Action: Navigate to `/workout`
   2. Manage Exercises
      - Icon: Dumbbell (16px)
-     - Action: Navigate to /manage-exercises
+     - Action: Navigate to `/manage-exercises`
   3. Manage T-Paths
      - Icon: LayoutTemplate (16px)
-     - Action: Navigate to /manage-t-paths
+     - Action: Navigate to `/manage-t-paths`
   4. Profile Settings (Edit)
      - Icon: Settings (16px)
-     - Action: Navigate to /profile?tab=settings&edit=true
+     - Action: Navigate to `/profile?tab=settings&edit=true`
 
 ---
 
@@ -312,6 +390,11 @@ Each card has a fade-in-slide-up animation with delays:
 - **Size:** 32x32px
 - **Icon:** ChevronRight (20px)
 - **Action:** Cycle to next gym (wraps around)
+
+**Behavior on Gym Switch:**
+- Dashboard content re-queries for new active gym
+- Next Workout and All Workouts update to show new gym's T-Paths
+- Triggers profile refresh
 
 ### 5.4 Loading State
 - **Component:** Skeleton (48px height, 192px width)
@@ -367,9 +450,9 @@ Each card has a fade-in-slide-up animation with delays:
 **Right Section:**
 - **Button Variant:** Default
 - **Size:** Large (lg)
-- **Background:** Workout color (dynamic)
+- **Background:** **Dynamic workout color** from `getWorkoutColor(nextWorkout.template_name).main`
 - **Text:** "Start Workout" (white)
-- **Action:** Navigate to /workout?workoutId={id}
+- **Action:** Navigate to `/workout?workoutId={id}`
 
 **Workout Color Examples:**
 - Push → #228B22 (green)
@@ -393,7 +476,7 @@ Each card has a fade-in-slide-up animation with delays:
 - **Padding:** 16px vertical (py-4)
 - **Button:** "Go to Profile Settings"
   - Size: Small
-  - Action: Navigate to /profile
+  - Action: Navigate to `/profile`
 
 **Gym Not Configured:**
 - **Text:** 'Your active gym "{name}" has no workout plan. Go to Manage T-Paths to set one up.'
@@ -461,14 +544,14 @@ Each card has a fade-in-slide-up animation with delays:
 
 **Unselected State (Always, not interactive):**
 - **Background:** Muted (#F3F4F6)
-- **Border Color:** Workout color
-- **Text Color:** Workout color
+- **Border Color:** **Dynamic workout color** from `getWorkoutColor(workout.template_name).main`
+- **Text Color:** **Dynamic workout color**
 - **Scale:** 95% (scale-95)
 - **Shadow:** None
 
 **Icon (Left):**
 - **Size:** 24x24px (w-6 h-6)
-- **Color:** Workout color
+- **Color:** **Dynamic workout color**
 - **Stroke Width:** 2.5
 
 **Icon Mapping:**
@@ -486,13 +569,13 @@ Each card has a fade-in-slide-up animation with delays:
 - **Weight:** Semibold (600)
 - **Line Height:** Tight
 - **Whitespace:** No wrap
-- **Color:** Workout color
+- **Color:** **Dynamic workout color**
 
 **Last Completed:**
 - **Size:** 12px (text-xs)
 - **Weight:** Medium (500)
 - **Line Height:** Tight
-- **Color:** Workout color, 80% opacity
+- **Color:** **Dynamic workout color**, 80% opacity
 
 **Format:**
 - "Just now" if <1 minute
@@ -508,7 +591,7 @@ Each card has a fade-in-slide-up animation with delays:
 - **Size:** Icon (40x40px)
 - **Icon:** Play (16px, h-4 w-4)
 - **Flex:** shrink-0
-- **Action:** Navigate to /workout?workoutId={id}
+- **Action:** Navigate to `/workout?workoutId={id}`
 
 ### 7.6 Error States
 (Same as Next Workout Card - see section 6.4)
@@ -536,13 +619,13 @@ Each card has a fade-in-slide-up animation with delays:
 **Chart Container:**
 - **Height:** 250px (h-[250px])
 - **Width:** 100%
-- **Responsive:** Yes (ResponsiveContainer)
+- **Responsive:** Yes (ResponsiveContainer or React Native equivalent)
 
-**Chart Type:** Bar Chart (Recharts)
+**Chart Type:** Bar Chart
 
 **Chart Configuration:**
 - **Margin:** { top: 5, right: 10, left: 10, bottom: 5 }
-- **Grid:** Dashed lines (strokeDasharray="3 3")
+- **Grid:** Dashed lines (if supported on React Native)
 
 **X-Axis:**
 - **Data Key:** "date"
@@ -556,12 +639,11 @@ Each card has a fade-in-slide-up animation with delays:
 - **Label:** "Volume (kg)"
   - Angle: -90°
   - Position: Left
-  - Offset: -10
   - Size: 12px
 
 **Bar:**
 - **Data Key:** "volume"
-- **Fill:** Primary color (hsl(var(--primary)))
+- **Fill:** Primary color
 - **Name:** "Volume"
 
 **Tooltip:**
@@ -570,6 +652,10 @@ Each card has a fade-in-slide-up animation with delays:
 
 **Legend:**
 - **Shown:** Yes
+
+**React Native Implementation:**
+- Consider using `react-native-svg-charts` or `victory-native`
+- Maintain same visual appearance as web version
 
 ### 8.4 Empty State
 - **Height:** 250px
@@ -617,7 +703,7 @@ Each card has a fade-in-slide-up animation with delays:
 
 **Outer Card:**
 - **Border:** 2px solid (border-2)
-- **Border Color:** Workout color (e.g., border-workout-push)
+- **Border Color:** **Dynamic workout color** from `getWorkoutColor(workout.template_name).main`
 - **Border Radius:** 8px (rounded-lg)
 - **Background:** Card color
 
@@ -632,7 +718,7 @@ Each card has a fade-in-slide-up animation with delays:
 - **Size:** 16px (text-base)
 - **Weight:** Semibold (600)
 - **Line Height:** Tight (leading-tight)
-- **Color:** Workout color
+- **Color:** **Dynamic workout color** from `getWorkoutColor(workout.template_name).main`
 - **Align:** Center
 
 **Time Ago:**
@@ -651,7 +737,7 @@ Each card has a fade-in-slide-up animation with delays:
 - **Button:** Outline, icon size (40x40px)
 - **Icon:** Eye (16px, h-4 w-4)
 - **Title:** "View Summary"
-- **Action:** Opens workout summary modal with sessionId
+- **Action:** Opens Workout Summary Modal with `sessionId`
 
 **Bottom Section:**
 - **Padding:** 0 top, 12px bottom, 12px horizontal (pt-0 pb-3 px-3)
@@ -679,7 +765,7 @@ Each card has a fade-in-slide-up animation with delays:
 - **Hover:** Primary/90
 - **Icon:** ArrowRight (16px, h-4 w-4, margin-left 8px)
 - **Text:** "View All History"
-- **Action:** Navigate to /workout-history
+- **Action:** Navigate to `/workout-history`
 
 ### 9.6 Empty State
 - **Text:** "No previous workouts found. Complete a workout to see it here!"
@@ -700,12 +786,14 @@ Each card has a fade-in-slide-up animation with delays:
 
 ### 10.1 Workout Summary Modal
 - **Trigger:** Tap completed circle in Weekly Target OR tap Eye icon in Previous Workouts
-- **Props:** sessionId
+- **Props:** `sessionId` (required)
 - **Content:** Complete workout summary (exercises, sets, reps, weight, PRs, duration)
+- **Data Source:** Supabase `workout_sessions` table joined with `set_logs`
 
 ### 10.2 Consistency Calendar Modal
 - **Trigger:** Tap calendar icon in Weekly Target header OR tap Consistency Calendar in Action Hub
 - **Content:** Calendar view of all workouts/activities with color-coded days
+- **Color Coding:** Use `getWorkoutColor()` for each workout type
 
 ### 10.3 Weekly Activity Summary Dialog
 - **Trigger:** Tap "{n} Activities Completed This Week" link in Weekly Target
@@ -725,49 +813,32 @@ Each card has a fade-in-slide-up animation with delays:
 
 ---
 
-## 11. DATA REQUIREMENTS
+## 11. WORKOUT LAUNCHER (NEW SCREEN)
 
-### 11.1 User Profile Data
-- `profiles.full_name` or `first_name` - for welcome message
-- `profiles.created_at` - to determine "Welcome" vs "Welcome Back"
-- `profiles.programme_type` - "ppl" or "ulul" for Weekly Target
-- `profiles.active_t_path_id` - for Next Workout and All Workouts
-- `profiles.preferred_session_length` - for duration estimation
-- `profiles.active_gym_id` - for gym toggle and filtering
+**Purpose:** A dedicated screen showing all workouts in the active program with color-coded pills. This is accessed from Dashboard's "All Workouts" card or directly via navigation.
 
-### 11.2 Weekly Summary Data
-- `completed_workouts` array:
-  - `id` (session ID)
-  - `name` (workout name)
-- `goal_total` (target workouts per week)
-- `programme_type` ("ppl" or "ulul")
-- `completed_activities` array (optional):
-  - `id`, `type`, `distance`, `time`, `date`
+### 11.1 Screen Layout
+- **Title:** "Choose Your Workout"
+- **Layout:** Single column (mobile), centered
+- **Padding:** 16px horizontal
+- **Background:** Background color
 
-### 11.3 T-Paths Data
-- `groupedTPaths` array of grouped T-Paths:
-  - `mainTPath`:
-    - `id`, `template_name`, `gym_id`
-  - `childWorkouts` array:
-    - `id`, `template_name`, `last_completed_at`
+### 11.2 Workout Pills Grid
+- **Layout:** Grid, 1 column on mobile
+- **Gap:** 12px (gap-3)
+- **Pills:** Same component as "All Workouts" section (7.4)
 
-### 11.4 Gyms Data
-- `userGyms` array:
-  - `id`, `name`
-- `activeGym`:
-  - `id`, `name`
+**Items:**
+- **PPL:** Push, Pull, Legs + Ad-Hoc option
+- **ULUL:** Upper A, Lower A, Upper B, Lower B + Ad-Hoc option
+- **Ad-Hoc:** Distinct color (bonus/ad-hoc mapping: #F59E0B)
 
-### 11.5 Workout Exercises Cache
-- `workoutExercisesCache` object:
-  - Key: workout ID
-  - Value: array of exercises with `is_bonus_exercise` flag
+### 11.3 Actions
+- **Tap a pill:** Navigate to `/workout?workoutId={id}`
+- **Tap Ad-Hoc:** Navigate to `/workout?adHoc=true`
 
-### 11.6 Volume Chart Data
-- Array of { date, volume } for last 7 days
-
-### 11.7 Workout History Data
-- Last 3 sessions:
-  - `id`, `template_name`, `completed_at`, `exercise_count`, `duration_string`
+**Color Application:**
+- All pills use `getWorkoutColor(workoutName)` for borders, text, and icons
 
 ---
 
@@ -782,151 +853,210 @@ Each card has a fade-in-slide-up animation with delays:
   - Gym data
   - Volume chart data
   - Workout history
+  - Rolling status
 
 ### 12.2 Implementation
 - Use ScrollView with `refreshControl` prop (React Native)
 - Set `refreshing` state during data fetch
 - Clear `refreshing` after all data loaded
+- Show toast on refresh complete or error
 
 ---
 
-## 13. RESPONSIVE BEHAVIOR
+## 13. DATA REQUIREMENTS
 
-### 13.1 Mobile (Default)
+### 13.1 User Profile Data
+- `profiles.full_name` or `first_name` - for welcome message
+- `profiles.created_at` - to determine "Welcome" vs "Welcome Back"
+- `profiles.programme_type` - "ppl" or "ulul" for Weekly Target
+- `profiles.active_t_path_id` - for Next Workout and All Workouts
+- `profiles.preferred_session_length` - for duration estimation
+- `profiles.active_gym_id` - for gym toggle and filtering
+- `profiles.rolling_workout_status` - for Rolling Status Badge
+
+### 13.2 Weekly Summary Data
+- `completed_workouts` array:
+  - `id` (session ID)
+  - `name` (workout name)
+- `goal_total` (target workouts per week)
+- `programme_type` ("ppl" or "ulul")
+- `completed_activities` array (optional):
+  - `id`, `type`, `distance`, `time`, `date`
+
+### 13.3 T-Paths Data
+- `groupedTPaths` array of grouped T-Paths:
+  - `mainTPath`:
+    - `id`, `template_name`, `gym_id`
+  - `childWorkouts` array:
+    - `id`, `template_name`, `last_completed_at`
+
+### 13.4 Gyms Data
+- `userGyms` array:
+  - `id`, `name`
+- `activeGym`:
+  - `id`, `name`
+
+### 13.5 Workout Exercises Cache
+- `workoutExercisesCache` object:
+  - Key: workout ID
+  - Value: array of exercises with `is_bonus_exercise` flag
+
+### 13.6 Volume Chart Data
+- Array of { date, volume } for last 7 days
+
+### 13.7 Workout History Data
+- Last 3 sessions:
+  - `id`, `template_name`, `completed_at`, `exercise_count`, `duration_string`
+
+---
+
+## 14. USER JOURNEYS
+
+Document end-to-end flows to ensure dynamic behavior matches the reference app.
+
+### Journey A: Completing a Workout
+1. User taps "Start Workout" on Dashboard → Navigate to `/workout?workoutId={id}`
+2. User completes workout → Data persisted to Supabase
+3. User returns to Dashboard (manual navigation or auto-redirect)
+4. Dashboard refreshes (pull-to-refresh supported)
+
+**Effects:**
+- Weekly Target updates circles & counts (completed circle shows checkmark)
+- Previous Workouts shows new card at top (border color = workout type)
+- Rolling Status Badge may show temp success message ("Workout Completed!")
+- Next Workout card updates to show next in rotation
+
+### Journey B: Reviewing a Past Workout
+1. User scrolls to Previous Workouts section
+2. User taps "View Summary" button (Eye icon)
+3. Workout Summary Modal opens with `sessionId`
+4. Modal shows sets/reps/weight/duration/PRs
+
+**Modal Data:**
+- Fetched from `workout_sessions` table
+- Joined with `set_logs` table
+- Shows PR indicators if any new records set
+
+### Journey C: Consistency View
+1. User taps calendar icon in Weekly Target header OR
+2. User taps "Consistency Calendar" in Action Hub
+3. Consistency Calendar Modal opens
+4. Modal renders color-coded calendar by workout type
+
+**Calendar Data:**
+- Shows all workout sessions from history
+- Color-codes each day by workout type (using `getWorkoutColor()`)
+- Shows current streak count
+
+### Journey D: Switching Gyms
+1. User has >1 gym → Gym Toggle is visible
+2. User taps left/right chevrons to cycle gyms (wrap-around)
+3. Active gym updates in Supabase (`profiles.active_gym_id`)
+4. Dashboard content re-queries for active gym
+
+**Effects:**
+- Next Workout updates to show next workout for new gym's T-Path
+- All Workouts updates to show new gym's T-Path workouts
+- Profile refresh triggered automatically
+
+---
+
+## 15. RESPONSIVE BEHAVIOR
+
+### 15.1 Mobile (Default)
 - **Padding:** 8px horizontal
 - **Cards:** Full width
-- **Grids:** Single column (except Action Hub)
+- **Grids:** Single column (except Action Hub which is 3×2)
 - **Buttons:** Full width or icon size
 
-### 13.2 Tablet/Desktop
+### 15.2 Tablet/Desktop
 - **Padding:** 16px horizontal
-- **Max Width:** Consider constraining to readable width
+- **Max Width:** Consider constraining to readable width (800-1000px)
 - **Grids:** 2 columns where appropriate (All Workouts)
 - **Flex Rows:** Next Workout uses row layout on larger screens
 
 ---
 
-## 14. WORKOUT COLOR SYSTEM
+## 16. ANIMATIONS & TRANSITIONS
 
-### 14.1 Color Palette
-```typescript
-const WORKOUT_COLORS = {
-  'push': '#228B22',
-  'push-light': '#2ea32e',
-  'pull': '#F89C4D',
-  'pull-light': '#fab86d',
-  'legs': '#B645D9',
-  'legs-light': '#c966e3',
-  'upper-body-a': '#1e3a8a',
-  'upper-body-a-light': '#2563eb',
-  'upper-body-b': '#EF4444',
-  'upper-body-b-light': '#F87171',
-  'lower-body-a': '#0891b2',
-  'lower-body-a-light': '#06b6d4',
-  'lower-body-b': '#6b21a8',
-  'lower-body-b-light': '#9333ea',
-  'bonus': '#F59E0B',
-  'bonus-light': '#FBBF24',
-  'ad-hoc': '#F59E0B',
-  'ad-hoc-light': '#FBBF24',
-};
-```
-
-### 14.2 Color Application
-- **Weekly Target Circles:** Background when completed, border when incomplete
-- **Next Workout Button:** Background color
-- **Workout Pills:** Border, text, icon color
-- **Previous Workouts Cards:** Border color, text color
-
-### 14.3 Mapping Function
-```typescript
-function getWorkoutColor(workoutName: string): string {
-  // Match exact names and shortened variants
-  // Return hex color for background/border
-}
-```
-
----
-
-## 15. ANIMATIONS & TRANSITIONS
-
-### 15.1 Card Entrance Animations
+### 16.1 Card Entrance Animations
 - **Type:** Fade-in-slide-up
 - **Duration:** 400ms
-- **Delays:** Staggered 100ms increments
+- **Delays:** Staggered 100ms increments (0.0s to 0.7s)
 - **Transform:** translateY(-10px) → translateY(0)
 - **Opacity:** 0 → 1
 - **Easing:** ease-out
 
-### 15.2 Button Interactions
+### 16.2 Button Interactions
 - **Hover:** Shadow increase (sm → md), 200ms
 - **Active:** Scale 98%, shadow decrease, 100ms
 - **Tap Feedback:** Use platform-specific (iOS haptic, Android ripple)
 
-### 15.3 Pill Animations
+### 16.3 Pill Animations
 - **Scale:** 95% (unselected) → 100% (hover) → 95% (active)
 - **Transition:** all 200ms ease-out
 
-### 15.4 Chart Animations
-- **Bars:** Animate from 0 height to data height, 500ms
+### 16.4 Chart Animations
+- **Bars:** Animate from 0 height to data height, 500ms (if supported on React Native)
 - **Easing:** ease-in-out
 
 ---
 
-## 16. ERROR HANDLING
+## 17. ERROR HANDLING
 
-### 16.1 Data Fetch Errors
-- **Weekly Target:** Show error message with icon, allow retry
+### 17.1 Data Fetch Errors
+- **Weekly Target:** Show error message with icon, allow retry via pull-to-refresh
 - **Next Workout:** Show error state with explanation
 - **All Workouts:** Show error state
 - **Volume Chart:** Show error card, prevent crash
 - **Previous Workouts:** Show error message
 
-### 16.2 Missing Data Scenarios
+### 17.2 Missing Data Scenarios
 - **No Active Gym:** Clear message + link to profile settings
 - **No Active T-Path:** Onboarding prompt
 - **Empty Workout List:** Encouraging empty state message
 - **No Volume Data:** Prompt to log workouts
 
-### 16.3 Network Errors
+### 17.3 Network Errors
 - **Pull-to-refresh:** Enable for manual retry
 - **Toast Messages:** Show network error toasts
-- **Offline Mode:** Indicate offline status in UI
+- **Offline Mode:** Indicate offline status in Rolling Status Badge
 
 ---
 
-## 17. ACCESSIBILITY
+## 18. ACCESSIBILITY
 
-### 17.1 Touch Targets
+### 18.1 Touch Targets
 - **Minimum:** 44x44px for all interactive elements
-- **Circles:** 40x40px (acceptable for adults)
+- **Circles:** 40x40px (acceptable for adults, but consider 44x44)
 - **Buttons:** 40x40px minimum (icon buttons)
 - **Pills:** 56px height (exceeds minimum)
 
-### 17.2 Screen Readers
+### 18.2 Screen Readers
 - **Workout Names:** Read full name, not abbreviations
 - **Circles:** Announce "Completed" or "Incomplete" + workout name
 - **Buttons:** Descriptive labels (e.g., "View workout summary for Push workout")
 - **Charts:** Provide data table alternative or summary
 
-### 17.3 Color Contrast
+### 18.3 Color Contrast
 - **Text on Colored Backgrounds:** Ensure WCAG AA (4.5:1)
 - **Workout Colors:** All meet contrast requirements with white text
 - **Border Colors:** Distinguishable from background
 
 ---
 
-## 18. IMPLEMENTATION CHECKLIST
+## 19. IMPLEMENTATION CHECKLIST
 
 ### Core Components
 - [ ] Welcome header with dynamic greeting
-- [ ] Weekly Target Widget with colored circles
-- [ ] Action Hub with 6 quick links
+- [ ] Rolling Status Badge (dashboard placement)
+- [ ] Weekly Target Widget with dynamically colored circles
+- [ ] Action Hub with 6 quick links and More dropdown
 - [ ] Gym Toggle with carousel navigation
-- [ ] Next Workout Card with colored button
-- [ ] All Workouts Quick Start with pills
-- [ ] Weekly Volume Chart (Recharts or native)
-- [ ] Previous Workouts Card with workout cards
+- [ ] Next Workout Card with dynamically colored button
+- [ ] All Workouts Quick Start with dynamically colored pills
+- [ ] Weekly Volume Chart (React Native charting library)
+- [ ] Previous Workouts Card with dynamically colored workout cards
 
 ### Data Integration
 - [ ] Fetch weekly summary from Supabase
@@ -935,22 +1065,31 @@ function getWorkoutColor(workoutName: string): string {
 - [ ] Fetch workout exercises cache for duration
 - [ ] Fetch volume chart data
 - [ ] Fetch workout history (last 3)
+- [ ] Fetch rolling status from profile
+
+### Color System Integration
+- [ ] Import `getWorkoutColor()` from `@/lib/workout-colors`
+- [ ] Apply to Weekly Target circles (completed & incomplete)
+- [ ] Apply to Next Workout button background
+- [ ] Apply to All Workouts pill borders, text, icons
+- [ ] Apply to Previous Workouts card borders, text
+- [ ] Verify no stray hex values for workout types
 
 ### Interactions
 - [ ] Pull-to-refresh functionality
-- [ ] Tap completed circle → workout summary modal
-- [ ] Tap calendar icon → consistency calendar modal
+- [ ] Tap completed circle → Workout Summary Modal with `sessionId`
+- [ ] Tap calendar icon → Consistency Calendar Modal
 - [ ] Tap action buttons → respective modals/dialogs
-- [ ] Tap gym chevrons → switch active gym
-- [ ] Tap Start Workout → navigate with workoutId
-- [ ] Tap Play button → navigate with workoutId
-- [ ] Tap Eye button → workout summary modal
-- [ ] Tap View All History → workout history page
+- [ ] Tap gym chevrons → switch active gym (triggers data refresh)
+- [ ] Tap "Start Workout" → navigate to `/workout?workoutId={id}`
+- [ ] Tap Play button → navigate to `/workout?workoutId={id}`
+- [ ] Tap "View Summary" → Workout Summary Modal with `sessionId`
+- [ ] Tap "View All History" → navigate to `/workout-history`
 
 ### Visual Polish
-- [ ] Staggered entrance animations (8 delays)
-- [ ] Fast fade-in for content reveals
-- [ ] Workout color system applied consistently
+- [ ] Staggered entrance animations (9 delays: 0.0s to 0.7s)
+- [ ] Fast fade-in for content reveals (200ms)
+- [ ] Workout color system applied consistently via utility
 - [ ] Shadows and elevations matching design
 - [ ] Border radius and spacing consistency
 
@@ -961,7 +1100,181 @@ function getWorkoutColor(workoutName: string): string {
 - [ ] Test with single gym (toggle hidden)
 - [ ] Test with no active gym (error states)
 - [ ] Test with no workouts completed (empty states)
-- [ ] Test with all error scenarios
+- [ ] Test all error scenarios
 - [ ] Test pull-to-refresh on various data states
 - [ ] Test on small and large screens
-- [ ] Test with screen readers
+- [ ] Test with screen readers (VoiceOver/TalkBack)
+- [ ] Verify all workout colors render correctly
+- [ ] Test all modal/dialog openings with correct data
+
+---
+
+## APPENDIX A: PARITY CHECKLIST
+
+Use this checklist to verify 100% visual and functional parity with the reference web app.
+
+### Structure & Layout
+- [ ] Component order matches: Header → Rolling Badge → Weekly Target → Action Hub → Gym Toggle (conditional) → Next Workout → All Workouts → Volume Chart → Previous Workouts
+- [ ] Staggered animation timings exact: 0.0s to 0.7s in 0.1s increments
+- [ ] Spacing between cards: 24px (gap-6)
+- [ ] Card padding and typography match reference screenshots
+
+### Welcome Header
+- [ ] "Welcome/Welcome Back" logic enforced (<5 minutes vs ≥5 minutes)
+- [ ] Name substitution works (full_name or first_name)
+- [ ] Typography sizes exact (36px / 14px)
+- [ ] Spacing matches screenshot
+
+### Rolling Status Badge
+- [ ] Renders immediately under Welcome Header
+- [ ] Same component as header badge (shared state)
+- [ ] Tap opens Status Explained modal
+- [ ] All 7 states render correctly
+- [ ] Animations match layout spec (temp message 300ms/3s/300ms)
+
+### Weekly Target
+- [ ] 3-4 circles based on programme (PPL/ULUL)
+- [ ] Completed circles filled with workout color (via `getWorkoutColor()`)
+- [ ] Incomplete circles have colored border with initial
+- [ ] Tap targets 40×40px (or 44×44px for better UX)
+- [ ] Tap completed circle → Workout Summary Modal with `sessionId`
+- [ ] Calendar icon opens Consistency Calendar Modal
+- [ ] Progress text accurate: "{completedCount} / {goalTotal} Workouts Completed This Week"
+
+### Action Hub
+- [ ] 3×2 grid layout exact
+- [ ] "Consistency Calendar" spans 2 columns
+- [ ] All 6 buttons present with correct icons and colors
+- [ ] More dropdown shows all 4 items
+- [ ] All routes wired correctly per routing reference
+- [ ] Haptics/ripple on press
+
+### Gym Toggle
+- [ ] Shows only if `userGyms.length > 1`
+- [ ] Chevrons wrap around (first ↔ last)
+- [ ] Centered card with max-width 360px
+- [ ] Skeleton on load
+- [ ] Data refreshes for new gym on switch
+
+### Next Workout
+- [ ] Title, duration, last workout displayed correctly
+- [ ] CTA button background color from `getWorkoutColor()`
+- [ ] Navigation to `/workout?workoutId={id}` works
+- [ ] All error/empty cases handled
+- [ ] Fast fade-in animation (200ms)
+
+### All Workouts
+- [ ] Program title displays active T-Path name
+- [ ] Pills use `getWorkoutColor()` for border/text/icon
+- [ ] Time-ago formatting correct (Just now / {n}m ago / {n}h ago / {n}d ago / Never)
+- [ ] Play button navigates to `/workout?workoutId={id}`
+- [ ] Grid responsive (1 col mobile, 2 col desktop)
+
+### Weekly Volume Chart
+- [ ] 250px tall
+- [ ] Bars animate from 0 (if supported)
+- [ ] Tooltip and legend work
+- [ ] Empty/error states render
+- [ ] Responsive container works
+
+### Previous Workouts
+- [ ] Shows last 3 workouts
+- [ ] Border color from `getWorkoutColor()`
+- [ ] Text color from `getWorkoutColor()`
+- [ ] "View Summary" opens modal with `sessionId`
+- [ ] Exercise count and duration display correctly
+- [ ] "View All History" routes to `/workout-history`
+
+### Pull-to-Refresh
+- [ ] Refreshes all dashboard data sources (summary, T-Paths, gyms, chart, history, rolling status)
+- [ ] Single pull refreshes every widget
+- [ ] Spinner lifecycle correct
+
+### Color System
+- [ ] All workout colors sourced from `getWorkoutColor()` utility
+- [ ] No stray hex values for workout types in components
+- [ ] Colors consistent across Weekly Target, Next Workout, All Workouts, Previous Workouts
+
+### Error/Empty/Loading States
+- [ ] Weekly Target: error, loading, empty (no program type)
+- [ ] Next Workout: error, loading, no gym, gym not configured, no T-Path
+- [ ] All Workouts: same as Next Workout
+- [ ] Volume Chart: error, loading, empty (no data)
+- [ ] Previous Workouts: error, loading, empty (no workouts)
+
+---
+
+## APPENDIX B: QA ACCEPTANCE CRITERIA
+
+Before marking this feature complete, all criteria below must be verified:
+
+### Visual Acceptance
+- [ ] Match reference screenshots 1:1 (spacing, typography, order, colors)
+- [ ] Component order exact per section 1.2
+- [ ] Staggered animations timed exactly per section 1.3
+- [ ] Workout colors match reference (via `getWorkoutColor()` utility)
+- [ ] All cards have correct border radius (12px)
+- [ ] All gaps and padding match specifications
+
+### Functional Acceptance
+- [ ] Pull-to-refresh reloads all sections listed in section 12
+- [ ] Empty/error states render as specified per sections 3.6-3.8, 6.4, 7.6, 8.4-8.5, 9.6-9.8
+- [ ] All navigation destinations wired correctly per routing reference
+- [ ] Modal `sessionId` passed correctly for workout summaries
+- [ ] Gym switch triggers data refresh
+- [ ] Rolling Status Badge mirrors header badge state
+
+### Animation Acceptance
+- [ ] Staggered animations smooth and timed exactly (0.0s → 0.7s)
+- [ ] Fast fade-in for content reveals (200ms)
+- [ ] Button interactions smooth (scale, shadow)
+- [ ] No animation jank or stuttering
+
+### Data Acceptance
+- [ ] Weekly summary data accurate
+- [ ] T-Paths and workouts load correctly
+- [ ] Gym data and active gym correct
+- [ ] Volume chart data accurate
+- [ ] Workout history shows last 3
+- [ ] Rolling status reflects actual consistency
+
+### Accessibility
+- [ ] Touch targets ≥44×44 dp (or 40×40 minimum)
+- [ ] Labels for icons present (screen reader)
+- [ ] Chart has alt text or summary
+- [ ] Color contrast meets WCAG AA (4.5:1)
+- [ ] VoiceOver/TalkBack announcements correct
+
+### Device Testing
+- [ ] Tested on small screens (iPhone SE, small Android)
+- [ ] Tested on large screens (iPad, Android tablet)
+- [ ] Safe areas respected (notch, home indicator)
+- [ ] Pull-to-refresh works on all devices
+- [ ] All interactions work on touch screens
+
+---
+
+## APPENDIX C: PARITY MATRIX — DASHBOARD (REFERENCE VS RN)
+
+Fill the "RN Current" column during QA to track implementation progress.
+
+| Component | Reference Behavior (source) | RN Current | Parity Requirement (Done when…) | QA |
+|-----------|----------------------------|------------|--------------------------------|-----|
+| Welcome Header | "Welcome/Welcome Back" logic; name substitution; typography sizes (36 / 14) | | Implements text rules + sizes; spacing matches screenshot; contrast AA | ☐ |
+| Rolling Status Badge (dashboard placement) | Renders immediately under header; tap opens Status Explained modal; mirrors header badge states | | Same badge component + states; modal opens with full copy; animations match layout spec | ☐ |
+| Weekly Target | 3–4 circles (programme PPL/ULUL); completed=filled; incomplete=border with initial; tap completed → workout summary modal; calendar icon opens Consistency Calendar | | Color via `getWorkoutColor()`; tap targets 40×40; modal opens with correct `sessionId`; calendar icon opens modal | ☐ |
+| Action Hub (Quick Links) | 6 buttons, 3×2 grid; "Consistency Calendar" spans 2 cols; destinations defined (Start Workout/Manage/AI Coach/etc.) | | Grid + spacing match; all routes as specified; haptics/ripple present | ☐ |
+| Gym Toggle | Shows only if >1 gym; chevrons wrap; centered card; skeleton on load | | Visibility logic correct; wrap-around verified; data refreshes for new gym | ☐ |
+| Next Workout | Title, duration, last workout, CTA button in workout color; navigates to `/workout?workoutId={id}`; error/empty cases handled | | Color sourced from `getWorkoutColor()`; navigation param correct; all states render | ☐ |
+| All Workouts | Program title; pills per workout with color border/text; Play button navigates to workout; time-ago formatting | | Pill component matches spec; time-ago strings correct; navigation works | ☐ |
+| Weekly Volume Chart | 250px tall; bars animate from 0; tooltip + legend; empty/error states defined | | Animation & tooltip wired; empty/error cards render; responsive container works | ☐ |
+| Previous Workouts | Show last 3; border color by workout; "View Summary" opens modal; exercise count + duration; "View All History" button | | Border/text use `getWorkoutColor()`; modal gets `sessionId`; view-all routes correctly | ☐ |
+| Pull-to-Refresh | Refreshes all dashboard data sources (summary, T-Paths, gyms, chart, history) | | Single pull refreshes every widget; spinner lifecycle correct | ☐ |
+| Component Order + Stagger | Order: header→rolling badge→weekly target→…→previous workouts; stagger 0.0–0.7s (100ms steps) | | Order exact; animation timings exact; easing matches | ☐ |
+| Error/Empty/Loading | Per-section states implemented verbatim (weekly target, next/all workouts, chart, previous) | | Every state reachable in dev tools; copy/visuals match | ☐ |
+
+---
+
+**Document Version:** 2.0 (Updated with Visual Parity Reference, Routing, User Journeys, and Parity Criteria)  
+**Last Updated:** January 6, 2025  
+**Status:** Ready for Implementation
