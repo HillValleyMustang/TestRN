@@ -1,15 +1,12 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { ScrollView, RefreshControl, View, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useAuth } from "../_contexts/auth-context";
 import { useData } from "../_contexts/data-context";
-import { WelcomeHeader } from "../_components/dashboard/WelcomeHeader";
-import { ActionHub } from "../_components/dashboard/ActionHub";
-import { NextWorkoutCard } from "../_components/dashboard/NextWorkoutCard";
-import { PreviousWorkoutsCard } from "../_components/dashboard/PreviousWorkoutsCard";
-import { WeeklyVolumeChart } from "../_components/dashboard/WeeklyVolumeChart";
-import { QuickStartWorkouts } from "../_components/dashboard/QuickStartWorkouts";
-import { Colors, Spacing } from "../../constants/design-system";
+import { ScreenHeader, ScreenContainer } from "../../components/layout";
+import { StatCard, QuickActions, WeeklyTarget, RecentWorkouts, SimpleVolumeChart } from "../../components/dashboard";
+import { Colors, Spacing } from "../../constants/Theme";
+import { TextStyles } from "../../constants/Typography";
 import type { WorkoutSession, WorkoutTemplate } from "@data/storage/models";
 
 interface VolumePoint {
@@ -33,22 +30,18 @@ export default function DashboardScreen() {
   const data = useData();
   const router = useRouter();
 
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [volumePoints, setVolumePoints] = useState<VolumePoint[]>([]);
-  const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
 
   const fetchDashboardData = useCallback(async () => {
     if (!userId) {
       return;
     }
-    setLoading(true);
     try {
-      const [sessionData, volumeData, templateData] = await Promise.all([
+      const [sessionData, volumeData] = await Promise.all([
         data.getWorkoutSessions(userId),
         data.getVolumeHistory(userId, 28),
-        data.getTemplates(userId),
       ]);
       const sortedSessions = [...sessionData].sort((a, b) => {
         const dateA = new Date(a.completed_at ?? a.session_date).getTime();
@@ -58,11 +51,8 @@ export default function DashboardScreen() {
       const latestVolume = volumeData.slice(-7);
       setSessions(sortedSessions);
       setVolumePoints(latestVolume);
-      setTemplates(templateData);
     } catch (error) {
       console.error("[Dashboard] Failed to load data", error);
-    } finally {
-      setLoading(false);
     }
   }, [data, userId]);
 
@@ -94,24 +84,6 @@ export default function DashboardScreen() {
     }));
   }, [sessions]);
 
-  const nextWorkout = useMemo(() => {
-    if (templates.length === 0) {
-      return null;
-    }
-    return templates[0];
-  }, [templates]);
-
-  const nextWorkoutLastCompleted = useMemo(() => {
-    if (!nextWorkout) {
-      return null;
-    }
-    const matchingSession = sessions.find(
-      (sessionItem) => sessionItem.t_path_id === nextWorkout.id,
-    );
-    return formatDate(
-      matchingSession?.completed_at ?? matchingSession?.session_date ?? null,
-    );
-  }, [nextWorkout, sessions]);
 
   const welcomeSubtitle = useMemo(() => {
     if (sessions.length === 0) {
@@ -126,109 +98,72 @@ export default function DashboardScreen() {
       : "Keep the momentum going!";
   }, [sessions]);
 
-  const actionItems = useMemo(
-    () => [
-      {
-        title: "Start workout",
-        subtitle: "Jump straight into your next session",
-        icon: "play-circle",
-        onPress: () => router.push("/(tabs)/workout"),
-        variant: "primary" as const,
-      },
-      {
-        title: "Log measurement",
-        subtitle: "Track your body metrics",
-        icon: "fitness",
-        onPress: () => router.push("/measurements"),
-        variant: "outline" as const,
-      },
-      {
-        title: "Manage templates",
-        subtitle: "Adjust your training plans",
-        icon: "construct",
-        onPress: () => router.push("/templates"),
-        variant: "outline" as const,
-      },
-    ],
-    [router],
-  );
-
-  const handleStartTemplate = useCallback(
-    (templateId: string) => {
-      router.push({ pathname: "/(tabs)/workout", params: { templateId } });
-    },
-    [router],
-  );
-
   const userName =
     session?.user?.user_metadata?.full_name ||
     session?.user?.email ||
     "Athlete";
 
+  const totalWorkouts = sessions.length;
+  const currentStreak = 0;
+  const totalVolume = volumePoints.reduce((sum, point) => sum + point.volume, 0);
+
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor={Colors.foreground}
+    <>
+      <ScreenHeader 
+        title={`Welcome back, ${userName}!`}
+        subtitle={welcomeSubtitle || undefined}
+      />
+      <ScreenContainer 
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+      >
+        <View style={styles.statsGrid}>
+          <StatCard 
+            icon="barbell" 
+            label="Total Workouts" 
+            value={totalWorkouts}
+            iconColor={Colors.actionPrimary}
+            style={styles.statCard}
+          />
+          <StatCard 
+            icon="flame" 
+            label="Current Streak" 
+            value={`${currentStreak} days`}
+            iconColor={Colors.chart2}
+            style={styles.statCard}
+          />
+        </View>
+
+        <WeeklyTarget
+          completedCount={2}
+          goalCount={3}
+          programType="ppl"
+          completedWorkouts={[
+            { id: '1', name: 'Push' },
+            { id: '2', name: 'Pull' },
+          ]}
         />
-      }
-    >
-      <WelcomeHeader name={userName} subtitle={welcomeSubtitle || undefined} />
 
-      <View style={styles.section}>
-        <ActionHub actions={actionItems} />
-      </View>
+        <QuickActions />
 
-      <View style={styles.section}>
-        <NextWorkoutCard
-          loading={loading}
-          workoutName={nextWorkout?.name}
-          lastCompletedAt={nextWorkoutLastCompleted}
-          estimatedDuration={null}
-          onStart={() => router.push("/(tabs)/workout")}
-        />
-      </View>
+        <SimpleVolumeChart data={volumePoints} />
 
-      <View style={styles.section}>
-        <QuickStartWorkouts
-          templates={templates.map((template) => ({
-            id: template.id,
-            name: template.name,
-            description: template.description,
-          }))}
-          onStartTemplate={handleStartTemplate}
-          onCreateTemplate={() => router.push("/templates")}
-        />
-      </View>
-
-      <View style={styles.section}>
-        <WeeklyVolumeChart data={volumePoints} loading={loading} />
-      </View>
-
-      <View style={styles.section}>
-        <PreviousWorkoutsCard
-          sessions={recentSessions}
+        <RecentWorkouts
+          workouts={recentSessions}
           onViewAll={() => router.push("/history")}
         />
-      </View>
-    </ScrollView>
+      </ScreenContainer>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  statsGrid: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  statCard: {
     flex: 1,
-    backgroundColor: Colors.background,
-  },
-  content: {
-    padding: Spacing["2xl"],
-    gap: Spacing["2xl"],
-  },
-  section: {
-    gap: Spacing.lg,
   },
 });
