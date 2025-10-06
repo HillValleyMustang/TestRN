@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -23,10 +23,6 @@ export default function ExercisePickerScreen() {
   const [showAvailableOnly, setShowAvailableOnly] = useState(true);
   const [activeGym, setActiveGym] = useState<Gym | null>(null);
 
-  useEffect(() => {
-    loadActiveGym();
-  }, [userId, loadActiveGym]);
-
   const loadActiveGym = useCallback(async () => {
     if (!userId) {
       return;
@@ -35,6 +31,10 @@ export default function ExercisePickerScreen() {
     setActiveGym(gym);
     setShowAvailableOnly(!!gym);
   }, [getActiveGym, userId]);
+
+  useEffect(() => {
+    loadActiveGym();
+  }, [loadActiveGym]);
 
   const filteredExercises = EXERCISES.filter((exercise) => {
     const matchesCategory =
