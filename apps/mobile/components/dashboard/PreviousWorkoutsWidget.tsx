@@ -69,7 +69,7 @@ export function PreviousWorkoutsWidget({
     return (
       <Card style={styles.container}>
         <View style={styles.header}>
-          <Ionicons name="time" size={20} color={Colors.actionPrimary} />
+          <Ionicons name="time" size={20} color={Colors.foreground} />
           <Text style={styles.title}>Previous Workouts</Text>
         </View>
         <View style={styles.errorContainer}>
@@ -83,7 +83,7 @@ export function PreviousWorkoutsWidget({
     return (
       <Card style={styles.container}>
         <View style={styles.header}>
-          <Ionicons name="time" size={20} color={Colors.actionPrimary} />
+          <Ionicons name="time" size={20} color={Colors.foreground} />
           <Text style={styles.title}>Previous Workouts</Text>
         </View>
         <View style={styles.emptyContainer}>
@@ -100,7 +100,7 @@ export function PreviousWorkoutsWidget({
   return (
     <Card style={styles.container}>
       <View style={styles.header}>
-        <Ionicons name="time" size={20} color={Colors.actionPrimary} />
+        <Ionicons name="time" size={20} color={Colors.foreground} />
         <Text style={styles.title}>Previous Workouts</Text>
       </View>
 

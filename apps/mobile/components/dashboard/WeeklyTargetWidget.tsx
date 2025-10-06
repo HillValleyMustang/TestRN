@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     borderWidth: 0,
   },
   incompleteCircle: {
-    borderWidth: 2,
+    borderWidth: 1,
     backgroundColor: Colors.card,
   },
   circleText: {

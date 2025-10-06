@@ -263,8 +263,10 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
+    paddingRight: Spacing.lg,
+    paddingBottom: 100,
   },
   dropdown: {
     backgroundColor: Colors.card,

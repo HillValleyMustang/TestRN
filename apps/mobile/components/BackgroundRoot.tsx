@@ -142,20 +142,20 @@ export function BackgroundRoot() {
           fill="url(#purpleGrad)"
         />
 
-        {/* Blob B - Cyan */}
+        {/* Blob B - Pink (top-right) */}
         <AnimatedCircle
           cx={blobB.cx}
           cy={blobB.cy}
           r={radiusB}
-          fill="url(#cyanGrad)"
+          fill="url(#pinkGrad)"
         />
 
-        {/* Blob C - Pink */}
+        {/* Blob C - Cyan (bottom) */}
         <AnimatedCircle
           cx={blobC.cx}
           cy={blobC.cy}
           r={radiusC}
-          fill="url(#pinkGrad)"
+          fill="url(#cyanGrad)"
         />
       </Svg>
     </View>

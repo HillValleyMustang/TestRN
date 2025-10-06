@@ -48,12 +48,12 @@ export function DashboardHeader() {
           {/* Rolling Status Badge */}
           {loading ? (
             <View style={[styles.badge, { backgroundColor: Colors.muted }]}>
-              <Ionicons name="ellipsis-horizontal" size={16} color={Colors.mutedForeground} />
+              <Ionicons name="ellipsis-horizontal" size={18} color={Colors.mutedForeground} />
               <Text style={[styles.badgeText, { color: Colors.mutedForeground }]}>Loading...</Text>
             </View>
           ) : (
             <View style={[styles.badge, { backgroundColor: config.backgroundColor }]}>
-              <Ionicons name={config.icon} size={16} color={config.color} />
+              <Ionicons name={config.icon} size={18} color={config.color} />
               <Text style={[styles.badgeText, { color: config.color }]}>{status}</Text>
             </View>
           )}
@@ -96,13 +96,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   badgeText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
   rightGroup: {
     flexDirection: 'row',
