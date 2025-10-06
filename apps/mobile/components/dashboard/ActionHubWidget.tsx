@@ -4,12 +4,14 @@
  * Reference: MOBILE_SPEC_02_DASHBOARD.md Section 4
  */
 
-import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Modal, TouchableOpacity } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, Pressable, StyleSheet, Modal, TouchableOpacity, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../ui/Card';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface ActionHubWidgetProps {
   onLogActivity?: () => void;
@@ -26,6 +28,8 @@ export function ActionHubWidget({
 }: ActionHubWidgetProps) {
   const router = useRouter();
   const [moreMenuVisible, setMoreMenuVisible] = useState(false);
+  const [moreButtonLayout, setMoreButtonLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const moreButtonRef = useRef<View>(null);
 
   const handleLogActivity = () => {
     if (onLogActivity) {
@@ -60,7 +64,10 @@ export function ActionHubWidget({
   };
 
   const handleMorePress = () => {
-    setMoreMenuVisible(true);
+    moreButtonRef.current?.measureInWindow((x, y, width, height) => {
+      setMoreButtonLayout({ x, y, width, height });
+      setMoreMenuVisible(true);
+    });
   };
 
   const handleMoreMenuClose = () => {
@@ -136,20 +143,22 @@ export function ActionHubWidget({
           </Pressable>
 
           {/* More */}
-          <Pressable
-            style={({ pressed }) => [
-              styles.button,
-              pressed && styles.buttonPressed,
-            ]}
-            onPress={handleMorePress}
-          >
-            <Ionicons
-              name={moreMenuVisible ? "chevron-up" : "chevron-down"}
-              size={20}
-              color={Colors.foreground}
-            />
-            <Text style={styles.buttonText}>More</Text>
-          </Pressable>
+          <View ref={moreButtonRef} collapsable={false}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.button,
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={handleMorePress}
+            >
+              <Ionicons
+                name={moreMenuVisible ? "chevron-up" : "chevron-down"}
+                size={20}
+                color={Colors.foreground}
+              />
+              <Text style={styles.buttonText}>More</Text>
+            </Pressable>
+          </View>
         </View>
       </Card>
 
@@ -164,7 +173,14 @@ export function ActionHubWidget({
           activeOpacity={1}
           onPress={handleMoreMenuClose}
         >
-          <View style={styles.dropdown}>
+          <View style={[
+            styles.dropdown,
+            {
+              position: 'absolute',
+              top: moreButtonLayout.y + moreButtonLayout.height + 8,
+              right: SCREEN_WIDTH - (moreButtonLayout.x + moreButtonLayout.width),
+            }
+          ]}>
             <Pressable
               style={styles.dropdownItem}
               onPress={() => handleMoreMenuOption('/workout')}
@@ -263,10 +279,6 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-    alignItems: 'flex-end',
-    paddingRight: Spacing.lg,
-    paddingBottom: 100,
   },
   dropdown: {
     backgroundColor: Colors.card,
