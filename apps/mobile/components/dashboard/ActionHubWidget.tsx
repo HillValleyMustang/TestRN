@@ -226,8 +226,6 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.sm,
   },
   button: {
-    flex: 1,
-    minWidth: '30%',
     height: 80,
     backgroundColor: Colors.card,
     borderWidth: 0,
@@ -241,9 +239,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
+    flexBasis: '30%',
+    flexGrow: 0,
+    flexShrink: 0,
   },
   buttonWide: {
-    minWidth: '63%',
+    flexBasis: '63%',
+    flexGrow: 0,
+    flexShrink: 0,
   },
   buttonPressed: {
     transform: [{ scale: 0.98 }],

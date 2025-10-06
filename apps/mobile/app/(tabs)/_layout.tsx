@@ -41,7 +41,7 @@ export default function TabsLayout() {
         options={{
           title: "Dashboard",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={26} color={color} />
+            <Ionicons name="home" size={20} color={color} />
           ),
         }}
         listeners={withGuard("dashboard")}
@@ -51,7 +51,7 @@ export default function TabsLayout() {
         options={{
           title: "Workout",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="barbell" size={26} color={color} />
+            <Ionicons name="barbell" size={20} color={color} />
           ),
         }}
         listeners={withGuard("workout")}
@@ -61,7 +61,7 @@ export default function TabsLayout() {
         options={{
           title: "Exercises",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="book" size={26} color={color} />
+            <Ionicons name="book" size={20} color={color} />
           ),
         }}
         listeners={withGuard("exercises")}
@@ -71,7 +71,7 @@ export default function TabsLayout() {
         options={{
           title: "Progress",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bar-chart" size={26} color={color} />
+            <Ionicons name="bar-chart" size={20} color={color} />
           ),
         }}
         listeners={withGuard("progress")}
@@ -81,7 +81,7 @@ export default function TabsLayout() {
         options={{
           title: "Profile",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={26} color={color} />
+            <Ionicons name="person" size={20} color={color} />
           ),
         }}
         listeners={withGuard("profile")}
