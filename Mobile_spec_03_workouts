@@ -1,1 +1,368 @@
 
+# Mobile App Specification: **Workout Page**  
+**React Native (Expo) – iOS/Android**
+
+> **Purpose:** Define the complete, parity-ready Workout screen for the React Native app so it matches the reference app’s UX/visuals and integrates cleanly with the existing Layout/Navigation and Dashboard specs. This page did not exist previously; this document specifies visuals, states, behaviors, and data obligations in full.
+
+---
+
+## 0. ENTRY POINTS & ROUTING (EXPO ROUTER MAP)
+**Primary route:** `/workout` (tab)  
+**Accepted query params:**
+- `workoutId: string` (Required for planned workouts; absent if `adHoc=true`)
+- `adHoc: boolean` (Optional; true = launch Ad-Hoc workout without template)
+- `resumeSessionId: string` (Optional; resume an in-progress session)
+
+**Entry paths:**
+1. Dashboard → **Next Workout** CTA → `/workout?workoutId={id}`
+2. Dashboard → **All Workouts** → pill/Play → `/workout?workoutId={id}`
+3. Workout Launcher (if present) → pill → `/workout?workoutId={id}`
+4. Ad-Hoc: any launcher/menu path → `/workout?adHoc=true`
+5. Deep-link resume: notification → `/workout?resumeSessionId={id}`
+
+**Navigation guard requirements:**  
+All exits (tab press, sheet link, back gesture, programmatic navigate) must pass the **Unsaved Changes** guard when the session has pending changes. See §10 for full rules.
+
+---
+
+## 1. PAGE STRUCTURE
+```
+SafeAreaView
+└── ScrollView (keyboardShouldPersistTaps="handled")
+    ├── WorkoutHeaderCard (color-coded by workout type)
+    ├── SessionMetricsStrip (elapsed time, total sets, volume)
+    ├── SessionNotes (collapsible)
+    ├── ExerciseList
+    │   ├── [ExerciseCard]* (supports supersets/circuits)
+    │   └── AddExerciseFAB (floating)
+    └── FinishSection (sticky bottom CTA)
+```
+**Vertical spacing:** 16 px between major blocks (gap-4).  
+**Horizontal padding:** 12–16 px (p-3 / p-4) honoring safe areas.  
+**Background:** `background` token from theme.  
+**Pull-to-refresh:** disabled (handled at Dashboard level).
+
+---
+
+## 2. WORKOUT HEADER CARD
+**Container:**
+- Radius 12 px; 1 px border; `card` background; subtle shadow (md).
+- Padding: 12 px (p-3).
+
+**Contents (top to bottom):**
+1. **Title Row**
+   - **Workout Name**: 18 px, semibold; color = `getWorkoutColor(workoutName)`
+   - **Programme Tag**: pill (“PPL”/“ULUL”/custom); 12 px text; border=workout color.
+   - **Active Gym**: icon Home + name, 12 px muted.
+2. **Date & Elapsed**
+   - Left: `Today, 12 Oct` (locale-aware short date) • start time (if resumed).
+   - Right: **Elapsed Timer** `mm:ss` (runs while session active; pauses via menu).
+3. **Header Actions**
+   - **Add Exercise** (outline button, icon Plus)
+   - **Session Menu** (kebab / three-dots → bottom sheet; see §8)
+   - **Rest Timer Quick Start** (icon Timer; see §6)
+
+**States:**
+- **Ad-Hoc**: show “Ad-Hoc Workout” title; color uses `ad-hoc` mapping.
+- **Offline**: show small “Offline” badge in header when network absent.
+
+---
+
+## 3. SESSION METRICS STRIP
+A small horizontal strip under the header with three metrics:
+- **Sets**: total completed sets / total planned
+- **Volume**: cumulative weight (kg) for completed sets (format `12,300`)
+- **PRs**: count of sets flagged as PR (see §7)
+
+**Style:** 12 px labels, 14 px values, muted separators. Animates count up on change.
+
+---
+
+## 4. SESSION NOTES (OPTIONAL, COLLAPSIBLE)
+- Header row “Session Notes” (16 px, semibold) + chevron.
+- Body is a multiline text input (min-height 80 px), saves on blur and every 1s after last keystroke.
+- Persist notes per-session; load when resuming.
+
+---
+
+## 5. EXERCISE LIST
+**Order:**
+- Render in template order; allow reorder via drag handle.
+- Supersets/circuits: group visually with a left rail and shared rest timer option.
+
+**ExerciseCard layout:**
+- Radius 12 px; 1 px border; 8 px inner spacing.
+- **Header Row:**
+  - Exercise name (16 px, semibold) • Body part chip(s) • Equipment chip (optional)
+  - Right-side icons: **Info** (opens details), **Swap** (replace with alternative), **Overflow** (per-exercise options; §8).
+- **Target Row (optional)**: small text showing target sets×reps (e.g., “4×8–10 @ RPE 8”).
+- **Set Table**:
+  - Columns: **Set #**, **Weight**, **Reps**, **RIR/RPE** (configurable), **Done**.
+  - Each row is an interactive control group with steppers and inline text inputs.
+  - Per-row actions: **mark complete**, **copy last**, **PR badge** (if achieved), **delete set** (if bonus/added).
+  - Long-press on a set opens a quick-edit popover (weight, reps, notes).
+- **Add Set** button (outline, small) below table to add bonus sets.
+- **Per-Exercise Notes** (optional) collapsible textarea.
+
+**Gestures & Reorder:**
+- Drag handle at left of header (grip icon). Haptic on drop. Update order in state.
+
+**Supersets/Circuits:**
+- Group exercises under a labeled container (e.g., “Superset A”).  
+- Option to “Complete round” marks the next set on all grouped exercises as completed.
+- Rest timer may apply to the group (see §6).
+
+**Empty exercise list (Ad-Hoc only):**
+- Show an illustration and “Add Exercise to start” primary button.
+
+---
+
+## 6. REST TIMER & TIMING
+**Per-Set Rest:**
+- Default rest for an exercise (e.g., 90 s) is suggested; configurable per user and exercise.
+- **Start Rest** triggers: after tapping “Done” on a set OR tapping the timer icon.
+- Timer displays as an **overlay banner** at the bottom, above the tab bar:
+  - Shows countdown `01:30` and a **Pause/Cancel** control.
+  - Optional vibration at **3..2..1** and at **00:00** (iOS haptic, Android vibrate).
+  - If user navigates away, a local notification fires with “Rest complete”.
+
+**Session Timer:**
+- Global elapsed timer starts when the first set is completed (or when explicitly started via menu). Pauses on “Pause Session”.
+
+**Background behavior:**
+- Timers continue when app is backgrounded; rely on time diffs on resume.
+
+---
+
+## 7. PERFORMANCE HELPERS & PR LOGIC
+**Previous Best Inline:**
+- Show last-session values under inputs (12 px muted): “Last: 60×8”.
+
+**Quick-fill:**
+- “Use last” tap fills weight/reps with previous best for that set position.
+
+**PR Badges:**
+- A set is flagged **PR** if its estimated 1RM or total volume exceeds previous best for the same exercise and rep range. Badge appears as small **▲ PR** in brand color.
+- PR count updates the Session Metrics Strip.
+
+---
+
+## 8. MENUS, MODALS & BOTTOM SHEETS
+**Session Menu (three-dots):**
+- Resume/Pause Session
+- Add Exercise (opens Exercise Picker)
+- Reorder Exercises
+- Session Settings (units kg/lb, rest defaults)
+- Save & Finish
+- Discard Session (confirm modal)
+
+**Exercise Picker (modal):**
+- Search field (debounced), filters by muscle group/equipment.
+- Tapping an exercise inserts at cursor position or end; mark as **bonus**.
+
+**Swap Exercise:**
+- Pre-filtered picker showing alternatives for same muscle/equipment.
+
+**Exercise Info (modal):**
+- Muscles, equipment, video link (opens in component), coaching cues.
+
+**Finish Flow:**
+- “Save & Finish” → confirmation modal showing summary:
+  - Duration, total sets, volume, PRs, notes
+  - Buttons: **Save** (primary), **Cancel** (ghost)
+- On save: persist session, navigate to **Workout Summary** (modal) or return to Dashboard (configurable).
+
+**Unsaved Changes Dialog (global):**
+- See §10; appears on navigate-away when there are un-saved changes.
+
+---
+
+## 9. DATA REQUIREMENTS
+> This spec describes the *contract*. Adapt field names to your schema (e.g., Supabase, RPCs).
+
+**Inputs (read):**
+- **User Profile**: `id`, `units` (kg/lb), default rest, preferences, active gym
+- **Workout Template** (when `workoutId` provided):
+  - `id`, `template_name`, `workout_type` (Push/Pull/Legs/Upper/Lower/etc.)
+  - `exercises[]` with: `id`, `name`, `muscles[]`, `equipment`, `target_sets`, `target_reps` (range), `default_rest_seconds`, `notes`, `order`
+  - Superset/circuit structure (optional): `group_key`, `group_order`
+- **Previous Performance** (per exercise): last set entries, bests (volume / est 1RM)
+
+**Session state (write/incremental):**
+- `session`: `id`, `user_id`, `workout_id/null`, `started_at`, `completed_at/null`, `active_gym_id`, `is_ad_hoc`, `notes`
+- `session_exercises`: `session_id`, `exercise_id`, `order`, `is_bonus`
+- `session_sets`: `session_exercise_id`, `set_index`, `weight`, `reps`, `rir_or_rpe`, `is_completed`, `completed_at`, `is_pr`, `notes`
+
+**Persistence rules:**
+- Create `session` on first mutation (or immediately on page load if preferred).
+- Save each set **as soon as it’s marked complete** (optimistic UI).  
+- Autosave notes and reorder operations.  
+- Offline-first: queue mutations locally and replay on reconnect.
+
+---
+
+## 10. UNSAVED CHANGES & LEAVING THE PAGE
+Define **hasUnsavedChanges** as true when:
+- A session exists and `completed_at` is null, and at least one:  
+  - a set has been modified but not persisted, or  
+  - there are staged changes (notes, reorder) not persisted.
+
+**Guard scope:** tab changes, sheet links, back gestures, `router.push/replace`.  
+**Dialog copy:**  
+> “You have unsaved changes in your workout. Are you sure you want to leave?”  
+Buttons: **Cancel** (stay), **Discard Changes** (leave).
+
+**Auto-reset:** When session saved & finished, `hasUnsavedChanges=false` and guard releases.
+
+---
+
+## 11. COLOR SYSTEM & THEMING
+- Workout accent color from `getWorkoutColor(workoutName)` applies to:
+  - Header title, programme tag border
+  - Set “Done” check color
+  - PR badge
+  - Finish CTA background
+  - Superset rail
+- Respect base tokens from theme: `background`, `card`, `border`, `mutedForeground`, `action`, etc.
+- Dark mode: ensure borders and muted text meet AA contrast; swap where needed.
+
+---
+
+## 12. ANIMATIONS & HAPTICS
+- ExerciseCard **expand/collapse**: 200 ms, ease-out.
+- Set **completion**: checkmark scales 0.9 → 1.0 with 120 ms spring; light haptic.
+- PR badge **pop-in**: 150 ms scale-in.
+- Rest banner **slide-up**: 250 ms; slide-down on cancel/complete.
+- Drag-and-drop reorder: 16 ms cadence; haptic on drop.
+- Finish modal: 200 ms fade/scale.
+
+---
+
+## 13. ACCESSIBILITY
+- Touch targets ≥ **44×44 dp** for all controls (steppers, Done buttons).
+- Announce per-set completion state to screen reader (“Set 2 completed”).
+- Inputs labeled: “Weight (kg)”, “Reps”, “RIR” with hints.
+- Rest banner exposes live region countdown and “Pause/Cancel” actions.
+- Focus management: bring focus to next set input on completion.
+- Provide unit toggle labels (kg/lb) with state announcements.
+
+---
+
+## 14. ERROR, EMPTY & OFFLINE STATES
+**Template not found (`workoutId` invalid):**  
+- Card with destructive icon; message: “Workout template unavailable.”  
+- Button: “Back to Dashboard”.
+
+**No exercises (Ad-Hoc):**  
+- Empty state with primary “Add Exercise”.
+
+**Network offline:**  
+- Header “Offline” badge; local persistence active; toasts when reconnected.
+
+**Save failure:**  
+- Non-blocking toast with retry; leave UI state intact; queue mutation.
+
+**Timer permission denied (notifications):**  
+- Continue in-app timers; show info toast.
+
+---
+
+## 15. TELEMETRY (OPTIONAL, RECOMMENDED)
+Track (anonymized): session start/end, set complete, PR, add/remove exercise, reorder, swap, rest start/complete, discard session. Include context: `workout_type`, `units`, `device`, `app_version`.
+
+---
+
+## 16. IMPLEMENTATION CHECKLIST
+- [ ] Route accepts `workoutId`, `adHoc`, `resumeSessionId`.
+- [ ] Header card renders name, programme tag, gym, elapsed timer.
+- [ ] Metrics strip updates (sets, volume, PRs).
+- [ ] ExerciseCard with set table, quick-fill, PR badges, notes.
+- [ ] Supersets/circuits grouping + “Complete round” action.
+- [ ] Add/Swap Exercise flows; per-exercise options sheet.
+- [ ] Rest banner overlay with haptics + local notifications.
+- [ ] Finish flow with summary modal; navigate per app config.
+- [ ] Session persistence (incremental), offline queue, resume.
+- [ ] Unsaved changes guard on all navigation surfaces.
+- [ ] Color system via `getWorkoutColor` and theme tokens.
+- [ ] Animations and a11y requirements satisfied.
+- [ ] Error/empty/offline states implemented.
+
+---
+
+## 17. QA SCENARIOS
+1. **Planned workout happy path**: complete all sets, save, see summary; Dashboard widgets update on return.  
+2. **Ad-Hoc**: add exercise, add sets, save; summary shows “Ad-Hoc Workout”.  
+3. **Superset round**: mark round complete, timer applies to group, PR logic works.  
+4. **Swap exercise** mid-session: new exercise appears; old data preserved for prior sets.  
+5. **Offline capture**: disable network, complete sets, close app, reopen online → data syncs.  
+6. **Guard**: try to leave with unsaved changes via tab press, sheet, back gesture → dialog appears.  
+7. **Rest notifications**: background app during rest; receive notification at 0.  
+8. **Units**: toggle kg/lb; formatting updates across inputs and summaries.  
+9. **Accessibility**: navigate the set table with screen reader; labels and announcements correct.
+
+---
+
+## 18. PARITY MATRIX — WORKOUT PAGE
+> Fill **RN Current** during QA; sign off only when all rows are ✅.
+
+| Area | Reference Behavior | RN Current | Parity Requirement (Done when…) | QA |
+|---|---|---|---|---|
+| Entry & Params | `/workout?workoutId`, `adHoc`, `resumeSessionId` supported |  | Route + params handled; resume loads prior state | ☐ |
+| Header Card | Name, programme tag, gym, elapsed timer; add exercise; menu |  | All widgets render; elapsed timer correct | ☐ |
+| Metrics Strip | Sets / Volume / PRs live-update |  | Values increment smoothly; count-up animation | ☐ |
+| Exercise List | Reorderable; supersets supported |  | Drag-and-drop works; groups styled | ☐ |
+| Set Table | Weight/Reps/RIR; Done button; quick-fill; PR badge |  | Inputs/steppers accurate; PR logic applied | ☐ |
+| Rest Timer | Per-set default; overlay banner; haptics + notifications |  | Start/pause/cancel; local notification fires | ☐ |
+| Add/Swap Exercise | Search, filters; swap maintains history |  | Added exercises flagged bonus; swap ok | ☐ |
+| Notes | Session + per-exercise notes autosave |  | Debounced save; resume shows notes | ☐ |
+| Finish Flow | Summary modal; Save or Cancel |  | Persist then navigate as configured | ☐ |
+| Persistence | Incremental set saves; offline queue |  | Entries replay after reconnect | ☐ |
+| Guard | Unsaved Changes dialog on all exits |  | Triggered by tabs/sheet/back/programmatic | ☐ |
+| Colors | All accents via `getWorkoutColor` |  | No stray hexes; dark mode AA | ☐ |
+| Animations | Expand/collapse; check bounce; rest slide-up |  | Timings/easings verified | ☐ |
+| Accessibility | 44×44 dp; labels; focus order |  | Screen reader flows pass | ☐ |
+| Errors/Empty/Offline | States render with correct copy and actions |  | All error paths testable | ☐ |
+
+---
+
+### Appendix: Suggested Types (Illustrative)
+```ts
+type Session = {
+  id: string
+  userId: string
+  workoutId?: string | null
+  isAdHoc: boolean
+  startedAt: string
+  completedAt?: string | null
+  activeGymId?: string | null
+  notes?: string
+}
+
+type SessionExercise = {
+  id: string
+  sessionId: string
+  exerciseId: string
+  order: number
+  isBonus: boolean
+  name: string
+  muscles: string[]
+  equipment?: string
+  defaultRestSeconds?: number
+  groupKey?: string // for superset/circuit
+  groupOrder?: number
+}
+
+type SessionSet = {
+  id: string
+  sessionExerciseId: string
+  setIndex: number
+  weight: number // respect kg/lb
+  reps: number
+  rirOrRpe?: number
+  isCompleted: boolean
+  isPR?: boolean
+  completedAt?: string
+  notes?: string
+}
+```
+
