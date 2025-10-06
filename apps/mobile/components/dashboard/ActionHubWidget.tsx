@@ -1,6 +1,6 @@
 /**
  * ActionHubWidget Component
- * 3x2 grid of quick action buttons
+ * 3+2 grid of quick action buttons with colored icons
  * Reference: MOBILE_SPEC_02_DASHBOARD.md Section 4
  */
 
@@ -79,10 +79,14 @@ export function ActionHubWidget({
   return (
     <>
       <Card style={styles.container}>
-        <Text style={styles.title}>Quick Links</Text>
+        <View style={styles.titleRow}>
+          <Ionicons name="flash" size={20} color={Colors.foreground} />
+          <Text style={styles.title}>Quick Links</Text>
+        </View>
 
         <View style={styles.grid}>
-          {/* Row 1, Col 1: Log Activity */}
+          {/* Row 1: 3 buttons */}
+          {/* Col 1: Log Activity */}
           <Pressable
             style={({ pressed }) => [
               styles.button,
@@ -90,11 +94,11 @@ export function ActionHubWidget({
             ]}
             onPress={handleLogActivity}
           >
-            <Ionicons name="fitness" size={20} color={Colors.foreground} />
+            <Ionicons name="fitness" size={20} color="#F97316" />
             <Text style={styles.buttonText}>Log Activity</Text>
           </Pressable>
 
-          {/* Row 1, Col 2: AI Coach */}
+          {/* Col 2: AI Coach */}
           <Pressable
             style={({ pressed }) => [
               styles.button,
@@ -102,11 +106,11 @@ export function ActionHubWidget({
             ]}
             onPress={handleAICoach}
           >
-            <Ionicons name="sparkles" size={20} color={Colors.foreground} />
+            <Ionicons name="sparkles" size={20} color="#FBBF24" />
             <Text style={styles.buttonText}>AI Coach</Text>
           </Pressable>
 
-          {/* Row 1, Col 3: Workout Log */}
+          {/* Col 3: Workout Log */}
           <Pressable
             style={({ pressed }) => [
               styles.button,
@@ -114,11 +118,12 @@ export function ActionHubWidget({
             ]}
             onPress={handleWorkoutLog}
           >
-            <Ionicons name="time" size={20} color={Colors.foreground} />
+            <Ionicons name="time" size={20} color="#3B82F6" />
             <Text style={styles.buttonText}>Workout Log</Text>
           </Pressable>
 
-          {/* Row 2, Col 1-2: Consistency Calendar (spans 2 columns) */}
+          {/* Row 2: 2 buttons */}
+          {/* Consistency Calendar (spans 2 columns) */}
           <Pressable
             style={({ pressed }) => [
               styles.button,
@@ -127,11 +132,11 @@ export function ActionHubWidget({
             ]}
             onPress={handleConsistencyCalendar}
           >
-            <Ionicons name="calendar" size={20} color={Colors.foreground} />
+            <Ionicons name="calendar" size={20} color="#8B5CF6" />
             <Text style={styles.buttonText}>Consistency Calendar</Text>
           </Pressable>
 
-          {/* Row 2, Col 3: More */}
+          {/* More */}
           <Pressable
             style={({ pressed }) => [
               styles.button,
@@ -200,13 +205,18 @@ const styles = StyleSheet.create({
   container: {
     padding: 0,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+  },
   title: {
     fontSize: 20,
     fontWeight: '600',
     color: Colors.foreground,
-    textAlign: 'center',
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.sm,
   },
   grid: {
     flexDirection: 'row',

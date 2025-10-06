@@ -11,6 +11,7 @@ import { useAuth } from "../_contexts/auth-context";
 import { useData } from "../_contexts/data-context";
 import { Colors, Spacing } from "../../constants/Theme";
 import { DashboardHeader } from "../../components/DashboardHeader";
+import { BackgroundRoot } from "../../components/BackgroundRoot";
 import {
   WelcomeHeader,
   WeeklyTargetWidget,
@@ -214,8 +215,8 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Aurora Background Gradient */}
-      <View style={styles.auroraBackground} />
+      {/* Aurora Background with 3 animated blobs */}
+      <BackgroundRoot />
       
       {/* Dashboard Header with Rolling Status Badge */}
       <DashboardHeader />
@@ -311,16 +312,7 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
-  },
-  auroraBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 300,
-    backgroundColor: Colors.auroraBlue,
-    opacity: 0.03,
+    backgroundColor: '#FAFAFA',
   },
   scrollView: {
     flex: 1,

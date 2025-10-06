@@ -1,7 +1,7 @@
 /**
  * DashboardHeader Component
- * Header for dashboard with menu, rolling status badge, notifications, and profile
- * Reference: User's reference app screenshots
+ * Header for dashboard with menu, rolling status badge (centered), notifications, and profile
+ * Reference: MOBILE_SPEC_01_LAYOUT_NAVIGATION.md Section 1.3
  */
 
 import React from 'react';
@@ -40,18 +40,20 @@ export function DashboardHeader() {
           <Ionicons name="menu" size={24} color={Colors.foreground} />
         </Pressable>
 
-        {/* Center-Right: Rolling Status Badge */}
-        {loading ? (
-          <View style={[styles.badge, { backgroundColor: Colors.muted }]}>
-            <Ionicons name="ellipsis-horizontal" size={14} color={Colors.mutedForeground} />
-            <Text style={[styles.badgeText, { color: Colors.mutedForeground }]}>Loading...</Text>
-          </View>
-        ) : (
-          <View style={[styles.badge, { backgroundColor: config.backgroundColor }]}>
-            <Ionicons name={config.icon} size={14} color={config.color} />
-            <Text style={[styles.badgeText, { color: config.color }]}>{status}</Text>
-          </View>
-        )}
+        {/* Center: Rolling Status Badge */}
+        <View style={styles.centerSection}>
+          {loading ? (
+            <View style={[styles.badge, { backgroundColor: Colors.muted }]}>
+              <Ionicons name="ellipsis-horizontal" size={14} color={Colors.mutedForeground} />
+              <Text style={[styles.badgeText, { color: Colors.mutedForeground }]}>Loading...</Text>
+            </View>
+          ) : (
+            <View style={[styles.badge, { backgroundColor: config.backgroundColor }]}>
+              <Ionicons name={config.icon} size={14} color={config.color} />
+              <Text style={[styles.badgeText, { color: config.color }]}>{status}</Text>
+            </View>
+          )}
+        </View>
 
         {/* Right: Notification + Profile */}
         <View style={styles.rightGroup}>
@@ -88,7 +90,11 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     padding: Spacing.xs,
-    marginRight: Spacing.sm,
+  },
+  centerSection: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   badge: {
     flexDirection: 'row',
@@ -97,7 +103,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.full,
-    marginRight: 'auto',
   },
   badgeText: {
     fontSize: 12,
