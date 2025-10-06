@@ -69,7 +69,7 @@ export function AllWorkoutsQuickStart({
   return (
     <Card style={styles.container}>
       <View style={styles.header}>
-        <Ionicons name="barbell" size={20} color={Colors.actionPrimary} />
+        <Ionicons name="barbell" size={20} color={Colors.foreground} />
         <Text style={styles.title}>All Workouts</Text>
       </View>
 

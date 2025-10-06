@@ -40,23 +40,24 @@ export function DashboardHeader() {
           <Ionicons name="menu" size={24} color={Colors.foreground} />
         </Pressable>
 
-        {/* Center: Rolling Status Badge */}
-        <View style={styles.centerSection}>
+        {/* Spacer */}
+        <View style={{ flex: 1 }} />
+
+        {/* Right: Rolling Status Badge + Notification + Profile */}
+        <View style={styles.rightGroup}>
+          {/* Rolling Status Badge */}
           {loading ? (
             <View style={[styles.badge, { backgroundColor: Colors.muted }]}>
-              <Ionicons name="ellipsis-horizontal" size={14} color={Colors.mutedForeground} />
+              <Ionicons name="ellipsis-horizontal" size={16} color={Colors.mutedForeground} />
               <Text style={[styles.badgeText, { color: Colors.mutedForeground }]}>Loading...</Text>
             </View>
           ) : (
             <View style={[styles.badge, { backgroundColor: config.backgroundColor }]}>
-              <Ionicons name={config.icon} size={14} color={config.color} />
+              <Ionicons name={config.icon} size={16} color={config.color} />
               <Text style={[styles.badgeText, { color: config.color }]}>{status}</Text>
             </View>
           )}
-        </View>
 
-        {/* Right: Notification + Profile */}
-        <View style={styles.rightGroup}>
           <Pressable onPress={() => console.log('Notifications')} style={styles.iconButton}>
             <View>
               <Ionicons name="notifications" size={24} color={Colors.foreground} />
@@ -91,21 +92,16 @@ const styles = StyleSheet.create({
   iconButton: {
     padding: Spacing.xs,
   },
-  centerSection: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: BorderRadius.full,
   },
   badgeText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
   },
   rightGroup: {

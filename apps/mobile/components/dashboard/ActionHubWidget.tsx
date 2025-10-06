@@ -80,7 +80,6 @@ export function ActionHubWidget({
     <>
       <Card style={styles.container}>
         <View style={styles.titleRow}>
-          <Ionicons name="flash" size={20} color={Colors.foreground} />
           <Text style={styles.title}>Quick Links</Text>
         </View>
 
@@ -206,9 +205,8 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   titleRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
+    justifyContent: 'center',
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.sm,
     paddingHorizontal: Spacing.lg,
@@ -217,6 +215,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: Colors.foreground,
+    textAlign: 'center',
   },
   grid: {
     flexDirection: 'row',

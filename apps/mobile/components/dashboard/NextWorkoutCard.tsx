@@ -88,7 +88,7 @@ export function NextWorkoutCard({
   return (
     <Card style={styles.container}>
       <View style={styles.header}>
-        <Ionicons name="barbell" size={20} color={Colors.actionPrimary} />
+        <Ionicons name="barbell" size={20} color={Colors.foreground} />
         <Text style={styles.title}>Your Next Workout</Text>
       </View>
 

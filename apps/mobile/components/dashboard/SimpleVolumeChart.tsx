@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../ui/Card';
 import { Colors, Spacing } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
@@ -28,7 +29,10 @@ export function SimpleVolumeChart({ data }: SimpleVolumeChartProps) {
 
   return (
     <Card style={styles.container}>
-      <Text style={styles.title}>Weekly Volume</Text>
+      <View style={styles.header}>
+        <Ionicons name="bar-chart" size={20} color={Colors.foreground} />
+        <Text style={styles.title}>Weekly Volume</Text>
+      </View>
       
       <View style={styles.chartContainer}>
         {data.map((point, index) => {
@@ -66,10 +70,17 @@ const styles = StyleSheet.create({
   container: {
     padding: Spacing.lg,
   },
-  title: {
-    ...TextStyles.h3,
-    color: Colors.foreground,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
     marginBottom: Spacing.md,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors.foreground,
   },
   chartContainer: {
     flexDirection: 'row',

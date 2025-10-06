@@ -82,7 +82,7 @@ export function WeeklyTargetWidget({
     <Card style={styles.container}>
       <View style={styles.header}>
         <View style={styles.titleContainer}>
-          <Ionicons name="barbell" size={20} color={Colors.actionPrimary} />
+          <Ionicons name="barbell" size={20} color={Colors.foreground} />
           <Text style={styles.title}>Weekly Target</Text>
         </View>
         {onViewCalendar && (
@@ -149,6 +149,11 @@ export function WeeklyTargetWidget({
 const styles = StyleSheet.create({
   container: {
     padding: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   header: {
     flexDirection: 'row',
