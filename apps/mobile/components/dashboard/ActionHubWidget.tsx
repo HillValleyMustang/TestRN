@@ -143,10 +143,10 @@ export function ActionHubWidget({
           </Pressable>
 
           {/* More - same width as Workout Log button to align right edges */}
-          <View ref={moreButtonRef} collapsable={false}>
+          <View ref={moreButtonRef} collapsable={false} style={styles.buttonWrapper}>
             <Pressable
               style={({ pressed }) => [
-                styles.button,
+                styles.buttonInner,
                 pressed && styles.buttonPressed,
               ]}
               onPress={handleMorePress}
@@ -262,6 +262,26 @@ const styles = StyleSheet.create({
     flexBasis: '63%',
     flexGrow: 0,
     flexShrink: 0,
+  },
+  buttonWrapper: {
+    flexBasis: '30%',
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  buttonInner: {
+    height: 80,
+    backgroundColor: Colors.card,
+    borderWidth: 0,
+    borderRadius: 12,
+    padding: Spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   buttonPressed: {
     transform: [{ scale: 0.98 }],
