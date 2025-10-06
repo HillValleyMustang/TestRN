@@ -6,7 +6,7 @@
 
 import React, { useCallback, useState, useEffect, useRef } from "react";
 import { View, ScrollView, RefreshControl, StyleSheet, Animated } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useAuth } from "../_contexts/auth-context";
 import { useData } from "../_contexts/data-context";
 import { Colors, Spacing } from "../../constants/Theme";
@@ -29,8 +29,15 @@ interface VolumePoint {
 }
 
 export default function DashboardScreen() {
-  const { session, userId, supabase } = useAuth();
+  const { session, userId, supabase, loading: authLoading } = useAuth();
   const data = useData();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!authLoading && !session) {
+      router.replace("/login");
+    }
+  }, [session, authLoading, router]);
 
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);

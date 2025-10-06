@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -25,8 +25,14 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
-  const { supabase } = useAuth();
+  const { supabase, session, loading: authLoading } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    if (!authLoading && session) {
+      router.replace("/(tabs)/dashboard");
+    }
+  }, [session, authLoading, router]);
 
   const handleAuth = async () => {
     if (!email || !password) {
@@ -55,7 +61,7 @@ export default function LoginScreen() {
         if (error) {
           throw error;
         }
-        router.replace("/");
+        router.replace("/(tabs)/dashboard");
       }
     } catch (error: any) {
       Alert.alert("Error", error.message || "Authentication failed");
