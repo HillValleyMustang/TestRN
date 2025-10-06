@@ -1,13 +1,12 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useAuth } from "../_contexts/auth-context";
 import { useData } from "../_contexts/data-context";
 import { ScreenHeader, ScreenContainer } from "../../components/layout";
 import { StatCard, QuickActions, WeeklyTarget, RecentWorkouts, SimpleVolumeChart } from "../../components/dashboard";
 import { Colors, Spacing } from "../../constants/Theme";
-import { TextStyles } from "../../constants/Typography";
-import type { WorkoutSession, WorkoutTemplate } from "@data/storage/models";
+import type { WorkoutSession } from "@data/storage/models";
 
 interface VolumePoint {
   date: string;
@@ -117,7 +116,7 @@ export default function DashboardScreen() {
         refreshing={refreshing}
         onRefresh={onRefresh}
       >
-        <View style={styles.statsGrid}>
+        <View style={styles.statsRow}>
           <StatCard 
             icon="barbell" 
             label="Total Workouts" 
@@ -133,6 +132,13 @@ export default function DashboardScreen() {
             style={styles.statCard}
           />
         </View>
+        
+        <StatCard 
+          icon="trending-up" 
+          label="Total Volume (kg)" 
+          value={totalVolume.toLocaleString()}
+          iconColor={Colors.chart5}
+        />
 
         <WeeklyTarget
           completedCount={2}
@@ -158,10 +164,10 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  statsGrid: {
+  statsRow: {
     flexDirection: 'row',
     gap: Spacing.md,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   statCard: {
     flex: 1,
