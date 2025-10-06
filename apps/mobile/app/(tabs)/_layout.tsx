@@ -1,14 +1,22 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../../constants/design-system";
+import { Colors } from "../../constants/Theme";
 import { useWorkoutFlow } from "../_contexts/workout-flow-context";
 
 const tabBarOptions = {
   tabBarActiveTintColor: Colors.actionPrimary,
-  tabBarInactiveTintColor: Colors.gray500,
+  tabBarInactiveTintColor: Colors.mutedForeground,
   tabBarStyle: {
-    backgroundColor: Colors.cardBackground,
-    borderTopColor: Colors.cardBorder,
+    backgroundColor: Colors.card,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    height: 64,
+    paddingBottom: 8,
+    paddingTop: 8,
+  },
+  tabBarLabelStyle: {
+    fontSize: 12,
+    fontWeight: '500' as const,
   },
   headerShown: false,
 };
@@ -34,7 +42,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="dashboard"
         options={{
-          title: "Home",
+          title: "Dashboard",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home" size={size} color={color} />
           ),
@@ -52,24 +60,34 @@ export default function TabsLayout() {
         listeners={withGuard("workout")}
       />
       <Tabs.Screen
+        name="exercises"
+        options={{
+          title: "Exercises",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="book" size={size} color={color} />
+          ),
+        }}
+        listeners={withGuard("exercises")}
+      />
+      <Tabs.Screen
         name="progress"
         options={{
           title: "Progress",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="stats-chart" size={size} color={color} />
+            <Ionicons name="bar-chart" size={size} color={color} />
           ),
         }}
         listeners={withGuard("progress")}
       />
       <Tabs.Screen
-        name="settings"
+        name="profile"
         options={{
-          title: "Settings",
+          title: "Profile",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings" size={size} color={color} />
+            <Ionicons name="person" size={size} color={color} />
           ),
         }}
-        listeners={withGuard("settings")}
+        listeners={withGuard("profile")}
       />
     </Tabs>
   );
