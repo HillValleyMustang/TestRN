@@ -5,6 +5,8 @@ import { useAuth } from "../_contexts/auth-context";
 import { useData } from "../_contexts/data-context";
 import { ScreenHeader, ScreenContainer } from "../../components/layout";
 import { StatCard, QuickActions, WeeklyTarget, RecentWorkouts, SimpleVolumeChart } from "../../components/dashboard";
+import { RollingStatusBadge } from "../../components/dashboard/RollingStatusBadge";
+import { GymToggle } from "../../components/dashboard/GymToggle";
 import { Colors, Spacing } from "../../constants/Theme";
 import type { WorkoutSession } from "@data/storage/models";
 
@@ -139,6 +141,10 @@ export default function DashboardScreen() {
           value={totalVolume.toLocaleString()}
           iconColor={Colors.chart5}
         />
+
+        <RollingStatusBadge />
+
+        <GymToggle />
 
         <WeeklyTarget
           completedCount={2}

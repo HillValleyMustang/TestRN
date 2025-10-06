@@ -45,12 +45,18 @@ export function getWorkoutColor(workoutName: string): WorkoutColorScheme {
   } else if (lowerName.includes('leg')) {
     return WORKOUT_COLORS['Legs'];
   } else if (lowerName.includes('upper')) {
-    if (lowerName.includes('b')) {
+    const words = lowerName.split(/\s+/);
+    const lastWord = words[words.length - 1];
+    const letter = lastWord.match(/[a-z](?=[^a-z]*$)/)?.[0];
+    if (letter === 'b') {
       return WORKOUT_COLORS['Upper Body B'];
     }
     return WORKOUT_COLORS['Upper Body A'];
   } else if (lowerName.includes('lower')) {
-    if (lowerName.includes('b')) {
+    const words = lowerName.split(/\s+/);
+    const lastWord = words[words.length - 1];
+    const letter = lastWord.match(/[a-z](?=[^a-z]*$)/)?.[0];
+    if (letter === 'b') {
       return WORKOUT_COLORS['Lower Body B'];
     }
     return WORKOUT_COLORS['Lower Body A'];
