@@ -127,6 +127,28 @@ export const Colors = {
   sidebarRing: hslToRgb(217.2, 91.2, 59.8),
 };
 
+// Convenient workout color exports (hex values for compatibility)
+export const WorkoutColors = {
+  push: '#228B22',
+  pushLight: '#2ea32e',
+  pull: '#F89C4D',
+  pullLight: '#fab86d',
+  legs: '#B645D9',
+  legsLight: '#c966e3',
+  upperA: '#1e3a8a',
+  upperALight: '#2563eb',
+  upperB: '#EF4444',
+  upperBLight: '#F87171',
+  lowerA: '#0891b2',
+  lowerALight: '#06b6d4',
+  lowerB: '#6b21a8',
+  lowerBLight: '#9333ea',
+  bonus: '#F59E0B',
+  bonusLight: '#FBBF24',
+  adHoc: '#F59E0B',
+  adHocLight: '#FBBF24',
+};
+
 // Spacing scale matching web app
 export const Spacing = {
   xs: 4,
