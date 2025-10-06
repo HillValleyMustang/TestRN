@@ -11,7 +11,7 @@ const tabBarOptions = {
     backgroundColor: Colors.card,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
-    height: 72, // Increased height for better spacing
+    height: 83, // 15% increase from 72px for better spacing
     paddingBottom: 16, // More padding for breathing room
     paddingTop: 12,
   },
