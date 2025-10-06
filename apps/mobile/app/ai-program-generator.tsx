@@ -32,16 +32,15 @@ export default function AIProgramGeneratorScreen() {
   const [experienceLevel, setExperienceLevel] =
     useState<WorkoutGenerationParams["experienceLevel"]>("intermediate");
   const [splitType, setSplitType] = useState<"ppl" | "ulul">("ppl");
-  const [daysPerWeek, setDaysPerWeek] = useState(3);
   const [sessionDuration, setSessionDuration] = useState(60);
   const [focusAreas, setFocusAreas] = useState("");
   const [restrictions, setRestrictions] = useState("");
 
   useEffect(() => {
     loadActiveGym();
-  }, [userId]);
+  }, [userId, loadActiveGym]);
 
-  const loadActiveGym = async () => {
+  const loadActiveGym = useCallback(async () => {
     if (!userId) {
       return;
     }
@@ -54,7 +53,7 @@ export default function AIProgramGeneratorScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getActiveGym, userId]);
 
   const handleGenerate = async () => {
     if (!userId) {
@@ -143,9 +142,13 @@ export default function AIProgramGeneratorScreen() {
               exercise_id: ex.exerciseId!,
               target_sets: ex.sets,
               target_reps_min:
-                parseInt(ex.reps.split("-")[0]) || parseInt(ex.reps) || 10,
+                parseInt(ex.reps.split("-")[0], 10) ||
+                parseInt(ex.reps, 10) ||
+                10,
               target_reps_max:
-                parseInt(ex.reps.split("-")[1]) || parseInt(ex.reps) || 12,
+                parseInt(ex.reps.split("-")[1], 10) ||
+                parseInt(ex.reps, 10) ||
+                12,
               rest_seconds: ex.restSeconds,
               notes: ex.notes || null,
               is_bonus_exercise: false,

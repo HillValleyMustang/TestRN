@@ -314,9 +314,8 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   ): Promise<void> => {
     const { ACHIEVEMENTS } = await import("@data/achievements");
     const stats = await database.getWorkoutStats(targetUserId);
-    const unlockedAchievements = await database.getUserAchievements(
-      targetUserId,
-    );
+    const unlockedAchievements =
+      await database.getUserAchievements(targetUserId);
     const unlockedIds = new Set(
       unlockedAchievements.map((a) => a.achievement_id),
     );
@@ -344,7 +343,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           break;
         case "max_weight":
           if (achievement.requirement.exercise_id) {
-            progressValue = await database.getPersonalRecord(targetUserId, achievement.requirement.exercise_id);
+            progressValue = await database.getPersonalRecord(
+              targetUserId,
+              achievement.requirement.exercise_id,
+            );
             shouldUnlock = progressValue >= achievement.requirement.value;
           }
           break;
@@ -373,10 +375,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const getTPaths = async (
-    userId: string,
+    targetUserId: string,
     mainProgramsOnly?: boolean,
   ): Promise<TPath[]> => {
-    return await database.getTPaths(userId, mainProgramsOnly);
+    return await database.getTPaths(targetUserId, mainProgramsOnly);
   };
 
   const getTPathsByParent = async (parentId: string): Promise<TPath[]> => {
@@ -415,16 +417,16 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const getTPathProgress = async (
-    userId: string,
+    targetUserId: string,
     tPathId: string,
   ): Promise<TPathProgress | null> => {
-    return await database.getTPathProgress(userId, tPathId);
+    return await database.getTPathProgress(targetUserId, tPathId);
   };
 
   const getAllTPathProgress = async (
-    userId: string,
+    targetUserId: string,
   ): Promise<TPathProgress[]> => {
-    return await database.getAllTPathProgress(userId);
+    return await database.getAllTPathProgress(targetUserId);
   };
 
   const addGym = async (gym: Gym): Promise<void> => {
@@ -435,12 +437,12 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     return await database.getGym(gymId);
   };
 
-  const getGyms = async (userId: string): Promise<Gym[]> => {
-    return await database.getGyms(userId);
+  const getGyms = async (targetUserId: string): Promise<Gym[]> => {
+    return await database.getGyms(targetUserId);
   };
 
-  const getActiveGym = async (userId: string): Promise<Gym | null> => {
-    return await database.getActiveGym(userId);
+  const getActiveGym = async (targetUserId: string): Promise<Gym | null> => {
+    return await database.getActiveGym(targetUserId);
   };
 
   const updateGym = async (
@@ -450,8 +452,11 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     await database.updateGym(gymId, updates);
   };
 
-  const setActiveGym = async (userId: string, gymId: string): Promise<void> => {
-    await database.setActiveGym(userId, gymId);
+  const setActiveGym = async (
+    targetUserId: string,
+    gymId: string,
+  ): Promise<void> => {
+    await database.setActiveGym(targetUserId, gymId);
   };
 
   const deleteGym = async (gymId: string): Promise<void> => {

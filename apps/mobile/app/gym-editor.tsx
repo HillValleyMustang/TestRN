@@ -35,9 +35,9 @@ export default function GymEditorScreen() {
     if (id) {
       loadGym();
     }
-  }, [id]);
+  }, [id, loadGym]);
 
-  const loadGym = async () => {
+  const loadGym = useCallback(async () => {
     if (!id) {
       return;
     }
@@ -54,12 +54,12 @@ export default function GymEditorScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getGym, id]);
 
   const toggleEquipment = (equipmentId: string) => {
     setSelectedEquipment((prev) =>
       prev.includes(equipmentId)
-        ? prev.filter((id) => id !== equipmentId)
+        ? prev.filter((eqId) => eqId !== equipmentId)
         : [...prev, equipmentId],
     );
   };
@@ -69,12 +69,14 @@ export default function GymEditorScreen() {
       (eq: (typeof EQUIPMENT_TYPES)[number]) => eq.category === categoryId,
     ).map((eq: (typeof EQUIPMENT_TYPES)[number]) => eq.id);
 
-    const allSelected = categoryEquipment.every((id: string) =>
-      selectedEquipment.includes(id),
+    const allSelected = categoryEquipment.every((equipmentId: string) =>
+      selectedEquipment.includes(equipmentId),
     );
     if (allSelected) {
       setSelectedEquipment((prev) =>
-        prev.filter((id: string) => !categoryEquipment.includes(id)),
+        prev.filter(
+          (equipmentId: string) => !categoryEquipment.includes(equipmentId),
+        ),
       );
     } else {
       setSelectedEquipment((prev) => {

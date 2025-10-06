@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Button } from "../ui/Button";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/Card";
-import { Colors, Spacing } from "../../constants/design-system";
+import { Colors, Spacing } from "../../../constants/design-system";
 import { Ionicons } from "@expo/vector-icons";
 
 type ActionVariant = "primary" | "success" | "outline";

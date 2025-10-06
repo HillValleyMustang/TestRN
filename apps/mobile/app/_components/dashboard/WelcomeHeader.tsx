@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { Colors, Typography, Spacing } from "../../constants/design-system";
+import { Colors, Typography, Spacing } from "../../../constants/design-system";
 
 interface Props {
   name: string;

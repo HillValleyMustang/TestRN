@@ -16,7 +16,7 @@ import { useUnitConversion } from "./_hooks/use-unit-conversion";
 export default function GoalsListScreen() {
   const { userId } = useAuth();
   const { getGoals, deleteGoal } = useData();
-  const { displayWeight, weightUnit } = useUnitConversion();
+  const { displayWeight } = useUnitConversion();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [activeFilter, setActiveFilter] = useState<
     "all" | "active" | "completed"

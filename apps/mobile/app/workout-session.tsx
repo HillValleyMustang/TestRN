@@ -12,19 +12,10 @@ import { useAuth } from "./_contexts/auth-context";
 import { useData } from "./_contexts/data-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import type { TPath } from "@data/storage/models";
-import {
-  Colors,
-  Spacing,
-  BorderRadius,
-  Typography,
-  ButtonStyles,
-} from "../constants/design-system";
+import { Colors } from "../constants/design-system";
 
 // Color mapping for different workout types - using design system colors
-function getWorkoutColors(
-  workoutName: string,
-  splitType: "ppl" | "ulul" | null,
-) {
+function getWorkoutColors(workoutName: string) {
   const name = workoutName.toLowerCase();
 
   // PPL Colors - match web app design system
@@ -148,7 +139,7 @@ export default function WorkoutSessionScreen() {
   const [loading, setLoading] = useState(true);
   const [activeGymName, setActiveGymName] = useState<string>("My Gym");
 
-  const loadWorkouts = async () => {
+  const loadWorkouts = useCallback(async () => {
     if (!userId) {
       return;
     }
@@ -205,11 +196,11 @@ export default function WorkoutSessionScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getTPathProgress, getTPaths, tPathId, userId]);
 
   useEffect(() => {
     loadWorkouts();
-  }, [userId, tPathId]);
+  }, [loadWorkouts]);
 
   const handleStartWorkout = (workout: TPath) => {
     router.push({
@@ -374,7 +365,8 @@ export default function WorkoutSessionScreen() {
                       <Text
                         style={[
                           styles.workoutButtonStatus,
-                          { color: colors.text, opacity: 0.8 },
+                          { color: colors.text },
+                          styles.workoutButtonStatusOpacity,
                         ]}
                       >
                         {lastTrained}
@@ -532,6 +524,9 @@ const styles = StyleSheet.create({
   workoutButtonStatus: {
     fontSize: 14,
     marginTop: 4,
+  },
+  workoutButtonStatusOpacity: {
+    opacity: 0.8,
   },
   adHocSection: {
     padding: 20,

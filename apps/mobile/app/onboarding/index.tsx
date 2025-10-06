@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { View, Text, StyleSheet, ActivityIndicator, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "../_contexts/auth-context";
-import { supabase } from "../_lib/supabase";
 import Step1PersonalInfo from "./step1-personal-info";
 import Step2TrainingSetup from "./step2-training-setup";
 import Step3GoalsPreferences from "./step3-goals-preferences";
@@ -39,7 +38,7 @@ interface Step4Data {
 }
 
 export default function OnboardingScreen() {
-  const { session, userId } = useAuth();
+  const { session } = useAuth();
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);

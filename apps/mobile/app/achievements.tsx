@@ -10,11 +10,7 @@ import {
 import { router } from "expo-router";
 import { useAuth } from "./_contexts/auth-context";
 import { useData, type UserAchievement } from "./_contexts/data-context";
-import {
-  ACHIEVEMENTS,
-  getAchievementById,
-  type AchievementCategory,
-} from "@data/achievements";
+import { ACHIEVEMENTS, type AchievementCategory } from "@data/achievements";
 
 export default function AchievementsScreen() {
   const { userId } = useAuth();
@@ -112,7 +108,7 @@ export default function AchievementsScreen() {
             >
               {achievement.name}
             </Text>
-            <Text style={styles.achievementTier} style={{ color: tierColor }}>
+            <Text style={{ color: tierColor }}>
               {achievement.tier.toUpperCase()}
             </Text>
           </View>

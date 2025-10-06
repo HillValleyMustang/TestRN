@@ -25,7 +25,7 @@ export default function TPathDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [lastAccessed, setLastAccessed] = useState<string | null>(null);
 
-  const loadTPath = async () => {
+  const loadTPath = useCallback(async () => {
     if (!tPathId || !userId) {
       return;
     }
@@ -49,16 +49,16 @@ export default function TPathDetailScreen() {
         created_at: progress?.created_at || new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
-    } catch (error) {
+    } catch {
       Alert.alert("Error", "Failed to load program details");
     } finally {
       setLoading(false);
     }
-  };
+  }, [getTPath, getTPathProgress, tPathId, updateTPathProgress, userId]);
 
   useEffect(() => {
     loadTPath();
-  }, [tPathId, userId]);
+  }, [tPathId, userId, loadTPath]);
 
   const handleStartWorkout = () => {
     if (!tPath) {

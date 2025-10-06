@@ -77,31 +77,37 @@ const PreferencesProviderInner = ({
     loadPreferences();
   }, [userId, isDbReady]);
 
-  const setUnitSystem = useCallback(async (system: UnitSystem) => {
-    if (!userId) {
-      return;
-    }
+  const setUnitSystem = useCallback(
+    async (system: UnitSystem) => {
+      if (!userId) {
+        return;
+      }
 
-    setUnitSystemState(system);
-    try {
-      await database.saveUserPreferences(userId, { unit_system: system });
-    } catch (error) {
-      console.error("Failed to save unit system:", error);
-    }
-  }, [userId]);
+      setUnitSystemState(system);
+      try {
+        await database.saveUserPreferences(userId, { unit_system: system });
+      } catch (error) {
+        console.error("Failed to save unit system:", error);
+      }
+    },
+    [userId],
+  );
 
-  const setTheme = useCallback(async (newTheme: Theme) => {
-    if (!userId) {
-      return;
-    }
+  const setTheme = useCallback(
+    async (newTheme: Theme) => {
+      if (!userId) {
+        return;
+      }
 
-    setThemeState(newTheme);
-    try {
-      await database.saveUserPreferences(userId, { theme: newTheme });
-    } catch (error) {
-      console.error("Failed to save theme:", error);
-    }
-  }, [userId]);
+      setThemeState(newTheme);
+      try {
+        await database.saveUserPreferences(userId, { theme: newTheme });
+      } catch (error) {
+        console.error("Failed to save theme:", error);
+      }
+    },
+    [userId],
+  );
 
   const value = useMemo(
     () => ({

@@ -20,7 +20,7 @@ export default function HistoryScreen() {
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadWorkouts = async () => {
+  const loadWorkouts = useCallback(async () => {
     if (!userId) {
       return;
     }
@@ -30,11 +30,11 @@ export default function HistoryScreen() {
     } catch (error) {
       console.error("Failed to load workouts:", error);
     }
-  };
+  }, [getWorkoutSessions, userId]);
 
   useEffect(() => {
     loadWorkouts();
-  }, [userId]);
+  }, [loadWorkouts]);
 
   const onRefresh = async () => {
     setRefreshing(true);

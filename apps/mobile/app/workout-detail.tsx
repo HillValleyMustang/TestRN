@@ -23,11 +23,7 @@ export default function WorkoutDetailScreen() {
   const [sets, setSets] = useState<SetLog[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadWorkoutDetail();
-  }, [id, userId]);
-
-  const loadWorkoutDetail = async () => {
+  const loadWorkoutDetail = useCallback(async () => {
     if (!id || !userId) {
       return;
     }
@@ -47,7 +43,11 @@ export default function WorkoutDetailScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getSetLogs, getWorkoutSessions, id, userId]);
+
+  useEffect(() => {
+    loadWorkoutDetail();
+  }, [loadWorkoutDetail]);
 
   if (loading) {
     return (

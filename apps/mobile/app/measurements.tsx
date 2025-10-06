@@ -19,7 +19,7 @@ export default function MeasurementsScreen() {
   const router = useRouter();
   const { userId } = useAuth();
   const { saveBodyMeasurement } = useData();
-  const { displayWeight, parseWeight, weightUnit } = useUnitConversion();
+  const { parseWeight, weightUnit } = useUnitConversion();
 
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -93,8 +93,8 @@ export default function MeasurementsScreen() {
     }
   };
 
-  const formatDisplayDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
+  const formatDisplayDate = (displayDate: Date) => {
+    return displayDate.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -111,7 +111,7 @@ export default function MeasurementsScreen() {
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Add Measurements</Text>
-        <View style={{ width: 60 }} />
+        <View style={styles.headerRight} />
       </View>
 
       <ScrollView
@@ -297,6 +297,9 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     color: "#fff",
+  },
+  headerRight: {
+    width: 60,
   },
   scrollView: {
     flex: 1,

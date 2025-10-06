@@ -19,7 +19,7 @@ import { EXERCISES, type Exercise } from "@data/exercises";
 export default function CreateGoalScreen() {
   const { userId } = useAuth();
   const { saveGoal } = useData();
-  const { displayWeight, parseWeight, weightUnit } = useUnitConversion();
+  const { parseWeight, weightUnit } = useUnitConversion();
 
   const [goalType, setGoalType] = useState<string>("");
   const [targetValue, setTargetValue] = useState("");

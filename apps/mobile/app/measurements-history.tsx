@@ -34,8 +34,7 @@ interface BodyMeasurement {
 export default function MeasurementsHistoryScreen() {
   const router = useRouter();
   const { userId } = useAuth();
-  const { getBodyMeasurements, deleteBodyMeasurement, getWeightHistory } =
-    useData();
+  const { getBodyMeasurements, deleteBodyMeasurement } = useData();
   const { displayWeight, weightUnit } = useUnitConversion();
 
   const [measurements, setMeasurements] = useState<BodyMeasurement[]>([]);

@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet, ViewProps } from "react-native";
-import { Colors, BorderRadius, Spacing } from "../../constants/design-system";
+import { Colors, BorderRadius, Spacing } from "../../../constants/design-system";
 
 interface CardProps extends ViewProps {
   children: React.ReactNode;

@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/Card";
-import { Colors, Spacing } from "../../constants/design-system";
+import { Colors, Spacing } from "../../../constants/design-system";
 import { Button } from "../ui/Button";
 
 interface SessionSummary {

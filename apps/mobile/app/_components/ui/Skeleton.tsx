@@ -1,6 +1,6 @@
 import React from "react";
 import { View, StyleSheet, ViewProps } from "react-native";
-import { Colors, BorderRadius } from "../../constants/design-system";
+import { Colors, BorderRadius } from "../../../constants/design-system";
 
 interface SkeletonProps extends ViewProps {
   width?: number | string;

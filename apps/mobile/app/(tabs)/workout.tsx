@@ -94,91 +94,97 @@ export default function WorkoutScreen() {
     }
   }, [loadTPath, params.tPathId, userId]);
 
-  const loadTemplate = useCallback(async (templateId: string) => {
-    try {
-      const template = await getTemplate(templateId);
-      if (!template) {
-        Alert.alert("Error", "Template not found");
-        return;
-      }
-
-      setTemplateName(template.name);
-      setLoadedTemplateId(templateId);
-      setCurrentTemplateDescription(template.description || "");
-
-      const loadedExercises: WorkoutExercise[] = template.exercises.map(
-        (ex) => ({
-          exerciseId: ex.exercise_id,
-          sets: Array(ex.default_sets)
-            .fill(null)
-            .map(() => ({
-              weight: ex.default_weight_kg?.toString() || "",
-              reps: ex.default_reps?.toString() || "",
-            })),
-        }),
-      );
-
-      setExercises(loadedExercises);
-      setHasUnsavedChanges(false);
-
-      for (const ex of template.exercises) {
-        if (userId) {
-          const pr = await getPersonalRecord(userId, ex.exercise_id);
-          setPersonalRecords((prev) => {
-            if (prev[ex.exercise_id] !== undefined) {
-              return prev;
-            }
-            return { ...prev, [ex.exercise_id]: pr };
-          });
+  const loadTemplate = useCallback(
+    async (templateId: string) => {
+      try {
+        const template = await getTemplate(templateId);
+        if (!template) {
+          Alert.alert("Error", "Template not found");
+          return;
         }
-      }
-    } catch (_error) {
-      Alert.alert("Error", "Failed to load template");
-    }
-  }, [getPersonalRecord, getTemplate, setHasUnsavedChanges, userId]);
 
-  const loadTPath = useCallback(async (tPathId: string) => {
-    try {
-      const tPath = await getTPath(tPathId);
-      if (!tPath) {
-        Alert.alert("Error", "Workout program not found");
-        return;
-      }
+        setTemplateName(template.name);
+        setLoadedTemplateId(templateId);
+        setCurrentTemplateDescription(template.description || "");
 
-      setTemplateName(tPath.template_name);
-      setLoadedTPathId(tPathId);
-      setCurrentTemplateDescription(tPath.description || "");
+        const loadedExercises: WorkoutExercise[] = template.exercises.map(
+          (ex) => ({
+            exerciseId: ex.exercise_id,
+            sets: Array(ex.default_sets)
+              .fill(null)
+              .map(() => ({
+                weight: ex.default_weight_kg?.toString() || "",
+                reps: ex.default_reps?.toString() || "",
+              })),
+          }),
+        );
 
-      const loadedExercises: WorkoutExercise[] = tPath.exercises
-        .filter((ex) => !ex.is_bonus_exercise)
-        .map((ex) => ({
-          exerciseId: ex.exercise_id,
-          sets: Array(ex.target_sets || 3)
-            .fill(null)
-            .map(() => ({
-              weight: "",
-              reps: ex.target_reps_min?.toString() || "",
-            })),
-        }));
+        setExercises(loadedExercises);
+        setHasUnsavedChanges(false);
 
-      setExercises(loadedExercises);
-      setHasUnsavedChanges(false);
-
-      for (const ex of tPath.exercises) {
-        if (userId) {
-          const pr = await getPersonalRecord(userId, ex.exercise_id);
-          setPersonalRecords((prev) => {
-            if (prev[ex.exercise_id] !== undefined) {
-              return prev;
-            }
-            return { ...prev, [ex.exercise_id]: pr };
-          });
+        for (const ex of template.exercises) {
+          if (userId) {
+            const pr = await getPersonalRecord(userId, ex.exercise_id);
+            setPersonalRecords((prev) => {
+              if (prev[ex.exercise_id] !== undefined) {
+                return prev;
+              }
+              return { ...prev, [ex.exercise_id]: pr };
+            });
+          }
         }
+      } catch {
+        Alert.alert("Error", "Failed to load template");
       }
-    } catch (_error) {
-      Alert.alert("Error", "Failed to load workout program");
-    }
-  }, [getPersonalRecord, getTPath, setHasUnsavedChanges, userId]);
+    },
+    [getPersonalRecord, getTemplate, setHasUnsavedChanges, userId],
+  );
+
+  const loadTPath = useCallback(
+    async (tPathId: string) => {
+      try {
+        const tPath = await getTPath(tPathId);
+        if (!tPath) {
+          Alert.alert("Error", "Workout program not found");
+          return;
+        }
+
+        setTemplateName(tPath.template_name);
+        setLoadedTPathId(tPathId);
+        setCurrentTemplateDescription(tPath.description || "");
+
+        const loadedExercises: WorkoutExercise[] = tPath.exercises
+          .filter((ex) => !ex.is_bonus_exercise)
+          .map((ex) => ({
+            exerciseId: ex.exercise_id,
+            sets: Array(ex.target_sets || 3)
+              .fill(null)
+              .map(() => ({
+                weight: "",
+                reps: ex.target_reps_min?.toString() || "",
+              })),
+          }));
+
+        setExercises(loadedExercises);
+        setHasUnsavedChanges(false);
+
+        for (const ex of tPath.exercises) {
+          if (userId) {
+            const pr = await getPersonalRecord(userId, ex.exercise_id);
+            setPersonalRecords((prev) => {
+              if (prev[ex.exercise_id] !== undefined) {
+                return prev;
+              }
+              return { ...prev, [ex.exercise_id]: pr };
+            });
+          }
+        }
+      } catch {
+        Alert.alert("Error", "Failed to load workout program");
+      }
+    },
+    [getPersonalRecord, getTPath, setHasUnsavedChanges, userId],
+  );
 
   const addExercise = useCallback(
     async (exerciseId: string) => {

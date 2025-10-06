@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  TextInput,
 } from "react-native";
 import { useAuth } from "./_contexts/auth-context";
 import { useData } from "./_contexts/data-context";
@@ -21,7 +20,7 @@ export default function TemplatesScreen() {
   const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadTemplates = async () => {
+  const loadTemplates = useCallback(async () => {
     if (!userId) {
       return;
     }
@@ -29,16 +28,16 @@ export default function TemplatesScreen() {
     try {
       const data = await getTemplates(userId);
       setTemplates(data);
-    } catch (error) {
+    } catch {
       Alert.alert("Error", "Failed to load templates");
     } finally {
       setLoading(false);
     }
-  };
+  }, [getTemplates, userId]);
 
   useEffect(() => {
     loadTemplates();
-  }, [userId]);
+  }, [userId, loadTemplates]);
 
   const handleDelete = (template: WorkoutTemplate) => {
     Alert.alert(
@@ -54,7 +53,7 @@ export default function TemplatesScreen() {
               await deleteTemplate(template.id);
               await loadTemplates();
               Alert.alert("Success", "Template deleted");
-            } catch (error) {
+            } catch {
               Alert.alert("Error", "Failed to delete template");
             }
           },

@@ -11,7 +11,7 @@ import {
   Colors,
   BorderRadius,
   Spacing,
-} from "../../constants/design-system";
+} from "../../../constants/design-system";
 
 type Variant = "primary" | "success" | "destructive" | "outline" | "ghost";
 

@@ -73,10 +73,7 @@ export default function Step2TrainingSetup({
             key={option.id}
             style={[
               styles.card,
-              data.tPathType === option.id && {
-                borderColor: option.color,
-                borderWidth: 2,
-              },
+              data.tPathType === option.id && styles.activeCard,
             ]}
             onPress={() => onDataChange({ ...data, tPathType: option.id })}
           >
@@ -194,9 +191,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#1a1a1a",
     padding: 16,
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: "#333",
     marginBottom: 12,
+  },
+  activeCard: {
+    borderColor: "#10B981",
   },
   cardHeader: {
     flexDirection: "row",

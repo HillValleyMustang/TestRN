@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/Card";
 import { Button } from "../ui/Button";
-import { Colors, Spacing } from "../../constants/design-system";
+import { Colors, Spacing } from "../../../constants/design-system";
 import { Skeleton } from "../ui/Skeleton";
 
 interface Props {

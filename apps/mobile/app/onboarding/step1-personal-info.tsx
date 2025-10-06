@@ -48,7 +48,7 @@ export default function Step1PersonalInfo({
       const inches = Math.round(totalInches % 12);
       onDataChange({ ...data, heightFt: ft, heightIn: inches });
     }
-  }, [data.heightUnit, data.heightFt, data.heightIn, data.heightCm]);
+  }, [data, onDataChange]);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -179,7 +179,7 @@ export default function Step1PersonalInfo({
             style={[styles.input, errors.height && styles.inputError]}
             value={data.heightCm?.toString() || ""}
             onChangeText={(text) =>
-              updateData("heightCm", text ? parseInt(text) : null)
+              updateData("heightCm", text ? parseInt(text, 10) : null)
             }
             placeholder="e.g., 175"
             placeholderTextColor="#666"
@@ -192,7 +192,7 @@ export default function Step1PersonalInfo({
                 style={[styles.input, errors.height && styles.inputError]}
                 value={data.heightFt?.toString() || ""}
                 onChangeText={(text) =>
-                  updateData("heightFt", text ? parseInt(text) : null)
+                  updateData("heightFt", text ? parseInt(text, 10) : null)
                 }
                 placeholder="Feet"
                 placeholderTextColor="#666"
@@ -204,7 +204,7 @@ export default function Step1PersonalInfo({
                 style={[styles.input, errors.height && styles.inputError]}
                 value={data.heightIn?.toString() || ""}
                 onChangeText={(text) =>
-                  updateData("heightIn", text ? parseInt(text) : null)
+                  updateData("heightIn", text ? parseInt(text, 10) : null)
                 }
                 placeholder="Inches"
                 placeholderTextColor="#666"
@@ -250,7 +250,7 @@ export default function Step1PersonalInfo({
           style={[styles.input, errors.weight && styles.inputError]}
           value={data.weight?.toString() || ""}
           onChangeText={(text) =>
-            updateData("weight", text ? parseInt(text) : null)
+            updateData("weight", text ? parseInt(text, 10) : null)
           }
           placeholder={`e.g., ${data.weightUnit === "kg" ? "70" : "154"}`}
           placeholderTextColor="#666"
@@ -265,7 +265,7 @@ export default function Step1PersonalInfo({
           style={[styles.input, errors.bodyFat && styles.inputError]}
           value={data.bodyFatPct?.toString() || ""}
           onChangeText={(text) =>
-            updateData("bodyFatPct", text ? parseInt(text) : null)
+            updateData("bodyFatPct", text ? parseInt(text, 10) : null)
           }
           placeholder="e.g., 15"
           placeholderTextColor="#666"

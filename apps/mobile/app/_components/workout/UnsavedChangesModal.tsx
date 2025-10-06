@@ -1,7 +1,7 @@
 import React from "react";
 import { Modal, View, Text, StyleSheet } from "react-native";
 import { Button } from "../ui/Button";
-import { Colors, Spacing, BorderRadius } from "../../constants/design-system";
+import { Colors, Spacing, BorderRadius } from "../../../constants/design-system";
 import { useWorkoutFlow } from "../../_contexts/workout-flow-context";
 
 export const UnsavedChangesModal = () => {

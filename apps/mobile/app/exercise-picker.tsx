@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
 } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter } from "expo-router";
 import { EXERCISES, EXERCISE_CATEGORIES, type Exercise } from "@data/exercises";
 import { canPerformExercise } from "@data/utils/equipment-mapping";
 import { useAuth } from "./_contexts/auth-context";
@@ -16,7 +16,6 @@ import type { Gym } from "@data/storage/models";
 
 export default function ExercisePickerScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
   const { userId } = useAuth();
   const { getActiveGym } = useData();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -26,16 +25,16 @@ export default function ExercisePickerScreen() {
 
   useEffect(() => {
     loadActiveGym();
-  }, [userId]);
+  }, [userId, loadActiveGym]);
 
-  const loadActiveGym = async () => {
+  const loadActiveGym = useCallback(async () => {
     if (!userId) {
       return;
     }
     const gym = await getActiveGym(userId);
     setActiveGym(gym);
     setShowAvailableOnly(!!gym);
-  };
+  }, [getActiveGym, userId]);
 
   const filteredExercises = EXERCISES.filter((exercise) => {
     const matchesCategory =

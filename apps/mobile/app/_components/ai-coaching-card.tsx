@@ -42,7 +42,7 @@ export function AICoachingCard({
 
       const response = await getCoachingAdvice(context);
       setAdvice(response.message);
-    } catch (_error) {
+    } catch {
       setAdvice("You've got this! Focus on form and controlled movements.");
     } finally {
       setLoading(false);

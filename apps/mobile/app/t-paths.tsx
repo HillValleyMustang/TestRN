@@ -19,7 +19,7 @@ export default function TPathsScreen() {
   const [tPaths, setTPaths] = useState<TPath[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadTPaths = async () => {
+  const loadTPaths = useCallback(async () => {
     if (!userId) {
       return;
     }
@@ -27,16 +27,16 @@ export default function TPathsScreen() {
     try {
       const data = await getTPaths(userId, true);
       setTPaths(data);
-    } catch (error) {
+    } catch {
       Alert.alert("Error", "Failed to load workout programs");
     } finally {
       setLoading(false);
     }
-  };
+  }, [getTPaths, userId]);
 
   useEffect(() => {
     loadTPaths();
-  }, [userId]);
+  }, [userId, loadTPaths]);
 
   const handleDelete = (tPath: TPath) => {
     Alert.alert(
@@ -52,7 +52,7 @@ export default function TPathsScreen() {
               await deleteTPath(tPath.id);
               await loadTPaths();
               Alert.alert("Success", "Program deleted");
-            } catch (error) {
+            } catch {
               Alert.alert("Error", "Failed to delete program");
             }
           },

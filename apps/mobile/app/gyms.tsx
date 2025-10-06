@@ -19,7 +19,7 @@ export default function GymsScreen() {
   const [gyms, setGyms] = useState<Gym[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadGyms = async () => {
+  const loadGyms = useCallback(async () => {
     if (!userId) {
       return;
     }
@@ -31,11 +31,11 @@ export default function GymsScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getGyms, userId]);
 
   useEffect(() => {
     loadGyms();
-  }, [userId]);
+  }, [loadGyms]);
 
   const handleSetActive = async (gymId: string) => {
     if (!userId) {

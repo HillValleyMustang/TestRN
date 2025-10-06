@@ -5,7 +5,6 @@ import type {
   WorkoutSession,
   SetLog,
   WorkoutTemplate,
-  TemplateExercise,
   TPath,
   TPathExercise,
   TPathProgress,
