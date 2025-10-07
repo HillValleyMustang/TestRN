@@ -1,0 +1,76 @@
+ Background Layer Specification — **Light Mode**
+**Filename:** `docs/BACKGROUND_LAYER_SPEC_AURORA_REQUIRED_NOISE_OPTIONAL.md`
+
+> **Purpose:** Match the reference app's background. **Aurora is required.** The **noise film is optional** (use when banding is visible on target devices).
+
+---
+
+## 1) Scope
+- Theme: Light only
+- Mount once at app root behind all content
+- **Aurora (required)**, **Noise (optional)**
+
+---
+
+## 2) Visual Requirements
+
+### 2.1 Base Background (required)
+- Color: `#FAFAFA` (CSS `hsl(0 0% 98%)`)
+- Absolute fill, pointer-events none
+
+### 2.2 Aurora Overlay (required)
+- Three radial gradient blobs
+- Opacity per blob: **0.18**
+- Colors: Purple `#A78BFA`, Cyan `#67E8F9`, Pink `#FDA4AF`
+- Centers & radii (viewport-relative):
+  - A (Purple): **(-20% W, -25% H)**, radius **75%**
+  - B (Cyan): **(110% W, 10% H)**, radius **90%**
+  - C (Pink): **(20% W, 110% H)**, radius **90%**
+- Gradient stops: 0% color → 60% transparent
+- Animation (respect Reduce Motion):
+  - Scale 0.96 ↔ 1.06
+  - Durations **15s / 16s / 17s**; delays **0s / 4s / 8s**
+  - Infinite, alternate, linear
+
+### 2.3 Noise Film (optional)
+- Grayscale PNG (≥ 512×512)
+- Opacity: **0.02** (default). Increase to **0.04–0.06** if banding is observed.
+- Absolute fill above aurora; pointer-events none
+- Acceptable to **omit** on devices where gradients are smooth
+
+---
+
+## 3) Component Contract
+```
+<BackgroundRoot aurora required />
+// no prop to disable aurora
+// noise toggled via build flag or device capability:
+<BackgroundRoot noiseEnabled />        // default off unless QA says otherwise
+<BackgroundRoot noiseOpacity={0.02} /> // optional adjustment
+```
+- Must respect **Reduce Motion** (freeze animation).
+- Must not cause layout shifts or intercept input.
+
+---
+
+## 4) QA Acceptance
+- Base color exactly `#FAFAFA`
+- 3 blobs rendered with listed positions/sizes
+- Animation timings verified (15/16/17s, 0.96–1.06, alt, linear)
+- **If noise enabled:** opacity within 0.02–0.06, no tint
+- No banding visible in device-recorded video (10s)
+
+---
+
+## 5) Failure Handling
+- If aurora cannot render → block release (violates parity)
+- If noise asset missing → proceed without noise
+
+---
+
+## 6) File Layout
+```
+app/_layout.tsx
+src/components/BackgroundRoot.tsx
+assets/noise.png       (if using noise)
+docs/BACKGROUND_LAYER_SPEC_AURORA_REQUIRED_NOISE_OPTIONAL.md
