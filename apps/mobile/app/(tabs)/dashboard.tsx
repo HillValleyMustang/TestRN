@@ -41,6 +41,7 @@ export default function DashboardScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Dashboard data state
   const [userProfile, setUserProfile] = useState<any>(null);
@@ -104,39 +105,65 @@ export default function DashboardScreen() {
     if (!userId || !supabase) return;
 
     try {
-      setLoading(true);
+      if (isInitialLoad) {
+        setLoading(true);
+      }
 
-      // Fetch all dashboard data in parallel
+      // Fetch all dashboard data in parallel from Supabase
       const [
         profileData,
-        gymData,
-        activeGymData,
-        volumeHistory,
-        workoutSessions,
+        gymsData,
+        workoutSessionsData,
+        setLogsData,
       ] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', userId).single(),
-        data.getGyms(userId),
-        data.getActiveGym(userId),
-        data.getVolumeHistory(userId, 7),
-        data.getWorkoutSessions(userId),
+        supabase.from('gyms').select('*').eq('user_id', userId),
+        supabase.from('workout_sessions').select('*').eq('user_id', userId).not('completed_at', 'is', null).order('session_date', { ascending: false }),
+        supabase.from('set_logs').select('*, workout_sessions!inner(user_id, session_date)').eq('workout_sessions.user_id', userId),
       ]);
 
       if (profileData.data) {
         setUserProfile(profileData.data);
       }
 
-      setUserGyms(gymData);
-      setActiveGym(activeGymData);
-      setVolumeData(volumeHistory.slice(-7));
+      // Handle gyms
+      const gyms = gymsData.data || [];
+      setUserGyms(gyms);
+      const activeGym = gyms.find(g => g.is_active) || null;
+      setActiveGym(activeGym);
 
-      // Sort and get recent workouts
-      const sortedSessions = [...workoutSessions].sort((a, b) => {
-        const dateA = new Date(a.completed_at ?? a.session_date).getTime();
-        const dateB = new Date(b.completed_at ?? b.session_date).getTime();
-        return dateB - dateA;
+      // Handle workout sessions
+      const sessions = workoutSessionsData.data || [];
+      setRecentWorkouts(sessions.slice(0, 3));
+
+      // Calculate volume history from set logs
+      const setLogs = setLogsData.data || [];
+      const volumeByDate: { [key: string]: number } = {};
+      
+      setLogs.forEach((log: any) => {
+        if (log.workout_sessions?.session_date && log.weight_kg && log.reps) {
+          const date = log.workout_sessions.session_date.split('T')[0];
+          if (!volumeByDate[date]) {
+            volumeByDate[date] = 0;
+          }
+          volumeByDate[date] += log.weight_kg * log.reps;
+        }
       });
 
-      setRecentWorkouts(sortedSessions.slice(0, 3));
+      // Convert to array and get last 7 days
+      const now = new Date();
+      const volumeArray: VolumePoint[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        volumeArray.push({
+          date: dateStr,
+          volume: volumeByDate[dateStr] || 0,
+        });
+      }
+      
+      setVolumeData(volumeArray);
 
       // Fetch T-Path data if active_t_path_id exists
       if (profileData.data?.active_t_path_id) {
@@ -167,9 +194,9 @@ export default function DashboardScreen() {
         }
       }
 
-      // TODO: Fetch weekly summary (requires backend function)
+      // Build weekly summary from sessions data
       setWeeklySummary({
-        completed_workouts: sortedSessions.slice(0, 3).map(s => ({
+        completed_workouts: sessions.slice(0, 3).map(s => ({
           id: s.id,
           name: s.template_name || 'Ad Hoc',
           sessionId: s.id,
@@ -181,9 +208,12 @@ export default function DashboardScreen() {
     } catch (error) {
       console.error('[Dashboard] Failed to load data', error);
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+        setIsInitialLoad(false);
+      }
     }
-  }, [data, userId, supabase]);
+  }, [data, userId, supabase, isInitialLoad]);
 
   useFocusEffect(
     useCallback(() => {

@@ -28,8 +28,33 @@ export function WelcomeHeader({ userName, accountCreatedAt }: WelcomeHeaderProps
     return diffMinutes < 5;
   };
 
+  const formatDisplayName = (name: string): string => {
+    if (!name || name === 'Athlete') return 'Athlete';
+    
+    let namePart = name.trim();
+    
+    if (namePart.includes('@')) {
+      namePart = namePart.split('@')[0];
+    }
+    
+    const parts = namePart.split(/[\s._-]+/).filter(p => p.length > 0);
+    
+    if (parts.length === 0) {
+      return 'Athlete';
+    } else if (parts.length === 1) {
+      const initial = parts[0][0]?.toUpperCase() || '';
+      return initial ? `Athlete (${initial})` : 'Athlete';
+    } else if (parts.length === 2) {
+      const initials = (parts[0][0] + parts[1][0]).toUpperCase();
+      return `Athlete (${initials})`;
+    } else {
+      const initials = (parts[0][0] + parts[1][0] + parts[2][0]).toUpperCase();
+      return `Athlete (${initials})`;
+    }
+  };
+
   const greeting = isNewUser() ? 'Welcome' : 'Welcome Back,';
-  const displayName = userName || 'Athlete';
+  const displayName = formatDisplayName(userName);
 
   return (
     <View style={styles.container}>

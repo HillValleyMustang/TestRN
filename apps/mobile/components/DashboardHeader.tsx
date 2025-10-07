@@ -4,7 +4,7 @@
  * Reference: MOBILE_SPEC_01_LAYOUT_NAVIGATION.md Section 1.3
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -12,12 +12,14 @@ import { Colors, Spacing, BorderRadius } from '../constants/Theme';
 import { useAuth } from '../app/_contexts/auth-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRollingStatus } from '../hooks/useRollingStatus';
+import { StatusInfoModal } from './StatusInfoModal';
 
 export function DashboardHeader() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const { status, config, loading } = useRollingStatus();
+  const [showStatusModal, setShowStatusModal] = useState(false);
 
   const getInitials = () => {
     const name = session?.user?.user_metadata?.full_name || 
@@ -52,10 +54,12 @@ export function DashboardHeader() {
               <Text style={[styles.badgeText, { color: Colors.mutedForeground }]}>Loading...</Text>
             </View>
           ) : (
-            <View style={[styles.badge, { backgroundColor: config.backgroundColor }]}>
-              <Ionicons name={config.icon} size={18} color={config.color} />
-              <Text style={[styles.badgeText, { color: config.color }]}>{status}</Text>
-            </View>
+            <Pressable onPress={() => setShowStatusModal(true)}>
+              <View style={[styles.badge, { backgroundColor: config.backgroundColor }]}>
+                <Ionicons name={config.icon} size={18} color={config.color} />
+                <Text style={[styles.badgeText, { color: config.color }]}>{status}</Text>
+              </View>
+            </Pressable>
           )}
 
           <Pressable onPress={() => console.log('Notifications')} style={styles.iconButton}>
@@ -72,6 +76,8 @@ export function DashboardHeader() {
           </Pressable>
         </View>
       </View>
+
+      <StatusInfoModal visible={showStatusModal} onClose={() => setShowStatusModal(false)} />
     </View>
   );
 }

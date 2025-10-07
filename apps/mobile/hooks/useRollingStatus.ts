@@ -77,8 +77,12 @@ export function useRollingStatus() {
       return;
     }
 
-    fetchStatus();
-  }, [userId, isOnline]);
+    if (userId && supabase) {
+      fetchStatus();
+    } else {
+      setLoading(false);
+    }
+  }, [userId, isOnline, supabase]);
 
   const fetchStatus = async () => {
     if (!userId || !supabase) {

@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.actionPrimary,
+    backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
