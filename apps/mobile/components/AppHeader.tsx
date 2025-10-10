@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius } from '../constants/Theme';
 import { useAuth } from '../app/_contexts/auth-context';
@@ -15,6 +15,7 @@ import { StatusInfoModal } from './StatusInfoModal';
 import { HamburgerMenuSheet } from './HamburgerMenuSheet';
 import { AvatarDropdown } from './AvatarDropdown';
 import { NotificationPopover } from './NotificationPopover';
+import { HapticPressable } from './HapticPressable';
 import { supabase } from '../app/_lib/supabase';
 
 export function AppHeader() {
@@ -71,9 +72,9 @@ export function AppHeader() {
     <View style={[styles.container, { paddingTop: insets.top + Spacing.sm }]}>
       <View style={styles.content}>
         {/* Left: Menu Icon */}
-        <Pressable onPress={() => setShowMenuSheet(true)} style={styles.iconButton}>
+        <HapticPressable onPress={() => setShowMenuSheet(true)} style={styles.iconButton} hapticStyle="light">
           <Ionicons name="menu" size={24} color={Colors.foreground} />
-        </Pressable>
+        </HapticPressable>
 
         {/* Spacer */}
         <View style={{ flex: 1 }} />
@@ -87,15 +88,15 @@ export function AppHeader() {
               <Text style={[styles.badgeText, { color: Colors.mutedForeground }]}>Loading...</Text>
             </View>
           ) : (
-            <Pressable onPress={() => setShowStatusModal(true)}>
+            <HapticPressable onPress={() => setShowStatusModal(true)} hapticStyle="light">
               <View style={[styles.badge, { backgroundColor: config.backgroundColor }]}>
                 <Ionicons name={config.icon} size={18} color={config.color} />
                 <Text style={[styles.badgeText, { color: config.color }]}>{status}</Text>
               </View>
-            </Pressable>
+            </HapticPressable>
           )}
 
-          <Pressable onPress={() => setShowNotifications(true)} style={styles.iconButton}>
+          <HapticPressable onPress={() => setShowNotifications(true)} style={styles.iconButton} hapticStyle="light">
             <View>
               <Ionicons name="notifications" size={24} color={Colors.foreground} />
               {unreadCount > 0 && (
@@ -104,7 +105,7 @@ export function AppHeader() {
                 </View>
               )}
             </View>
-          </Pressable>
+          </HapticPressable>
 
           <AvatarDropdown initials={getInitials()} />
         </View>
@@ -126,6 +127,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
   },
   content: {
     flexDirection: 'row',

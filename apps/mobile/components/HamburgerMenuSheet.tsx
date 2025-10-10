@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
 import { Colors, Spacing, BorderRadius } from '../constants/Theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { HapticPressable } from './HapticPressable';
 
 interface HamburgerMenuSheetProps {
   visible: boolean;
@@ -121,13 +122,14 @@ export function HamburgerMenuSheet({ visible, onClose }: HamburgerMenuSheetProps
                              (link.route === '/dashboard' && pathname === '/');
               
               return (
-                <Pressable
+                <HapticPressable
                   key={link.route}
                   onPress={() => handleNavigation(link.route)}
                   style={[
                     styles.navLink,
                     isActive && styles.navLinkActive,
                   ]}
+                  hapticStyle="selection"
                 >
                   <Ionicons
                     name={link.icon}
@@ -142,7 +144,7 @@ export function HamburgerMenuSheet({ visible, onClose }: HamburgerMenuSheetProps
                   >
                     {link.label}
                   </Text>
-                </Pressable>
+                </HapticPressable>
               );
             })}
           </View>
@@ -151,10 +153,10 @@ export function HamburgerMenuSheet({ visible, onClose }: HamburgerMenuSheetProps
           <View style={styles.separator} />
 
           {/* Log Activity Button */}
-          <Pressable onPress={handleLogActivity} style={styles.logActivityButton}>
+          <HapticPressable onPress={handleLogActivity} style={styles.logActivityButton} hapticStyle="medium">
             <Ionicons name="add" size={16} color={Colors.actionPrimaryForeground} />
             <Text style={styles.logActivityText}>Log Activity</Text>
-          </Pressable>
+          </HapticPressable>
         </Animated.View>
       </View>
     </Modal>

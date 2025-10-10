@@ -20,6 +20,7 @@ import { Colors, Spacing, BorderRadius } from '../constants/Theme';
 import { TextStyles } from '../constants/Typography';
 import { useAuth } from '../app/_contexts/auth-context';
 import { supabase } from '../app/_lib/supabase';
+import { HapticPressable } from './HapticPressable';
 
 interface Notification {
   id: string;
@@ -190,17 +191,17 @@ export function NotificationPopover({ visible, onClose, onUnreadCountChange }: N
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Notifications</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <HapticPressable onPress={onClose} style={styles.closeButton} hapticStyle="light">
               <Ionicons name="close" size={24} color={Colors.foreground} />
-            </TouchableOpacity>
+            </HapticPressable>
           </View>
 
           {/* Mark All as Read */}
           {unreadCount > 0 && (
-            <TouchableOpacity onPress={markAllAsRead} style={styles.markAllButton}>
+            <HapticPressable onPress={markAllAsRead} style={styles.markAllButton} hapticStyle="medium">
               <Ionicons name="checkmark-done" size={16} color={Colors.primary} />
               <Text style={styles.markAllText}>Mark all as read ({unreadCount})</Text>
-            </TouchableOpacity>
+            </HapticPressable>
           )}
 
           {/* Notifications List */}

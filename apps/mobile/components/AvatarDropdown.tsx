@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors, Spacing, BorderRadius } from '../constants/Theme';
 import { useAuth } from '../app/_contexts/auth-context';
+import { HapticPressable } from './HapticPressable';
 
 interface AvatarDropdownProps {
   initials: string;
@@ -38,9 +39,9 @@ export function AvatarDropdown({ initials }: AvatarDropdownProps) {
 
   return (
     <View>
-      <Pressable onPress={() => setShowMenu(true)} style={styles.avatar}>
+      <HapticPressable onPress={() => setShowMenu(true)} style={styles.avatar} hapticStyle="light">
         <Text style={styles.avatarText}>{initials}</Text>
-      </Pressable>
+      </HapticPressable>
 
       <Modal
         transparent
@@ -59,18 +60,18 @@ export function AvatarDropdown({ initials }: AvatarDropdownProps) {
             <View style={styles.separator} />
 
             {/* Profile Link */}
-            <Pressable onPress={handleProfilePress} style={styles.menuItem}>
+            <HapticPressable onPress={handleProfilePress} style={styles.menuItem} hapticStyle="light">
               <Ionicons name="person" size={16} color={Colors.foreground} />
               <Text style={styles.menuItemText}>Profile</Text>
-            </Pressable>
+            </HapticPressable>
 
             <View style={styles.separator} />
 
             {/* Log out */}
-            <Pressable onPress={handleLogout} style={styles.menuItem}>
+            <HapticPressable onPress={handleLogout} style={styles.menuItem} hapticStyle="medium">
               <Ionicons name="log-out" size={16} color={Colors.foreground} />
               <Text style={styles.menuItemText}>Log out</Text>
-            </Pressable>
+            </HapticPressable>
           </View>
         </Pressable>
       </Modal>
