@@ -20,19 +20,20 @@ export function StatusInfoModal({ visible, onClose }: StatusInfoModalProps) {
       onRequestClose={onClose}
     >
       <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.modalContainer} onPress={(e) => e.stopPropagation()}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Workout Status Explained</Text>
-            <Pressable onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color={Colors.foreground} />
-            </Pressable>
-          </View>
+        <View style={styles.modalContainer}>
+          <Pressable onPress={(e) => e.stopPropagation()} style={styles.modalContent}>
+            <View style={styles.header}>
+              <Text style={styles.title}>Workout Status Explained</Text>
+              <Pressable onPress={onClose} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color={Colors.foreground} />
+              </Pressable>
+            </View>
 
-          <Text style={styles.description}>
-            Your status reflects your workout consistency over time. Keep training to level up!
-          </Text>
+            <Text style={styles.description}>
+              Your status reflects your workout consistency over time. Keep training to level up!
+            </Text>
 
-          <ScrollView style={styles.statusList} showsVerticalScrollIndicator={false}>
+            <ScrollView style={styles.statusList} showsVerticalScrollIndicator={true}>
             {/* Consistency Statuses */}
             <Text style={styles.sectionTitle}>Consistency Levels</Text>
             {statuses.map((status) => {
@@ -86,7 +87,8 @@ export function StatusInfoModal({ visible, onClose }: StatusInfoModalProps) {
               </View>
             </View>
           </ScrollView>
-        </Pressable>
+          </Pressable>
+        </View>
       </Pressable>
     </Modal>
   );
@@ -101,12 +103,15 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
   },
   modalContainer: {
-    backgroundColor: Colors.background,
-    borderRadius: BorderRadius.lg,
     width: '100%',
     maxWidth: 500,
     maxHeight: '80%',
+  },
+  modalContent: {
+    backgroundColor: Colors.background,
+    borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
@@ -129,7 +134,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   statusList: {
-    gap: Spacing.md,
+    flex: 1,
   },
   statusItem: {
     flexDirection: 'row',

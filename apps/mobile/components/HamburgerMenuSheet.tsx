@@ -24,10 +24,10 @@ interface NavLink {
 
 const NAV_LINKS: NavLink[] = [
   { label: 'Dashboard', icon: 'home', route: '/dashboard' },
-  { label: 'History', icon: 'time', route: '/workout-history' },
+  { label: 'History', icon: 'time', route: '/history' },
   { label: 'Activities', icon: 'bar-chart', route: '/progress' },
   { label: 'Exercises', icon: 'barbell', route: '/exercises' },
-  { label: 'Management', icon: 'grid', route: '/manage-t-paths' },
+  { label: 'Programs', icon: 'grid', route: '/t-paths' },
   { label: 'Profile', icon: 'person', route: '/profile' },
   { label: 'Workout', icon: 'barbell', route: '/workout' },
 ];

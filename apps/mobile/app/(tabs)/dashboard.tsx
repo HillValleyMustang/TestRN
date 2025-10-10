@@ -10,7 +10,6 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useAuth } from "../_contexts/auth-context";
 import { useData } from "../_contexts/data-context";
 import { Colors, Spacing } from "../../constants/Theme";
-import { DashboardHeader } from "../../components/DashboardHeader";
 import { BackgroundRoot } from "../../components/BackgroundRoot";
 import {
   WelcomeHeader,
@@ -254,9 +253,6 @@ export default function DashboardScreen() {
     <View style={styles.container}>
       {/* Aurora Background with 3 animated blobs */}
       <BackgroundRoot />
-      
-      {/* Dashboard Header with Rolling Status Badge */}
-      <DashboardHeader />
 
       <ScrollView
         style={styles.scrollView}

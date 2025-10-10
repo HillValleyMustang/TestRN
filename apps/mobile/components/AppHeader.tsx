@@ -1,7 +1,7 @@
 /**
- * DashboardHeader Component
- * Header for dashboard with menu, rolling status badge (centered), notifications, and profile
- * Reference: MOBILE_SPEC_01_LAYOUT_NAVIGATION.md Section 1.3
+ * AppHeader Component
+ * Global header for all pages with menu, rolling status badge (centered), notifications, and profile
+ * Reference: MOBILE_SPEC_01_LAYOUT_NAVIGATION.md Section 1
  */
 
 import React, { useState } from 'react';
@@ -15,7 +15,7 @@ import { StatusInfoModal } from './StatusInfoModal';
 import { HamburgerMenuSheet } from './HamburgerMenuSheet';
 import { AvatarDropdown } from './AvatarDropdown';
 
-export function DashboardHeader() {
+export function AppHeader() {
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const { status, config, loading } = useRollingStatus();

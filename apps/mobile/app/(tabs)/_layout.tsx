@@ -2,6 +2,7 @@ import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/Theme";
 import { useWorkoutFlow } from "../_contexts/workout-flow-context";
+import { AppHeader } from "../../components/AppHeader";
 
 const tabBarOptions = {
   tabBarActiveTintColor: Colors.foreground, // Black icons when active
@@ -15,7 +16,8 @@ const tabBarOptions = {
     paddingBottom: 16, // More padding for breathing room
     paddingTop: 12,
   },
-  headerShown: false,
+  headerShown: true,
+  header: () => <AppHeader />,
 };
 
 export default function TabsLayout() {
