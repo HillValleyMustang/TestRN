@@ -4,7 +4,7 @@
  * Reference: MOBILE_SPEC_01_LAYOUT_NAVIGATION.md Section 1
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius } from '../constants/Theme';
@@ -14,13 +14,45 @@ import { useRollingStatus } from '../hooks/useRollingStatus';
 import { StatusInfoModal } from './StatusInfoModal';
 import { HamburgerMenuSheet } from './HamburgerMenuSheet';
 import { AvatarDropdown } from './AvatarDropdown';
+import { NotificationPopover } from './NotificationPopover';
+import { supabase } from '../app/_lib/supabase';
 
 export function AppHeader() {
   const insets = useSafeAreaInsets();
-  const { session } = useAuth();
+  const { session, userId } = useAuth();
   const { status, config, loading } = useRollingStatus();
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showMenuSheet, setShowMenuSheet] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnreadCount = useCallback(async () => {
+    if (!userId) return;
+
+    try {
+      const { data: globalNotifications } = await supabase
+        .rpc('get_notifications_with_read_status');
+
+      const { data: userAlerts } = await supabase
+        .from('user_alerts')
+        .select('id, is_read')
+        .eq('user_id', userId);
+
+      const allNotifications = [
+        ...(globalNotifications || []),
+        ...(userAlerts || []),
+      ];
+
+      const count = allNotifications.filter((n: any) => !n.is_read).length;
+      setUnreadCount(count);
+    } catch (error) {
+      console.error('[AppHeader] Error fetching unread count:', error);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    fetchUnreadCount();
+  }, [fetchUnreadCount]);
 
   const getInitials = () => {
     const name = session?.user?.user_metadata?.full_name || 
@@ -63,12 +95,14 @@ export function AppHeader() {
             </Pressable>
           )}
 
-          <Pressable onPress={() => console.log('Notifications')} style={styles.iconButton}>
+          <Pressable onPress={() => setShowNotifications(true)} style={styles.iconButton}>
             <View>
               <Ionicons name="notifications" size={24} color={Colors.foreground} />
-              <View style={styles.notificationBadge}>
-                <Text style={styles.notificationBadgeText}>4</Text>
-              </View>
+              {unreadCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>{unreadCount}</Text>
+                </View>
+              )}
             </View>
           </Pressable>
 
@@ -78,6 +112,11 @@ export function AppHeader() {
 
       <StatusInfoModal visible={showStatusModal} onClose={() => setShowStatusModal(false)} />
       <HamburgerMenuSheet visible={showMenuSheet} onClose={() => setShowMenuSheet(false)} />
+      <NotificationPopover 
+        visible={showNotifications} 
+        onClose={() => setShowNotifications(false)}
+        onUnreadCountChange={setUnreadCount}
+      />
     </View>
   );
 }
