@@ -33,6 +33,8 @@ export function StatusInfoModal({ visible, onClose }: StatusInfoModalProps) {
           </Text>
 
           <ScrollView style={styles.statusList} showsVerticalScrollIndicator={false}>
+            {/* Consistency Statuses */}
+            <Text style={styles.sectionTitle}>Consistency Levels</Text>
             {statuses.map((status) => {
               const config = STATUS_CONFIG[status];
               return (
@@ -47,6 +49,42 @@ export function StatusInfoModal({ visible, onClose }: StatusInfoModalProps) {
                 </View>
               );
             })}
+
+            {/* Temporary Messages */}
+            <Text style={[styles.sectionTitle, { marginTop: Spacing.lg }]}>Temporary Messages</Text>
+            <Text style={[styles.description, { marginTop: 0 }]}>
+              This badge also shows temporary status messages and alerts:
+            </Text>
+
+            <View style={styles.statusItem}>
+              <View style={[styles.iconContainer, { backgroundColor: '#FEE2E2' }]}>
+                <Ionicons name="cloud-offline" size={20} color="#991B1B" />
+              </View>
+              <View style={styles.statusTextContainer}>
+                <Text style={styles.statusTitle}>Offline</Text>
+                <Text style={styles.statusDescription}>No internet connection. Your data will sync when you're back online.</Text>
+              </View>
+            </View>
+
+            <View style={styles.statusItem}>
+              <View style={[styles.iconContainer, { backgroundColor: '#DBEAFE' }]}>
+                <Ionicons name="sync" size={20} color="#1D4ED8" />
+              </View>
+              <View style={styles.statusTextContainer}>
+                <Text style={styles.statusTitle}>Updating Plan...</Text>
+                <Text style={styles.statusDescription}>AI is generating your personalized workout program.</Text>
+              </View>
+            </View>
+
+            <View style={styles.statusItem}>
+              <View style={[styles.iconContainer, { backgroundColor: '#22C55E' }]}>
+                <Ionicons name="checkmark-circle" size={20} color="white" />
+              </View>
+              <View style={styles.statusTextContainer}>
+                <Text style={styles.statusTitle}>Success Messages</Text>
+                <Text style={styles.statusDescription}>Shows confirmations like "Exercise Added!" or "Workout Saved!"</Text>
+              </View>
+            </View>
           </ScrollView>
         </Pressable>
       </Pressable>
@@ -119,5 +157,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.mutedForeground,
     lineHeight: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.foreground,
+    marginBottom: Spacing.sm,
+    marginTop: Spacing.xs,
   },
 });

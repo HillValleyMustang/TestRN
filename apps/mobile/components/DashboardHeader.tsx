@@ -7,19 +7,20 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { Colors, Spacing, BorderRadius } from '../constants/Theme';
 import { useAuth } from '../app/_contexts/auth-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRollingStatus } from '../hooks/useRollingStatus';
 import { StatusInfoModal } from './StatusInfoModal';
+import { HamburgerMenuSheet } from './HamburgerMenuSheet';
+import { AvatarDropdown } from './AvatarDropdown';
 
 export function DashboardHeader() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const { status, config, loading } = useRollingStatus();
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showMenuSheet, setShowMenuSheet] = useState(false);
 
   const getInitials = () => {
     const name = session?.user?.user_metadata?.full_name || 
@@ -38,7 +39,7 @@ export function DashboardHeader() {
     <View style={[styles.container, { paddingTop: insets.top + Spacing.sm }]}>
       <View style={styles.content}>
         {/* Left: Menu Icon */}
-        <Pressable onPress={() => console.log('Open menu')} style={styles.iconButton}>
+        <Pressable onPress={() => setShowMenuSheet(true)} style={styles.iconButton}>
           <Ionicons name="menu" size={24} color={Colors.foreground} />
         </Pressable>
 
@@ -71,13 +72,12 @@ export function DashboardHeader() {
             </View>
           </Pressable>
 
-          <Pressable onPress={() => router.push('/profile')} style={styles.avatar}>
-            <Text style={styles.avatarText}>{getInitials()}</Text>
-          </Pressable>
+          <AvatarDropdown initials={getInitials()} />
         </View>
       </View>
 
       <StatusInfoModal visible={showStatusModal} onClose={() => setShowStatusModal(false)} />
+      <HamburgerMenuSheet visible={showMenuSheet} onClose={() => setShowMenuSheet(false)} />
     </View>
   );
 }
@@ -138,18 +138,5 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 10,
     fontWeight: '700',
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.actionPrimary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
   },
 });
