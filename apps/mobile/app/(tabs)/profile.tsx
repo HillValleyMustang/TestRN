@@ -30,6 +30,7 @@ import { BodyMetricsModal } from '../../components/profile/BodyMetricsModal';
 import { AvatarUploadModal } from '../../components/profile/AvatarUploadModal';
 import { ChangePasswordModal } from '../../components/profile/ChangePasswordModal';
 import { WorkoutPreferencesModal } from '../../components/profile/WorkoutPreferencesModal';
+import { AchievementDetailModal } from '../../components/profile/AchievementDetailModal';
 
 const { width } = Dimensions.get('window');
 
@@ -48,6 +49,8 @@ export default function ProfileScreen() {
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [preferencesModalVisible, setPreferencesModalVisible] = useState(false);
+  const [achievementModalVisible, setAchievementModalVisible] = useState(false);
+  const [selectedAchievement, setSelectedAchievement] = useState<any>(null);
 
   const levelInfo = useLevelFromPoints(profile?.total_points || 0);
 
@@ -164,16 +167,55 @@ export default function ProfileScreen() {
           </Text>
         </View>
       )}
-
-      <TouchableOpacity 
-        style={styles.changeAvatarButton}
-        onPress={() => setAvatarModalVisible(true)}
-      >
-        <Ionicons name="camera" size={16} color={Colors.primary} />
-        <Text style={styles.changeAvatarText}>Change Avatar</Text>
-      </TouchableOpacity>
     </View>
   );
+
+  const getTabIcon = (tab: Tab) => {
+    switch (tab) {
+      case 'overview': return 'bar-chart';
+      case 'stats': return 'trending-up';
+      case 'photo': return 'camera';
+      case 'media': return 'film';
+      case 'social': return 'users';
+      case 'settings': return 'settings';
+    }
+  };
+
+  const achievements = [
+    { id: 1, emoji: '🏃', title: 'First Workout', description: 'Complete your first workout.', progress: 1, total: 1, unlocked: true },
+    { id: 2, emoji: '🤖', title: 'AI Apprentice', description: 'Use AI coaching during a workout.', progress: 0, total: 1, unlocked: false },
+    { id: 3, emoji: '🔥', title: '10 Day Streak', description: 'Log an activity for 10 consecutive days.', progress: profile?.current_streak || 0, total: 10, unlocked: (profile?.current_streak || 0) >= 10 },
+    { id: 4, emoji: '👑', title: 'Consistency King', description: 'Log an activity for 30 consecutive days.', progress: profile?.current_streak || 0, total: 30, unlocked: (profile?.current_streak || 0) >= 30 },
+    { id: 5, emoji: '💪', title: '25 Workouts', description: 'Complete 25 total workouts.', progress: profile?.total_workouts || 0, total: 25, unlocked: (profile?.total_workouts || 0) >= 25 },
+    { id: 6, emoji: '🏆', title: '50 Workouts', description: 'Complete 50 total workouts.', progress: profile?.total_workouts || 0, total: 50, unlocked: (profile?.total_workouts || 0) >= 50 },
+    { id: 7, emoji: '💯', title: 'Century Club', description: 'Complete 100 total workouts.', progress: profile?.total_workouts || 0, total: 100, unlocked: (profile?.total_workouts || 0) >= 100 },
+    { id: 8, emoji: '📅', title: 'Perfect Week', description: 'Complete 7 workouts in a single week.', progress: 0, total: 7, unlocked: false },
+    { id: 9, emoji: '💥', title: 'Beast Mode', description: 'Set 10 personal records in a single month.', progress: 0, total: 10, unlocked: false },
+    { id: 10, emoji: '🎉', title: 'Weekend Warrior', description: 'Complete 10 weekend workouts.', progress: 0, total: 10, unlocked: false },
+    { id: 11, emoji: '🌅', title: 'Early Bird', description: 'Complete 10 workouts before 7 AM.', progress: 0, total: 10, unlocked: false },
+    { id: 12, emoji: '🏋️', title: 'Volume Master', description: 'Lift 100,000 kg total volume.', progress: 0, total: 100000, unlocked: false },
+  ];
+
+  const handleAchievementPress = (achievement: typeof achievements[0]) => {
+    setSelectedAchievement(achievement);
+    setAchievementModalVisible(true);
+  };
+
+  const renderAchievements = () => {
+    return achievements.map((achievement) => (
+      <TouchableOpacity
+        key={achievement.id}
+        style={[
+          styles.achievementCard,
+          achievement.unlocked && styles.achievementCardUnlocked
+        ]}
+        onPress={() => handleAchievementPress(achievement)}
+      >
+        <Text style={styles.achievementEmoji}>{achievement.emoji}</Text>
+        <Text style={styles.achievementTitle}>{achievement.title}</Text>
+      </TouchableOpacity>
+    ));
+  };
 
   const renderTabs = () => (
     <View style={styles.tabBar}>
@@ -183,6 +225,11 @@ export default function ProfileScreen() {
           style={[styles.tab, activeTab === tab && styles.tabActive]}
           onPress={() => handleTabChange(tab)}
         >
+          <Ionicons 
+            name={getTabIcon(tab) as any} 
+            size={20} 
+            color={activeTab === tab ? Colors.primary : Colors.mutedForeground} 
+          />
           <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </Text>
@@ -193,34 +240,38 @@ export default function ProfileScreen() {
 
   const renderOverviewTab = () => (
     <View style={styles.tabContent}>
-      <Text style={styles.tabTitle}>Overview</Text>
-      <Text style={styles.sectionSubtext}>Your fitness journey at a glance</Text>
-      
-      {/* Stat Cards Grid */}
+      {/* Stat Cards Grid - 2x2 */}
       <View style={styles.statGrid}>
-        <View style={[styles.statCard, styles.statCardPurple]}>
-          <Ionicons name="flame" size={24} color="#A855F7" />
-          <Text style={styles.statValue}>{profile?.current_streak || 0}</Text>
-          <Text style={styles.statLabel}>Current Streak</Text>
+        <View style={[styles.statCard, styles.statCardOrange]}>
+          <View style={styles.statCardContent}>
+            <Ionicons name="flame" size={20} color="#FFFFFF" />
+            <Text style={styles.statCardLabel}>Current Streak</Text>
+            <Text style={styles.statCardValue}>{profile?.current_streak || 0} Days</Text>
+          </View>
         </View>
         <View style={[styles.statCard, styles.statCardBlue]}>
-          <Ionicons name="fitness" size={24} color="#3B82F6" />
-          <Text style={styles.statValue}>{profile?.total_workouts || 0}</Text>
-          <Text style={styles.statLabel}>Total Workouts</Text>
+          <View style={styles.statCardContent}>
+            <Ionicons name="fitness" size={20} color="#FFFFFF" />
+            <Text style={styles.statCardLabel}>Total Workouts</Text>
+            <Text style={styles.statCardValue}>{profile?.total_workouts || 0}</Text>
+          </View>
         </View>
-        <View style={[styles.statCard, styles.statCardCyan]}>
-          <Ionicons name="barbell" size={24} color="#06B6D4" />
-          <Text style={styles.statValue}>{profile?.unique_exercises || 0}</Text>
-          <Text style={styles.statLabel}>Unique Exercises</Text>
+        <View style={[styles.statCard, styles.statCardPurple]}>
+          <View style={styles.statCardContent}>
+            <Ionicons name="barbell" size={20} color="#FFFFFF" />
+            <Text style={styles.statCardLabel}>Total Unique{'\n'}Exercises</Text>
+            <Text style={styles.statCardValue}>{profile?.unique_exercises || 0}</Text>
+          </View>
         </View>
         <TouchableOpacity 
           style={[styles.statCard, styles.statCardYellow]}
           onPress={() => setPointsModalVisible(true)}
         >
-          <Ionicons name="trophy" size={24} color="#EAB308" />
-          <Text style={styles.statValue}>{profile?.total_points || 0}</Text>
-          <Text style={styles.statLabel}>Total Points</Text>
-          <Ionicons name="information-circle-outline" size={16} color="#CA8A04" style={{ marginTop: 4 }} />
+          <View style={styles.statCardContent}>
+            <Ionicons name="star" size={20} color="#FFFFFF" />
+            <Text style={styles.statCardLabel}>Total Points</Text>
+            <Text style={styles.statCardValue}>{profile?.total_points || 0}</Text>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -259,15 +310,10 @@ export default function ProfileScreen() {
       {/* Achievements */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Achievements</Text>
-        <Text style={styles.sectionSubtext}>Tap a badge to see requirements</Text>
         <View style={styles.achievementsGrid}>
-          {/* Placeholder achievements */}
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <View key={i} style={styles.achievementBadge}>
-              <Ionicons name="medal" size={32} color={Colors.mutedForeground} />
-            </View>
-          ))}
+          {renderAchievements()}
         </View>
+        <Text style={styles.achievementsTapHint}>Tap to see requirements</Text>
       </View>
     </View>
   );
@@ -560,6 +606,11 @@ export default function ProfileScreen() {
           console.log('[Profile] Programme type changed to:', newType);
         }}
       />
+      <AchievementDetailModal
+        visible={achievementModalVisible}
+        onClose={() => setAchievementModalVisible(false)}
+        achievement={selectedAchievement}
+      />
     </ScreenContainer>
   );
 }
@@ -567,7 +618,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#F3F4F6',
   },
   loadingContainer: {
     flex: 1,
@@ -586,6 +637,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    backgroundColor: '#FFFFFF',
   },
   avatar: {
     width: 96,
@@ -651,27 +703,17 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
   },
-  changeAvatarButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: Spacing.sm,
-  },
-  changeAvatarText: {
-    fontSize: 14,
-    color: Colors.primary,
-    fontWeight: '600',
-  },
   tabBar: {
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
-    backgroundColor: Colors.background,
+    backgroundColor: '#FFFFFF',
   },
   tab: {
     flex: 1,
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.sm,
     alignItems: 'center',
+    gap: 4,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
@@ -688,6 +730,7 @@ const styles = StyleSheet.create({
   },
   tabContent: {
     padding: Spacing.lg,
+    backgroundColor: '#F3F4F6',
   },
   tabTitle: {
     fontSize: 24,
@@ -715,35 +758,52 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: (width - Spacing.lg * 2 - Spacing.md) / 2,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    alignItems: 'center',
-    gap: Spacing.xs,
+    height: 120,
+    borderRadius: BorderRadius.xl,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  statCardPurple: {
-    backgroundColor: '#F3E8FF',
+  statCardContent: {
+    flex: 1,
+    padding: Spacing.md,
+    justifyContent: 'space-between',
+  },
+  statCardOrange: {
+    backgroundColor: '#FB923C',
   },
   statCardBlue: {
-    backgroundColor: '#DBEAFE',
+    backgroundColor: '#60A5FA',
   },
-  statCardCyan: {
-    backgroundColor: '#CFFAFE',
+  statCardPurple: {
+    backgroundColor: '#A78BFA',
   },
   statCardYellow: {
-    backgroundColor: '#FEF9C3',
+    backgroundColor: '#FACC15',
   },
-  statValue: {
+  statCardLabel: {
+    fontSize: 13,
+    color: '#FFFFFF',
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  statCardValue: {
     fontSize: 28,
     fontWeight: '700',
-    color: Colors.foreground,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: Colors.mutedForeground,
-    textAlign: 'center',
+    color: '#FFFFFF',
   },
   section: {
     marginBottom: Spacing.lg,
+    backgroundColor: '#FFFFFF',
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.xl,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   metricsGrid: {
     flexDirection: 'row',
@@ -769,15 +829,39 @@ const styles = StyleSheet.create({
   achievementsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.md,
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
   },
-  achievementBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.muted,
-    justifyContent: 'center',
+  achievementCard: {
+    width: (width - Spacing.lg * 4 - Spacing.sm * 2) / 3,
+    aspectRatio: 1,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    padding: Spacing.sm,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  achievementCardUnlocked: {
+    borderColor: '#FACC15',
+    backgroundColor: '#FFFBEB',
+  },
+  achievementEmoji: {
+    fontSize: 32,
+  },
+  achievementTitle: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.foreground,
+    textAlign: 'center',
+  },
+  achievementsTapHint: {
+    fontSize: 12,
+    color: Colors.mutedForeground,
+    textAlign: 'center',
+    marginTop: Spacing.sm,
   },
   levelCard: {
     padding: Spacing.xl,
