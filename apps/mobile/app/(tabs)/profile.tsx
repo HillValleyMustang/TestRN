@@ -4,7 +4,7 @@
  * Reference: MOBILE_SPEC_05_PROFILE_FULL.md
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,9 +15,11 @@ import {
   Alert,
   ActivityIndicator,
   Dimensions,
+  Animated,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useAuth } from '../_contexts/auth-context';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
@@ -38,6 +40,26 @@ type Tab = 'overview' | 'stats' | 'photo' | 'media' | 'social' | 'settings';
 
 const PROFILE_TAB_KEY = 'profile_active_tab';
 
+const TABS_ORDER: Tab[] = ['overview', 'stats', 'photo', 'media', 'social', 'settings'];
+
+const TAB_ICONS: Record<Tab, keyof typeof Ionicons.glyphMap> = {
+  overview: 'bar-chart',
+  stats: 'trending-up',
+  photo: 'camera',
+  media: 'film',
+  social: 'people',
+  settings: 'settings',
+};
+
+const TAB_COLORS: Record<Tab, string> = {
+  overview: '#3B82F6', // Blue
+  stats: '#EC4899', // Pink
+  photo: '#06B6D4', // Cyan
+  media: '#A855F7', // Purple
+  social: '#3B82F6', // Blue
+  settings: '#6B7280', // Gray
+};
+
 export default function ProfileScreen() {
   const { session, userId } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -51,6 +73,14 @@ export default function ProfileScreen() {
   const [preferencesModalVisible, setPreferencesModalVisible] = useState(false);
   const [achievementModalVisible, setAchievementModalVisible] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<any>(null);
+
+  // Animation values for tab icons
+  const tabScales = useRef<Record<Tab, Animated.Value>>(
+    TABS_ORDER.reduce((acc, tab) => ({
+      ...acc,
+      [tab]: new Animated.Value(tab === 'overview' ? 1.1 : 1),
+    }), {} as Record<Tab, Animated.Value>)
+  ).current;
 
   const levelInfo = useLevelFromPoints(profile?.total_points || 0);
 
@@ -84,7 +114,22 @@ export default function ProfileScreen() {
     try {
       const saved = await AsyncStorage.getItem(PROFILE_TAB_KEY);
       if (saved && ['overview', 'stats', 'photo', 'media', 'social', 'settings'].includes(saved)) {
-        setActiveTab(saved as Tab);
+        const savedTab = saved as Tab;
+        
+        // Reset all tab scales to 1
+        TABS_ORDER.forEach(tab => {
+          tabScales[tab].setValue(1);
+        });
+        
+        // Animate the saved tab to 1.1
+        Animated.spring(tabScales[savedTab], {
+          toValue: 1.1,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 8,
+        }).start();
+        
+        setActiveTab(savedTab);
       }
     } catch (error) {
       console.error('[Profile] Error loading saved tab:', error);
@@ -92,6 +137,24 @@ export default function ProfileScreen() {
   };
 
   const handleTabChange = async (tab: Tab) => {
+    // Animate out old tab
+    if (activeTab) {
+      Animated.spring(tabScales[activeTab], {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 100,
+        friction: 8,
+      }).start();
+    }
+    
+    // Animate in new tab
+    Animated.spring(tabScales[tab], {
+      toValue: 1.1,
+      useNativeDriver: true,
+      tension: 100,
+      friction: 8,
+    }).start();
+    
     setActiveTab(tab);
     try {
       await AsyncStorage.setItem(PROFILE_TAB_KEY, tab);
@@ -99,6 +162,21 @@ export default function ProfileScreen() {
       console.error('[Profile] Error saving tab:', error);
     }
   };
+
+  // Swipe gesture handler
+  const pan = Gesture.Pan()
+    .onEnd((event) => {
+      const currentIndex = TABS_ORDER.indexOf(activeTab);
+      const threshold = 50; // minimum swipe distance
+      
+      if (event.translationX < -threshold && currentIndex < TABS_ORDER.length - 1) {
+        // Swipe left - next tab
+        handleTabChange(TABS_ORDER[currentIndex + 1]);
+      } else if (event.translationX > threshold && currentIndex > 0) {
+        // Swipe right - previous tab
+        handleTabChange(TABS_ORDER[currentIndex - 1]);
+      }
+    });
 
   const getInitials = () => {
     const name = profile?.display_name || session?.user?.user_metadata?.full_name || 
@@ -170,16 +248,6 @@ export default function ProfileScreen() {
     </View>
   );
 
-  const getTabIcon = (tab: Tab) => {
-    switch (tab) {
-      case 'overview': return 'bar-chart';
-      case 'stats': return 'trending-up';
-      case 'photo': return 'camera';
-      case 'media': return 'film';
-      case 'social': return 'users';
-      case 'settings': return 'settings';
-    }
-  };
 
   const achievements = [
     { id: 1, emoji: '🏃', title: 'First Workout', description: 'Complete your first workout.', progress: 1, total: 1, unlocked: true },
@@ -219,17 +287,19 @@ export default function ProfileScreen() {
 
   const renderTabs = () => (
     <View style={styles.tabBar}>
-      {(['overview', 'stats', 'photo', 'media', 'social', 'settings'] as Tab[]).map((tab) => (
+      {TABS_ORDER.map((tab) => (
         <TouchableOpacity
           key={tab}
           style={[styles.tab, activeTab === tab && styles.tabActive]}
           onPress={() => handleTabChange(tab)}
         >
-          <Ionicons 
-            name={getTabIcon(tab) as any} 
-            size={20} 
-            color={activeTab === tab ? Colors.primary : Colors.mutedForeground} 
-          />
+          <Animated.View style={{ transform: [{ scale: tabScales[tab] }] }}>
+            <Ionicons 
+              name={TAB_ICONS[tab] as any} 
+              size={20} 
+              color={TAB_COLORS[tab]} 
+            />
+          </Animated.View>
           <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </Text>
@@ -277,32 +347,43 @@ export default function ProfileScreen() {
 
       {/* Body Metrics */}
       <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Body Metrics</Text>
+        <View style={styles.bodyMetricsHeader}>
+          <View style={styles.bodyMetricsTitleRow}>
+            <Ionicons name="bar-chart" size={20} color={Colors.foreground} />
+            <Text style={styles.bodyMetricsTitle}>Body Metrics</Text>
+          </View>
           <TouchableOpacity onPress={() => setBodyMetricsModalVisible(true)}>
             <Ionicons name="create-outline" size={20} color={Colors.blue600} />
           </TouchableOpacity>
         </View>
-        <View style={styles.metricsGrid}>
-          <View style={styles.metricItem}>
-            <Text style={styles.metricLabel}>Height</Text>
-            <Text style={styles.metricValue}>{profile?.height_cm || '--'} cm</Text>
-          </View>
-          <View style={styles.metricItem}>
-            <Text style={styles.metricLabel}>Weight</Text>
-            <Text style={styles.metricValue}>{profile?.weight_kg || '--'} kg</Text>
-          </View>
-          <View style={styles.metricItem}>
-            <Text style={styles.metricLabel}>Body Fat</Text>
-            <Text style={styles.metricValue}>{profile?.body_fat_pct || '--'}%</Text>
-          </View>
-          <View style={styles.metricItem}>
-            <Text style={styles.metricLabel}>BMI</Text>
-            <Text style={styles.metricValue}>
+        <View style={styles.bodyMetricsGrid}>
+          <View style={styles.bodyMetricItem}>
+            <Text style={styles.bodyMetricValue}>
               {profile?.height_cm && profile?.weight_kg
                 ? (profile.weight_kg / Math.pow(profile.height_cm / 100, 2)).toFixed(1)
                 : '--'}
             </Text>
+            <Text style={styles.bodyMetricLabel}>BMI</Text>
+          </View>
+          <View style={styles.bodyMetricItem}>
+            <Text style={styles.bodyMetricValue}>{profile?.height_cm || '--'}cm</Text>
+            <Text style={styles.bodyMetricLabel}>Height</Text>
+          </View>
+          <View style={styles.bodyMetricItem}>
+            <Text style={styles.bodyMetricValue}>{profile?.weight_kg || '--'}kg</Text>
+            <Text style={styles.bodyMetricLabel}>Weight</Text>
+          </View>
+          <View style={styles.bodyMetricItem}>
+            <Text style={styles.bodyMetricValue}>
+              {profile?.height_cm && profile?.weight_kg
+                ? Math.round((profile.weight_kg * 24) + (profile.height_cm * 10)).toLocaleString()
+                : '--'}
+            </Text>
+            <Text style={styles.bodyMetricLabel}>Daily Cal (est.)</Text>
+          </View>
+          <View style={styles.bodyMetricItem}>
+            <Text style={styles.bodyMetricValue}>{profile?.body_fat_pct || '--'}%</Text>
+            <Text style={styles.bodyMetricLabel}>Body Fat</Text>
           </View>
         </View>
       </View>
@@ -547,7 +628,11 @@ export default function ProfileScreen() {
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {renderHeader()}
         {renderTabs()}
-        {renderTabContent()}
+        <GestureDetector gesture={pan}>
+          <View>
+            {renderTabContent()}
+          </View>
+        </GestureDetector>
       </ScrollView>
 
       {/* Modals */}
@@ -708,6 +793,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
     backgroundColor: '#FFFFFF',
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   tab: {
     flex: 1,
@@ -804,6 +898,41 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+  },
+  bodyMetricsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  bodyMetricsTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  bodyMetricsTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.foreground,
+  },
+  bodyMetricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.lg,
+  },
+  bodyMetricItem: {
+    width: (width - Spacing.lg * 4 - Spacing.lg) / 2,
+    alignItems: 'flex-start',
+  },
+  bodyMetricValue: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: Colors.foreground,
+    marginBottom: 4,
+  },
+  bodyMetricLabel: {
+    fontSize: 13,
+    color: Colors.mutedForeground,
   },
   metricsGrid: {
     flexDirection: 'row',
