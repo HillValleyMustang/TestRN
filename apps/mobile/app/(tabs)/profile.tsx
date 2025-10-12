@@ -19,7 +19,6 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useAuth } from '../_contexts/auth-context';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
@@ -163,20 +162,6 @@ export default function ProfileScreen() {
     }
   };
 
-  // Swipe gesture handler
-  const pan = Gesture.Pan()
-    .onEnd((event) => {
-      const currentIndex = TABS_ORDER.indexOf(activeTab);
-      const threshold = 50; // minimum swipe distance
-      
-      if (event.translationX < -threshold && currentIndex < TABS_ORDER.length - 1) {
-        // Swipe left - next tab
-        handleTabChange(TABS_ORDER[currentIndex + 1]);
-      } else if (event.translationX > threshold && currentIndex > 0) {
-        // Swipe right - previous tab
-        handleTabChange(TABS_ORDER[currentIndex - 1]);
-      }
-    });
 
   const getInitials = () => {
     const name = profile?.display_name || session?.user?.user_metadata?.full_name || 
@@ -628,11 +613,7 @@ export default function ProfileScreen() {
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {renderHeader()}
         {renderTabs()}
-        <GestureDetector gesture={pan}>
-          <View>
-            {renderTabContent()}
-          </View>
-        </GestureDetector>
+        {renderTabContent()}
       </ScrollView>
 
       {/* Modals */}
@@ -722,7 +703,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'transparent',
   },
   avatar: {
     width: 96,
@@ -793,7 +774,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
     backgroundColor: '#FFFFFF',
-    marginHorizontal: Spacing.lg,
     marginTop: Spacing.md,
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
