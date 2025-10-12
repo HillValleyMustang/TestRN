@@ -40,6 +40,48 @@ The application utilizes a monorepo structure for code sharing between its Next.
 - **Supabase Edge Functions:** For server-side logic and real-time features.
 - **TypeScript:** For code quality and maintainability.
 
+## Recent Changes
+
+### Profile Screen Enhancements (October 12, 2025)
+Completed 7 major profile features for full editing functionality:
+
+1. **Points Explanation Modal** - Comprehensive modal accessible from Total Points card showing earning breakdown (Workouts +10, PRs +5, Streaks +2/day, Achievements +15-50) and all 5 fitness levels with thresholds and color coding.
+
+2. **Avatar Upload System** - Full camera capture and gallery selection via expo-image-picker with 1:1 aspect crop, 0.8 quality compression, Supabase Storage integration (user-uploads bucket), preview before upload, and remove functionality with confirmation.
+
+3. **Tab Persistence** - AsyncStorage-based persistence that saves and restores the last viewed profile tab across app restarts with validation to prevent invalid tab states.
+
+4. **Personal Information Editing** - Edit Name modal with validation (required, max 50 chars), Supabase updates, and optimistic UI. Edit button integrated into Personal Information section header.
+
+5. **Body Metrics Editing** - Comprehensive modal for editing height (100-250cm), weight (30-300kg), and body fat percentage (3-60%) with decimal input support, validation, Supabase updates, and optimistic UI.
+
+6. **Workout Preferences System** - Complete modal for Unit System (metric/imperial), Programme Type (PPL/ULUL), and Session Length (45/60/75/90 min). Settings tab displays button with info card showing current preferences. Includes onTPathTypeChange callback for future T-Path regeneration integration.
+
+7. **Security Section** - Change Password modal with current/new/confirm password fields, visibility toggles, validation (min 8 chars, passwords match), and Supabase auth.updateUser() integration.
+
+**Design System Extensions:**
+- Extended Theme.ts with full color palette (gray/blue/purple/cyan/yellow/red scales 50-900)
+- All modals follow consistent design: bottom sheet animations, Theme.ts colors, proper spacing, loading states, error handling
+- Optimistic UI updates across all edit modals
+- Edit buttons use blue600 color with create-outline icon
+- Form state hydration via useEffect hooks ensures all modals pre-fill with current data when opened
+
+**Settings Tab Structure (Complete):**
+1. Personal Information (display name + email + edit button)
+2. Workout Preferences (button + info card showing current values)
+3. Gyms (Manage Gyms placeholder button)
+4. Security (Change Password button)
+5. Danger Zone (Sign Out with confirmation)
+
+**Technical Implementation:**
+- All modals use useEffect to reset form state when visible or when backing props change
+- Direct Supabase updates with optimistic UI via setProfile({ ...profile, ...newData })
+- No state inconsistencies after save operations
+- Proper validation and error handling throughout
+- Avatar storage in Supabase Storage with public URLs
+
+Architect-approved and production-ready. Remaining profile tasks: Deep links (?tab=), achievement data loading, Stats tab charts, Photo/Media capture/display, accessibility enhancements, T-Path regeneration trigger.
+
 ## External Dependencies
 - **Backend-as-a-Service (BaaS):** Supabase (Authentication, PostgreSQL Database, Edge Functions)
 - **AI Services:** OpenAI GPT-5 API
