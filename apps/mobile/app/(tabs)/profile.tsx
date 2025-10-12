@@ -16,6 +16,7 @@ import {
   ActivityIndicator,
   Dimensions,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../_contexts/auth-context';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
@@ -23,21 +24,36 @@ import { TextStyles } from '../../constants/Typography';
 import { useLevelFromPoints } from '../../hooks/useLevelFromPoints';
 import { supabase } from '../_lib/supabase';
 import { ScreenContainer } from '../../components/layout/ScreenContainer';
+import { PointsExplanationModal } from '../../components/profile/PointsExplanationModal';
+import { EditNameModal } from '../../components/profile/EditNameModal';
+import { BodyMetricsModal } from '../../components/profile/BodyMetricsModal';
+import { AvatarUploadModal } from '../../components/profile/AvatarUploadModal';
+import { ChangePasswordModal } from '../../components/profile/ChangePasswordModal';
+import { WorkoutPreferencesModal } from '../../components/profile/WorkoutPreferencesModal';
 
 const { width } = Dimensions.get('window');
 
 type Tab = 'overview' | 'stats' | 'photo' | 'media' | 'social' | 'settings';
+
+const PROFILE_TAB_KEY = 'profile_active_tab';
 
 export default function ProfileScreen() {
   const { session, userId } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [pointsModalVisible, setPointsModalVisible] = useState(false);
+  const [editNameModalVisible, setEditNameModalVisible] = useState(false);
+  const [bodyMetricsModalVisible, setBodyMetricsModalVisible] = useState(false);
+  const [avatarModalVisible, setAvatarModalVisible] = useState(false);
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [preferencesModalVisible, setPreferencesModalVisible] = useState(false);
 
   const levelInfo = useLevelFromPoints(profile?.total_points || 0);
 
   useEffect(() => {
     loadProfile();
+    loadSavedTab();
   }, [userId]);
 
   const loadProfile = async () => {
@@ -58,6 +74,26 @@ export default function ProfileScreen() {
       Alert.alert('Error', 'Failed to load profile data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadSavedTab = async () => {
+    try {
+      const saved = await AsyncStorage.getItem(PROFILE_TAB_KEY);
+      if (saved && ['overview', 'stats', 'photo', 'media', 'social', 'settings'].includes(saved)) {
+        setActiveTab(saved as Tab);
+      }
+    } catch (error) {
+      console.error('[Profile] Error loading saved tab:', error);
+    }
+  };
+
+  const handleTabChange = async (tab: Tab) => {
+    setActiveTab(tab);
+    try {
+      await AsyncStorage.setItem(PROFILE_TAB_KEY, tab);
+    } catch (error) {
+      console.error('[Profile] Error saving tab:', error);
     }
   };
 
@@ -129,7 +165,10 @@ export default function ProfileScreen() {
         </View>
       )}
 
-      <TouchableOpacity style={styles.changeAvatarButton}>
+      <TouchableOpacity 
+        style={styles.changeAvatarButton}
+        onPress={() => setAvatarModalVisible(true)}
+      >
         <Ionicons name="camera" size={16} color={Colors.primary} />
         <Text style={styles.changeAvatarText}>Change Avatar</Text>
       </TouchableOpacity>
@@ -142,7 +181,7 @@ export default function ProfileScreen() {
         <TouchableOpacity
           key={tab}
           style={[styles.tab, activeTab === tab && styles.tabActive]}
-          onPress={() => setActiveTab(tab)}
+          onPress={() => handleTabChange(tab)}
         >
           <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -174,16 +213,25 @@ export default function ProfileScreen() {
           <Text style={styles.statValue}>{profile?.unique_exercises || 0}</Text>
           <Text style={styles.statLabel}>Unique Exercises</Text>
         </View>
-        <View style={[styles.statCard, styles.statCardYellow]}>
+        <TouchableOpacity 
+          style={[styles.statCard, styles.statCardYellow]}
+          onPress={() => setPointsModalVisible(true)}
+        >
           <Ionicons name="trophy" size={24} color="#EAB308" />
           <Text style={styles.statValue}>{profile?.total_points || 0}</Text>
           <Text style={styles.statLabel}>Total Points</Text>
-        </View>
+          <Ionicons name="information-circle-outline" size={16} color="#CA8A04" style={{ marginTop: 4 }} />
+        </TouchableOpacity>
       </View>
 
       {/* Body Metrics */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Body Metrics</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Body Metrics</Text>
+          <TouchableOpacity onPress={() => setBodyMetricsModalVisible(true)}>
+            <Ionicons name="create-outline" size={20} color={Colors.blue600} />
+          </TouchableOpacity>
+        </View>
         <View style={styles.metricsGrid}>
           <View style={styles.metricItem}>
             <Text style={styles.metricLabel}>Height</Text>
@@ -308,7 +356,12 @@ export default function ProfileScreen() {
       
       {/* Personal Info Section */}
       <View style={styles.settingsSection}>
-        <Text style={styles.settingsSectionTitle}>Personal Information</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.settingsSectionTitle}>Personal Information</Text>
+          <TouchableOpacity onPress={() => setEditNameModalVisible(true)}>
+            <Ionicons name="create-outline" size={20} color={Colors.blue600} />
+          </TouchableOpacity>
+        </View>
         <View style={styles.settingsCard}>
           <Text style={styles.settingsLabel}>Display Name</Text>
           <Text style={styles.settingsValue}>{profile?.display_name || 'Not set'}</Text>
@@ -317,6 +370,71 @@ export default function ProfileScreen() {
           <Text style={styles.settingsLabel}>Email</Text>
           <Text style={styles.settingsValue}>{session?.user?.email}</Text>
         </View>
+      </View>
+
+      {/* Workout Preferences Section */}
+      <View style={styles.settingsSection}>
+        <Text style={styles.settingsSectionTitle}>Workout Preferences</Text>
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => setPreferencesModalVisible(true)}
+        >
+          <View style={styles.settingsButtonContent}>
+            <Ionicons name="settings-outline" size={20} color={Colors.gray700} />
+            <Text style={styles.settingsButtonText}>Units & Programme Type</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={Colors.gray400} />
+        </TouchableOpacity>
+        <View style={styles.settingsInfoCard}>
+          <View style={styles.settingsInfoRow}>
+            <Text style={styles.settingsInfoLabel}>Unit System:</Text>
+            <Text style={styles.settingsInfoValue}>
+              {profile?.unit_system === 'imperial' ? 'Imperial' : 'Metric'}
+            </Text>
+          </View>
+          <View style={styles.settingsInfoRow}>
+            <Text style={styles.settingsInfoLabel}>Programme Type:</Text>
+            <Text style={styles.settingsInfoValue}>
+              {profile?.t_path_type === 'ulul' ? 'Upper/Lower' : 'Push/Pull/Legs'}
+            </Text>
+          </View>
+          <View style={styles.settingsInfoRow}>
+            <Text style={styles.settingsInfoLabel}>Session Length:</Text>
+            <Text style={styles.settingsInfoValue}>{profile?.default_session_length || 60} min</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Gyms Section */}
+      <View style={styles.settingsSection}>
+        <Text style={styles.settingsSectionTitle}>Gyms</Text>
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => {
+            Alert.alert('Navigate to Gyms', 'This will navigate to the gym management screen');
+          }}
+        >
+          <View style={styles.settingsButtonContent}>
+            <Ionicons name="business-outline" size={20} color={Colors.gray700} />
+            <Text style={styles.settingsButtonText}>Manage Gyms</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={Colors.gray400} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Security Section */}
+      <View style={styles.settingsSection}>
+        <Text style={styles.settingsSectionTitle}>Security</Text>
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => setPasswordModalVisible(true)}
+        >
+          <View style={styles.settingsButtonContent}>
+            <Ionicons name="lock-closed" size={20} color={Colors.gray700} />
+            <Text style={styles.settingsButtonText}>Change Password</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={Colors.gray400} />
+        </TouchableOpacity>
       </View>
 
       {/* Danger Zone */}
@@ -385,6 +503,63 @@ export default function ProfileScreen() {
         {renderTabs()}
         {renderTabContent()}
       </ScrollView>
+
+      {/* Modals */}
+      <PointsExplanationModal
+        visible={pointsModalVisible}
+        onClose={() => setPointsModalVisible(false)}
+      />
+      <EditNameModal
+        visible={editNameModalVisible}
+        onClose={() => setEditNameModalVisible(false)}
+        currentName={profile?.display_name || ''}
+        userId={userId || ''}
+        onSuccess={(newName) => {
+          setProfile({ ...profile, display_name: newName });
+        }}
+      />
+      <BodyMetricsModal
+        visible={bodyMetricsModalVisible}
+        onClose={() => setBodyMetricsModalVisible(false)}
+        userId={userId || ''}
+        currentMetrics={{
+          height_cm: profile?.height_cm,
+          weight_kg: profile?.weight_kg,
+          body_fat_pct: profile?.body_fat_pct,
+        }}
+        onSuccess={(metrics) => {
+          setProfile({ ...profile, ...metrics });
+        }}
+      />
+      <AvatarUploadModal
+        visible={avatarModalVisible}
+        onClose={() => setAvatarModalVisible(false)}
+        userId={userId || ''}
+        currentAvatarUrl={profile?.avatar_url}
+        onSuccess={(avatarUrl) => {
+          setProfile({ ...profile, avatar_url: avatarUrl });
+        }}
+      />
+      <ChangePasswordModal
+        visible={passwordModalVisible}
+        onClose={() => setPasswordModalVisible(false)}
+      />
+      <WorkoutPreferencesModal
+        visible={preferencesModalVisible}
+        onClose={() => setPreferencesModalVisible(false)}
+        userId={userId || ''}
+        currentPreferences={{
+          unit_system: profile?.unit_system,
+          t_path_type: profile?.t_path_type,
+          default_session_length: profile?.default_session_length,
+        }}
+        onSuccess={(prefs) => {
+          setProfile({ ...profile, ...prefs });
+        }}
+        onTPathTypeChange={(newType) => {
+          console.log('[Profile] Programme type changed to:', newType);
+        }}
+      />
     </ScreenContainer>
   );
 }
@@ -669,11 +844,16 @@ const styles = StyleSheet.create({
   settingsSection: {
     marginBottom: Spacing.xl,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
   settingsSectionTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: Colors.foreground,
-    marginBottom: Spacing.md,
   },
   dangerTitle: {
     color: '#EF4444',
@@ -683,6 +863,44 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.muted,
     borderRadius: BorderRadius.md,
     marginBottom: Spacing.sm,
+  },
+  settingsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: Spacing.md,
+    backgroundColor: Colors.muted,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.sm,
+  },
+  settingsButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  settingsButtonText: {
+    ...TextStyles.body,
+    color: Colors.gray900,
+  },
+  settingsInfoCard: {
+    backgroundColor: Colors.muted,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  settingsInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+  },
+  settingsInfoLabel: {
+    ...TextStyles.small,
+    color: Colors.mutedForeground,
+  },
+  settingsInfoValue: {
+    ...TextStyles.bodyBold,
+    color: Colors.foreground,
   },
   settingsLabel: {
     fontSize: 12,

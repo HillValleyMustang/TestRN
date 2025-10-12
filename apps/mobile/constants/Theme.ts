@@ -125,6 +125,82 @@ export const Colors = {
   sidebarAccentForeground: hslToRgb(240, 5.9, 10),
   sidebarBorder: hslToRgb(220, 13, 91),
   sidebarRing: hslToRgb(217.2, 91.2, 59.8),
+
+  // Common UI Colors
+  white: '#FFFFFF',
+  black: '#000000',
+  
+  // Gray Scale
+  gray50: '#F9FAFB',
+  gray100: '#F3F4F6',
+  gray200: '#E5E7EB',
+  gray300: '#D1D5DB',
+  gray400: '#9CA3AF',
+  gray500: '#6B7280',
+  gray600: '#4B5563',
+  gray700: '#374151',
+  gray800: '#1F2937',
+  gray900: '#111827',
+  
+  // Blue Scale
+  blue50: '#EFF6FF',
+  blue100: '#DBEAFE',
+  blue200: '#BFDBFE',
+  blue300: '#93C5FD',
+  blue400: '#60A5FA',
+  blue500: '#3B82F6',
+  blue600: '#2563EB',
+  blue700: '#1D4ED8',
+  blue800: '#1E40AF',
+  blue900: '#1E3A8A',
+  
+  // Purple Scale
+  purple50: '#FAF5FF',
+  purple100: '#F3E8FF',
+  purple200: '#E9D5FF',
+  purple300: '#D8B4FE',
+  purple400: '#C084FC',
+  purple500: '#A855F7',
+  purple600: '#9333EA',
+  purple700: '#7E22CE',
+  purple800: '#6B21A8',
+  purple900: '#581C87',
+  
+  // Cyan Scale
+  cyan50: '#ECFEFF',
+  cyan100: '#CFFAFE',
+  cyan200: '#A5F3FC',
+  cyan300: '#67E8F9',
+  cyan400: '#22D3EE',
+  cyan500: '#06B6D4',
+  cyan600: '#0891B2',
+  cyan700: '#0E7490',
+  cyan800: '#155E75',
+  cyan900: '#164E63',
+  
+  // Yellow Scale
+  yellow50: '#FEFCE8',
+  yellow100: '#FEF9C3',
+  yellow200: '#FEF08A',
+  yellow300: '#FDE047',
+  yellow400: '#FACC15',
+  yellow500: '#EAB308',
+  yellow600: '#CA8A04',
+  yellow700: '#A16207',
+  yellow800: '#854D0E',
+  yellow900: '#713F12',
+  
+  // Red Scale
+  red50: '#FEF2F2',
+  red100: '#FEE2E2',
+  red200: '#FECACA',
+  red300: '#FCA5A5',
+  red400: '#F87171',
+  red500: '#EF4444',
+  red600: '#DC2626',
+  red700: '#B91C1C',
+  red800: '#991B1B',
+  red900: '#7F1D1D',
 };
 
 // Convenient workout color exports (hex values for compatibility)
