@@ -3,6 +3,7 @@ import { View, Text, Modal, StyleSheet, ScrollView, Pressable } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius } from '../constants/Theme';
 import { STATUS_CONFIG } from '../hooks/useRollingStatus';
+import { HapticPressable } from './HapticPressable';
 
 interface StatusInfoModalProps {
   visible: boolean;
@@ -24,9 +25,9 @@ export function StatusInfoModal({ visible, onClose }: StatusInfoModalProps) {
           <Pressable onPress={(e) => e.stopPropagation()} style={styles.modalContent}>
             <View style={styles.header}>
               <Text style={styles.title}>Workout Status Explained</Text>
-              <Pressable onPress={onClose} style={styles.closeButton}>
+              <HapticPressable onPress={onClose} style={styles.closeButton} hapticStyle="light">
                 <Ionicons name="close" size={24} color={Colors.foreground} />
-              </Pressable>
+              </HapticPressable>
             </View>
 
             <Text style={styles.description}>

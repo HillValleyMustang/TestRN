@@ -216,7 +216,7 @@ export default function ProgressScreen() {
               showsHorizontalScrollIndicator={false}
               style={styles.exerciseSelector}
             >
-              {exerciseList.slice(0, 8).map((ex) => (
+              {(exerciseList || []).slice(0, 8).map((ex) => (
                 <TouchableOpacity
                   key={ex.id}
                   style={[
@@ -239,7 +239,7 @@ export default function ProgressScreen() {
             </ScrollView>
             {renderBarChart(
               prData,
-              `${exerciseList.find((e) => e.id === selectedExercise)?.name || "Exercise"} Max Weight (kg)`,
+              `${(exerciseList || []).find((e) => e.id === selectedExercise)?.name || "Exercise"} Max Weight (kg)`,
             )}
           </View>
 
