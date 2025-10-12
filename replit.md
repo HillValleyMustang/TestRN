@@ -1,85 +1,56 @@
 # My Fitness Trainer - Replit Setup
 
 ## Overview
-This project is a cross-platform fitness tracking application designed to run as both a web app (Next.js) and a mobile app (React Native/Expo) from a single monorepo. It aims to provide users with comprehensive tools for workout planning, exercise tracking, AI coaching, progress monitoring, and gamification, all backed by Supabase. The application's business vision is to offer a seamless and engaging fitness experience across devices, leveraging AI for personalized guidance and robust tracking to help users achieve their health and fitness goals.
+This project is a cross-platform fitness tracking application developed as a monorepo, targeting both web (Next.js) and mobile (React Native/Expo) platforms. Its core purpose is to provide a comprehensive and engaging fitness experience, enabling users to plan and track workouts, receive AI-powered coaching, monitor progress, and engage with gamified elements. The application aims to leverage AI for personalized guidance and robust tracking to help users achieve their health and fitness goals.
 
 ## User Preferences
 I prefer iterative development with clear communication at each step. Please ask before making major architectural changes or implementing complex features. I value well-structured, readable code, and I appreciate detailed explanations when new concepts or patterns are introduced.
 
 ## System Architecture
-The application employs a monorepo structure to share code between its web (Next.js 15.5.4 App Router) and mobile (React Native/Expo) clients. TypeScript is used throughout for type safety.
+The application utilizes a monorepo structure for code sharing between its Next.js (web) and React Native/Expo (mobile) clients, with TypeScript ensuring type safety across the stack.
 
 **UI/UX Decisions:**
-- **Web:** Tailwind CSS v3.4 for styling, Shadcn/UI (Radix UI primitives) for components, Lucide React for icons.
-- **Mobile:** React Native StyleSheet for styling.
-- **General:** Custom color scheme, responsive design for charts (Recharts), visual feedback for PRs and timers.
+- **Web:** Tailwind CSS, Shadcn/UI (Radix UI), Lucide React for icons.
+- **Mobile:** React Native StyleSheet.
+- **General:** Custom color scheme, responsive design for charts, visual feedback for PRs and timers, consistent design system for visual parity across platforms.
 
 **Technical Implementations & Feature Specifications:**
-- **Authentication:** Supabase for email/password authentication with session persistence.
+- **Authentication:** Supabase for email/password and session management.
 - **Data Management:**
-    - **Offline-First:** Mobile app uses `expo-sqlite` and a sync queue for offline data persistence, automatically syncing with Supabase when online. Web app uses Dexie (IndexedDB).
+    - **Offline-First:** `expo-sqlite` (mobile) and Dexie (web) with sync queues for offline persistence and Supabase synchronization.
     - **State Management:** React Context API.
-    - **Forms:** React Hook Form with Zod for validation.
-- **Workout Tracking:** Multi-exercise logging, set management, personal record (PR) detection and celebration, rest timer.
-- **Workout Templates:** CRUD operations for saving, loading, and managing workout configurations.
-- **T-Paths System (Workout Programs):** 
-    - **Database Schema:** SQLite tables for t_paths, t_path_exercises, and t_path_progress with offline-first support.
-    - **Program Management:** Browse, view, and start workouts from structured training programs.
-    - **Progress Tracking:** Automatic tracking of last access and workout completion for each program.
-    - **Hierarchical Structure:** Support for main programs with child workouts and bonus exercises.
-    - **AI-Generated Programs:** Full support for AI-generated workout programs with equipment awareness and goal-based customization.
-- **Gym & Equipment Management:**
-    - **Equipment System:** 32 equipment types across 8 categories (Free Weights, Cardio, Strength Machines, Cable, Racks/Benches, Bodyweight, Stretching, Olympic).
-    - **Gym CRUD:** Full create, read, update, delete operations for gym profiles with equipment lists.
-    - **Active Gym:** User can set one gym as active; affects exercise filtering and AI program generation.
-    - **Equipment-Aware Filtering:** Exercise picker filters by active gym's equipment with visual indicators for unavailable exercises.
+    - **Forms:** React Hook Form with Zod validation.
+- **Workout Features:** Multi-exercise logging, set management, PR detection, rest timer, CRUD for workout templates, and structured T-Paths (workout programs).
+- **T-Paths System:** Supports browsing, viewing, and starting structured training programs with progress tracking and AI-generated program integration. Includes hierarchical structure for programs and bonus exercises.
+- **Gym & Equipment Management:** Comprehensive CRUD for gym profiles, 32 equipment types across 8 categories, active gym selection impacting exercise filtering, and AI program generation based on available equipment.
 - **AI Integration (OpenAI GPT-5):**
-    - **Workout Program Generator:** Creates personalized training programs based on user's goal (strength, hypertrophy, endurance, weight loss, general fitness), experience level (beginner, intermediate, advanced), available gym equipment, training frequency, and session duration. Generated programs are saved as T-Paths with proper exercise ID mapping.
-    - **AI Coaching:** Real-time motivational coaching and form tips during workouts. Provides context-aware advice based on current exercise, set number, and user progress.
-    - **Exercise Matching:** Intelligent name-to-ID mapping system that matches AI-generated exercise names to actual exercise definitions.
-- **Progress & Analytics:** Dashboard with key metrics, workout frequency charts, volume tracking, PR progression charts, and streak tracking.
-- **Body Measurements:** Tracking for weight, body fat percentage, and various body measurements, with historical views.
-- **Goals & Achievements:**
-    - **Goals:** Support for 5 goal types (weight loss/gain, strength, frequency, body fat) with progress tracking.
-    - **Achievements:** 21 predefined achievements across 5 categories (workouts, strength, consistency, volume, weight) with automatic unlock detection.
-- **User Preferences:** Unit system toggle (metric/imperial) and theme preference, persisted per user.
+    - **Workout Program Generator:** Personalized training programs based on user goals, experience, equipment, frequency, and duration.
+    - **AI Coaching:** Real-time motivational coaching and form tips during workouts.
+    - **Exercise Matching:** Intelligent mapping of AI-generated exercise names to defined exercises.
+- **Progress & Analytics:** Dashboard with key metrics, workout frequency, volume tracking, PR progression, and streak tracking.
+- **Body Measurements:** Tracking for weight, body fat, and other measurements with historical views.
+- **Goals & Achievements:** Support for 5 goal types and 21 predefined achievements with automatic detection.
+- **User Preferences:** Unit system (metric/imperial) and theme preferences.
+- **Mobile Specifics:** Progressive Web App (PWA) capabilities for web, network monitoring for mobile.
+- **Onboarding Flow:** 5-step onboarding with personal info, training setup (PPL/ULUL), goals/preferences, gym setup, and optional AI photo analysis.
+- **Profile Screen:** 6-tab profile (Overview, Stats, Photo, Media, Social, Settings) with fitness level system, stat cards, body metrics, and achievement badges.
 
 **System Design Choices:**
-- **Monorepo:** Facilitates code sharing (`packages/data`, `packages/features`, `packages/ui`) between web and mobile applications.
-- **Supabase Edge Functions:** For server-side logic and real-time capabilities.
-- **TypeScript:** Ensures code quality and maintainability across the entire stack.
-- **PWA:** `next-pwa` for web app progressive web app capabilities (disabled in dev).
-- **Network Monitoring:** `@react-native-community/netinfo` for mobile app connectivity awareness.
+- **Monorepo:** Facilitates code reuse across web and mobile.
+- **Supabase Edge Functions:** For server-side logic and real-time features.
+- **TypeScript:** For code quality and maintainability.
 
 ## External Dependencies
 - **Backend-as-a-Service (BaaS):** Supabase (Authentication, PostgreSQL Database, Edge Functions)
-- **AI Services:** OpenAI GPT-5 API for workout program generation and coaching
-- **Frontend Frameworks:** Next.js (Web), React Native / Expo (Mobile)
-- **Styling:** Tailwind CSS (Web), React Native StyleSheet (Mobile)
-- **UI Libraries:** Shadcn/UI (Web), Radix UI (Primitives for Shadcn/UI)
+- **AI Services:** OpenAI GPT-5 API
+- **Frontend Frameworks:** Next.js, React Native / Expo
+- **Styling:** Tailwind CSS, React Native StyleSheet
+- **UI Libraries:** Shadcn/UI, Radix UI
 - **Icons:** Lucide React
 - **Form Management:** React Hook Form, Zod
 - **Charting:** Recharts
 - **Notifications:** Sonner
-- **Offline Data Storage:** Dexie (Web - IndexedDB wrapper), expo-sqlite (Mobile)
+- **Offline Data Storage:** Dexie (Web), expo-sqlite (Mobile)
 - **PWA Integration:** next-pwa
 - **Network Connectivity:** @react-native-community/netinfo (Mobile)
-
-## Recent Changes (October 2025 - January 2025)
-- **Phase 12 Complete (Oct 5):** AI Integration - Equipment-aware workout program generation using OpenAI GPT-5, AI coaching with real-time motivation and form tips, intelligent exercise name mapping, full T-Path schema alignment for generated programs
-- **Phase 13 Complete (Oct 5):** Gym & Equipment Management - 32 equipment types, gym CRUD operations, active gym selection, equipment-aware exercise filtering with visual indicators
-- **Equipment Filtering Complete (Oct 5):** Exercise picker now filters by active gym's equipment with smart mapping system and "Available Only" toggle
-- **Phase 14 Complete (Jan 5, 2025):** PPL/ULUL Split System - Split selection UI in AI generator (PPL 3-day vs ULUL 4-day), workout session screen with color-coded buttons (Green=Push, Orange=Pull, Purple=Legs, Red=Upper, Cyan=Lower), child workout generation (3 for PPL, 4 for ULUL), robust split detection from settings.tPathType, architect-approved
-- **Phase 15 Complete (Jan 5, 2025):** Photo Upload + AI Exercise Detection - Camera/gallery photo upload, OpenAI GPT-4o vision-based equipment analysis, duplicate detection (user/global exercises), selective save with gym auto-tagging, direct Supabase integration, architect-approved
-- **Phase 16 Complete (Jan 5, 2025):** 5-Step Onboarding Flow - Complete mobile onboarding with personal info collection (height/weight with unit conversion), training setup (PPL/ULUL + experience), goals/preferences, gym setup + consent, optional AI photo analysis, integrated with complete-onboarding Edge Function, architect-approved
-- **Phase 19 Complete (Jan 5, 2025):** UI/UX Polish & Design System - Comprehensive design system constants matching web app (colors, spacing, typography, shadows), updated home/login screens with modern styling, color-coded workout buttons using design system, consistent visual polish across key screens, architect-approved
-- **Mobile Redesign Plan Created (Oct 6, 2025):** Comprehensive 10-phase plan for achieving 100% visual and functional parity between React Native mobile app and web reference app (MOBILE_REDESIGN_PLAN.md). Includes all missing features: Media tab, Consistency Calendar, Weekly Summary, Exercise swap system, Personal Records, Rolling Status badge, Aurora effects, Gym Toggle widget, All Workouts widget. Plan covers foundation (design system), navigation, all screens (dashboard, workout, progress, profile, management), AI features, visual effects, and complete user journey coverage.
-- **Phase 2 Complete (Oct 6, 2025):** Navigation & Layout - Updated bottom tab bar to 5 tabs (Dashboard, Workout, Exercises, Progress, Profile) matching web app, created ScreenHeader component with title/back/actions support, created ScreenContainer with safe area handling and pull-to-refresh, preserved workout-aware navigation guards, architect-approved
-- **Phase 3 Complete (Oct 6, 2025):** Dashboard Screen Redesign - Created StatCard, QuickActions, WeeklyTarget, RecentWorkouts, and SimpleVolumeChart components using new design system, rebuilt dashboard with stats row (workouts/streak), total volume card, weekly targets, quick action buttons, volume chart, and recent workouts list, all components use Theme.ts and Typography.ts constants, architect-approved
-- **Phase 4 Complete (Oct 6, 2025):** Workout Screen Redesign - Redesigned workout screen with ExerciseCard, SetRow, RestTimer, WorkoutHeader, EmptyWorkout components using new design system, preserved all business logic (template/T-Path loading, PR detection, unsaved change guards, rest timer), fixed hook ordering issues (useCallback before useEffect), architect-approved
-- **Phase 5 Complete (Oct 6, 2025):** Workout Color System & Enhanced Dashboard - Implemented workout-type color coding (Push=#228B22, Pull=#F89C4D, Legs=#B645D9, ULUL=#1e3a8a/EF4444/0891b2/6b21a8), created ColoredWorkoutButton with LinearGradient backgrounds, workout launcher screen for PPL/ULUL selection, added colored borders to ExerciseCard and RecentWorkouts, implemented RollingStatusBadge (4 consistency states with offline detection), created GymToggle with null-safe navigation, integrated all widgets into dashboard, robust ULUL A/B variant detection with punctuation handling, architect-approved
-- **Redesign Plan Updated (Oct 6, 2025):** Comprehensive review of reference web app implementation completed. MOBILE_REDESIGN_PLAN.md updated with exact specifications from web codebase including: workout color system (Push=#228B22, Pull=#F89C4D, Legs=#B645D9, ULUL colors), Rolling Status badge logic (4 states based on consecutive 7-day periods), profile tabs (6 tabs: Overview/Stats/Photo/Media/Social/Settings), exercise management tabs (My Exercises/Global Library with gym badges), Consistency Calendar, and all component structures. Plan reorganized into fast-track 3-sprint approach prioritizing high-impact visual elements first.
-- **Dashboard Visual Refinements (Oct 6, 2025):** Complete visual overhaul to match reference app - Footer navigation updated to icons-only (5 tabs, 72px height, black icons), DashboardHeader component created with integrated Rolling Status Badge (menu + status badge + notifications + profile avatar), dashboard restructured with "Welcome Back, Athlete" as main heading, Weekly Target directly below, aurora gradient background added, all icons changed from blue to black, useRollingStatus hook created to eliminate code duplication between DashboardHeader and RollingStatusBadge components, loading states properly handled, architect-approved
-- **Dashboard Final Polish & Audit (Oct 6, 2025):** Complete UI/UX refinement pass - Deleted workout-old-backup.tsx (fixed 6th tab bug), left-aligned all card headers (Your Next Workout, All Workouts, Weekly Volume, Previous Workouts), changed all card title icons to black, swapped aurora colors (pink top-right, cyan bottom), reduced Weekly Target circle borders from 2px to 1px, fixed More menu dropdown positioning with measureInWindow() for proper below-button alignment, enhanced header badge prominence (18px icon, 15px bold text, border + shadow), made More button wider to align with Workout Log button above, reduced aurora background opacity to 0.3 for all gradients, left-aligned Previous Workouts card text, increased footer height to 83px (15% increase), comprehensive dashboard audit completed against MOBILE_SPEC_02_DASHBOARD.md identifying 8 blockers (7 missing modals/dialogs + 1 navigation route mismatch `/history` vs `/workout-history`), audit report approved by architect documenting 85% UI/UX completion with all visual requirements met but core modal interactions still console.log placeholders
-- **Global Header & Navigation Complete (Oct 10, 2025):** Implemented global AppHeader component appearing on all pages with hamburger menu, rolling status badge, notification bell, and avatar. Created HamburgerMenuSheet with slide animations and navigation links, AvatarDropdown with profile/logout, and StatusInfoModal with scrollable long-form content. Fixed all navigation routing (/history, /t-paths) and missing imports. Architect-approved.
-- **Notification System Complete (Oct 10, 2025):** Full notification bell integration with NotificationPopover modal fetching from Supabase (get_notifications_with_read_status RPC + user_alerts table). Displays empty state, loading states, and full notification list with type icons. Mark-all-as-read functionality persists to both user_notifications (global) and user_alerts (user-specific) tables matching web app architecture. AppHeader independently fetches unread count on mount and displays dynamic badge (hidden when 0). State management uses onUnreadCountChange callback to keep badge synchronized. Architect-approved.
+```
