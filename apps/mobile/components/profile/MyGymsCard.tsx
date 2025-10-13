@@ -76,7 +76,7 @@ export function MyGymsCard({
     name: string;
     imageUri?: string;
     useAI: boolean;
-    source: 'App Defaults' | 'Copy From Existing Gym' | 'Start Empty';
+    source: 'app_defaults' | 'copy_from_existing' | 'start_empty';
     copyFromGymId?: string;
     setAsActive: boolean;
   }) => {
@@ -117,10 +117,35 @@ export function MyGymsCard({
       if (gymError) throw gymError;
 
       // Step 4: Seed equipment/exercises based on source
-      if (gymData.source === 'App Defaults') {
-        // TODO: Copy default equipment/exercises from app defaults
-        console.log('[MyGymsCard] TODO: Seed with app defaults');
-      } else if (gymData.source === 'Copy From Existing Gym' && gymData.copyFromGymId) {
+      if (gymData.source === 'app_defaults') {
+        // Seed with default equipment types
+        const defaultEquipment = [
+          { gym_id: newGym.id, equipment_type: 'Dumbbells', quantity: 1 },
+          { gym_id: newGym.id, equipment_type: 'Barbells', quantity: 1 },
+          { gym_id: newGym.id, equipment_type: 'Flat Bench', quantity: 1 },
+          { gym_id: newGym.id, equipment_type: 'Squat Rack', quantity: 1 },
+          { gym_id: newGym.id, equipment_type: 'Pull-up Bar', quantity: 1 },
+          { gym_id: newGym.id, equipment_type: 'Cable Machine', quantity: 1 },
+        ];
+        
+        await supabase.from('gym_equipment').insert(defaultEquipment);
+
+        // Query common gym exercises (those not gym-specific)
+        const { data: commonExercises } = await supabase
+          .from('exercises')
+          .select('id')
+          .eq('is_common', true)
+          .limit(50);
+
+        if (commonExercises && commonExercises.length > 0) {
+          const gymExercises = commonExercises.map((ex: any) => ({
+            gym_id: newGym.id,
+            exercise_id: ex.id,
+          }));
+          
+          await supabase.from('gym_exercises').insert(gymExercises);
+        }
+      } else if (gymData.source === 'copy_from_existing' && gymData.copyFromGymId) {
         // Copy equipment from existing gym
         const { data: sourceEquipment } = await supabase
           .from('gym_equipment')

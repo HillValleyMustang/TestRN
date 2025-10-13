@@ -26,7 +26,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { useSettingsStrings } from '../../localization/useSettingsStrings';
 
-type SourceOption = 'App Defaults' | 'Copy From Existing Gym' | 'Start Empty';
+type SourceOption = 'app_defaults' | 'copy_from_existing' | 'start_empty';
 
 interface Gym {
   id: string;
@@ -58,7 +58,7 @@ export function AddGymDialog({
   const [name, setName] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [useAI, setUseAI] = useState(false);
-  const [source, setSource] = useState<SourceOption>('App Defaults');
+  const [source, setSource] = useState<SourceOption>('app_defaults');
   const [copyFromGymId, setCopyFromGymId] = useState<string>('');
   const [setAsActive, setSetAsActive] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -69,7 +69,7 @@ export function AddGymDialog({
       setName('');
       setImageUri(null);
       setUseAI(false);
-      setSource('App Defaults');
+      setSource('app_defaults');
       setCopyFromGymId('');
       setSetAsActive(false);
     }
@@ -79,7 +79,7 @@ export function AddGymDialog({
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     
     if (!permissionResult.granted) {
-      Alert.alert('Permission Required', 'Camera roll permission is required to choose an image.');
+      Alert.alert(strings.permission_required_title, strings.permission_required_desc);
       return;
     }
 
@@ -101,12 +101,12 @@ export function AddGymDialog({
 
   const handleCreate = async () => {
     if (!name.trim()) {
-      Alert.alert('Validation Error', 'Please enter a gym name.');
+      Alert.alert('', strings.validation_name_required);
       return;
     }
 
-    if (source === 'Copy From Existing Gym' && !copyFromGymId) {
-      Alert.alert('Validation Error', 'Please select a gym to copy from.');
+    if (source === 'copy_from_existing' && !copyFromGymId) {
+      Alert.alert('', strings.validation_copy_source_required);
       return;
     }
 
@@ -117,13 +117,13 @@ export function AddGymDialog({
         imageUri: imageUri || undefined,
         useAI,
         source,
-        copyFromGymId: source === 'Copy From Existing Gym' ? copyFromGymId : undefined,
+        copyFromGymId: source === 'copy_from_existing' ? copyFromGymId : undefined,
         setAsActive,
       });
       onClose();
     } catch (error) {
       console.error('[AddGymDialog] Create error:', error);
-      Alert.alert('Error', 'Failed to create gym. Please try again.');
+      Alert.alert('', strings.error_create_failed);
     } finally {
       setIsCreating(false);
     }
@@ -207,22 +207,25 @@ export function AddGymDialog({
             {strings.source_desc && (
               <Text style={styles.desc}>{strings.source_desc}</Text>
             )}
-            {strings.source_options.map((option) => (
-              <TouchableOpacity
-                key={option}
-                style={styles.radioRow}
-                onPress={() => setSource(option as SourceOption)}
-              >
-                <View style={[styles.radio, source === option && styles.radioSelected]}>
-                  {source === option && <View style={styles.radioDot} />}
-                </View>
-                <Text style={styles.radioText}>{option}</Text>
-              </TouchableOpacity>
-            ))}
+            {strings.source_options.map((option, index) => {
+              const optionId: SourceOption = index === 0 ? 'app_defaults' : index === 1 ? 'copy_from_existing' : 'start_empty';
+              return (
+                <TouchableOpacity
+                  key={optionId}
+                  style={styles.radioRow}
+                  onPress={() => setSource(optionId)}
+                >
+                  <View style={[styles.radio, source === optionId && styles.radioSelected]}>
+                    {source === optionId && <View style={styles.radioDot} />}
+                  </View>
+                  <Text style={styles.radioText}>{option}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
-          {/* Copy From Picker (shown when "Copy From Existing Gym" selected) */}
-          {source === 'Copy From Existing Gym' && existingGyms.length > 0 && (
+          {/* Copy From Picker (shown when "Copy From Existing" selected) */}
+          {source === 'copy_from_existing' && existingGyms.length > 0 && (
             <View style={styles.field}>
               <Text style={styles.label}>{strings.copy_from_label}</Text>
               {existingGyms.map((gym) => (

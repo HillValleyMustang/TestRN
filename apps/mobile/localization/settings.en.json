@@ -118,6 +118,12 @@
     "warning_last_title": "Warning: Deleting Last Gym",
     "warning_last_desc": "This is your last gym. Deleting it will reset your current workout plan to use default \"common gym\" exercises. Your T-Path and session preferences will be kept. Are you sure you want to continue?",
     "warning_last_cancel": "Cancel",
-    "warning_last_continue": "Continue and Reset Plan"
+    "warning_last_continue": "Continue and Reset Plan",
+
+    "validation_name_required": "Please enter a gym name.",
+    "validation_copy_source_required": "Please select a gym to copy from.",
+    "error_create_failed": "Failed to create gym. Please try again.",
+    "permission_required_title": "Permission Required",
+    "permission_required_desc": "Camera roll permission is required to choose an image."
   }
 }
