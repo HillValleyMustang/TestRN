@@ -204,10 +204,10 @@ export function ManageGymWorkoutsDialog({
     }
   };
 
-  const loadAvailableExercises = async () => {
+  const loadAvailableExercises = async (libraryType: 'my' | 'global') => {
     try {
       // Load exercises based on selected tab
-      if (exerciseLibraryTab === 'my') {
+      if (libraryType === 'my') {
         // My Exercise Library - user created exercises
         const { data: myExercises, error } = await supabase
           .from('exercise_definitions')
@@ -249,7 +249,7 @@ export function ManageGymWorkoutsDialog({
   const handleOpenExercisePicker = (type: 'core' | 'bonus') => {
     setSelectedExerciseType(type);
     setExerciseLibraryTab('my'); // Default to My Exercises
-    loadAvailableExercises();
+    loadAvailableExercises('my');
     setShowExercisePicker(true);
   };
 

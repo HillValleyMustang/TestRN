@@ -50,40 +50,47 @@ The application utilizes a monorepo structure for code sharing between its Next.
 
 ## Recent Changes
 
-### Manage Gym Workouts Dialog - Complete Redesign (October 13, 2025)
-Completely redesigned the Manage Gym Workouts dialog to match design specifications with full CRUD functionality:
+### Manage Gym Workouts Dialog - Enhanced with Active T-Path Integration (October 13, 2025)
+Enhanced the Manage Gym Workouts dialog with active T-Path integration and dual exercise library support:
 
 **Core Functionality:**
 - **Dynamic Title**: Shows gym name dynamically ("Manage Workouts for '[gym name]'")
-- **Workout Selector**: Dropdown to select T-path workouts associated with a gym
-- **Add Exercises**: Full exercise picker modal to add core or bonus exercises from gym's available exercises
+- **Smart Workout Loading**: Loads child workouts from user's active T-Path (not all gym workouts)
+- **Intelligent Defaults**: Auto-selects "Push" for PPL or "Upper A" for ULUL on dialog open
+- **Workout Dropdown**: Shows only workouts from the active T-Path, properly ordered by program type
+- **Dual Exercise Libraries**: Toggle between "My Exercises" (user-created) and "Global" (gym exercises)
 - **Exercise Display**: Separate lists for core and bonus exercises with visual differentiation
 - **Exercise Reordering**: Tap drag handle (::) to show move up/down options for reordering
+- **Core/Bonus Toggle**: Move exercises between Core and Bonus categories via drag handle menu
 - **Batch Save**: "Save Changes" button with unsaved changes warning on close
 - **Delete & Info Actions**: Delete exercises with confirmation, view exercise details (order, type)
 - **Empty States**: Comprehensive messaging for no workouts, no selection, and no exercises scenarios
 
 **Technical Implementation:**
-- **Exercise Picker**: Loads gym exercises from `gym_exercises` table with duplicate detection
+- **T-Path Integration**: Queries user's profile for `active_t_path_id` and loads child workouts
+- **Smart Defaults**: Detects T-Path type from settings (`tPathType`: 'ppl' or 'ulul') for default selection
+- **Workout Sorting**: Orders workouts using PPL_ORDER (Push/Pull/Legs) or ULUL_ORDER (Upper A/Lower A/Upper B/Lower B)
+- **Dual Exercise Sources**: 
+  - "My Exercises": Queries `exercise_definitions` where `user_id` matches current user
+  - "Global": Queries `gym_exercises` join with `exercise_definitions` for gym-specific exercises
+- **Exercise Picker Tabs**: Clean tab UI to switch between libraries with automatic reloading
 - **Order Recalculation**: Properly recalculates `order_index` for all exercises before saving
-- **Batch Operations**: Handles new exercise inserts, deletions, and order updates in single save
+- **Batch Operations**: Handles inserts, deletions, order updates, and bonus status changes in single save
 - **Temp IDs**: New exercises get temporary IDs (`temp-${timestamp}`) until persisted
 - **State Management**: Tracks original vs current state to detect changes and enable/disable save
 - **Error Handling**: Comprehensive error handling with user-friendly alerts
 
 **UX Features:**
-- Tap drag handle (::) icon to show reorder options
-- "Add Exercises" button with core/bonus selection
+- Tap drag handle (::) icon to show reorder and move to Core/Bonus options
+- "Add Exercises" button with core/bonus selection and dual library support
+- Tabbed exercise picker with "My Exercises" and "Global" tabs
+- Exercise info shows muscle group in picker for better selection
 - "Save Changes" button persists all changes at once
 - Unsaved changes warning prevents accidental data loss
 - Visual indicators for already-added exercises in picker
 - Separate reordering contexts for core vs bonus exercises
 
-**Technical Constraints:**
-- Drag-and-drop library (react-native-draggable-flatlist) caused worklets version conflicts (0.6.0 vs 0.5.1)
-- Implemented tap-based reordering as stable alternative with same functionality
-
 **Files Modified:**
-- `apps/mobile/components/profile/ManageGymWorkoutsDialog.tsx` - Complete redesign matching design reference
+- `apps/mobile/components/profile/ManageGymWorkoutsDialog.tsx` - Enhanced with T-Path integration and dual libraries
 
-**Production Status:** Fully production-ready with complete add/reorder/delete functionality and proper persistence.
+**Production Status:** Fully production-ready with active T-Path integration, dual exercise libraries, and complete CRUD functionality.
