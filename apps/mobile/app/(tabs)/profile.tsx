@@ -35,7 +35,9 @@ import { AchievementDetailModal } from '../../components/profile/AchievementDeta
 import { PersonalInfoCard } from '../../components/profile/PersonalInfoCard';
 import { WorkoutPreferencesCard } from '../../components/profile/WorkoutPreferencesCard';
 import { ProgrammeTypeCard } from '../../components/profile/ProgrammeTypeCard';
-import { MyGymsCard } from '../../components/profile/MyGymsCard';
+import { MyGymsCardNew } from '../../components/profile/MyGymsCardNew';
+import { AICoachUsageCard } from '../../components/profile/AICoachUsageCard';
+import { DataExportCard } from '../../components/profile/DataExportCard';
 
 const { width } = Dimensions.get('window');
 
@@ -539,13 +541,26 @@ export default function ProfileScreen() {
         onUpdate={handleUpdateProfile}
       />
       
-      <MyGymsCard
+      <MyGymsCardNew
         userId={userId!}
         gyms={gyms}
         activeGymId={profile?.active_gym_id}
         onRefresh={handleRefreshGyms}
         supabase={supabase}
       />
+
+      {/* AI Coach Usage */}
+      <AICoachUsageCard
+        dailyUses={0}
+        maxDailyUses={2}
+        onOpenCoach={() => {
+          // TODO: Implement AI coach dialog
+          Alert.alert('AI Coach', 'AI Coach feature coming soon!');
+        }}
+      />
+
+      {/* Data Export */}
+      <DataExportCard />
 
       {/* Security Section */}
       <View style={styles.settingsSection}>
