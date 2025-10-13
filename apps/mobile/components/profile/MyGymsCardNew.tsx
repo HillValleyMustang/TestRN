@@ -354,7 +354,16 @@ const styles = StyleSheet.create({
     padding: Spacing.xs,
   },
   manageButton: {
-    padding: Spacing.xs,
+    padding: Spacing.sm,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.md,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   addButton: {
     flexDirection: 'row',
