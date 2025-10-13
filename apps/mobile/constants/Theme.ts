@@ -21,7 +21,7 @@ function hslToRgb(h: number, s: number, l: number): string {
 // Core color definitions matching web globals.css
 export const Colors = {
   // Base Colors
-  background: '#F3F4F6', // Global default background for all screens
+  background: '#FAFAFA', // Global default background for all screens (matches Dashboard BackgroundRoot)
   foreground: hslToRgb(0, 0, 3.9), // hsl(0 0% 3.9%) - Near black
   
   // Card

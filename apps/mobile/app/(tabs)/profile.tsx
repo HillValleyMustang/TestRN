@@ -23,7 +23,6 @@ import { useAuth } from '../_contexts/auth-context';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
 import { useLevelFromPoints } from '../../hooks/useLevelFromPoints';
-import { supabase } from '../_lib/supabase';
 import { ScreenContainer } from '../../components/layout/ScreenContainer';
 import { PointsExplanationModal } from '../../components/profile/PointsExplanationModal';
 import { EditNameModal } from '../../components/profile/EditNameModal';
@@ -32,6 +31,10 @@ import { AvatarUploadModal } from '../../components/profile/AvatarUploadModal';
 import { ChangePasswordModal } from '../../components/profile/ChangePasswordModal';
 import { WorkoutPreferencesModal } from '../../components/profile/WorkoutPreferencesModal';
 import { AchievementDetailModal } from '../../components/profile/AchievementDetailModal';
+import { PersonalInfoCard } from '../../components/profile/PersonalInfoCard';
+import { WorkoutPreferencesCard } from '../../components/profile/WorkoutPreferencesCard';
+import { ProgrammeTypeCard } from '../../components/profile/ProgrammeTypeCard';
+import { MyGymsCard } from '../../components/profile/MyGymsCard';
 
 const { width } = Dimensions.get('window');
 
@@ -60,9 +63,10 @@ const TAB_COLORS: Record<Tab, string> = {
 };
 
 export default function ProfileScreen() {
-  const { session, userId } = useAuth();
+  const { session, userId, supabase } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [profile, setProfile] = useState<any>(null);
+  const [gyms, setGyms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [pointsModalVisible, setPointsModalVisible] = useState(false);
   const [editNameModalVisible, setEditNameModalVisible] = useState(false);
@@ -93,20 +97,54 @@ export default function ProfileScreen() {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      const [profileRes, gymsRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', userId).single(),
+        supabase.from('gyms').select('*').eq('user_id', userId).order('created_at', { ascending: true })
+      ]);
 
-      if (error) throw error;
-      setProfile(data);
+      if (profileRes.error) throw profileRes.error;
+      setProfile(profileRes.data);
+      
+      if (gymsRes.data) {
+        setGyms(gymsRes.data);
+      }
     } catch (error) {
       console.error('[Profile] Error loading profile:', error);
       Alert.alert('Error', 'Failed to load profile data');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleUpdateProfile = async (updates: any) => {
+    if (!userId) return;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', userId);
+
+    if (error) throw error;
+    
+    // Update local state optimistically
+    setProfile({ ...profile, ...updates });
+  };
+
+  const handleRefreshGyms = async () => {
+    if (!userId) return;
+
+    const { data } = await supabase
+      .from('gyms')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true });
+
+    if (data) {
+      setGyms(data);
+    }
+
+    // Also refresh profile to get updated active_gym_id
+    await loadProfile();
   };
 
   const loadSavedTab = async () => {
@@ -463,76 +501,29 @@ export default function ProfileScreen() {
   );
 
   const renderSettingsTab = () => (
-    <View style={styles.tabContent}>
-      <Text style={styles.tabTitle}>Settings</Text>
+    <View>
+      <PersonalInfoCard 
+        profile={profile} 
+        onUpdate={handleUpdateProfile}
+      />
       
-      {/* Personal Info Section */}
-      <View style={styles.settingsSection}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.settingsSectionTitle}>Personal Information</Text>
-          <TouchableOpacity onPress={() => setEditNameModalVisible(true)}>
-            <Ionicons name="create-outline" size={20} color={Colors.blue600} />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.settingsCard}>
-          <Text style={styles.settingsLabel}>Display Name</Text>
-          <Text style={styles.settingsValue}>{profile?.display_name || 'Not set'}</Text>
-        </View>
-        <View style={styles.settingsCard}>
-          <Text style={styles.settingsLabel}>Email</Text>
-          <Text style={styles.settingsValue}>{session?.user?.email}</Text>
-        </View>
-      </View>
-
-      {/* Workout Preferences Section */}
-      <View style={styles.settingsSection}>
-        <Text style={styles.settingsSectionTitle}>Workout Preferences</Text>
-        <TouchableOpacity
-          style={styles.settingsButton}
-          onPress={() => setPreferencesModalVisible(true)}
-        >
-          <View style={styles.settingsButtonContent}>
-            <Ionicons name="settings-outline" size={20} color={Colors.gray700} />
-            <Text style={styles.settingsButtonText}>Units & Programme Type</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={Colors.gray400} />
-        </TouchableOpacity>
-        <View style={styles.settingsInfoCard}>
-          <View style={styles.settingsInfoRow}>
-            <Text style={styles.settingsInfoLabel}>Unit System:</Text>
-            <Text style={styles.settingsInfoValue}>
-              {profile?.unit_system === 'imperial' ? 'Imperial' : 'Metric'}
-            </Text>
-          </View>
-          <View style={styles.settingsInfoRow}>
-            <Text style={styles.settingsInfoLabel}>Programme Type:</Text>
-            <Text style={styles.settingsInfoValue}>
-              {profile?.t_path_type === 'ulul' ? 'Upper/Lower' : 'Push/Pull/Legs'}
-            </Text>
-          </View>
-          <View style={styles.settingsInfoRow}>
-            <Text style={styles.settingsInfoLabel}>Session Length:</Text>
-            <Text style={styles.settingsInfoValue}>{profile?.default_session_length || 60} min</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Gyms Section */}
-      <View style={styles.settingsSection}>
-        <Text style={styles.settingsSectionTitle}>Gyms</Text>
-        <TouchableOpacity
-          style={styles.settingsButton}
-          onPress={() => {
-            Alert.alert('Navigate to Gyms', 'This will navigate to the gym management screen');
-          }}
-        >
-          <View style={styles.settingsButtonContent}>
-            <Ionicons name="business-outline" size={20} color={Colors.gray700} />
-            <Text style={styles.settingsButtonText}>Manage Gyms</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={Colors.gray400} />
-        </TouchableOpacity>
-      </View>
+      <WorkoutPreferencesCard
+        profile={profile}
+        onUpdate={handleUpdateProfile}
+      />
+      
+      <ProgrammeTypeCard
+        profile={profile}
+        onUpdate={handleUpdateProfile}
+      />
+      
+      <MyGymsCard
+        userId={userId!}
+        gyms={gyms}
+        activeGymId={profile?.active_gym_id}
+        onRefresh={handleRefreshGyms}
+        supabase={supabase}
+      />
 
       {/* Security Section */}
       <View style={styles.settingsSection}>
@@ -609,12 +600,18 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScreenContainer>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScreenContainer scroll={false}>
+      <View style={styles.container}>
         {renderHeader()}
         {renderTabs()}
-        {renderTabContent()}
-      </ScrollView>
+        <ScrollView 
+          style={styles.tabContentScroll}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.tabContentContainer}
+        >
+          {renderTabContent()}
+        </ScrollView>
+      </View>
 
       {/* Modals */}
       <PointsExplanationModal
@@ -684,7 +681,13 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+  },
+  tabContentScroll: {
+    flex: 1,
+  },
+  tabContentContainer: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.xl,
   },
   loadingContainer: {
     flex: 1,
@@ -775,7 +778,7 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
     backgroundColor: '#FFFFFF',
     marginTop: Spacing.md,
-    borderRadius: BorderRadius.xl,
+    borderRadius: BorderRadius.md,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
