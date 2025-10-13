@@ -111,7 +111,7 @@ export function ManageGymWorkoutsDialog({
           exercise_id,
           order_index,
           is_bonus_exercise,
-          exercises (
+          exercise_definitions (
             name
           )
         `)
@@ -123,7 +123,7 @@ export function ManageGymWorkoutsDialog({
       const formattedExercises = (data || []).map((ex: any) => ({
         id: ex.id,
         exercise_id: ex.exercise_id,
-        exercise_name: ex.exercises?.name || 'Unknown Exercise',
+        exercise_name: ex.exercise_definitions?.name || 'Unknown Exercise',
         order_index: ex.order_index,
         is_bonus_exercise: ex.is_bonus_exercise,
       }));
