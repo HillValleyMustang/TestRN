@@ -18,6 +18,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { useSettingsStrings } from '../../localization/useSettingsStrings';
+import { AddGymDialog } from './AddGymDialog';
+import { analyzeGymEquipment } from '../../lib/openai';
+import { imageUriToBase64, uploadImageToSupabase } from '../../lib/imageUtils';
 
 interface Gym {
   id: string;
@@ -69,19 +72,108 @@ export function MyGymsCard({
     return `${strings.my_gyms.added_meta_prefix}${formattedDate}`;
   };
 
-  const handleAddGym = async () => {
-    if (!newGymName.trim()) return;
-
+  const handleAddGym = async (gymData: {
+    name: string;
+    imageUri?: string;
+    useAI: boolean;
+    source: 'App Defaults' | 'Copy From Existing Gym' | 'Start Empty';
+    copyFromGymId?: string;
+    setAsActive: boolean;
+  }) => {
     setIsAdding(true);
     try {
-      const { error } = await supabase
+      let detectedEquipment: any[] = [];
+      let imageUrl: string | undefined;
+
+      // Step 1: AI Analysis (if requested and image provided)
+      if (gymData.useAI && gymData.imageUri) {
+        const base64 = await imageUriToBase64(gymData.imageUri);
+        const analysis = await analyzeGymEquipment(base64);
+        detectedEquipment = analysis.equipment;
+      }
+
+      // Step 2: Upload image to Supabase Storage (if provided)
+      if (gymData.imageUri) {
+        const imagePath = `gym-images/${userId}/${Date.now()}.jpg`;
+        imageUrl = await uploadImageToSupabase(
+          supabase,
+          'user-uploads',
+          imagePath,
+          gymData.imageUri
+        );
+      }
+
+      // Step 3: Create gym record
+      const { data: newGym, error: gymError } = await supabase
         .from('gyms')
         .insert({
           user_id: userId,
-          name: newGymName.trim(),
-        });
+          name: gymData.name,
+          image_url: imageUrl,
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (gymError) throw gymError;
+
+      // Step 4: Seed equipment/exercises based on source
+      if (gymData.source === 'App Defaults') {
+        // TODO: Copy default equipment/exercises from app defaults
+        console.log('[MyGymsCard] TODO: Seed with app defaults');
+      } else if (gymData.source === 'Copy From Existing Gym' && gymData.copyFromGymId) {
+        // Copy equipment from existing gym
+        const { data: sourceEquipment } = await supabase
+          .from('gym_equipment')
+          .select('*')
+          .eq('gym_id', gymData.copyFromGymId);
+
+        if (sourceEquipment && sourceEquipment.length > 0) {
+          const newEquipment = sourceEquipment.map((eq: any) => ({
+            gym_id: newGym.id,
+            equipment_type: eq.equipment_type,
+            quantity: eq.quantity,
+          }));
+          
+          await supabase.from('gym_equipment').insert(newEquipment);
+        }
+
+        // Copy exercises from existing gym
+        const { data: sourceExercises } = await supabase
+          .from('gym_exercises')
+          .select('*')
+          .eq('gym_id', gymData.copyFromGymId);
+
+        if (sourceExercises && sourceExercises.length > 0) {
+          const newExercises = sourceExercises.map((ex: any) => ({
+            gym_id: newGym.id,
+            exercise_id: ex.exercise_id,
+          }));
+          
+          await supabase.from('gym_exercises').insert(newExercises);
+        }
+      } else if (gymData.useAI && detectedEquipment.length > 0) {
+        // Seed with AI-detected equipment
+        const equipmentToInsert = detectedEquipment.flatMap(cat =>
+          cat.items.map((item: string) => ({
+            gym_id: newGym.id,
+            equipment_type: item,
+            quantity: 1,
+          }))
+        );
+
+        if (equipmentToInsert.length > 0) {
+          await supabase.from('gym_equipment').insert(equipmentToInsert);
+        }
+      }
+      // 'Start Empty' requires no additional setup
+
+      // Step 5: Set as active gym (if requested)
+      if (gymData.setAsActive) {
+        await supabase
+          .from('profiles')
+          .update({ active_gym_id: newGym.id })
+          .eq('id', userId);
+      }
 
       setShowAddModal(false);
       setNewGymName('');
@@ -97,6 +189,7 @@ export function MyGymsCard({
         setRollingStatus(null);
         setHasError(false);
       }, 2500);
+      throw error;
     } finally {
       setIsAdding(false);
     }
@@ -269,48 +362,12 @@ export function MyGymsCard({
         </View>
       </View>
 
-      <Modal
+      <AddGymDialog
         visible={showAddModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowAddModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.dialogContainer}>
-            <Text style={styles.dialogTitle}>{strings.my_gyms.create_title}</Text>
-            <View style={styles.formField}>
-              <Text style={styles.formLabel}>{strings.my_gyms.name_label}</Text>
-              <TextInput
-                style={styles.formInput}
-                value={newGymName}
-                onChangeText={setNewGymName}
-                placeholder={strings.my_gyms.name_placeholder}
-                placeholderTextColor={Colors.mutedForeground}
-              />
-            </View>
-            <View style={styles.dialogActions}>
-              <TouchableOpacity 
-                style={styles.cancelButton}
-                onPress={() => setShowAddModal(false)}
-                disabled={isAdding}
-              >
-                <Text style={styles.cancelButtonText}>{strings.my_gyms.create_cancel}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.confirmButton}
-                onPress={handleAddGym}
-                disabled={isAdding || !newGymName.trim()}
-              >
-                {isAdding ? (
-                  <ActivityIndicator size="small" color={Colors.white} />
-                ) : (
-                  <Text style={styles.confirmButtonText}>{strings.my_gyms.create_confirm}</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setShowAddModal(false)}
+        existingGyms={gyms}
+        onCreateGym={handleAddGym}
+      />
 
       <Modal
         visible={showRenameModal}
