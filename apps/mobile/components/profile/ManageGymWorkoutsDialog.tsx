@@ -39,13 +39,16 @@ interface ManageGymWorkoutsDialogProps {
   onClose: () => void;
 }
 
+const PPL_ORDER = ['Push', 'Pull', 'Legs'];
+const ULUL_ORDER = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
+
 export function ManageGymWorkoutsDialog({
   visible,
   gymId,
   gymName,
   onClose,
 }: ManageGymWorkoutsDialogProps) {
-  const { supabase } = useAuth();
+  const { supabase, userId } = useAuth();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string>('');
   const [coreExercises, setCoreExercises] = useState<Exercise[]>([]);
@@ -59,6 +62,7 @@ export function ManageGymWorkoutsDialog({
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [availableExercises, setAvailableExercises] = useState<any[]>([]);
   const [selectedExerciseType, setSelectedExerciseType] = useState<'core' | 'bonus'>('core');
+  const [exerciseLibraryTab, setExerciseLibraryTab] = useState<'my' | 'global'>('my');
 
   useEffect(() => {
     if (visible) {
@@ -88,17 +92,66 @@ export function ManageGymWorkoutsDialog({
   const loadWorkouts = async () => {
     setLoading(true);
     try {
+      // Get user's profile to find active T-Path
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('active_t_path_id')
+        .eq('id', userId)
+        .single();
+
+      if (profileError) throw profileError;
+
+      if (!profile?.active_t_path_id) {
+        Alert.alert('No Active Program', 'Please set up a workout program first');
+        setLoading(false);
+        return;
+      }
+
+      // Get the active T-Path to determine type (PPL or ULUL)
+      const { data: activeTPath, error: tPathError } = await supabase
+        .from('t_paths')
+        .select('id, settings')
+        .eq('id', profile.active_t_path_id)
+        .single();
+
+      if (tPathError) throw tPathError;
+
+      // Load child workouts from the active T-Path
       const { data, error } = await supabase
         .from('t_paths')
         .select('id, template_name')
-        .eq('gym_id', gymId)
+        .eq('parent_t_path_id', profile.active_t_path_id)
         .order('template_name');
 
       if (error) throw error;
 
-      setWorkouts(data || []);
-      if (data && data.length > 0) {
-        setSelectedWorkoutId(data[0].id);
+      let sortedWorkouts = data || [];
+
+      // Sort workouts based on T-Path type
+      const tPathSettings = activeTPath?.settings as { tPathType?: string } | null;
+      const tPathType = tPathSettings?.tPathType;
+
+      if (tPathType === 'ppl') {
+        sortedWorkouts.sort((a, b) => PPL_ORDER.indexOf(a.template_name) - PPL_ORDER.indexOf(b.template_name));
+      } else if (tPathType === 'ulul') {
+        sortedWorkouts.sort((a, b) => ULUL_ORDER.indexOf(a.template_name) - ULUL_ORDER.indexOf(b.template_name));
+      }
+
+      setWorkouts(sortedWorkouts);
+
+      // Set default workout based on T-Path type
+      if (sortedWorkouts.length > 0) {
+        let defaultWorkout = sortedWorkouts[0];
+
+        if (tPathType === 'ppl') {
+          const pushWorkout = sortedWorkouts.find(w => w.template_name === 'Push');
+          if (pushWorkout) defaultWorkout = pushWorkout;
+        } else if (tPathType === 'ulul') {
+          const upperAWorkout = sortedWorkouts.find(w => w.template_name === 'Upper Body A');
+          if (upperAWorkout) defaultWorkout = upperAWorkout;
+        }
+
+        setSelectedWorkoutId(defaultWorkout.id);
       }
     } catch (error) {
       console.error('[ManageGymWorkouts] Error loading workouts:', error);
@@ -153,25 +206,40 @@ export function ManageGymWorkoutsDialog({
 
   const loadAvailableExercises = async () => {
     try {
-      const { data: gymExercises, error } = await supabase
-        .from('gym_exercises')
-        .select(`
-          exercise_id,
-          exercise_definitions (
-            id,
-            name,
-            category
-          )
-        `)
-        .eq('gym_id', gymId);
+      // Load exercises based on selected tab
+      if (exerciseLibraryTab === 'my') {
+        // My Exercise Library - user created exercises
+        const { data: myExercises, error } = await supabase
+          .from('exercise_definitions')
+          .select('id, name, category, main_muscle')
+          .eq('user_id', userId)
+          .order('name');
 
-      if (error) throw error;
+        if (error) throw error;
+        setAvailableExercises(myExercises || []);
+      } else {
+        // Global Library - exercises available at the gym
+        const { data: gymExercises, error } = await supabase
+          .from('gym_exercises')
+          .select(`
+            exercise_id,
+            exercise_definitions (
+              id,
+              name,
+              category,
+              main_muscle
+            )
+          `)
+          .eq('gym_id', gymId);
 
-      const exercises = (gymExercises || [])
-        .map((ge: any) => ge.exercise_definitions)
-        .filter(Boolean);
+        if (error) throw error;
 
-      setAvailableExercises(exercises);
+        const exercises = (gymExercises || [])
+          .map((ge: any) => ge.exercise_definitions)
+          .filter(Boolean);
+
+        setAvailableExercises(exercises);
+      }
     } catch (error) {
       console.error('[ManageGymWorkouts] Error loading available exercises:', error);
       Alert.alert('Error', 'Failed to load available exercises');
@@ -180,6 +248,7 @@ export function ManageGymWorkoutsDialog({
 
   const handleOpenExercisePicker = (type: 'core' | 'bonus') => {
     setSelectedExerciseType(type);
+    setExerciseLibraryTab('my'); // Default to My Exercises
     loadAvailableExercises();
     setShowExercisePicker(true);
   };
@@ -218,6 +287,26 @@ export function ManageGymWorkoutsDialog({
     } else {
       setCoreExercises(exercises);
     }
+    setHasChanges(true);
+  };
+
+  const toggleExerciseType = (exerciseId: string, currentIsBonus: boolean) => {
+    const exercise = currentIsBonus
+      ? bonusExercises.find(ex => ex.id === exerciseId)
+      : coreExercises.find(ex => ex.id === exerciseId);
+
+    if (!exercise) return;
+
+    if (currentIsBonus) {
+      // Move from Bonus to Core
+      setBonusExercises(bonusExercises.filter(ex => ex.id !== exerciseId));
+      setCoreExercises([...coreExercises, { ...exercise, is_bonus_exercise: false }]);
+    } else {
+      // Move from Core to Bonus
+      setCoreExercises(coreExercises.filter(ex => ex.id !== exerciseId));
+      setBonusExercises([...bonusExercises, { ...exercise, is_bonus_exercise: true }]);
+    }
+
     setHasChanges(true);
   };
 
@@ -303,12 +392,15 @@ export function ManageGymWorkoutsDialog({
         if (insertError) throw insertError;
       }
 
-      // Update order for existing exercises with recalculated order_index
+      // Update existing exercises (order and bonus status might have changed)
       const existingExercises = allCurrent.filter(ex => !ex.id.startsWith('temp-'));
       for (const exercise of existingExercises) {
         const { error } = await supabase
           .from('t_path_exercises')
-          .update({ order_index: exercise.order_index })
+          .update({ 
+            order_index: exercise.order_index,
+            is_bonus_exercise: exercise.is_bonus_exercise
+          })
           .eq('id', exercise.id);
 
         if (error) throw error;
@@ -347,14 +439,20 @@ export function ManageGymWorkoutsDialog({
         <TouchableOpacity
           style={styles.dragHandle}
           onPress={() => {
+            const actions = [
+              { text: 'Cancel', style: 'cancel' },
+              index > 0 && { text: 'Move Up', onPress: () => moveExercise(index, 'up', isBonus) },
+              index < total - 1 && { text: 'Move Down', onPress: () => moveExercise(index, 'down', isBonus) },
+              { 
+                text: isBonus ? 'Move to Core' : 'Move to Bonus', 
+                onPress: () => toggleExerciseType(exercise.id, isBonus) 
+              },
+            ].filter(Boolean) as any;
+
             Alert.alert(
-              'Reorder',
-              `Move "${exercise.exercise_name}"`,
-              [
-                { text: 'Cancel', style: 'cancel' },
-                index > 0 && { text: 'Move Up', onPress: () => moveExercise(index, 'up', isBonus) },
-                index < total - 1 && { text: 'Move Down', onPress: () => moveExercise(index, 'down', isBonus) },
-              ].filter(Boolean) as any
+              'Manage Exercise',
+              `"${exercise.exercise_name}"`,
+              actions
             );
           }}
         >
@@ -546,12 +644,41 @@ export function ManageGymWorkoutsDialog({
               <Text style={styles.pickerTitle}>
                 Add {selectedExerciseType === 'core' ? 'Core' : 'Bonus'} Exercise
               </Text>
+              
+              {/* Library Tabs */}
+              <View style={styles.tabContainer}>
+                <TouchableOpacity
+                  style={[styles.tab, exerciseLibraryTab === 'my' && styles.tabActive]}
+                  onPress={() => {
+                    setExerciseLibraryTab('my');
+                    loadAvailableExercises();
+                  }}
+                >
+                  <Text style={[styles.tabText, exerciseLibraryTab === 'my' && styles.tabTextActive]}>
+                    My Exercises
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.tab, exerciseLibraryTab === 'global' && styles.tabActive]}
+                  onPress={() => {
+                    setExerciseLibraryTab('global');
+                    loadAvailableExercises();
+                  }}
+                >
+                  <Text style={[styles.tabText, exerciseLibraryTab === 'global' && styles.tabTextActive]}>
+                    Global
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
               <ScrollView style={styles.pickerList}>
                 {availableExercises.length === 0 ? (
                   <View style={styles.emptyPickerState}>
                     <Text style={styles.emptyText}>No exercises available</Text>
                     <Text style={styles.emptySubtext}>
-                      Make sure your gym has exercises set up
+                      {exerciseLibraryTab === 'my' 
+                        ? 'Create custom exercises in your library'
+                        : 'Make sure your gym has exercises set up'}
                     </Text>
                   </View>
                 ) : (
@@ -574,14 +701,19 @@ export function ManageGymWorkoutsDialog({
                         }}
                         disabled={alreadyAdded}
                       >
-                        <Text
-                          style={[
-                            styles.pickerItemText,
-                            alreadyAdded && styles.pickerItemTextDisabled,
-                          ]}
-                        >
-                          {exercise.name}
-                        </Text>
+                        <View style={styles.exerciseInfo}>
+                          <Text
+                            style={[
+                              styles.pickerItemText,
+                              alreadyAdded && styles.pickerItemTextDisabled,
+                            ]}
+                          >
+                            {exercise.name}
+                          </Text>
+                          {exercise.main_muscle && (
+                            <Text style={styles.muscleText}>{exercise.main_muscle}</Text>
+                          )}
+                        </View>
                         {alreadyAdded && (
                           <Text style={styles.alreadyAddedBadge}>Added</Text>
                         )}
@@ -639,6 +771,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: Colors.foreground,
+    flexShrink: 1,
   },
   subtitle: {
     fontSize: 14,
@@ -699,45 +832,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
+    gap: Spacing.sm,
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   dragHandle: {
     padding: Spacing.xs,
-    marginRight: Spacing.sm,
   },
   exerciseName: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.foreground,
   },
   iconButton: {
     padding: Spacing.xs,
-    marginLeft: Spacing.sm,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: Spacing.xl,
+    paddingVertical: Spacing.xl * 2,
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: Spacing.xl,
+    paddingVertical: Spacing.xl * 2,
+    paddingHorizontal: Spacing.lg,
   },
   emptyText: {
     fontSize: 16,
-    fontWeight: '500',
-    color: Colors.foreground,
+    fontWeight: '600',
+    color: Colors.mutedForeground,
     textAlign: 'center',
   },
   emptySubtext: {
     fontSize: 14,
     color: Colors.mutedForeground,
-    marginTop: Spacing.xs,
     textAlign: 'center',
+    marginTop: Spacing.xs,
   },
   footer: {
     flexDirection: 'row',
@@ -749,26 +883,25 @@ const styles = StyleSheet.create({
   closeButton: {
     flex: 1,
     padding: Spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
     borderRadius: BorderRadius.md,
-    backgroundColor: Colors.muted,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
   },
   closeButtonText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     color: Colors.foreground,
   },
   saveButton: {
     flex: 1,
     padding: Spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
     borderRadius: BorderRadius.md,
-    backgroundColor: '#6B7280',
+    backgroundColor: '#1F2937',
+    alignItems: 'center',
   },
   saveButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   saveButtonText: {
     fontSize: 16,
@@ -776,24 +909,52 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   pickerOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: Spacing.lg,
   },
   pickerContainer: {
     backgroundColor: '#fff',
-    borderRadius: BorderRadius.lg,
-    width: '80%',
-    maxHeight: '60%',
+    borderRadius: BorderRadius.xl,
+    width: '100%',
+    maxHeight: '70%',
+    padding: Spacing.lg,
   },
   pickerTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: Colors.foreground,
-    padding: Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    marginBottom: Spacing.md,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    marginBottom: Spacing.md,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.muted,
+    alignItems: 'center',
+  },
+  tabActive: {
+    backgroundColor: '#1F2937',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.mutedForeground,
+  },
+  tabTextActive: {
+    color: '#fff',
   },
   pickerList: {
     maxHeight: 300,
@@ -802,44 +963,58 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: Spacing.md,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   pickerItemSelected: {
     backgroundColor: Colors.muted,
   },
+  pickerItemDisabled: {
+    opacity: 0.5,
+  },
   pickerItemText: {
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.foreground,
   },
   pickerItemTextSelected: {
     fontWeight: '600',
   },
-  pickerCloseButton: {
-    padding: Spacing.md,
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
-  pickerCloseText: {
-    fontSize: 16,
-    color: Colors.foreground,
-    fontWeight: '500',
-  },
-  emptyPickerState: {
-    padding: Spacing.xl,
-    alignItems: 'center',
-  },
-  pickerItemDisabled: {
-    opacity: 0.5,
-  },
   pickerItemTextDisabled: {
     color: Colors.mutedForeground,
+  },
+  exerciseInfo: {
+    flex: 1,
+  },
+  muscleText: {
+    fontSize: 12,
+    color: Colors.mutedForeground,
+    marginTop: 2,
   },
   alreadyAddedBadge: {
     fontSize: 12,
     color: Colors.mutedForeground,
-    fontWeight: '500',
+    backgroundColor: Colors.muted,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+  },
+  emptyPickerState: {
+    paddingVertical: Spacing.xl * 2,
+    alignItems: 'center',
+  },
+  pickerCloseButton: {
+    marginTop: Spacing.md,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+  },
+  pickerCloseText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.foreground,
   },
 });
