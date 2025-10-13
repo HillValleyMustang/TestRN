@@ -42,6 +42,42 @@ The application utilizes a monorepo structure for code sharing between its Next.
 
 ## Recent Changes
 
+### Add Gym Feature - Complete Implementation (October 13, 2025)
+Completed comprehensive gym creation system with 4 source paths and AI-powered equipment detection:
+
+**Core Features:**
+1. **Add Gym Dialog** - Full-featured modal with name input, image upload, AI analysis toggle, source path selection, copy-from picker, and Set as Active checkbox. 100% String Freeze compliance using useSettingsStrings() hook.
+
+2. **4 Source Paths (Stable Token Architecture):**
+   - **App Defaults (app_defaults):** Seeds 6 default equipment types (Dumbbells, Barbells, Flat Bench, Squat Rack, Pull-up Bar, Cable Machine) + queries exercises table for is_common=true exercises and seeds up to 50 common gym exercises. Provides complete baseline for new gyms.
+   - **Copy From Existing (copy_from_existing):** Copies all equipment and exercises from selected source gym, preserving quantities and mappings.
+   - **Start Empty (start_empty):** Creates gym record only with no equipment/exercise seeding for manual configuration.
+   - **AI Analysis (AI checkbox + image upload):** OpenAI GPT-5 Vision analyzes gym photo, detects equipment organized into 8 categories, uploads image to Supabase Storage (user-uploads bucket), and seeds gym_equipment table with detected equipment.
+
+3. **OpenAI Vision Integration** - GPT-5 (released August 7, 2025) analyzes gym photos via vision API to detect equipment across 8 categories: Cardio, Free Weights, Machines, Functional, Racks & Benches, Accessories, Plate-Loaded, Specialized. Returns structured JSON with equipment names and quantities.
+
+4. **Image Upload System** - expo-image-picker with 1:1 aspect crop, 0.8 quality compression, base64 conversion utilities, and Supabase Storage integration (user-uploads bucket with public URLs).
+
+5. **Set as Active Logic** - Checkbox in Add Gym dialog automatically updates profiles.active_gym_id when gym is created, making it the active gym immediately.
+
+**Technical Architecture:**
+- **Locale-Safe Branching:** All source path comparisons use stable tokens ('app_defaults', 'copy_from_existing', 'start_empty') instead of localized strings. Radio selection maps index → token (0→app_defaults, 1→copy_from_existing, 2→start_empty). Logic immune to localization changes.
+- **String Freeze Compliance:** All UI text from settings.en.json my_gyms section, all Alert messages localized, no hardcoded English strings anywhere.
+- **Database Integration:** Creates gyms record, seeds gym_equipment and gym_exercises tables based on source path, updates profiles.active_gym_id if Set as Active checked.
+- **Rolling Status Badge:** Shows "Added!" in green badge after successful gym creation.
+- **Error Handling:** Comprehensive try/catch with localized error messages (validation_name_required, validation_copy_source_required, error_create_failed, permission_required_title/desc).
+- **TypeScript Safety:** Stable tokens enforce type safety, preventing runtime errors from localization changes.
+
+**New Files Created:**
+- `apps/mobile/components/profile/AddGymDialog.tsx` - Main dialog component with all UI and logic
+- `apps/mobile/lib/openai.ts` - OpenAI GPT-5 Vision integration for gym equipment detection
+- `apps/mobile/lib/imageUtils.ts` - Base64 conversion and Supabase Storage upload utilities
+
+**Localization Updates:**
+- Extended `apps/mobile/localization/settings.en.json` with complete my_gyms section including all labels, descriptions, placeholders, validation messages, and alerts
+
+Architect-approved and production-ready. Next task: Task 22 - Manage Exercises Dialog for viewing/editing gym equipment mappings.
+
 ### Profile Screen Enhancements (October 12, 2025)
 Completed 7 major profile features for full editing functionality:
 
