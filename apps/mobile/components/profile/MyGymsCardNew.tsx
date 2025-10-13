@@ -19,6 +19,8 @@ import { AddGymNameDialog } from './AddGymNameDialog';
 import { SetupGymOptionsDialog } from './SetupGymOptionsDialog';
 import { AnalyseGymPhotoDialog } from './AnalyseGymPhotoDialog';
 import { CopyGymSetupDialog } from './CopyGymSetupDialog';
+import { DeleteGymDialog } from './DeleteGymDialog';
+import { RenameGymDialog } from './RenameGymDialog';
 
 interface Gym {
   id: string;
@@ -49,6 +51,10 @@ export function MyGymsCardNew({
   const [flowStep, setFlowStep] = useState<FlowStep | null>(null);
   const [currentGymId, setCurrentGymId] = useState<string>('');
   const [currentGymName, setCurrentGymName] = useState<string>('');
+  const [showRenameDialog, setShowRenameDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [selectedGymId, setSelectedGymId] = useState<string>('');
+  const [selectedGymName, setSelectedGymName] = useState<string>('');
 
   const handleStartAddGym = () => {
     setFlowStep('name');
@@ -120,6 +126,29 @@ export function MyGymsCardNew({
     await onRefresh();
   };
 
+  const handleDeleteGym = async () => {
+    // If deleting active gym, switch to another gym first
+    if (selectedGymId === activeGymId && gyms.length > 1) {
+      const newActiveGym = gyms.find(g => g.id !== selectedGymId);
+      if (newActiveGym) {
+        await supabase
+          .from('profiles')
+          .update({ active_gym_id: newActiveGym.id })
+          .eq('id', userId);
+      }
+    }
+    
+    await onRefresh();
+    setSelectedGymId('');
+    setSelectedGymName('');
+  };
+
+  const handleRenameGym = async () => {
+    await onRefresh();
+    setSelectedGymId('');
+    setSelectedGymName('');
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const formattedDate = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -131,7 +160,10 @@ export function MyGymsCardNew({
       <View style={styles.card}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>{strings.my_gyms.title}</Text>
+          <View style={styles.titleRow}>
+            <Ionicons name="business" size={20} color={Colors.foreground} />
+            <Text style={styles.title}>{strings.my_gyms.title}</Text>
+          </View>
           {isEditing ? (
             <TouchableOpacity onPress={() => setIsEditing(false)} style={styles.doneButton}>
               <Text style={styles.doneButtonText}>Done</Text>
@@ -150,15 +182,33 @@ export function MyGymsCardNew({
               <Text style={styles.gymName}>{gym.name}</Text>
               <Text style={styles.gymMeta}>{formatDate(gym.created_at)}</Text>
             </View>
-            {isEditing && (
+            {isEditing ? (
               <View style={styles.gymActions}>
-                <TouchableOpacity style={styles.actionButton}>
+                <TouchableOpacity 
+                  style={styles.actionButton}
+                  onPress={() => {
+                    setSelectedGymId(gym.id);
+                    setSelectedGymName(gym.name);
+                    setShowRenameDialog(true);
+                  }}
+                >
                   <Ionicons name="create-outline" size={20} color={Colors.gray600} />
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.actionButton}>
+                <TouchableOpacity 
+                  style={styles.actionButton}
+                  onPress={() => {
+                    setSelectedGymId(gym.id);
+                    setSelectedGymName(gym.name);
+                    setShowDeleteDialog(true);
+                  }}
+                >
                   <Ionicons name="trash-outline" size={20} color={Colors.red500} />
                 </TouchableOpacity>
               </View>
+            ) : (
+              <TouchableOpacity style={styles.manageButton}>
+                <Ionicons name="settings-outline" size={20} color={Colors.gray600} />
+              </TouchableOpacity>
             )}
           </View>
         ))}
@@ -203,6 +253,34 @@ export function MyGymsCardNew({
         onBack={() => setFlowStep('setup')}
         onFinish={finishSetup}
       />
+
+      <DeleteGymDialog
+        visible={showDeleteDialog}
+        gymId={selectedGymId}
+        gymName={selectedGymName}
+        isActiveGym={selectedGymId === activeGymId}
+        isLastGym={gyms.length === 1}
+        onClose={() => {
+          setShowDeleteDialog(false);
+          setSelectedGymId('');
+          setSelectedGymName('');
+        }}
+        onDelete={handleDeleteGym}
+        supabase={supabase}
+      />
+
+      <RenameGymDialog
+        visible={showRenameDialog}
+        gymId={selectedGymId}
+        currentName={selectedGymName}
+        onClose={() => {
+          setShowRenameDialog(false);
+          setSelectedGymId('');
+          setSelectedGymName('');
+        }}
+        onRename={handleRenameGym}
+        supabase={supabase}
+      />
     </>
   );
 }
@@ -219,6 +297,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: Spacing.md,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
   title: {
     fontSize: 16,
@@ -263,6 +346,9 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   actionButton: {
+    padding: Spacing.xs,
+  },
+  manageButton: {
     padding: Spacing.xs,
   },
   addButton: {
