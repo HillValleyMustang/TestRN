@@ -46,3 +46,39 @@ The application utilizes a monorepo structure for code sharing between its Next.
 - **Offline Data Storage:** Dexie (Web), expo-sqlite (Mobile)
 - **PWA Integration:** next-pwa
 - **Network Connectivity:** @react-native-community/netinfo (Mobile)
+- **Drag-and-Drop:** react-native-gesture-handler, react-native-reanimated, react-native-draggable-flatlist
+
+## Recent Changes
+
+### Manage Gym Workouts Dialog - Full Drag-and-Drop Implementation (October 13, 2025)
+Completed full drag-and-drop reordering functionality for exercise management:
+
+**Core Functionality:**
+- **Workout Selector**: Dropdown to select T-path workouts associated with a gym
+- **Exercise Display**: Separate draggable lists for core and bonus exercises with visual differentiation
+- **Drag-and-Drop Reordering**: Long-press exercises to drag and reorder within their list (core or bonus)
+- **Real-time Persistence**: Order changes automatically save to Supabase with loading indicators
+- **Delete & Info Actions**: Delete exercises with confirmation, view exercise details (order, type)
+- **Empty States**: Comprehensive messaging for no workouts, no selection, and no exercises scenarios
+- **State Management**: Proper reset on dialog close and gym change to prevent stale data
+
+**Technical Implementation:**
+- **Libraries Used**: react-native-gesture-handler, react-native-reanimated, react-native-draggable-flatlist
+- **GestureHandlerRootView**: Wraps modal for proper gesture support
+- **DraggableFlatList**: Separate instances for core and bonus exercise lists
+- **ScaleDecorator**: Visual feedback during drag with scale animation and shadow
+- **Order Persistence**: Updates `order_index` in `t_path_exercises` table on drag end
+- **Optimistic UI**: Immediate visual reordering with background save
+- **Error Handling**: Auto-reload on save failure to restore correct order
+
+**UX Features:**
+- Long-press drag handle (triple-line icon) to initiate drag
+- Visual elevation and shadow during active drag
+- "Saving order..." banner with spinner during save
+- Disabled interactions while saving to prevent conflicts
+- Separate reordering contexts for core vs bonus exercises
+
+**Files Modified:**
+- `ManageGymWorkoutsDialog.tsx` - Complete rewrite with drag-and-drop support
+
+**Production Status:** Fully production-ready with complete drag-and-drop reordering functionality.
