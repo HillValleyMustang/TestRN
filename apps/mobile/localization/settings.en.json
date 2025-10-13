@@ -4,6 +4,8 @@
     "desc": "",
     "edit": "Edit",
     "save": "Save",
+    "status_updated": "Updated!",
+    "status_error": "Error!",
     "preferred_name_label": "Preferred Name",
     "preferred_name_placeholder": "",
     "height_label": "Height (cm)",
@@ -14,6 +16,7 @@
     "body_fat_placeholder": "",
     "preferred_muscles_label": "Preferred Muscles",
     "preferred_muscles_desc": "Select muscle groups you'd like the AI Coach to prioritise in your recommendations.",
+    "muscle_groups": ["Chest", "Back", "Shoulders", "Biceps", "Triceps", "Quads", "Hamstrings", "Glutes", "Calves", "Core"],
     "health_notes_label": "Health Notes / Constraints (Optional)",
     "health_notes_placeholder": "Any injuries, health conditions, or limitations...",
     "health_notes_desc": "Share any relevant health information or limitations for the AI Coach to consider when generating advice."
