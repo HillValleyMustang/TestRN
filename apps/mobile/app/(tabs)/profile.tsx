@@ -16,6 +16,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Animated,
+  PanResponder,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -83,6 +84,27 @@ export default function ProfileScreen() {
       ...acc,
       [tab]: new Animated.Value(tab === 'overview' ? 1.1 : 1),
     }), {} as Record<Tab, Animated.Value>)
+  ).current;
+
+  // Swipe gesture handler for tab navigation
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return Math.abs(gestureState.dx) > 20;
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const currentIndex = TABS_ORDER.indexOf(activeTab);
+        
+        // Swipe right -> previous tab
+        if (gestureState.dx > 50 && currentIndex > 0) {
+          handleTabChange(TABS_ORDER[currentIndex - 1]);
+        }
+        // Swipe left -> next tab
+        else if (gestureState.dx < -50 && currentIndex < TABS_ORDER.length - 1) {
+          handleTabChange(TABS_ORDER[currentIndex + 1]);
+        }
+      },
+    })
   ).current;
 
   const levelInfo = useLevelFromPoints(profile?.total_points || 0);
@@ -540,9 +562,8 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Danger Zone */}
+      {/* Security Actions */}
       <View style={styles.settingsSection}>
-        <Text style={[styles.settingsSectionTitle, styles.dangerTitle]}>Danger Zone</Text>
         <TouchableOpacity 
           style={styles.dangerButton}
           onPress={() => {
@@ -601,17 +622,18 @@ export default function ProfileScreen() {
 
   return (
     <ScreenContainer scroll={false}>
-      <View style={styles.container}>
+      <ScrollView 
+        {...panResponder.panHandlers}
+        style={styles.mainScroll}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.mainScrollContent}
+      >
         {renderHeader()}
         {renderTabs()}
-        <ScrollView 
-          style={styles.tabContentScroll}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.tabContentContainer}
-        >
+        <View style={styles.tabContent}>
           {renderTabContent()}
-        </ScrollView>
-      </View>
+        </View>
+      </ScrollView>
 
       {/* Modals */}
       <PointsExplanationModal
@@ -679,15 +701,14 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  mainScroll: {
     flex: 1,
   },
-  tabContentScroll: {
-    flex: 1,
-  },
-  tabContentContainer: {
-    paddingHorizontal: Spacing.lg,
+  mainScrollContent: {
     paddingBottom: Spacing.xl,
+  },
+  tabContent: {
+    paddingHorizontal: Spacing.lg,
   },
   loadingContainer: {
     flex: 1,
