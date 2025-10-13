@@ -3,7 +3,7 @@
  * Handles image conversion and processing
  */
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 /**
  * Convert image URI to base64 string
@@ -13,7 +13,7 @@ import * as FileSystem from 'expo-file-system';
 export async function imageUriToBase64(uri: string): Promise<string> {
   try {
     const base64 = await FileSystem.readAsStringAsync(uri, {
-      encoding: 'base64',
+      encoding: FileSystem.EncodingType.Base64,
     });
     return base64;
   } catch (error) {

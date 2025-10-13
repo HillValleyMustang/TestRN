@@ -79,6 +79,62 @@ export const CopyGymSetupDialog: React.FC<CopyGymSetupDialogProps> = ({
         await supabase.from('gym_exercises').insert(exerciseInserts);
       }
 
+      // Copy T-paths (workout programs) from source gym
+      const { data: sourceTpaths } = await supabase
+        .from('t_paths')
+        .select('*')
+        .eq('gym_id', selectedSourceId);
+
+      if (sourceTpaths && sourceTpaths.length > 0) {
+        const tpathMapping: Record<string, string> = {}; // Old ID -> New ID
+
+        for (const tpath of sourceTpaths) {
+          const { data: newTpath } = await supabase
+            .from('t_paths')
+            .insert({
+              user_id: tpath.user_id,
+              gym_id: gymId,
+              template_name: tpath.template_name,
+              is_bonus: tpath.is_bonus,
+              settings: tpath.settings,
+              progression_settings: tpath.progression_settings,
+              parent_t_path_id: null, // Will update after all are inserted
+            })
+            .select()
+            .single();
+
+          if (newTpath) {
+            tpathMapping[tpath.id] = newTpath.id;
+
+            // Copy T-path exercises
+            const { data: tpathExercises } = await supabase
+              .from('t_path_exercises')
+              .select('*')
+              .eq('template_id', tpath.id);
+
+            if (tpathExercises && tpathExercises.length > 0) {
+              const exerciseInserts = tpathExercises.map((ex) => ({
+                template_id: newTpath.id,
+                exercise_id: ex.exercise_id,
+                order_index: ex.order_index,
+                is_bonus_exercise: ex.is_bonus_exercise,
+              }));
+              await supabase.from('t_path_exercises').insert(exerciseInserts);
+            }
+          }
+        }
+
+        // Update parent_t_path_id relationships
+        for (const tpath of sourceTpaths) {
+          if (tpath.parent_t_path_id && tpathMapping[tpath.parent_t_path_id]) {
+            await supabase
+              .from('t_paths')
+              .update({ parent_t_path_id: tpathMapping[tpath.parent_t_path_id] })
+              .eq('id', tpathMapping[tpath.id]);
+          }
+        }
+      }
+
       onFinish();
     } catch (error) {
       console.error('[CopyGymSetupDialog] Error:', error);

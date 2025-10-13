@@ -37,7 +37,7 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
   onFinish,
 }) => {
   const { userId, supabase } = useAuth();
-  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageUris, setImageUris] = useState<string[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const handlePickImage = async () => {
@@ -49,45 +49,57 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
+      allowsMultipleSelection: true,
       quality: 0.8,
+      selectionLimit: 5,
     });
 
-    if (!result.canceled && result.assets[0]) {
-      setImageUri(result.assets[0].uri);
+    if (!result.canceled && result.assets.length > 0) {
+      setImageUris(result.assets.map(asset => asset.uri));
     }
   };
 
   const handleUploadAndAnalyse = async () => {
-    if (!imageUri || !userId) return;
+    if (imageUris.length === 0 || !userId) return;
 
     setIsAnalyzing(true);
     try {
-      // Upload image to Supabase Storage
-      const imagePath = `${userId}/${Date.now()}.jpg`;
-      const imageUrl = await uploadImageToSupabase(supabase, 'user-uploads', imagePath, imageUri);
+      // Upload all images and collect base64 for AI analysis
+      const imageUrls: string[] = [];
+      const base64Images: string[] = [];
 
-      // Convert image to base64 for AI analysis
-      const base64Image = await imageUriToBase64(imageUri);
+      for (let i = 0; i < imageUris.length; i++) {
+        const imagePath = `${userId}/${Date.now()}_${i}.jpg`;
+        const imageUrl = await uploadImageToSupabase(supabase, 'user-uploads', imagePath, imageUris[i]);
+        imageUrls.push(imageUrl);
 
-      // Update gym with image URL
+        // Convert image to base64 for AI analysis
+        const base64Image = await imageUriToBase64(imageUris[i]);
+        base64Images.push(base64Image);
+      }
+
+      // Update gym with first image URL
       await supabase
         .from('gyms')
-        .update({ image_url: imageUrl })
+        .update({ image_url: imageUrls[0] })
         .eq('id', gymId);
 
-      // Analyze gym equipment with OpenAI
-      const analysisResult = await analyzeGymEquipment(base64Image);
+      // Analyze all gym photos with OpenAI
+      const allEquipment = new Set<string>();
+      
+      for (const base64Image of base64Images) {
+        const analysisResult = await analyzeGymEquipment(base64Image);
+        analysisResult.equipment.forEach((category) => {
+          category.items.forEach((item) => allEquipment.add(item));
+        });
+      }
 
-      // Insert detected equipment
-      const equipmentInserts = analysisResult.equipment.flatMap((category) =>
-        category.items.map((item) => ({
-          gym_id: gymId,
-          equipment_type: item,
-          quantity: 1,
-        }))
-      );
+      // Insert detected equipment (deduplicated)
+      const equipmentInserts = Array.from(allEquipment).map((item) => ({
+        gym_id: gymId,
+        equipment_type: item,
+        quantity: 1,
+      }));
 
       if (equipmentInserts.length > 0) {
         await supabase.from('gym_equipment').insert(equipmentInserts);
@@ -96,7 +108,7 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
       onFinish();
     } catch (error) {
       console.error('[AnalyseGymPhotoDialog] Error:', error);
-      alert('Failed to analyze gym photo. Please try again.');
+      alert('Failed to analyze gym photos. Please try again.');
     } finally {
       setIsAnalyzing(false);
     }
@@ -129,8 +141,12 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
           {/* Upload Area */}
           <View style={styles.uploadContainer}>
             <View style={styles.dashedBorder}>
-              {imageUri ? (
-                <Image source={{ uri: imageUri }} style={styles.previewImage} />
+              {imageUris.length > 0 ? (
+                <View style={styles.imageGrid}>
+                  {imageUris.map((uri, index) => (
+                    <Image key={index} source={{ uri }} style={styles.thumbnailImage} />
+                  ))}
+                </View>
               ) : (
                 <>
                   <Ionicons name="cloud-upload-outline" size={40} color={Colors.mutedForeground} />
@@ -148,7 +164,7 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
             >
               <Ionicons name="camera" size={20} color="#fff" />
               <Text style={styles.uploadButtonText}>
-                {imageUri ? 'Change Photo' : 'Upload & Analyse'}
+                {imageUris.length > 0 ? `Change Photos (${imageUris.length})` : 'Upload Photos'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -167,10 +183,10 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
               style={[
                 styles.button,
                 styles.finishButton,
-                (isAnalyzing || !imageUri) && styles.finishButtonDisabled,
+                (isAnalyzing || imageUris.length === 0) && styles.finishButtonDisabled,
               ]}
               onPress={handleUploadAndAnalyse}
-              disabled={isAnalyzing || !imageUri}
+              disabled={isAnalyzing || imageUris.length === 0}
             >
               {isAnalyzing ? (
                 <ActivityIndicator color="#fff" size="small" />
@@ -251,9 +267,15 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     lineHeight: 18,
   },
-  previewImage: {
-    width: '100%',
-    height: 160,
+  imageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    justifyContent: 'center',
+  },
+  thumbnailImage: {
+    width: 80,
+    height: 80,
     borderRadius: BorderRadius.md,
   },
   uploadButton: {
