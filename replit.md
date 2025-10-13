@@ -137,7 +137,7 @@ Fixed all missing functionality in My Gyms card with full Supabase integration:
 **Navigation Integration:**
 - Added useRouter to profile.tsx
 - Created handleManageGym function: navigates to `/gym-editor?id={gymId}`
-- Manage icon wired to gym equipment editor screen
+- Manage icon wired to gym equipment editor screen (barbell-outline icon)
 - Seamless navigation flow from profile to equipment management
 
 **Database Operations:**
@@ -155,6 +155,33 @@ Fixed all missing functionality in My Gyms card with full Supabase integration:
 - `profile.tsx` - Added router navigation for gym management
 
 Architect-approved and production-ready. All My Gyms card functionality now complete with full Supabase integration.
+
+### My Gyms Card Bug Fixes (October 13, 2025)
+Fixed three critical bugs blocking My Gyms card functionality:
+
+**1. Gym Editor Navigation Error:**
+- Fixed missing `useCallback` import in gym-editor.tsx
+- Error: "Property 'useCallback' doesn't exist" was preventing gym equipment management screen from loading
+- Added useCallback to React imports on line 1
+- Manage gym flow now works properly without render errors
+
+**2. Icon Update:**
+- Changed manage icon from cog (settings-outline) to dumbbell (barbell-outline)
+- Better visual representation for gym equipment management
+- Icon displays when NOT in edit mode, provides quick access to gym-editor screen
+
+**3. Setup Options Dialog Rendering:**
+- Fixed Step 2 option cards not appearing after gym name input
+- Changed optionsContainer from `flex: 1` to `marginTop: Spacing.md`
+- Root cause: flex: 1 was causing ScrollView content to collapse
+- All 4 setup option cards (AI Photo, Copy, Defaults, Empty) now render properly
+
+**Files Modified:**
+- `apps/mobile/app/gym-editor.tsx` - Added useCallback import
+- `apps/mobile/components/profile/MyGymsCardNew.tsx` - Changed icon to barbell-outline
+- `apps/mobile/components/profile/SetupGymOptionsDialog.tsx` - Fixed ScrollView styling
+
+Architect-approved and production-ready. Complete My Gyms flow now fully functional.
 
 ### Profile Screen Enhancements (October 12, 2025)
 Completed 7 major profile features for full editing functionality:
