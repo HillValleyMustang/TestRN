@@ -39,6 +39,7 @@ import { ProgrammeTypeCard } from '../../components/profile/ProgrammeTypeCard';
 import { MyGymsCardNew } from '../../components/profile/MyGymsCardNew';
 import { AICoachUsageCard } from '../../components/profile/AICoachUsageCard';
 import { DataExportCard } from '../../components/profile/DataExportCard';
+import { ManageGymWorkoutsDialog } from '../../components/profile/ManageGymWorkoutsDialog';
 
 const { width } = Dimensions.get('window');
 
@@ -81,6 +82,9 @@ export default function ProfileScreen() {
   const [preferencesModalVisible, setPreferencesModalVisible] = useState(false);
   const [achievementModalVisible, setAchievementModalVisible] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<any>(null);
+  const [manageWorkoutsVisible, setManageWorkoutsVisible] = useState(false);
+  const [selectedGymId, setSelectedGymId] = useState<string>('');
+  const [selectedGymName, setSelectedGymName] = useState<string>('');
 
   // Animation values for tab icons
   const tabScales = useRef<Record<Tab, Animated.Value>>(
@@ -174,7 +178,12 @@ export default function ProfileScreen() {
   };
 
   const handleManageGym = (gymId: string) => {
-    router.push(`/gym-editor?id=${gymId}`);
+    const gym = gyms.find(g => g.id === gymId);
+    if (gym) {
+      setSelectedGymId(gymId);
+      setSelectedGymName(gym.name);
+      setManageWorkoutsVisible(true);
+    }
   };
 
   const loadSavedTab = async () => {
@@ -717,6 +726,16 @@ export default function ProfileScreen() {
         visible={achievementModalVisible}
         onClose={() => setAchievementModalVisible(false)}
         achievement={selectedAchievement}
+      />
+      <ManageGymWorkoutsDialog
+        visible={manageWorkoutsVisible}
+        gymId={selectedGymId}
+        gymName={selectedGymName}
+        onClose={() => {
+          setManageWorkoutsVisible(false);
+          setSelectedGymId('');
+          setSelectedGymName('');
+        }}
       />
     </ScreenContainer>
   );
