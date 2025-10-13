@@ -109,6 +109,53 @@ Completed comprehensive Profile Settings redesign with multi-step gym creation a
 
 Architect-approved and production-ready. Settings tab now complete with all designed functionality.
 
+### My Gyms Card Complete Functionality (October 13, 2025)
+Fixed all missing functionality in My Gyms card with full Supabase integration:
+
+**Visual Enhancements:**
+- **Header Icon:** Added gym/building icon (Ionicons "business") next to "My Gyms" title for visual consistency
+- **Manage Icon:** Added settings icon for each gym (visible when NOT in edit mode) providing quick access to equipment management
+
+**Delete Functionality (DeleteGymDialog.tsx):**
+- Full confirmation dialog with warning icon and detailed messaging
+- Supabase CASCADE deletion in correct order:
+  1. Delete gym_exercises (foreign key constraint)
+  2. Delete gym_equipment
+  3. Delete gym record
+- Edge case handling:
+  - Prevents deleting last gym (minimum 1 required)
+  - Shows warning when deleting active gym
+  - Auto-switches active_gym_id to another gym when deleting active
+- Loading states, error handling, and user feedback
+
+**Rename Functionality (RenameGymDialog.tsx):**
+- Modal with text input pre-filled with current name
+- Validation: required field, trimmed, no-op if unchanged
+- Direct Supabase update to gyms.name
+- Loading states and error handling
+
+**Navigation Integration:**
+- Added useRouter to profile.tsx
+- Created handleManageGym function: navigates to `/gym-editor?id={gymId}`
+- Manage icon wired to gym equipment editor screen
+- Seamless navigation flow from profile to equipment management
+
+**Database Operations:**
+- DELETE: Proper CASCADE deletion of all related records (gym_exercises, gym_equipment, gyms)
+- UPDATE: Direct gym name updates with validation
+- Active gym management: Automatic reassignment when deleting active gym
+- Data refresh after all operations to maintain UI consistency
+
+**Files Created:**
+- `DeleteGymDialog.tsx` - Delete confirmation with CASCADE logic
+- `RenameGymDialog.tsx` - Rename validation and update
+
+**Files Modified:**
+- `MyGymsCardNew.tsx` - Added icons, wired all buttons, integrated dialogs
+- `profile.tsx` - Added router navigation for gym management
+
+Architect-approved and production-ready. All My Gyms card functionality now complete with full Supabase integration.
+
 ### Profile Screen Enhancements (October 12, 2025)
 Completed 7 major profile features for full editing functionality:
 
