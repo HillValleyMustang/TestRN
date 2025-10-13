@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
+import { useSettingsStrings } from '../../localization/useSettingsStrings';
 
 interface Gym {
   id: string;
@@ -39,8 +40,11 @@ export function MyGymsCard({
   onRefresh,
   supabase 
 }: MyGymsCardProps) {
+  const strings = useSettingsStrings();
+
   const [isEditing, setIsEditing] = useState(false);
   const [rollingStatus, setRollingStatus] = useState<string | null>(null);
+  const [hasError, setHasError] = useState(false);
   
   // Add Gym Modal
   const [showAddModal, setShowAddModal] = useState(false);
@@ -61,7 +65,8 @@ export function MyGymsCard({
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const formattedDate = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return `${strings.my_gyms.added_meta_prefix}${formattedDate}`;
   };
 
   const handleAddGym = async () => {
@@ -81,11 +86,17 @@ export function MyGymsCard({
       setShowAddModal(false);
       setNewGymName('');
       await onRefresh();
-      setRollingStatus('Added!');
+      setRollingStatus(strings.my_gyms.status_added);
+      setHasError(false);
       setTimeout(() => setRollingStatus(null), 2500);
     } catch (error) {
       console.error('[MyGymsCard] Add error:', error);
-      Alert.alert('Error', 'Failed to add gym');
+      setRollingStatus(strings.my_gyms.status_error);
+      setHasError(true);
+      setTimeout(() => {
+        setRollingStatus(null);
+        setHasError(false);
+      }, 2500);
     } finally {
       setIsAdding(false);
     }
@@ -107,11 +118,17 @@ export function MyGymsCard({
       setRenameGymId(null);
       setRenameGymName('');
       await onRefresh();
-      setRollingStatus('Renamed!');
+      setRollingStatus(strings.my_gyms.status_renamed);
+      setHasError(false);
       setTimeout(() => setRollingStatus(null), 2500);
     } catch (error) {
       console.error('[MyGymsCard] Rename error:', error);
-      Alert.alert('Error', 'Failed to rename gym');
+      setRollingStatus(strings.my_gyms.status_error);
+      setHasError(true);
+      setTimeout(() => {
+        setRollingStatus(null);
+        setHasError(false);
+      }, 2500);
     } finally {
       setIsRenaming(false);
     }
@@ -122,7 +139,6 @@ export function MyGymsCard({
 
     setIsDeleting(true);
     try {
-      // If deleting active gym and others remain, set another as active
       if (deleteGymId === activeGymId && gyms.length > 1) {
         const newActiveGym = gyms.find(g => g.id !== deleteGymId);
         if (newActiveGym) {
@@ -133,7 +149,6 @@ export function MyGymsCard({
         }
       }
 
-      // If this is the last gym, clear active_gym_id
       if (gyms.length === 1) {
         await supabase
           .from('profiles')
@@ -152,11 +167,17 @@ export function MyGymsCard({
       setDeleteGymId(null);
       setDeleteGymName('');
       await onRefresh();
-      setRollingStatus('Removed!');
+      setRollingStatus(strings.my_gyms.status_removed);
+      setHasError(false);
       setTimeout(() => setRollingStatus(null), 2500);
     } catch (error) {
       console.error('[MyGymsCard] Delete error:', error);
-      Alert.alert('Error', 'Failed to delete gym');
+      setRollingStatus(strings.my_gyms.status_error);
+      setHasError(true);
+      setTimeout(() => {
+        setRollingStatus(null);
+        setHasError(false);
+      }, 2500);
     } finally {
       setIsDeleting(false);
     }
@@ -179,17 +200,16 @@ export function MyGymsCard({
   return (
     <>
       <View style={styles.card}>
-        {/* Header */}
         <View style={styles.header}>
           <View style={styles.titleRow}>
             <Ionicons name="business" size={20} color={Colors.foreground} />
-            <Text style={styles.title}>My Gyms</Text>
+            <Text style={styles.title}>{strings.my_gyms.title}</Text>
           </View>
           <View style={styles.headerActions}>
             {rollingStatus && (
               <Text style={[
                 styles.rollingStatus,
-                rollingStatus.includes('Error') && styles.rollingStatusError
+                hasError && styles.rollingStatusError
               ]}>
                 {rollingStatus}
               </Text>
@@ -204,19 +224,18 @@ export function MyGymsCard({
                 color={Colors.blue600} 
               />
               <Text style={styles.actionButtonText}>
-                {isEditing ? 'Done' : 'Edit'}
+                {isEditing ? strings.my_gyms.done : strings.my_gyms.edit}
               </Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Content */}
         <View style={styles.content}>
           {gyms.map(gym => (
             <View key={gym.id} style={styles.gymRow}>
               <View style={styles.gymInfo}>
                 <Text style={styles.gymName}>{gym.name}</Text>
-                <Text style={styles.gymMeta}>Added: {formatDate(gym.created_at)}</Text>
+                <Text style={styles.gymMeta}>{formatDate(gym.created_at)}</Text>
               </View>
               
               {isEditing && (
@@ -244,13 +263,12 @@ export function MyGymsCard({
               onPress={() => setShowAddModal(true)}
             >
               <Ionicons name="add-circle-outline" size={20} color={Colors.blue600} />
-              <Text style={styles.addButtonText}>Add New Gym</Text>
+              <Text style={styles.addButtonText}>{strings.my_gyms.add_new}</Text>
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {/* Add Gym Modal */}
       <Modal
         visible={showAddModal}
         transparent
@@ -259,14 +277,14 @@ export function MyGymsCard({
       >
         <View style={styles.modalOverlay}>
           <View style={styles.dialogContainer}>
-            <Text style={styles.dialogTitle}>Add New Gym</Text>
+            <Text style={styles.dialogTitle}>{strings.my_gyms.create_title}</Text>
             <View style={styles.formField}>
-              <Text style={styles.formLabel}>Name</Text>
+              <Text style={styles.formLabel}>{strings.my_gyms.name_label}</Text>
               <TextInput
                 style={styles.formInput}
                 value={newGymName}
                 onChangeText={setNewGymName}
-                placeholder="e.g., Home Gym, Fitness First"
+                placeholder={strings.my_gyms.name_placeholder}
                 placeholderTextColor={Colors.mutedForeground}
               />
             </View>
@@ -276,7 +294,7 @@ export function MyGymsCard({
                 onPress={() => setShowAddModal(false)}
                 disabled={isAdding}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>{strings.my_gyms.create_cancel}</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.confirmButton}
@@ -286,7 +304,7 @@ export function MyGymsCard({
                 {isAdding ? (
                   <ActivityIndicator size="small" color={Colors.white} />
                 ) : (
-                  <Text style={styles.confirmButtonText}>Create</Text>
+                  <Text style={styles.confirmButtonText}>{strings.my_gyms.create_confirm}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -294,7 +312,6 @@ export function MyGymsCard({
         </View>
       </Modal>
 
-      {/* Rename Gym Modal */}
       <Modal
         visible={showRenameModal}
         transparent
@@ -303,12 +320,12 @@ export function MyGymsCard({
       >
         <View style={styles.modalOverlay}>
           <View style={styles.dialogContainer}>
-            <Text style={styles.dialogTitle}>Rename Gym</Text>
+            <Text style={styles.dialogTitle}>{strings.my_gyms.rename_title}</Text>
             <TextInput
               style={styles.formInput}
               value={renameGymName}
               onChangeText={setRenameGymName}
-              placeholder="e.g., Home Gym, Fitness First"
+              placeholder={strings.my_gyms.rename_placeholder}
               placeholderTextColor={Colors.mutedForeground}
             />
             <View style={styles.dialogActions}>
@@ -317,7 +334,7 @@ export function MyGymsCard({
                 onPress={() => setShowRenameModal(false)}
                 disabled={isRenaming}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>{strings.my_gyms.rename_cancel}</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.confirmButton}
@@ -327,7 +344,7 @@ export function MyGymsCard({
                 {isRenaming ? (
                   <ActivityIndicator size="small" color={Colors.white} />
                 ) : (
-                  <Text style={styles.confirmButtonText}>Save</Text>
+                  <Text style={styles.confirmButtonText}>{strings.my_gyms.rename_save}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -335,7 +352,6 @@ export function MyGymsCard({
         </View>
       </Modal>
 
-      {/* Delete Gym Modal */}
       <Modal
         visible={showDeleteModal}
         transparent
@@ -345,12 +361,12 @@ export function MyGymsCard({
         <View style={styles.modalOverlay}>
           <View style={styles.dialogContainer}>
             <Text style={styles.dialogTitle}>
-              {isLastGym ? 'Warning: Deleting Last Gym' : 'Confirm Deletion'}
+              {isLastGym ? strings.my_gyms.warning_last_title : strings.my_gyms.confirm_delete_title}
             </Text>
             <Text style={styles.dialogDescription}>
               {isLastGym 
-                ? 'This is your last gym. Deleting it will reset your current workout plan to use default "common gym" exercises. Your T-Path and session preferences will be kept. Are you sure you want to continue?'
-                : `Are you sure you want to delete the gym "${deleteGymName}"? This action cannot be undone.`
+                ? strings.my_gyms.warning_last_desc
+                : `${strings.my_gyms.confirm_delete_desc_prefix}${deleteGymName}${strings.my_gyms.confirm_delete_desc_suffix}`
               }
             </Text>
             <View style={styles.dialogActions}>
@@ -359,7 +375,9 @@ export function MyGymsCard({
                 onPress={() => setShowDeleteModal(false)}
                 disabled={isDeleting}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>
+                  {isLastGym ? strings.my_gyms.warning_last_cancel : strings.my_gyms.confirm_delete_cancel}
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[styles.confirmButton, styles.deleteButton]}
@@ -370,7 +388,7 @@ export function MyGymsCard({
                   <ActivityIndicator size="small" color={Colors.white} />
                 ) : (
                   <Text style={styles.confirmButtonText}>
-                    {isLastGym ? 'Continue and Reset Plan' : 'Delete'}
+                    {isLastGym ? strings.my_gyms.warning_last_continue : strings.my_gyms.confirm_delete_delete}
                   </Text>
                 )}
               </TouchableOpacity>

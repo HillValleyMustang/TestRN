@@ -26,18 +26,37 @@
     "desc": "",
     "edit": "Edit",
     "save": "Save",
+    "status_updated": "Updated!",
+    "status_error": "Error!",
     "primary_goal_label": "Primary Goal",
-    "primary_goal_placeholder": "Select your goal",
-    "primary_goal_options": ["Muscle Gain", "Fat Loss", "Strength Increase"],
+    "primary_goal_placeholder": "",
+    "primary_goal_options": [
+      { "label": "Muscle Gain", "value": "muscle_gain" },
+      { "label": "Fat Loss", "value": "fat_loss" },
+      { "label": "Strength Increase", "value": "strength_increase" }
+    ],
     "session_length_label": "Preferred Session Length",
-    "session_length_placeholder": "Select length",
-    "session_length_options": ["15-30 mins", "30-45 mins", "45-60 mins", "60-90 mins"]
+    "session_length_placeholder": "",
+    "session_length_options": [
+      { "label": "15-30 mins", "value": 30 },
+      { "label": "30-45 mins", "value": 45 },
+      { "label": "45-60 mins", "value": 60 },
+      { "label": "60-90 mins", "value": 90 }
+    ]
   },
   "programme_type": {
     "title": "Programme Type",
     "desc": "",
-    "placeholder": "Select your programme type",
-    "options": [],
+    "edit": "Edit",
+    "save": "Save",
+    "status_updated": "Updated!",
+    "status_error": "Error!",
+    "label": "Programme Type",
+    "placeholder": "",
+    "options": [
+      { "label": "4-Day Upper/Lower", "value": "ulul" },
+      { "label": "3-Day Push/Pull/Legs", "value": "ppl" }
+    ],
     "info": "Changing your programme type (or T-Path as we call it) will reset and regenerate all workout plans for all of your gyms to match the new structure.",
     "confirm_title": "Confirm Programme Change",
     "confirm_desc": "Are you sure you want to change your programme type? This action cannot be undone. It will permanently delete and regenerate the workout plans for ALL of your gyms to match the new structure.",
@@ -49,6 +68,10 @@
   "my_gyms": {
     "title": "My Gyms",
     "desc": "",
+    "status_renamed": "Renamed!",
+    "status_removed": "Removed!",
+    "status_added": "Added!",
+    "status_error": "Error!",
     "added_meta_prefix": "Added: ",
     "edit": "Edit",
     "done": "Done",

@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
+import { useSettingsStrings } from '../../localization/useSettingsStrings';
 
 interface ProgrammeTypeCardProps {
   profile: any;
@@ -22,21 +23,20 @@ interface ProgrammeTypeCardProps {
   onRegenerateTPath?: () => Promise<void>;
 }
 
-const PROGRAMME_TYPES = [
-  { label: '4-Day Upper/Lower', value: 'ulul' },
-  { label: '3-Day Push/Pull/Legs', value: 'ppl' },
-];
-
 export function ProgrammeTypeCard({ 
   profile, 
   onUpdate,
   onRegenerateTPath 
 }: ProgrammeTypeCardProps) {
+  const strings = useSettingsStrings();
+  const PROGRAMME_TYPE_OPTIONS = strings.programme_type.options;
+
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
   const [rollingStatus, setRollingStatus] = useState<string | null>(null);
+  const [hasError, setHasError] = useState(false);
 
   const [programmeType, setProgrammeType] = useState('');
 
@@ -71,18 +71,22 @@ export function ProgrammeTypeCard({
 
       await onUpdate(updates);
 
-      // Regenerate T-Path if user has one
       if (profile.active_t_path_id && onRegenerateTPath) {
         await onRegenerateTPath();
       }
 
-      setRollingStatus('Updated!');
+      setRollingStatus(strings.programme_type.status_updated);
+      setHasError(false);
       setIsEditing(false);
       setTimeout(() => setRollingStatus(null), 2500);
     } catch (error) {
       console.error('[ProgrammeTypeCard] Save error:', error);
-      setRollingStatus('Error!');
-      setTimeout(() => setRollingStatus(null), 2500);
+      setRollingStatus(strings.programme_type.status_error);
+      setHasError(true);
+      setTimeout(() => {
+        setRollingStatus(null);
+        setHasError(false);
+      }, 2500);
     } finally {
       setIsSaving(false);
       setShowLoading(false);
@@ -90,23 +94,23 @@ export function ProgrammeTypeCard({
   };
 
   const getProgrammeLabel = (value: string) => {
-    return PROGRAMME_TYPES.find(p => p.value === value)?.label || 'Select your programme type';
+    const option = PROGRAMME_TYPE_OPTIONS.find(p => p.value === value);
+    return option ? option.label : '';
   };
 
   return (
     <>
       <View style={styles.card}>
-        {/* Header */}
         <View style={styles.header}>
           <View style={styles.titleRow}>
             <Ionicons name="calendar" size={20} color={Colors.foreground} />
-            <Text style={styles.title}>Programme Type</Text>
+            <Text style={styles.title}>{strings.programme_type.title}</Text>
           </View>
           <View style={styles.headerActions}>
             {rollingStatus && (
               <Text style={[
                 styles.rollingStatus,
-                rollingStatus.includes('Error') && styles.rollingStatusError
+                hasError && styles.rollingStatusError
               ]}>
                 {rollingStatus}
               </Text>
@@ -126,7 +130,7 @@ export function ProgrammeTypeCard({
                     color={Colors.blue600} 
                   />
                   <Text style={styles.actionButtonText}>
-                    {isEditing ? 'Save' : 'Edit'}
+                    {isEditing ? strings.programme_type.save : strings.programme_type.edit}
                   </Text>
                 </>
               )}
@@ -134,14 +138,13 @@ export function ProgrammeTypeCard({
           </View>
         </View>
 
-        {/* Content */}
         <View style={styles.content}>
           <View style={styles.field}>
-            <Text style={styles.label}>Programme Type</Text>
+            <Text style={styles.label}>{strings.programme_type.label}</Text>
             {isEditing ? (
               <>
                 <View style={styles.selectContainer}>
-                  {PROGRAMME_TYPES.map(programme => (
+                  {PROGRAMME_TYPE_OPTIONS.map(programme => (
                     <TouchableOpacity
                       key={programme.value}
                       style={[
@@ -163,7 +166,7 @@ export function ProgrammeTypeCard({
                   ))}
                 </View>
                 <Text style={styles.infoText}>
-                  Changing your programme type (or T-Path as we call it) will reset and regenerate all workout plans for all of your gyms to match the new structure.
+                  {strings.programme_type.info}
                 </Text>
               </>
             ) : (
@@ -173,7 +176,6 @@ export function ProgrammeTypeCard({
         </View>
       </View>
 
-      {/* Confirmation Dialog */}
       <Modal
         visible={showConfirmDialog}
         transparent
@@ -182,29 +184,28 @@ export function ProgrammeTypeCard({
       >
         <View style={styles.modalOverlay}>
           <View style={styles.dialogContainer}>
-            <Text style={styles.dialogTitle}>Confirm Programme Change</Text>
+            <Text style={styles.dialogTitle}>{strings.programme_type.confirm_title}</Text>
             <Text style={styles.dialogDescription}>
-              Are you sure you want to change your programme type? This action cannot be undone. It will permanently delete and regenerate the workout plans for ALL of your gyms to match the new structure.
+              {strings.programme_type.confirm_desc}
             </Text>
             <View style={styles.dialogActions}>
               <TouchableOpacity 
                 style={styles.cancelButton}
                 onPress={() => setShowConfirmDialog(false)}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>{strings.programme_type.confirm_cancel}</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.confirmButton}
                 onPress={handleConfirmChange}
               >
-                <Text style={styles.confirmButtonText}>Confirm & Reset All Plans</Text>
+                <Text style={styles.confirmButtonText}>{strings.programme_type.confirm_confirm}</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Loading Overlay */}
       <Modal
         visible={showLoading}
         transparent
@@ -213,9 +214,9 @@ export function ProgrammeTypeCard({
         <View style={styles.modalOverlay}>
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={Colors.blue600} />
-            <Text style={styles.loadingTitle}>Updating Programme</Text>
+            <Text style={styles.loadingTitle}>{strings.programme_type.overlay_title}</Text>
             <Text style={styles.loadingDescription}>
-              Please wait while we regenerate all your workout plans...
+              {strings.programme_type.overlay_desc}
             </Text>
           </View>
         </View>

@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
+import { useSettingsStrings } from '../../localization/useSettingsStrings';
 
 interface WorkoutPreferencesCardProps {
   profile: any;
@@ -21,27 +22,19 @@ interface WorkoutPreferencesCardProps {
   onRegenerateTPath?: (sessionLength?: number) => Promise<void>;
 }
 
-const PRIMARY_GOALS = [
-  { label: 'Muscle Gain', value: 'muscle_gain' },
-  { label: 'Fat Loss', value: 'fat_loss' },
-  { label: 'Strength Increase', value: 'strength_increase' },
-];
-
-const SESSION_LENGTHS = [
-  { label: '15-30 mins', value: 30 },
-  { label: '30-45 mins', value: 45 },
-  { label: '45-60 mins', value: 60 },
-  { label: '60-90 mins', value: 90 },
-];
-
 export function WorkoutPreferencesCard({ 
   profile, 
   onUpdate,
   onRegenerateTPath 
 }: WorkoutPreferencesCardProps) {
+  const strings = useSettingsStrings();
+  const PRIMARY_GOAL_OPTIONS = strings.workout_preferences.primary_goal_options;
+  const SESSION_LENGTH_OPTIONS = strings.workout_preferences.session_length_options;
+
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [rollingStatus, setRollingStatus] = useState<string | null>(null);
+  const [hasError, setHasError] = useState(false);
 
   const [primaryGoal, setPrimaryGoal] = useState('');
   const [sessionLength, setSessionLength] = useState<number>(60);
@@ -63,7 +56,6 @@ export function WorkoutPreferencesCard({
 
       await onUpdate(updates);
 
-      // If session length changed and user has active T-Path, regenerate
       if (
         sessionLength !== profile.preferred_session_length &&
         profile.active_t_path_id &&
@@ -72,39 +64,45 @@ export function WorkoutPreferencesCard({
         await onRegenerateTPath(sessionLength);
       }
 
-      setRollingStatus('Updated!');
+      setRollingStatus(strings.workout_preferences.status_updated);
+      setHasError(false);
       setIsEditing(false);
       setTimeout(() => setRollingStatus(null), 2500);
     } catch (error) {
       console.error('[WorkoutPreferencesCard] Save error:', error);
-      setRollingStatus('Error!');
-      setTimeout(() => setRollingStatus(null), 2500);
+      setRollingStatus(strings.workout_preferences.status_error);
+      setHasError(true);
+      setTimeout(() => {
+        setRollingStatus(null);
+        setHasError(false);
+      }, 2500);
     } finally {
       setIsSaving(false);
     }
   };
 
   const getGoalLabel = (value: string) => {
-    return PRIMARY_GOALS.find(g => g.value === value)?.label || 'Select your goal';
+    const option = PRIMARY_GOAL_OPTIONS.find(g => g.value === value);
+    return option ? option.label : '';
   };
 
   const getSessionLabel = (value: number) => {
-    return SESSION_LENGTHS.find(s => s.value === value)?.label || 'Select length';
+    const option = SESSION_LENGTH_OPTIONS.find(s => s.value === value);
+    return option ? option.label : '';
   };
 
   return (
     <View style={styles.card}>
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <Ionicons name="barbell" size={20} color={Colors.foreground} />
-          <Text style={styles.title}>Workout Preferences</Text>
+          <Text style={styles.title}>{strings.workout_preferences.title}</Text>
         </View>
         <View style={styles.headerActions}>
           {rollingStatus && (
             <Text style={[
               styles.rollingStatus,
-              rollingStatus.includes('Error') && styles.rollingStatusError
+              hasError && styles.rollingStatusError
             ]}>
               {rollingStatus}
             </Text>
@@ -124,7 +122,7 @@ export function WorkoutPreferencesCard({
                   color={Colors.blue600} 
                 />
                 <Text style={styles.actionButtonText}>
-                  {isEditing ? 'Save' : 'Edit'}
+                  {isEditing ? strings.workout_preferences.save : strings.workout_preferences.edit}
                 </Text>
               </>
             )}
@@ -132,14 +130,12 @@ export function WorkoutPreferencesCard({
         </View>
       </View>
 
-      {/* Content */}
       <View style={styles.content}>
-        {/* Primary Goal */}
         <View style={styles.field}>
-          <Text style={styles.label}>Primary Goal</Text>
+          <Text style={styles.label}>{strings.workout_preferences.primary_goal_label}</Text>
           {isEditing ? (
             <View style={styles.selectContainer}>
-              {PRIMARY_GOALS.map(goal => (
+              {PRIMARY_GOAL_OPTIONS.map(goal => (
                 <TouchableOpacity
                   key={goal.value}
                   style={[
@@ -165,12 +161,11 @@ export function WorkoutPreferencesCard({
           )}
         </View>
 
-        {/* Preferred Session Length */}
         <View style={styles.field}>
-          <Text style={styles.label}>Preferred Session Length</Text>
+          <Text style={styles.label}>{strings.workout_preferences.session_length_label}</Text>
           {isEditing ? (
             <View style={styles.selectContainer}>
-              {SESSION_LENGTHS.map(session => (
+              {SESSION_LENGTH_OPTIONS.map(session => (
                 <TouchableOpacity
                   key={session.value}
                   style={[
