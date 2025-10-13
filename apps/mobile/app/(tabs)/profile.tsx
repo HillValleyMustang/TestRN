@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../_contexts/auth-context';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
@@ -67,6 +68,7 @@ const TAB_COLORS: Record<Tab, string> = {
 
 export default function ProfileScreen() {
   const { session, userId, supabase } = useAuth();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [profile, setProfile] = useState<any>(null);
   const [gyms, setGyms] = useState<any[]>([]);
@@ -169,6 +171,10 @@ export default function ProfileScreen() {
 
     // Also refresh profile to get updated active_gym_id
     await loadProfile();
+  };
+
+  const handleManageGym = (gymId: string) => {
+    router.push(`/gym-editor?id=${gymId}`);
   };
 
   const loadSavedTab = async () => {
@@ -546,6 +552,7 @@ export default function ProfileScreen() {
         gyms={gyms}
         activeGymId={profile?.active_gym_id}
         onRefresh={handleRefreshGyms}
+        onManageGym={handleManageGym}
         supabase={supabase}
       />
 

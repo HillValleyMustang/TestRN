@@ -33,6 +33,7 @@ interface MyGymsCardProps {
   gyms: Gym[];
   activeGymId: string | null;
   onRefresh: () => Promise<void>;
+  onManageGym: (gymId: string) => void;
   supabase: any;
 }
 
@@ -43,6 +44,7 @@ export function MyGymsCardNew({
   gyms, 
   activeGymId,
   onRefresh,
+  onManageGym,
   supabase 
 }: MyGymsCardProps) {
   const strings = useSettingsStrings();
@@ -206,7 +208,10 @@ export function MyGymsCardNew({
                 </TouchableOpacity>
               </View>
             ) : (
-              <TouchableOpacity style={styles.manageButton}>
+              <TouchableOpacity 
+                style={styles.manageButton}
+                onPress={() => onManageGym(gym.id)}
+              >
                 <Ionicons name="settings-outline" size={20} color={Colors.gray600} />
               </TouchableOpacity>
             )}
