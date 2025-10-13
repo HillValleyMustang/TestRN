@@ -651,7 +651,7 @@ export function ManageGymWorkoutsDialog({
                   style={[styles.tab, exerciseLibraryTab === 'my' && styles.tabActive]}
                   onPress={() => {
                     setExerciseLibraryTab('my');
-                    loadAvailableExercises();
+                    loadAvailableExercises('my');
                   }}
                 >
                   <Text style={[styles.tabText, exerciseLibraryTab === 'my' && styles.tabTextActive]}>
@@ -662,7 +662,7 @@ export function ManageGymWorkoutsDialog({
                   style={[styles.tab, exerciseLibraryTab === 'global' && styles.tabActive]}
                   onPress={() => {
                     setExerciseLibraryTab('global');
-                    loadAvailableExercises();
+                    loadAvailableExercises('global');
                   }}
                 >
                   <Text style={[styles.tabText, exerciseLibraryTab === 'global' && styles.tabTextActive]}>
