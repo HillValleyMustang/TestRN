@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   optionsContainer: {
-    flex: 1,
+    marginTop: Spacing.md,
   },
   optionCard: {
     flexDirection: 'row',

@@ -212,7 +212,7 @@ export function MyGymsCardNew({
                 style={styles.manageButton}
                 onPress={() => onManageGym(gym.id)}
               >
-                <Ionicons name="settings-outline" size={20} color={Colors.gray600} />
+                <Ionicons name="barbell-outline" size={20} color={Colors.gray600} />
               </TouchableOpacity>
             )}
           </View>
