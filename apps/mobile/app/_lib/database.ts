@@ -243,7 +243,7 @@ class Database {
   async addSetLog(setLog: SetLog): Promise<void> {
     const db = this.getDB();
     await db.runAsync(
-      `INSERT OR REPLACE INTO set_logs 
+      `INSERT OR REPLACE INTO set_logs
        (id, session_id, exercise_id, weight_kg, reps, reps_l, reps_r, time_seconds, is_pb, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
@@ -261,6 +261,34 @@ class Database {
     );
   }
 
+  async replaceSetLogsForSession(
+    sessionId: string,
+    logs: SetLog[],
+  ): Promise<void> {
+    const db = this.getDB();
+    await db.runAsync("DELETE FROM set_logs WHERE session_id = ?", [sessionId]);
+
+    for (const log of logs) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO set_logs
+         (id, session_id, exercise_id, weight_kg, reps, reps_l, reps_r, time_seconds, is_pb, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          log.id,
+          log.session_id,
+          log.exercise_id,
+          log.weight_kg,
+          log.reps,
+          log.reps_l,
+          log.reps_r,
+          log.time_seconds,
+          log.is_pb ? 1 : 0,
+          log.created_at,
+        ],
+      );
+    }
+  }
+
   async getWorkoutSessions(userId: string): Promise<WorkoutSession[]> {
     const db = this.getDB();
     const result = await db.getAllAsync<WorkoutSession>(
@@ -268,6 +296,48 @@ class Database {
       [userId],
     );
     return result;
+  }
+
+  async getRecentWorkoutSummaries(
+    userId: string,
+    limit: number = 3,
+  ): Promise<
+    Array<{
+      session: WorkoutSession;
+      exercise_count: number;
+      first_set_at: string | null;
+      last_set_at: string | null;
+    }>
+  > {
+    const db = this.getDB();
+    const rows = await db.getAllAsync<any>(
+      `SELECT ws.*, COUNT(DISTINCT sl.exercise_id) as exercise_count,
+              MIN(sl.created_at) as first_set_at, MAX(sl.created_at) as last_set_at
+       FROM workout_sessions ws
+       LEFT JOIN set_logs sl ON sl.session_id = ws.id
+       WHERE ws.user_id = ?
+       GROUP BY ws.id
+       ORDER BY ws.session_date DESC
+       LIMIT ?`,
+      [userId, limit],
+    );
+
+    return rows.map((row) => ({
+      session: {
+        id: row.id,
+        user_id: row.user_id,
+        session_date: row.session_date,
+        template_name: row.template_name,
+        completed_at: row.completed_at,
+        rating: row.rating,
+        duration_string: row.duration_string,
+        t_path_id: row.t_path_id,
+        created_at: row.created_at,
+      },
+      exercise_count: Number(row.exercise_count) || 0,
+      first_set_at: row.first_set_at ?? null,
+      last_set_at: row.last_set_at ?? null,
+    }));
   }
 
   async getSetLogs(sessionId: string): Promise<SetLog[]> {

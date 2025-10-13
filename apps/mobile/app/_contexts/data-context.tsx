@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useState,
   useMemo,
+  useCallback,
 } from "react";
 import { database, addToSyncQueue } from "../_lib/database";
 import { useSyncQueueProcessor } from "@data/hooks/use-sync-queue-processor";
@@ -66,6 +67,114 @@ export interface UserAchievement {
   achievement_id: string;
   unlocked_at: string;
   progress_value?: number;
+}
+
+type ProgrammeType = "ppl" | "ulul";
+
+interface ProfileRow {
+  id: string;
+  active_t_path_id: string | null;
+  programme_type: string | null;
+  preferred_session_length: string | null;
+  full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+}
+
+interface WorkoutSessionRow {
+  id: string;
+  user_id: string;
+  session_date: string;
+  template_name: string | null;
+  completed_at: string | null;
+  rating: number | null;
+  duration_string: string | null;
+  t_path_id: string | null;
+  created_at: string;
+}
+
+interface SetLogRow {
+  id: string;
+  session_id: string;
+  exercise_id: string;
+  weight_kg: number | null;
+  reps: number | null;
+  reps_l: number | null;
+  reps_r: number | null;
+  time_seconds: number | null;
+  is_pb: boolean | null;
+  created_at: string;
+}
+
+interface GymRow {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  equipment: string[] | null;
+  is_active: boolean | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+interface TPathRow {
+  id: string;
+  user_id: string | null;
+  template_name: string;
+  description: string | null;
+  parent_t_path_id: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  is_bonus?: boolean | null;
+}
+
+export interface DashboardProfile {
+  id: string;
+  active_t_path_id: string | null;
+  programme_type: ProgrammeType;
+  preferred_session_length: string | null;
+  full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+}
+
+export interface DashboardWorkoutSummary {
+  id: string;
+  template_name: string | null;
+  session_date: string;
+  completed_at: string | null;
+  duration_string: string | null;
+  exercise_count: number;
+}
+
+export interface DashboardVolumePoint {
+  date: string;
+  volume: number;
+}
+
+export interface DashboardWeeklySummary {
+  completed_workouts: Array<{ id: string; name: string; sessionId: string }>;
+  goal_total: number;
+  programme_type: ProgrammeType;
+}
+
+export interface DashboardProgram {
+  id: string;
+  template_name: string;
+  description: string | null;
+  parent_t_path_id: string | null;
+}
+
+export interface DashboardSnapshot {
+  profile: DashboardProfile | null;
+  gyms: Gym[];
+  activeGym: Gym | null;
+  weeklySummary: DashboardWeeklySummary;
+  volumeHistory: DashboardVolumePoint[];
+  recentWorkouts: DashboardWorkoutSummary[];
+  activeTPath: DashboardProgram | null;
+  tPathWorkouts: DashboardProgram[];
+  nextWorkout: DashboardProgram | null;
 }
 
 interface DataContextType {
@@ -136,6 +245,7 @@ interface DataContextType {
   isSyncing: boolean;
   queueLength: number;
   isOnline: boolean;
+  loadDashboardSnapshot: () => Promise<DashboardSnapshot>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -144,6 +254,9 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const { supabase, userId } = useAuth();
   const [isInitialized, setIsInitialized] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const [profileCache, setProfileCache] = useState<DashboardProfile | null>(
+    null,
+  );
 
   useEffect(() => {
     database.init().then(() => setIsInitialized(true));
@@ -162,6 +275,384 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     isOnline,
     enabled: isInitialized && !!userId,
   });
+
+  const mapProgrammeType = (programme?: string | null): ProgrammeType =>
+    programme === "ulul" ? "ulul" : "ppl";
+
+  const mapTPathToProgram = (tPath: TPath): DashboardProgram => ({
+    id: tPath.id,
+    template_name: tPath.template_name,
+    description: tPath.description,
+    parent_t_path_id: tPath.parent_t_path_id,
+  });
+
+  const ensureIsoString = (value: string | null | undefined) =>
+    value ?? new Date().toISOString();
+
+  const formatDurationFromRange = (
+    durationString: string | null,
+    firstSetAt: string | null,
+    lastSetAt: string | null,
+  ): string | null => {
+    if (durationString) {
+      return durationString;
+    }
+
+    if (!firstSetAt || !lastSetAt) {
+      return null;
+    }
+
+    const start = new Date(firstSetAt);
+    const end = new Date(lastSetAt);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return null;
+    }
+
+    const diffMs = end.getTime() - start.getTime();
+    if (diffMs <= 0) {
+      return null;
+    }
+
+    const diffMinutes = Math.max(1, Math.round(diffMs / 60000));
+
+    if (diffMinutes >= 60) {
+      const hours = Math.floor(diffMinutes / 60);
+      const minutes = diffMinutes % 60;
+      if (minutes === 0) {
+        return `${hours}h`;
+      }
+      return `${hours}h ${minutes}m`;
+    }
+
+    return `${diffMinutes} min`;
+  };
+
+  const buildVolumePoints = (
+    raw: Array<{ date: string; volume: number }>,
+  ): DashboardVolumePoint[] => {
+    const map = new Map(
+      raw.map((entry) => [entry.date.split("T")[0], entry.volume || 0]),
+    );
+    const today = new Date();
+    const points: DashboardVolumePoint[] = [];
+
+    for (let i = 6; i >= 0; i -= 1) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - i);
+      const key = date.toISOString().split("T")[0];
+      points.push({
+        date: key,
+        volume: Math.max(0, Number(map.get(key) ?? 0)),
+      });
+    }
+
+    return points;
+  };
+
+  const loadDashboardSnapshot = useCallback(async () => {
+    if (!userId) {
+      return {
+        profile: null,
+        gyms: [],
+        activeGym: null,
+        weeklySummary: {
+          completed_workouts: [],
+          goal_total: 3,
+          programme_type: "ppl" as ProgrammeType,
+        },
+        volumeHistory: [],
+        recentWorkouts: [],
+        activeTPath: null,
+        tPathWorkouts: [],
+        nextWorkout: null,
+      } satisfies DashboardSnapshot;
+    }
+
+    let latestProfile = profileCache;
+    let remoteActiveTPath: DashboardProgram | null = null;
+    let remoteChildWorkouts: DashboardProgram[] = [];
+
+    if (isOnline && supabase) {
+      try {
+        const { data: profileData, error: profileError } = await supabase
+          .from<ProfileRow>("profiles")
+          .select(
+            "id, active_t_path_id, programme_type, preferred_session_length, full_name, first_name, last_name",
+          )
+          .eq("id", userId)
+          .maybeSingle();
+
+        if (profileError) {
+          console.warn("[DataContext] Failed to load profile", profileError);
+        }
+
+        if (profileData) {
+          latestProfile = {
+            id: profileData.id,
+            active_t_path_id: profileData.active_t_path_id,
+            programme_type: mapProgrammeType(profileData.programme_type),
+            preferred_session_length: profileData.preferred_session_length,
+            full_name: profileData.full_name,
+            first_name: profileData.first_name,
+            last_name: profileData.last_name,
+          };
+          setProfileCache(latestProfile);
+        }
+
+        const { data: gymsData, error: gymsError } = await supabase
+          .from<GymRow>("gyms")
+          .select("*")
+          .eq("user_id", userId);
+
+        if (gymsError) {
+          console.warn("[DataContext] Failed to load gyms", gymsError);
+        } else if (gymsData) {
+          for (const gymRow of gymsData) {
+            const gym: Gym = {
+              id: gymRow.id,
+              user_id: gymRow.user_id,
+              name: gymRow.name,
+              description: gymRow.description ?? null,
+              equipment: Array.isArray(gymRow.equipment)
+                ? gymRow.equipment
+                : [],
+              is_active: Boolean(gymRow.is_active),
+              created_at: ensureIsoString(gymRow.created_at),
+              updated_at: ensureIsoString(
+                gymRow.updated_at ?? gymRow.created_at,
+              ),
+            };
+            await database.addGym(gym);
+          }
+        }
+
+        const { data: sessionsData, error: sessionsError } = await supabase
+          .from<WorkoutSessionRow>("workout_sessions")
+          .select(
+            "id, user_id, session_date, template_name, completed_at, rating, duration_string, t_path_id, created_at",
+          )
+          .eq("user_id", userId)
+          .order("session_date", { ascending: false })
+          .limit(20);
+
+        const sessionIds: string[] = [];
+
+        if (sessionsError) {
+          console.warn(
+            "[DataContext] Failed to load workout sessions",
+            sessionsError,
+          );
+        } else if (sessionsData) {
+          for (const sessionRow of sessionsData) {
+            sessionIds.push(sessionRow.id);
+            const session: WorkoutSession = {
+              id: sessionRow.id,
+              user_id: sessionRow.user_id,
+              session_date: sessionRow.session_date,
+              template_name: sessionRow.template_name,
+              completed_at: sessionRow.completed_at,
+              rating: sessionRow.rating,
+              duration_string: sessionRow.duration_string,
+              t_path_id: sessionRow.t_path_id,
+              created_at: sessionRow.created_at,
+            };
+            await database.addWorkoutSession(session);
+          }
+        }
+
+        if (sessionIds.length > 0) {
+          const { data: setLogsData, error: setLogsError } = await supabase
+            .from<SetLogRow>("set_logs")
+            .select(
+              "id, session_id, exercise_id, weight_kg, reps, reps_l, reps_r, time_seconds, is_pb, created_at",
+            )
+            .in("session_id", sessionIds);
+
+          if (setLogsError) {
+            console.warn("[DataContext] Failed to load set logs", setLogsError);
+          } else if (setLogsData) {
+            const grouped = new Map<string, SetLog[]>();
+            for (const logRow of setLogsData) {
+              const log: SetLog = {
+                id: logRow.id,
+                session_id: logRow.session_id,
+                exercise_id: logRow.exercise_id,
+                weight_kg: logRow.weight_kg,
+                reps: logRow.reps,
+                reps_l: logRow.reps_l,
+                reps_r: logRow.reps_r,
+                time_seconds: logRow.time_seconds,
+                is_pb: logRow.is_pb ?? null,
+                created_at: logRow.created_at,
+              };
+              if (!grouped.has(log.session_id)) {
+                grouped.set(log.session_id, []);
+              }
+              grouped.get(log.session_id)!.push(log);
+            }
+
+            for (const [sessionId, logs] of grouped) {
+              await database.replaceSetLogsForSession(sessionId, logs);
+            }
+          }
+        }
+
+        if (latestProfile?.active_t_path_id) {
+          const { data: activeTPathData, error: activeTPathError } =
+            await supabase
+              .from<TPathRow>("t_paths")
+              .select(
+                "id, template_name, description, parent_t_path_id, user_id, created_at, updated_at, is_bonus",
+              )
+              .eq("id", latestProfile.active_t_path_id)
+              .maybeSingle();
+
+          if (activeTPathError) {
+            console.warn(
+              "[DataContext] Failed to load active t_path",
+              activeTPathError,
+            );
+          } else if (activeTPathData) {
+            remoteActiveTPath = {
+              id: activeTPathData.id,
+              template_name: activeTPathData.template_name,
+              description: activeTPathData.description ?? null,
+              parent_t_path_id: activeTPathData.parent_t_path_id,
+            };
+
+            const tPathRecord: TPath = {
+              id: activeTPathData.id,
+              user_id: activeTPathData.user_id ?? userId,
+              template_name: activeTPathData.template_name,
+              description: activeTPathData.description ?? null,
+              is_main_program: !activeTPathData.parent_t_path_id,
+              parent_t_path_id: activeTPathData.parent_t_path_id,
+              order_index: null,
+              is_ai_generated: false,
+              ai_generation_params: null,
+              created_at: ensureIsoString(activeTPathData.created_at),
+              updated_at: ensureIsoString(
+                activeTPathData.updated_at ?? activeTPathData.created_at,
+              ),
+            };
+            await database.addTPath(tPathRecord);
+          }
+
+          const { data: childWorkoutsData, error: childWorkoutsError } =
+            await supabase
+              .from<TPathRow>("t_paths")
+              .select(
+                "id, template_name, description, parent_t_path_id, user_id, created_at, updated_at, is_bonus",
+              )
+              .eq("parent_t_path_id", latestProfile.active_t_path_id)
+              .order("template_name", { ascending: true });
+
+          if (childWorkoutsError) {
+            console.warn(
+              "[DataContext] Failed to load child workouts",
+              childWorkoutsError,
+            );
+          } else if (childWorkoutsData) {
+            remoteChildWorkouts = childWorkoutsData.map((row) => ({
+              id: row.id,
+              template_name: row.template_name,
+              description: row.description ?? null,
+              parent_t_path_id: row.parent_t_path_id,
+            }));
+
+            for (const child of childWorkoutsData) {
+              const childRecord: TPath = {
+                id: child.id,
+                user_id: child.user_id ?? userId,
+                template_name: child.template_name,
+                description: child.description ?? null,
+                is_main_program: !child.parent_t_path_id,
+                parent_t_path_id: child.parent_t_path_id,
+                order_index: null,
+                is_ai_generated: Boolean(child.is_bonus),
+                ai_generation_params: null,
+                created_at: ensureIsoString(child.created_at),
+                updated_at: ensureIsoString(
+                  child.updated_at ?? child.created_at,
+                ),
+              };
+              await database.addTPath(childRecord);
+            }
+          }
+        }
+      } catch (error) {
+        console.warn("[DataContext] Dashboard snapshot refresh failed", error);
+      }
+    }
+
+    const [gyms, activeGym, volumeHistoryRaw, recentWorkoutsRaw] =
+      await Promise.all([
+        database.getGyms(userId),
+        database.getActiveGym(userId),
+        database.getVolumeHistory(userId, 7),
+        database.getRecentWorkoutSummaries(userId, 5),
+      ]);
+
+    const volumeHistory = buildVolumePoints(volumeHistoryRaw);
+
+    const recentWorkouts: DashboardWorkoutSummary[] = recentWorkoutsRaw.map(
+      ({ session, exercise_count, first_set_at, last_set_at }) => ({
+        id: session.id,
+        template_name: session.template_name,
+        session_date: session.session_date,
+        completed_at: session.completed_at,
+        duration_string: formatDurationFromRange(
+          session.duration_string,
+          first_set_at,
+          last_set_at,
+        ),
+        exercise_count,
+      }),
+    );
+
+    const programmeType = mapProgrammeType(latestProfile?.programme_type);
+    const weeklySummary: DashboardWeeklySummary = {
+      completed_workouts: recentWorkouts.slice(0, 3).map((workout) => ({
+        id: workout.id,
+        name: workout.template_name ?? "Ad Hoc",
+        sessionId: workout.id,
+      })),
+      goal_total: programmeType === "ulul" ? 4 : 3,
+      programme_type: programmeType,
+    };
+
+    const activeTPathRecord = latestProfile?.active_t_path_id
+      ? await database.getTPath(latestProfile.active_t_path_id)
+      : null;
+
+    const localChildWorkouts = latestProfile?.active_t_path_id
+      ? await database.getTPathsByParent(latestProfile.active_t_path_id)
+      : [];
+
+    const activeTPath =
+      remoteActiveTPath ??
+      (activeTPathRecord ? mapTPathToProgram(activeTPathRecord) : null);
+
+    const tPathWorkouts =
+      remoteChildWorkouts.length > 0
+        ? remoteChildWorkouts
+        : localChildWorkouts.map(mapTPathToProgram);
+
+    const nextWorkout = tPathWorkouts.length > 0 ? tPathWorkouts[0] : null;
+
+    return {
+      profile: latestProfile,
+      gyms,
+      activeGym,
+      weeklySummary,
+      volumeHistory,
+      recentWorkouts,
+      activeTPath,
+      tPathWorkouts,
+      nextWorkout,
+    } satisfies DashboardSnapshot;
+  }, [userId, profileCache, isOnline, supabase]);
 
   const addWorkoutSession = async (session: WorkoutSession): Promise<void> => {
     await database.addWorkoutSession(session);
@@ -513,8 +1004,9 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       isSyncing,
       queueLength,
       isOnline,
+      loadDashboardSnapshot,
     }),
-    [isSyncing, queueLength, isOnline],
+    [isSyncing, queueLength, isOnline, loadDashboardSnapshot],
   );
 
   if (!isInitialized) {
@@ -530,4 +1022,14 @@ export const useData = () => {
     throw new Error("useData must be used within a DataProvider");
   }
   return context;
+};
+
+export type {
+  DashboardProfile,
+  DashboardProgram,
+  DashboardSnapshot,
+  DashboardVolumePoint,
+  DashboardWeeklySummary,
+  DashboardWorkoutSummary,
+  ProgrammeType,
 };
