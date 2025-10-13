@@ -523,7 +523,7 @@ export default function ProfileScreen() {
   );
 
   const renderSettingsTab = () => (
-    <View>
+    <View style={styles.settingsTabContainer}>
       <PersonalInfoCard 
         profile={profile} 
         onUpdate={handleUpdateProfile}
@@ -1057,6 +1057,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.mutedForeground,
     textAlign: 'center',
+  },
+  settingsTabContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 32,
+    gap: 30, // Section gap 28-32 (using 30 for middle value)
   },
   settingsSection: {
     marginBottom: Spacing.xl,
