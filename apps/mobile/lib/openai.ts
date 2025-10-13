@@ -6,11 +6,6 @@
 
 import OpenAI from 'openai';
 
-// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY 
-});
-
 export interface DetectedEquipment {
   category: string;
   items: string[];
@@ -22,12 +17,28 @@ export interface GymAnalysisResult {
 }
 
 /**
+ * Get OpenAI client instance (lazy initialization)
+ */
+function getOpenAIClient(): OpenAI {
+  const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error('OpenAI API key not found. Please set OPENAI_API_KEY in your environment.');
+  }
+  
+  // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+  return new OpenAI({ apiKey });
+}
+
+/**
  * Analyze gym photo to detect available equipment
  * @param base64Image - Base64 encoded gym image
  * @returns Detected equipment organized by category
  */
 export async function analyzeGymEquipment(base64Image: string): Promise<GymAnalysisResult> {
   try {
+    const openai = getOpenAIClient();
+    
     const response = await openai.chat.completions.create({
       model: "gpt-5",
       messages: [
