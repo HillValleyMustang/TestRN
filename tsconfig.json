@@ -1,10 +1,22 @@
 {
   "files": [],
   "references": [
-    { "path": "./apps/web" },
-    { "path": "./apps/mobile" },
-    { "path": "./packages/data" },
-    { "path": "./packages/ui" },
-    { "path": "./packages/features" }
-  ]
+    {
+      "path": "./apps/web"
+    },
+    {
+      "path": "./apps/mobile"
+    },
+    {
+      "path": "./packages/data"
+    },
+    {
+      "path": "./packages/ui"
+    },
+    {
+      "path": "./packages/features"
+    }
+  ],
+  "compilerOptions": {},
+  "extends": "expo/tsconfig.base"
 }

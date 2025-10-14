@@ -1,0 +1,13 @@
+{
+    "expo": {
+      "name": "my-fitness-trainer-mobile",
+      "slug": "my-fitness-trainer-mobile",
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "main": "expo-router/entry",
+      "plugins": ["expo-router"],
+      "experiments": { "typedRoutes": false }
+    }
+  }

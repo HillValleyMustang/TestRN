@@ -8,11 +8,12 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm --prefix apps/web run dev",
+    "dev": "pnpm --filter my-fitness-trainer-mobile start",
     "web:dev": "npm --prefix apps/web run dev",
     "web:build": "npm --prefix apps/web run build",
     "web:start": "npm --prefix apps/web run start",
     "web:lint": "npm --prefix apps/web run lint",
+    "mobile": "npm --prefix apps/mobile start",
     "mobile:start": "npm --prefix apps/mobile start",
     "mobile:ios": "npm --prefix apps/mobile run ios",
     "mobile:android": "npm --prefix apps/mobile run android",
@@ -70,6 +71,7 @@
     "date-fns": "^4.1.0",
     "dexie": "^4.2.0",
     "dexie-react-hooks": "^4.2.0",
+    "expo": "^54.0.13",
     "expo-file-system": "^19.0.17",
     "expo-haptics": "^15.0.7",
     "expo-image-picker": "^17.0.8",
