@@ -53,6 +53,8 @@ export const ActionHub: React.FC<Props> = ({ actions }) => {
   );
 };
 
+export default ActionHub;
+
 const styles = StyleSheet.create({
   content: {
     gap: Spacing.md,

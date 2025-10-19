@@ -11,14 +11,12 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
     "incremental": true,
+    "baseUrl": ".",
     "paths": {
-      "@app/*": ["./apps/web/src/*"],
-      "@mobile/*": ["./apps/mobile/*"],
-      "@data/*": ["./packages/data/*"],
-      "@features/*": ["./packages/features/*"],
-      "@ui/*": ["./packages/ui/*"],
+      "@data/*": ["./packages/data/src/*"],
+      "@features/*": ["./packages/features/src/*"],
+      "@ui/*": ["./packages/ui/src/*"],
       "@shared/*": ["./packages/*"]
     }
   },

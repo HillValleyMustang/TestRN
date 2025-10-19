@@ -20,7 +20,9 @@
     "mobile:lint": "npm --prefix apps/mobile run lint",
     "lint:all": "npm run web:lint && npm run mobile:lint",
     "format": "prettier --check .",
-    "format:write": "prettier --write ."
+    "format:write": "prettier --write .",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^15.3.4",
@@ -101,6 +103,7 @@
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.9.3",
     "uuid": "^13.0.0",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "react-native": "0.81.4"
   }
 }

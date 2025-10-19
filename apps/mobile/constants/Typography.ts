@@ -2,17 +2,28 @@
  * Typography System - Mobile App
  * Matches web app typography (Poppins font family)
  * Font weights and text styles for consistent design
+ *
+ * Architecture:
+ * - FONT_FAMILY: Single source of truth for font name
+ * - FontFamily: Generated font family names for Expo Google Fonts
+ * - TextStyles: Predefined text styles using FontFamily
+ * - Components import TextStyles and use ...TextStyles.styleName
+ *
+ * To change font globally: Update FONT_FAMILY constant only
  */
 
 import { TextStyle } from 'react-native';
 
-// Font family names (must match expo-font or react-native-vector-icons configuration)
+// Global font configuration - single source of truth for font family
+export const FONT_FAMILY = 'Poppins';
+
+// Font family names (Expo Google Fonts format)
 export const FontFamily = {
-  light: 'Poppins-Light', // 300
-  regular: 'Poppins-Regular', // 400
-  medium: 'Poppins-Medium', // 500
-  semibold: 'Poppins-SemiBold', // 600
-  bold: 'Poppins-Bold', // 700
+  light: `${FONT_FAMILY}_300Light`, // 300
+  regular: `${FONT_FAMILY}_400Regular`, // 400
+  medium: `${FONT_FAMILY}_500Medium`, // 500
+  semibold: `${FONT_FAMILY}_600SemiBold`, // 600
+  bold: `${FONT_FAMILY}_700Bold`, // 700
 };
 
 // Font weights (for fallback when custom fonts not loaded)

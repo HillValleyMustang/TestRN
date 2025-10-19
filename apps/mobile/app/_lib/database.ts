@@ -1235,3 +1235,5 @@ export const addToSyncQueue = async (
     attempts: 0,
   });
 };
+
+export default Database;

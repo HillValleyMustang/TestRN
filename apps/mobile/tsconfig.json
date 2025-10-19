@@ -2,11 +2,13 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "jsx": "react-native",
-    "lib": ["DOM", "ESNext"],
-    "customConditions": ["react-native"],
+    "lib": ["ESNext"],
+    "types": ["expo/types"],
     "allowJs": true,
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
     "paths": {
-      "@app/*": ["./app/*"],
+      "@/*": ["./app/*"],
       "@mobile/*": ["./app/*"],
       "@data/*": ["../../packages/data/src/*"],
       "@features/*": ["../../packages/features/src/*"],
@@ -14,5 +16,17 @@
       "@shared/*": ["../../packages/*"]
     }
   },
-  "exclude": ["node_modules", "babel.config.js", "metro.config.js", "android", "ios"]
+  "include": [
+    "./app/**/*",
+    "./components/**/*",
+    "../../packages/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "babel.config.js",
+    "metro.config.js",
+    "android",
+    "ios",
+    "*.config.js"
+  ]
 }

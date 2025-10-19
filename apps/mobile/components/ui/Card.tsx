@@ -7,6 +7,7 @@
 import React from 'react';
 import { View, ViewStyle, StyleSheet, StyleProp } from 'react-native';
 import { Colors, BorderRadius, Spacing, Shadows } from '../../constants/Theme';
+import { TextStyles } from '../../constants/Typography';
 
 interface CardProps {
   children: React.ReactNode;
@@ -115,11 +116,11 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.sm,
   },
   title: {
-    // Text component will handle typography
+    // Typography handled by Text component inside
   },
   description: {
     marginTop: Spacing.xs,
-    // Text component will handle typography
+    // Typography handled by Text component inside
   },
   content: {
     padding: Spacing.lg,

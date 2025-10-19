@@ -2,6 +2,15 @@ import { Stack } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { useFonts } from "expo-font";
+import {
+  Poppins_300Light,
+  Poppins_400Regular,
+  Poppins_500Medium,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+} from "@expo-google-fonts/poppins";
+import { FONT_FAMILY } from "../constants/Typography";
 import { AuthProvider } from "./_contexts/auth-context";
 import { DataProvider } from "./_contexts/data-context";
 import { PreferencesProvider } from "./_contexts/preferences-context";
@@ -10,6 +19,19 @@ import { WorkoutFlowProvider } from "./_contexts/workout-flow-context";
 import { UnsavedChangesModal } from "./_components/workout/UnsavedChangesModal";
 
 export default function RootLayout() {
+  // Load Poppins fonts - matches FONT_FAMILY constant in Typography.ts
+  const [fontsLoaded] = useFonts({
+    Poppins_300Light,
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+  });
+
+  if (!fontsLoaded) {
+    return null; // Return null to show splash screen while fonts load
+  }
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>

@@ -1,47 +1,26 @@
 /**
- * HapticPressable Component
- * Platform-aware Pressable with haptic feedback (iOS) and ripple effect (Android)
+ * Simple Pressable Component
+ * Basic pressable with ripple effect (Android)
  */
 
 import React from 'react';
-import { Pressable, PressableProps, Platform } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { Pressable } from 'react-native';
 
-interface HapticPressableProps extends PressableProps {
-  hapticStyle?: 'light' | 'medium' | 'heavy' | 'selection';
+interface SimplePressableProps {
+  children?: React.ReactNode;
+  onPress?: () => void;
+  style?: any;
 }
 
-export function HapticPressable({ 
-  onPress, 
-  hapticStyle = 'light',
+export function HapticPressable({
+  onPress,
   style,
   children,
-  ...props 
-}: HapticPressableProps) {
-  const handlePress = async (event: any) => {
-    if (Platform.OS === 'ios') {
-      switch (hapticStyle) {
-        case 'light':
-          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          break;
-        case 'medium':
-          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          break;
-        case 'heavy':
-          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-          break;
-        case 'selection':
-          await Haptics.selectionAsync();
-          break;
-      }
-    }
-    
-    onPress?.(event);
-  };
-
+  ...props
+}: SimplePressableProps) {
   return (
     <Pressable
-      onPress={handlePress}
+      onPress={onPress}
       style={style}
       android_ripple={{
         color: 'rgba(0, 0, 0, 0.1)',

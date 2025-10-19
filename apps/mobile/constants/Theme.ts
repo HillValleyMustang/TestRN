@@ -129,6 +129,9 @@ export const Colors = {
   // Common UI Colors
   white: '#FFFFFF',
   black: '#000000',
+
+  // Modal Overlay
+  modalOverlay: 'rgba(0, 0, 0, 0.85)', // Dark scrim for all modals
   
   // Gray Scale
   gray50: '#F9FAFB',

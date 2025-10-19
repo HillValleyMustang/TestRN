@@ -25,7 +25,7 @@ export function StatusInfoModal({ visible, onClose }: StatusInfoModalProps) {
           <Pressable onPress={(e) => e.stopPropagation()} style={styles.modalContent}>
             <View style={styles.header}>
               <Text style={styles.title}>Workout Status Explained</Text>
-              <HapticPressable onPress={onClose} style={styles.closeButton} hapticStyle="light">
+              <HapticPressable onPress={onClose} style={styles.closeButton}>
                 <Ionicons name="close" size={24} color={Colors.foreground} />
               </HapticPressable>
             </View>
@@ -98,7 +98,7 @@ export function StatusInfoModal({ visible, onClose }: StatusInfoModalProps) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: Colors.modalOverlay, // Global modal overlay setting
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.lg,

@@ -82,6 +82,8 @@ export function TemplateSaveModal({
   );
 }
 
+export default TemplateSaveModal;
+
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,

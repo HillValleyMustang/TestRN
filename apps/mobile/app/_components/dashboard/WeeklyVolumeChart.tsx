@@ -72,6 +72,8 @@ export const WeeklyVolumeChart: React.FC<Props> = ({ data, loading }) => {
   );
 };
 
+export default WeeklyVolumeChart;
+
 const styles = StyleSheet.create({
   chartRow: {
     flexDirection: "row",

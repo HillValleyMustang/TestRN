@@ -28,6 +28,8 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   );
 };
 
+export default Skeleton;
+
 const styles = StyleSheet.create({
   base: {
     backgroundColor: Colors.gray800,

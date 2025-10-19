@@ -54,6 +54,8 @@ export const QuickStartWorkouts: React.FC<Props> = ({
   );
 };
 
+export default QuickStartWorkouts;
+
 const styles = StyleSheet.create({
   content: {
     gap: Spacing.md,

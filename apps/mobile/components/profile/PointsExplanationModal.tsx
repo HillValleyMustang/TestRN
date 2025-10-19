@@ -137,7 +137,7 @@ export function PointsExplanationModal({ visible, onClose }: PointsExplanationMo
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: Colors.modalOverlay, // Global modal overlay setting
     justifyContent: 'flex-end',
   },
   container: {

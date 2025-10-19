@@ -20,6 +20,8 @@ export const Card: React.FC<CardProps> = ({
   );
 };
 
+export default Card;
+
 interface SectionProps {
   children: React.ReactNode;
   style?: any;

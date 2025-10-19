@@ -141,3 +141,5 @@ export const useWorkoutFlow = () => {
   }
   return context;
 };
+
+export default WorkoutFlowProvider;

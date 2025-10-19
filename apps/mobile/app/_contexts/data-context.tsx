@@ -376,7 +376,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     if (isOnline && supabase) {
       try {
         const { data: profileData, error: profileError } = await supabase
-          .from<ProfileRow>("profiles")
+          .from("profiles")
           .select(
             "id, active_t_path_id, programme_type, preferred_session_length, full_name, first_name, last_name",
           )
@@ -401,7 +401,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         const { data: gymsData, error: gymsError } = await supabase
-          .from<GymRow>("gyms")
+          .from("gyms")
           .select("*")
           .eq("user_id", userId);
 
@@ -428,7 +428,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         const { data: sessionsData, error: sessionsError } = await supabase
-          .from<WorkoutSessionRow>("workout_sessions")
+          .from("workout_sessions")
           .select(
             "id, user_id, session_date, template_name, completed_at, rating, duration_string, t_path_id, created_at",
           )
@@ -463,7 +463,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (sessionIds.length > 0) {
           const { data: setLogsData, error: setLogsError } = await supabase
-            .from<SetLogRow>("set_logs")
+            .from("set_logs")
             .select(
               "id, session_id, exercise_id, weight_kg, reps, reps_l, reps_r, time_seconds, is_pb, created_at",
             )
@@ -501,9 +501,9 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         if (latestProfile?.active_t_path_id) {
           const { data: activeTPathData, error: activeTPathError } =
             await supabase
-              .from<TPathRow>("t_paths")
+              .from("t_paths")
               .select(
-                "id, template_name, description, parent_t_path_id, user_id, created_at, updated_at, is_bonus",
+                "id, template_name, parent_t_path_id, user_id, created_at, updated_at, is_bonus",
               )
               .eq("id", latestProfile.active_t_path_id)
               .maybeSingle();
@@ -517,7 +517,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
             remoteActiveTPath = {
               id: activeTPathData.id,
               template_name: activeTPathData.template_name,
-              description: activeTPathData.description ?? null,
+              description: null,
               parent_t_path_id: activeTPathData.parent_t_path_id,
             };
 
@@ -525,7 +525,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
               id: activeTPathData.id,
               user_id: activeTPathData.user_id ?? userId,
               template_name: activeTPathData.template_name,
-              description: activeTPathData.description ?? null,
+              description: null,
               is_main_program: !activeTPathData.parent_t_path_id,
               parent_t_path_id: activeTPathData.parent_t_path_id,
               order_index: null,
@@ -541,9 +541,9 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
           const { data: childWorkoutsData, error: childWorkoutsError } =
             await supabase
-              .from<TPathRow>("t_paths")
+              .from("t_paths")
               .select(
-                "id, template_name, description, parent_t_path_id, user_id, created_at, updated_at, is_bonus",
+                "id, template_name, parent_t_path_id, user_id, created_at, updated_at, is_bonus",
               )
               .eq("parent_t_path_id", latestProfile.active_t_path_id)
               .order("template_name", { ascending: true });
@@ -557,7 +557,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
             remoteChildWorkouts = childWorkoutsData.map((row) => ({
               id: row.id,
               template_name: row.template_name,
-              description: row.description ?? null,
+              description: null,
               parent_t_path_id: row.parent_t_path_id,
             }));
 
@@ -566,7 +566,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
                 id: child.id,
                 user_id: child.user_id ?? userId,
                 template_name: child.template_name,
-                description: child.description ?? null,
+                description: null,
                 is_main_program: !child.parent_t_path_id,
                 parent_t_path_id: child.parent_t_path_id,
                 order_index: null,
@@ -1024,12 +1024,8 @@ export const useData = () => {
   return context;
 };
 
+export default DataProvider;
+
 export type {
-  DashboardProfile,
-  DashboardProgram,
-  DashboardSnapshot,
-  DashboardVolumePoint,
-  DashboardWeeklySummary,
-  DashboardWorkoutSummary,
   ProgrammeType,
 };

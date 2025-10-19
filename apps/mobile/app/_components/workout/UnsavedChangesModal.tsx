@@ -44,6 +44,8 @@ export const UnsavedChangesModal = () => {
   );
 };
 
+export default UnsavedChangesModal;
+
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,

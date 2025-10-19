@@ -10,6 +10,8 @@ import { useAuth } from '../_contexts/auth-context';
 import { useData } from '../_contexts/data-context';
 import { useWorkoutFlow } from '../_contexts/workout-flow-context';
 import { ExerciseCard, RestTimer, WorkoutHeader, EmptyWorkout } from '../../components/workout';
+import { WorkoutSummaryModal } from '../../components/workout/WorkoutSummaryModal';
+import { UnsavedChangesModal } from '../_components/workout/UnsavedChangesModal';
 import { getExerciseById } from '@data/exercises';
 import { Colors, Spacing } from '../../constants/Theme';
 
@@ -28,7 +30,7 @@ interface WorkoutExercise {
 export default function WorkoutScreen() {
   const { userId } = useAuth();
   const { addWorkoutSession, addSetLog, getPersonalRecord, getTemplate, getTPath } = useData();
-  const { startSession, completeSession, setHasUnsavedChanges } = useWorkoutFlow();
+  const { startSession, completeSession, setHasUnsavedChanges, requestNavigation } = useWorkoutFlow();
   const router = useRouter();
   const params = useLocalSearchParams<{
     selectedExerciseId?: string;
@@ -42,6 +44,7 @@ export default function WorkoutScreen() {
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [personalRecords, setPersonalRecords] = useState<Record<string, number>>({});
   const [loadedTPathId, setLoadedTPathId] = useState<string | null>(null);
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
 
   const loadTemplate = useCallback(async (templateId: string) => {
     try {
@@ -157,8 +160,8 @@ export default function WorkoutScreen() {
   }, [params.tPathId, userId, loadTPath]);
 
   const handleAddExercise = useCallback(() => {
-    router.push('/exercise-picker');
-  }, [router]);
+    requestNavigation(() => router.push('/exercise-picker'));
+  }, [requestNavigation, router]);
 
   const handleSetChange = useCallback((
     exerciseIndex: number,
@@ -239,13 +242,13 @@ export default function WorkoutScreen() {
     );
   }, [setHasUnsavedChanges]);
 
-  const handleFinishWorkout = useCallback(async () => {
+  const handleFinishWorkout = useCallback(() => {
     if (exercises.length === 0) {
       Alert.alert('No Exercises', 'Add at least one exercise to save workout');
       return;
     }
 
-    const hasCompletedSets = exercises.some(ex => 
+    const hasCompletedSets = exercises.some(ex =>
       ex.sets.some(set => set.isCompleted)
     );
 
@@ -254,69 +257,61 @@ export default function WorkoutScreen() {
       return;
     }
 
-    Alert.alert(
-      'Finish Workout',
-      'Save this workout to your history?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Save',
-          onPress: async () => {
-            if (!userId) return;
+    setShowSummaryModal(true);
+  }, [exercises]);
 
-            try {
-              const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-              const now = new Date().toISOString();
+  const handleSaveWorkout = useCallback(async () => {
+    if (!userId) return;
 
-              await addWorkoutSession({
-                id: sessionId,
-                user_id: userId,
-                session_date: now,
-                template_name: workoutName,
-                completed_at: now,
-                rating: null,
-                duration_string: null,
-                t_path_id: loadedTPathId,
-                created_at: now,
-              });
+    try {
+      const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const now = new Date().toISOString();
 
-              let prCount = 0;
-              for (const exercise of exercises) {
-                for (const set of exercise.sets) {
-                  if (set.isCompleted && set.weight && set.reps) {
-                    await addSetLog({
-                      id: `set_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                      session_id: sessionId,
-                      exercise_id: exercise.exerciseId,
-                      weight_kg: parseFloat(set.weight),
-                      reps: parseInt(set.reps, 10),
-                      reps_l: null,
-                      reps_r: null,
-                      time_seconds: null,
-                      is_pb: set.isPR || false,
-                      created_at: now,
-                    });
-                    if (set.isPR) prCount++;
-                  }
-                }
-              }
+      await addWorkoutSession({
+        id: sessionId,
+        user_id: userId,
+        session_date: now,
+        template_name: workoutName,
+        completed_at: now,
+        rating: null,
+        duration_string: null,
+        t_path_id: loadedTPathId,
+        created_at: now,
+      });
 
-              const message = prCount > 0
-                ? `Workout saved! 🎉 ${prCount} new PR${prCount > 1 ? 's' : ''}!`
-                : 'Workout saved successfully!';
+      let prCount = 0;
+      for (const exercise of exercises) {
+        for (const set of exercise.sets) {
+          if (set.isCompleted && set.weight && set.reps) {
+            await addSetLog({
+              id: `set_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              session_id: sessionId,
+              exercise_id: exercise.exerciseId,
+              weight_kg: parseFloat(set.weight),
+              reps: parseInt(set.reps, 10),
+              reps_l: null,
+              reps_r: null,
+              time_seconds: null,
+              is_pb: set.isPR || false,
+              created_at: now,
+            });
+            if (set.isPR) prCount++;
+          }
+        }
+      }
 
-              Alert.alert('Success', message);
-              setExercises([]);
-              setHasUnsavedChanges(false);
-              completeSession();
-              router.push('/(tabs)/dashboard');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to save workout');
-            }
-          },
-        },
-      ]
-    );
+      const message = prCount > 0
+        ? `Workout saved! 🎉 ${prCount} new PR${prCount > 1 ? 's' : ''}!`
+        : 'Workout saved successfully!';
+
+      Alert.alert('Success', message);
+      setExercises([]);
+      setHasUnsavedChanges(false);
+      completeSession();
+      router.push('/(tabs)/dashboard');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save workout');
+    }
   }, [exercises, workoutName, userId, loadedTPathId, addWorkoutSession, addSetLog, setHasUnsavedChanges, completeSession, router]);
 
   if (exercises.length === 0) {
@@ -355,13 +350,13 @@ export default function WorkoutScreen() {
             <ExerciseCard
               key={exerciseIndex}
               exerciseName={exerciseData?.name || exercise.exerciseId}
-              muscleGroup={exerciseData?.muscle_group}
+              muscleGroup={exerciseData?.primaryMuscles?.[0]}
               sets={exercise.sets}
               isCompleted={isCompleted}
-              onSetChange={(setIndex, field, value) => 
+              onSetChange={(setIndex: number, field: 'weight' | 'reps', value: string) =>
                 handleSetChange(exerciseIndex, setIndex, field, value)
               }
-              onToggleSetComplete={(setIndex) => 
+              onToggleSetComplete={(setIndex: number) =>
                 handleToggleSetComplete(exerciseIndex, setIndex)
               }
               onRemove={() => handleRemoveExercise(exerciseIndex)}
@@ -370,6 +365,22 @@ export default function WorkoutScreen() {
           );
         })}
       </ScrollView>
+
+      <WorkoutSummaryModal
+        visible={showSummaryModal}
+        onClose={() => setShowSummaryModal(false)}
+        exercises={exercises.map(ex => ({
+          exerciseId: ex.exerciseId,
+          exerciseName: getExerciseById(ex.exerciseId)?.name || ex.exerciseId,
+          muscleGroup: getExerciseById(ex.exerciseId)?.primaryMuscles?.[0] || undefined,
+          sets: ex.sets,
+        }))}
+        workoutName={workoutName}
+        startTime={startTime}
+        onSaveWorkout={handleSaveWorkout}
+      />
+
+      <UnsavedChangesModal />
     </View>
   );
 }

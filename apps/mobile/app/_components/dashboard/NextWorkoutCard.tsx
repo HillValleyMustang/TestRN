@@ -72,6 +72,8 @@ export const NextWorkoutCard: React.FC<Props> = ({
   );
 };
 
+export default NextWorkoutCard;
+
 const styles = StyleSheet.create({
   content: {
     gap: Spacing.md,

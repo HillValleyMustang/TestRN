@@ -81,3 +81,5 @@ export const useMobileSyncManager = () => {
     [isOnline, isDatabaseReady, processor],
   );
 };
+
+export default useMobileSyncManager;

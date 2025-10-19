@@ -118,6 +118,8 @@ export function AICoachingCard({
   );
 }
 
+export default AICoachingCard;
+
 const styles = StyleSheet.create({
   container: {
     backgroundColor: "#0d1f1a",

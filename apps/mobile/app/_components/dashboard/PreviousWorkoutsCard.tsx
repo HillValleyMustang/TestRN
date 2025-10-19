@@ -49,6 +49,8 @@ export const PreviousWorkoutsCard: React.FC<Props> = ({
   );
 };
 
+export default PreviousWorkoutsCard;
+
 const styles = StyleSheet.create({
   content: {
     gap: Spacing.md,

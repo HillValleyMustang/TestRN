@@ -16,6 +16,8 @@ export const WelcomeHeader: React.FC<Props> = ({ name, subtitle }) => {
   );
 };
 
+export default WelcomeHeader;
+
 const styles = StyleSheet.create({
   container: {
     marginBottom: Spacing["2xl"],

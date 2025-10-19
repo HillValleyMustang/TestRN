@@ -4,3 +4,5 @@ export const SyncManagerInitializer = () => {
   useMobileSyncManager();
   return null;
 };
+
+export default SyncManagerInitializer;

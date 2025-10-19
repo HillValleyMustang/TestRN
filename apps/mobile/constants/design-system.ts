@@ -86,6 +86,15 @@ export const BorderRadius = {
 };
 
 export const Typography = {
+  // Font Families (Poppins from Expo Google Fonts)
+  fontFamily: {
+    light: 'Poppins_300Light',
+    regular: 'Poppins_400Regular',
+    medium: 'Poppins_500Medium',
+    semibold: 'Poppins_600SemiBold',
+    bold: 'Poppins_700Bold',
+  },
+
   // Font Sizes
   xs: 12,
   sm: 14,
@@ -96,14 +105,14 @@ export const Typography = {
   '3xl': 30,
   '4xl': 36,
   '5xl': 48,
-  
+
   // Font Weights
   regular: '400' as const,
   medium: '500' as const,
   semibold: '600' as const,
   bold: '700' as const,
   extrabold: '800' as const,
-  
+
   // Line Heights
   tight: 1.1,
   normal: 1.5,

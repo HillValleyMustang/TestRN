@@ -19,12 +19,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { useSettingsStrings } from '../../localization/useSettingsStrings';
 import { AddGymDialog } from './AddGymDialog';
+import { ManageGymModal } from './ManageGymModal';
 import { analyzeGymEquipment } from '../../lib/openai';
 import { imageUriToBase64, uploadImageToSupabase } from '../../lib/imageUtils';
 
 interface Gym {
   id: string;
   name: string;
+  user_id: string;
   created_at: string;
 }
 
@@ -65,6 +67,10 @@ export function MyGymsCard({
   const [deleteGymId, setDeleteGymId] = useState<string | null>(null);
   const [deleteGymName, setDeleteGymName] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Manage Gym Modal
+  const [showManageModal, setShowManageModal] = useState(false);
+  const [selectedGymForManage, setSelectedGymForManage] = useState<Gym | null>(null);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -313,6 +319,11 @@ export function MyGymsCard({
     setShowDeleteModal(true);
   };
 
+  const openManageModal = (gym: Gym) => {
+    setSelectedGymForManage(gym);
+    setShowManageModal(true);
+  };
+
   const isLastGym = gyms.length === 1;
 
   return (
@@ -358,13 +369,19 @@ export function MyGymsCard({
               
               {isEditing && (
                 <View style={styles.gymActions}>
-                  <TouchableOpacity 
+                  <TouchableOpacity
+                    onPress={() => openManageModal(gym)}
+                    style={styles.iconButton}
+                  >
+                    <Ionicons name="barbell" size={18} color={Colors.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
                     onPress={() => openRenameModal(gym)}
                     style={styles.iconButton}
                   >
                     <Ionicons name="pencil" size={18} color={Colors.blue600} />
                   </TouchableOpacity>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     onPress={() => openDeleteModal(gym)}
                     style={styles.iconButton}
                   >
@@ -478,6 +495,15 @@ export function MyGymsCard({
           </View>
         </View>
       </Modal>
+
+      <ManageGymModal
+        visible={showManageModal}
+        onClose={() => {
+          setShowManageModal(false);
+          setSelectedGymForManage(null);
+        }}
+        gym={selectedGymForManage}
+      />
     </>
   );
 }

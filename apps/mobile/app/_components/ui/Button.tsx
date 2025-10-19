@@ -11,6 +11,7 @@ import {
   Colors,
   BorderRadius,
   Spacing,
+  Typography,
 } from "../../../constants/design-system";
 
 type Variant = "primary" | "success" | "destructive" | "outline" | "ghost";
@@ -64,6 +65,8 @@ export const Button: React.FC<ButtonProps> = ({
   );
 };
 
+export default Button;
+
 const styles = StyleSheet.create({
   base: {
     borderRadius: BorderRadius.lg,
@@ -73,8 +76,9 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   text: {
-    fontWeight: "600",
-    fontSize: 16,
+    fontFamily: Typography.fontFamily.medium,
+    fontWeight: Typography.semibold,
+    fontSize: Typography.base,
   },
   disabled: {
     opacity: 0.6,

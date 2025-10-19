@@ -1,3 +1,8 @@
+/**
+ * Change Password Modal
+ * Allows users to change their account password
+ */
+
 import React, { useState } from 'react';
 import {
   View,
@@ -185,7 +190,7 @@ export function ChangePasswordModal({ visible, onClose }: ChangePasswordModalPro
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: Colors.modalOverlay, // Global modal overlay setting
     justifyContent: 'flex-end',
   },
   container: {
