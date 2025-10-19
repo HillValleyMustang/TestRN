@@ -341,10 +341,10 @@ const DropdownComponent = ({
                 data={filteredItems}
                 renderItem={renderItem}
                 keyExtractor={(item) => item.value}
-                showsVerticalScrollIndicator={false}
+                showsVerticalScrollIndicator={true}
                 style={[
                   styles.dropdownList,
-                  { maxHeight: Math.min(screenHeight * 0.56, filteredItems.length * 48 + (searchable ? 48 : 0)) },
+                  { maxHeight: Math.min(screenHeight * 0.8, filteredItems.length * 48 + (searchable ? 48 : 0)) },
                 ]}
                 getItemLayout={(data, index) => ({
                   length: 48,
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.light.menu.divider,
-    maxHeight: screenHeight * 0.56,
+    maxHeight: screenHeight * 0.4,
     minWidth: 200,
     maxWidth: screenWidth * 0.9,
   },

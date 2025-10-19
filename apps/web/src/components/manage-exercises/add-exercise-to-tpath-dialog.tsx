@@ -174,7 +174,7 @@ export const AddExerciseToTPathDialog = ({ open, onOpenChange, exercise, onAddSu
             </p>
           ) : (
             <Select onValueChange={setSelectedWorkoutId} value={selectedWorkoutId}>
-              <SelectTrigger>
+              <SelectTrigger className="flex-1 h-9 text-sm">
                 <SelectValue placeholder="Select a workout" />
               </SelectTrigger>
               <SelectContent>

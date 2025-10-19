@@ -18,7 +18,7 @@ import {
   PanResponder,
   Animated,
   Pressable,
-  TouchableWithoutFeedback,
+  TouchableWithoutFeedback, // Keep it if used elsewhere, but remove from main modal structure
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
@@ -31,7 +31,6 @@ import ExerciseInfoSheet from '../workout/ExerciseInfoSheet';
 const PPL_ORDER = ['Push', 'Pull', 'Legs'];
 const ULUL_ORDER = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
 const MUSCLE_GROUPS = [
-  'All Muscle Groups',
   'Chest',
   'Back',
   'Shoulders',
@@ -39,9 +38,38 @@ const MUSCLE_GROUPS = [
   'Triceps',
   'Legs',
   'Glutes',
-  'Core',
-  'Cardio'
+  'Cardio',
+  'Abdominals',
+  'Abs',
+  'Abs, Core',
+  'Back, Biceps',
+  'Calves',
+  'Chest, Shoulders',
+  'Deltoids',
+  'Full Body',
+  'Glutes',
+  'Hamstrings',
+  'Inner Thighs',
+  'Lats',
+  'Outer Glutes',
+  'Pectorals',
+  'Quadriceps',
+  'Quads',
+  'Quads, Glutes',
+  'Rear Delts, Traps',
+  'Shoulders',
+  'Shoulders (Deltoids)',
+  'Traps',
+  'Triceps',
+  'Triceps, Chest',
+  'Core'
 ];
+
+// Ensure unique values and sort alphabetically excluding 'All Muscle Groups'
+const UNIQUE_MUSCLE_GROUPS = Array.from(new Set(MUSCLE_GROUPS)).sort();
+
+// Add 'All Muscle Groups' to the beginning
+const FINAL_MUSCLE_GROUPS = ['All Muscle Groups', ...UNIQUE_MUSCLE_GROUPS];
 
 interface Exercise {
   id: string;
@@ -237,9 +265,13 @@ export function ManageGymWorkoutsDialog({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Filter exercises based on search, muscles, and categories
+  // Filter exercises based on search, muscles, categories, and exclude already added exercises
   useEffect(() => {
     let filtered = availableExercises;
+
+    // First, exclude exercises already in the current workout
+    const currentWorkoutExerciseIds = [...coreExercises, ...bonusExercises].map(ex => ex.exercise_id);
+    filtered = filtered.filter(ex => !currentWorkoutExerciseIds.includes(ex.id));
 
     // Apply search filter (case-insensitive)
     if (debouncedSearchQuery.trim()) {
@@ -262,7 +294,7 @@ export function ManageGymWorkoutsDialog({
     }
 
     setFilteredExercises(filtered);
-  }, [availableExercises, debouncedSearchQuery, selectedMuscles, selectedCategories]);
+  }, [availableExercises, debouncedSearchQuery, selectedMuscles, selectedCategories, coreExercises, bonusExercises]);
 
   const loadWorkouts = useCallback(async () => {
     if (!userId) {
@@ -449,49 +481,81 @@ export function ManageGymWorkoutsDialog({
     }
   }, [selectedWorkoutId, supabase]);
 
-  const loadAvailableExercises = async (libraryType: 'my' | 'global', reset: boolean = true) => {
+  const loadAvailableExercises = async (libraryType: 'my' | 'global', reset: boolean = true, muscleFilter: string = selectedMuscleGroup) => {
     if (!userId || !gymId) return;
 
     try {
       setLoading(true);
 
+      console.log('🔄 Loading available exercises for libraryType:', libraryType, 'userId:', userId, 'gymId:', gymId);
+
       let exercises: any[] = [];
       let muscles: string[] = [];
       let categories: string[] = [];
+      let errorFetch = null;
 
       if (libraryType === 'my') {
-        // For now, use the same as Global since gym_exercises table structure is unclear
-        // TODO: Update when gym_exercises table structure is confirmed
-        const { data: globalExercises, error } = await supabase
+        console.log('Fetching "my" exercises (user-created exercises)...');
+        // Get exercises created by the user
+        const { data, error } = await supabase
           .from('exercise_definitions')
           .select('id, name, category, main_muscle, type')
-          .order('name')
-          .limit(50); // Limit for my exercises tab
+          .eq('user_id', userId) // Only exercises created by this user
+          .order('name');
 
-        if (error) throw error;
-        exercises = globalExercises || [];
+        if (error) errorFetch = error;
+        exercises = data || [];
+        console.log('Fetched "my" exercises raw data:', data);
 
       } else {
-        // Global: exercise_definitions (id, name, category, main_muscle, type)
-        const { data: globalExercises, error } = await supabase
+        console.log('Fetching "global" exercises (all exercises)...');
+        // For now, fall back to showing all exercises since gym_exercises might not be populated
+        const { data, error } = await supabase
           .from('exercise_definitions')
           .select('id, name, category, main_muscle, type')
           .order('name');
 
-        if (error) throw error;
-        exercises = globalExercises || [];
+        if (error) errorFetch = error;
+        exercises = data || [];
+        console.log('Fetched "global" exercises raw data:', data);
       }
 
-      // Extract unique muscles and categories for filter chips
-      muscles = [...new Set(exercises.map(ex => ex.main_muscle).filter(Boolean))].sort();
+      if (errorFetch) {
+        console.error('❌ Exercise fetch error:', errorFetch);
+        throw errorFetch;
+      }
+      
+      console.log(' exercises before filter: ', exercises);
+      
+      // Filter based on newly added muscle group dropdown
+       if (muscleFilter && muscleFilter !== 'All Muscle Groups') {
+         exercises = exercises.filter(ex => {
+           // Handle exercises with multiple main muscles (comma-separated)
+           const exerciseMuscles = ex.main_muscle?.split(',').map((m: string) => m.trim()) || [];
+           return exerciseMuscles.includes(muscleFilter);
+         });
+         console.log('Exercises filtered by muscle group:', muscleFilter, exercises.length);
+       }
+
+      console.log('Fetched exercises after initial assignment:', exercises);
+
+      muscles = [...new Set(exercises.map(ex => ex.main_muscle).filter(Boolean).filter((muscle: string) => !muscle.includes(',')))].sort();
+
+      console.log('All muscles before filtering:', exercises.map(ex => ex.main_muscle).filter(Boolean));
+      console.log('Filtered muscles for dropdown:', muscles);
+      console.log('Available muscles state will be set to:', muscles);
       categories = [...new Set(exercises.map(ex => ex.category).filter(Boolean))].sort();
+
+      console.log('Available muscles:', muscles);
+      console.log('Available categories:', categories);
 
       setAvailableExercises(exercises);
       setAvailableMuscles(muscles);
       setAvailableCategories(categories);
+      console.log('✅ Available exercises state updated with count:', exercises.length);
 
     } catch (error) {
-      console.error('[ManageGymWorkouts] Error loading available exercises:', error);
+      console.error('[ManageGymWorkouts] Error in loadAvailableExercises:', error);
       Alert.alert('Error', 'Failed to load available exercises');
     } finally {
       setLoading(false);
@@ -505,13 +569,14 @@ export function ManageGymWorkoutsDialog({
     // TODO: Update when gym_exercises table structure is confirmed
     const defaultTab = 'global';
     setExerciseLibraryTab(defaultTab);
-    await loadAvailableExercises(defaultTab);
+    await loadAvailableExercises(defaultTab, true, selectedMuscleGroup); // Keep current muscle group selection
 
     // Clear previous selections when opening
     setSelectedExercises(new Set());
     setSearchQuery('');
     setSelectedMuscles([]);
     setSelectedCategories([]);
+    // Keep selectedMuscleGroup as is - don't reset it
 
     setShowExercisePicker(true);
   };
@@ -567,8 +632,6 @@ export function ManageGymWorkoutsDialog({
 
       // Reload exercises to show the newly added ones
       await loadExercises();
-
-      Alert.alert('Success', `${selectedExercises.size} exercises added to workout`);
     } catch (error) {
       console.error('Error adding exercises:', error);
       Alert.alert('Error', 'Failed to add exercises to workout');
@@ -676,26 +739,27 @@ export function ManageGymWorkoutsDialog({
     setHasChanges(true);
   };
 
-  const handleDeleteExercise = (exerciseId: string, exerciseName: string, isBonus: boolean) => {
-    Alert.alert(
-      'Remove Exercise',
-      `Remove "${exerciseName}" from this workout?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => {
-            if (isBonus) {
-              setBonusExercises(bonusExercises.filter(ex => ex.id !== exerciseId));
-            } else {
-              setCoreExercises(coreExercises.filter(ex => ex.id !== exerciseId));
-            }
-            setHasChanges(true);
-          },
-        },
-      ]
-    );
+  const handleDeleteExercise = async (exerciseId: string, exerciseName: string, isBonus: boolean) => {
+    try {
+      // Delete from database immediately
+      const { error } = await supabase
+        .from('t_path_exercises')
+        .delete()
+        .eq('id', exerciseId);
+
+      if (error) throw error;
+
+      // Update local state
+      if (isBonus) {
+        setBonusExercises(bonusExercises.filter(ex => ex.id !== exerciseId));
+      } else {
+        setCoreExercises(coreExercises.filter(ex => ex.id !== exerciseId));
+      }
+      setHasChanges(true);
+    } catch (error) {
+      console.error('[ManageGymWorkouts] Error deleting exercise:', error);
+      Alert.alert('Error', 'Failed to delete exercise');
+    }
   };
 
   const handleExerciseInfo = async (exercise: Exercise) => {
@@ -904,12 +968,12 @@ export function ManageGymWorkoutsDialog({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      {/* Main modal overlay to catch touches outside the dialog and close it */}
-      <TouchableWithoutFeedback onPress={handleClose}>
-        <View style={styles.overlay}>
-          {/* Inner container to capture touches within the dialog and prevent propagation for its children */}
-          <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
-            <View style={styles.dialog} {...modalPanResponder.panHandlers} onStartShouldSetResponder={() => true}>
+      {/* Outer Pressable for overlay, closes modal on outside click */}
+      <Pressable style={styles.overlay} onPress={handleClose}>
+        {/* Inner Pressable for dialog content, stops propagation of clicks inside the dialog
+            Also includes PanResponder for drag functionality on the dialog itself */}
+        {/* Remove modalPanResponder from here to allow child Pressables to function */}
+        <Pressable style={styles.dialog} onPress={(e) => e.stopPropagation()}>
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerContent}>
@@ -1064,10 +1128,8 @@ export function ManageGymWorkoutsDialog({
               )}
             </TouchableOpacity>
           </View>
-            </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
+        </Pressable>
+      </Pressable>
 
       {/* Workout Picker Modal */}
         {showWorkoutPicker && (
@@ -1195,7 +1257,7 @@ export function ManageGymWorkoutsDialog({
                   style={[styles.webTab, exerciseLibraryTab === 'my' && styles.webTabActive]}
                   onPress={() => {
                     setExerciseLibraryTab('my');
-                    loadAvailableExercises('my');
+                    loadAvailableExercises('my', false, selectedMuscleGroup);
                   }}
                 >
                   <Text style={[styles.webTabText, exerciseLibraryTab === 'my' && styles.webTabTextActive]}>
@@ -1206,7 +1268,7 @@ export function ManageGymWorkoutsDialog({
                   style={[styles.webTab, exerciseLibraryTab === 'global' && styles.webTabActive]}
                   onPress={() => {
                     setExerciseLibraryTab('global');
-                    loadAvailableExercises('global');
+                    loadAvailableExercises('global', false, selectedMuscleGroup);
                   }}
                 >
                   <Text style={[styles.webTabText, exerciseLibraryTab === 'global' && styles.webTabTextActive]}>
@@ -1226,109 +1288,23 @@ export function ManageGymWorkoutsDialog({
                 />
               </View>
 
-              {/* Filter Chips */}
-              {(availableMuscles.length > 0 || availableCategories.length > 0) && (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.filterChipsContainer}
-                  contentContainerStyle={styles.filterChipsContent}
-                >
-                  {availableMuscles.map(muscle => (
-                    <TouchableOpacity
-                      key={muscle}
-                      style={[
-                        styles.filterChip,
-                        selectedMuscles.includes(muscle) && styles.filterChipSelected,
-                      ]}
-                      onPress={() => {
-                        setSelectedMuscles(prev =>
-                          prev.includes(muscle)
-                            ? prev.filter(m => m !== muscle)
-                            : [...prev, muscle]
-                        );
-                      }}
-                    >
-                      <Text style={[
-                        styles.filterChipText,
-                        selectedMuscles.includes(muscle) && styles.filterChipTextSelected,
-                      ]}>
-                        {muscle}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                  {availableCategories.map(category => (
-                    <TouchableOpacity
-                      key={category}
-                      style={[
-                        styles.filterChip,
-                        selectedCategories.includes(category) && styles.filterChipSelected,
-                      ]}
-                      onPress={() => {
-                        setSelectedCategories(prev =>
-                          prev.includes(category)
-                            ? prev.filter(c => c !== category)
-                            : [...prev, category]
-                        );
-                      }}
-                    >
-                      <Text style={[
-                        styles.filterChipText,
-                        selectedCategories.includes(category) && styles.filterChipTextSelected,
-                      ]}>
-                        {category}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              )}
-
-              {/* Muscle Group Filter */}
-              <TouchableOpacity
-                style={styles.webFilterDropdown}
-                onPress={() => setShowMuscleGroupDropdown(!showMuscleGroupDropdown)}
-              >
-                <Text style={styles.webFilterText}>{selectedMuscleGroup}</Text>
-                <Ionicons
-                  name={showMuscleGroupDropdown ? "chevron-up" : "chevron-down"}
-                  size={16}
-                  color={Colors.mutedForeground}
+              {/* Muscle Group Dropdown for filtering */}
+              <View style={styles.filterDropdownContainer}>
+                <Dropdown
+                  items={[{ label: 'All Muscle Groups', value: 'All Muscle Groups' }, ...availableMuscles.map(muscle => ({ label: muscle, value: muscle }))]
+                  selectedValue={selectedMuscleGroup}
+                  onSelect={async (value) => {
+                    setSelectedMuscleGroup(value);
+                    await loadAvailableExercises(exerciseLibraryTab, false, value);
+                  }}
+                  placeholder="Filter by Muscle Group"
                 />
-              </TouchableOpacity>
+              </View>
 
-              {showMuscleGroupDropdown && (
-                <View style={styles.webFilterDropdownList}>
-                  {MUSCLE_GROUPS.map((group) => (
-                    <TouchableOpacity
-                      key={group}
-                      style={[
-                        styles.webFilterItem,
-                        selectedMuscleGroup === group && styles.webFilterItemSelected,
-                      ]}
-                      onPress={() => {
-                        setSelectedMuscleGroup(group);
-                        setShowMuscleGroupDropdown(false);
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.webFilterItemText,
-                          selectedMuscleGroup === group && styles.webFilterItemTextSelected,
-                        ]}
-                      >
-                        {group}
-                      </Text>
-                      {selectedMuscleGroup === group && (
-                        <Ionicons name="checkmark" size={16} color={Colors.primary} />
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
 
               {/* Exercise List */}
               <ScrollView style={styles.webExerciseList} showsVerticalScrollIndicator={false}>
-                {filteredExercises.length === 0 ? (
+                {filteredExercises.length === 0 && !loading ? (
                   <View style={styles.webEmptyState}>
                     <Text style={styles.webEmptyText}>
                       {exerciseLibraryTab === 'my' ? 'No custom exercises yet' : 'No exercises found'}
@@ -1359,9 +1335,12 @@ export function ManageGymWorkoutsDialog({
                         }}
                         disabled={alreadyAdded}
                       >
-                        <View style={styles.webRadioButton}>
-                          {!alreadyAdded && <View style={styles.webRadioButtonInner} />}
-                        </View>
+                        <TouchableOpacity
+                          onPress={() => handleExerciseInfo({ id: exercise.id, exercise_id: exercise.id, exercise_name: exercise.name, order_index: 0, is_bonus_exercise: false })}
+                          style={styles.iconButton}
+                        >
+                          <Ionicons name="information-circle-outline" size={18} color={Colors.mutedForeground} />
+                        </TouchableOpacity>
                         <View style={styles.webExerciseInfo}>
                           <Text
                             style={[
@@ -1371,9 +1350,6 @@ export function ManageGymWorkoutsDialog({
                           >
                             {exercise.name}
                           </Text>
-                          {exercise.main_muscle && (
-                            <Text style={styles.webExerciseMuscle}>{exercise.main_muscle}</Text>
-                          )}
                         </View>
                         <View style={[
                           styles.selectionButton,
@@ -1407,21 +1383,6 @@ export function ManageGymWorkoutsDialog({
                 </View>
               )}
 
-              {/* Footer Buttons */}
-              <View style={styles.webFooter}>
-                <TouchableOpacity
-                  style={styles.webCancelButton}
-                  onPress={() => setShowExercisePicker(false)}
-                >
-                  <Text style={styles.webCancelText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.webAddButton}
-                  onPress={() => setShowExercisePicker(false)}
-                >
-                  <Text style={styles.webAddText}>Add Exercises</Text>
-                </TouchableOpacity>
-              </View>
             </View>
           </View>
         )}
@@ -1455,8 +1416,8 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,
     width: '96%',
-    height: '95%',
-    maxHeight: '95%',
+    height: '96%',
+    maxHeight: '96%',
     margin: Spacing.lg,
     marginTop: Spacing['2xl'],
     shadowColor: '#000',
@@ -1867,8 +1828,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
     borderRadius: BorderRadius.xl,
     width: '100%',
-    maxHeight: '95%', // Increased height for exercise picker
+    // Removed maxHeight to allow flex to naturally size the container
     padding: Spacing.lg,
+    flex: 1, // Ensure the picker container can expand
   },
   oldPickerTitle: {
     fontSize: 18,
@@ -1914,9 +1876,6 @@ const styles = StyleSheet.create({
   },
   pickerItemSelected: {
     backgroundColor: Colors.muted,
-  },
-  pickerItemDisabled: {
-    opacity: 0.5,
   },
   pickerItemText: {
     fontSize: 15,
@@ -1972,6 +1931,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
   circularCloseText: {
     fontSize: 16,
@@ -2003,7 +1967,11 @@ const styles = StyleSheet.create({
   webTabContainer: {
     flexDirection: 'row',
     marginBottom: Spacing.lg,
-    gap: 0,
+    marginHorizontal: Spacing.sm,
+    backgroundColor: Colors.muted,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xs,
+    gap: Spacing.xs,
   },
   webTab: {
     flex: 1,
@@ -2011,8 +1979,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     backgroundColor: Colors.muted,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderRadius: BorderRadius.md,
   },
   webTabActive: {
     backgroundColor: Colors.foreground,
@@ -2033,6 +2000,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     marginBottom: Spacing.md,
+    marginHorizontal: 0,
   },
   webSearchIcon: {
     marginRight: Spacing.sm,
@@ -2042,6 +2010,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     fontSize: 16,
     color: Colors.foreground,
+  },
+  filterDropdownContainer: {
+    marginBottom: Spacing.md,
   },
   webFilterDropdown: {
     flexDirection: 'row',
@@ -2121,10 +2092,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.md,
     gap: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    marginVertical: Spacing.xs,
+    marginHorizontal: 0,
+    backgroundColor: Colors.card,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   webExerciseItemDisabled: {
     opacity: 0.5,

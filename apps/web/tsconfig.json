@@ -7,9 +7,12 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     },
-    "allowImportingTsExtensions": true
+    "allowImportingTsExtensions": true,
+    "jsx": "preserve"
   },
   "include": [
     "next-env.d.ts",
@@ -19,5 +22,7 @@
     "**/*.jsx",
     ".next/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }
