@@ -21,6 +21,8 @@ import {
   TouchableWithoutFeedback, // Keep it if used elsewhere, but remove from main modal structure
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import PagerView from 'react-native-pager-view';
+import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { Typography } from '../../constants/design-system';
 import { useAuth } from '../../app/_contexts/auth-context';
@@ -30,46 +32,6 @@ import ExerciseInfoSheet from '../workout/ExerciseInfoSheet';
 // Constants for workout ordering
 const PPL_ORDER = ['Push', 'Pull', 'Legs'];
 const ULUL_ORDER = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
-const MUSCLE_GROUPS = [
-  'Chest',
-  'Back',
-  'Shoulders',
-  'Biceps',
-  'Triceps',
-  'Legs',
-  'Glutes',
-  'Cardio',
-  'Abdominals',
-  'Abs',
-  'Abs, Core',
-  'Back, Biceps',
-  'Calves',
-  'Chest, Shoulders',
-  'Deltoids',
-  'Full Body',
-  'Glutes',
-  'Hamstrings',
-  'Inner Thighs',
-  'Lats',
-  'Outer Glutes',
-  'Pectorals',
-  'Quadriceps',
-  'Quads',
-  'Quads, Glutes',
-  'Rear Delts, Traps',
-  'Shoulders',
-  'Shoulders (Deltoids)',
-  'Traps',
-  'Triceps',
-  'Triceps, Chest',
-  'Core'
-];
-
-// Ensure unique values and sort alphabetically excluding 'All Muscle Groups' and multi-muscle groups
-const UNIQUE_MUSCLE_GROUPS = Array.from(new Set(MUSCLE_GROUPS.filter(muscle => !muscle.includes(',')))).sort();
-
-// Add 'All Muscle Groups' to the beginning
-const FINAL_MUSCLE_GROUPS = ['All Muscle Groups', ...UNIQUE_MUSCLE_GROUPS];
 
 interface Exercise {
   id: string;
@@ -119,12 +81,23 @@ export function ManageGymWorkoutsDialog({
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [availableMuscles, setAvailableMuscles] = useState<string[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState('All Muscle Groups');
   const [showMuscleGroupDropdown, setShowMuscleGroupDropdown] = useState(false);
   const [exerciseLibraryTab, setExerciseLibraryTab] = useState<'my' | 'global'>('my');
   const [selectedExerciseType, setSelectedExerciseType] = useState<'core' | 'bonus'>('core');
+  const [availableMuscles, setAvailableMuscles] = useState<string[]>([]);
+  const pagerRef = useRef<PagerView>(null);
+  const tabIndex = exerciseLibraryTab === 'my' ? 0 : 1;
+  const [exercisesCache, setExercisesCache] = useState<{ [key: string]: any[] }>({});
+  const [musclesCache, setMusclesCache] = useState<{ [key: string]: string[] }>({});
+  const [categoriesCache, setCategoriesCache] = useState<{ [key: string]: string[] }>({});
+
+  const setTab = (key: 'my' | 'global') => {
+    setExerciseLibraryTab(key);
+    pagerRef.current?.setPage(key === 'my' ? 0 : 1);
+    Haptics.selectionAsync(); // optional subtle feedback
+  };
   const [selectedExercises, setSelectedExercises] = useState<Set<string>>(new Set());
   const [draggedItem, setDraggedItem] = useState<{ exercise: Exercise; isBonus: boolean; index: number } | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -484,6 +457,15 @@ export function ManageGymWorkoutsDialog({
   const loadAvailableExercises = async (libraryType: 'my' | 'global', reset: boolean = true, muscleFilter: string = selectedMuscleGroup) => {
     if (!userId || !gymId) return;
 
+    // Check cache first (unless reset is true)
+    if (!reset && exercisesCache[libraryType]) {
+      console.log('📋 Using cached exercises for', libraryType);
+      setAvailableExercises(exercisesCache[libraryType]);
+      if (musclesCache[libraryType]) setAvailableMuscles(musclesCache[libraryType]);
+      if (categoriesCache[libraryType]) setAvailableCategories(categoriesCache[libraryType]);
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -524,9 +506,9 @@ export function ManageGymWorkoutsDialog({
         console.error('❌ Exercise fetch error:', errorFetch);
         throw errorFetch;
       }
-      
+
       console.log(' exercises before filter: ', exercises);
-      
+
       // Filter based on newly added muscle group dropdown
        if (muscleFilter && muscleFilter !== 'All Muscle Groups') {
          exercises = exercises.filter(ex => {
@@ -539,14 +521,22 @@ export function ManageGymWorkoutsDialog({
 
       console.log('Fetched exercises after initial assignment:', exercises);
 
-      // Use the predefined unique muscle groups for consistent dropdown options
-      muscles = UNIQUE_MUSCLE_GROUPS;
+      // Extract unique muscle groups from the actual exercise data
+      const allMuscles = exercises.flatMap(ex =>
+        ex.main_muscle?.split(',').map((m: string) => m.trim()) || []
+      );
+      muscles = [...new Set(allMuscles)].sort();
 
       console.log('Using predefined unique muscles for dropdown:', muscles);
       categories = [...new Set(exercises.map(ex => ex.category).filter(Boolean))].sort();
 
       console.log('Available muscles:', muscles);
       console.log('Available categories:', categories);
+
+      // Cache the results
+      setExercisesCache(prev => ({ ...prev, [libraryType]: exercises }));
+      setMusclesCache(prev => ({ ...prev, [libraryType]: muscles }));
+      setCategoriesCache(prev => ({ ...prev, [libraryType]: categories }));
 
       setAvailableExercises(exercises);
       setAvailableMuscles(muscles);
@@ -568,7 +558,12 @@ export function ManageGymWorkoutsDialog({
     // TODO: Update when gym_exercises table structure is confirmed
     const defaultTab = 'global';
     setExerciseLibraryTab(defaultTab);
-    await loadAvailableExercises(defaultTab, true, selectedMuscleGroup); // Keep current muscle group selection
+
+    // Pre-load both tabs to prevent delay when swiping
+    await Promise.all([
+      loadAvailableExercises('my', true, selectedMuscleGroup),
+      loadAvailableExercises('global', true, selectedMuscleGroup)
+    ]);
 
     // Clear previous selections when opening
     setSelectedExercises(new Set());
@@ -1236,13 +1231,8 @@ export function ManageGymWorkoutsDialog({
                   <Ionicons name="add-circle-outline" size={20} color={Colors.foreground} />
                   <Text style={styles.pickerTitle}>Add Exercises</Text>
                 </View>
-                <TouchableOpacity
-                  onPress={() => setShowExercisePicker(false)}
-                  style={styles.pickerCloseButton}
-                >
-                  <View style={styles.circularCloseButton}>
-                    <Text style={styles.circularCloseText}>×</Text>
-                  </View>
+                <TouchableOpacity onPress={handleClose} style={styles.closeIcon}>
+                  <Ionicons name="close" size={24} color={Colors.foreground} />
                 </TouchableOpacity>
               </View>
 
@@ -1251,29 +1241,34 @@ export function ManageGymWorkoutsDialog({
               </Text>
 
               {/* Library Tabs */}
-              <View style={styles.webTabContainer}>
-                <TouchableOpacity
-                  style={[styles.webTab, exerciseLibraryTab === 'my' && styles.webTabActive]}
-                  onPress={() => {
-                    setExerciseLibraryTab('my');
-                    loadAvailableExercises('my', false, selectedMuscleGroup);
-                  }}
-                >
-                  <Text style={[styles.webTabText, exerciseLibraryTab === 'my' && styles.webTabTextActive]}>
-                    My Exercises
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.webTab, exerciseLibraryTab === 'global' && styles.webTabActive]}
-                  onPress={() => {
-                    setExerciseLibraryTab('global');
-                    loadAvailableExercises('global', false, selectedMuscleGroup);
-                  }}
-                >
-                  <Text style={[styles.webTabText, exerciseLibraryTab === 'global' && styles.webTabTextActive]}>
-                    Global
-                  </Text>
-                </TouchableOpacity>
+              <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+                {(['my', 'global'] as const).map((key) => (
+                  <TouchableOpacity
+                    key={key}
+                    onPress={() => setTab(key)}
+                    style={{
+                      flex: 1,
+                      alignItems: 'center',
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      backgroundColor:
+                        exerciseLibraryTab === key ? Colors.foreground : Colors.muted,
+                      marginHorizontal: 4,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontWeight: '600',
+                        color:
+                          exerciseLibraryTab === key
+                            ? Colors.background
+                            : Colors.mutedForeground,
+                      }}
+                    >
+                      {key === 'my' ? 'My Exercises' : 'Global'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
 
               {/* Search Input */}
@@ -1302,70 +1297,147 @@ export function ManageGymWorkoutsDialog({
 
 
               {/* Exercise List */}
-              <ScrollView style={styles.webExerciseList} showsVerticalScrollIndicator={false}>
-                {filteredExercises.length === 0 && !loading ? (
-                  <View style={styles.webEmptyState}>
-                    <Text style={styles.webEmptyText}>
-                      {exerciseLibraryTab === 'my' ? 'No custom exercises yet' : 'No exercises found'}
-                    </Text>
-                    <Text style={styles.webEmptySubtext}>
-                      {exerciseLibraryTab === 'my'
-                        ? 'Create custom exercises in your library'
-                        : 'Try adjusting your search or filters'}
-                    </Text>
-                  </View>
-                ) : (
-                  filteredExercises.map((exercise) => {
-                    const alreadyAdded = [...coreExercises, ...bonusExercises].some(
-                      ex => ex.exercise_id === exercise.id
-                    );
+              <PagerView
+                ref={pagerRef}
+                style={{ flex: 1 }}
+                initialPage={tabIndex}
+                onPageSelected={(e) => {
+                  const newTab = e.nativeEvent.position === 0 ? 'my' : 'global';
+                  setExerciseLibraryTab(newTab);
+                  // Use cached exercises - no delay since they're pre-loaded
+                  loadAvailableExercises(newTab, false, selectedMuscleGroup);
+                }}
+              >
+                <View key="my">
+                  <ScrollView style={styles.webExerciseList} showsVerticalScrollIndicator={false}>
+                    {filteredExercises.length === 0 && !loading ? (
+                      <View style={styles.webEmptyState}>
+                        <Text style={styles.webEmptyText}>
+                          No custom exercises yet
+                        </Text>
+                        <Text style={styles.webEmptySubtext}>
+                          Create custom exercises in your library
+                        </Text>
+                      </View>
+                    ) : (
+                      filteredExercises.map((exercise) => {
+                        const alreadyAdded = [...coreExercises, ...bonusExercises].some(
+                          ex => ex.exercise_id === exercise.id
+                        );
 
-                    return (
-                      <TouchableOpacity
-                        key={exercise.id}
-                        style={[
-                          styles.webExerciseItem,
-                          alreadyAdded && styles.webExerciseItemDisabled,
-                        ]}
-                        onPress={() => {
-                          if (!alreadyAdded) {
-                            toggleExerciseSelection(exercise.id);
-                          }
-                        }}
-                        disabled={alreadyAdded}
-                      >
-                        <TouchableOpacity
-                          onPress={() => handleExerciseInfo({ id: exercise.id, exercise_id: exercise.id, exercise_name: exercise.name, order_index: 0, is_bonus_exercise: false })}
-                          style={styles.iconButton}
-                        >
-                          <Ionicons name="information-circle-outline" size={18} color={Colors.mutedForeground} />
-                        </TouchableOpacity>
-                        <View style={styles.webExerciseInfo}>
-                          <Text
+                        return (
+                          <TouchableOpacity
+                            key={exercise.id}
                             style={[
-                              styles.webExerciseName,
-                              alreadyAdded && styles.webExerciseNameDisabled,
+                              styles.webExerciseItem,
+                              alreadyAdded && styles.webExerciseItemDisabled,
                             ]}
+                            onPress={() => {
+                              if (!alreadyAdded) {
+                                toggleExerciseSelection(exercise.id);
+                              }
+                            }}
+                            disabled={alreadyAdded}
                           >
-                            {exercise.name}
-                          </Text>
-                        </View>
-                        <View style={[
-                          styles.selectionButton,
-                          selectedExercises.has(exercise.id) && styles.selectionButtonSelected,
-                        ]}>
-                          <Text style={[
-                            styles.selectionButtonText,
-                            selectedExercises.has(exercise.id) && styles.selectionButtonTextSelected,
-                          ]}>
-                            {selectedExercises.has(exercise.id) ? 'Added' : 'Add'}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })
-                )}
-              </ScrollView>
+                            <TouchableOpacity
+                              onPress={() => handleExerciseInfo({ id: exercise.id, exercise_id: exercise.id, exercise_name: exercise.name, order_index: 0, is_bonus_exercise: false })}
+                              style={styles.iconButton}
+                            >
+                              <Ionicons name="information-circle-outline" size={18} color={Colors.mutedForeground} />
+                            </TouchableOpacity>
+                            <View style={styles.webExerciseInfo}>
+                              <Text
+                                style={[
+                                  styles.webExerciseName,
+                                  alreadyAdded && styles.webExerciseNameDisabled,
+                                ]}
+                              >
+                                {exercise.name}
+                              </Text>
+                            </View>
+                            <View style={[
+                              styles.selectionButton,
+                              selectedExercises.has(exercise.id) && styles.selectionButtonSelected,
+                            ]}>
+                              <Text style={[
+                                styles.selectionButtonText,
+                                selectedExercises.has(exercise.id) && styles.selectionButtonTextSelected,
+                              ]}>
+                                {selectedExercises.has(exercise.id) ? 'Added' : 'Add'}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })
+                    )}
+                  </ScrollView>
+                </View>
+
+                <View key="global">
+                  <ScrollView style={styles.webExerciseList} showsVerticalScrollIndicator={false}>
+                    {filteredExercises.length === 0 && !loading ? (
+                      <View style={styles.webEmptyState}>
+                        <Text style={styles.webEmptyText}>
+                          No exercises found
+                        </Text>
+                        <Text style={styles.webEmptySubtext}>
+                          Try adjusting your search or filters
+                        </Text>
+                      </View>
+                    ) : (
+                      filteredExercises.map((exercise) => {
+                        const alreadyAdded = [...coreExercises, ...bonusExercises].some(
+                          ex => ex.exercise_id === exercise.id
+                        );
+
+                        return (
+                          <TouchableOpacity
+                            key={exercise.id}
+                            style={[
+                              styles.webExerciseItem,
+                              alreadyAdded && styles.webExerciseItemDisabled,
+                            ]}
+                            onPress={() => {
+                              if (!alreadyAdded) {
+                                toggleExerciseSelection(exercise.id);
+                              }
+                            }}
+                            disabled={alreadyAdded}
+                          >
+                            <TouchableOpacity
+                              onPress={() => handleExerciseInfo({ id: exercise.id, exercise_id: exercise.id, exercise_name: exercise.name, order_index: 0, is_bonus_exercise: false })}
+                              style={styles.iconButton}
+                            >
+                              <Ionicons name="information-circle-outline" size={18} color={Colors.mutedForeground} />
+                            </TouchableOpacity>
+                            <View style={styles.webExerciseInfo}>
+                              <Text
+                                style={[
+                                  styles.webExerciseName,
+                                  alreadyAdded && styles.webExerciseNameDisabled,
+                                ]}
+                              >
+                                {exercise.name}
+                              </Text>
+                            </View>
+                            <View style={[
+                              styles.selectionButton,
+                              selectedExercises.has(exercise.id) && styles.selectionButtonSelected,
+                            ]}>
+                              <Text style={[
+                                styles.selectionButtonText,
+                                selectedExercises.has(exercise.id) && styles.selectionButtonTextSelected,
+                              ]}>
+                                {selectedExercises.has(exercise.id) ? 'Added' : 'Add'}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })
+                    )}
+                  </ScrollView>
+                </View>
+              </PagerView>
 
               {/* Sticky Footer */}
               {selectedExercises.size > 0 && (
@@ -1415,8 +1487,8 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,
     width: '96%',
-    height: '96%',
-    maxHeight: '96%',
+    height: '90%',
+    maxHeight: '90%',
     margin: Spacing.lg,
     marginTop: Spacing['2xl'],
     shadowColor: '#000',
@@ -1737,9 +1809,9 @@ const styles = StyleSheet.create({
   },
   exerciseName: {
     flex: 1,
-    fontFamily: 'Poppins-Medium',
+    fontFamily: Typography.fontFamily.regular,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     lineHeight: 18,
     color: Colors.foreground,
   },
@@ -1826,10 +1898,18 @@ const styles = StyleSheet.create({
   pickerContainer: {
     backgroundColor: Colors.background,
     borderRadius: BorderRadius.xl,
-    width: '100%',
-    // Removed maxHeight to allow flex to naturally size the container
+    width: '96%',
+    height: '90%',
+    maxHeight: '90%',
+    margin: Spacing.lg,
+    marginTop: Spacing['2xl'],
     padding: Spacing.lg,
-    flex: 1, // Ensure the picker container can expand
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 12,
+    overflow: 'hidden',
   },
   oldPickerTitle: {
     fontSize: 18,

@@ -16,10 +16,10 @@ import {
   ActivityIndicator,
   Dimensions,
   Animated,
-  PanResponder,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import PagerView from 'react-native-pager-view';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../_contexts/auth-context';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
@@ -94,26 +94,8 @@ export default function ProfileScreen() {
     }), {} as Record<Tab, Animated.Value>)
   ).current;
 
-  // Swipe gesture handler for tab navigation
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dx) > 20;
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        const currentIndex = TABS_ORDER.indexOf(activeTab);
-        
-        // Swipe right -> previous tab
-        if (gestureState.dx > 50 && currentIndex > 0) {
-          handleTabChange(TABS_ORDER[currentIndex - 1]);
-        }
-        // Swipe left -> next tab
-        else if (gestureState.dx < -50 && currentIndex < TABS_ORDER.length - 1) {
-          handleTabChange(TABS_ORDER[currentIndex + 1]);
-        }
-      },
-    })
-  ).current;
+  // PagerView ref for programmatic navigation
+  const pagerRef = useRef<PagerView>(null);
 
   const levelInfo = useLevelFromPoints(profile?.total_points || 0);
 
@@ -127,14 +109,91 @@ export default function ProfileScreen() {
 
     setLoading(true);
     try {
-      const [profileRes, gymsRes] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', userId).single(),
-        supabase.from('gyms').select('*').eq('user_id', userId).order('created_at', { ascending: true })
+      // Load profile data
+      const profileRes = await supabase.from('profiles').select('*').eq('id', userId).single();
+      if (profileRes.error) throw profileRes.error;
+
+      // Load gyms data
+      const gymsRes = await supabase.from('gyms').select('*').eq('user_id', userId).order('created_at', { ascending: true });
+
+      // Load workout statistics
+      const [totalWorkoutsRes, uniqueExercisesRes, workoutDatesRes] = await Promise.all([
+        // Total workouts: count completed workout_sessions
+        supabase
+          .from('workout_sessions')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .not('completed_at', 'is', null),
+
+        // Total unique exercises: count distinct exercise_ids from completed sessions
+        supabase
+          .from('set_logs')
+          .select(`
+            exercise_id,
+            workout_sessions!inner (
+              user_id,
+              completed_at
+            )
+          `)
+          .eq('workout_sessions.user_id', userId)
+          .not('workout_sessions.completed_at', 'is', null),
+
+        // Get workout dates for streak calculation
+        supabase
+          .from('workout_sessions')
+          .select('completed_at')
+          .eq('user_id', userId)
+          .not('completed_at', 'is', null)
+          .order('completed_at', { ascending: false })
+          .limit(30) // Get last 30 workouts to calculate streak
       ]);
 
-      if (profileRes.error) throw profileRes.error;
-      setProfile(profileRes.data);
-      
+      if (totalWorkoutsRes.error) throw totalWorkoutsRes.error;
+      if (uniqueExercisesRes.error) throw uniqueExercisesRes.error;
+      if (workoutDatesRes.error) throw workoutDatesRes.error;
+
+      // Get unique exercise count
+      const uniqueExerciseIds = new Set(uniqueExercisesRes.data?.map(log => log.exercise_id) || []);
+      const uniqueExercisesCount = uniqueExerciseIds.size;
+
+      // Calculate current streak
+      const workoutDates = workoutDatesRes.data?.map(session =>
+        new Date(session.completed_at).toDateString()
+      ) || [];
+
+      let currentStreak = 0;
+      const today = new Date().toDateString();
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();
+
+      // Check if worked out today or yesterday (to handle timezone issues)
+      const hasRecentWorkout = workoutDates.includes(today) || workoutDates.includes(yesterday);
+
+      if (hasRecentWorkout) {
+        // Calculate consecutive days
+        const uniqueDates = [...new Set(workoutDates)].sort((a, b) =>
+          new Date(b).getTime() - new Date(a).getTime()
+        );
+
+        for (let i = 0; i < uniqueDates.length; i++) {
+          const expectedDate = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toDateString();
+          if (uniqueDates[i] === expectedDate) {
+            currentStreak++;
+          } else {
+            break;
+          }
+        }
+      }
+
+      // Combine profile data with calculated stats
+      const profileData = {
+        ...profileRes.data,
+        total_workouts: totalWorkoutsRes.count || 0,
+        unique_exercises: uniqueExercisesCount,
+        current_streak: currentStreak,
+      };
+
+      setProfile(profileData);
+
       if (gymsRes.data) {
         setGyms(gymsRes.data);
       }
@@ -222,7 +281,7 @@ export default function ProfileScreen() {
         friction: 8,
       }).start();
     }
-    
+
     // Animate in new tab
     Animated.spring(tabScales[tab], {
       toValue: 1.1,
@@ -230,12 +289,35 @@ export default function ProfileScreen() {
       tension: 100,
       friction: 8,
     }).start();
-    
+
     setActiveTab(tab);
+
+    // Navigate to the corresponding page in PagerView
+    const tabIndex = TABS_ORDER.indexOf(tab);
+    if (pagerRef.current && tabIndex !== -1) {
+      pagerRef.current.setPage(tabIndex);
+    }
+
     try {
       await AsyncStorage.setItem(PROFILE_TAB_KEY, tab);
     } catch (error) {
       console.error('[Profile] Error saving tab:', error);
+    }
+  };
+
+  const handlePageChange = (pageIndex: number) => {
+    const newTab = TABS_ORDER[pageIndex];
+    if (newTab) {
+      setActiveTab(newTab);
+      // Update tab scales
+      TABS_ORDER.forEach(tab => {
+        Animated.spring(tabScales[tab], {
+          toValue: tab === newTab ? 1.1 : 1,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 8,
+        }).start();
+      });
     }
   };
 
@@ -331,21 +413,6 @@ export default function ProfileScreen() {
     setAchievementModalVisible(true);
   };
 
-  const renderAchievements = () => {
-    return achievements.map((achievement) => (
-      <TouchableOpacity
-        key={achievement.id}
-        style={[
-          styles.achievementCard,
-          achievement.unlocked && styles.achievementCardUnlocked
-        ]}
-        onPress={() => handleAchievementPress(achievement)}
-      >
-        <Text style={styles.achievementEmoji}>{achievement.emoji}</Text>
-        <Text style={styles.achievementTitle}>{achievement.title}</Text>
-      </TouchableOpacity>
-    ));
-  };
 
   const renderTabs = () => (
     <View style={styles.tabBar}>
@@ -370,96 +437,115 @@ export default function ProfileScreen() {
     </View>
   );
 
-  const renderOverviewTab = () => (
-    <View style={styles.tabContent}>
-      {/* Stat Cards Grid - 2x2 */}
-      <View style={styles.statGrid}>
-        <View style={[styles.statCard, styles.statCardOrange]}>
-          <View style={styles.statCardContent}>
-            <Ionicons name="flame" size={20} color="#FFFFFF" />
-            <Text style={styles.statCardLabel}>Current Streak</Text>
-            <Text style={styles.statCardValue}>{profile?.current_streak || 0} Days</Text>
+  const renderOverviewTab = () => {
+    return (
+      <View style={styles.tabContent}>
+        {/* Stat Cards Grid - 2x2 */}
+        <View style={styles.statGrid}>
+          <View style={[styles.statCard, styles.statCardOrange]}>
+            <View style={styles.statCardContent}>
+              <Ionicons name="flame" size={20} color="#FFFFFF" />
+              <Text style={styles.statCardLabel}>Current Streak</Text>
+              <Text style={styles.statCardValue}>{profile?.current_streak || 0} Days</Text>
+            </View>
           </View>
-        </View>
-        <View style={[styles.statCard, styles.statCardBlue]}>
-          <View style={styles.statCardContent}>
-            <Ionicons name="fitness" size={20} color="#FFFFFF" />
-            <Text style={styles.statCardLabel}>Total Workouts</Text>
-            <Text style={styles.statCardValue}>{profile?.total_workouts || 0}</Text>
+          <View style={[styles.statCard, styles.statCardBlue]}>
+            <View style={styles.statCardContent}>
+              <Ionicons name="fitness" size={20} color="#FFFFFF" />
+              <Text style={styles.statCardLabel}>Total Workouts</Text>
+              <Text style={styles.statCardValue}>{profile?.total_workouts || 0}</Text>
+            </View>
           </View>
-        </View>
-        <View style={[styles.statCard, styles.statCardPurple]}>
-          <View style={styles.statCardContent}>
-            <Ionicons name="barbell" size={20} color="#FFFFFF" />
-            <Text style={styles.statCardLabel}>Total Unique{'\n'}Exercises</Text>
-            <Text style={styles.statCardValue}>{profile?.unique_exercises || 0}</Text>
+          <View style={[styles.statCard, styles.statCardPurple]}>
+            <View style={styles.statCardContent}>
+              <Ionicons name="barbell" size={20} color="#FFFFFF" />
+              <Text style={styles.statCardLabel}>Total Unique{'\n'}Exercises</Text>
+              <Text style={styles.statCardValue}>{profile?.unique_exercises || 0}</Text>
+            </View>
           </View>
-        </View>
-        <TouchableOpacity 
-          style={[styles.statCard, styles.statCardYellow]}
-          onPress={() => setPointsModalVisible(true)}
-        >
-          <View style={styles.statCardContent}>
-            <Ionicons name="star" size={20} color="#FFFFFF" />
-            <Text style={styles.statCardLabel}>Total Points</Text>
-            <Text style={styles.statCardValue}>{profile?.total_points || 0}</Text>
-          </View>
-        </TouchableOpacity>
-      </View>
-
-      {/* Body Metrics */}
-      <View style={styles.section}>
-        <View style={styles.bodyMetricsHeader}>
-          <View style={styles.bodyMetricsTitleRow}>
-            <Ionicons name="bar-chart" size={20} color={Colors.foreground} />
-            <Text style={styles.bodyMetricsTitle}>Body Metrics</Text>
-          </View>
-          <TouchableOpacity onPress={() => setBodyMetricsModalVisible(true)}>
-            <Ionicons name="create-outline" size={20} color={Colors.blue600} />
+          <TouchableOpacity
+            style={[styles.statCard, styles.statCardYellow]}
+            onPress={() => setPointsModalVisible(true)}
+          >
+            <View style={styles.statCardContent}>
+              <Ionicons name="star" size={20} color="#FFFFFF" />
+              <Text style={styles.statCardLabel}>Total Points</Text>
+              <Text style={styles.statCardValue}>{profile?.total_points || 0}</Text>
+            </View>
           </TouchableOpacity>
         </View>
-        <View style={styles.bodyMetricsGrid}>
-          <View style={styles.bodyMetricItem}>
-            <Text style={styles.bodyMetricValue}>
-              {profile?.height_cm && profile?.weight_kg
-                ? (profile.weight_kg / Math.pow(profile.height_cm / 100, 2)).toFixed(1)
-                : '--'}
-            </Text>
-            <Text style={styles.bodyMetricLabel}>BMI</Text>
-          </View>
-          <View style={styles.bodyMetricItem}>
-            <Text style={styles.bodyMetricValue}>{profile?.height_cm || '--'}cm</Text>
-            <Text style={styles.bodyMetricLabel}>Height</Text>
-          </View>
-          <View style={styles.bodyMetricItem}>
-            <Text style={styles.bodyMetricValue}>{profile?.weight_kg || '--'}kg</Text>
-            <Text style={styles.bodyMetricLabel}>Weight</Text>
-          </View>
-          <View style={styles.bodyMetricItem}>
-            <Text style={styles.bodyMetricValue}>
-              {profile?.height_cm && profile?.weight_kg
-                ? Math.round((profile.weight_kg * 24) + (profile.height_cm * 10)).toLocaleString()
-                : '--'}
-            </Text>
-            <Text style={styles.bodyMetricLabel}>Daily Cal (est.)</Text>
-          </View>
-          <View style={styles.bodyMetricItem}>
-            <Text style={styles.bodyMetricValue}>{profile?.body_fat_pct || '--'}%</Text>
-            <Text style={styles.bodyMetricLabel}>Body Fat</Text>
-          </View>
-        </View>
-      </View>
 
-      {/* Achievements */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Achievements</Text>
-        <View style={styles.achievementsGrid}>
-          {renderAchievements()}
+        {/* Body Metrics */}
+        <View style={styles.section}>
+          <View style={styles.bodyMetricsHeader}>
+            <View style={styles.bodyMetricsTitleRow}>
+              <Ionicons name="bar-chart" size={20} color={Colors.foreground} />
+              <Text style={styles.bodyMetricsTitle}>Body Metrics</Text>
+            </View>
+            <TouchableOpacity onPress={() => setBodyMetricsModalVisible(true)}>
+              <Ionicons name="create-outline" size={20} color={Colors.blue600} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.bodyMetricsGrid}>
+            <View style={styles.bodyMetricItem}>
+              <Text style={styles.bodyMetricValue}>
+                {profile?.height_cm && profile?.weight_kg
+                  ? (profile.weight_kg / Math.pow(profile.height_cm / 100, 2)).toFixed(1)
+                  : '--'}
+              </Text>
+              <Text style={styles.bodyMetricLabel}>BMI</Text>
+            </View>
+            <View style={styles.bodyMetricItem}>
+              <Text style={styles.bodyMetricValue}>{profile?.height_cm || '--'}cm</Text>
+              <Text style={styles.bodyMetricLabel}>Height</Text>
+            </View>
+            <View style={styles.bodyMetricItem}>
+              <Text style={styles.bodyMetricValue}>{profile?.weight_kg || '--'}kg</Text>
+              <Text style={styles.bodyMetricLabel}>Weight</Text>
+            </View>
+            <View style={styles.bodyMetricItem}>
+              <Text style={styles.bodyMetricValue}>
+                {profile?.height_cm && profile?.weight_kg
+                  ? Math.round((profile.weight_kg * 24) + (profile.height_cm * 10)).toLocaleString()
+                  : '--'}
+              </Text>
+              <Text style={styles.bodyMetricLabel}>Daily Cal (est.)</Text>
+            </View>
+            <View style={styles.bodyMetricItem}>
+              <Text style={styles.bodyMetricValue}>{profile?.body_fat_pct || '--'}%</Text>
+              <Text style={styles.bodyMetricLabel}>Body Fat</Text>
+            </View>
+          </View>
         </View>
-        <Text style={styles.achievementsTapHint}>Tap to see requirements</Text>
+
+        {/* Achievements */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Achievements</Text>
+          <View style={styles.achievementsGrid}>
+            {renderAchievements()}
+          </View>
+          <Text style={styles.achievementsTapHint}>Tap to see requirements</Text>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
+
+  const renderAchievements = () => {
+    return achievements.map((achievement) => (
+      <TouchableOpacity
+        key={achievement.id}
+        style={[
+          styles.achievementCard,
+          achievement.unlocked && styles.achievementCardUnlocked
+        ]}
+        onPress={() => handleAchievementPress(achievement)}
+      >
+        <Text style={styles.achievementEmoji}>{achievement.emoji}</Text>
+        <Text style={styles.achievementTitle}>{achievement.title}</Text>
+      </TouchableOpacity>
+    ));
+  };
+
 
   const renderStatsTab = () => (
     <View style={styles.tabContent}>
@@ -621,8 +707,8 @@ export default function ProfileScreen() {
     </View>
   );
 
-  const renderTabContent = () => {
-    switch (activeTab) {
+  const renderTabContentForTab = (tab: Tab) => {
+    switch (tab) {
       case 'overview':
         return renderOverviewTab();
       case 'stats':
@@ -653,18 +739,34 @@ export default function ProfileScreen() {
 
   return (
     <ScreenContainer scroll={false}>
-      <ScrollView 
-        {...panResponder.panHandlers}
-        style={styles.mainScroll}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.mainScrollContent}
-      >
-        {renderHeader()}
-        {renderTabs()}
-        <View style={styles.tabContent}>
-          {renderTabContent()}
-        </View>
-      </ScrollView>
+      <View style={styles.mainContainer}>
+        <ScrollView
+          style={styles.headerScrollView}
+          showsVerticalScrollIndicator={false}
+          stickyHeaderIndices={[1]}
+        >
+          <View style={styles.headerContainer}>
+            {renderHeader()}
+          </View>
+
+          <View style={styles.tabsContainer}>
+            {renderTabs()}
+          </View>
+        </ScrollView>
+
+        <PagerView
+          ref={pagerRef}
+          style={styles.pagerView}
+          initialPage={0}
+          onPageSelected={(e) => handlePageChange(e.nativeEvent.position)}
+        >
+          {TABS_ORDER.map((tab) => (
+            <ScrollView key={tab} style={styles.page} showsVerticalScrollIndicator={false}>
+              {renderTabContentForTab(tab)}
+            </ScrollView>
+          ))}
+        </PagerView>
+      </View>
 
       {/* Modals */}
       <PointsExplanationModal
@@ -742,11 +844,28 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  mainScroll: {
+  mainContainer: {
     flex: 1,
   },
-  mainScrollContent: {
-    paddingBottom: Spacing.xl,
+  headerScrollView: {
+    flex: 1,
+  },
+  headerContainer: {
+    backgroundColor: Colors.background,
+  },
+  tabsContainer: {
+    backgroundColor: Colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  pagerView: {
+    flex: 1,
+  },
+  page: {
+    flex: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.xl * 2,
   },
   tabContent: {
     paddingHorizontal: Spacing.lg,
@@ -867,10 +986,6 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: Colors.primary,
   },
-  tabContent: {
-    padding: Spacing.lg,
-    backgroundColor: '#F3F4F6',
-  },
   tabTitle: {
     fontSize: 24,
     fontWeight: '700',
@@ -892,11 +1007,11 @@ const styles = StyleSheet.create({
   statGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.md,
     marginBottom: Spacing.lg,
+    justifyContent: 'space-between', // Force 2 cards per row
   },
   statCard: {
-    width: (width - Spacing.lg * 2 - Spacing.md) / 2,
+    width: '48%', // Two cards per row
     height: 120,
     borderRadius: BorderRadius.xl,
     shadowColor: '#000',
@@ -904,6 +1019,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
+    marginBottom: Spacing.md, // Space between rows
   },
   statCardContent: {
     flex: 1,
@@ -1007,7 +1123,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   achievementCard: {
-    width: (width - Spacing.lg * 4 - Spacing.sm * 2) / 3,
+    width: '31%', // Use percentage for 3 columns (31% * 3 = 93% + gaps)
     aspectRatio: 1,
     borderRadius: BorderRadius.lg,
     backgroundColor: '#FFFFFF',

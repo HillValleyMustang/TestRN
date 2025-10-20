@@ -69,13 +69,13 @@ export const MobileNavigation = ({ currentPage = 'overview', onPageChange }: Mob
   };
 
   return (
-    <div 
-      className="bg-card border border-border rounded-xl p-1 my-2 shadow-sm"
+    <div
+      className="bg-card border border-border rounded-xl p-1 my-2 shadow-sm mx-2"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      <div className="flex justify-between items-center gap-0.5">
+      <div className="flex justify-between items-center gap-1">
         {pages.map((page) => (
           <button
             key={page.id}

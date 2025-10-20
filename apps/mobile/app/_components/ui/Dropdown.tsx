@@ -411,8 +411,8 @@ const styles = StyleSheet.create({
   },
   dropdownTriggerText: {
     fontSize: 16,
-    lineHeight: 24,
-    fontWeight: '500',
+    lineHeight: 18,
+    fontWeight: '700',
     color: colors.light.trigger.text,
     flex: 1,
   },

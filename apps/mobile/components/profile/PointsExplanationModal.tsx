@@ -33,7 +33,11 @@ export function PointsExplanationModal({ visible, onClose }: PointsExplanationMo
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.content}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+          >
             <Text style={styles.description}>
               Earn fitness points by completing workouts and achieving milestones. Your total points determine your fitness level.
             </Text>
@@ -163,6 +167,9 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: Spacing.lg,
+  },
+  scrollContent: {
+    paddingBottom: Spacing.xl * 2, // Add extra padding at bottom for full scrolling
   },
   description: {
     ...TextStyles.body,
