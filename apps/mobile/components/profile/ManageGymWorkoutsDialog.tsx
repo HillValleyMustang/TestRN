@@ -65,8 +65,8 @@ const MUSCLE_GROUPS = [
   'Core'
 ];
 
-// Ensure unique values and sort alphabetically excluding 'All Muscle Groups'
-const UNIQUE_MUSCLE_GROUPS = Array.from(new Set(MUSCLE_GROUPS)).sort();
+// Ensure unique values and sort alphabetically excluding 'All Muscle Groups' and multi-muscle groups
+const UNIQUE_MUSCLE_GROUPS = Array.from(new Set(MUSCLE_GROUPS.filter(muscle => !muscle.includes(',')))).sort();
 
 // Add 'All Muscle Groups' to the beginning
 const FINAL_MUSCLE_GROUPS = ['All Muscle Groups', ...UNIQUE_MUSCLE_GROUPS];
@@ -539,11 +539,10 @@ export function ManageGymWorkoutsDialog({
 
       console.log('Fetched exercises after initial assignment:', exercises);
 
-      muscles = [...new Set(exercises.map(ex => ex.main_muscle).filter(Boolean).filter((muscle: string) => !muscle.includes(',')))].sort();
+      // Use the predefined unique muscle groups for consistent dropdown options
+      muscles = UNIQUE_MUSCLE_GROUPS;
 
-      console.log('All muscles before filtering:', exercises.map(ex => ex.main_muscle).filter(Boolean));
-      console.log('Filtered muscles for dropdown:', muscles);
-      console.log('Available muscles state will be set to:', muscles);
+      console.log('Using predefined unique muscles for dropdown:', muscles);
       categories = [...new Set(exercises.map(ex => ex.category).filter(Boolean))].sort();
 
       console.log('Available muscles:', muscles);
@@ -1291,7 +1290,7 @@ export function ManageGymWorkoutsDialog({
               {/* Muscle Group Dropdown for filtering */}
               <View style={styles.filterDropdownContainer}>
                 <Dropdown
-                  items={[{ label: 'All Muscle Groups', value: 'All Muscle Groups' }, ...availableMuscles.map(muscle => ({ label: muscle, value: muscle }))]
+                  items={[{ label: 'All Muscle Groups', value: 'All Muscle Groups' }, ...availableMuscles.map(muscle => ({ label: muscle, value: muscle }))]}
                   selectedValue={selectedMuscleGroup}
                   onSelect={async (value) => {
                     setSelectedMuscleGroup(value);
