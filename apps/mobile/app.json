@@ -7,6 +7,7 @@
       "android"
     ],
     "main": "expo-router/entry",
+    "scheme": "dyad-react-native",
     "plugins": ["expo-router"],
     "experiments": { "typedRoutes": false }
   }

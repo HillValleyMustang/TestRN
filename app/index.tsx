@@ -1,39 +1,34 @@
-// app/index.tsx
-import { View, Text, Pressable } from "react-native";
-import * as Linking from "expo-linking";
+import { StyleSheet, Text, View } from "react-native";
 
-const TIP_URL = "https://www.buymeacoffee.com/shaaraa";
-
-export default function HomeScreen() {
-  const handleTipPress = async () => {
-    try {
-      const supported = await Linking.canOpenURL(TIP_URL);
-      if (supported) await Linking.openURL(TIP_URL);
-      else console.warn("Cannot open:", TIP_URL);
-    } catch (e) {
-      console.warn("Open URL failed:", e);
-    }
-  };
-
+export default function Page() {
   return (
-    <View
-      style={{
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 12,
-      }}
-    >
-      <Text style={{ fontSize: 24, fontWeight: "600" }}>
-        Dyad React Native (Expo)
-      </Text>
-      <Pressable
-        onPress={handleTipPress}
-        accessibilityRole="link"
-        style={{ padding: 12, backgroundColor: "#111", borderRadius: 8 }}
-      >
-        <Text style={{ color: "white" }}>Tip me</Text>
-      </Pressable>
+    <View style={styles.container}>
+      <View style={styles.main}>
+        <Text style={styles.title}>Hello World</Text>
+        <Text style={styles.subtitle}>This is the first page of your app.</Text>
+      </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: "center",
+    padding: 24,
+  },
+  main: {
+    flex: 1,
+    justifyContent: "center",
+    maxWidth: 960,
+    marginHorizontal: "auto",
+  },
+  title: {
+    fontSize: 64,
+    fontWeight: "bold",
+  },
+  subtitle: {
+    fontSize: 36,
+    color: "#38434D",
+  },
+});

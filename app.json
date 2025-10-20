@@ -1,13 +1,15 @@
 {
   "expo": {
-    "name": "dyad-react-native-expo-template",
-    "slug": "dyad-react-native-expo-template",
-    "plugins": [
-      "expo-router"
+    "name": "my-fitness-trainer-mobile",
+    "slug": "my-fitness-trainer-mobile",
+    "platforms": [
+      "ios",
+      "android"
     ],
-    "experiments": {
-      "typedRoutes": false
-    },
+    "main": "apps/mobile/index",
+    "plugins": ["expo-router"],
+    "scheme": "dyad-react-native",
+    "experiments": { "typedRoutes": false },
     "ios": {
       "bundleIdentifier": "com.anonymous.dyad-react-native-expo-template"
     }

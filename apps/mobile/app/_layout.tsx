@@ -2,6 +2,8 @@ import { Stack } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import * as Linking from "expo-linking";
+import { useEffect } from "react";
 import { useFonts } from "expo-font";
 import {
   Poppins_300Light,
@@ -27,6 +29,41 @@ export default function RootLayout() {
     Poppins_600SemiBold,
     Poppins_700Bold,
   });
+
+  useEffect(() => {
+    const handleDeepLink = (event: { url: string }) => {
+      console.log("Deep link received:", event.url);
+      try {
+        // Parse the URL to see what it contains
+        const parsedUrl = Linking.parse(event.url);
+        console.log("Parsed deep link:", parsedUrl);
+      } catch (error) {
+        console.error("Error parsing deep link:", error);
+      }
+    };
+
+    // Listen for deep links
+    const subscription = Linking.addEventListener("url", handleDeepLink);
+
+    // Check if app was opened from a deep link
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        console.log("App opened from deep link:", url);
+        try {
+          const parsedUrl = Linking.parse(url);
+          console.log("Parsed initial deep link:", parsedUrl);
+        } catch (error) {
+          console.error("Error parsing initial deep link:", error);
+        }
+      }
+    }).catch((error) => {
+      console.error("Error getting initial URL:", error);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   if (!fontsLoaded) {
     return null; // Return null to show splash screen while fonts load
