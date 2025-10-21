@@ -18,22 +18,22 @@ export function BackgroundRoot() {
   const scaleB = useRef(new Animated.Value(1)).current;
   const scaleC = useRef(new Animated.Value(1)).current;
 
-  // Blob specifications
+  // Blob specifications - positioned more towards the top
   const blobA = {
     cx: -0.2 * SCREEN_WIDTH,
-    cy: -0.25 * SCREEN_HEIGHT,
+    cy: -0.1 * SCREEN_HEIGHT, // Moved up from -0.25
     baseRadius: 0.75 * SCREEN_WIDTH,
   };
 
   const blobB = {
     cx: 1.1 * SCREEN_WIDTH,
-    cy: 0.1 * SCREEN_HEIGHT,
+    cy: -0.2 * SCREEN_HEIGHT, // Moved up from 0.1
     baseRadius: 0.9 * SCREEN_WIDTH,
   };
 
   const blobC = {
     cx: 0.2 * SCREEN_WIDTH,
-    cy: 1.1 * SCREEN_HEIGHT,
+    cy: 0.3 * SCREEN_HEIGHT, // Moved up from 1.1
     baseRadius: 0.9 * SCREEN_WIDTH,
   };
 
@@ -117,20 +117,20 @@ export function BackgroundRoot() {
         <Defs>
           {/* Purple Radial Gradient */}
           <RadialGradient id="purpleGrad" cx="50%" cy="50%">
-            <Stop offset="0%" stopColor="#A78BFA" stopOpacity="0.1" />
-            <Stop offset="100%" stopColor="#A78BFA" stopOpacity="0" />
+            <Stop offset="0%" stopColor="hsl(270, 50%, 32%)" stopOpacity="0.10" />
+            <Stop offset="100%" stopColor="hsl(270, 50%, 32%)" stopOpacity="0" />
           </RadialGradient>
 
           {/* Cyan Radial Gradient */}
           <RadialGradient id="cyanGrad" cx="50%" cy="50%">
-            <Stop offset="0%" stopColor="#67E8F9" stopOpacity="0.1" />
-            <Stop offset="100%" stopColor="#67E8F9" stopOpacity="0" />
+            <Stop offset="0%" stopColor="hsl(200, 100%, 78%)" stopOpacity="0.10" />
+            <Stop offset="100%" stopColor="hsl(200, 100%, 78%)" stopOpacity="0" />
           </RadialGradient>
 
           {/* Pink Radial Gradient */}
           <RadialGradient id="pinkGrad" cx="50%" cy="50%">
-            <Stop offset="0%" stopColor="#FDA4AF" stopOpacity="0.1" />
-            <Stop offset="100%" stopColor="#FDA4AF" stopOpacity="0" />
+            <Stop offset="0%" stopColor="hsl(324, 100%, 44%)" stopOpacity="0.10" />
+            <Stop offset="100%" stopColor="hsl(324, 100%, 44%)" stopOpacity="0" />
           </RadialGradient>
         </Defs>
 

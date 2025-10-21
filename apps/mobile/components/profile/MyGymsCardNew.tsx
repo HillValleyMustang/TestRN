@@ -172,7 +172,7 @@ export function MyGymsCardNew({
             </TouchableOpacity>
           ) : (
             <TouchableOpacity onPress={() => setIsEditing(true)} style={styles.editButton}>
-              <Ionicons name="create-outline" size={18} color={Colors.blue600} />
+              <Ionicons name="create-outline" size={18} color={Colors.foreground} />
             </TouchableOpacity>
           )}
         </View>
@@ -296,6 +296,8 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     padding: Spacing.lg,
     marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   header: {
     flexDirection: 'row',
@@ -309,12 +311,21 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   title: {
-    fontSize: 16,
+    fontSize: 22,
     fontWeight: '700',
     color: Colors.gray900,
+    fontFamily: 'Poppins_700Bold',
   },
   editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
     padding: Spacing.xs,
+  },
+  editButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.foreground,
   },
   doneButton: {
     paddingHorizontal: Spacing.md,

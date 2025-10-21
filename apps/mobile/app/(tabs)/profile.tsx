@@ -26,6 +26,7 @@ import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
 import { useLevelFromPoints } from '../../hooks/useLevelFromPoints';
 import { ScreenContainer } from '../../components/layout/ScreenContainer';
+import { BackgroundRoot } from '../../components/BackgroundRoot';
 import { PointsExplanationModal } from '../../components/profile/PointsExplanationModal';
 import { EditNameModal } from '../../components/profile/EditNameModal';
 import { BodyMetricsModal } from '../../components/profile/BodyMetricsModal';
@@ -42,6 +43,12 @@ import { DataExportCard } from '../../components/profile/DataExportCard';
 import { ManageGymWorkoutsDialog } from '../../components/profile/ManageGymWorkoutsDialog';
 
 const { width } = Dimensions.get('window');
+
+const HEADER_MAX_HEIGHT = 270; // Increased to accommodate full header and tabs
+const HEADER_MIN_HEIGHT = 0;
+const HEADER_SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
+const TAB_BAR_HEIGHT = 56; // Approximate height of the tab bar
+const HEADER_OFFSET = 60; // Additional offset to move nav bar below page header
 
 type Tab = 'overview' | 'stats' | 'photo' | 'media' | 'social' | 'settings';
 
@@ -93,6 +100,22 @@ export default function ProfileScreen() {
       [tab]: new Animated.Value(tab === 'overview' ? 1.1 : 1),
     }), {} as Record<Tab, Animated.Value>)
   ).current;
+
+  // Scroll animation for header
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const headerTranslateY = scrollY.interpolate({
+    inputRange: [0, HEADER_SCROLL_DISTANCE],
+    outputRange: [0, -HEADER_SCROLL_DISTANCE],
+    extrapolate: 'clamp',
+  });
+
+  // Content should move up with the header to stay attached to nav bar
+  const contentTranslateY = scrollY.interpolate({
+    inputRange: [0, HEADER_SCROLL_DISTANCE],
+    outputRange: [0, -HEADER_SCROLL_DISTANCE],
+    extrapolate: 'clamp',
+  });
 
   // PagerView ref for programmatic navigation
   const pagerRef = useRef<PagerView>(null);
@@ -210,11 +233,11 @@ export default function ProfileScreen() {
 
     const { error } = await supabase
       .from('profiles')
-      .update(updates)
+      .update({ ...updates, updated_at: new Date().toISOString() })
       .eq('id', userId);
 
     if (error) throw error;
-    
+
     // Update local state optimistically
     setProfile({ ...profile, ...updates });
   };
@@ -483,7 +506,7 @@ export default function ProfileScreen() {
               <Text style={styles.bodyMetricsTitle}>Body Metrics</Text>
             </View>
             <TouchableOpacity onPress={() => setBodyMetricsModalVisible(true)}>
-              <Ionicons name="create-outline" size={20} color={Colors.blue600} />
+              <Ionicons name="create-outline" size={20} color={Colors.foreground} />
             </TouchableOpacity>
           </View>
           <View style={styles.bodyMetricsGrid}>
@@ -626,22 +649,22 @@ export default function ProfileScreen() {
   );
 
   const renderSettingsTab = () => (
-    <View style={styles.settingsTabContainer}>
-      <PersonalInfoCard 
-        profile={profile} 
+    <View style={styles.tabContent}>
+      <PersonalInfoCard
+        profile={profile}
         onUpdate={handleUpdateProfile}
       />
-      
+
       <WorkoutPreferencesCard
         profile={profile}
         onUpdate={handleUpdateProfile}
       />
-      
+
       <ProgrammeTypeCard
         profile={profile}
         onUpdate={handleUpdateProfile}
       />
-      
+
       <MyGymsCardNew
         userId={userId!}
         gyms={gyms}
@@ -672,16 +695,16 @@ export default function ProfileScreen() {
           onPress={() => setPasswordModalVisible(true)}
         >
           <View style={styles.settingsButtonContent}>
-            <Ionicons name="lock-closed" size={20} color={Colors.gray700} />
+            <Ionicons name="lock-closed" size={20} color={Colors.foreground} />
             <Text style={styles.settingsButtonText}>Change Password</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={Colors.gray400} />
+          <Ionicons name="chevron-forward" size={20} color={Colors.foreground} />
         </TouchableOpacity>
       </View>
 
       {/* Security Actions */}
       <View style={styles.settingsSection}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.dangerButton}
           onPress={() => {
             Alert.alert(
@@ -700,7 +723,7 @@ export default function ProfileScreen() {
             );
           }}
         >
-          <Ionicons name="log-out" size={20} color="#EF4444" />
+          <Ionicons name="log-out" size={20} color={Colors.foreground} />
           <Text style={styles.dangerButtonText}>Sign Out</Text>
         </TouchableOpacity>
       </View>
@@ -738,22 +761,23 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScreenContainer scroll={false}>
-      <View style={styles.mainContainer}>
-        <ScrollView
-          style={styles.headerScrollView}
-          showsVerticalScrollIndicator={false}
-          stickyHeaderIndices={[1]}
-        >
+    <View style={styles.mainContainer}>
+      {/* Aurora Background with 3 animated blobs */}
+      <BackgroundRoot />
+      <ScreenContainer scroll={false}>
+        <Animated.View style={[styles.headerWrapper, { transform: [{ translateY: headerTranslateY }] }]}>
           <View style={styles.headerContainer}>
             {renderHeader()}
           </View>
+        </Animated.View>
 
+        {/* The tab bar needs to be a separate interactive layer */}
+        <Animated.View style={[styles.tabBarInteractiveWrapper, { transform: [{ translateY: headerTranslateY }] }]}>
           <View style={styles.tabsContainer}>
             {renderTabs()}
           </View>
-        </ScrollView>
-
+        </Animated.View>
+        
         <PagerView
           ref={pagerRef}
           style={styles.pagerView}
@@ -761,12 +785,21 @@ export default function ProfileScreen() {
           onPageSelected={(e) => handlePageChange(e.nativeEvent.position)}
         >
           {TABS_ORDER.map((tab) => (
-            <ScrollView key={tab} style={styles.page} showsVerticalScrollIndicator={false}>
+            <Animated.ScrollView
+              key={tab}
+              style={styles.page}
+              showsVerticalScrollIndicator={false}
+              scrollEventThrottle={16}
+              onScroll={Animated.event(
+                [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                { useNativeDriver: true }
+              )}
+            >
               {renderTabContentForTab(tab)}
-            </ScrollView>
+            </Animated.ScrollView>
           ))}
         </PagerView>
-      </View>
+      </ScreenContainer>
 
       {/* Modals */}
       <PointsExplanationModal
@@ -839,7 +872,7 @@ export default function ProfileScreen() {
           setSelectedGymName('');
         }}
       />
-    </ScreenContainer>
+    </View>
   );
 }
 
@@ -847,28 +880,58 @@ const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
   },
+  headerWrapper: {
+    position: 'absolute',
+    top: 20,
+    left: 0,
+    right: 0,
+    zIndex: -1, // Behind everything
+    backgroundColor: 'transparent',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+    pointerEvents: 'none', // Prevents interaction with the header background
+  },
   headerScrollView: {
     flex: 1,
   },
   headerContainer: {
-    backgroundColor: Colors.background,
+    backgroundColor: 'transparent',
   },
   tabsContainer: {
-    backgroundColor: Colors.background,
+    backgroundColor: 'transparent',
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+  },
+  tabBarInteractiveWrapper: {
+    position: 'absolute',
+    top: HEADER_MAX_HEIGHT - TAB_BAR_HEIGHT + HEADER_OFFSET,
+    left: 0,
+    right: 0,
+    zIndex: 1000, // Very high zIndex to ensure it's tappable
+    pointerEvents: 'auto', // Explicitly allow interaction
   },
   pagerView: {
     flex: 1,
   },
+  pagerViewInner: {
+    flex: 1,
+    marginTop: HEADER_MAX_HEIGHT + Spacing.md + HEADER_OFFSET, // Push content down below the entire header and interactive tab bar, plus a small gap
+  },
   page: {
     flex: 1,
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
+    paddingTop: Spacing.lg * 1.2, // Increased by 20% from 0
     paddingBottom: Spacing.xl * 2,
   },
   tabContent: {
     paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.lg,
+    marginTop: Spacing.lg * 9 + HEADER_OFFSET + 20, // Try *9
+    width: '100%',
   },
   loadingContainer: {
     flex: 1,
@@ -885,8 +948,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.lg,
     paddingTop: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
     backgroundColor: 'transparent',
   },
   avatar: {
@@ -934,7 +995,7 @@ const styles = StyleSheet.create({
   progressContainer: {
     width: '100%',
     marginTop: Spacing.sm,
-    marginBottom: Spacing.sm,
+    marginBottom: 0,
   },
   progressBar: {
     width: '100%',
@@ -958,14 +1019,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
     backgroundColor: '#FFFFFF',
-    marginTop: Spacing.md,
+    marginTop: 0,
     borderRadius: BorderRadius.md,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
   tab: {
     flex: 1,
@@ -1055,10 +1116,14 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     borderRadius: BorderRadius.xl,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
+    elevation: 20,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    width: '100%',
+    alignSelf: 'stretch',
   },
   bodyMetricsHeader: {
     flexDirection: 'row',

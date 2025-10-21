@@ -41,6 +41,9 @@ export function WorkoutPreferencesCard({
 
   useEffect(() => {
     if (profile) {
+      console.log('[WorkoutPreferencesCard] Profile data:', profile);
+      console.log('[WorkoutPreferencesCard] preferred_session_length:', profile.preferred_session_length);
+      console.log('[WorkoutPreferencesCard] sessionLength state:', sessionLength);
       setPrimaryGoal(profile.primary_goal || '');
       setSessionLength(profile.preferred_session_length || 60);
     }
@@ -54,20 +57,28 @@ export function WorkoutPreferencesCard({
         preferred_session_length: sessionLength,
       };
 
-      await onUpdate(updates);
+      // Check if any values actually changed
+      const hasChanges =
+        primaryGoal !== (profile?.primary_goal || '') ||
+        sessionLength !== (profile?.preferred_session_length || 60);
 
-      if (
-        sessionLength !== profile.preferred_session_length &&
-        profile.active_t_path_id &&
-        onRegenerateTPath
-      ) {
-        await onRegenerateTPath(sessionLength);
+      if (hasChanges) {
+        await onUpdate(updates);
+
+        if (
+          sessionLength !== profile.preferred_session_length &&
+          profile.active_t_path_id &&
+          onRegenerateTPath
+        ) {
+          await onRegenerateTPath(sessionLength);
+        }
+
+        setRollingStatus(strings.workout_preferences.status_updated);
+        setTimeout(() => setRollingStatus(null), 2500);
       }
 
-      setRollingStatus(strings.workout_preferences.status_updated);
       setHasError(false);
       setIsEditing(false);
-      setTimeout(() => setRollingStatus(null), 2500);
     } catch (error) {
       console.error('[WorkoutPreferencesCard] Save error:', error);
       setRollingStatus(strings.workout_preferences.status_error);
@@ -87,7 +98,13 @@ export function WorkoutPreferencesCard({
   };
 
   const getSessionLabel = (value: number) => {
-    const option = SESSION_LENGTH_OPTIONS.find(s => s.value === value);
+    console.log('[WorkoutPreferencesCard] getSessionLabel called with:', value, 'type:', typeof value);
+    console.log('[WorkoutPreferencesCard] SESSION_LENGTH_OPTIONS:', SESSION_LENGTH_OPTIONS);
+    const option = SESSION_LENGTH_OPTIONS.find(s => {
+      console.log('[WorkoutPreferencesCard] Comparing', s.value, '===', value, 'types:', typeof s.value, typeof value);
+      return Number(s.value) === Number(value);
+    });
+    console.log('[WorkoutPreferencesCard] Found option:', option);
     return option ? option.label : '';
   };
 
@@ -116,14 +133,16 @@ export function WorkoutPreferencesCard({
               <ActivityIndicator size="small" color={Colors.blue600} />
             ) : (
               <>
-                <Ionicons 
-                  name={isEditing ? "checkmark" : "create-outline"} 
-                  size={18} 
-                  color={Colors.blue600} 
+                <Ionicons
+                  name={isEditing ? "checkmark" : "create-outline"}
+                  size={18}
+                  color={isEditing ? Colors.blue600 : Colors.foreground}
                 />
-                <Text style={styles.actionButtonText}>
-                  {isEditing ? strings.workout_preferences.save : strings.workout_preferences.edit}
-                </Text>
+                {isEditing && (
+                  <Text style={styles.actionButtonText}>
+                    {strings.workout_preferences.save}
+                  </Text>
+                )}
               </>
             )}
           </TouchableOpacity>
@@ -187,7 +206,12 @@ export function WorkoutPreferencesCard({
               ))}
             </View>
           ) : (
-            <Text style={styles.value}>{getSessionLabel(sessionLength)}</Text>
+            <Text style={styles.value}>
+              {(() => {
+                console.log('[WorkoutPreferencesCard] Rendering sessionLength:', sessionLength);
+                return sessionLength ? getSessionLabel(sessionLength) : 'Not set';
+              })()}
+            </Text>
           )}
         </View>
       </View>
@@ -201,6 +225,8 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     marginBottom: Spacing.md,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   header: {
     flexDirection: 'row',
@@ -216,9 +242,10 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
     color: Colors.foreground,
+    fontFamily: 'Poppins_700Bold',
   },
   headerActions: {
     flexDirection: 'row',
@@ -243,6 +270,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: Colors.blue600,
   },
+  actionButtonTextBlack: {
+    color: Colors.foreground,
+  },
   content: {
     padding: Spacing.lg,
     gap: Spacing.lg,
@@ -251,13 +281,16 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '600',
     color: Colors.foreground,
+    fontFamily: 'Poppins_600SemiBold',
   },
   value: {
-    fontSize: 14,
-    color: Colors.mutedForeground,
+    fontSize: 16,
+    color: Colors.foreground,
+    fontWeight: '400',
+    fontFamily: 'Poppins_400Regular',
   },
   selectContainer: {
     gap: Spacing.sm,

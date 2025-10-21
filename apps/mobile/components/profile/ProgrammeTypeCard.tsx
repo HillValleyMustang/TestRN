@@ -93,6 +93,7 @@ export function ProgrammeTypeCard({
     }
   };
 
+
   const getProgrammeLabel = (value: string) => {
     const option = PROGRAMME_TYPE_OPTIONS.find(p => p.value === value);
     return option ? option.label : '';
@@ -124,14 +125,16 @@ export function ProgrammeTypeCard({
                 <ActivityIndicator size="small" color={Colors.blue600} />
               ) : (
                 <>
-                  <Ionicons 
-                    name={isEditing ? "checkmark" : "create-outline"} 
-                    size={18} 
-                    color={Colors.blue600} 
+                  <Ionicons
+                    name={isEditing ? "checkmark" : "create-outline"}
+                    size={18}
+                    color={isEditing ? Colors.blue600 : Colors.foreground}
                   />
-                  <Text style={styles.actionButtonText}>
-                    {isEditing ? strings.programme_type.save : strings.programme_type.edit}
-                  </Text>
+                  {isEditing && (
+                    <Text style={styles.actionButtonText}>
+                      {strings.programme_type.save}
+                    </Text>
+                  )}
                 </>
               )}
             </TouchableOpacity>
@@ -231,6 +234,8 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     marginBottom: Spacing.md,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   header: {
     flexDirection: 'row',
@@ -246,9 +251,10 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
     color: Colors.foreground,
+    fontFamily: 'Poppins_700Bold',
   },
   headerActions: {
     flexDirection: 'row',
@@ -273,6 +279,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: Colors.blue600,
   },
+  actionButtonTextBlack: {
+    color: Colors.foreground,
+  },
   content: {
     padding: Spacing.lg,
   },
@@ -280,13 +289,16 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '600',
     color: Colors.foreground,
+    fontFamily: 'Poppins_600SemiBold',
   },
   value: {
-    fontSize: 14,
-    color: Colors.mutedForeground,
+    fontSize: 16,
+    color: Colors.foreground,
+    fontWeight: '400',
+    fontFamily: 'Poppins_400Regular',
   },
   selectContainer: {
     gap: Spacing.sm,

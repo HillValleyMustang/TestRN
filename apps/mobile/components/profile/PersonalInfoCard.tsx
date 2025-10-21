@@ -41,23 +41,23 @@ export function PersonalInfoCard({ profile, onUpdate }: PersonalInfoCardProps) {
   // Hydrate form when profile changes or when entering edit mode
   useEffect(() => {
     if (profile) {
-      setDisplayName(profile.display_name || '');
+      setDisplayName(profile.full_name || '');
       setHeight(profile.height_cm?.toString() || '');
       setWeight(profile.weight_kg?.toString() || '');
       setBodyFat(profile.body_fat_pct?.toString() || '');
-      
+
       // Parse preferred_muscles from comma-separated string
-      const muscles = profile.preferred_muscles 
+      const muscles = profile.preferred_muscles
         ? profile.preferred_muscles.split(',').map((m: string) => m.trim())
         : [];
       setPreferredMuscles(muscles);
-      
+
       setHealthNotes(profile.health_notes || '');
     }
   }, [profile, isEditing]);
 
   const toggleMuscle = (muscle: string) => {
-    setPreferredMuscles(prev => 
+    setPreferredMuscles(prev =>
       prev.includes(muscle)
         ? prev.filter(m => m !== muscle)
         : [...prev, muscle]
@@ -68,7 +68,7 @@ export function PersonalInfoCard({ profile, onUpdate }: PersonalInfoCardProps) {
     setIsSaving(true);
     try {
       const updates = {
-        display_name: displayName,
+        full_name: displayName,
         height_cm: height ? parseInt(height) : null,
         weight_kg: weight ? parseInt(weight) : null,
         body_fat_pct: bodyFat ? parseFloat(bodyFat) : null,
@@ -76,13 +76,23 @@ export function PersonalInfoCard({ profile, onUpdate }: PersonalInfoCardProps) {
         health_notes: healthNotes,
       };
 
-      await onUpdate(updates);
-      setRollingStatus(strings.personal_info.status_updated);
+      // Check if any values actually changed
+      const hasChanges =
+        displayName !== (profile?.full_name || '') ||
+        height !== (profile?.height_cm?.toString() || '') ||
+        weight !== (profile?.weight_kg?.toString() || '') ||
+        bodyFat !== (profile?.body_fat_pct?.toString() || '') ||
+        preferredMuscles.join(', ') !== (profile?.preferred_muscles || '') ||
+        healthNotes !== (profile?.health_notes || '');
+
+      if (hasChanges) {
+        await onUpdate(updates);
+        setRollingStatus(strings.personal_info.status_updated);
+        setTimeout(() => setRollingStatus(null), 2500);
+      }
+
       setHasError(false);
       setIsEditing(false);
-      
-      // Clear status after 2.5s
-      setTimeout(() => setRollingStatus(null), 2500);
     } catch (error) {
       console.error('[PersonalInfoCard] Save error:', error);
       setRollingStatus(strings.personal_info.status_error);
@@ -122,14 +132,16 @@ export function PersonalInfoCard({ profile, onUpdate }: PersonalInfoCardProps) {
               <ActivityIndicator size="small" color={Colors.blue600} />
             ) : (
               <>
-                <Ionicons 
-                  name={isEditing ? "checkmark" : "create-outline"} 
-                  size={18} 
-                  color={Colors.blue600} 
+                <Ionicons
+                  name={isEditing ? "checkmark" : "create-outline"}
+                  size={18}
+                  color={isEditing ? Colors.blue600 : Colors.foreground}
                 />
-                <Text style={styles.actionButtonText}>
-                  {isEditing ? strings.personal_info.save : strings.personal_info.edit}
-                </Text>
+                {isEditing && (
+                  <Text style={styles.actionButtonText}>
+                    {strings.personal_info.save}
+                  </Text>
+                )}
               </>
             )}
           </TouchableOpacity>
@@ -279,6 +291,8 @@ const styles = StyleSheet.create({
     borderRadius: 12, // playbook: card radius 12
     marginBottom: Spacing.lg,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   header: {
     flexDirection: 'row',
@@ -295,9 +309,10 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
     color: Colors.foreground,
+    fontFamily: 'Poppins_700Bold',
   },
   headerActions: {
     flexDirection: 'row',
@@ -307,7 +322,7 @@ const styles = StyleSheet.create({
   rollingStatus: {
     fontSize: 14,
     fontWeight: '500',
-    color: Colors.workoutPush, // Forest Green for success
+    color: Colors.success,
   },
   rollingStatusError: {
     color: Colors.red600,
@@ -321,6 +336,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     color: Colors.blue600,
+  },
+  actionButtonTextBlack: {
+    color: Colors.foreground,
   },
   content: {
     padding: 20, // playbook: H=20
@@ -336,14 +354,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '600',
     color: Colors.foreground,
     marginBottom: Spacing.xs,
+    fontFamily: 'Poppins_600SemiBold',
   },
   value: {
     fontSize: 16,
     color: Colors.foreground,
+    fontWeight: '400',
+    fontFamily: 'Poppins_400Regular',
   },
   input: {
     backgroundColor: Colors.background,
@@ -384,8 +405,9 @@ const styles = StyleSheet.create({
     color: Colors.white,
   },
   helperText: {
-    fontSize: 13,
+    fontSize: 14,
     color: Colors.mutedForeground,
     marginTop: Spacing.xs,
+    fontFamily: 'Poppins_400Regular',
   },
 });

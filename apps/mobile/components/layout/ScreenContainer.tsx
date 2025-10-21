@@ -68,11 +68,11 @@ export function ScreenContainer({
 const styles = StyleSheet.create({
   scrollContainer: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: 'transparent',
   },
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: 'transparent',
   },
   contentContainer: {
     paddingHorizontal: Spacing.lg,

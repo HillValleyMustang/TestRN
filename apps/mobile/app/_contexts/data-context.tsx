@@ -503,7 +503,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
             await supabase
               .from("t_paths")
               .select(
-                "id, template_name, parent_t_path_id, user_id, created_at, updated_at, is_bonus",
+                "id, template_name, parent_t_path_id, user_id, created_at, is_bonus",
               )
               .eq("id", latestProfile.active_t_path_id)
               .maybeSingle();
@@ -532,9 +532,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
               is_ai_generated: false,
               ai_generation_params: null,
               created_at: ensureIsoString(activeTPathData.created_at),
-              updated_at: ensureIsoString(
-                activeTPathData.updated_at ?? activeTPathData.created_at,
-              ),
+              updated_at: ensureIsoString(activeTPathData.created_at),
             };
             await database.addTPath(tPathRecord);
           }
@@ -543,7 +541,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
             await supabase
               .from("t_paths")
               .select(
-                "id, template_name, parent_t_path_id, user_id, created_at, updated_at, is_bonus",
+                "id, template_name, parent_t_path_id, user_id, created_at, is_bonus",
               )
               .eq("parent_t_path_id", latestProfile.active_t_path_id)
               .order("template_name", { ascending: true });
@@ -573,9 +571,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
                 is_ai_generated: Boolean(child.is_bonus),
                 ai_generation_params: null,
                 created_at: ensureIsoString(child.created_at),
-                updated_at: ensureIsoString(
-                  child.updated_at ?? child.created_at,
-                ),
+                updated_at: ensureIsoString(child.created_at),
               };
               await database.addTPath(childRecord);
             }
