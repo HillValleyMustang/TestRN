@@ -17,10 +17,12 @@ import {
   Dimensions,
   Animated,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import PagerView from 'react-native-pager-view';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../_contexts/auth-context';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
@@ -41,6 +43,11 @@ import { MyGymsCardNew } from '../../components/profile/MyGymsCardNew';
 import { AICoachUsageCard } from '../../components/profile/AICoachUsageCard';
 import { DataExportCard } from '../../components/profile/DataExportCard';
 import { ManageGymWorkoutsDialog } from '../../components/profile/ManageGymWorkoutsDialog';
+import { PhotoJourneyTab } from '../../components/profile/PhotoJourneyTab';
+import { PhotoCaptureFlow } from '../../components/profile/PhotoCaptureFlow';
+import { UploadPhotoDialog } from '../../components/profile/UploadPhotoDialog';
+import { PhotoComparisonDialog } from '../../components/profile/PhotoComparisonDialog';
+import { PhotoSourceSelectionModal } from '../../components/profile/PhotoSourceSelectionModal';
 
 const { width } = Dimensions.get('window');
 
@@ -606,18 +613,177 @@ export default function ProfileScreen() {
     </View>
   );
 
+  const [photos, setPhotos] = useState<any[]>([]);
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const [isCaptureFlowOpen, setIsCaptureFlowOpen] = useState(false);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
+  const [isComparisonOpen, setIsComparisonOpen] = useState(false);
+  const [selectedPhotosForComparison, setSelectedPhotosForComparison] = useState<any[]>([]);
+  const [comparisonSourcePhoto, setComparisonSourcePhoto] = useState<any>(null);
+  const [comparisonComparisonPhoto, setComparisonComparisonPhoto] = useState<any>(null);
+  const [isPhotoSourceModalOpen, setIsPhotoSourceModalOpen] = useState(false);
+  const [isGalleryPhoto, setIsGalleryPhoto] = useState(false);
+
+  const handlePhotoDelete = async (photo: any) => {
+    Alert.alert(
+      'Delete Photo',
+      'Are you sure you want to delete this photo? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Delete from Supabase Storage
+              const { error: storageError } = await supabase.storage
+                .from('user-photos')
+                .remove([photo.photo_path]);
+
+              if (storageError) {
+                console.error('[Profile] Storage deletion error:', storageError);
+                throw storageError;
+              }
+
+              // Delete from database
+              const { error: dbError } = await supabase
+                .from('progress_photos')
+                .delete()
+                .eq('id', photo.id);
+
+              if (dbError) {
+                console.error('[Profile] Database deletion error:', dbError);
+                throw dbError;
+              }
+
+              // Refresh photos list
+              fetchPhotos();
+
+              Toast.show({
+                type: 'success',
+                text1: 'Photo deleted',
+                text2: 'The photo has been removed from your timeline.',
+                position: 'bottom',
+                visibilityTime: 3000,
+              });
+            } catch (error: any) {
+              console.error('[Profile] Photo deletion error:', error);
+              Alert.alert('Error', 'Failed to delete photo. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const fetchPhotos = useCallback(async () => {
+    if (!userId) return;
+    setLoadingPhotos(true);
+    try {
+      console.log('[Profile] Fetching photos for user:', userId);
+      const { data, error } = await supabase
+        .from('progress_photos')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('[Profile] Database error fetching photos:', error);
+        throw error;
+      }
+      console.log('[Profile] Photos fetched:', data?.length || 0, 'photos');
+      if (data && data.length > 0) {
+        console.log('[Profile] First photo path:', data[0].photo_path);
+      }
+      setPhotos(data || []);
+    } catch (error: any) {
+      console.error('[Profile] Error fetching photos:', error);
+      Alert.alert('Error', 'Failed to load photos');
+    } finally {
+      setLoadingPhotos(false);
+    }
+  }, [userId, supabase]);
+
+  useEffect(() => {
+    if (activeTab === 'photo') {
+      fetchPhotos();
+    }
+  }, [activeTab, fetchPhotos]);
+
+  const handlePhotoCaptured = (uri: string) => {
+    setCapturedPhotoUri(uri);
+    setIsCaptureFlowOpen(false);
+    setIsUploadDialogOpen(true);
+  };
+
+  const handleGalleryPick = async () => {
+    try {
+      // Request permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Gallery access is required to select photos.');
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1], // Square crop for progress photos
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+
+        // Check file size (5MB limit)
+        if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
+          Alert.alert('File too large', 'Please select an image smaller than 5MB.');
+          return;
+        }
+
+        setCapturedPhotoUri(asset.uri);
+        setIsGalleryPhoto(true); // Mark this as a gallery photo
+        setIsPhotoSourceModalOpen(false); // Close the source selection modal
+        setIsUploadDialogOpen(true);
+      }
+    } catch (error) {
+      console.error('[Profile] Gallery picker error:', error);
+      Alert.alert('Error', 'Failed to select photo from gallery.');
+    }
+  };
+
+  const handleUploadSuccess = () => {
+    fetchPhotos();
+    setCapturedPhotoUri(null);
+    setIsGalleryPhoto(false);
+  };
+
   const renderPhotoTab = () => (
     <View style={styles.tabContent}>
-      <Text style={styles.tabTitle}>Progress Journey</Text>
-      <Text style={styles.sectionSubtext}>Track your transformation visually</Text>
-      
-      <View style={styles.emptyState}>
-        <Ionicons name="camera" size={64} color={Colors.mutedForeground} />
-        <Text style={styles.emptyStateText}>No progress photos yet</Text>
-        <Text style={styles.emptyStateSubtext}>
-          Start your progress journey by capturing your first photo
-        </Text>
-      </View>
+      <PhotoJourneyTab
+        photos={photos}
+        loading={loadingPhotos}
+        onPhotoPress={(photo: any) => {
+          Toast.show({
+            type: 'info',
+            text1: 'Photo Details',
+            text2: `Taken on ${new Date(photo.created_at).toLocaleDateString()}`,
+            position: 'bottom',
+            visibilityTime: 3000,
+          });
+        }}
+        onPhotoDelete={handlePhotoDelete}
+        onComparisonOpen={() => setIsComparisonOpen(true)}
+        onComparisonClose={() => setIsComparisonOpen(false)}
+        onPhotosSelected={(selectedPhotos: any[]) => {
+          setSelectedPhotosForComparison(selectedPhotos);
+          setComparisonSourcePhoto(selectedPhotos[0]);
+          setComparisonComparisonPhoto(selectedPhotos[1]);
+          setIsComparisonOpen(true);
+        }}
+      />
     </View>
   );
 
@@ -777,29 +943,41 @@ export default function ProfileScreen() {
             {renderTabs()}
           </View>
         </Animated.View>
-        
+
         <PagerView
           ref={pagerRef}
           style={styles.pagerView}
           initialPage={0}
           onPageSelected={(e) => handlePageChange(e.nativeEvent.position)}
+          scrollEnabled={!isComparisonOpen}
         >
           {TABS_ORDER.map((tab) => (
-            <Animated.ScrollView
-              key={tab}
-              style={styles.page}
-              showsVerticalScrollIndicator={false}
-              scrollEventThrottle={16}
-              onScroll={Animated.event(
-                [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-                { useNativeDriver: true }
-              )}
-            >
-              {renderTabContentForTab(tab)}
-            </Animated.ScrollView>
+            <View key={tab} style={styles.page}>
+              <Animated.ScrollView
+                style={{ flex: 1 }}
+                showsVerticalScrollIndicator={false}
+                scrollEventThrottle={16}
+                onScroll={Animated.event(
+                  [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                  { useNativeDriver: true }
+                )}
+              >
+                {renderTabContentForTab(tab)}
+              </Animated.ScrollView>
+            </View>
           ))}
         </PagerView>
       </ScreenContainer>
+
+      {/* Camera FAB - only show on photo tab */}
+      {activeTab === 'photo' && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => setIsPhotoSourceModalOpen(true)}
+        >
+          <Ionicons name="camera" size={24} color="white" />
+        </TouchableOpacity>
+      )}
 
       {/* Modals */}
       <PointsExplanationModal
@@ -871,6 +1049,42 @@ export default function ProfileScreen() {
           setSelectedGymId('');
           setSelectedGymName('');
         }}
+      />
+      <PhotoCaptureFlow
+        visible={isCaptureFlowOpen}
+        onClose={() => setIsCaptureFlowOpen(false)}
+        onPhotoCaptured={handlePhotoCaptured}
+      />
+      <UploadPhotoDialog
+        visible={isUploadDialogOpen}
+        onClose={() => {
+          setIsUploadDialogOpen(false);
+          setCapturedPhotoUri(null);
+          setIsGalleryPhoto(false);
+        }}
+        imageUri={capturedPhotoUri}
+        onUploadSuccess={handleUploadSuccess}
+        isFromGallery={isGalleryPhoto}
+      />
+      <PhotoComparisonDialog
+        visible={isComparisonOpen}
+        onClose={() => {
+          setIsComparisonOpen(false);
+          setSelectedPhotosForComparison([]);
+          setComparisonSourcePhoto(null);
+          setComparisonComparisonPhoto(null);
+        }}
+        sourcePhoto={comparisonSourcePhoto}
+        comparisonPhoto={comparisonComparisonPhoto}
+      />
+      <PhotoSourceSelectionModal
+        visible={isPhotoSourceModalOpen}
+        onClose={() => setIsPhotoSourceModalOpen(false)}
+        onTakePhoto={() => {
+          setIsPhotoSourceModalOpen(false);
+          setIsCaptureFlowOpen(true);
+        }}
+        onChooseFromGallery={handleGalleryPick}
       />
     </View>
   );
@@ -1372,5 +1586,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#EF4444',
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 100,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 1000,
   },
 });
