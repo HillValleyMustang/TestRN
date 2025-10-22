@@ -23,13 +23,15 @@ interface ProgrammeTypeCardProps {
   onRegenerateTPath?: () => Promise<void>;
 }
 
-export function ProgrammeTypeCard({ 
-  profile, 
+export function ProgrammeTypeCard({
+  profile,
   onUpdate,
-  onRegenerateTPath 
+  onRegenerateTPath
 }: ProgrammeTypeCardProps) {
   const strings = useSettingsStrings();
   const PROGRAMME_TYPE_OPTIONS = strings.programme_type.options;
+
+
 
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -252,9 +254,9 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: '600',
     color: Colors.foreground,
-    fontFamily: 'Poppins_700Bold',
+    fontFamily: 'Poppins_600SemiBold',
   },
   headerActions: {
     flexDirection: 'row',
@@ -320,15 +322,20 @@ const styles = StyleSheet.create({
   selectOptionText: {
     fontSize: 14,
     color: Colors.foreground,
+    fontFamily: 'Poppins_400Regular',
+    fontWeight: '400',
   },
   selectOptionTextActive: {
     fontWeight: '600',
     color: Colors.blue600,
+    fontFamily: 'Poppins_600SemiBold',
   },
   infoText: {
     fontSize: 12,
     color: Colors.mutedForeground,
     marginTop: Spacing.sm,
+    fontFamily: 'Poppins_400Regular',
+    fontWeight: '400',
   },
   modalOverlay: {
     flex: 1,

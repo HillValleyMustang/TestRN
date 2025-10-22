@@ -39,15 +39,16 @@ interface MyGymsCardProps {
 
 type FlowStep = 'name' | 'setup' | 'ai-upload' | 'copy';
 
-export function MyGymsCardNew({ 
+export function MyGymsCardNew({
   userId,
-  gyms, 
+  gyms,
   activeGymId,
   onRefresh,
   onManageGym,
-  supabase 
+  supabase
 }: MyGymsCardProps) {
   const strings = useSettingsStrings();
+
 
   const [isEditing, setIsEditing] = useState(false);
   const [flowStep, setFlowStep] = useState<FlowStep | null>(null);
@@ -312,9 +313,9 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: '600',
     color: Colors.gray900,
-    fontFamily: 'Poppins_700Bold',
+    fontFamily: 'Poppins_600SemiBold',
   },
   editButton: {
     flexDirection: 'row',
@@ -348,14 +349,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   gymName: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: Colors.foreground,
+    fontFamily: 'Poppins_600SemiBold',
     marginBottom: 2,
   },
   gymMeta: {
     fontSize: 12,
     color: Colors.mutedForeground,
+    fontFamily: 'Poppins_400Regular',
   },
   gymActions: {
     flexDirection: 'row',
@@ -392,5 +395,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: Colors.gray900,
+    fontFamily: 'Poppins_600SemiBold',
   },
 });

@@ -136,14 +136,17 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '600',
     color: Colors.foreground,
+    fontFamily: 'Poppins_600SemiBold',
   },
   description: {
-    fontSize: 14,
+    fontSize: 12,
     color: Colors.mutedForeground,
     lineHeight: 20,
+    fontFamily: 'Poppins_400Regular',
+    fontWeight: '400',
   },
   button: {
     flexDirection: 'row',
@@ -159,8 +162,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.gray400,
   },
   buttonText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#fff',
+    fontFamily: 'Poppins_600SemiBold',
   },
 });

@@ -72,9 +72,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '600',
     color: Colors.foreground,
+    fontFamily: 'Poppins_600SemiBold',
   },
   usageRow: {
     flexDirection: 'row',
@@ -84,16 +85,21 @@ const styles = StyleSheet.create({
   usageLabel: {
     fontSize: 16,
     color: Colors.foreground,
+    fontFamily: 'Poppins_400Regular',
+    fontWeight: '400',
   },
   usageValue: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
     color: Colors.foreground,
+    fontFamily: 'Poppins_600SemiBold',
   },
   infoText: {
-    fontSize: 14,
+    fontSize: 12,
     color: Colors.mutedForeground,
     lineHeight: 20,
+    fontFamily: 'Poppins_400Regular',
+    fontWeight: '400',
   },
   button: {
     flexDirection: 'row',
@@ -106,8 +112,9 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   buttonText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#fff',
+    fontFamily: 'Poppins_600SemiBold',
   },
 });

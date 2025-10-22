@@ -310,9 +310,9 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: '600',
     color: Colors.foreground,
-    fontFamily: 'Poppins_700Bold',
+    fontFamily: 'Poppins_600SemiBold',
   },
   headerActions: {
     flexDirection: 'row',
@@ -400,9 +400,11 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 14,
     color: Colors.foreground,
+    fontFamily: 'Poppins_400Regular',
   },
   chipTextSelected: {
     color: Colors.white,
+    fontFamily: 'Poppins_400Regular',
   },
   helperText: {
     fontSize: 14,

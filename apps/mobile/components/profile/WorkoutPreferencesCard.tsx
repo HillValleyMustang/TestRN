@@ -243,9 +243,9 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: '600',
     color: Colors.foreground,
-    fontFamily: 'Poppins_700Bold',
+    fontFamily: 'Poppins_600SemiBold',
   },
   headerActions: {
     flexDirection: 'row',
@@ -312,9 +312,12 @@ const styles = StyleSheet.create({
   selectOptionText: {
     fontSize: 14,
     color: Colors.foreground,
+    fontFamily: 'Poppins_400Regular',
+    fontWeight: '400',
   },
   selectOptionTextActive: {
     fontWeight: '600',
     color: Colors.blue600,
+    fontFamily: 'Poppins_600SemiBold',
   },
 });
