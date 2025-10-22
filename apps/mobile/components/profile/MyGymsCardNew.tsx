@@ -213,7 +213,7 @@ export function MyGymsCardNew({
                 style={styles.manageButton}
                 onPress={() => onManageGym(gym.id)}
               >
-                <Ionicons name="barbell-outline" size={20} color={Colors.gray600} />
+                <Ionicons name="chevron-forward" size={20} color={Colors.gray600} />
               </TouchableOpacity>
             )}
           </View>
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '600',
     color: Colors.gray900,
     fontFamily: 'Poppins_600SemiBold',
@@ -342,8 +342,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    backgroundColor: Colors.card,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   gymInfo: {
     flex: 1,

@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '600',
     color: Colors.foreground,
     fontFamily: 'Poppins_600SemiBold',
