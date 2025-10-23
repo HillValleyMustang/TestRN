@@ -47,6 +47,7 @@ import { PhotoJourneyTab } from '../../components/profile/PhotoJourneyTab';
 import { PhotoCaptureFlow } from '../../components/profile/PhotoCaptureFlow';
 import { UploadPhotoDialog } from '../../components/profile/UploadPhotoDialog';
 import { PhotoComparisonDialog } from '../../components/profile/PhotoComparisonDialog';
+import { PhotoLightboxDialog } from '../../components/profile/PhotoLightboxDialog';
 import { PhotoSourceSelectionModal } from '../../components/profile/PhotoSourceSelectionModal';
 
 const { width } = Dimensions.get('window');
@@ -61,7 +62,14 @@ type Tab = 'overview' | 'stats' | 'photo' | 'media' | 'social' | 'settings';
 
 const PROFILE_TAB_KEY = 'profile_active_tab';
 
-const TABS_ORDER: Tab[] = ['overview', 'stats', 'photo', 'media', 'social', 'settings'];
+const TABS_ORDER: Tab[] = [
+  'overview',
+  'stats',
+  'photo',
+  'media',
+  'social',
+  'settings',
+];
 
 const TAB_ICONS: Record<Tab, keyof typeof Ionicons.glyphMap> = {
   overview: 'bar-chart',
@@ -102,10 +110,13 @@ export default function ProfileScreen() {
 
   // Animation values for tab icons
   const tabScales = useRef<Record<Tab, Animated.Value>>(
-    TABS_ORDER.reduce((acc, tab) => ({
-      ...acc,
-      [tab]: new Animated.Value(tab === 'overview' ? 1.1 : 1),
-    }), {} as Record<Tab, Animated.Value>)
+    TABS_ORDER.reduce(
+      (acc, tab) => ({
+        ...acc,
+        [tab]: new Animated.Value(tab === 'overview' ? 1.1 : 1),
+      }),
+      {} as Record<Tab, Animated.Value>
+    )
   ).current;
 
   // Scroll animation for header
@@ -140,72 +151,91 @@ export default function ProfileScreen() {
     setLoading(true);
     try {
       // Load profile data
-      const profileRes = await supabase.from('profiles').select('*').eq('id', userId).single();
+      const profileRes = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
       if (profileRes.error) throw profileRes.error;
 
       // Load gyms data
-      const gymsRes = await supabase.from('gyms').select('*').eq('user_id', userId).order('created_at', { ascending: true });
+      const gymsRes = await supabase
+        .from('gyms')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true });
 
       // Load workout statistics
-      const [totalWorkoutsRes, uniqueExercisesRes, workoutDatesRes] = await Promise.all([
-        // Total workouts: count completed workout_sessions
-        supabase
-          .from('workout_sessions')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .not('completed_at', 'is', null),
+      const [totalWorkoutsRes, uniqueExercisesRes, workoutDatesRes] =
+        await Promise.all([
+          // Total workouts: count completed workout_sessions
+          supabase
+            .from('workout_sessions')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .not('completed_at', 'is', null),
 
-        // Total unique exercises: count distinct exercise_ids from completed sessions
-        supabase
-          .from('set_logs')
-          .select(`
+          // Total unique exercises: count distinct exercise_ids from completed sessions
+          supabase
+            .from('set_logs')
+            .select(
+              `
             exercise_id,
             workout_sessions!inner (
               user_id,
               completed_at
             )
-          `)
-          .eq('workout_sessions.user_id', userId)
-          .not('workout_sessions.completed_at', 'is', null),
+          `
+            )
+            .eq('workout_sessions.user_id', userId)
+            .not('workout_sessions.completed_at', 'is', null),
 
-        // Get workout dates for streak calculation
-        supabase
-          .from('workout_sessions')
-          .select('completed_at')
-          .eq('user_id', userId)
-          .not('completed_at', 'is', null)
-          .order('completed_at', { ascending: false })
-          .limit(30) // Get last 30 workouts to calculate streak
-      ]);
+          // Get workout dates for streak calculation
+          supabase
+            .from('workout_sessions')
+            .select('completed_at')
+            .eq('user_id', userId)
+            .not('completed_at', 'is', null)
+            .order('completed_at', { ascending: false })
+            .limit(30), // Get last 30 workouts to calculate streak
+        ]);
 
       if (totalWorkoutsRes.error) throw totalWorkoutsRes.error;
       if (uniqueExercisesRes.error) throw uniqueExercisesRes.error;
       if (workoutDatesRes.error) throw workoutDatesRes.error;
 
       // Get unique exercise count
-      const uniqueExerciseIds = new Set(uniqueExercisesRes.data?.map(log => log.exercise_id) || []);
+      const uniqueExerciseIds = new Set(
+        uniqueExercisesRes.data?.map(log => log.exercise_id) || []
+      );
       const uniqueExercisesCount = uniqueExerciseIds.size;
 
       // Calculate current streak
-      const workoutDates = workoutDatesRes.data?.map(session =>
-        new Date(session.completed_at).toDateString()
-      ) || [];
+      const workoutDates =
+        workoutDatesRes.data?.map(session =>
+          new Date(session.completed_at).toDateString()
+        ) || [];
 
       let currentStreak = 0;
       const today = new Date().toDateString();
-      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();
+      const yesterday = new Date(
+        Date.now() - 24 * 60 * 60 * 1000
+      ).toDateString();
 
       // Check if worked out today or yesterday (to handle timezone issues)
-      const hasRecentWorkout = workoutDates.includes(today) || workoutDates.includes(yesterday);
+      const hasRecentWorkout =
+        workoutDates.includes(today) || workoutDates.includes(yesterday);
 
       if (hasRecentWorkout) {
         // Calculate consecutive days
-        const uniqueDates = [...new Set(workoutDates)].sort((a, b) =>
-          new Date(b).getTime() - new Date(a).getTime()
+        const uniqueDates = [...new Set(workoutDates)].sort(
+          (a, b) => new Date(b).getTime() - new Date(a).getTime()
         );
 
         for (let i = 0; i < uniqueDates.length; i++) {
-          const expectedDate = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toDateString();
+          const expectedDate = new Date(
+            Date.now() - i * 24 * 60 * 60 * 1000
+          ).toDateString();
           if (uniqueDates[i] === expectedDate) {
             currentStreak++;
           } else {
@@ -278,14 +308,19 @@ export default function ProfileScreen() {
   const loadSavedTab = async () => {
     try {
       const saved = await AsyncStorage.getItem(PROFILE_TAB_KEY);
-      if (saved && ['overview', 'stats', 'photo', 'media', 'social', 'settings'].includes(saved)) {
+      if (
+        saved &&
+        ['overview', 'stats', 'photo', 'media', 'social', 'settings'].includes(
+          saved
+        )
+      ) {
         const savedTab = saved as Tab;
-        
+
         // Reset all tab scales to 1
         TABS_ORDER.forEach(tab => {
           tabScales[tab].setValue(1);
         });
-        
+
         // Animate the saved tab to 1.1
         Animated.spring(tabScales[savedTab], {
           toValue: 1.1,
@@ -293,7 +328,7 @@ export default function ProfileScreen() {
           tension: 100,
           friction: 8,
         }).start();
-        
+
         setActiveTab(savedTab);
       }
     } catch (error) {
@@ -339,6 +374,8 @@ export default function ProfileScreen() {
     const newTab = TABS_ORDER[pageIndex];
     if (newTab) {
       setActiveTab(newTab);
+      // Reset scroll position to top when switching tabs
+      scrollY.setValue(0);
       // Update tab scales
       TABS_ORDER.forEach(tab => {
         Animated.spring(tabScales[tab], {
@@ -351,10 +388,12 @@ export default function ProfileScreen() {
     }
   };
 
-
   const getInitials = () => {
-    const name = profile?.display_name || session?.user?.user_metadata?.full_name || 
-                 session?.user?.email?.split('@')[0] || 'A';
+    const name =
+      profile?.display_name ||
+      session?.user?.user_metadata?.full_name ||
+      session?.user?.email?.split('@')[0] ||
+      'A';
     const parts = name.trim().split(' ');
     if (parts.length >= 2) {
       return (parts[0][0] + parts[1][0]).toUpperCase();
@@ -365,16 +404,16 @@ export default function ProfileScreen() {
   const getMemberSince = () => {
     if (!profile?.created_at) return 'New Member';
     const date = new Date(profile.created_at);
-    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      year: 'numeric',
+    });
   };
 
   const renderAvatar = () => {
     if (profile?.avatar_url) {
       return (
-        <Image 
-          source={{ uri: profile.avatar_url }} 
-          style={styles.avatar}
-        />
+        <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
       );
     }
     return (
@@ -387,13 +426,20 @@ export default function ProfileScreen() {
   const renderHeader = () => (
     <View style={styles.header}>
       {renderAvatar()}
-      
+
       <Text style={styles.displayName}>
-        {profile?.display_name || session?.user?.user_metadata?.full_name || 'Athlete'}
+        {profile?.display_name ||
+          session?.user?.user_metadata?.full_name ||
+          'Athlete'}
       </Text>
 
       <View style={styles.metaRow}>
-        <View style={[styles.levelPill, { backgroundColor: levelInfo.backgroundColor }]}>
+        <View
+          style={[
+            styles.levelPill,
+            { backgroundColor: levelInfo.backgroundColor },
+          ]}
+        >
           <Text style={[styles.levelText, { color: levelInfo.color }]}>
             {levelInfo.levelName}
           </Text>
@@ -404,62 +450,159 @@ export default function ProfileScreen() {
       {levelInfo.nextThreshold && (
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
-            <View 
+            <View
               style={[
-                styles.progressFill, 
-                { 
+                styles.progressFill,
+                {
                   width: `${levelInfo.progressToNext}%`,
-                  backgroundColor: levelInfo.color 
-                }
-              ]} 
+                  backgroundColor: levelInfo.color,
+                },
+              ]}
             />
           </View>
           <Text style={styles.progressText}>
-            {Math.round(levelInfo.progressToNext)}% to {levelInfo.nextThreshold} pts
+            {Math.round(levelInfo.progressToNext)}% to {levelInfo.nextThreshold}{' '}
+            pts
           </Text>
         </View>
       )}
     </View>
   );
 
-
   const achievements = [
-    { id: 1, emoji: '🏃', title: 'First Workout', description: 'Complete your first workout.', progress: 1, total: 1, unlocked: true },
-    { id: 2, emoji: '🤖', title: 'AI Apprentice', description: 'Use AI coaching during a workout.', progress: 0, total: 1, unlocked: false },
-    { id: 3, emoji: '🔥', title: '10 Day Streak', description: 'Log an activity for 10 consecutive days.', progress: profile?.current_streak || 0, total: 10, unlocked: (profile?.current_streak || 0) >= 10 },
-    { id: 4, emoji: '👑', title: 'Consistency King', description: 'Log an activity for 30 consecutive days.', progress: profile?.current_streak || 0, total: 30, unlocked: (profile?.current_streak || 0) >= 30 },
-    { id: 5, emoji: '💪', title: '25 Workouts', description: 'Complete 25 total workouts.', progress: profile?.total_workouts || 0, total: 25, unlocked: (profile?.total_workouts || 0) >= 25 },
-    { id: 6, emoji: '🏆', title: '50 Workouts', description: 'Complete 50 total workouts.', progress: profile?.total_workouts || 0, total: 50, unlocked: (profile?.total_workouts || 0) >= 50 },
-    { id: 7, emoji: '💯', title: 'Century Club', description: 'Complete 100 total workouts.', progress: profile?.total_workouts || 0, total: 100, unlocked: (profile?.total_workouts || 0) >= 100 },
-    { id: 8, emoji: '📅', title: 'Perfect Week', description: 'Complete 7 workouts in a single week.', progress: 0, total: 7, unlocked: false },
-    { id: 9, emoji: '💥', title: 'Beast Mode', description: 'Set 10 personal records in a single month.', progress: 0, total: 10, unlocked: false },
-    { id: 10, emoji: '🎉', title: 'Weekend Warrior', description: 'Complete 10 weekend workouts.', progress: 0, total: 10, unlocked: false },
-    { id: 11, emoji: '🌅', title: 'Early Bird', description: 'Complete 10 workouts before 7 AM.', progress: 0, total: 10, unlocked: false },
-    { id: 12, emoji: '🏋️', title: 'Volume Master', description: 'Lift 100,000 kg total volume.', progress: 0, total: 100000, unlocked: false },
+    {
+      id: 1,
+      emoji: '🏃',
+      title: 'First Workout',
+      description: 'Complete your first workout.',
+      progress: 1,
+      total: 1,
+      unlocked: true,
+    },
+    {
+      id: 2,
+      emoji: '🤖',
+      title: 'AI Apprentice',
+      description: 'Use AI coaching during a workout.',
+      progress: 0,
+      total: 1,
+      unlocked: false,
+    },
+    {
+      id: 3,
+      emoji: '🔥',
+      title: '10 Day Streak',
+      description: 'Log an activity for 10 consecutive days.',
+      progress: profile?.current_streak || 0,
+      total: 10,
+      unlocked: (profile?.current_streak || 0) >= 10,
+    },
+    {
+      id: 4,
+      emoji: '👑',
+      title: 'Consistency King',
+      description: 'Log an activity for 30 consecutive days.',
+      progress: profile?.current_streak || 0,
+      total: 30,
+      unlocked: (profile?.current_streak || 0) >= 30,
+    },
+    {
+      id: 5,
+      emoji: '💪',
+      title: '25 Workouts',
+      description: 'Complete 25 total workouts.',
+      progress: profile?.total_workouts || 0,
+      total: 25,
+      unlocked: (profile?.total_workouts || 0) >= 25,
+    },
+    {
+      id: 6,
+      emoji: '🏆',
+      title: '50 Workouts',
+      description: 'Complete 50 total workouts.',
+      progress: profile?.total_workouts || 0,
+      total: 50,
+      unlocked: (profile?.total_workouts || 0) >= 50,
+    },
+    {
+      id: 7,
+      emoji: '💯',
+      title: 'Century Club',
+      description: 'Complete 100 total workouts.',
+      progress: profile?.total_workouts || 0,
+      total: 100,
+      unlocked: (profile?.total_workouts || 0) >= 100,
+    },
+    {
+      id: 8,
+      emoji: '📅',
+      title: 'Perfect Week',
+      description: 'Complete 7 workouts in a single week.',
+      progress: 0,
+      total: 7,
+      unlocked: false,
+    },
+    {
+      id: 9,
+      emoji: '💥',
+      title: 'Beast Mode',
+      description: 'Set 10 personal records in a single month.',
+      progress: 0,
+      total: 10,
+      unlocked: false,
+    },
+    {
+      id: 10,
+      emoji: '🎉',
+      title: 'Weekend Warrior',
+      description: 'Complete 10 weekend workouts.',
+      progress: 0,
+      total: 10,
+      unlocked: false,
+    },
+    {
+      id: 11,
+      emoji: '🌅',
+      title: 'Early Bird',
+      description: 'Complete 10 workouts before 7 AM.',
+      progress: 0,
+      total: 10,
+      unlocked: false,
+    },
+    {
+      id: 12,
+      emoji: '🏋️',
+      title: 'Volume Master',
+      description: 'Lift 100,000 kg total volume.',
+      progress: 0,
+      total: 100000,
+      unlocked: false,
+    },
   ];
 
-  const handleAchievementPress = (achievement: typeof achievements[0]) => {
+  const handleAchievementPress = (achievement: (typeof achievements)[0]) => {
     setSelectedAchievement(achievement);
     setAchievementModalVisible(true);
   };
 
-
   const renderTabs = () => (
     <View style={styles.tabBar}>
-      {TABS_ORDER.map((tab) => (
+      {TABS_ORDER.map(tab => (
         <TouchableOpacity
           key={tab}
           style={[styles.tab, activeTab === tab && styles.tabActive]}
           onPress={() => handleTabChange(tab)}
         >
           <Animated.View style={{ transform: [{ scale: tabScales[tab] }] }}>
-            <Ionicons 
-              name={TAB_ICONS[tab] as any} 
-              size={20} 
-              color={TAB_COLORS[tab]} 
+            <Ionicons
+              name={TAB_ICONS[tab] as any}
+              size={20}
+              color={TAB_COLORS[tab]}
             />
           </Animated.View>
-          <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+          <Text
+            style={[styles.tabText, activeTab === tab && styles.tabTextActive]}
+          >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </Text>
         </TouchableOpacity>
@@ -476,21 +619,29 @@ export default function ProfileScreen() {
             <View style={styles.statCardContent}>
               <Ionicons name="flame" size={20} color="#FFFFFF" />
               <Text style={styles.statCardLabel}>Current Streak</Text>
-              <Text style={styles.statCardValue}>{profile?.current_streak || 0} Days</Text>
+              <Text style={styles.statCardValue}>
+                {profile?.current_streak || 0} Days
+              </Text>
             </View>
           </View>
           <View style={[styles.statCard, styles.statCardBlue]}>
             <View style={styles.statCardContent}>
               <Ionicons name="fitness" size={20} color="#FFFFFF" />
               <Text style={styles.statCardLabel}>Total Workouts</Text>
-              <Text style={styles.statCardValue}>{profile?.total_workouts || 0}</Text>
+              <Text style={styles.statCardValue}>
+                {profile?.total_workouts || 0}
+              </Text>
             </View>
           </View>
           <View style={[styles.statCard, styles.statCardPurple]}>
             <View style={styles.statCardContent}>
               <Ionicons name="barbell" size={20} color="#FFFFFF" />
-              <Text style={styles.statCardLabel}>Total Unique{'\n'}Exercises</Text>
-              <Text style={styles.statCardValue}>{profile?.unique_exercises || 0}</Text>
+              <Text style={styles.statCardLabel}>
+                Total Unique{'\n'}Exercises
+              </Text>
+              <Text style={styles.statCardValue}>
+                {profile?.unique_exercises || 0}
+              </Text>
             </View>
           </View>
           <TouchableOpacity
@@ -500,7 +651,9 @@ export default function ProfileScreen() {
             <View style={styles.statCardContent}>
               <Ionicons name="star" size={20} color="#FFFFFF" />
               <Text style={styles.statCardLabel}>Total Points</Text>
-              <Text style={styles.statCardValue}>{profile?.total_points || 0}</Text>
+              <Text style={styles.statCardValue}>
+                {profile?.total_points || 0}
+              </Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -513,36 +666,50 @@ export default function ProfileScreen() {
               <Text style={styles.bodyMetricsTitle}>Body Metrics</Text>
             </View>
             <TouchableOpacity onPress={() => setBodyMetricsModalVisible(true)}>
-              <Ionicons name="create-outline" size={20} color={Colors.foreground} />
+              <Ionicons
+                name="create-outline"
+                size={20}
+                color={Colors.foreground}
+              />
             </TouchableOpacity>
           </View>
           <View style={styles.bodyMetricsGrid}>
             <View style={styles.bodyMetricItem}>
               <Text style={styles.bodyMetricValue}>
                 {profile?.height_cm && profile?.weight_kg
-                  ? (profile.weight_kg / Math.pow(profile.height_cm / 100, 2)).toFixed(1)
+                  ? (
+                      profile.weight_kg / Math.pow(profile.height_cm / 100, 2)
+                    ).toFixed(1)
                   : '--'}
               </Text>
               <Text style={styles.bodyMetricLabel}>BMI</Text>
             </View>
             <View style={styles.bodyMetricItem}>
-              <Text style={styles.bodyMetricValue}>{profile?.height_cm || '--'}cm</Text>
+              <Text style={styles.bodyMetricValue}>
+                {profile?.height_cm || '--'}cm
+              </Text>
               <Text style={styles.bodyMetricLabel}>Height</Text>
             </View>
             <View style={styles.bodyMetricItem}>
-              <Text style={styles.bodyMetricValue}>{profile?.weight_kg || '--'}kg</Text>
+              <Text style={styles.bodyMetricValue}>
+                {profile?.weight_kg || '--'}kg
+              </Text>
               <Text style={styles.bodyMetricLabel}>Weight</Text>
             </View>
             <View style={styles.bodyMetricItem}>
               <Text style={styles.bodyMetricValue}>
                 {profile?.height_cm && profile?.weight_kg
-                  ? Math.round((profile.weight_kg * 24) + (profile.height_cm * 10)).toLocaleString()
+                  ? Math.round(
+                      profile.weight_kg * 24 + profile.height_cm * 10
+                    ).toLocaleString()
                   : '--'}
               </Text>
               <Text style={styles.bodyMetricLabel}>Daily Cal (est.)</Text>
             </View>
             <View style={styles.bodyMetricItem}>
-              <Text style={styles.bodyMetricValue}>{profile?.body_fat_pct || '--'}%</Text>
+              <Text style={styles.bodyMetricValue}>
+                {profile?.body_fat_pct || '--'}%
+              </Text>
               <Text style={styles.bodyMetricLabel}>Body Fat</Text>
             </View>
           </View>
@@ -551,22 +718,22 @@ export default function ProfileScreen() {
         {/* Achievements */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Achievements</Text>
-          <View style={styles.achievementsGrid}>
-            {renderAchievements()}
-          </View>
-          <Text style={styles.achievementsTapHint}>Tap to see requirements</Text>
+          <View style={styles.achievementsGrid}>{renderAchievements()}</View>
+          <Text style={styles.achievementsTapHint}>
+            Tap to see requirements
+          </Text>
         </View>
       </View>
     );
   };
 
   const renderAchievements = () => {
-    return achievements.map((achievement) => (
+    return achievements.map(achievement => (
       <TouchableOpacity
         key={achievement.id}
         style={[
           styles.achievementCard,
-          achievement.unlocked && styles.achievementCardUnlocked
+          achievement.unlocked && styles.achievementCardUnlocked,
         ]}
         onPress={() => handleAchievementPress(achievement)}
       >
@@ -576,14 +743,20 @@ export default function ProfileScreen() {
     ));
   };
 
-
   const renderStatsTab = () => (
     <View style={styles.tabContent}>
       <Text style={styles.tabTitle}>Stats</Text>
-      <Text style={styles.sectionSubtext}>Track your progress and performance</Text>
-      
+      <Text style={styles.sectionSubtext}>
+        Track your progress and performance
+      </Text>
+
       {/* Fitness Level Card */}
-      <View style={[styles.levelCard, { backgroundColor: levelInfo.backgroundColor }]}>
+      <View
+        style={[
+          styles.levelCard,
+          { backgroundColor: levelInfo.backgroundColor },
+        ]}
+      >
         <Ionicons name="trophy" size={48} color={levelInfo.color} />
         <Text style={[styles.levelCardTitle, { color: levelInfo.color }]}>
           {levelInfo.levelName}
@@ -591,14 +764,14 @@ export default function ProfileScreen() {
         {levelInfo.nextThreshold && (
           <>
             <View style={styles.levelProgressBar}>
-              <View 
+              <View
                 style={[
-                  styles.levelProgressFill, 
-                  { 
+                  styles.levelProgressFill,
+                  {
                     width: `${levelInfo.progressToNext}%`,
-                    backgroundColor: levelInfo.color 
-                  }
-                ]} 
+                    backgroundColor: levelInfo.color,
+                  },
+                ]}
               />
             </View>
             <Text style={styles.levelProgressText}>
@@ -609,7 +782,9 @@ export default function ProfileScreen() {
       </View>
 
       <Text style={styles.sectionTitle}>Performance Metrics</Text>
-      <Text style={styles.sectionSubtext}>Coming soon: Momentum charts and weekly progress</Text>
+      <Text style={styles.sectionSubtext}>
+        Coming soon: Momentum charts and weekly progress
+      </Text>
     </View>
   );
 
@@ -619,11 +794,15 @@ export default function ProfileScreen() {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
-  const [selectedPhotosForComparison, setSelectedPhotosForComparison] = useState<any[]>([]);
+  const [selectedPhotosForComparison, setSelectedPhotosForComparison] =
+    useState<any[]>([]);
   const [comparisonSourcePhoto, setComparisonSourcePhoto] = useState<any>(null);
-  const [comparisonComparisonPhoto, setComparisonComparisonPhoto] = useState<any>(null);
+  const [comparisonComparisonPhoto, setComparisonComparisonPhoto] =
+    useState<any>(null);
   const [isPhotoSourceModalOpen, setIsPhotoSourceModalOpen] = useState(false);
   const [isGalleryPhoto, setIsGalleryPhoto] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [lightboxInitialIndex, setLightboxInitialIndex] = useState(0);
 
   const handlePhotoDelete = async (photo: any) => {
     Alert.alert(
@@ -642,7 +821,10 @@ export default function ProfileScreen() {
                 .remove([photo.photo_path]);
 
               if (storageError) {
-                console.error('[Profile] Storage deletion error:', storageError);
+                console.error(
+                  '[Profile] Storage deletion error:',
+                  storageError
+                );
                 throw storageError;
               }
 
@@ -720,17 +902,20 @@ export default function ProfileScreen() {
   const handleGalleryPick = async () => {
     try {
       // Request permissions
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Gallery access is required to select photos.');
+        Alert.alert(
+          'Permission needed',
+          'Gallery access is required to select photos.'
+        );
         return;
       }
 
       // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1], // Square crop for progress photos
+        allowsEditing: false, // Disable cropping - let users upload as-is
         quality: 0.8,
       });
 
@@ -739,7 +924,10 @@ export default function ProfileScreen() {
 
         // Check file size (5MB limit)
         if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
-          Alert.alert('File too large', 'Please select an image smaller than 5MB.');
+          Alert.alert(
+            'File too large',
+            'Please select an image smaller than 5MB.'
+          );
           return;
         }
 
@@ -765,14 +953,9 @@ export default function ProfileScreen() {
       <PhotoJourneyTab
         photos={photos}
         loading={loadingPhotos}
-        onPhotoPress={(photo: any) => {
-          Toast.show({
-            type: 'info',
-            text1: 'Photo Details',
-            text2: `Taken on ${new Date(photo.created_at).toLocaleDateString()}`,
-            position: 'bottom',
-            visibilityTime: 3000,
-          });
+        onPhotoPress={(photo: any, index: number) => {
+          setLightboxInitialIndex(index);
+          setIsLightboxOpen(true);
         }}
         onPhotoDelete={handlePhotoDelete}
         onComparisonOpen={() => setIsComparisonOpen(true)}
@@ -791,13 +974,11 @@ export default function ProfileScreen() {
     <View style={styles.tabContent}>
       <Text style={styles.tabTitle}>Media</Text>
       <Text style={styles.sectionSubtext}>Your workout videos and photos</Text>
-      
+
       <View style={styles.emptyState}>
         <Ionicons name="images" size={64} color={Colors.mutedForeground} />
         <Text style={styles.emptyStateText}>No media yet</Text>
-        <Text style={styles.emptyStateSubtext}>
-          Share your workout moments
-        </Text>
+        <Text style={styles.emptyStateSubtext}>Share your workout moments</Text>
       </View>
     </View>
   );
@@ -806,7 +987,9 @@ export default function ProfileScreen() {
     <View style={styles.tabContent}>
       <View style={styles.socialPlaceholder}>
         <Ionicons name="people" size={64} color={Colors.mutedForeground} />
-        <Text style={styles.socialPlaceholderText}>Social features coming soon!</Text>
+        <Text style={styles.socialPlaceholderText}>
+          Social features coming soon!
+        </Text>
         <Text style={styles.socialPlaceholderSubtext}>
           Connect with friends and share your fitness journey
         </Text>
@@ -816,20 +999,14 @@ export default function ProfileScreen() {
 
   const renderSettingsTab = () => (
     <View style={styles.tabContent}>
-      <PersonalInfoCard
-        profile={profile}
-        onUpdate={handleUpdateProfile}
-      />
+      <PersonalInfoCard profile={profile} onUpdate={handleUpdateProfile} />
 
       <WorkoutPreferencesCard
         profile={profile}
         onUpdate={handleUpdateProfile}
       />
 
-      <ProgrammeTypeCard
-        profile={profile}
-        onUpdate={handleUpdateProfile}
-      />
+      <ProgrammeTypeCard profile={profile} onUpdate={handleUpdateProfile} />
 
       <MyGymsCardNew
         userId={userId!}
@@ -864,7 +1041,11 @@ export default function ProfileScreen() {
             <Ionicons name="lock-closed" size={20} color={Colors.foreground} />
             <Text style={styles.settingsButtonText}>Change Password</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={Colors.foreground} />
+          <Ionicons
+            name="chevron-forward"
+            size={20}
+            color={Colors.foreground}
+          />
         </TouchableOpacity>
       </View>
 
@@ -873,20 +1054,16 @@ export default function ProfileScreen() {
         <TouchableOpacity
           style={styles.dangerButton}
           onPress={() => {
-            Alert.alert(
-              'Sign Out',
-              'Are you sure you want to sign out?',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Sign Out',
-                  style: 'destructive',
-                  onPress: async () => {
-                    await supabase.auth.signOut();
-                  },
+            Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Sign Out',
+                style: 'destructive',
+                onPress: async () => {
+                  await supabase.auth.signOut();
                 },
-              ]
-            );
+              },
+            ]);
           }}
         >
           <Ionicons name="log-out" size={20} color={Colors.foreground} />
@@ -931,27 +1108,33 @@ export default function ProfileScreen() {
       {/* Aurora Background with 3 animated blobs */}
       <BackgroundRoot />
       <ScreenContainer scroll={false}>
-        <Animated.View style={[styles.headerWrapper, { transform: [{ translateY: headerTranslateY }] }]}>
-          <View style={styles.headerContainer}>
-            {renderHeader()}
-          </View>
+        <Animated.View
+          style={[
+            styles.headerWrapper,
+            { transform: [{ translateY: headerTranslateY }] },
+          ]}
+        >
+          <View style={styles.headerContainer}>{renderHeader()}</View>
         </Animated.View>
 
         {/* The tab bar needs to be a separate interactive layer */}
-        <Animated.View style={[styles.tabBarInteractiveWrapper, { transform: [{ translateY: headerTranslateY }] }]}>
-          <View style={styles.tabsContainer}>
-            {renderTabs()}
-          </View>
+        <Animated.View
+          style={[
+            styles.tabBarInteractiveWrapper,
+            { transform: [{ translateY: headerTranslateY }] },
+          ]}
+        >
+          <View style={styles.tabsContainer}>{renderTabs()}</View>
         </Animated.View>
 
         <PagerView
           ref={pagerRef}
           style={styles.pagerView}
           initialPage={0}
-          onPageSelected={(e) => handlePageChange(e.nativeEvent.position)}
+          onPageSelected={e => handlePageChange(e.nativeEvent.position)}
           scrollEnabled={!isComparisonOpen}
         >
-          {TABS_ORDER.map((tab) => (
+          {TABS_ORDER.map(tab => (
             <View key={tab} style={styles.page}>
               <Animated.ScrollView
                 style={{ flex: 1 }}
@@ -989,7 +1172,7 @@ export default function ProfileScreen() {
         onClose={() => setEditNameModalVisible(false)}
         currentName={profile?.display_name || ''}
         userId={userId || ''}
-        onSuccess={(newName) => {
+        onSuccess={newName => {
           setProfile({ ...profile, display_name: newName });
         }}
       />
@@ -1002,7 +1185,7 @@ export default function ProfileScreen() {
           weight_kg: profile?.weight_kg,
           body_fat_pct: profile?.body_fat_pct,
         }}
-        onSuccess={(metrics) => {
+        onSuccess={metrics => {
           setProfile({ ...profile, ...metrics });
         }}
       />
@@ -1011,7 +1194,7 @@ export default function ProfileScreen() {
         onClose={() => setAvatarModalVisible(false)}
         userId={userId || ''}
         currentAvatarUrl={profile?.avatar_url}
-        onSuccess={(avatarUrl) => {
+        onSuccess={avatarUrl => {
           setProfile({ ...profile, avatar_url: avatarUrl });
         }}
       />
@@ -1028,10 +1211,10 @@ export default function ProfileScreen() {
           t_path_type: profile?.t_path_type,
           default_session_length: profile?.default_session_length,
         }}
-        onSuccess={(prefs) => {
+        onSuccess={prefs => {
           setProfile({ ...profile, ...prefs });
         }}
-        onTPathTypeChange={(newType) => {
+        onTPathTypeChange={newType => {
           console.log('[Profile] Programme type changed to:', newType);
         }}
       />
@@ -1086,6 +1269,12 @@ export default function ProfileScreen() {
         }}
         onChooseFromGallery={handleGalleryPick}
       />
+      <PhotoLightboxDialog
+        visible={isLightboxOpen}
+        onClose={() => setIsLightboxOpen(false)}
+        photos={photos}
+        initialPhotoIndex={lightboxInitialIndex}
+      />
     </View>
   );
 }
@@ -1138,13 +1327,13 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.lg * 1.2, // Increased by 20% from 0
-    paddingBottom: Spacing.xl * 2,
+    paddingBottom: 0, // Remove bottom padding to eliminate the gap
   },
   tabContent: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.lg,
-    marginTop: Spacing.lg * 9 + HEADER_OFFSET + 20, // Try *9
+    marginTop: Spacing.lg * 10 + HEADER_OFFSET + 20, // Increased from *8 to *10 to move content back up
     width: '100%',
   },
   loadingContainer: {

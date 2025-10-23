@@ -1,9 +1,9 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { Card, CardHeader, CardTitle, CardContent } from "../ui/Card";
-import { Button } from "../ui/Button";
-import { Colors, Spacing } from "../../../constants/design-system";
-import { Skeleton } from "../ui/Skeleton";
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
+import { Button } from '../ui/Button';
+import { Colors, Spacing } from '../../../constants/design-system';
+import { Skeleton } from '../ui/Skeleton';
 
 interface Props {
   workoutName?: string;
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   },
   workoutName: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '600',
     color: Colors.foreground,
   },
   detail: {

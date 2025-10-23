@@ -7,12 +7,12 @@ import {
   RefreshControl,
   Alert,
   Platform,
-} from "react-native";
-import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "expo-router";
-import { useAuth } from "./_contexts/auth-context";
-import { useData } from "./_contexts/data-context";
-import { useUnitConversion } from "./_hooks/use-unit-conversion";
+} from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'expo-router';
+import { useAuth } from './_contexts/auth-context';
+import { useData } from './_contexts/data-context';
+import { useUnitConversion } from './_hooks/use-unit-conversion';
 
 interface BodyMeasurement {
   id: string;
@@ -49,7 +49,7 @@ export default function MeasurementsHistoryScreen() {
       const data = await getBodyMeasurements(userId);
       setMeasurements(data);
     } catch (error) {
-      console.error("Error loading measurements:", error);
+      console.error('Error loading measurements:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -67,33 +67,33 @@ export default function MeasurementsHistoryScreen() {
 
   const handleDelete = (measurementId: string) => {
     Alert.alert(
-      "Delete Measurement",
-      "Are you sure you want to delete this measurement?",
+      'Delete Measurement',
+      'Are you sure you want to delete this measurement?',
       [
-        { text: "Cancel", style: "cancel" },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: "Delete",
-          style: "destructive",
+          text: 'Delete',
+          style: 'destructive',
           onPress: async () => {
             try {
               await deleteBodyMeasurement(measurementId);
               await loadMeasurements();
             } catch (error) {
-              console.error("Error deleting measurement:", error);
-              Alert.alert("Error", "Failed to delete measurement");
+              console.error('Error deleting measurement:', error);
+              Alert.alert('Error', 'Failed to delete measurement');
             }
           },
         },
-      ],
+      ]
     );
   };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
     });
   };
 
@@ -217,7 +217,7 @@ export default function MeasurementsHistoryScreen() {
         </TouchableOpacity>
         <Text style={styles.title}>Measurements History</Text>
         <TouchableOpacity
-          onPress={() => router.push("/measurements")}
+          onPress={() => router.push('/measurements')}
           style={styles.addButton}
         >
           <Text style={styles.addButtonText}>+ Add</Text>
@@ -255,37 +255,37 @@ export default function MeasurementsHistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: '#000',
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === "ios" ? 60 : 40,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#333",
+    borderBottomColor: '#333',
   },
   backButton: {
     padding: 8,
   },
   backButtonText: {
-    color: "#0a0",
+    color: '#0a0',
     fontSize: 16,
   },
   title: {
     fontSize: 20,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: 'bold',
+    color: '#fff',
   },
   addButton: {
     padding: 8,
   },
   addButtonText: {
-    color: "#0a0",
+    color: '#0a0',
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   scrollView: {
     flex: 1,
@@ -294,70 +294,70 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   measurementCard: {
-    backgroundColor: "#111",
+    backgroundColor: '#111',
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: '#333',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
   },
   cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 12,
   },
   dateText: {
     fontSize: 16,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: 'bold',
+    color: '#fff',
   },
   deleteButton: {
     fontSize: 20,
   },
   measurementsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     marginTop: 8,
   },
   measurementItem: {
-    width: "48%",
+    width: '48%',
     marginBottom: 12,
-    marginRight: "4%",
+    marginRight: '4%',
   },
   measurementLabel: {
     fontSize: 12,
-    color: "#888",
+    color: '#888',
     marginBottom: 4,
   },
   measurementValue: {
     fontSize: 16,
-    color: "#0a0",
-    fontWeight: "bold",
+    color: '#0a0',
+    fontWeight: 'bold',
   },
   notesSection: {
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "#333",
+    borderTopColor: '#333',
   },
   notesText: {
     fontSize: 14,
-    color: "#ccc",
-    fontStyle: "italic",
+    color: '#ccc',
+    fontStyle: 'italic',
   },
   emptyState: {
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 60,
   },
   emptyText: {
     fontSize: 18,
-    color: "#888",
+    color: '#888',
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
-    color: "#666",
+    color: '#666',
   },
 });

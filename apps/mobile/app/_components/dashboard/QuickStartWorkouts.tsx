@@ -1,8 +1,8 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { Card, CardHeader, CardTitle, CardContent } from "../ui/Card";
-import { Button } from "../ui/Button";
-import { Colors, Spacing } from "../../../constants/design-system";
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
+import { Button } from '../ui/Button';
+import { Colors, Spacing } from '../../../constants/design-system';
 
 interface WorkoutTemplateSummary {
   id: string;
@@ -33,7 +33,7 @@ export const QuickStartWorkouts: React.FC<Props> = ({
             <Button onPress={onCreateTemplate}>Create a template</Button>
           </View>
         ) : (
-          templates.map((template) => (
+          templates.map(template => (
             <View key={template.id} style={styles.templateRow}>
               <View style={styles.templateInfo}>
                 <Text style={styles.templateName}>{template.name}</Text>
@@ -68,9 +68,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   templateRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: Spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.cardBorder,
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   templateName: {
     color: Colors.foreground,
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   templateDescription: {
     color: Colors.gray500,

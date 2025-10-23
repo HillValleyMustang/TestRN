@@ -5,12 +5,12 @@ import React, {
   useEffect,
   useMemo,
   useCallback,
-} from "react";
-import { database } from "../_lib/database";
-import { useAuth } from "./auth-context";
+} from 'react';
+import { database } from '../_lib/database';
+import { useAuth } from './auth-context';
 
-type UnitSystem = "metric" | "imperial";
-type Theme = "dark" | "light";
+type UnitSystem = 'metric' | 'imperial';
+type Theme = 'dark' | 'light';
 
 interface PreferencesContextType {
   unitSystem: UnitSystem;
@@ -21,7 +21,7 @@ interface PreferencesContextType {
 }
 
 const PreferencesContext = createContext<PreferencesContextType | undefined>(
-  undefined,
+  undefined
 );
 
 const PreferencesProviderInner = ({
@@ -31,8 +31,8 @@ const PreferencesProviderInner = ({
   children: React.ReactNode;
   userId: string | null;
 }) => {
-  const [unitSystem, setUnitSystemState] = useState<UnitSystem>("metric");
-  const [theme, setThemeState] = useState<Theme>("dark");
+  const [unitSystem, setUnitSystemState] = useState<UnitSystem>('metric');
+  const [theme, setThemeState] = useState<Theme>('dark');
   const [loading, setLoading] = useState(true);
   const [isDbReady, setIsDbReady] = useState(false);
 
@@ -40,10 +40,10 @@ const PreferencesProviderInner = ({
     database
       .init()
       .then(() => setIsDbReady(true))
-      .catch((err) => {
+      .catch(err => {
         console.error(
-          "Failed to initialize database in PreferencesProvider:",
-          err,
+          'Failed to initialize database in PreferencesProvider:',
+          err
         );
         setIsDbReady(true);
       });
@@ -68,7 +68,7 @@ const PreferencesProviderInner = ({
           setThemeState(prefs.theme as Theme);
         }
       } catch (error) {
-        console.error("Failed to load preferences:", error);
+        console.error('Failed to load preferences:', error);
       } finally {
         setLoading(false);
       }
@@ -87,10 +87,10 @@ const PreferencesProviderInner = ({
       try {
         await database.saveUserPreferences(userId, { unit_system: system });
       } catch (error) {
-        console.error("Failed to save unit system:", error);
+        console.error('Failed to save unit system:', error);
       }
     },
-    [userId],
+    [userId]
   );
 
   const setTheme = useCallback(
@@ -103,10 +103,10 @@ const PreferencesProviderInner = ({
       try {
         await database.saveUserPreferences(userId, { theme: newTheme });
       } catch (error) {
-        console.error("Failed to save theme:", error);
+        console.error('Failed to save theme:', error);
       }
     },
-    [userId],
+    [userId]
   );
 
   const value = useMemo(
@@ -117,7 +117,7 @@ const PreferencesProviderInner = ({
       setTheme,
       loading,
     }),
-    [loading, setTheme, setUnitSystem, theme, unitSystem],
+    [loading, setTheme, setUnitSystem, theme, unitSystem]
   );
 
   return (
@@ -134,7 +134,7 @@ export const PreferencesProvider = ({
 }) => {
   const { userId } = useAuth();
   return (
-    <PreferencesProviderInner key={userId || "no-user"} userId={userId}>
+    <PreferencesProviderInner key={userId || 'no-user'} userId={userId}>
       {children}
     </PreferencesProviderInner>
   );
@@ -143,7 +143,7 @@ export const PreferencesProvider = ({
 export const usePreferences = () => {
   const context = useContext(PreferencesContext);
   if (!context) {
-    throw new Error("usePreferences must be used within PreferencesProvider");
+    throw new Error('usePreferences must be used within PreferencesProvider');
   }
   return context;
 };

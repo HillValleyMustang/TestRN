@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Modal,
-} from "react-native";
+} from 'react-native';
 
 interface TemplateSaveModalProps {
   visible: boolean;
@@ -21,7 +21,7 @@ export function TemplateSaveModal({
   onClose,
   onSave,
   isUpdate,
-  initialDescription = "",
+  initialDescription = '',
 }: TemplateSaveModalProps) {
   const [description, setDescription] = useState(initialDescription);
 
@@ -51,7 +51,7 @@ export function TemplateSaveModal({
       <View style={styles.overlay}>
         <View style={styles.container}>
           <Text style={styles.title}>
-            {isUpdate ? "Update Template" : "Save as Template"}
+            {isUpdate ? 'Update Template' : 'Save as Template'}
           </Text>
 
           <Text style={styles.label}>Description (optional):</Text>
@@ -72,7 +72,7 @@ export function TemplateSaveModal({
 
             <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
               <Text style={styles.saveButtonText}>
-                {isUpdate ? "Update" : "Save"}
+                {isUpdate ? 'Update' : 'Save'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -87,70 +87,70 @@ export default TemplateSaveModal;
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   container: {
-    backgroundColor: "#111",
+    backgroundColor: '#111',
     borderRadius: 20,
     padding: 24,
-    width: "85%",
+    width: '85%',
     maxWidth: 400,
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: '#333',
   },
   title: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 24,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     marginBottom: 20,
   },
   label: {
-    color: "#888",
+    color: '#888',
     fontSize: 14,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: "#000",
+    backgroundColor: '#000',
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: '#333',
     borderRadius: 8,
     padding: 12,
-    color: "#fff",
+    color: '#fff',
     fontSize: 16,
     marginBottom: 24,
     minHeight: 80,
-    textAlignVertical: "top",
+    textAlignVertical: 'top',
   },
   buttons: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: "#222",
+    backgroundColor: '#222',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: '#333',
   },
   cancelButtonText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 16,
-    textAlign: "center",
-    fontWeight: "600",
+    textAlign: 'center',
+    fontWeight: '600',
   },
   saveButton: {
     flex: 1,
-    backgroundColor: "#0a0",
+    backgroundColor: '#0a0',
     padding: 16,
     borderRadius: 12,
   },
   saveButtonText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 16,
-    fontWeight: "bold",
-    textAlign: "center",
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 });

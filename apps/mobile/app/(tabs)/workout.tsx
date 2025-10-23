@@ -9,7 +9,12 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../_contexts/auth-context';
 import { useData } from '../_contexts/data-context';
 import { useWorkoutFlow } from '../_contexts/workout-flow-context';
-import { ExerciseCard, RestTimer, WorkoutHeader, EmptyWorkout } from '../../components/workout';
+import {
+  ExerciseCard,
+  RestTimer,
+  WorkoutHeader,
+  EmptyWorkout,
+} from '../../components/workout';
 import { WorkoutSummaryModal } from '../../components/workout/WorkoutSummaryModal';
 import { UnsavedChangesModal } from '../_components/workout/UnsavedChangesModal';
 import { getExerciseById } from '@data/exercises';
@@ -29,8 +34,19 @@ interface WorkoutExercise {
 
 export default function WorkoutScreen() {
   const { userId } = useAuth();
-  const { addWorkoutSession, addSetLog, getPersonalRecord, getTemplate, getTPath } = useData();
-  const { startSession, completeSession, setHasUnsavedChanges, requestNavigation } = useWorkoutFlow();
+  const {
+    addWorkoutSession,
+    addSetLog,
+    getPersonalRecord,
+    getTemplate,
+    getTPath,
+  } = useData();
+  const {
+    startSession,
+    completeSession,
+    setHasUnsavedChanges,
+    requestNavigation,
+  } = useWorkoutFlow();
   const router = useRouter();
   const params = useLocalSearchParams<{
     selectedExerciseId?: string;
@@ -42,96 +58,119 @@ export default function WorkoutScreen() {
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
   const [startTime] = useState(new Date());
   const [showRestTimer, setShowRestTimer] = useState(false);
-  const [personalRecords, setPersonalRecords] = useState<Record<string, number>>({});
+  const [personalRecords, setPersonalRecords] = useState<
+    Record<string, number>
+  >({});
   const [loadedTPathId, setLoadedTPathId] = useState<string | null>(null);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
 
-  const loadTemplate = useCallback(async (templateId: string) => {
-    try {
-      const template = await getTemplate(templateId);
-      if (!template) {
-        Alert.alert('Error', 'Template not found');
-        return;
-      }
-
-      setWorkoutName(template.name);
-      const loadedExercises: WorkoutExercise[] = template.exercises.map(ex => ({
-        exerciseId: ex.exercise_id,
-        sets: Array(ex.default_sets).fill(null).map(() => ({
-          weight: ex.default_weight_kg?.toString() || '',
-          reps: ex.default_reps?.toString() || '',
-          isCompleted: false,
-        })),
-      }));
-
-      setExercises(loadedExercises);
-      setHasUnsavedChanges(false);
-
-      for (const ex of template.exercises) {
-        if (userId) {
-          const pr = await getPersonalRecord(userId, ex.exercise_id);
-          setPersonalRecords(prev => ({ ...prev, [ex.exercise_id]: pr }));
+  const loadTemplate = useCallback(
+    async (templateId: string) => {
+      try {
+        const template = await getTemplate(templateId);
+        if (!template) {
+          Alert.alert('Error', 'Template not found');
+          return;
         }
-      }
-    } catch {
-      Alert.alert('Error', 'Failed to load template');
-    }
-  }, [getPersonalRecord, getTemplate, setHasUnsavedChanges, userId]);
 
-  const loadTPath = useCallback(async (tPathId: string) => {
-    try {
-      const tPath = await getTPath(tPathId);
-      if (!tPath) {
-        Alert.alert('Error', 'Workout program not found');
-        return;
-      }
+        setWorkoutName(template.name);
+        const loadedExercises: WorkoutExercise[] = template.exercises.map(
+          ex => ({
+            exerciseId: ex.exercise_id,
+            sets: Array(ex.default_sets)
+              .fill(null)
+              .map(() => ({
+                weight: ex.default_weight_kg?.toString() || '',
+                reps: ex.default_reps?.toString() || '',
+                isCompleted: false,
+              })),
+          })
+        );
 
-      setWorkoutName(tPath.template_name);
-      setLoadedTPathId(tPathId);
+        setExercises(loadedExercises);
+        setHasUnsavedChanges(false);
 
-      const loadedExercises: WorkoutExercise[] = tPath.exercises
-        .filter(ex => !ex.is_bonus_exercise)
-        .map(ex => ({
-          exerciseId: ex.exercise_id,
-          sets: Array(ex.target_sets || 3).fill(null).map(() => ({
-            weight: '',
-            reps: ex.target_reps_min?.toString() || '',
-            isCompleted: false,
-          })),
-        }));
-
-      setExercises(loadedExercises);
-      setHasUnsavedChanges(false);
-
-      for (const ex of tPath.exercises) {
-        if (userId) {
-          const pr = await getPersonalRecord(userId, ex.exercise_id);
-          setPersonalRecords(prev => ({ ...prev, [ex.exercise_id]: pr }));
+        for (const ex of template.exercises) {
+          if (userId) {
+            const pr = await getPersonalRecord(userId, ex.exercise_id);
+            setPersonalRecords(prev => ({ ...prev, [ex.exercise_id]: pr }));
+          }
         }
+      } catch {
+        Alert.alert('Error', 'Failed to load template');
       }
-    } catch {
-      Alert.alert('Error', 'Failed to load workout program');
-    }
-  }, [getPersonalRecord, getTPath, setHasUnsavedChanges, userId]);
+    },
+    [getPersonalRecord, getTemplate, setHasUnsavedChanges, userId]
+  );
 
-  const addExercise = useCallback(async (exerciseId: string) => {
-    setExercises(prev => {
-      if (prev.some(ex => ex.exerciseId === exerciseId)) {
-        Alert.alert('Already Added', 'This exercise is already in your workout');
-        return prev;
+  const loadTPath = useCallback(
+    async (tPathId: string) => {
+      try {
+        const tPath = await getTPath(tPathId);
+        if (!tPath) {
+          Alert.alert('Error', 'Workout program not found');
+          return;
+        }
+
+        setWorkoutName(tPath.template_name);
+        setLoadedTPathId(tPathId);
+
+        const loadedExercises: WorkoutExercise[] = tPath.exercises
+          .filter(ex => !ex.is_bonus_exercise)
+          .map(ex => ({
+            exerciseId: ex.exercise_id,
+            sets: Array(ex.target_sets || 3)
+              .fill(null)
+              .map(() => ({
+                weight: '',
+                reps: ex.target_reps_min?.toString() || '',
+                isCompleted: false,
+              })),
+          }));
+
+        setExercises(loadedExercises);
+        setHasUnsavedChanges(false);
+
+        for (const ex of tPath.exercises) {
+          if (userId) {
+            const pr = await getPersonalRecord(userId, ex.exercise_id);
+            setPersonalRecords(prev => ({ ...prev, [ex.exercise_id]: pr }));
+          }
+        }
+      } catch {
+        Alert.alert('Error', 'Failed to load workout program');
       }
-      return [...prev, {
-        exerciseId,
-        sets: [{ weight: '', reps: '', isCompleted: false }],
-      }];
-    });
-    setHasUnsavedChanges(true);
+    },
+    [getPersonalRecord, getTPath, setHasUnsavedChanges, userId]
+  );
 
-    if (userId) {
-      const pr = await getPersonalRecord(userId, exerciseId);
-      setPersonalRecords(prev => ({ ...prev, [exerciseId]: pr }));
-    }
-  }, [getPersonalRecord, setHasUnsavedChanges, userId]);
+  const addExercise = useCallback(
+    async (exerciseId: string) => {
+      setExercises(prev => {
+        if (prev.some(ex => ex.exerciseId === exerciseId)) {
+          Alert.alert(
+            'Already Added',
+            'This exercise is already in your workout'
+          );
+          return prev;
+        }
+        return [
+          ...prev,
+          {
+            exerciseId,
+            sets: [{ weight: '', reps: '', isCompleted: false }],
+          },
+        ];
+      });
+      setHasUnsavedChanges(true);
+
+      if (userId) {
+        const pr = await getPersonalRecord(userId, exerciseId);
+        setPersonalRecords(prev => ({ ...prev, [exerciseId]: pr }));
+      }
+    },
+    [getPersonalRecord, setHasUnsavedChanges, userId]
+  );
 
   useEffect(() => {
     startSession(params.templateId ?? params.tPathId ?? null);
@@ -139,7 +178,13 @@ export default function WorkoutScreen() {
       completeSession();
       setHasUnsavedChanges(false);
     };
-  }, [completeSession, params.templateId, params.tPathId, setHasUnsavedChanges, startSession]);
+  }, [
+    completeSession,
+    params.templateId,
+    params.tPathId,
+    setHasUnsavedChanges,
+    startSession,
+  ]);
 
   useEffect(() => {
     if (params.selectedExerciseId) {
@@ -163,84 +208,94 @@ export default function WorkoutScreen() {
     requestNavigation(() => router.push('/exercise-picker'));
   }, [requestNavigation, router]);
 
-  const handleSetChange = useCallback((
-    exerciseIndex: number,
-    setIndex: number,
-    field: 'weight' | 'reps',
-    value: string
-  ) => {
-    setExercises(prev => {
-      const updated = [...prev];
-      updated[exerciseIndex].sets[setIndex][field] = value;
-      return updated;
-    });
-    setHasUnsavedChanges(true);
-  }, [setHasUnsavedChanges]);
-
-  const handleToggleSetComplete = useCallback(async (
-    exerciseIndex: number,
-    setIndex: number
-  ) => {
-    setExercises(prev => {
-      const updated = [...prev];
-      const set = updated[exerciseIndex].sets[setIndex];
-      
-      if (!set.isCompleted && (!set.weight || !set.reps)) {
-        Alert.alert('Missing Data', 'Please enter weight and reps');
-        return prev;
-      }
-
-      set.isCompleted = !set.isCompleted;
-
-      if (set.isCompleted) {
-        const exerciseId = updated[exerciseIndex].exerciseId;
-        const weight = parseFloat(set.weight);
-        const pr = personalRecords[exerciseId] || 0;
-        
-        if (weight > pr) {
-          set.isPR = true;
-          setPersonalRecords(p => ({ ...p, [exerciseId]: weight }));
-        }
-        
-        setShowRestTimer(true);
-      }
-
-      return updated;
-    });
-    setHasUnsavedChanges(true);
-  }, [personalRecords, setHasUnsavedChanges]);
-
-  const handleAddSet = useCallback((exerciseIndex: number) => {
-    setExercises(prev => {
-      const updated = [...prev];
-      const lastSet = updated[exerciseIndex].sets[updated[exerciseIndex].sets.length - 1];
-      updated[exerciseIndex].sets.push({
-        weight: lastSet?.weight || '',
-        reps: lastSet?.reps || '',
-        isCompleted: false,
+  const handleSetChange = useCallback(
+    (
+      exerciseIndex: number,
+      setIndex: number,
+      field: 'weight' | 'reps',
+      value: string
+    ) => {
+      setExercises(prev => {
+        const updated = [...prev];
+        updated[exerciseIndex].sets[setIndex][field] = value;
+        return updated;
       });
-      return updated;
-    });
-    setHasUnsavedChanges(true);
-  }, [setHasUnsavedChanges]);
+      setHasUnsavedChanges(true);
+    },
+    [setHasUnsavedChanges]
+  );
 
-  const handleRemoveExercise = useCallback((exerciseIndex: number) => {
-    Alert.alert(
-      'Remove Exercise',
-      'Are you sure you want to remove this exercise?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => {
-            setExercises(prev => prev.filter((_, i) => i !== exerciseIndex));
-            setHasUnsavedChanges(true);
+  const handleToggleSetComplete = useCallback(
+    async (exerciseIndex: number, setIndex: number) => {
+      setExercises(prev => {
+        const updated = [...prev];
+        const set = updated[exerciseIndex].sets[setIndex];
+
+        if (!set.isCompleted && (!set.weight || !set.reps)) {
+          Alert.alert('Missing Data', 'Please enter weight and reps');
+          return prev;
+        }
+
+        set.isCompleted = !set.isCompleted;
+
+        if (set.isCompleted) {
+          const exerciseId = updated[exerciseIndex].exerciseId;
+          const weight = parseFloat(set.weight);
+          const pr = personalRecords[exerciseId] || 0;
+
+          if (weight > pr) {
+            set.isPR = true;
+            setPersonalRecords(p => ({ ...p, [exerciseId]: weight }));
+          }
+
+          setShowRestTimer(true);
+        }
+
+        return updated;
+      });
+      setHasUnsavedChanges(true);
+    },
+    [personalRecords, setHasUnsavedChanges]
+  );
+
+  const handleAddSet = useCallback(
+    (exerciseIndex: number) => {
+      setExercises(prev => {
+        const updated = [...prev];
+        const lastSet =
+          updated[exerciseIndex].sets[updated[exerciseIndex].sets.length - 1];
+        updated[exerciseIndex].sets.push({
+          weight: lastSet?.weight || '',
+          reps: lastSet?.reps || '',
+          isCompleted: false,
+        });
+        return updated;
+      });
+      setHasUnsavedChanges(true);
+    },
+    [setHasUnsavedChanges]
+  );
+
+  const handleRemoveExercise = useCallback(
+    (exerciseIndex: number) => {
+      Alert.alert(
+        'Remove Exercise',
+        'Are you sure you want to remove this exercise?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Remove',
+            style: 'destructive',
+            onPress: () => {
+              setExercises(prev => prev.filter((_, i) => i !== exerciseIndex));
+              setHasUnsavedChanges(true);
+            },
           },
-        },
-      ]
-    );
-  }, [setHasUnsavedChanges]);
+        ]
+      );
+    },
+    [setHasUnsavedChanges]
+  );
 
   const handleFinishWorkout = useCallback(() => {
     if (exercises.length === 0) {
@@ -253,7 +308,10 @@ export default function WorkoutScreen() {
     );
 
     if (!hasCompletedSets) {
-      Alert.alert('No Completed Sets', 'Complete at least one set to save workout');
+      Alert.alert(
+        'No Completed Sets',
+        'Complete at least one set to save workout'
+      );
       return;
     }
 
@@ -300,9 +358,10 @@ export default function WorkoutScreen() {
         }
       }
 
-      const message = prCount > 0
-        ? `Workout saved! 🎉 ${prCount} new PR${prCount > 1 ? 's' : ''}!`
-        : 'Workout saved successfully!';
+      const message =
+        prCount > 0
+          ? `Workout saved! 🎉 ${prCount} new PR${prCount > 1 ? 's' : ''}!`
+          : 'Workout saved successfully!';
 
       Alert.alert('Success', message);
       setExercises([]);
@@ -312,7 +371,17 @@ export default function WorkoutScreen() {
     } catch (error) {
       Alert.alert('Error', 'Failed to save workout');
     }
-  }, [exercises, workoutName, userId, loadedTPathId, addWorkoutSession, addSetLog, setHasUnsavedChanges, completeSession, router]);
+  }, [
+    exercises,
+    workoutName,
+    userId,
+    loadedTPathId,
+    addWorkoutSession,
+    addSetLog,
+    setHasUnsavedChanges,
+    completeSession,
+    router,
+  ]);
 
   if (exercises.length === 0) {
     return (
@@ -333,7 +402,10 @@ export default function WorkoutScreen() {
         onFinish={handleFinishWorkout}
       />
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+      >
         {showRestTimer && (
           <RestTimer
             duration={90}
@@ -353,9 +425,11 @@ export default function WorkoutScreen() {
               muscleGroup={exerciseData?.primaryMuscles?.[0]}
               sets={exercise.sets}
               isCompleted={isCompleted}
-              onSetChange={(setIndex: number, field: 'weight' | 'reps', value: string) =>
-                handleSetChange(exerciseIndex, setIndex, field, value)
-              }
+              onSetChange={(
+                setIndex: number,
+                field: 'weight' | 'reps',
+                value: string
+              ) => handleSetChange(exerciseIndex, setIndex, field, value)}
               onToggleSetComplete={(setIndex: number) =>
                 handleToggleSetComplete(exerciseIndex, setIndex)
               }
@@ -372,7 +446,8 @@ export default function WorkoutScreen() {
         exercises={exercises.map(ex => ({
           exerciseId: ex.exerciseId,
           exerciseName: getExerciseById(ex.exerciseId)?.name || ex.exerciseId,
-          muscleGroup: getExerciseById(ex.exerciseId)?.primaryMuscles?.[0] || undefined,
+          muscleGroup:
+            getExerciseById(ex.exerciseId)?.primaryMuscles?.[0] || undefined,
           sets: ex.sets,
         }))}
         workoutName={workoutName}

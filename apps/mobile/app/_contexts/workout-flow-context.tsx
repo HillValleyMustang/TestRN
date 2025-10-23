@@ -6,9 +6,9 @@ import React, {
   useMemo,
   useRef,
   useState,
-} from "react";
-import { BackHandler } from "react-native";
-import { useRouter } from "expo-router";
+} from 'react';
+import { BackHandler } from 'react-native';
+import { useRouter } from 'expo-router';
 
 interface WorkoutFlowContextValue {
   isWorkoutActive: boolean;
@@ -24,7 +24,7 @@ interface WorkoutFlowContextValue {
 }
 
 const WorkoutFlowContext = createContext<WorkoutFlowContextValue | undefined>(
-  undefined,
+  undefined
 );
 
 export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -62,7 +62,7 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       action();
     },
-    [hasUnsavedChanges],
+    [hasUnsavedChanges]
   );
 
   const confirmLeave = useCallback(() => {
@@ -94,8 +94,8 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     const subscription = BackHandler.addEventListener(
-      "hardwareBackPress",
-      handler,
+      'hardwareBackPress',
+      handler
     );
     return () => subscription.remove();
   }, [hasUnsavedChanges, router]);
@@ -124,7 +124,7 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
       showUnsavedChangesDialog,
       cancelLeave,
       startSession,
-    ],
+    ]
   );
 
   return (
@@ -137,7 +137,7 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
 export const useWorkoutFlow = () => {
   const context = useContext(WorkoutFlowContext);
   if (!context) {
-    throw new Error("useWorkoutFlow must be used within a WorkoutFlowProvider");
+    throw new Error('useWorkoutFlow must be used within a WorkoutFlowProvider');
   }
   return context;
 };

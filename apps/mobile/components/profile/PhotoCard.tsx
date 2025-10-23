@@ -21,14 +21,15 @@ type ProgressPhoto = {
 interface PhotoCardProps {
   photo: ProgressPhoto;
   onPress?: () => void;
-  onDelete?: (photo: ProgressPhoto) => void;
+  onDelete?: ((photo: ProgressPhoto) => void) | undefined;
   isSelected?: boolean;
   showSelectionIndicator?: boolean;
   isVisible?: boolean; // For lazy loading
   isLeftSide?: boolean; // For timeline positioning
+  index?: number; // For lightbox navigation
 }
 
-export const PhotoCard = ({ photo, onPress, onDelete, isSelected = false, showSelectionIndicator = false, isVisible = true, isLeftSide = true }: PhotoCardProps) => {
+export const PhotoCard = ({ photo, onPress, onDelete, isSelected = false, showSelectionIndicator = false, isVisible = true, isLeftSide = true, index }: PhotoCardProps) => {
   const { supabase } = useAuth();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false); // Start with false, only load when visible

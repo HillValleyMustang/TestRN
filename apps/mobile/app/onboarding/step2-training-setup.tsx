@@ -1,15 +1,15 @@
-import React from "react";
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-} from "react-native";
+} from 'react-native';
 
 interface Step2Data {
-  tPathType: "ppl" | "ulul" | null;
-  experience: "beginner" | "intermediate" | null;
+  tPathType: 'ppl' | 'ulul' | null;
+  experience: 'beginner' | 'intermediate' | null;
 }
 
 interface Step2Props {
@@ -29,33 +29,33 @@ export default function Step2TrainingSetup({
 
   const splitOptions = [
     {
-      id: "ppl" as const,
-      title: "3-Day Push/Pull/Legs",
-      subtitle: "PPL",
-      frequency: "3 days per week",
-      pros: ["Time efficient", "Better recovery", "Logical grouping"],
-      color: "#10B981",
+      id: 'ppl' as const,
+      title: '3-Day Push/Pull/Legs',
+      subtitle: 'PPL',
+      frequency: '3 days per week',
+      pros: ['Time efficient', 'Better recovery', 'Logical grouping'],
+      color: '#10B981',
     },
     {
-      id: "ulul" as const,
-      title: "4-Day Upper/Lower",
-      subtitle: "ULUL",
-      frequency: "4 days per week",
-      pros: ["Higher frequency", "Muscle growth", "Flexible scheduling"],
-      color: "#3B82F6",
+      id: 'ulul' as const,
+      title: '4-Day Upper/Lower',
+      subtitle: 'ULUL',
+      frequency: '4 days per week',
+      pros: ['Higher frequency', 'Muscle growth', 'Flexible scheduling'],
+      color: '#3B82F6',
     },
   ];
 
   const experienceOptions = [
     {
-      id: "beginner" as const,
-      title: "Beginner",
-      description: "New to structured training or returning after a long break",
+      id: 'beginner' as const,
+      title: 'Beginner',
+      description: 'New to structured training or returning after a long break',
     },
     {
-      id: "intermediate" as const,
-      title: "Intermediate",
-      description: "Some experience with structured training programs",
+      id: 'intermediate' as const,
+      title: 'Intermediate',
+      description: 'Some experience with structured training programs',
     },
   ];
 
@@ -68,7 +68,7 @@ export default function Step2TrainingSetup({
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Workout Split</Text>
-        {splitOptions.map((option) => (
+        {splitOptions.map(option => (
           <TouchableOpacity
             key={option.id}
             style={[
@@ -106,7 +106,7 @@ export default function Step2TrainingSetup({
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Experience Level</Text>
-        {experienceOptions.map((option) => (
+        {experienceOptions.map(option => (
           <TouchableOpacity
             key={option.id}
             style={[
@@ -161,7 +161,7 @@ export default function Step2TrainingSetup({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: '#000',
   },
   content: {
     padding: 20,
@@ -169,13 +169,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: "#888",
+    color: '#888',
     marginBottom: 32,
   },
   section: {
@@ -183,52 +183,52 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 16,
   },
   card: {
-    backgroundColor: "#1a1a1a",
+    backgroundColor: '#1a1a1a',
     padding: 16,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: "#333",
+    borderColor: '#333',
     marginBottom: 12,
   },
   activeCard: {
-    borderColor: "#10B981",
+    borderColor: '#10B981',
   },
   cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 8,
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 4,
   },
   cardSubtitle: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   checkmark: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   checkmarkText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 14,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   frequency: {
     fontSize: 13,
-    color: "#888",
+    color: '#888',
     marginBottom: 12,
   },
   prosContainer: {
@@ -236,82 +236,82 @@ const styles = StyleSheet.create({
   },
   proText: {
     fontSize: 13,
-    color: "#10B981",
+    color: '#10B981',
   },
   experienceCard: {
-    backgroundColor: "#1a1a1a",
+    backgroundColor: '#1a1a1a',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: '#333',
     marginBottom: 12,
   },
   experienceCardActive: {
-    borderColor: "#10B981",
+    borderColor: '#10B981',
     borderWidth: 2,
-    backgroundColor: "#0a1a14",
+    backgroundColor: '#0a1a14',
   },
   experienceHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
   },
   experienceTitle: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: 'bold',
+    color: '#fff',
   },
   experienceTitleActive: {
-    color: "#10B981",
+    color: '#10B981',
   },
   experienceCheckmark: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "#10B981",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: '#10B981',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   experienceDesc: {
     fontSize: 14,
-    color: "#888",
+    color: '#888',
   },
   experienceDescActive: {
-    color: "#10B981",
+    color: '#10B981',
   },
   buttonRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
     marginTop: 16,
   },
   backButton: {
     flex: 1,
-    backgroundColor: "#1a1a1a",
+    backgroundColor: '#1a1a1a',
     padding: 16,
     borderRadius: 8,
-    alignItems: "center",
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: '#333',
   },
   backButtonText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   nextButton: {
     flex: 1,
-    backgroundColor: "#10B981",
+    backgroundColor: '#10B981',
     padding: 16,
     borderRadius: 8,
-    alignItems: "center",
+    alignItems: 'center',
   },
   nextButtonDisabled: {
     opacity: 0.5,
   },
   nextButtonText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
 });

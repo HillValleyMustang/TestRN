@@ -1,4 +1,4 @@
-import * as SQLite from "expo-sqlite";
+import * as SQLite from 'expo-sqlite';
 import type {
   SyncQueueItem,
   SyncQueueStore,
@@ -10,9 +10,9 @@ import type {
   TPathProgress,
   TPathWithExercises,
   Gym,
-} from "@data/storage";
+} from '@data/storage';
 
-const DB_NAME = "fitness_tracker.db";
+const DB_NAME = 'fitness_tracker.db';
 
 class Database {
   private db: SQLite.SQLiteDatabase | null = null;
@@ -31,10 +31,10 @@ class Database {
       try {
         this.db = await SQLite.openDatabaseAsync(DB_NAME);
       } catch (error: any) {
-        const message = typeof error?.message === "string" ? error.message : "";
+        const message = typeof error?.message === 'string' ? error.message : '';
         if (
           message.includes("Couldn't create directory") ||
-          message.includes("Could not open database")
+          message.includes('Could not open database')
         ) {
           await SQLite.deleteDatabaseAsync(DB_NAME);
           this.db = await SQLite.openDatabaseAsync(DB_NAME);
@@ -215,7 +215,7 @@ class Database {
 
   getDB(): SQLite.SQLiteDatabase {
     if (!this.db) {
-      throw new Error("Database not initialized. Call init() first.");
+      throw new Error('Database not initialized. Call init() first.');
     }
     return this.db;
   }
@@ -236,7 +236,7 @@ class Database {
         session.duration_string,
         session.t_path_id,
         session.created_at,
-      ],
+      ]
     );
   }
 
@@ -257,16 +257,16 @@ class Database {
         setLog.time_seconds,
         setLog.is_pb ? 1 : 0,
         setLog.created_at,
-      ],
+      ]
     );
   }
 
   async replaceSetLogsForSession(
     sessionId: string,
-    logs: SetLog[],
+    logs: SetLog[]
   ): Promise<void> {
     const db = this.getDB();
-    await db.runAsync("DELETE FROM set_logs WHERE session_id = ?", [sessionId]);
+    await db.runAsync('DELETE FROM set_logs WHERE session_id = ?', [sessionId]);
 
     for (const log of logs) {
       await db.runAsync(
@@ -284,7 +284,7 @@ class Database {
           log.time_seconds,
           log.is_pb ? 1 : 0,
           log.created_at,
-        ],
+        ]
       );
     }
   }
@@ -292,15 +292,15 @@ class Database {
   async getWorkoutSessions(userId: string): Promise<WorkoutSession[]> {
     const db = this.getDB();
     const result = await db.getAllAsync<WorkoutSession>(
-      "SELECT * FROM workout_sessions WHERE user_id = ? ORDER BY session_date DESC",
-      [userId],
+      'SELECT * FROM workout_sessions WHERE user_id = ? ORDER BY session_date DESC',
+      [userId]
     );
     return result;
   }
 
   async getRecentWorkoutSummaries(
     userId: string,
-    limit: number = 3,
+    limit: number = 3
   ): Promise<
     Array<{
       session: WorkoutSession;
@@ -319,10 +319,10 @@ class Database {
        GROUP BY ws.id
        ORDER BY ws.session_date DESC
        LIMIT ?`,
-      [userId, limit],
+      [userId, limit]
     );
 
-    return rows.map((row) => ({
+    return rows.map(row => ({
       session: {
         id: row.id,
         user_id: row.user_id,
@@ -343,10 +343,10 @@ class Database {
   async getSetLogs(sessionId: string): Promise<SetLog[]> {
     const db = this.getDB();
     const result = await db.getAllAsync<any>(
-      "SELECT * FROM set_logs WHERE session_id = ? ORDER BY created_at ASC",
-      [sessionId],
+      'SELECT * FROM set_logs WHERE session_id = ? ORDER BY created_at ASC',
+      [sessionId]
     );
-    return result.map((row) => ({
+    return result.map(row => ({
       ...row,
       is_pb: row.is_pb === 1,
     }));
@@ -359,7 +359,7 @@ class Database {
        FROM set_logs sl
        JOIN workout_sessions ws ON sl.session_id = ws.id
        WHERE ws.user_id = ? AND sl.exercise_id = ?`,
-      [userId, exerciseId],
+      [userId, exerciseId]
     );
     return result?.max_weight || 0;
   }
@@ -378,17 +378,17 @@ class Database {
         JSON.stringify(template.exercises),
         template.created_at,
         template.updated_at,
-      ],
+      ]
     );
   }
 
   async getTemplates(userId: string): Promise<WorkoutTemplate[]> {
     const db = this.getDB();
     const result = await db.getAllAsync<any>(
-      "SELECT * FROM workout_templates WHERE user_id = ? ORDER BY updated_at DESC",
-      [userId],
+      'SELECT * FROM workout_templates WHERE user_id = ? ORDER BY updated_at DESC',
+      [userId]
     );
-    return result.map((row) => ({
+    return result.map(row => ({
       ...row,
       exercises: JSON.parse(row.exercises),
     }));
@@ -397,8 +397,8 @@ class Database {
   async getTemplate(templateId: string): Promise<WorkoutTemplate | null> {
     const db = this.getDB();
     const result = await db.getFirstAsync<any>(
-      "SELECT * FROM workout_templates WHERE id = ?",
-      [templateId],
+      'SELECT * FROM workout_templates WHERE id = ?',
+      [templateId]
     );
     if (!result) {
       return null;
@@ -411,14 +411,14 @@ class Database {
 
   async deleteTemplate(templateId: string): Promise<void> {
     const db = this.getDB();
-    await db.runAsync("DELETE FROM workout_templates WHERE id = ?", [
+    await db.runAsync('DELETE FROM workout_templates WHERE id = ?', [
       templateId,
     ]);
   }
 
   async getWorkoutStats(
     userId: string,
-    days: number = 30,
+    days: number = 30
   ): Promise<{
     totalWorkouts: number;
     totalVolume: number;
@@ -434,7 +434,7 @@ class Database {
       `SELECT * FROM workout_sessions 
        WHERE user_id = ? AND session_date >= ? 
        ORDER BY session_date DESC`,
-      [userId, startDate.toISOString()],
+      [userId, startDate.toISOString()]
     );
 
     const volumeResult = await db.getFirstAsync<{ total_volume: number }>(
@@ -442,7 +442,7 @@ class Database {
        FROM set_logs sl
        JOIN workout_sessions ws ON sl.session_id = ws.id
        WHERE ws.user_id = ? AND ws.session_date >= ?`,
-      [userId, startDate.toISOString()],
+      [userId, startDate.toISOString()]
     );
 
     const totalVolume = volumeResult?.total_volume || 0;
@@ -453,11 +453,11 @@ class Database {
       `SELECT session_date FROM workout_sessions 
        WHERE user_id = ? 
        ORDER BY session_date DESC`,
-      [userId],
+      [userId]
     );
 
     const { currentStreak, longestStreak } = this.calculateStreaks(
-      allWorkouts.map((w) => w.session_date),
+      allWorkouts.map(w => w.session_date)
     );
 
     return {
@@ -477,7 +477,7 @@ class Database {
       return { currentStreak: 0, longestStreak: 0 };
     }
 
-    const uniqueDates = [...new Set(dates.map((d) => d.split("T")[0]))]
+    const uniqueDates = [...new Set(dates.map(d => d.split('T')[0]))]
       .sort()
       .reverse();
 
@@ -493,7 +493,7 @@ class Database {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const daysDiff = Math.floor(
-          (today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24),
+          (today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
         );
         if (daysDiff <= 1) {
           currentStreak = 1;
@@ -501,7 +501,7 @@ class Database {
         }
       } else {
         const daysDiff = Math.floor(
-          (lastDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24),
+          (lastDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
         );
         if (daysDiff === 1) {
           tempStreak++;
@@ -525,7 +525,7 @@ class Database {
 
   async getWorkoutFrequency(
     userId: string,
-    days: number = 30,
+    days: number = 30
   ): Promise<Array<{ date: string; count: number }>> {
     const db = this.getDB();
     const startDate = new Date();
@@ -537,7 +537,7 @@ class Database {
        WHERE user_id = ? AND session_date >= ?
        GROUP BY DATE(session_date)
        ORDER BY date ASC`,
-      [userId, startDate.toISOString()],
+      [userId, startDate.toISOString()]
     );
 
     return result;
@@ -545,7 +545,7 @@ class Database {
 
   async getVolumeHistory(
     userId: string,
-    days: number = 30,
+    days: number = 30
   ): Promise<Array<{ date: string; volume: number }>> {
     const db = this.getDB();
     const startDate = new Date();
@@ -558,7 +558,7 @@ class Database {
        WHERE ws.user_id = ? AND ws.session_date >= ?
        GROUP BY DATE(ws.session_date)
        ORDER BY date ASC`,
-      [userId, startDate.toISOString()],
+      [userId, startDate.toISOString()]
     );
 
     return result;
@@ -566,7 +566,7 @@ class Database {
 
   async getPRHistory(
     userId: string,
-    exerciseId: string,
+    exerciseId: string
   ): Promise<Array<{ date: string; weight: number }>> {
     const db = this.getDB();
 
@@ -577,20 +577,20 @@ class Database {
        WHERE ws.user_id = ? AND sl.exercise_id = ?
        GROUP BY DATE(ws.session_date)
        ORDER BY date ASC`,
-      [userId, exerciseId],
+      [userId, exerciseId]
     );
 
     return result;
   }
 
   async getUserPreferences(
-    userId: string,
+    userId: string
   ): Promise<{ unit_system: string; theme: string } | null> {
     const db = this.getDB();
     const result = await db.getFirstAsync<{
       unit_system: string;
       theme: string;
-    }>("SELECT unit_system, theme FROM user_preferences WHERE user_id = ?", [
+    }>('SELECT unit_system, theme FROM user_preferences WHERE user_id = ?', [
       userId,
     ]);
     return result || null;
@@ -598,7 +598,7 @@ class Database {
 
   async saveUserPreferences(
     userId: string,
-    preferences: { unit_system?: string; theme?: string },
+    preferences: { unit_system?: string; theme?: string }
   ): Promise<void> {
     const db = this.getDB();
     const now = new Date().toISOString();
@@ -615,7 +615,7 @@ class Database {
           preferences.theme || existing.theme,
           now,
           userId,
-        ],
+        ]
       );
     } else {
       await db.runAsync(
@@ -623,10 +623,10 @@ class Database {
          VALUES (?, ?, ?, ?)`,
         [
           userId,
-          preferences.unit_system || "metric",
-          preferences.theme || "dark",
+          preferences.unit_system || 'metric',
+          preferences.theme || 'dark',
           now,
-        ],
+        ]
       );
     }
   }
@@ -667,22 +667,22 @@ class Database {
         measurement.right_thigh_cm || null,
         measurement.notes || null,
         measurement.created_at,
-      ],
+      ]
     );
   }
 
   async getBodyMeasurements(userId: string): Promise<any[]> {
     const db = this.getDB();
     const result = await db.getAllAsync<any>(
-      "SELECT * FROM body_measurements WHERE user_id = ? ORDER BY measurement_date DESC, created_at DESC",
-      [userId],
+      'SELECT * FROM body_measurements WHERE user_id = ? ORDER BY measurement_date DESC, created_at DESC',
+      [userId]
     );
     return result;
   }
 
   async getWeightHistory(
     userId: string,
-    days?: number,
+    days?: number
   ): Promise<Array<{ date: string; weight: number }>> {
     const db = this.getDB();
     let query = `SELECT DATE(measurement_date) as date, weight_kg as weight
@@ -693,22 +693,22 @@ class Database {
     if (days) {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
-      query += " AND measurement_date >= ?";
+      query += ' AND measurement_date >= ?';
       params.push(startDate.toISOString());
     }
 
-    query += " ORDER BY measurement_date ASC";
+    query += ' ORDER BY measurement_date ASC';
 
     const result = await db.getAllAsync<{ date: string; weight: number }>(
       query,
-      params,
+      params
     );
     return result;
   }
 
   async deleteBodyMeasurement(measurementId: string): Promise<void> {
     const db = this.getDB();
-    await db.runAsync("DELETE FROM body_measurements WHERE id = ?", [
+    await db.runAsync('DELETE FROM body_measurements WHERE id = ?', [
       measurementId,
     ]);
   }
@@ -740,26 +740,26 @@ class Database {
         goal.current_value || null,
         goal.start_date,
         goal.target_date || null,
-        goal.status || "active",
+        goal.status || 'active',
         goal.exercise_id || null,
         goal.notes || null,
         goal.created_at,
         goal.updated_at,
-      ],
+      ]
     );
   }
 
   async getGoals(userId: string, status?: string): Promise<any[]> {
     const db = this.getDB();
-    let query = "SELECT * FROM user_goals WHERE user_id = ?";
+    let query = 'SELECT * FROM user_goals WHERE user_id = ?';
     const params: any[] = [userId];
 
     if (status) {
-      query += " AND status = ?";
+      query += ' AND status = ?';
       params.push(status);
     }
 
-    query += " ORDER BY created_at DESC";
+    query += ' ORDER BY created_at DESC';
 
     const result = await db.getAllAsync<any>(query, params);
     return result;
@@ -768,8 +768,8 @@ class Database {
   async getGoal(goalId: string): Promise<any | null> {
     const db = this.getDB();
     const result = await db.getFirstAsync<any>(
-      "SELECT * FROM user_goals WHERE id = ?",
-      [goalId],
+      'SELECT * FROM user_goals WHERE id = ?',
+      [goalId]
     );
     return result || null;
   }
@@ -777,27 +777,27 @@ class Database {
   async updateGoalProgress(
     goalId: string,
     currentValue: number,
-    status?: string,
+    status?: string
   ): Promise<void> {
     const db = this.getDB();
     const now = new Date().toISOString();
 
     if (status) {
       await db.runAsync(
-        "UPDATE user_goals SET current_value = ?, status = ?, updated_at = ? WHERE id = ?",
-        [currentValue, status, now, goalId],
+        'UPDATE user_goals SET current_value = ?, status = ?, updated_at = ? WHERE id = ?',
+        [currentValue, status, now, goalId]
       );
     } else {
       await db.runAsync(
-        "UPDATE user_goals SET current_value = ?, updated_at = ? WHERE id = ?",
-        [currentValue, now, goalId],
+        'UPDATE user_goals SET current_value = ?, updated_at = ? WHERE id = ?',
+        [currentValue, now, goalId]
       );
     }
   }
 
   async deleteGoal(goalId: string): Promise<void> {
     const db = this.getDB();
-    await db.runAsync("DELETE FROM user_goals WHERE id = ?", [goalId]);
+    await db.runAsync('DELETE FROM user_goals WHERE id = ?', [goalId]);
   }
 
   async unlockAchievement(achievement: {
@@ -818,27 +818,27 @@ class Database {
         achievement.achievement_id,
         achievement.unlocked_at,
         achievement.progress_value || null,
-      ],
+      ]
     );
   }
 
   async getUserAchievements(userId: string): Promise<any[]> {
     const db = this.getDB();
     const result = await db.getAllAsync<any>(
-      "SELECT * FROM user_achievements WHERE user_id = ? ORDER BY unlocked_at DESC",
-      [userId],
+      'SELECT * FROM user_achievements WHERE user_id = ? ORDER BY unlocked_at DESC',
+      [userId]
     );
     return result;
   }
 
   async hasAchievement(
     userId: string,
-    achievementId: string,
+    achievementId: string
   ): Promise<boolean> {
     const db = this.getDB();
     const result = await db.getFirstAsync<{ count: number }>(
-      "SELECT COUNT(*) as count FROM user_achievements WHERE user_id = ? AND achievement_id = ?",
-      [userId, achievementId],
+      'SELECT COUNT(*) as count FROM user_achievements WHERE user_id = ? AND achievement_id = ?',
+      [userId, achievementId]
     );
     return (result?.count || 0) > 0;
   }
@@ -861,15 +861,15 @@ class Database {
         tPath.ai_generation_params,
         tPath.created_at,
         tPath.updated_at,
-      ],
+      ]
     );
   }
 
   async getTPath(tPathId: string): Promise<TPathWithExercises | null> {
     const db = this.getDB();
     const tPath = await db.getFirstAsync<any>(
-      "SELECT * FROM t_paths WHERE id = ?",
-      [tPathId],
+      'SELECT * FROM t_paths WHERE id = ?',
+      [tPathId]
     );
 
     if (!tPath) {
@@ -877,15 +877,15 @@ class Database {
     }
 
     const exercises = await db.getAllAsync<any>(
-      "SELECT * FROM t_path_exercises WHERE t_path_id = ? ORDER BY order_index ASC",
-      [tPathId],
+      'SELECT * FROM t_path_exercises WHERE t_path_id = ? ORDER BY order_index ASC',
+      [tPathId]
     );
 
     return {
       ...tPath,
       is_main_program: Boolean(tPath.is_main_program),
       is_ai_generated: Boolean(tPath.is_ai_generated),
-      exercises: exercises.map((ex) => ({
+      exercises: exercises.map(ex => ({
         ...ex,
         is_bonus_exercise: Boolean(ex.is_bonus_exercise),
       })),
@@ -894,20 +894,20 @@ class Database {
 
   async getTPaths(
     userId: string,
-    mainProgramsOnly: boolean = false,
+    mainProgramsOnly: boolean = false
   ): Promise<TPath[]> {
     const db = this.getDB();
-    let query = "SELECT * FROM t_paths WHERE user_id = ?";
+    let query = 'SELECT * FROM t_paths WHERE user_id = ?';
     const params: any[] = [userId];
 
     if (mainProgramsOnly) {
-      query += " AND is_main_program = 1";
+      query += ' AND is_main_program = 1';
     }
 
-    query += " ORDER BY order_index ASC, created_at DESC";
+    query += ' ORDER BY order_index ASC, created_at DESC';
 
     const result = await db.getAllAsync<any>(query, params);
-    return result.map((row) => ({
+    return result.map(row => ({
       ...row,
       is_main_program: Boolean(row.is_main_program),
       is_ai_generated: Boolean(row.is_ai_generated),
@@ -917,10 +917,10 @@ class Database {
   async getTPathsByParent(parentId: string): Promise<TPath[]> {
     const db = this.getDB();
     const result = await db.getAllAsync<any>(
-      "SELECT * FROM t_paths WHERE parent_t_path_id = ? ORDER BY order_index ASC",
-      [parentId],
+      'SELECT * FROM t_paths WHERE parent_t_path_id = ? ORDER BY order_index ASC',
+      [parentId]
     );
-    return result.map((row) => ({
+    return result.map(row => ({
       ...row,
       is_main_program: Boolean(row.is_main_program),
       is_ai_generated: Boolean(row.is_ai_generated),
@@ -935,43 +935,43 @@ class Database {
     const values: any[] = [];
 
     if (updates.template_name !== undefined) {
-      fields.push("template_name = ?");
+      fields.push('template_name = ?');
       values.push(updates.template_name);
     }
     if (updates.description !== undefined) {
-      fields.push("description = ?");
+      fields.push('description = ?');
       values.push(updates.description);
     }
     if (updates.is_main_program !== undefined) {
-      fields.push("is_main_program = ?");
+      fields.push('is_main_program = ?');
       values.push(updates.is_main_program ? 1 : 0);
     }
     if (updates.order_index !== undefined) {
-      fields.push("order_index = ?");
+      fields.push('order_index = ?');
       values.push(updates.order_index);
     }
 
-    fields.push("updated_at = ?");
+    fields.push('updated_at = ?');
     values.push(now);
     values.push(tPathId);
 
     if (fields.length > 1) {
       await db.runAsync(
-        `UPDATE t_paths SET ${fields.join(", ")} WHERE id = ?`,
-        values,
+        `UPDATE t_paths SET ${fields.join(', ')} WHERE id = ?`,
+        values
       );
     }
   }
 
   async deleteTPath(tPathId: string): Promise<void> {
     const db = this.getDB();
-    await db.runAsync("DELETE FROM t_path_exercises WHERE t_path_id = ?", [
+    await db.runAsync('DELETE FROM t_path_exercises WHERE t_path_id = ?', [
       tPathId,
     ]);
-    await db.runAsync("DELETE FROM t_path_progress WHERE t_path_id = ?", [
+    await db.runAsync('DELETE FROM t_path_progress WHERE t_path_id = ?', [
       tPathId,
     ]);
-    await db.runAsync("DELETE FROM t_paths WHERE id = ?", [tPathId]);
+    await db.runAsync('DELETE FROM t_paths WHERE id = ?', [tPathId]);
   }
 
   async addTPathExercise(exercise: TPathExercise): Promise<void> {
@@ -991,17 +991,17 @@ class Database {
         exercise.target_reps_max,
         exercise.notes,
         exercise.created_at,
-      ],
+      ]
     );
   }
 
   async getTPathExercises(tPathId: string): Promise<TPathExercise[]> {
     const db = this.getDB();
     const result = await db.getAllAsync<any>(
-      "SELECT * FROM t_path_exercises WHERE t_path_id = ? ORDER BY order_index ASC",
-      [tPathId],
+      'SELECT * FROM t_path_exercises WHERE t_path_id = ? ORDER BY order_index ASC',
+      [tPathId]
     );
-    return result.map((row) => ({
+    return result.map(row => ({
       ...row,
       is_bonus_exercise: Boolean(row.is_bonus_exercise),
     }));
@@ -1009,7 +1009,7 @@ class Database {
 
   async deleteTPathExercise(exerciseId: string): Promise<void> {
     const db = this.getDB();
-    await db.runAsync("DELETE FROM t_path_exercises WHERE id = ?", [
+    await db.runAsync('DELETE FROM t_path_exercises WHERE id = ?', [
       exerciseId,
     ]);
   }
@@ -1029,18 +1029,18 @@ class Database {
         progress.total_workouts_completed,
         progress.created_at,
         progress.updated_at,
-      ],
+      ]
     );
   }
 
   async getTPathProgress(
     userId: string,
-    tPathId: string,
+    tPathId: string
   ): Promise<TPathProgress | null> {
     const db = this.getDB();
     const result = await db.getFirstAsync<any>(
-      "SELECT * FROM t_path_progress WHERE user_id = ? AND t_path_id = ?",
-      [userId, tPathId],
+      'SELECT * FROM t_path_progress WHERE user_id = ? AND t_path_id = ?',
+      [userId, tPathId]
     );
     return result || null;
   }
@@ -1048,8 +1048,8 @@ class Database {
   async getAllTPathProgress(userId: string): Promise<TPathProgress[]> {
     const db = this.getDB();
     const result = await db.getAllAsync<any>(
-      "SELECT * FROM t_path_progress WHERE user_id = ? ORDER BY last_accessed_at DESC",
-      [userId],
+      'SELECT * FROM t_path_progress WHERE user_id = ? ORDER BY last_accessed_at DESC',
+      [userId]
     );
     return result;
   }
@@ -1069,15 +1069,15 @@ class Database {
         gym.is_active ? 1 : 0,
         gym.created_at,
         gym.updated_at,
-      ],
+      ]
     );
   }
 
   async getGym(gymId: string): Promise<Gym | null> {
     const db = this.getDB();
     const result = await db.getFirstAsync<any>(
-      "SELECT * FROM gyms WHERE id = ?",
-      [gymId],
+      'SELECT * FROM gyms WHERE id = ?',
+      [gymId]
     );
     if (!result) {
       return null;
@@ -1092,10 +1092,10 @@ class Database {
   async getGyms(userId: string): Promise<Gym[]> {
     const db = this.getDB();
     const result = await db.getAllAsync<any>(
-      "SELECT * FROM gyms WHERE user_id = ? ORDER BY is_active DESC, name ASC",
-      [userId],
+      'SELECT * FROM gyms WHERE user_id = ? ORDER BY is_active DESC, name ASC',
+      [userId]
     );
-    return result.map((row) => ({
+    return result.map(row => ({
       ...row,
       equipment: JSON.parse(row.equipment),
       is_active: Boolean(row.is_active),
@@ -1105,8 +1105,8 @@ class Database {
   async getActiveGym(userId: string): Promise<Gym | null> {
     const db = this.getDB();
     const result = await db.getFirstAsync<any>(
-      "SELECT * FROM gyms WHERE user_id = ? AND is_active = 1 LIMIT 1",
-      [userId],
+      'SELECT * FROM gyms WHERE user_id = ? AND is_active = 1 LIMIT 1',
+      [userId]
     );
     if (!result) {
       return null;
@@ -1126,54 +1126,54 @@ class Database {
     const values: any[] = [];
 
     if (updates.name !== undefined) {
-      fields.push("name = ?");
+      fields.push('name = ?');
       values.push(updates.name);
     }
     if (updates.description !== undefined) {
-      fields.push("description = ?");
+      fields.push('description = ?');
       values.push(updates.description);
     }
     if (updates.equipment !== undefined) {
-      fields.push("equipment = ?");
+      fields.push('equipment = ?');
       values.push(JSON.stringify(updates.equipment));
     }
     if (updates.is_active !== undefined) {
-      fields.push("is_active = ?");
+      fields.push('is_active = ?');
       values.push(updates.is_active ? 1 : 0);
     }
 
-    fields.push("updated_at = ?");
+    fields.push('updated_at = ?');
     values.push(now);
     values.push(gymId);
 
     if (fields.length > 1) {
       await db.runAsync(
-        `UPDATE gyms SET ${fields.join(", ")} WHERE id = ?`,
-        values,
+        `UPDATE gyms SET ${fields.join(', ')} WHERE id = ?`,
+        values
       );
     }
   }
 
   async setActiveGym(userId: string, gymId: string): Promise<void> {
     const db = this.getDB();
-    await db.runAsync("UPDATE gyms SET is_active = 0 WHERE user_id = ?", [
+    await db.runAsync('UPDATE gyms SET is_active = 0 WHERE user_id = ?', [
       userId,
     ]);
-    await db.runAsync("UPDATE gyms SET is_active = 1 WHERE id = ?", [gymId]);
+    await db.runAsync('UPDATE gyms SET is_active = 1 WHERE id = ?', [gymId]);
   }
 
   async deleteGym(gymId: string): Promise<void> {
     const db = this.getDB();
-    await db.runAsync("DELETE FROM gyms WHERE id = ?", [gymId]);
+    await db.runAsync('DELETE FROM gyms WHERE id = ?', [gymId]);
   }
 
   syncQueue: SyncQueueStore = {
     getAll: async (): Promise<SyncQueueItem[]> => {
       const db = this.getDB();
       const result = await db.getAllAsync<any>(
-        "SELECT * FROM sync_queue ORDER BY timestamp ASC",
+        'SELECT * FROM sync_queue ORDER BY timestamp ASC'
       );
-      return result.map((row) => ({
+      return result.map(row => ({
         id: row.id,
         operation: row.operation,
         table: row.table_name,
@@ -1184,10 +1184,10 @@ class Database {
       }));
     },
 
-    add: async (item: Omit<SyncQueueItem, "id">): Promise<number> => {
+    add: async (item: Omit<SyncQueueItem, 'id'>): Promise<number> => {
       const db = this.getDB();
       const result = await db.runAsync(
-        "INSERT INTO sync_queue (operation, table_name, payload, timestamp, attempts, error) VALUES (?, ?, ?, ?, ?, ?)",
+        'INSERT INTO sync_queue (operation, table_name, payload, timestamp, attempts, error) VALUES (?, ?, ?, ?, ?, ?)',
         [
           item.operation,
           item.table,
@@ -1195,27 +1195,27 @@ class Database {
           item.timestamp,
           item.attempts,
           item.error || null,
-        ],
+        ]
       );
       return result.lastInsertRowId;
     },
 
     remove: async (id: number): Promise<void> => {
       const db = this.getDB();
-      await db.runAsync("DELETE FROM sync_queue WHERE id = ?", [id]);
+      await db.runAsync('DELETE FROM sync_queue WHERE id = ?', [id]);
     },
 
     incrementAttempts: async (id: number, error: string): Promise<void> => {
       const db = this.getDB();
       await db.runAsync(
-        "UPDATE sync_queue SET attempts = attempts + 1, error = ? WHERE id = ?",
-        [error, id],
+        'UPDATE sync_queue SET attempts = attempts + 1, error = ? WHERE id = ?',
+        [error, id]
       );
     },
 
     clear: async (): Promise<void> => {
       const db = this.getDB();
-      await db.runAsync("DELETE FROM sync_queue");
+      await db.runAsync('DELETE FROM sync_queue');
     },
   };
 }
@@ -1223,9 +1223,9 @@ class Database {
 export const database = new Database();
 
 export const addToSyncQueue = async (
-  operation: "create" | "update" | "delete",
-  table: "workout_sessions" | "set_logs",
-  payload: { id: string; [key: string]: any },
+  operation: 'create' | 'update' | 'delete',
+  table: 'workout_sessions' | 'set_logs',
+  payload: { id: string; [key: string]: any }
 ) => {
   await database.syncQueue.add({
     operation,

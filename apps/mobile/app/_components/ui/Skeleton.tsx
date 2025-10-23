@@ -1,6 +1,6 @@
-import React from "react";
-import { View, StyleSheet, ViewProps } from "react-native";
-import { Colors, BorderRadius } from "../../../constants/design-system";
+import React from 'react';
+import { View, StyleSheet, ViewProps } from 'react-native';
+import { Colors, BorderRadius } from '../../../constants/design-system';
 
 interface SkeletonProps extends ViewProps {
   width?: number | string;
@@ -9,7 +9,7 @@ interface SkeletonProps extends ViewProps {
 }
 
 export const Skeleton: React.FC<SkeletonProps> = ({
-  width = "100%",
+  width = '100%',
   height = 20,
   rounded = false,
   style,
@@ -34,6 +34,6 @@ const styles = StyleSheet.create({
   base: {
     backgroundColor: Colors.gray800,
     borderRadius: BorderRadius.lg,
-    overflow: "hidden",
+    overflow: 'hidden',
   },
 });

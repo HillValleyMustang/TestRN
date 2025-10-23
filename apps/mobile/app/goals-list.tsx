@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,11 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
-} from "react-native";
-import { router } from "expo-router";
-import { useAuth } from "./_contexts/auth-context";
-import { useData, type Goal } from "./_contexts/data-context";
-import { useUnitConversion } from "./_hooks/use-unit-conversion";
+} from 'react-native';
+import { router } from 'expo-router';
+import { useAuth } from './_contexts/auth-context';
+import { useData, type Goal } from './_contexts/data-context';
+import { useUnitConversion } from './_hooks/use-unit-conversion';
 
 export default function GoalsListScreen() {
   const { userId } = useAuth();
@@ -19,8 +19,8 @@ export default function GoalsListScreen() {
   const { displayWeight } = useUnitConversion();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [activeFilter, setActiveFilter] = useState<
-    "all" | "active" | "completed"
-  >("active");
+    'all' | 'active' | 'completed'
+  >('active');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -29,11 +29,11 @@ export default function GoalsListScreen() {
       return;
     }
     try {
-      const status = activeFilter === "all" ? undefined : activeFilter;
+      const status = activeFilter === 'all' ? undefined : activeFilter;
       const data = await getGoals(userId, status);
       setGoals(data);
     } catch (error) {
-      console.error("Error loading goals:", error);
+      console.error('Error loading goals:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -50,11 +50,11 @@ export default function GoalsListScreen() {
   };
 
   const handleDeleteGoal = (goalId: string) => {
-    Alert.alert("Delete Goal", "Are you sure you want to delete this goal?", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert('Delete Goal', 'Are you sure you want to delete this goal?', [
+      { text: 'Cancel', style: 'cancel' },
       {
-        text: "Delete",
-        style: "destructive",
+        text: 'Delete',
+        style: 'destructive',
         onPress: async () => {
           await deleteGoal(goalId);
           loadGoals();
@@ -65,11 +65,11 @@ export default function GoalsListScreen() {
 
   const getGoalTypeLabel = (type: string): string => {
     const labels: Record<string, string> = {
-      weight_loss: "Weight Loss",
-      weight_gain: "Weight Gain",
-      strength: "Strength Goal",
-      workout_frequency: "Workout Frequency",
-      body_fat: "Body Fat %",
+      weight_loss: 'Weight Loss',
+      weight_gain: 'Weight Gain',
+      strength: 'Strength Goal',
+      workout_frequency: 'Workout Frequency',
+      body_fat: 'Body Fat %',
     };
     return labels[type] || type;
   };
@@ -84,14 +84,14 @@ export default function GoalsListScreen() {
 
   const formatGoalValue = (goal: Goal, value: number): string => {
     switch (goal.goal_type) {
-      case "weight_loss":
-      case "weight_gain":
+      case 'weight_loss':
+      case 'weight_gain':
         return displayWeight(value);
-      case "strength":
+      case 'strength':
         return `${displayWeight(value)}`;
-      case "workout_frequency":
+      case 'workout_frequency':
         return `${value} workouts`;
-      case "body_fat":
+      case 'body_fat':
         return `${value.toFixed(1)}%`;
       default:
         return value.toString();
@@ -100,8 +100,8 @@ export default function GoalsListScreen() {
 
   const renderGoalCard = (goal: Goal) => {
     const progress = calculateProgress(goal);
-    const isCompleted = goal.status === "completed";
-    const isActive = goal.status === "active";
+    const isCompleted = goal.status === 'completed';
+    const isActive = goal.status === 'active';
 
     return (
       <View
@@ -183,14 +183,14 @@ export default function GoalsListScreen() {
         <TouchableOpacity
           style={[
             styles.filterButton,
-            activeFilter === "active" && styles.filterButtonActive,
+            activeFilter === 'active' && styles.filterButtonActive,
           ]}
-          onPress={() => setActiveFilter("active")}
+          onPress={() => setActiveFilter('active')}
         >
           <Text
             style={[
               styles.filterText,
-              activeFilter === "active" && styles.filterTextActive,
+              activeFilter === 'active' && styles.filterTextActive,
             ]}
           >
             Active
@@ -199,14 +199,14 @@ export default function GoalsListScreen() {
         <TouchableOpacity
           style={[
             styles.filterButton,
-            activeFilter === "completed" && styles.filterButtonActive,
+            activeFilter === 'completed' && styles.filterButtonActive,
           ]}
-          onPress={() => setActiveFilter("completed")}
+          onPress={() => setActiveFilter('completed')}
         >
           <Text
             style={[
               styles.filterText,
-              activeFilter === "completed" && styles.filterTextActive,
+              activeFilter === 'completed' && styles.filterTextActive,
             ]}
           >
             Completed
@@ -215,14 +215,14 @@ export default function GoalsListScreen() {
         <TouchableOpacity
           style={[
             styles.filterButton,
-            activeFilter === "all" && styles.filterButtonActive,
+            activeFilter === 'all' && styles.filterButtonActive,
           ]}
-          onPress={() => setActiveFilter("all")}
+          onPress={() => setActiveFilter('all')}
         >
           <Text
             style={[
               styles.filterText,
-              activeFilter === "all" && styles.filterTextActive,
+              activeFilter === 'all' && styles.filterTextActive,
             ]}
           >
             All
@@ -250,7 +250,7 @@ export default function GoalsListScreen() {
 
       <TouchableOpacity
         style={styles.addButton}
-        onPress={() => router.push("/create-goal")}
+        onPress={() => router.push('/create-goal')}
       >
         <Text style={styles.addButtonText}>+ Create Goal</Text>
       </TouchableOpacity>
@@ -261,29 +261,29 @@ export default function GoalsListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0a0a0a",
+    backgroundColor: '#0a0a0a',
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 16,
     paddingTop: 60,
-    backgroundColor: "#111",
+    backgroundColor: '#111',
     borderBottomWidth: 1,
-    borderBottomColor: "#222",
+    borderBottomColor: '#222',
   },
   backButton: {
-    color: "#60a5fa",
+    color: '#60a5fa',
     fontSize: 16,
     marginRight: 16,
   },
   title: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 24,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   filterContainer: {
-    flexDirection: "row",
+    flexDirection: 'row',
     padding: 16,
     gap: 8,
   },
@@ -292,60 +292,60 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: "#1a1a1a",
-    alignItems: "center",
+    backgroundColor: '#1a1a1a',
+    alignItems: 'center',
   },
   filterButtonActive: {
-    backgroundColor: "#60a5fa",
+    backgroundColor: '#60a5fa',
   },
   filterText: {
-    color: "#999",
+    color: '#999',
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   filterTextActive: {
-    color: "#fff",
+    color: '#fff',
   },
   scrollView: {
     flex: 1,
     padding: 16,
   },
   goalCard: {
-    backgroundColor: "#1a1a1a",
+    backgroundColor: '#1a1a1a',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 2,
-    borderColor: "#60a5fa",
+    borderColor: '#60a5fa',
   },
   completedCard: {
-    borderColor: "#4ade80",
+    borderColor: '#4ade80',
     opacity: 0.8,
   },
   goalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 12,
   },
   goalTitleContainer: {
     flex: 1,
   },
   goalType: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     marginBottom: 4,
   },
   activeBadge: {
-    color: "#60a5fa",
+    color: '#60a5fa',
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   completedBadge: {
-    color: "#4ade80",
+    color: '#4ade80',
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   deleteButton: {
     fontSize: 20,
@@ -355,12 +355,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   goalTarget: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 16,
     marginBottom: 4,
   },
   goalCurrent: {
-    color: "#999",
+    color: '#999',
     fontSize: 14,
   },
   progressContainer: {
@@ -368,62 +368,62 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 8,
-    backgroundColor: "#333",
+    backgroundColor: '#333',
     borderRadius: 4,
-    overflow: "hidden",
+    overflow: 'hidden',
     marginBottom: 4,
   },
   progressFill: {
-    height: "100%",
-    backgroundColor: "#60a5fa",
+    height: '100%',
+    backgroundColor: '#60a5fa',
   },
   progressText: {
-    color: "#999",
+    color: '#999',
     fontSize: 12,
-    textAlign: "right",
+    textAlign: 'right',
   },
   targetDate: {
-    color: "#999",
+    color: '#999',
     fontSize: 12,
     marginBottom: 8,
   },
   goalNotes: {
-    color: "#999",
+    color: '#999',
     fontSize: 12,
-    fontStyle: "italic",
+    fontStyle: 'italic',
   },
   addButton: {
-    backgroundColor: "#60a5fa",
+    backgroundColor: '#60a5fa',
     padding: 16,
     margin: 16,
     borderRadius: 12,
-    alignItems: "center",
+    alignItems: 'center',
   },
   addButtonText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   centered: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   loadingText: {
-    color: "#999",
+    color: '#999',
     fontSize: 16,
   },
   emptyContainer: {
-    alignItems: "center",
+    alignItems: 'center',
     marginTop: 60,
   },
   emptyText: {
-    color: "#999",
+    color: '#999',
     fontSize: 18,
     marginBottom: 8,
   },
   emptySubtext: {
-    color: "#666",
+    color: '#666',
     fontSize: 14,
   },
 });

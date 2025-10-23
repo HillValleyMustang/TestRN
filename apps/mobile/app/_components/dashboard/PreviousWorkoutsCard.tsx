@@ -1,8 +1,8 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { Card, CardHeader, CardTitle, CardContent } from "../ui/Card";
-import { Colors, Spacing } from "../../../constants/design-system";
-import { Button } from "../ui/Button";
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
+import { Colors, Spacing } from '../../../constants/design-system';
+import { Button } from '../ui/Button';
 
 interface SessionSummary {
   id: string;
@@ -30,7 +30,7 @@ export const PreviousWorkoutsCard: React.FC<Props> = ({
             No workouts logged yet. Your history will appear here.
           </Text>
         ) : (
-          sessions.map((session) => (
+          sessions.map(session => (
             <View key={session.id} style={styles.sessionRow}>
               <View style={styles.sessionInfo}>
                 <Text style={styles.sessionName}>{session.name}</Text>
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   sessionName: {
     color: Colors.foreground,
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   sessionDate: {
     color: Colors.gray500,

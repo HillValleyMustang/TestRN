@@ -1,8 +1,12 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { Card, CardHeader, CardTitle, CardContent } from "../ui/Card";
-import { Colors, Spacing, BorderRadius } from "../../../constants/design-system";
-import { Skeleton } from "../ui/Skeleton";
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
+import {
+  Colors,
+  Spacing,
+  BorderRadius,
+} from '../../../constants/design-system';
+import { Skeleton } from '../ui/Skeleton';
 
 interface VolumePoint {
   date: string;
@@ -48,7 +52,7 @@ export const WeeklyVolumeChart: React.FC<Props> = ({ data, loading }) => {
     );
   }
 
-  const maxVolume = Math.max(...data.map((d) => d.volume), 1);
+  const maxVolume = Math.max(...data.map(d => d.volume), 1);
 
   return (
     <Card>
@@ -57,7 +61,7 @@ export const WeeklyVolumeChart: React.FC<Props> = ({ data, loading }) => {
       </CardHeader>
       <CardContent>
         <View style={styles.chartRow}>
-          {data.map((point) => {
+          {data.map(point => {
             const heightPercent = Math.max(point.volume / maxVolume, 0.05);
             return (
               <View key={point.date} style={styles.barContainer}>
@@ -76,17 +80,17 @@ export default WeeklyVolumeChart;
 
 const styles = StyleSheet.create({
   chartRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
+    flexDirection: 'row',
+    alignItems: 'flex-end',
     gap: Spacing.md,
     minHeight: 160,
   },
   barContainer: {
     flex: 1,
-    alignItems: "center",
+    alignItems: 'center',
   },
   bar: {
-    width: "60%",
+    width: '60%',
     backgroundColor: Colors.actionPrimary,
     borderRadius: BorderRadius.md,
   },

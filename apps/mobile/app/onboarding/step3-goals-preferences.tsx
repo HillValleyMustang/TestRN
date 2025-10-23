@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-} from "react-native";
+} from 'react-native';
 
 interface Step3Data {
   goalFocus: string;
@@ -31,22 +31,22 @@ export default function Step3GoalsPreferences({
   const isValid = data.goalFocus && data.sessionLength;
 
   const goals = [
-    { id: "muscle_gain", icon: "💪", text: "Muscle Gain" },
-    { id: "fat_loss", icon: "🏃", text: "Fat Loss" },
-    { id: "strength_increase", icon: "🏋️", text: "Strength Increase" },
+    { id: 'muscle_gain', icon: '💪', text: 'Muscle Gain' },
+    { id: 'fat_loss', icon: '🏃', text: 'Fat Loss' },
+    { id: 'strength_increase', icon: '🏋️', text: 'Strength Increase' },
   ];
 
-  const muscles = ["Arms", "Chest", "Legs", "Core", "Back", "Shoulders"];
+  const muscles = ['Arms', 'Chest', 'Legs', 'Core', 'Back', 'Shoulders'];
 
   const sessionLengths = [
-    { id: "15-30", label: "Quick Sessions", desc: "15-30 min" },
-    { id: "30-45", label: "Balanced", desc: "30-45 min" },
-    { id: "45-60", label: "Full Workouts", desc: "45-60 min" },
-    { id: "60-90", label: "Extended", desc: "60-90 min" },
+    { id: '15-30', label: 'Quick Sessions', desc: '15-30 min' },
+    { id: '30-45', label: 'Balanced', desc: '30-45 min' },
+    { id: '45-60', label: 'Full Workouts', desc: '45-60 min' },
+    { id: '60-90', label: 'Extended', desc: '60-90 min' },
   ];
 
   const selectedMuscles = data.preferredMuscles
-    ? data.preferredMuscles.split(",").map((m) => m.trim())
+    ? data.preferredMuscles.split(',').map(m => m.trim())
     : [];
 
   const toggleMuscle = (muscle: string) => {
@@ -56,7 +56,7 @@ export default function Step3GoalsPreferences({
     } else {
       current.add(muscle);
     }
-    onDataChange({ ...data, preferredMuscles: Array.from(current).join(", ") });
+    onDataChange({ ...data, preferredMuscles: Array.from(current).join(', ') });
   };
 
   return (
@@ -69,7 +69,7 @@ export default function Step3GoalsPreferences({
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Primary Goal *</Text>
         <View style={styles.goalGrid}>
-          {goals.map((goal) => (
+          {goals.map(goal => (
             <TouchableOpacity
               key={goal.id}
               style={[
@@ -95,7 +95,7 @@ export default function Step3GoalsPreferences({
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Focus Muscles (Optional)</Text>
         <View style={styles.muscleGrid}>
-          {muscles.map((muscle) => (
+          {muscles.map(muscle => (
             <TouchableOpacity
               key={muscle}
               style={[
@@ -120,7 +120,7 @@ export default function Step3GoalsPreferences({
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Session Length *</Text>
         <View style={styles.sessionGrid}>
-          {sessionLengths.map((session) => (
+          {sessionLengths.map(session => (
             <TouchableOpacity
               key={session.id}
               style={[
@@ -160,7 +160,7 @@ export default function Step3GoalsPreferences({
         <TextInput
           style={styles.textArea}
           value={data.constraints}
-          onChangeText={(text) => onDataChange({ ...data, constraints: text })}
+          onChangeText={text => onDataChange({ ...data, constraints: text })}
           placeholder="Any injuries, limitations, or health notes..."
           placeholderTextColor="#666"
           multiline
@@ -188,7 +188,7 @@ export default function Step3GoalsPreferences({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: '#000',
   },
   content: {
     padding: 20,
@@ -196,13 +196,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: "#888",
+    color: '#888',
     marginBottom: 32,
   },
   section: {
@@ -210,29 +210,29 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 16,
   },
   goalGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
   },
   goalCard: {
     flex: 1,
-    minWidth: "30%",
-    backgroundColor: "#1a1a1a",
+    minWidth: '30%',
+    backgroundColor: '#1a1a1a',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#333",
-    alignItems: "center",
+    borderColor: '#333',
+    alignItems: 'center',
   },
   goalCardActive: {
-    borderColor: "#10B981",
+    borderColor: '#10B981',
     borderWidth: 2,
-    backgroundColor: "#0a1a14",
+    backgroundColor: '#0a1a14',
   },
   goalIcon: {
     fontSize: 32,
@@ -240,111 +240,111 @@ const styles = StyleSheet.create({
   },
   goalText: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#fff",
-    textAlign: "center",
+    fontWeight: '600',
+    color: '#fff',
+    textAlign: 'center',
   },
   goalTextActive: {
-    color: "#10B981",
+    color: '#10B981',
   },
   muscleGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
   muscleChip: {
-    backgroundColor: "#1a1a1a",
+    backgroundColor: '#1a1a1a',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: '#333',
   },
   muscleChipActive: {
-    backgroundColor: "#10B981",
-    borderColor: "#10B981",
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
   },
   muscleText: {
     fontSize: 14,
-    color: "#fff",
-    fontWeight: "600",
+    color: '#fff',
+    fontWeight: '600',
   },
   muscleTextActive: {
-    color: "#000",
+    color: '#000',
   },
   sessionGrid: {
     gap: 12,
   },
   sessionCard: {
-    backgroundColor: "#1a1a1a",
+    backgroundColor: '#1a1a1a',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: '#333',
   },
   sessionCardActive: {
-    borderColor: "#10B981",
+    borderColor: '#10B981',
     borderWidth: 2,
-    backgroundColor: "#0a1a14",
+    backgroundColor: '#0a1a14',
   },
   sessionLabel: {
     fontSize: 16,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 4,
   },
   sessionLabelActive: {
-    color: "#10B981",
+    color: '#10B981',
   },
   sessionDesc: {
     fontSize: 13,
-    color: "#888",
+    color: '#888',
   },
   sessionDescActive: {
-    color: "#10B981",
+    color: '#10B981',
   },
   textArea: {
-    backgroundColor: "#1a1a1a",
+    backgroundColor: '#1a1a1a',
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: '#333',
     borderRadius: 8,
     padding: 16,
     fontSize: 16,
-    color: "#fff",
+    color: '#fff',
     minHeight: 100,
   },
   buttonRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
     marginTop: 16,
   },
   backButton: {
     flex: 1,
-    backgroundColor: "#1a1a1a",
+    backgroundColor: '#1a1a1a',
     padding: 16,
     borderRadius: 8,
-    alignItems: "center",
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: '#333',
   },
   backButtonText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   nextButton: {
     flex: 1,
-    backgroundColor: "#10B981",
+    backgroundColor: '#10B981',
     padding: 16,
     borderRadius: 8,
-    alignItems: "center",
+    alignItems: 'center',
   },
   nextButtonDisabled: {
     opacity: 0.5,
   },
   nextButtonText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
 });

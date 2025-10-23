@@ -1,22 +1,22 @@
-import React from "react";
+import React from 'react';
 import {
   TouchableOpacity,
   Text,
   StyleSheet,
   ActivityIndicator,
   TouchableOpacityProps,
-} from "react-native";
+} from 'react-native';
 import {
   ButtonStyles,
   Colors,
   BorderRadius,
   Spacing,
   Typography,
-} from "../../../constants/design-system";
+} from '../../../constants/design-system';
 
-type Variant = "primary" | "success" | "destructive" | "outline" | "ghost";
+type Variant = 'primary' | 'success' | 'destructive' | 'outline' | 'ghost';
 
-type Size = "sm" | "md" | "lg";
+type Size = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends TouchableOpacityProps {
   children: React.ReactNode;
@@ -27,8 +27,8 @@ interface ButtonProps extends TouchableOpacityProps {
 
 export const Button: React.FC<ButtonProps> = ({
   children,
-  variant = "primary",
-  size = "md",
+  variant = 'primary',
+  size = 'md',
   loading = false,
   style,
   disabled,
@@ -53,7 +53,7 @@ export const Button: React.FC<ButtonProps> = ({
       {loading ? (
         <ActivityIndicator
           color={
-            variant === "outline" || variant === "ghost"
+            variant === 'outline' || variant === 'ghost'
               ? Colors.foreground
               : Colors.foreground
           }
@@ -70,9 +70,9 @@ export default Button;
 const styles = StyleSheet.create({
   base: {
     borderRadius: BorderRadius.lg,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: Spacing.sm,
   },
   text: {
@@ -122,6 +122,6 @@ const sizeVariants: Record<Size, any> = {
   },
   lg: {
     paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing["2xl"],
+    paddingHorizontal: Spacing['2xl'],
   },
 };

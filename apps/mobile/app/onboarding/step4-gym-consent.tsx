@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 import {
   View,
   Text,
@@ -6,11 +6,11 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-} from "react-native";
+} from 'react-native';
 
 interface Step4Data {
   gymName: string;
-  equipmentMethod: "photo" | "skip" | null;
+  equipmentMethod: 'photo' | 'skip' | null;
   consentGiven: boolean;
 }
 
@@ -30,10 +30,10 @@ export default function Step4GymConsent({
   onSkipPhoto,
 }: Step4Props) {
   const isValid =
-    data.gymName.trim() !== "" && data.equipmentMethod && data.consentGiven;
+    data.gymName.trim() !== '' && data.equipmentMethod && data.consentGiven;
 
   const handleContinue = () => {
-    if (data.equipmentMethod === "photo") {
+    if (data.equipmentMethod === 'photo') {
       onNext();
     } else {
       onSkipPhoto();
@@ -55,7 +55,7 @@ export default function Step4GymConsent({
         <TextInput
           style={styles.input}
           value={data.gymName}
-          onChangeText={(text) => onDataChange({ ...data, gymName: text })}
+          onChangeText={text => onDataChange({ ...data, gymName: text })}
           placeholder="e.g., Home Gym, Fitness First"
           placeholderTextColor="#666"
         />
@@ -74,9 +74,9 @@ export default function Step4GymConsent({
         <TouchableOpacity
           style={[
             styles.methodCard,
-            data.equipmentMethod === "photo" && styles.methodCardActive,
+            data.equipmentMethod === 'photo' && styles.methodCardActive,
           ]}
-          onPress={() => onDataChange({ ...data, equipmentMethod: "photo" })}
+          onPress={() => onDataChange({ ...data, equipmentMethod: 'photo' })}
         >
           <View style={styles.methodHeader}>
             <Text style={styles.methodIcon}>📸</Text>
@@ -84,7 +84,7 @@ export default function Step4GymConsent({
               <Text
                 style={[
                   styles.methodTitle,
-                  data.equipmentMethod === "photo" && styles.methodTitleActive,
+                  data.equipmentMethod === 'photo' && styles.methodTitleActive,
                 ]}
               >
                 AI-Powered Photo Analysis
@@ -93,7 +93,7 @@ export default function Step4GymConsent({
                 Upload photos, let AI identify your equipment
               </Text>
             </View>
-            {data.equipmentMethod === "photo" && (
+            {data.equipmentMethod === 'photo' && (
               <View style={styles.radioSelected} />
             )}
           </View>
@@ -102,9 +102,9 @@ export default function Step4GymConsent({
         <TouchableOpacity
           style={[
             styles.methodCard,
-            data.equipmentMethod === "skip" && styles.methodCardActive,
+            data.equipmentMethod === 'skip' && styles.methodCardActive,
           ]}
-          onPress={() => onDataChange({ ...data, equipmentMethod: "skip" })}
+          onPress={() => onDataChange({ ...data, equipmentMethod: 'skip' })}
         >
           <View style={styles.methodHeader}>
             <Text style={styles.methodIcon}>⏭️</Text>
@@ -112,7 +112,7 @@ export default function Step4GymConsent({
               <Text
                 style={[
                   styles.methodTitle,
-                  data.equipmentMethod === "skip" && styles.methodTitleActive,
+                  data.equipmentMethod === 'skip' && styles.methodTitleActive,
                 ]}
               >
                 Skip for Now
@@ -121,7 +121,7 @@ export default function Step4GymConsent({
                 Use standard equipment, customize later
               </Text>
             </View>
-            {data.equipmentMethod === "skip" && (
+            {data.equipmentMethod === 'skip' && (
               <View style={styles.radioSelected} />
             )}
           </View>
@@ -164,7 +164,7 @@ export default function Step4GymConsent({
           disabled={!isValid}
         >
           <Text style={styles.nextButtonText}>
-            {data.equipmentMethod === "photo" ? "Next" : "Finish"}
+            {data.equipmentMethod === 'photo' ? 'Next' : 'Finish'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -175,7 +175,7 @@ export default function Step4GymConsent({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: '#000',
   },
   content: {
     padding: 20,
@@ -183,13 +183,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: "#888",
+    color: '#888',
     marginBottom: 32,
   },
   section: {
@@ -199,58 +199,58 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "#14B8A6",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: '#14B8A6',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 12,
   },
   numberText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 12,
   },
   input: {
-    backgroundColor: "#1a1a1a",
+    backgroundColor: '#1a1a1a',
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: '#333',
     borderRadius: 8,
     padding: 16,
     fontSize: 16,
-    color: "#fff",
+    color: '#fff',
     marginBottom: 8,
   },
   hint: {
     fontSize: 12,
-    color: "#666",
-    fontStyle: "italic",
+    color: '#666',
+    fontStyle: 'italic',
   },
   description: {
     fontSize: 14,
-    color: "#888",
+    color: '#888',
     marginBottom: 16,
   },
   methodCard: {
-    backgroundColor: "#1a1a1a",
+    backgroundColor: '#1a1a1a',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: '#333',
     marginBottom: 12,
   },
   methodCardActive: {
-    borderColor: "#10B981",
+    borderColor: '#10B981',
     borderWidth: 2,
-    backgroundColor: "#0a1a14",
+    backgroundColor: '#0a1a14',
   },
   methodHeader: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   methodIcon: {
     fontSize: 32,
@@ -261,84 +261,84 @@ const styles = StyleSheet.create({
   },
   methodTitle: {
     fontSize: 16,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 4,
   },
   methodTitleActive: {
-    color: "#10B981",
+    color: '#10B981',
   },
   methodDesc: {
     fontSize: 13,
-    color: "#888",
+    color: '#888',
   },
   radioSelected: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: "#10B981",
+    backgroundColor: '#10B981',
   },
   consentRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    alignItems: 'flex-start',
   },
   checkbox: {
     width: 24,
     height: 24,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: "#333",
+    borderColor: '#333',
     marginRight: 12,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   checkboxActive: {
-    backgroundColor: "#10B981",
-    borderColor: "#10B981",
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
   },
   checkmark: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   consentText: {
     flex: 1,
     fontSize: 14,
-    color: "#fff",
+    color: '#fff',
     lineHeight: 20,
   },
   buttonRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
     marginTop: 16,
   },
   backButton: {
     flex: 1,
-    backgroundColor: "#1a1a1a",
+    backgroundColor: '#1a1a1a',
     padding: 16,
     borderRadius: 8,
-    alignItems: "center",
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: '#333',
   },
   backButtonText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   nextButton: {
     flex: 1,
-    backgroundColor: "#10B981",
+    backgroundColor: '#10B981',
     padding: 16,
     borderRadius: 8,
-    alignItems: "center",
+    alignItems: 'center',
   },
   nextButtonDisabled: {
     opacity: 0.5,
   },
   nextButtonText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
 });

@@ -1,12 +1,12 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, Alert } from "react-native";
-import { useRouter } from "expo-router";
-import { useAuth } from "../_contexts/auth-context";
-import Step1PersonalInfo from "./step1-personal-info";
-import Step2TrainingSetup from "./step2-training-setup";
-import Step3GoalsPreferences from "./step3-goals-preferences";
-import Step4GymConsent from "./step4-gym-consent";
-import Step5PhotoUpload from "./step5-photo-upload";
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useAuth } from '../_contexts/auth-context';
+import Step1PersonalInfo from './step1-personal-info';
+import Step2TrainingSetup from './step2-training-setup';
+import Step3GoalsPreferences from './step3-goals-preferences';
+import Step4GymConsent from './step4-gym-consent';
+import Step5PhotoUpload from './step5-photo-upload';
 
 interface Step1Data {
   fullName: string;
@@ -15,13 +15,13 @@ interface Step1Data {
   heightIn: number | null;
   weight: number | null;
   bodyFatPct: number | null;
-  heightUnit: "cm" | "ft";
-  weightUnit: "kg" | "lbs";
+  heightUnit: 'cm' | 'ft';
+  weightUnit: 'kg' | 'lbs';
 }
 
 interface Step2Data {
-  tPathType: "ppl" | "ulul" | null;
-  experience: "beginner" | "intermediate" | null;
+  tPathType: 'ppl' | 'ulul' | null;
+  experience: 'beginner' | 'intermediate' | null;
 }
 
 interface Step3Data {
@@ -33,7 +33,7 @@ interface Step3Data {
 
 interface Step4Data {
   gymName: string;
-  equipmentMethod: "photo" | "skip" | null;
+  equipmentMethod: 'photo' | 'skip' | null;
   consentGiven: boolean;
 }
 
@@ -44,14 +44,14 @@ export default function OnboardingScreen() {
   const [loading, setLoading] = useState(false);
 
   const [step1Data, setStep1Data] = useState<Step1Data>({
-    fullName: "",
+    fullName: '',
     heightCm: null,
     heightFt: null,
     heightIn: null,
     weight: null,
     bodyFatPct: null,
-    heightUnit: "ft",
-    weightUnit: "kg",
+    heightUnit: 'ft',
+    weightUnit: 'kg',
   });
 
   const [step2Data, setStep2Data] = useState<Step2Data>({
@@ -60,14 +60,14 @@ export default function OnboardingScreen() {
   });
 
   const [step3Data, setStep3Data] = useState<Step3Data>({
-    goalFocus: "",
-    preferredMuscles: "",
-    constraints: "",
-    sessionLength: "",
+    goalFocus: '',
+    preferredMuscles: '',
+    constraints: '',
+    sessionLength: '',
   });
 
   const [step4Data, setStep4Data] = useState<Step4Data>({
-    gymName: "",
+    gymName: '',
     equipmentMethod: null,
     consentGiven: false,
   });
@@ -79,7 +79,7 @@ export default function OnboardingScreen() {
 
   const submitOnboarding = async () => {
     if (!session?.access_token) {
-      Alert.alert("Error", "You must be logged in to complete onboarding.");
+      Alert.alert('Error', 'You must be logged in to complete onboarding.');
       return;
     }
 
@@ -95,21 +95,21 @@ export default function OnboardingScreen() {
       !step3Data.sessionLength
     ) {
       Alert.alert(
-        "Error",
-        "Please complete all required fields before submitting.",
+        'Error',
+        'Please complete all required fields before submitting.'
       );
       return;
     }
 
     setLoading(true);
     try {
-      const SUPABASE_PROJECT_ID = "mgbfevrzrbjjiajkqpti";
+      const SUPABASE_PROJECT_ID = 'mgbfevrzrbjjiajkqpti';
       const EDGE_FUNCTION_URL = `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/complete-onboarding`;
 
       const confirmedExercises =
-        step4Data.equipmentMethod === "photo"
-          ? identifiedExercises.filter((ex) =>
-              confirmedExerciseNames.has(ex.name),
+        step4Data.equipmentMethod === 'photo'
+          ? identifiedExercises.filter(ex =>
+              confirmedExerciseNames.has(ex.name)
             )
           : [];
 
@@ -130,9 +130,9 @@ export default function OnboardingScreen() {
       };
 
       const response = await fetch(EDGE_FUNCTION_URL, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify(payload),
@@ -141,20 +141,20 @@ export default function OnboardingScreen() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to complete onboarding");
+        throw new Error(data.error || 'Failed to complete onboarding');
       }
 
-      Alert.alert("Welcome! 🎉", "Your profile has been set up successfully!", [
+      Alert.alert('Welcome! 🎉', 'Your profile has been set up successfully!', [
         {
-          text: "Get Started",
-          onPress: () => router.replace("/"),
+          text: 'Get Started',
+          onPress: () => router.replace('/'),
         },
       ]);
     } catch (error: any) {
-      console.error("Onboarding error:", error);
+      console.error('Onboarding error:', error);
       Alert.alert(
-        "Error",
-        error.message || "Failed to complete onboarding. Please try again.",
+        'Error',
+        error.message || 'Failed to complete onboarding. Please try again.'
       );
     } finally {
       setLoading(false);
@@ -179,7 +179,7 @@ export default function OnboardingScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.progressBar}>
-        {[1, 2, 3, 4, 5].map((step) => (
+        {[1, 2, 3, 4, 5].map(step => (
           <View
             key={step}
             style={[
@@ -239,12 +239,12 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: '#000',
   },
   progressBar: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingVertical: 20,
     gap: 12,
   },
@@ -252,22 +252,22 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: "#333",
+    backgroundColor: '#333',
   },
   progressDotActive: {
-    backgroundColor: "#10B981",
+    backgroundColor: '#10B981',
     width: 12,
     height: 12,
     borderRadius: 6,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: "#000",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   loadingText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 16,
     marginTop: 16,
   },

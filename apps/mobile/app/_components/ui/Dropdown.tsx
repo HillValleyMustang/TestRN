@@ -111,7 +111,11 @@ const DropdownComponent = ({
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(-1);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [dropdownPosition, setDropdownPosition] = useState({
+    top: 0,
+    left: 0,
+    width: 0,
+  });
   const scaleAnim = useRef(new Animated.Value(0.98)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const chevronRotation = useRef(new Animated.Value(0)).current;
@@ -119,9 +123,11 @@ const DropdownComponent = ({
 
   const selectedItem = items.find(item => item.value === selectedValue);
   const filteredItems = searchable
-    ? items.filter(item =>
-        item.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (item.subtitle && item.subtitle.toLowerCase().includes(searchQuery.toLowerCase()))
+    ? items.filter(
+        item =>
+          item.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (item.subtitle &&
+            item.subtitle.toLowerCase().includes(searchQuery.toLowerCase()))
       )
     : items;
 
@@ -187,7 +193,13 @@ const DropdownComponent = ({
     }
   };
 
-  const renderItem = ({ item, index }: { item: DropdownItem; index: number }) => {
+  const renderItem = ({
+    item,
+    index,
+  }: {
+    item: DropdownItem;
+    index: number;
+  }) => {
     const isSelected = item.value === selectedValue;
     const isFocused = index === focusedIndex;
     const isDisabled = item.disabled;
@@ -234,9 +246,7 @@ const DropdownComponent = ({
             )}
           </View>
         </View>
-        {isSelected && (
-          <Ionicons name="checkmark" size={20} color="#000000" />
-        )}
+        {isSelected && <Ionicons name="checkmark" size={20} color="#000000" />}
       </Pressable>
     );
   };
@@ -289,7 +299,11 @@ const DropdownComponent = ({
           <Ionicons
             name="chevron-down"
             size={20}
-            color={disabled ? colors.light.trigger.textPlaceholder : colors.light.trigger.chevron}
+            color={
+              disabled
+                ? colors.light.trigger.textPlaceholder
+                : colors.light.trigger.chevron
+            }
           />
         </Animated.View>
       </Pressable>
@@ -340,11 +354,16 @@ const DropdownComponent = ({
               <FlatList
                 data={filteredItems}
                 renderItem={renderItem}
-                keyExtractor={(item) => item.value}
+                keyExtractor={item => item.value}
                 showsVerticalScrollIndicator={true}
                 style={[
                   styles.dropdownList,
-                  { maxHeight: Math.min(screenHeight * 0.8, filteredItems.length * 48 + (searchable ? 48 : 0)) },
+                  {
+                    maxHeight: Math.min(
+                      screenHeight * 0.8,
+                      filteredItems.length * 48 + (searchable ? 48 : 0)
+                    ),
+                  },
                 ]}
                 getItemLayout={(data, index) => ({
                   length: 48,

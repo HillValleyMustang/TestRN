@@ -5,10 +5,10 @@ import React, {
   useState,
   useMemo,
   useCallback,
-} from "react";
-import { database, addToSyncQueue } from "../_lib/database";
-import { useSyncQueueProcessor } from "@data/hooks/use-sync-queue-processor";
-import { useAuth } from "./auth-context";
+} from 'react';
+import { database, addToSyncQueue } from '../_lib/database';
+import { useSyncQueueProcessor } from '@data/hooks/use-sync-queue-processor';
+import { useAuth } from './auth-context';
 import type {
   WorkoutSession,
   SetLog,
@@ -18,8 +18,8 @@ import type {
   TPathProgress,
   TPathWithExercises,
   Gym,
-} from "@data/storage/models";
-import NetInfo from "@react-native-community/netinfo";
+} from '@data/storage/models';
+import NetInfo from '@react-native-community/netinfo';
 
 interface WorkoutStats {
   totalWorkouts: number;
@@ -69,7 +69,7 @@ export interface UserAchievement {
   progress_value?: number;
 }
 
-type ProgrammeType = "ppl" | "ulul";
+type ProgrammeType = 'ppl' | 'ulul';
 
 interface ProfileRow {
   id: string;
@@ -190,21 +190,21 @@ interface DataContextType {
   getWorkoutStats: (userId: string, days?: number) => Promise<WorkoutStats>;
   getWorkoutFrequency: (
     userId: string,
-    days?: number,
+    days?: number
   ) => Promise<Array<{ date: string; count: number }>>;
   getVolumeHistory: (
     userId: string,
-    days?: number,
+    days?: number
   ) => Promise<Array<{ date: string; volume: number }>>;
   getPRHistory: (
     userId: string,
-    exerciseId: string,
+    exerciseId: string
   ) => Promise<Array<{ date: string; weight: number }>>;
   saveBodyMeasurement: (measurement: BodyMeasurement) => Promise<void>;
   getBodyMeasurements: (userId: string) => Promise<BodyMeasurement[]>;
   getWeightHistory: (
     userId: string,
-    days?: number,
+    days?: number
   ) => Promise<Array<{ date: string; weight: number }>>;
   deleteBodyMeasurement: (measurementId: string) => Promise<void>;
   saveGoal: (goal: Goal) => Promise<void>;
@@ -213,7 +213,7 @@ interface DataContextType {
   updateGoalProgress: (
     goalId: string,
     currentValue: number,
-    status?: string,
+    status?: string
   ) => Promise<void>;
   deleteGoal: (goalId: string) => Promise<void>;
   unlockAchievement: (achievement: UserAchievement) => Promise<void>;
@@ -232,7 +232,7 @@ interface DataContextType {
   updateTPathProgress: (progress: TPathProgress) => Promise<void>;
   getTPathProgress: (
     userId: string,
-    tPathId: string,
+    tPathId: string
   ) => Promise<TPathProgress | null>;
   getAllTPathProgress: (userId: string) => Promise<TPathProgress[]>;
   addGym: (gym: Gym) => Promise<void>;
@@ -255,7 +255,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [profileCache, setProfileCache] = useState<DashboardProfile | null>(
-    null,
+    null
   );
 
   useEffect(() => {
@@ -263,7 +263,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener((state) => {
+    const unsubscribe = NetInfo.addEventListener(state => {
       setIsOnline(state.isConnected ?? false);
     });
     return () => unsubscribe();
@@ -277,7 +277,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   });
 
   const mapProgrammeType = (programme?: string | null): ProgrammeType =>
-    programme === "ulul" ? "ulul" : "ppl";
+    programme === 'ulul' ? 'ulul' : 'ppl';
 
   const mapTPathToProgram = (tPath: TPath): DashboardProgram => ({
     id: tPath.id,
@@ -292,7 +292,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const formatDurationFromRange = (
     durationString: string | null,
     firstSetAt: string | null,
-    lastSetAt: string | null,
+    lastSetAt: string | null
   ): string | null => {
     if (durationString) {
       return durationString;
@@ -329,10 +329,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const buildVolumePoints = (
-    raw: Array<{ date: string; volume: number }>,
+    raw: Array<{ date: string; volume: number }>
   ): DashboardVolumePoint[] => {
     const map = new Map(
-      raw.map((entry) => [entry.date.split("T")[0], entry.volume || 0]),
+      raw.map(entry => [entry.date.split('T')[0], entry.volume || 0])
     );
     const today = new Date();
     const points: DashboardVolumePoint[] = [];
@@ -340,7 +340,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     for (let i = 6; i >= 0; i -= 1) {
       const date = new Date(today);
       date.setDate(today.getDate() - i);
-      const key = date.toISOString().split("T")[0];
+      const key = date.toISOString().split('T')[0];
       points.push({
         date: key,
         volume: Math.max(0, Number(map.get(key) ?? 0)),
@@ -359,7 +359,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         weeklySummary: {
           completed_workouts: [],
           goal_total: 3,
-          programme_type: "ppl" as ProgrammeType,
+          programme_type: 'ppl' as ProgrammeType,
         },
         volumeHistory: [],
         recentWorkouts: [],
@@ -376,15 +376,15 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     if (isOnline && supabase) {
       try {
         const { data: profileData, error: profileError } = await supabase
-          .from("profiles")
+          .from('profiles')
           .select(
-            "id, active_t_path_id, programme_type, preferred_session_length, full_name, first_name, last_name",
+            'id, active_t_path_id, programme_type, preferred_session_length, full_name, first_name, last_name'
           )
-          .eq("id", userId)
+          .eq('id', userId)
           .maybeSingle();
 
         if (profileError) {
-          console.warn("[DataContext] Failed to load profile", profileError);
+          console.warn('[DataContext] Failed to load profile', profileError);
         }
 
         if (profileData) {
@@ -401,12 +401,12 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         const { data: gymsData, error: gymsError } = await supabase
-          .from("gyms")
-          .select("*")
-          .eq("user_id", userId);
+          .from('gyms')
+          .select('*')
+          .eq('user_id', userId);
 
         if (gymsError) {
-          console.warn("[DataContext] Failed to load gyms", gymsError);
+          console.warn('[DataContext] Failed to load gyms', gymsError);
         } else if (gymsData) {
           for (const gymRow of gymsData) {
             const gym: Gym = {
@@ -420,7 +420,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
               is_active: Boolean(gymRow.is_active),
               created_at: ensureIsoString(gymRow.created_at),
               updated_at: ensureIsoString(
-                gymRow.updated_at ?? gymRow.created_at,
+                gymRow.updated_at ?? gymRow.created_at
               ),
             };
             await database.addGym(gym);
@@ -428,20 +428,20 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         const { data: sessionsData, error: sessionsError } = await supabase
-          .from("workout_sessions")
+          .from('workout_sessions')
           .select(
-            "id, user_id, session_date, template_name, completed_at, rating, duration_string, t_path_id, created_at",
+            'id, user_id, session_date, template_name, completed_at, rating, duration_string, t_path_id, created_at'
           )
-          .eq("user_id", userId)
-          .order("session_date", { ascending: false })
+          .eq('user_id', userId)
+          .order('session_date', { ascending: false })
           .limit(20);
 
         const sessionIds: string[] = [];
 
         if (sessionsError) {
           console.warn(
-            "[DataContext] Failed to load workout sessions",
-            sessionsError,
+            '[DataContext] Failed to load workout sessions',
+            sessionsError
           );
         } else if (sessionsData) {
           for (const sessionRow of sessionsData) {
@@ -463,14 +463,14 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (sessionIds.length > 0) {
           const { data: setLogsData, error: setLogsError } = await supabase
-            .from("set_logs")
+            .from('set_logs')
             .select(
-              "id, session_id, exercise_id, weight_kg, reps, reps_l, reps_r, time_seconds, is_pb, created_at",
+              'id, session_id, exercise_id, weight_kg, reps, reps_l, reps_r, time_seconds, is_pb, created_at'
             )
-            .in("session_id", sessionIds);
+            .in('session_id', sessionIds);
 
           if (setLogsError) {
-            console.warn("[DataContext] Failed to load set logs", setLogsError);
+            console.warn('[DataContext] Failed to load set logs', setLogsError);
           } else if (setLogsData) {
             const grouped = new Map<string, SetLog[]>();
             for (const logRow of setLogsData) {
@@ -501,17 +501,17 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         if (latestProfile?.active_t_path_id) {
           const { data: activeTPathData, error: activeTPathError } =
             await supabase
-              .from("t_paths")
+              .from('t_paths')
               .select(
-                "id, template_name, parent_t_path_id, user_id, created_at, is_bonus",
+                'id, template_name, parent_t_path_id, user_id, created_at, is_bonus'
               )
-              .eq("id", latestProfile.active_t_path_id)
+              .eq('id', latestProfile.active_t_path_id)
               .maybeSingle();
 
           if (activeTPathError) {
             console.warn(
-              "[DataContext] Failed to load active t_path",
-              activeTPathError,
+              '[DataContext] Failed to load active t_path',
+              activeTPathError
             );
           } else if (activeTPathData) {
             remoteActiveTPath = {
@@ -539,20 +539,20 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
           const { data: childWorkoutsData, error: childWorkoutsError } =
             await supabase
-              .from("t_paths")
+              .from('t_paths')
               .select(
-                "id, template_name, parent_t_path_id, user_id, created_at, is_bonus",
+                'id, template_name, parent_t_path_id, user_id, created_at, is_bonus'
               )
-              .eq("parent_t_path_id", latestProfile.active_t_path_id)
-              .order("template_name", { ascending: true });
+              .eq('parent_t_path_id', latestProfile.active_t_path_id)
+              .order('template_name', { ascending: true });
 
           if (childWorkoutsError) {
             console.warn(
-              "[DataContext] Failed to load child workouts",
-              childWorkoutsError,
+              '[DataContext] Failed to load child workouts',
+              childWorkoutsError
             );
           } else if (childWorkoutsData) {
-            remoteChildWorkouts = childWorkoutsData.map((row) => ({
+            remoteChildWorkouts = childWorkoutsData.map(row => ({
               id: row.id,
               template_name: row.template_name,
               description: null,
@@ -578,7 +578,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           }
         }
       } catch (error) {
-        console.warn("[DataContext] Dashboard snapshot refresh failed", error);
+        console.warn('[DataContext] Dashboard snapshot refresh failed', error);
       }
     }
 
@@ -601,20 +601,20 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         duration_string: formatDurationFromRange(
           session.duration_string,
           first_set_at,
-          last_set_at,
+          last_set_at
         ),
         exercise_count,
-      }),
+      })
     );
 
     const programmeType = mapProgrammeType(latestProfile?.programme_type);
     const weeklySummary: DashboardWeeklySummary = {
-      completed_workouts: recentWorkouts.slice(0, 3).map((workout) => ({
+      completed_workouts: recentWorkouts.slice(0, 3).map(workout => ({
         id: workout.id,
-        name: workout.template_name ?? "Ad Hoc",
+        name: workout.template_name ?? 'Ad Hoc',
         sessionId: workout.id,
       })),
-      goal_total: programmeType === "ulul" ? 4 : 3,
+      goal_total: programmeType === 'ulul' ? 4 : 3,
       programme_type: programmeType,
     };
 
@@ -652,16 +652,16 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
   const addWorkoutSession = async (session: WorkoutSession): Promise<void> => {
     await database.addWorkoutSession(session);
-    await addToSyncQueue("create", "workout_sessions", session);
+    await addToSyncQueue('create', 'workout_sessions', session);
   };
 
   const addSetLog = async (setLog: SetLog): Promise<void> => {
     await database.addSetLog(setLog);
-    await addToSyncQueue("create", "set_logs", setLog);
+    await addToSyncQueue('create', 'set_logs', setLog);
   };
 
   const getWorkoutSessions = async (
-    targetUserId: string,
+    targetUserId: string
   ): Promise<WorkoutSession[]> => {
     return await database.getWorkoutSessions(targetUserId);
   };
@@ -672,7 +672,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
   const getPersonalRecord = async (
     targetUserId: string,
-    exerciseId: string,
+    exerciseId: string
   ): Promise<number> => {
     return await database.getPersonalRecord(targetUserId, exerciseId);
   };
@@ -682,13 +682,13 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const getTemplates = async (
-    targetUserId: string,
+    targetUserId: string
   ): Promise<WorkoutTemplate[]> => {
     return await database.getTemplates(targetUserId);
   };
 
   const getTemplate = async (
-    templateId: string,
+    templateId: string
   ): Promise<WorkoutTemplate | null> => {
     return await database.getTemplate(templateId);
   };
@@ -699,53 +699,53 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
   const getWorkoutStats = async (
     targetUserId: string,
-    days: number = 30,
+    days: number = 30
   ): Promise<WorkoutStats> => {
     return await database.getWorkoutStats(targetUserId, days);
   };
 
   const getWorkoutFrequency = async (
     targetUserId: string,
-    days: number = 30,
+    days: number = 30
   ): Promise<Array<{ date: string; count: number }>> => {
     return await database.getWorkoutFrequency(targetUserId, days);
   };
 
   const getVolumeHistory = async (
     targetUserId: string,
-    days: number = 30,
+    days: number = 30
   ): Promise<Array<{ date: string; volume: number }>> => {
     return await database.getVolumeHistory(targetUserId, days);
   };
 
   const getPRHistory = async (
     targetUserId: string,
-    exerciseId: string,
+    exerciseId: string
   ): Promise<Array<{ date: string; weight: number }>> => {
     return await database.getPRHistory(targetUserId, exerciseId);
   };
 
   const saveBodyMeasurement = async (
-    measurement: BodyMeasurement,
+    measurement: BodyMeasurement
   ): Promise<void> => {
     await database.saveBodyMeasurement(measurement);
   };
 
   const getBodyMeasurements = async (
-    targetUserId: string,
+    targetUserId: string
   ): Promise<BodyMeasurement[]> => {
     return await database.getBodyMeasurements(targetUserId);
   };
 
   const getWeightHistory = async (
     targetUserId: string,
-    days?: number,
+    days?: number
   ): Promise<Array<{ date: string; weight: number }>> => {
     return await database.getWeightHistory(targetUserId, days);
   };
 
   const deleteBodyMeasurement = async (
-    measurementId: string,
+    measurementId: string
   ): Promise<void> => {
     await database.deleteBodyMeasurement(measurementId);
   };
@@ -756,7 +756,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
   const getGoals = async (
     targetUserId: string,
-    status?: string,
+    status?: string
   ): Promise<Goal[]> => {
     return await database.getGoals(targetUserId, status);
   };
@@ -768,7 +768,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const updateGoalProgress = async (
     goalId: string,
     currentValue: number,
-    status?: string,
+    status?: string
   ): Promise<void> => {
     await database.updateGoalProgress(goalId, currentValue, status);
   };
@@ -778,33 +778,33 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const unlockAchievement = async (
-    achievement: UserAchievement,
+    achievement: UserAchievement
   ): Promise<void> => {
     await database.unlockAchievement(achievement);
   };
 
   const getUserAchievements = async (
-    targetUserId: string,
+    targetUserId: string
   ): Promise<UserAchievement[]> => {
     return await database.getUserAchievements(targetUserId);
   };
 
   const hasAchievement = async (
     targetUserId: string,
-    achievementId: string,
+    achievementId: string
   ): Promise<boolean> => {
     return await database.hasAchievement(targetUserId, achievementId);
   };
 
   const checkAndUnlockAchievements = async (
-    targetUserId: string,
+    targetUserId: string
   ): Promise<void> => {
-    const { ACHIEVEMENTS } = await import("@data/achievements");
+    const { ACHIEVEMENTS } = await import('@data/achievements');
     const stats = await database.getWorkoutStats(targetUserId);
     const unlockedAchievements =
       await database.getUserAchievements(targetUserId);
     const unlockedIds = new Set(
-      unlockedAchievements.map((a) => a.achievement_id),
+      unlockedAchievements.map(a => a.achievement_id)
     );
 
     for (const achievement of ACHIEVEMENTS) {
@@ -816,23 +816,23 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       let progressValue = 0;
 
       switch (achievement.requirement.type) {
-        case "workout_count":
+        case 'workout_count':
           progressValue = stats.totalWorkouts;
           shouldUnlock = progressValue >= achievement.requirement.value;
           break;
-        case "streak_days":
+        case 'streak_days':
           progressValue = stats.currentStreak;
           shouldUnlock = progressValue >= achievement.requirement.value;
           break;
-        case "total_volume":
+        case 'total_volume':
           progressValue = stats.totalVolume;
           shouldUnlock = progressValue >= achievement.requirement.value;
           break;
-        case "max_weight":
+        case 'max_weight':
           if (achievement.requirement.exercise_id) {
             progressValue = await database.getPersonalRecord(
               targetUserId,
-              achievement.requirement.exercise_id,
+              achievement.requirement.exercise_id
             );
             shouldUnlock = progressValue >= achievement.requirement.value;
           }
@@ -856,14 +856,14 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const getTPath = async (
-    tPathId: string,
+    tPathId: string
   ): Promise<TPathWithExercises | null> => {
     return await database.getTPath(tPathId);
   };
 
   const getTPaths = async (
     targetUserId: string,
-    mainProgramsOnly?: boolean,
+    mainProgramsOnly?: boolean
   ): Promise<TPath[]> => {
     return await database.getTPaths(targetUserId, mainProgramsOnly);
   };
@@ -874,7 +874,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
   const updateTPath = async (
     tPathId: string,
-    updates: Partial<TPath>,
+    updates: Partial<TPath>
   ): Promise<void> => {
     await database.updateTPath(tPathId, updates);
   };
@@ -888,7 +888,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const getTPathExercises = async (
-    tPathId: string,
+    tPathId: string
   ): Promise<TPathExercise[]> => {
     return await database.getTPathExercises(tPathId);
   };
@@ -898,20 +898,20 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const updateTPathProgress = async (
-    progress: TPathProgress,
+    progress: TPathProgress
   ): Promise<void> => {
     await database.updateTPathProgress(progress);
   };
 
   const getTPathProgress = async (
     targetUserId: string,
-    tPathId: string,
+    tPathId: string
   ): Promise<TPathProgress | null> => {
     return await database.getTPathProgress(targetUserId, tPathId);
   };
 
   const getAllTPathProgress = async (
-    targetUserId: string,
+    targetUserId: string
   ): Promise<TPathProgress[]> => {
     return await database.getAllTPathProgress(targetUserId);
   };
@@ -934,14 +934,14 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
   const updateGym = async (
     gymId: string,
-    updates: Partial<Gym>,
+    updates: Partial<Gym>
   ): Promise<void> => {
     await database.updateGym(gymId, updates);
   };
 
   const setActiveGym = async (
     targetUserId: string,
-    gymId: string,
+    gymId: string
   ): Promise<void> => {
     await database.setActiveGym(targetUserId, gymId);
   };
@@ -1002,7 +1002,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       isOnline,
       loadDashboardSnapshot,
     }),
-    [isSyncing, queueLength, isOnline, loadDashboardSnapshot],
+    [isSyncing, queueLength, isOnline, loadDashboardSnapshot]
   );
 
   if (!isInitialized) {
@@ -1015,13 +1015,11 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 export const useData = () => {
   const context = useContext(DataContext);
   if (context === undefined) {
-    throw new Error("useData must be used within a DataProvider");
+    throw new Error('useData must be used within a DataProvider');
   }
   return context;
 };
 
 export default DataProvider;
 
-export type {
-  ProgrammeType,
-};
+export type { ProgrammeType };

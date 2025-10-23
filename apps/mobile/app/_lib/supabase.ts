@@ -1,4 +1,4 @@
-import { supabase } from "@data/supabase/client-mobile";
+import { supabase } from '@data/supabase/client-mobile';
 
 export { supabase };
 
@@ -21,7 +21,8 @@ export interface ExerciseDefinitionsRow {
   updated_at: string | null;
 }
 
-export interface FetchedExerciseDefinition extends Omit<ExerciseDefinitionsRow, 'id'> {
+export interface FetchedExerciseDefinition
+  extends Omit<ExerciseDefinitionsRow, 'id'> {
   id: string | null;
   is_favorited_by_current_user?: boolean;
   duplicate_status?: 'none' | 'global' | 'my-exercises';
@@ -29,7 +30,9 @@ export interface FetchedExerciseDefinition extends Omit<ExerciseDefinitionsRow, 
 }
 
 // Function to fetch exercise definitions from Supabase
-export const fetchExerciseDefinitions = async (exerciseIds: string[]): Promise<FetchedExerciseDefinition[]> => {
+export const fetchExerciseDefinitions = async (
+  exerciseIds: string[]
+): Promise<FetchedExerciseDefinition[]> => {
   if (exerciseIds.length === 0) return [];
 
   const { data, error } = await supabase

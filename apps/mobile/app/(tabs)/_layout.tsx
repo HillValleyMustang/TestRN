@@ -1,8 +1,8 @@
-import { Tabs } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../../constants/Theme";
-import { useWorkoutFlow } from "../_contexts/workout-flow-context";
-import { AppHeader } from "../../components/AppHeader";
+import { Tabs } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { Colors } from '../../constants/Theme';
+import { useWorkoutFlow } from '../_contexts/workout-flow-context';
+import { AppHeader } from '../../components/AppHeader';
 
 const tabBarOptions = {
   tabBarActiveTintColor: Colors.foreground, // Black icons when active
@@ -41,52 +41,52 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="dashboard"
         options={{
-          title: "Dashboard",
+          title: 'Dashboard',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home" size={20} color={color} />
           ),
         }}
-        listeners={withGuard("dashboard")}
+        listeners={withGuard('dashboard')}
       />
       <Tabs.Screen
         name="workout"
         options={{
-          title: "Workout",
+          title: 'Workout',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="barbell" size={20} color={color} />
           ),
         }}
-        listeners={withGuard("workout")}
+        listeners={withGuard('workout')}
       />
       <Tabs.Screen
         name="exercises"
         options={{
-          title: "Exercises",
+          title: 'Exercises',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="book" size={20} color={color} />
           ),
         }}
-        listeners={withGuard("exercises")}
+        listeners={withGuard('exercises')}
       />
       <Tabs.Screen
         name="progress"
         options={{
-          title: "Progress",
+          title: 'Progress',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="bar-chart" size={20} color={color} />
           ),
         }}
-        listeners={withGuard("progress")}
+        listeners={withGuard('progress')}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
+          title: 'Profile',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person" size={20} color={color} />
           ),
         }}
-        listeners={withGuard("profile")}
+        listeners={withGuard('profile')}
       />
     </Tabs>
   );

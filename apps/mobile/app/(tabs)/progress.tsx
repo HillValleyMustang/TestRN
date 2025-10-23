@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,12 @@ import {
   StyleSheet,
   ScrollView,
   Dimensions,
-} from "react-native";
-import { useAuth } from "../_contexts/auth-context";
-import { useData } from "../_contexts/data-context";
-import { exerciseList } from "@data/exercises";
+} from 'react-native';
+import { useAuth } from '../_contexts/auth-context';
+import { useData } from '../_contexts/data-context';
+import { exerciseList } from '@data/exercises';
 
-const { width } = Dimensions.get("window");
+const { width } = Dimensions.get('window');
 const CHART_WIDTH = width - 40;
 const CHART_HEIGHT = 200;
 
@@ -37,10 +37,10 @@ export default function ProgressScreen() {
     Array<{ date: string; volume: number }>
   >([]);
   const [prData, setPrData] = useState<Array<{ date: string; weight: number }>>(
-    [],
+    []
   );
   const [selectedExercise, setSelectedExercise] =
-    useState<string>("bench-press");
+    useState<string>('bench-press');
   const [timeRange, setTimeRange] = useState(30);
   const [loading, setLoading] = useState(true);
 
@@ -63,7 +63,7 @@ export default function ProgressScreen() {
       setVolumeData(volData);
       setPrData(prDataResult);
     } catch (error) {
-      console.error("Failed to load analytics:", error);
+      console.error('Failed to load analytics:', error);
     } finally {
       setLoading(false);
     }
@@ -88,7 +88,7 @@ export default function ProgressScreen() {
       volume?: number;
       weight?: number;
     }>,
-    label: string,
+    label: string
   ) => {
     if (data.length === 0) {
       return (
@@ -98,7 +98,7 @@ export default function ProgressScreen() {
       );
     }
 
-    const values = data.map((d) => d.count || d.volume || d.weight || 0);
+    const values = data.map(d => d.count || d.volume || d.weight || 0);
     const maxValue = Math.max(...values, 1);
     const barWidth = Math.max(CHART_WIDTH / data.length - 4, 8);
 
@@ -130,7 +130,7 @@ export default function ProgressScreen() {
         <View style={styles.chartAxis}>
           <Text style={styles.axisLabel}>
             {data[0]?.weight !== undefined
-              ? "All time"
+              ? 'All time'
               : `Last ${timeRange} days`}
           </Text>
         </View>
@@ -145,7 +145,7 @@ export default function ProgressScreen() {
       </View>
 
       <View style={styles.timeRangeSelector}>
-        {[7, 14, 30, 90].map((days) => (
+        {[7, 14, 30, 90].map(days => (
           <TouchableOpacity
             key={days}
             style={[
@@ -202,11 +202,11 @@ export default function ProgressScreen() {
           </View>
 
           <View style={styles.section}>
-            {renderBarChart(frequencyData, "Workout Frequency")}
+            {renderBarChart(frequencyData, 'Workout Frequency')}
           </View>
 
           <View style={styles.section}>
-            {renderBarChart(volumeData, "Volume Over Time (kg)")}
+            {renderBarChart(volumeData, 'Volume Over Time (kg)')}
           </View>
 
           <View style={styles.section}>
@@ -216,7 +216,7 @@ export default function ProgressScreen() {
               showsHorizontalScrollIndicator={false}
               style={styles.exerciseSelector}
             >
-              {(exerciseList || []).slice(0, 8).map((ex) => (
+              {(exerciseList || []).slice(0, 8).map(ex => (
                 <TouchableOpacity
                   key={ex.id}
                   style={[
@@ -239,7 +239,7 @@ export default function ProgressScreen() {
             </ScrollView>
             {renderBarChart(
               prData,
-              `${(exerciseList || []).find((e) => e.id === selectedExercise)?.name || "Exercise"} Max Weight (kg)`,
+              `${(exerciseList || []).find(e => e.id === selectedExercise)?.name || 'Exercise'} Max Weight (kg)`
             )}
           </View>
 
@@ -248,7 +248,7 @@ export default function ProgressScreen() {
             <Text style={styles.sectionSubtext}>
               {stats.currentStreak > 0
                 ? `You're on a ${stats.currentStreak}-day streak. Don't break it!`
-                : "Start a new workout to build your streak!"}
+                : 'Start a new workout to build your streak!'}
             </Text>
           </View>
         </>
@@ -260,176 +260,176 @@ export default function ProgressScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: '#000',
     padding: 20,
   },
   header: {
     marginBottom: 16,
   },
   title: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 28,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   timeRangeSelector: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 8,
     marginBottom: 24,
   },
   timeRangeButton: {
     flex: 1,
-    backgroundColor: "#111",
+    backgroundColor: '#111',
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#333",
-    alignItems: "center",
+    borderColor: '#333',
+    alignItems: 'center',
   },
   timeRangeButtonActive: {
-    backgroundColor: "#0a0",
-    borderColor: "#0a0",
+    backgroundColor: '#0a0',
+    borderColor: '#0a0',
   },
   timeRangeText: {
-    color: "#888",
+    color: '#888',
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   timeRangeTextActive: {
-    color: "#fff",
+    color: '#fff',
   },
   loadingContainer: {
     padding: 48,
-    alignItems: "center",
+    alignItems: 'center',
   },
   loadingText: {
-    color: "#888",
+    color: '#888',
     fontSize: 16,
   },
   statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
     marginBottom: 24,
   },
   statCard: {
     flex: 1,
-    minWidth: "45%",
-    backgroundColor: "#111",
+    minWidth: '45%',
+    backgroundColor: '#111',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#333",
-    alignItems: "center",
+    borderColor: '#333',
+    alignItems: 'center',
   },
   statValue: {
-    color: "#0a0",
+    color: '#0a0',
     fontSize: 28,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     marginBottom: 4,
   },
   streakValue: {
     fontSize: 32,
   },
   statLabel: {
-    color: "#888",
+    color: '#888',
     fontSize: 12,
-    textAlign: "center",
+    textAlign: 'center',
   },
   section: {
     marginBottom: 24,
   },
   sectionTitle: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 20,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     marginBottom: 8,
   },
   sectionSubtext: {
-    color: "#888",
+    color: '#888',
     fontSize: 14,
   },
   chartContainer: {
-    backgroundColor: "#111",
+    backgroundColor: '#111',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: '#333',
   },
   chartLabel: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     marginBottom: 16,
   },
   chart: {
     height: CHART_HEIGHT,
-    flexDirection: "row",
-    alignItems: "flex-end",
+    flexDirection: 'row',
+    alignItems: 'flex-end',
     gap: 2,
   },
   barContainer: {
-    height: "100%",
-    alignItems: "center",
+    height: '100%',
+    alignItems: 'center',
   },
   barWrapper: {
     flex: 1,
-    width: "100%",
-    justifyContent: "flex-end",
+    width: '100%',
+    justifyContent: 'flex-end',
   },
   bar: {
-    width: "100%",
-    backgroundColor: "#0a0",
+    width: '100%',
+    backgroundColor: '#0a0',
     borderTopLeftRadius: 4,
     borderTopRightRadius: 4,
     minHeight: 2,
   },
   barLabel: {
-    color: "#666",
+    color: '#666',
     fontSize: 10,
     marginTop: 4,
   },
   emptyChart: {
-    backgroundColor: "#111",
+    backgroundColor: '#111',
     padding: 48,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#333",
-    alignItems: "center",
+    borderColor: '#333',
+    alignItems: 'center',
   },
   emptyChartText: {
-    color: "#666",
+    color: '#666',
     fontSize: 14,
   },
   chartAxis: {
     marginTop: 8,
-    alignItems: "center",
+    alignItems: 'center',
   },
   axisLabel: {
-    color: "#666",
+    color: '#666',
     fontSize: 12,
   },
   exerciseSelector: {
     marginBottom: 16,
   },
   exercisePill: {
-    backgroundColor: "#111",
+    backgroundColor: '#111',
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: '#333',
   },
   exercisePillActive: {
-    backgroundColor: "#0a0",
-    borderColor: "#0a0",
+    backgroundColor: '#0a0',
+    borderColor: '#0a0',
   },
   exercisePillText: {
-    color: "#888",
+    color: '#888',
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   exercisePillTextActive: {
-    color: "#fff",
+    color: '#fff',
   },
 });

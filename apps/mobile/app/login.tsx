@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,20 +9,20 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
-} from "react-native";
-import { useAuth } from "./_contexts/auth-context";
-import { useRouter } from "expo-router";
+} from 'react-native';
+import { useAuth } from './_contexts/auth-context';
+import { useRouter } from 'expo-router';
 import {
   Colors,
   Spacing,
   BorderRadius,
   Typography,
   ButtonStyles,
-} from "../constants/design-system";
+} from '../constants/design-system';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const { supabase, session, loading: authLoading } = useAuth();
@@ -30,13 +30,13 @@ export default function LoginScreen() {
 
   useEffect(() => {
     if (!authLoading && session) {
-      router.replace("/(tabs)/dashboard");
+      router.replace('/(tabs)/dashboard');
     }
   }, [session, authLoading, router]);
 
   const handleAuth = async () => {
     if (!email || !password) {
-      Alert.alert("Error", "Please fill in all fields");
+      Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
@@ -51,7 +51,7 @@ export default function LoginScreen() {
         if (error) {
           throw error;
         }
-        Alert.alert("Success", "Check your email for verification link");
+        Alert.alert('Success', 'Check your email for verification link');
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -61,10 +61,10 @@ export default function LoginScreen() {
         if (error) {
           throw error;
         }
-        router.replace("/(tabs)/dashboard");
+        router.replace('/(tabs)/dashboard');
       }
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Authentication failed");
+      Alert.alert('Error', error.message || 'Authentication failed');
     } finally {
       setLoading(false);
     }
@@ -73,12 +73,12 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.content}>
         <Text style={styles.title}>My Fitness Trainer</Text>
         <Text style={styles.subtitle}>
-          {isSignUp ? "Create Account" : "Welcome Back"}
+          {isSignUp ? 'Create Account' : 'Welcome Back'}
         </Text>
 
         <TextInput
@@ -110,7 +110,7 @@ export default function LoginScreen() {
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.buttonText}>
-              {isSignUp ? "Sign Up" : "Sign In"}
+              {isSignUp ? 'Sign Up' : 'Sign In'}
             </Text>
           )}
         </TouchableOpacity>
@@ -118,7 +118,7 @@ export default function LoginScreen() {
         <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)}>
           <Text style={styles.switchText}>
             {isSignUp
-              ? "Already have an account? Sign In"
+              ? 'Already have an account? Sign In'
               : "Don't have an account? Sign Up"}
           </Text>
         </TouchableOpacity>
@@ -134,21 +134,21 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: "center",
-    padding: Spacing["2xl"],
+    justifyContent: 'center',
+    padding: Spacing['2xl'],
   },
   title: {
-    fontSize: Typography["3xl"],
+    fontSize: Typography['3xl'],
     fontWeight: Typography.bold,
     color: Colors.foreground,
     marginBottom: Spacing.sm,
-    textAlign: "center",
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: Typography.lg,
     color: Colors.gray400,
-    marginBottom: Spacing["3xl"],
-    textAlign: "center",
+    marginBottom: Spacing['3xl'],
+    textAlign: 'center',
   },
   input: {
     backgroundColor: Colors.cardBackground,
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   },
   switchText: {
     color: Colors.actionPrimary,
-    textAlign: "center",
+    textAlign: 'center',
     marginTop: Spacing.lg,
     fontSize: Typography.sm,
   },

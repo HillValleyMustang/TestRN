@@ -1,6 +1,10 @@
-import React from "react";
-import { View, Text, StyleSheet, ViewProps } from "react-native";
-import { Colors, BorderRadius, Spacing } from "../../../constants/design-system";
+import React from 'react';
+import { View, Text, StyleSheet, ViewProps } from 'react-native';
+import {
+  Colors,
+  BorderRadius,
+  Spacing,
+} from '../../../constants/design-system';
 
 interface CardProps extends ViewProps {
   children: React.ReactNode;
@@ -55,7 +59,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.xl,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
-    overflow: "hidden",
+    overflow: 'hidden',
   },
   padded: {
     padding: Spacing.xl,
@@ -64,15 +68,15 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   title: {
-    fontSize: Spacing["2xl"],
-    fontWeight: "600",
+    fontSize: Spacing['2xl'],
+    fontWeight: '600',
     color: Colors.foreground,
   },
   subtitle: {
     marginTop: Spacing.xs,
     color: Colors.gray400,
     fontSize: Spacing.lg,
-    fontWeight: "400",
+    fontWeight: '400',
   },
   content: {
     gap: Spacing.md,

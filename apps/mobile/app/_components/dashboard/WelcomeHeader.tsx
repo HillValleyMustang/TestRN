@@ -1,6 +1,6 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { Colors, Typography, Spacing } from "../../../constants/design-system";
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { Colors, Typography, Spacing } from '../../../constants/design-system';
 
 interface Props {
   name: string;
@@ -20,11 +20,11 @@ export default WelcomeHeader;
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: Spacing["2xl"],
+    marginBottom: Spacing['2xl'],
   },
   title: {
-    fontSize: Typography["3xl"],
-    fontWeight: "700",
+    fontSize: Typography['3xl'],
+    fontWeight: '700',
     color: Colors.foreground,
   },
   subtitle: {

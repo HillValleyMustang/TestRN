@@ -1,16 +1,16 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-} from "react-native";
+} from 'react-native';
 import {
   getCoachingAdvice,
   getFormTips,
   type CoachingContext,
-} from "@data/ai/coaching";
+} from '@data/ai/coaching';
 
 interface AICoachingCardProps {
   exerciseName: string;
@@ -37,7 +37,7 @@ export function AICoachingCard({
         exerciseName,
         currentSet,
         totalSets,
-        targetReps: targetReps || "8-12",
+        targetReps: targetReps || '8-12',
       };
 
       const response = await getCoachingAdvice(context);
@@ -61,7 +61,7 @@ export function AICoachingCard({
       setFormTips(tips);
       setShowFormTips(true);
     } catch (error) {
-      console.error("Failed to get form tips:", error);
+      console.error('Failed to get form tips:', error);
     } finally {
       setLoading(false);
     }
@@ -122,49 +122,49 @@ export default AICoachingCard;
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#0d1f1a",
+    backgroundColor: '#0d1f1a',
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: "#10b981",
+    borderColor: '#10b981',
     marginTop: 12,
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
   },
   headerText: {
-    color: "#10b981",
+    color: '#10b981',
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   buttonRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 8,
   },
   actionButton: {
-    backgroundColor: "#1a2f26",
+    backgroundColor: '#1a2f26',
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 6,
     minWidth: 80,
-    alignItems: "center",
+    alignItems: 'center',
   },
   actionButtonText: {
-    color: "#10b981",
+    color: '#10b981',
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   adviceBox: {
-    backgroundColor: "#1a2f26",
+    backgroundColor: '#1a2f26',
     borderRadius: 8,
     padding: 12,
     marginTop: 8,
   },
   adviceText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 14,
     lineHeight: 20,
   },
@@ -172,17 +172,17 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   tipRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     marginBottom: 8,
   },
   tipBullet: {
-    color: "#10b981",
+    color: '#10b981',
     fontSize: 16,
     marginRight: 8,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   tipText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 14,
     flex: 1,
     lineHeight: 20,

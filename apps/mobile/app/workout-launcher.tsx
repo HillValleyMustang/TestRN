@@ -21,7 +21,7 @@ export default function WorkoutLauncherScreen() {
   const router = useRouter();
   const { userId } = useAuth();
   const { getTPaths, getTPath } = useData();
-  
+
   const [activeTPath, setActiveTPath] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -31,10 +31,10 @@ export default function WorkoutLauncherScreen() {
 
   const loadActiveTPath = async () => {
     if (!userId) return;
-    
+
     try {
       setLoading(true);
-      
+
       const tPaths = await getTPaths(userId, true);
       if (tPaths && tPaths.length > 0) {
         const fullTPath = await getTPath(tPaths[0].id);
@@ -52,7 +52,7 @@ export default function WorkoutLauncherScreen() {
   const handleWorkoutPress = (tPathId: string) => {
     router.push({
       pathname: '/(tabs)/workout',
-      params: { tPathId }
+      params: { tPathId },
     });
   };
 
@@ -66,9 +66,9 @@ export default function WorkoutLauncherScreen() {
 
   const getWorkoutsList = () => {
     if (!activeTPath) return [];
-    
+
     const programType = activeTPath.settings?.tPathType || 'ppl';
-    
+
     if (programType === 'ulul') {
       return [
         { name: 'Upper Body A', id: activeTPath.id },
@@ -89,7 +89,7 @@ export default function WorkoutLauncherScreen() {
 
   return (
     <>
-      <ScreenHeader 
+      <ScreenHeader
         title="Workout Session"
         subtitle="Select a workout or start an ad-hoc session."
       />
@@ -100,9 +100,9 @@ export default function WorkoutLauncherScreen() {
               <Ionicons name="barbell" size={20} color={Colors.foreground} />
               <Text style={styles.tPathTitle}>{activeTPath.template_name}</Text>
             </View>
-            
+
             <View style={styles.workoutsList}>
-              {workouts.map((workout) => (
+              {workouts.map(workout => (
                 <ColoredWorkoutButton
                   key={workout.name}
                   workoutName={workout.name}
@@ -117,7 +117,11 @@ export default function WorkoutLauncherScreen() {
         <Card style={styles.adHocCard}>
           <View style={styles.adHocHeader}>
             <View style={styles.adHocTitleContainer}>
-              <Ionicons name="add-circle-outline" size={24} color={Colors.foreground} />
+              <Ionicons
+                name="add-circle-outline"
+                size={24}
+                color={Colors.foreground}
+              />
               <Text style={styles.adHocTitle}>Start Ad-Hoc Workout</Text>
             </View>
             <Text style={styles.adHocSubtitle}>
@@ -126,17 +130,11 @@ export default function WorkoutLauncherScreen() {
           </View>
 
           <View style={styles.adHocButtons}>
-            <Pressable 
-              style={styles.emptyButton}
-              onPress={handleStartEmpty}
-            >
+            <Pressable style={styles.emptyButton} onPress={handleStartEmpty}>
               <Text style={styles.emptyButtonText}>Start Empty</Text>
             </Pressable>
-            
-            <Pressable 
-              style={styles.generateButton}
-              onPress={handleGenerate}
-            >
+
+            <Pressable style={styles.generateButton} onPress={handleGenerate}>
               <Ionicons name="sparkles" size={20} color="white" />
               <Text style={styles.generateButtonText}>Generate</Text>
             </Pressable>

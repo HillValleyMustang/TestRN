@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,9 @@ import {
   Image,
   Alert,
   ActivityIndicator,
-} from "react-native";
-import * as ImagePicker from "expo-image-picker";
-import { useAuth } from "../_contexts/auth-context";
+} from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { useAuth } from '../_contexts/auth-context';
 
 interface DetectedExercise {
   name: string;
@@ -22,7 +22,7 @@ interface DetectedExercise {
   video_url?: string;
   movement_type?: string;
   movement_pattern?: string;
-  duplicate_status: "none" | "global" | "my-exercises";
+  duplicate_status: 'none' | 'global' | 'my-exercises';
 }
 
 interface Step5Props {
@@ -37,14 +37,14 @@ export default function Step5PhotoUpload({ onNext, onBack }: Step5Props) {
     DetectedExercise[]
   >([]);
   const [confirmedExercises, setConfirmedExercises] = useState<Set<string>>(
-    new Set(),
+    new Set()
   );
   const [analyzing, setAnalyzing] = useState(false);
 
   const pickImages = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission Required", "Photo library permission is needed.");
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'Photo library permission is needed.');
       return;
     }
 
@@ -57,18 +57,18 @@ export default function Step5PhotoUpload({ onNext, onBack }: Step5Props) {
 
     if (!result.canceled) {
       const newImages = result.assets
-        .filter((asset) => asset.base64)
-        .map((asset) => asset.base64!);
-      setImages((prev) => [...prev, ...newImages]);
+        .filter(asset => asset.base64)
+        .map(asset => asset.base64!);
+      setImages(prev => [...prev, ...newImages]);
     }
   };
 
   const removeImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
+    setImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const toggleConfirmation = (exerciseName: string) => {
-    setConfirmedExercises((prev) => {
+    setConfirmedExercises(prev => {
       const newSet = new Set(prev);
       if (newSet.has(exerciseName)) {
         newSet.delete(exerciseName);
@@ -81,24 +81,24 @@ export default function Step5PhotoUpload({ onNext, onBack }: Step5Props) {
 
   const handleAnalyze = async () => {
     if (images.length === 0) {
-      Alert.alert("No Images", "Please upload at least one photo first.");
+      Alert.alert('No Images', 'Please upload at least one photo first.');
       return;
     }
 
     if (!session?.access_token) {
-      Alert.alert("Error", "You must be logged in to use AI analysis.");
+      Alert.alert('Error', 'You must be logged in to use AI analysis.');
       return;
     }
 
     setAnalyzing(true);
     try {
-      const SUPABASE_PROJECT_ID = "mgbfevrzrbjjiajkqpti";
+      const SUPABASE_PROJECT_ID = 'mgbfevrzrbjjiajkqpti';
       const EDGE_FUNCTION_URL = `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/identify-equipment`;
 
       const response = await fetch(EDGE_FUNCTION_URL, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ base64Images: images }),
@@ -107,13 +107,13 @@ export default function Step5PhotoUpload({ onNext, onBack }: Step5Props) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "AI analysis failed");
+        throw new Error(data.error || 'AI analysis failed');
       }
 
       if (!data.identifiedExercises || data.identifiedExercises.length === 0) {
         Alert.alert(
-          "No Equipment Found",
-          "AI could not identify any exercises from the photos. Try different angles or better lighting.",
+          'No Equipment Found',
+          'AI could not identify any exercises from the photos. Try different angles or better lighting.'
         );
         return;
       }
@@ -121,17 +121,17 @@ export default function Step5PhotoUpload({ onNext, onBack }: Step5Props) {
       setDetectedExercises(data.identifiedExercises);
 
       const newExercises = data.identifiedExercises.filter(
-        (ex: DetectedExercise) => ex.duplicate_status === "none",
+        (ex: DetectedExercise) => ex.duplicate_status === 'none'
       );
       const newConfirmed = new Set(
-        newExercises.map((ex: DetectedExercise) => ex.name),
+        newExercises.map((ex: DetectedExercise) => ex.name)
       );
       setConfirmedExercises(newConfirmed);
     } catch (error: any) {
-      console.error("AI analysis error:", error);
+      console.error('AI analysis error:', error);
       Alert.alert(
-        "Error",
-        error.message || "Failed to analyze photos. Please try again.",
+        'Error',
+        error.message || 'Failed to analyze photos. Please try again.'
       );
     } finally {
       setAnalyzing(false);
@@ -140,7 +140,7 @@ export default function Step5PhotoUpload({ onNext, onBack }: Step5Props) {
 
   const handleNext = () => {
     const newExercisesCount = detectedExercises.filter(
-      (ex) => ex.duplicate_status === "none",
+      ex => ex.duplicate_status === 'none'
     ).length;
 
     if (
@@ -149,8 +149,8 @@ export default function Step5PhotoUpload({ onNext, onBack }: Step5Props) {
       newExercisesCount > 0
     ) {
       Alert.alert(
-        "No Selection",
-        "Please confirm at least one exercise or continue without adding any.",
+        'No Selection',
+        'Please confirm at least one exercise or continue without adding any.'
       );
       return;
     }
@@ -228,7 +228,7 @@ export default function Step5PhotoUpload({ onNext, onBack }: Step5Props) {
                   styles.exerciseCardConfirmed,
               ]}
               onPress={() => toggleConfirmation(exercise.name)}
-              disabled={exercise.duplicate_status !== "none"}
+              disabled={exercise.duplicate_status !== 'none'}
             >
               <View style={styles.exerciseContent}>
                 <Text style={styles.exerciseName}>{exercise.name}</Text>
@@ -236,18 +236,18 @@ export default function Step5PhotoUpload({ onNext, onBack }: Step5Props) {
                   {exercise.main_muscle}
                 </Text>
               </View>
-              {exercise.duplicate_status === "none" &&
+              {exercise.duplicate_status === 'none' &&
                 confirmedExercises.has(exercise.name) && (
                   <View style={styles.confirmedBadge}>
                     <Text style={styles.confirmedText}>✓</Text>
                   </View>
                 )}
-              {exercise.duplicate_status !== "none" && (
+              {exercise.duplicate_status !== 'none' && (
                 <View style={styles.duplicateBadge}>
                   <Text style={styles.duplicateText}>
-                    {exercise.duplicate_status === "global"
-                      ? "Global"
-                      : "Exists"}
+                    {exercise.duplicate_status === 'global'
+                      ? 'Global'
+                      : 'Exists'}
                   </Text>
                 </View>
               )}
@@ -264,9 +264,9 @@ export default function Step5PhotoUpload({ onNext, onBack }: Step5Props) {
           <Text style={styles.nextButtonText}>
             {detectedExercises.length > 0
               ? confirmedExercises.size > 0
-                ? `Confirm ${confirmedExercises.size} Exercise${confirmedExercises.size > 1 ? "s" : ""}`
-                : "Continue"
-              : "Skip"}
+                ? `Confirm ${confirmedExercises.size} Exercise${confirmedExercises.size > 1 ? 's' : ''}`
+                : 'Continue'
+              : 'Skip'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -277,7 +277,7 @@ export default function Step5PhotoUpload({ onNext, onBack }: Step5Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: '#000',
   },
   content: {
     padding: 20,
@@ -285,26 +285,26 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: "#888",
+    color: '#888',
     marginBottom: 32,
   },
   uploadSection: {
     marginBottom: 32,
   },
   uploadButton: {
-    backgroundColor: "#1a1a1a",
+    backgroundColor: '#1a1a1a',
     padding: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: "#333",
-    borderStyle: "dashed",
-    alignItems: "center",
+    borderColor: '#333',
+    borderStyle: 'dashed',
+    alignItems: 'center',
   },
   uploadIcon: {
     fontSize: 48,
@@ -312,14 +312,14 @@ const styles = StyleSheet.create({
   },
   uploadText: {
     fontSize: 16,
-    color: "#fff",
-    fontWeight: "600",
+    color: '#fff',
+    fontWeight: '600',
   },
   imageScroll: {
     marginTop: 16,
   },
   imagePreview: {
-    position: "relative",
+    position: 'relative',
     marginRight: 12,
   },
   image: {
@@ -328,129 +328,129 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   removeImageButton: {
-    position: "absolute",
+    position: 'absolute',
     top: -8,
     right: -8,
-    backgroundColor: "#EF4444",
+    backgroundColor: '#EF4444',
     borderRadius: 12,
     width: 24,
     height: 24,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   removeImageText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 14,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   analyzeButton: {
-    backgroundColor: "#8B5CF6",
+    backgroundColor: '#8B5CF6',
     padding: 16,
     borderRadius: 8,
-    alignItems: "center",
+    alignItems: 'center',
     marginTop: 16,
   },
   analyzeButtonText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   resultsSection: {
     marginBottom: 32,
   },
   resultsTitle: {
     fontSize: 20,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 8,
   },
   resultsSubtitle: {
     fontSize: 14,
-    color: "#888",
+    color: '#888',
     marginBottom: 16,
   },
   exerciseCard: {
-    backgroundColor: "#1a1a1a",
+    backgroundColor: '#1a1a1a',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: '#333',
     marginBottom: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   exerciseCardConfirmed: {
-    borderColor: "#10B981",
+    borderColor: '#10B981',
     borderWidth: 2,
-    backgroundColor: "#0a1a14",
+    backgroundColor: '#0a1a14',
   },
   exerciseContent: {
     flex: 1,
   },
   exerciseName: {
     fontSize: 16,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 4,
   },
   exerciseMuscle: {
     fontSize: 13,
-    color: "#10B981",
+    color: '#10B981',
   },
   confirmedBadge: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "#10B981",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: '#10B981',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   confirmedText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   duplicateBadge: {
-    backgroundColor: "#3B82F6",
+    backgroundColor: '#3B82F6',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
   },
   duplicateText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   buttonRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
     marginTop: 16,
   },
   backButton: {
     flex: 1,
-    backgroundColor: "#1a1a1a",
+    backgroundColor: '#1a1a1a',
     padding: 16,
     borderRadius: 8,
-    alignItems: "center",
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: '#333',
   },
   backButtonText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   nextButton: {
     flex: 1,
-    backgroundColor: "#10B981",
+    backgroundColor: '#10B981',
     padding: 16,
     borderRadius: 8,
-    alignItems: "center",
+    alignItems: 'center',
   },
   nextButtonText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
 });

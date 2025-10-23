@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,11 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-} from "react-native";
-import { Stack, useRouter } from "expo-router";
-import { useAuth } from "./_contexts/auth-context";
-import { useData } from "./_contexts/data-context";
-import type { Gym } from "@data/storage/models";
+} from 'react-native';
+import { Stack, useRouter } from 'expo-router';
+import { useAuth } from './_contexts/auth-context';
+import { useData } from './_contexts/data-context';
+import type { Gym } from '@data/storage/models';
 
 export default function GymsScreen() {
   const router = useRouter();
@@ -27,7 +27,7 @@ export default function GymsScreen() {
       const data = await getGyms(userId);
       setGyms(data);
     } catch (error) {
-      console.error("Error loading gyms:", error);
+      console.error('Error loading gyms:', error);
     } finally {
       setLoading(false);
     }
@@ -45,38 +45,38 @@ export default function GymsScreen() {
       await setActiveGym(userId, gymId);
       await loadGyms();
     } catch (error) {
-      console.error("Error setting active gym:", error);
-      Alert.alert("Error", "Failed to set active gym");
+      console.error('Error setting active gym:', error);
+      Alert.alert('Error', 'Failed to set active gym');
     }
   };
 
   const handleDelete = (gym: Gym) => {
     Alert.alert(
-      "Delete Gym",
+      'Delete Gym',
       `Are you sure you want to delete "${gym.name}"? This action cannot be undone.`,
       [
-        { text: "Cancel", style: "cancel" },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: "Delete",
-          style: "destructive",
+          text: 'Delete',
+          style: 'destructive',
           onPress: async () => {
             try {
               await deleteGym(gym.id);
               await loadGyms();
             } catch (error) {
-              console.error("Error deleting gym:", error);
-              Alert.alert("Error", "Failed to delete gym");
+              console.error('Error deleting gym:', error);
+              Alert.alert('Error', 'Failed to delete gym');
             }
           },
         },
-      ],
+      ]
     );
   };
 
   if (loading) {
     return (
       <View style={styles.container}>
-        <Stack.Screen options={{ title: "My Gyms" }} />
+        <Stack.Screen options={{ title: 'My Gyms' }} />
         <View style={styles.centered}>
           <Text style={styles.loadingText}>Loading gyms...</Text>
         </View>
@@ -86,7 +86,7 @@ export default function GymsScreen() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ title: "My Gyms" }} />
+      <Stack.Screen options={{ title: 'My Gyms' }} />
 
       <ScrollView style={styles.content}>
         {gyms.length === 0 ? (
@@ -99,7 +99,7 @@ export default function GymsScreen() {
           </View>
         ) : (
           <View style={styles.list}>
-            {gyms.map((gym) => (
+            {gyms.map(gym => (
               <View key={gym.id} style={styles.gymCard}>
                 <View style={styles.gymHeader}>
                   <View style={styles.gymInfo}>
@@ -117,8 +117,8 @@ export default function GymsScreen() {
                       </Text>
                     )}
                     <Text style={styles.equipmentCount}>
-                      {gym.equipment.length} equipment{" "}
-                      {gym.equipment.length === 1 ? "item" : "items"}
+                      {gym.equipment.length} equipment{' '}
+                      {gym.equipment.length === 1 ? 'item' : 'items'}
                     </Text>
                   </View>
                 </View>
@@ -157,7 +157,7 @@ export default function GymsScreen() {
 
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => router.push("/gym-editor")}
+        onPress={() => router.push('/gym-editor')}
       >
         <Text style={styles.fabText}>+ Add Gym</Text>
       </TouchableOpacity>
@@ -168,34 +168,34 @@ export default function GymsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: '#000',
   },
   content: {
     flex: 1,
   },
   centered: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   loadingText: {
-    color: "#888",
+    color: '#888',
     fontSize: 16,
   },
   emptyState: {
     padding: 32,
-    alignItems: "center",
+    alignItems: 'center',
   },
   emptyTitle: {
     fontSize: 24,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 16,
-    color: "#888",
-    textAlign: "center",
+    color: '#888',
+    textAlign: 'center',
     lineHeight: 24,
   },
   list: {
@@ -203,12 +203,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   gymCard: {
-    backgroundColor: "#1a1a1a",
+    backgroundColor: '#1a1a1a',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: '#333',
   },
   gymHeader: {
     marginBottom: 12,
@@ -217,80 +217,80 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   gymName: {
     fontSize: 20,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: 'bold',
+    color: '#fff',
   },
   activeBadge: {
-    backgroundColor: "#10b981",
+    backgroundColor: '#10b981',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
   activeBadgeText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   gymDescription: {
     fontSize: 14,
-    color: "#888",
+    color: '#888',
     marginTop: 4,
   },
   equipmentCount: {
     fontSize: 14,
-    color: "#666",
+    color: '#666',
     marginTop: 4,
   },
   actions: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 8,
-    flexWrap: "wrap",
+    flexWrap: 'wrap',
   },
   actionButton: {
-    backgroundColor: "#333",
+    backgroundColor: '#333',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
   },
   editButton: {
-    backgroundColor: "#3b82f6",
+    backgroundColor: '#3b82f6',
   },
   deleteButton: {
-    backgroundColor: "transparent",
+    backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: "#ef4444",
+    borderColor: '#ef4444',
   },
   actionButtonText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   deleteButtonText: {
-    color: "#ef4444",
+    color: '#ef4444',
   },
   fab: {
-    position: "absolute",
+    position: 'absolute',
     bottom: 24,
     right: 24,
-    backgroundColor: "#10b981",
+    backgroundColor: '#10b981',
     paddingHorizontal: 24,
     paddingVertical: 16,
     borderRadius: 28,
     elevation: 4,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
   },
   fabText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
 });

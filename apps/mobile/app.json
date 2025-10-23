@@ -2,11 +2,8 @@
   "expo": {
     "name": "my-fitness-trainer-mobile",
     "slug": "my-fitness-trainer-mobile",
-    "platforms": [
-      "ios",
-      "android"
-    ],
-    "main": "expo-router/entry",
+    "platforms": ["ios","android"],
+    "entryPoint": "expo-router/entry",
     "scheme": "dyad-react-native",
     "plugins": ["expo-router"],
     "experiments": { "typedRoutes": false }

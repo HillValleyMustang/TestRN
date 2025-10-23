@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,12 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
-} from "react-native";
-import { useAuth } from "./_contexts/auth-context";
-import { useData } from "./_contexts/data-context";
-import { useRouter } from "expo-router";
-import type { WorkoutSession } from "@data/storage/models";
-import { formatTimeAgo } from "@data/utils/workout-helpers";
+} from 'react-native';
+import { useAuth } from './_contexts/auth-context';
+import { useData } from './_contexts/data-context';
+import { useRouter } from 'expo-router';
+import type { WorkoutSession } from '@data/storage/models';
+import { formatTimeAgo } from '@data/utils/workout-helpers';
 
 export default function HistoryScreen() {
   const { userId } = useAuth();
@@ -28,7 +28,7 @@ export default function HistoryScreen() {
       const sessions = await getWorkoutSessions(userId);
       setWorkouts(sessions);
     } catch (error) {
-      console.error("Failed to load workouts:", error);
+      console.error('Failed to load workouts:', error);
     }
   }, [getWorkoutSessions, userId]);
 
@@ -53,10 +53,10 @@ export default function HistoryScreen() {
       >
         <View style={styles.cardHeader}>
           <Text style={styles.workoutName}>
-            {item.template_name || "Unnamed Workout"}
+            {item.template_name || 'Unnamed Workout'}
           </Text>
           {item.rating && (
-            <Text style={styles.rating}>{"⭐".repeat(item.rating)}</Text>
+            <Text style={styles.rating}>{'⭐'.repeat(item.rating)}</Text>
           )}
         </View>
         <View style={styles.cardDetails}>
@@ -79,7 +79,7 @@ export default function HistoryScreen() {
         </Text>
         <TouchableOpacity
           style={styles.addButton}
-          onPress={() => router.push("/workout")}
+          onPress={() => router.push('/workout')}
         >
           <Text style={styles.addButtonText}>+ Log First Workout</Text>
         </TouchableOpacity>
@@ -92,7 +92,7 @@ export default function HistoryScreen() {
       <FlatList
         data={workouts}
         renderItem={renderWorkout}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
@@ -109,76 +109,76 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: '#000',
   },
   listContent: {
     padding: 16,
   },
   workoutCard: {
-    backgroundColor: "#111",
+    backgroundColor: '#111',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: '#333',
   },
   cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
   },
   workoutName: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     flex: 1,
   },
   rating: {
     fontSize: 14,
   },
   cardDetails: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 16,
     marginBottom: 4,
   },
   detailText: {
-    color: "#888",
+    color: '#888',
     fontSize: 14,
   },
   duration: {
-    color: "#0a0",
+    color: '#0a0',
     fontSize: 14,
     marginTop: 4,
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#000",
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
     padding: 32,
   },
   emptyText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 24,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     marginBottom: 8,
   },
   emptySubtext: {
-    color: "#888",
+    color: '#888',
     fontSize: 16,
-    textAlign: "center",
+    textAlign: 'center',
     marginBottom: 32,
   },
   addButton: {
-    backgroundColor: "#0a0",
+    backgroundColor: '#0a0',
     paddingVertical: 16,
     paddingHorizontal: 48,
     borderRadius: 8,
   },
   addButtonText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
 });

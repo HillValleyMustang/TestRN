@@ -1,11 +1,11 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { Button } from "../ui/Button";
-import { Card, CardHeader, CardTitle, CardContent } from "../ui/Card";
-import { Colors, Spacing } from "../../../constants/design-system";
-import { Ionicons } from "@expo/vector-icons";
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { Button } from '../ui/Button';
+import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
+import { Colors, Spacing } from '../../../constants/design-system';
+import { Ionicons } from '@expo/vector-icons';
 
-type ActionVariant = "primary" | "success" | "outline";
+type ActionVariant = 'primary' | 'success' | 'outline';
 
 interface ActionItem {
   title: string;
@@ -29,7 +29,7 @@ export const ActionHub: React.FC<Props> = ({ actions }) => {
         {actions.map((action, index) => (
           <Button
             key={index}
-            variant={action.variant ?? "outline"}
+            variant={action.variant ?? 'outline'}
             style={styles.button}
             onPress={action.onPress}
           >
@@ -60,11 +60,11 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   button: {
-    alignItems: "stretch",
+    alignItems: 'stretch',
   },
   buttonContent: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.md,
   },
   buttonTextWrapper: {
@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
   },
   buttonTitle: {
     color: Colors.foreground,
-    fontWeight: "600",
+    fontWeight: '600',
     fontSize: 16,
   },
   buttonSubtitle: {

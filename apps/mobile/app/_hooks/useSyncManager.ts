@@ -1,14 +1,14 @@
 import {
   addEventListener as addNetInfoListener,
   fetch as fetchNetInfo,
-} from "@react-native-community/netinfo";
-import { AppState, type AppStateStatus } from "react-native";
-import { useEffect, useMemo, useState } from "react";
+} from '@react-native-community/netinfo';
+import { AppState, type AppStateStatus } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
 
-import { useSyncQueueProcessor } from "@data/hooks/use-sync-queue-processor";
+import { useSyncQueueProcessor } from '@data/hooks/use-sync-queue-processor';
 
-import { useAuth } from "../_contexts/auth-context";
-import { database } from "../_lib/database";
+import { useAuth } from '../_contexts/auth-context';
+import { database } from '../_lib/database';
 
 export const useMobileSyncManager = () => {
   const { supabase } = useAuth();
@@ -25,10 +25,10 @@ export const useMobileSyncManager = () => {
           setIsDatabaseReady(true);
         }
       })
-      .catch((error) => {
+      .catch(error => {
         console.error(
-          "[useMobileSyncManager] Failed to initialise database",
-          error,
+          '[useMobileSyncManager] Failed to initialise database',
+          error
         );
       });
 
@@ -38,21 +38,21 @@ export const useMobileSyncManager = () => {
   }, []);
 
   useEffect(() => {
-    const networkUnsubscribe = addNetInfoListener((state) => {
+    const networkUnsubscribe = addNetInfoListener(state => {
       setIsOnline(Boolean(state.isConnected && state.isInternetReachable));
     });
 
     const appStateListener = (state: AppStateStatus) => {
-      if (state === "active") {
-        fetchNetInfo().then((info) => {
+      if (state === 'active') {
+        fetchNetInfo().then(info => {
           setIsOnline(Boolean(info.isConnected && info.isInternetReachable));
         });
       }
     };
 
     const appSubscription = AppState.addEventListener(
-      "change",
-      appStateListener,
+      'change',
+      appStateListener
     );
 
     return () => {
@@ -68,7 +68,7 @@ export const useMobileSyncManager = () => {
     enabled: isDatabaseReady && Boolean(supabase),
     intervalMs: 5000,
     onError: (_, error) => {
-      console.error("[useMobileSyncManager] Sync error", error);
+      console.error('[useMobileSyncManager] Sync error', error);
     },
   });
 
@@ -78,7 +78,7 @@ export const useMobileSyncManager = () => {
       isDatabaseReady,
       ...processor,
     }),
-    [isOnline, isDatabaseReady, processor],
+    [isOnline, isDatabaseReady, processor]
   );
 };
 

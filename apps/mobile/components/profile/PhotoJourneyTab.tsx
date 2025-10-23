@@ -25,7 +25,7 @@ type ProgressPhoto = {
 interface PhotoJourneyTabProps {
   photos: ProgressPhoto[];
   loading: boolean;
-  onPhotoPress?: (photo: ProgressPhoto) => void;
+  onPhotoPress?: (photo: ProgressPhoto, index: number) => void;
   onPhotoDelete?: (photo: ProgressPhoto) => void;
   onComparisonOpen?: () => void;
   onComparisonClose?: () => void;
@@ -57,7 +57,7 @@ export const PhotoJourneyTab = ({ photos, loading, onPhotoPress, onPhotoDelete, 
     }
   }, [photos]);
 
-  const handlePhotoPress = (photo: ProgressPhoto) => {
+  const handlePhotoPress = (photo: ProgressPhoto, index?: number) => {
     if (isSelectionMode) {
       // Handle selection mode
       if (selectedPhotos.find(p => p.id === photo.id)) {
@@ -70,8 +70,10 @@ export const PhotoJourneyTab = ({ photos, loading, onPhotoPress, onPhotoDelete, 
         }
       }
     } else {
-      // Normal mode - no action on photo press
-      // Photos are not clickable in normal mode
+      // Normal mode - open lightbox
+      if (onPhotoPress && index !== undefined) {
+        onPhotoPress(photo, index);
+      }
     }
   };
 
@@ -209,12 +211,13 @@ export const PhotoJourneyTab = ({ photos, loading, onPhotoPress, onPhotoDelete, 
                 <View style={[styles.photoContainer, isLeft ? styles.photoLeft : styles.photoRight]}>
                   <PhotoCard
                     photo={photo}
-                    onPress={() => handlePhotoPress(photo)}
+                    onPress={() => handlePhotoPress(photo, index)}
                     onDelete={onPhotoDelete}
                     isSelected={selectedPhotos.some(p => p.id === photo.id)}
                     showSelectionIndicator={isSelectionMode}
                     isVisible={visibleItems.has(photo.id)}
                     isLeftSide={isLeft}
+                    index={index}
                   />
                 </View>
                 <View style={styles.timelineDot} />
@@ -273,8 +276,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.md,
+    paddingTop: 0, // Remove top padding completely
+    paddingBottom: 0, // Remove bottom padding completely
+    marginTop: -Spacing.lg, // Negative margin to pull header up
   },
   headerContent: {
     flex: 1,
@@ -303,7 +307,7 @@ const styles = StyleSheet.create({
   },
   timelineContainer: {
     position: 'relative',
-    paddingTop: Spacing.md,
+    paddingTop: Spacing.xs, // Reduced from Spacing.sm to Spacing.xs for even tighter spacing
     paddingBottom: Spacing.xl * 2,
   },
   timelineLine: {

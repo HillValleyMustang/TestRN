@@ -7,8 +7,8 @@ import { TextStyles } from '../../constants/Typography';
 export default function ExercisesScreen() {
   return (
     <>
-      <ScreenHeader 
-        title="Manage Exercises" 
+      <ScreenHeader
+        title="Manage Exercises"
         subtitle="Browse and manage your exercises"
       />
       <ScreenContainer>

@@ -4,9 +4,9 @@ import React, {
   useEffect,
   useState,
   useMemo,
-} from "react";
-import { Session, SupabaseClient } from "@supabase/supabase-js";
-import { supabase } from "@data/supabase/client-mobile";
+} from 'react';
+import { Session, SupabaseClient } from '@supabase/supabase-js';
+import { supabase } from '@data/supabase/client-mobile';
 
 interface AuthContextType {
   session: Session | null;
@@ -34,7 +34,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }) => {
           setSession(currentSession);
           setLoading(false);
-        },
+        }
       );
 
     const {
@@ -42,7 +42,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } = supabase.auth.onAuthStateChange(
       (_event: string, newSession: Session | null) => {
         setSession(newSession);
-      },
+      }
     );
 
     return () => subscription.unsubscribe();
@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };

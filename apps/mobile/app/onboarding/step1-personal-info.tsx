@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Switch,
-} from "react-native";
+} from 'react-native';
 
 interface Step1Data {
   fullName: string;
@@ -16,8 +16,8 @@ interface Step1Data {
   heightIn: number | null;
   weight: number | null;
   bodyFatPct: number | null;
-  heightUnit: "cm" | "ft";
-  weightUnit: "kg" | "lbs";
+  heightUnit: 'cm' | 'ft';
+  weightUnit: 'kg' | 'lbs';
 }
 
 interface Step1Props {
@@ -38,11 +38,11 @@ export default function Step1PersonalInfo({
   };
 
   useEffect(() => {
-    if (data.heightUnit === "cm" && data.heightFt && data.heightIn) {
+    if (data.heightUnit === 'cm' && data.heightFt && data.heightIn) {
       const totalInches = data.heightFt * 12 + (data.heightIn || 0);
       const cm = Math.round(totalInches * 2.54);
       onDataChange({ ...data, heightCm: cm });
-    } else if (data.heightUnit === "ft" && data.heightCm) {
+    } else if (data.heightUnit === 'ft' && data.heightCm) {
       const totalInches = data.heightCm / 2.54;
       const ft = Math.floor(totalInches / 12);
       const inches = Math.round(totalInches % 12);
@@ -53,34 +53,34 @@ export default function Step1PersonalInfo({
   const validate = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!data.fullName || data.fullName.trim() === "") {
-      newErrors.fullName = "Your name is required";
+    if (!data.fullName || data.fullName.trim() === '') {
+      newErrors.fullName = 'Your name is required';
     }
 
-    if (data.heightUnit === "cm") {
+    if (data.heightUnit === 'cm') {
       if (!data.heightCm || data.heightCm < 100 || data.heightCm > 250) {
-        newErrors.height = "Height must be between 100-250 cm";
+        newErrors.height = 'Height must be between 100-250 cm';
       }
     } else {
       if (!data.heightFt || data.heightFt < 3 || data.heightFt > 8) {
-        newErrors.height = "Height must be between 3-8 feet";
+        newErrors.height = 'Height must be between 3-8 feet';
       }
     }
 
     if (
       !data.weight ||
       data.weight < 30 ||
-      (data.weightUnit === "kg" && data.weight > 300) ||
-      (data.weightUnit === "lbs" && data.weight > 660)
+      (data.weightUnit === 'kg' && data.weight > 300) ||
+      (data.weightUnit === 'lbs' && data.weight > 660)
     ) {
       newErrors.weight =
-        data.weightUnit === "kg"
-          ? "Weight must be between 30-300 kg"
-          : "Weight must be between 66-660 lbs";
+        data.weightUnit === 'kg'
+          ? 'Weight must be between 30-300 kg'
+          : 'Weight must be between 66-660 lbs';
     }
 
     if (data.bodyFatPct && (data.bodyFatPct < 5 || data.bodyFatPct > 50)) {
-      newErrors.bodyFat = "Body fat % must be between 5-50%";
+      newErrors.bodyFat = 'Body fat % must be between 5-50%';
     }
 
     setErrors(newErrors);
@@ -91,17 +91,17 @@ export default function Step1PersonalInfo({
     if (validate()) {
       let finalHeightCm = data.heightCm;
       let finalHeightUnit = data.heightUnit;
-      if (data.heightUnit === "ft" && data.heightFt) {
+      if (data.heightUnit === 'ft' && data.heightFt) {
         const totalInches = data.heightFt * 12 + (data.heightIn || 0);
         finalHeightCm = Math.round(totalInches * 2.54);
-        finalHeightUnit = "cm";
+        finalHeightUnit = 'cm';
       }
 
       let finalWeightKg = data.weight;
       let finalWeightUnit = data.weightUnit;
-      if (data.weightUnit === "lbs" && data.weight) {
+      if (data.weightUnit === 'lbs' && data.weight) {
         finalWeightKg = Math.round(data.weight / 2.205);
-        finalWeightUnit = "kg";
+        finalWeightUnit = 'kg';
       }
 
       onDataChange({
@@ -116,9 +116,9 @@ export default function Step1PersonalInfo({
   };
 
   const isValid =
-    data.fullName.trim() !== "" &&
+    data.fullName.trim() !== '' &&
     data.weight !== null &&
-    (data.heightUnit === "cm"
+    (data.heightUnit === 'cm'
       ? data.heightCm && data.heightCm >= 100 && data.heightCm <= 250
       : data.heightFt && data.heightFt >= 3 && data.heightFt <= 8);
 
@@ -134,7 +134,7 @@ export default function Step1PersonalInfo({
         <TextInput
           style={[styles.input, errors.fullName && styles.inputError]}
           value={data.fullName}
-          onChangeText={(text) => updateData("fullName", text)}
+          onChangeText={text => updateData('fullName', text)}
           placeholder="Enter your name"
           placeholderTextColor="#666"
         />
@@ -150,23 +150,21 @@ export default function Step1PersonalInfo({
             <Text
               style={[
                 styles.unitText,
-                data.heightUnit === "cm" && styles.unitTextActive,
+                data.heightUnit === 'cm' && styles.unitTextActive,
               ]}
             >
               cm
             </Text>
             <Switch
-              value={data.heightUnit === "ft"}
-              onValueChange={(val) =>
-                updateData("heightUnit", val ? "ft" : "cm")
-              }
-              trackColor={{ false: "#10B981", true: "#10B981" }}
+              value={data.heightUnit === 'ft'}
+              onValueChange={val => updateData('heightUnit', val ? 'ft' : 'cm')}
+              trackColor={{ false: '#10B981', true: '#10B981' }}
               thumbColor="#fff"
             />
             <Text
               style={[
                 styles.unitText,
-                data.heightUnit === "ft" && styles.unitTextActive,
+                data.heightUnit === 'ft' && styles.unitTextActive,
               ]}
             >
               ft
@@ -174,12 +172,12 @@ export default function Step1PersonalInfo({
           </View>
         </View>
 
-        {data.heightUnit === "cm" ? (
+        {data.heightUnit === 'cm' ? (
           <TextInput
             style={[styles.input, errors.height && styles.inputError]}
-            value={data.heightCm?.toString() || ""}
-            onChangeText={(text) =>
-              updateData("heightCm", text ? parseInt(text, 10) : null)
+            value={data.heightCm?.toString() || ''}
+            onChangeText={text =>
+              updateData('heightCm', text ? parseInt(text, 10) : null)
             }
             placeholder="e.g., 175"
             placeholderTextColor="#666"
@@ -190,9 +188,9 @@ export default function Step1PersonalInfo({
             <View style={styles.halfInput}>
               <TextInput
                 style={[styles.input, errors.height && styles.inputError]}
-                value={data.heightFt?.toString() || ""}
-                onChangeText={(text) =>
-                  updateData("heightFt", text ? parseInt(text, 10) : null)
+                value={data.heightFt?.toString() || ''}
+                onChangeText={text =>
+                  updateData('heightFt', text ? parseInt(text, 10) : null)
                 }
                 placeholder="Feet"
                 placeholderTextColor="#666"
@@ -202,9 +200,9 @@ export default function Step1PersonalInfo({
             <View style={styles.halfInput}>
               <TextInput
                 style={[styles.input, errors.height && styles.inputError]}
-                value={data.heightIn?.toString() || ""}
-                onChangeText={(text) =>
-                  updateData("heightIn", text ? parseInt(text, 10) : null)
+                value={data.heightIn?.toString() || ''}
+                onChangeText={text =>
+                  updateData('heightIn', text ? parseInt(text, 10) : null)
                 }
                 placeholder="Inches"
                 placeholderTextColor="#666"
@@ -223,23 +221,23 @@ export default function Step1PersonalInfo({
             <Text
               style={[
                 styles.unitText,
-                data.weightUnit === "kg" && styles.unitTextActive,
+                data.weightUnit === 'kg' && styles.unitTextActive,
               ]}
             >
               kg
             </Text>
             <Switch
-              value={data.weightUnit === "lbs"}
-              onValueChange={(val) =>
-                updateData("weightUnit", val ? "lbs" : "kg")
+              value={data.weightUnit === 'lbs'}
+              onValueChange={val =>
+                updateData('weightUnit', val ? 'lbs' : 'kg')
               }
-              trackColor={{ false: "#10B981", true: "#10B981" }}
+              trackColor={{ false: '#10B981', true: '#10B981' }}
               thumbColor="#fff"
             />
             <Text
               style={[
                 styles.unitText,
-                data.weightUnit === "lbs" && styles.unitTextActive,
+                data.weightUnit === 'lbs' && styles.unitTextActive,
               ]}
             >
               lbs
@@ -248,11 +246,11 @@ export default function Step1PersonalInfo({
         </View>
         <TextInput
           style={[styles.input, errors.weight && styles.inputError]}
-          value={data.weight?.toString() || ""}
-          onChangeText={(text) =>
-            updateData("weight", text ? parseInt(text, 10) : null)
+          value={data.weight?.toString() || ''}
+          onChangeText={text =>
+            updateData('weight', text ? parseInt(text, 10) : null)
           }
-          placeholder={`e.g., ${data.weightUnit === "kg" ? "70" : "154"}`}
+          placeholder={`e.g., ${data.weightUnit === 'kg' ? '70' : '154'}`}
           placeholderTextColor="#666"
           keyboardType="numeric"
         />
@@ -263,9 +261,9 @@ export default function Step1PersonalInfo({
         <Text style={styles.label}>Body Fat % (Optional)</Text>
         <TextInput
           style={[styles.input, errors.bodyFat && styles.inputError]}
-          value={data.bodyFatPct?.toString() || ""}
-          onChangeText={(text) =>
-            updateData("bodyFatPct", text ? parseInt(text, 10) : null)
+          value={data.bodyFatPct?.toString() || ''}
+          onChangeText={text =>
+            updateData('bodyFatPct', text ? parseInt(text, 10) : null)
           }
           placeholder="e.g., 15"
           placeholderTextColor="#666"
@@ -290,7 +288,7 @@ export default function Step1PersonalInfo({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: '#000',
   },
   content: {
     padding: 20,
@@ -298,13 +296,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: "#888",
+    color: '#888',
     marginBottom: 32,
   },
   section: {
@@ -312,66 +310,66 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#fff",
+    fontWeight: '600',
+    color: '#fff',
     marginBottom: 8,
   },
   input: {
-    backgroundColor: "#1a1a1a",
+    backgroundColor: '#1a1a1a',
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: '#333',
     borderRadius: 8,
     padding: 16,
     fontSize: 16,
-    color: "#fff",
+    color: '#fff',
   },
   inputError: {
-    borderColor: "#EF4444",
+    borderColor: '#EF4444',
   },
   errorText: {
-    color: "#EF4444",
+    color: '#EF4444',
     fontSize: 12,
     marginTop: 4,
   },
   rowHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
   },
   unitToggle: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   unitText: {
-    color: "#666",
+    color: '#666',
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   unitTextActive: {
-    color: "#10B981",
+    color: '#10B981',
   },
   row: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
   },
   halfInput: {
     flex: 1,
   },
   nextButton: {
-    backgroundColor: "#10B981",
+    backgroundColor: '#10B981',
     padding: 16,
     borderRadius: 8,
-    alignItems: "center",
+    alignItems: 'center',
     marginTop: 16,
   },
   nextButtonDisabled: {
     opacity: 0.5,
   },
   nextButtonText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
 });

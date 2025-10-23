@@ -13,7 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Slider from '@react-native-community/slider';
+import { Slider } from '@miblanchard/react-native-slider';
 import { PanGestureHandler, PinchGestureHandler, State } from 'react-native-gesture-handler';
 import { useAuth } from '../../app/_contexts/auth-context';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
@@ -284,14 +284,15 @@ export const PhotoComparisonDialog = ({
 
           <View style={styles.sliderContainer}>
             <Slider
-              style={styles.slider}
+              containerStyle={styles.slider}
               minimumValue={0}
               maximumValue={100}
               value={sliderValue}
-              onValueChange={(value) => setSliderValue(Math.round(value))}
+              onValueChange={(value: number | number[]) => setSliderValue(Array.isArray(value) ? value[0] : value)}
               minimumTrackTintColor={Colors.primary}
               maximumTrackTintColor={Colors.muted}
               thumbTintColor={Colors.primary}
+              step={1}
             />
             <View style={styles.sliderLabels}>
               <Text style={[styles.sliderLabel, TextStyles.small]}>

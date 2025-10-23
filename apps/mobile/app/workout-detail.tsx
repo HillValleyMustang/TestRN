@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,13 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-} from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useAuth } from "./_contexts/auth-context";
-import { useData } from "./_contexts/data-context";
-import type { WorkoutSession, SetLog } from "@data/storage/models";
-import { getExerciseById } from "@data/exercises";
-import { formatWeight } from "@data/utils/unit-conversions";
+} from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useAuth } from './_contexts/auth-context';
+import { useData } from './_contexts/data-context';
+import type { WorkoutSession, SetLog } from '@data/storage/models';
+import { getExerciseById } from '@data/exercises';
+import { formatWeight } from '@data/utils/unit-conversions';
 
 export default function WorkoutDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -30,7 +30,7 @@ export default function WorkoutDetailScreen() {
 
     try {
       const allSessions = await getWorkoutSessions(userId);
-      const foundSession = allSessions.find((s) => s.id === id);
+      const foundSession = allSessions.find(s => s.id === id);
 
       if (foundSession) {
         setSession(foundSession);
@@ -38,8 +38,8 @@ export default function WorkoutDetailScreen() {
         setSets(setLogs);
       }
     } catch (error) {
-      console.error("Failed to load workout detail:", error);
-      Alert.alert("Error", "Failed to load workout details");
+      console.error('Failed to load workout detail:', error);
+      Alert.alert('Error', 'Failed to load workout details');
     } finally {
       setLoading(false);
     }
@@ -80,14 +80,14 @@ export default function WorkoutDetailScreen() {
       acc[set.exercise_id].push(set);
       return acc;
     },
-    {} as Record<string, SetLog[]>,
+    {} as Record<string, SetLog[]>
   );
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>
-          {session.template_name || "Unnamed Workout"}
+          {session.template_name || 'Unnamed Workout'}
         </Text>
         <Text style={styles.date}>
           {date.toLocaleDateString()} at {date.toLocaleTimeString()}
@@ -99,7 +99,7 @@ export default function WorkoutDetailScreen() {
         )}
         {session.rating && (
           <Text style={styles.rating}>
-            Rating: {"⭐".repeat(session.rating)}
+            Rating: {'⭐'.repeat(session.rating)}
           </Text>
         )}
       </View>
@@ -136,11 +136,11 @@ export default function WorkoutDetailScreen() {
                     </Text>
                     <Text style={[styles.tableText, styles.weightCol]}>
                       {set.weight_kg
-                        ? `${formatWeight(set.weight_kg, "kg")} kg`
-                        : "-"}
+                        ? `${formatWeight(set.weight_kg, 'kg')} kg`
+                        : '-'}
                     </Text>
                     <Text style={[styles.tableText, styles.repsCol]}>
-                      {set.reps || "-"}
+                      {set.reps || '-'}
                     </Text>
                   </View>
                 ))}
@@ -162,57 +162,57 @@ export default function WorkoutDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: '#000',
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#000",
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
   },
   loadingText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 18,
   },
   errorText: {
-    color: "#f00",
+    color: '#f00',
     fontSize: 18,
     marginBottom: 16,
   },
   backButton: {
-    backgroundColor: "#333",
+    backgroundColor: '#333',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
   },
   backButtonText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 16,
   },
   header: {
     padding: 20,
-    backgroundColor: "#111",
+    backgroundColor: '#111',
     borderBottomWidth: 1,
-    borderBottomColor: "#333",
+    borderBottomColor: '#333',
   },
   title: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 24,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     marginBottom: 8,
   },
   date: {
-    color: "#888",
+    color: '#888',
     fontSize: 14,
     marginBottom: 4,
   },
   duration: {
-    color: "#0a0",
+    color: '#0a0',
     fontSize: 14,
     marginTop: 4,
   },
   rating: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 16,
     marginTop: 8,
   },
@@ -220,52 +220,52 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   sectionTitle: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 20,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     marginBottom: 16,
   },
   exerciseCard: {
-    backgroundColor: "#111",
+    backgroundColor: '#111',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: '#333',
   },
   exerciseName: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     marginBottom: 4,
   },
   exerciseCategory: {
-    color: "#0a0",
+    color: '#0a0',
     fontSize: 14,
     marginBottom: 12,
-    textTransform: "capitalize",
+    textTransform: 'capitalize',
   },
   setsTable: {
     marginTop: 8,
   },
   tableHeader: {
-    flexDirection: "row",
+    flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: "#333",
+    borderBottomColor: '#333',
     paddingBottom: 8,
     marginBottom: 8,
   },
   tableHeaderText: {
-    color: "#888",
+    color: '#888',
     fontSize: 14,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   tableRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     paddingVertical: 6,
   },
   tableText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 16,
   },
   setCol: {
@@ -276,14 +276,14 @@ const styles = StyleSheet.create({
   },
   repsCol: {
     width: 60,
-    textAlign: "right",
+    textAlign: 'right',
   },
   emptyState: {
     padding: 32,
-    alignItems: "center",
+    alignItems: 'center',
   },
   emptyText: {
-    color: "#888",
+    color: '#888',
     fontSize: 16,
   },
 });

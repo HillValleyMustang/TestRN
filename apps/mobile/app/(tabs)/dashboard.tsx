@@ -4,16 +4,16 @@
  * Reference: MOBILE_SPEC_02_DASHBOARD.md
  */
 
-import React, { useCallback, useState, useEffect, useRef } from "react";
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import {
   View,
   ScrollView,
   RefreshControl,
   StyleSheet,
   Animated,
-} from "react-native";
-import { useFocusEffect, useRouter } from "expo-router";
-import { useAuth } from "../_contexts/auth-context";
+} from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useAuth } from '../_contexts/auth-context';
 import {
   useData,
   type DashboardProfile,
@@ -21,10 +21,10 @@ import {
   type DashboardVolumePoint,
   type DashboardWeeklySummary,
   type DashboardWorkoutSummary,
-} from "../_contexts/data-context";
-import type { Gym } from "@data/storage/models";
-import { Colors, Spacing } from "../../constants/Theme";
-import { BackgroundRoot } from "../../components/BackgroundRoot";
+} from '../_contexts/data-context';
+import type { Gym } from '@data/storage/models';
+import { Colors, Spacing } from '../../constants/Theme';
+import { BackgroundRoot } from '../../components/BackgroundRoot';
 import {
   WelcomeHeader,
   WeeklyTargetWidget,
@@ -35,7 +35,7 @@ import {
   SimpleVolumeChart,
   PreviousWorkoutsWidget,
   SyncStatusBanner,
-} from "../../components/dashboard";
+} from '../../components/dashboard';
 
 export default function DashboardScreen() {
   const { session, userId, loading: authLoading } = useAuth();
@@ -44,7 +44,7 @@ export default function DashboardScreen() {
 
   useEffect(() => {
     if (!authLoading && !session) {
-      router.replace("/login");
+      router.replace('/login');
     }
   }, [session, authLoading, router]);
 
@@ -57,7 +57,7 @@ export default function DashboardScreen() {
   const [weeklySummary, setWeeklySummary] = useState<DashboardWeeklySummary>({
     completed_workouts: [],
     goal_total: 3,
-    programme_type: "ppl",
+    programme_type: 'ppl',
   });
   const [activeGym, setActiveGym] = useState<Gym | null>(null);
   const [activeTPath, setActiveTPath] = useState<DashboardProgram | null>(null);
@@ -133,7 +133,7 @@ export default function DashboardScreen() {
       setRecentWorkouts(snapshot.recentWorkouts);
       setNextWorkout(snapshot.nextWorkout);
     } catch (error) {
-      console.error("[Dashboard] Failed to load data", error);
+      console.error('[Dashboard] Failed to load data', error);
     } finally {
       if (isInitialLoad) {
         setLoading(false);
@@ -145,7 +145,7 @@ export default function DashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchDashboardData();
-    }, [fetchDashboardData]),
+    }, [fetchDashboardData])
   );
 
   const onRefresh = useCallback(async () => {
@@ -162,16 +162,16 @@ export default function DashboardScreen() {
     userProfile?.first_name ||
     session?.user?.user_metadata?.full_name ||
     session?.user?.user_metadata?.first_name ||
-    session?.user?.email?.split("@")[0] ||
-    "Athlete";
+    session?.user?.email?.split('@')[0] ||
+    'Athlete';
 
   const accountCreatedAt = session?.user?.created_at;
 
   const handleViewSummary = useCallback(
     (sessionId: string) => {
-      router.push({ pathname: "/workout-detail", params: { id: sessionId } });
+      router.push({ pathname: '/workout-detail', params: { id: sessionId } });
     },
-    [router],
+    [router]
   );
 
   // Component animation wrappers
@@ -224,7 +224,7 @@ export default function DashboardScreen() {
             completedWorkouts={weeklySummary.completed_workouts}
             goalTotal={weeklySummary.goal_total}
             programmeType={weeklySummary.programme_type}
-            onViewCalendar={() => router.push("/history")}
+            onViewCalendar={() => router.push('/history')}
             onViewWorkoutSummary={handleViewSummary}
             loading={loading}
           />
@@ -233,10 +233,10 @@ export default function DashboardScreen() {
         {/* 3. Action Hub - 0.2s */}
         <AnimatedView index={2}>
           <ActionHubWidget
-            onLogActivity={() => console.log("Log activity")}
-            onAICoach={() => console.log("AI Coach")}
-            onWorkoutLog={() => console.log("Workout log")}
-            onConsistencyCalendar={() => console.log("Consistency calendar")}
+            onLogActivity={() => console.log('Log activity')}
+            onAICoach={() => console.log('AI Coach')}
+            onWorkoutLog={() => console.log('Workout log')}
+            onConsistencyCalendar={() => console.log('Consistency calendar')}
           />
         </AnimatedView>
 
@@ -251,7 +251,7 @@ export default function DashboardScreen() {
             workoutId={nextWorkout?.id}
             workoutName={nextWorkout?.template_name}
             estimatedDuration={
-              userProfile?.preferred_session_length || "45 minutes"
+              userProfile?.preferred_session_length || '45 minutes'
             }
             loading={loading}
             noActiveGym={!activeGym}
@@ -276,10 +276,10 @@ export default function DashboardScreen() {
         {/* 8. Previous Workouts - 0.7s */}
         <AnimatedView index={7}>
           <PreviousWorkoutsWidget
-            workouts={recentWorkouts.map((workout) => ({
+            workouts={recentWorkouts.map(workout => ({
               id: workout.id,
               sessionId: workout.id,
-              template_name: workout.template_name || "Ad Hoc Workout",
+              template_name: workout.template_name || 'Ad Hoc Workout',
               completed_at: workout.completed_at || workout.session_date,
               exercise_count: workout.exercise_count,
               duration_string: workout.duration_string ?? undefined,
