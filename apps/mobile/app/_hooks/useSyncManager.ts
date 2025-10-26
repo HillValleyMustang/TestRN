@@ -76,7 +76,7 @@ export const useMobileSyncManager = () => {
     () => ({
       isOnline,
       isDatabaseReady,
-      ...processor,
+      ...(isDatabaseReady ? processor : { isSyncing: false, queueLength: 0, lastError: null }),
     }),
     [isOnline, isDatabaseReady, processor]
   );

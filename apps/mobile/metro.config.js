@@ -6,9 +6,6 @@ const workspaceRoot = path.resolve(projectRoot, '../..');
 
 const config = getDefaultConfig(projectRoot);
 
-// Watch the workspace root for changes
-config.watchFolders = [workspaceRoot];
-
 // Resolve modules from both project and workspace node_modules
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),

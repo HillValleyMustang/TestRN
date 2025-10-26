@@ -21,11 +21,4 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     package: 'com.myfitnesstrainer.mobile',
   },
   plugins: ['expo-router', 'expo-font'],
-  fonts: [
-    'Poppins_300Light',
-    'Poppins_400Regular',
-    'Poppins_500Medium',
-    'Poppins_600SemiBold',
-    'Poppins_700Bold',
-  ],
 });

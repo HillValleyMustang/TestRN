@@ -6,8 +6,10 @@ import React, {
   useMemo,
   useCallback,
 } from 'react';
+import { View } from 'react-native';
 import { database } from '../_lib/database';
 import { useAuth } from './auth-context';
+import { Skeleton } from '../_components/ui/Skeleton';
 
 type UnitSystem = 'metric' | 'imperial';
 type Theme = 'dark' | 'light';
@@ -36,18 +38,26 @@ const PreferencesProviderInner = ({
   const [loading, setLoading] = useState(true);
   const [isDbReady, setIsDbReady] = useState(false);
 
+  // Database initialization is now handled by DataProvider
+  // Just wait for database to be ready
   useEffect(() => {
-    database
-      .init()
-      .then(() => setIsDbReady(true))
-      .catch(err => {
-        console.error(
-          'Failed to initialize database in PreferencesProvider:',
-          err
-        );
+    const checkDbReady = async () => {
+      try {
+        // Simple check if database is initialized
+        await database.getUserPreferences(userId || 'dummy');
         setIsDbReady(true);
-      });
-  }, []);
+      } catch (err) {
+        // If it fails, database might not be ready yet
+        setTimeout(checkDbReady, 100);
+      }
+    };
+
+    if (userId) {
+      checkDbReady();
+    } else {
+      setIsDbReady(true); // No user, no need for DB
+    }
+  }, [userId]);
 
   useEffect(() => {
     const loadPreferences = async () => {
@@ -119,6 +129,15 @@ const PreferencesProviderInner = ({
     }),
     [loading, setTheme, setUnitSystem, theme, unitSystem]
   );
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Skeleton height={40} width={200} />
+        <Skeleton height={20} width={150} style={{ marginTop: 10 }} />
+      </View>
+    );
+  }
 
   return (
     <PreferencesContext.Provider value={value}>

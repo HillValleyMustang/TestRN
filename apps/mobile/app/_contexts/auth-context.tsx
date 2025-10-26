@@ -6,7 +6,9 @@ import React, {
   useMemo,
 } from 'react';
 import { Session, SupabaseClient } from '@supabase/supabase-js';
+import { View } from 'react-native';
 import { supabase } from '@data/supabase/client-mobile';
+import { Skeleton } from '../_components/ui/Skeleton';
 
 interface AuthContextType {
   session: Session | null;
@@ -47,6 +49,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Skeleton height={40} width={200} />
+        <Skeleton height={20} width={150} style={{ marginTop: 10 }} />
+      </View>
+    );
+  }
 
   return (
     <AuthContext.Provider value={{ session, supabase, userId, loading }}>

@@ -185,18 +185,15 @@ export const PhotoLightboxDialog: React.FC<PhotoLightboxDialogProps> = ({
     }
   }, [zoomScale, resetZoom]);
 
-  // Index change -> reset gestures
-  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
-    if (viewableItems?.length > 0) {
-      const newIdx = viewableItems[0].index ?? 0;
-      if (newIdx !== currentIndex) {
-        setCurrentIndex(newIdx);
-        resetZoom();
-      }
+  // Handle scroll end to update current index
+  const onMomentumScrollEnd = useCallback((event: any) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const newIndex = Math.round(offsetX / SCREEN_WIDTH);
+    if (newIndex !== currentIndex && newIndex >= 0 && newIndex < photos.length) {
+      setCurrentIndex(newIndex);
+      resetZoom();
     }
-  });
-
-  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 });
+  }, [currentIndex, photos.length, resetZoom]);
 
   const formatDate = useCallback((s: string) => {
     return new Date(s).toLocaleDateString(undefined, {
@@ -209,54 +206,77 @@ export const PhotoLightboxDialog: React.FC<PhotoLightboxDialogProps> = ({
 
     return (
       <View style={styles.slide}>
-        <TapGestureHandler ref={doubleTapRef} numberOfTaps={2} onActivated={onDoubleTapActivated}>
-          <View style={styles.gestureWrap}>
-            <PinchGestureHandler
-              ref={pinchRef}
-              simultaneousHandlers={[panRef, doubleTapRef]}
-              onGestureEvent={onPinchGestureEvent}
-              onHandlerStateChange={onPinchHandlerStateChange}
-            >
-              <PanGestureHandler
-                ref={panRef}
-                simultaneousHandlers={[pinchRef, doubleTapRef]}
-                onGestureEvent={onPanGestureEvent}
-                onHandlerStateChange={onPanHandlerStateChange}
-                minPointers={1}
-                maxPointers={1}
+        <View style={styles.gestureWrap}>
+          <TapGestureHandler ref={doubleTapRef} numberOfTaps={2} onActivated={onDoubleTapActivated}>
+            <View style={styles.gestureContainer}>
+              <PinchGestureHandler
+                ref={pinchRef}
+                simultaneousHandlers={[panRef, doubleTapRef]}
+                onGestureEvent={onPinchGestureEvent}
+                onHandlerStateChange={onPinchHandlerStateChange}
               >
-                <View style={styles.imageBox}>
-                  {loading && !uri ? (
-                    <View style={styles.loading}><ActivityIndicator size="large" color={Colors.primary} /></View>
-                  ) : uri ? (
-                    <Image
-                      source={{ uri }}
-                      style={[styles.image, {
-                        transform: [
-                          { scale: zoomScale },
-                          { translateX: panOffset.x },
-                          { translateY: panOffset.y },
-                        ],
-                      }]}
-                      resizeMode="contain"
-                      onError={() => console.log('[PhotoLightboxDialog] Image failed')}
-                    />
-                  ) : (
-                    <View style={styles.error}> 
-                      <Ionicons name="image-outline" size={64} color={Colors.mutedForeground} />
-                      <Text style={styles.errorText}>Failed to load photo</Text>
-                    </View>
-                  )}
-                </View>
-              </PanGestureHandler>
-            </PinchGestureHandler>
-          </View>
-        </TapGestureHandler>
-
-        <View style={styles.info}> 
-          <Text style={styles.dateText}>{formatDate(item.created_at)}</Text>
-          {!!item.notes && <Text style={styles.notes}>{item.notes}</Text>}
+                <PanGestureHandler
+                  ref={panRef}
+                  simultaneousHandlers={[pinchRef, doubleTapRef]}
+                  onGestureEvent={onPanGestureEvent}
+                  onHandlerStateChange={onPanHandlerStateChange}
+                  minPointers={1}
+                  maxPointers={1}
+                >
+                  <View style={styles.imageBox}>
+                    {loading && !uri ? (
+                      <View style={styles.loading}><ActivityIndicator size="large" color={Colors.primary} /></View>
+                    ) : uri ? (
+                      <Image
+                        source={{ uri }}
+                        style={[styles.image, {
+                          transform: [
+                            { scale: zoomScale },
+                            { translateX: panOffset.x },
+                            { translateY: panOffset.y },
+                          ],
+                        }]}
+                        resizeMode="contain"
+                        onError={() => console.log('[PhotoLightboxDialog] Image failed')}
+                      />
+                    ) : (
+                      <View style={styles.error}>
+                        <Ionicons name="image-outline" size={64} color={Colors.mutedForeground} />
+                        <Text style={styles.errorText}>Failed to load photo</Text>
+                      </View>
+                    )}
+                  </View>
+                </PanGestureHandler>
+              </PinchGestureHandler>
+            </View>
+          </TapGestureHandler>
         </View>
+
+        <View style={styles.info}>
+           <Text style={styles.dateText}>{formatDate(item.created_at)}</Text>
+           {!!item.notes && <Text style={styles.notes}>{item.notes}</Text>}
+
+           {/* Page dots indicator - positioned under date/notes */}
+           {photos.length > 1 && (
+             <View style={styles.pageDots}>
+               {photos.map((_, index) => (
+                 <TouchableOpacity
+                   key={index}
+                   style={[
+                     styles.pageDot,
+                     index === currentIndex && styles.pageDotActive,
+                   ]}
+                   onPress={() => {
+                     flatListRef.current?.scrollToIndex({
+                       index,
+                       animated: true,
+                     });
+                   }}
+                 />
+               ))}
+             </View>
+           )}
+         </View>
       </View>
     );
   }, [imageUrls, loading, onDoubleTapActivated, onPanGestureEvent, onPanHandlerStateChange, onPinchGestureEvent, onPinchHandlerStateChange, formatDate, panOffset.x, panOffset.y, zoomScale]);
@@ -279,6 +299,7 @@ export const PhotoLightboxDialog: React.FC<PhotoLightboxDialogProps> = ({
           </TouchableOpacity>
         </View>
 
+
         {/* Photo pager */}
         <FlatList
           ref={flatListRef}
@@ -288,12 +309,14 @@ export const PhotoLightboxDialog: React.FC<PhotoLightboxDialogProps> = ({
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
-          onViewableItemsChanged={onViewableItemsChanged.current}
-          viewabilityConfig={viewabilityConfig.current}
+          onMomentumScrollEnd={onMomentumScrollEnd}
           initialScrollIndex={initialPhotoIndex}
           getItemLayout={(_, index) => ({ length: SCREEN_WIDTH, offset: SCREEN_WIDTH * index, index })}
-          // Critical: when zoomed, lock list scrolling so pan can move the photo
+          // Allow swiping from anywhere on the card, but lock when zoomed for pan gestures
           scrollEnabled={zoomScale === 1}
+          decelerationRate="fast"
+          snapToInterval={SCREEN_WIDTH}
+          snapToAlignment="start"
         />
 
         {/* Zoom helper when >1x */}
@@ -334,13 +357,17 @@ const styles = StyleSheet.create({
   slide: {
     width: SCREEN_WIDTH,
     padding: Spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   gestureWrap: {
     width: '100%',
   },
   imageBox: {
-    width: '100%', aspectRatio: 1, backgroundColor: Colors.muted,
+    width: SCREEN_WIDTH, aspectRatio: 1, backgroundColor: Colors.muted,
     borderRadius: BorderRadius.md, overflow: 'hidden', justifyContent: 'center', alignItems: 'center',
+    marginHorizontal: -Spacing.lg, // Extend beyond slide padding
+    paddingHorizontal: Spacing.sm, // Further reduce padding to shift image more right
   },
   image: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -358,6 +385,30 @@ const styles = StyleSheet.create({
   },
   zoomButton: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs },
   zoomButtonText: { color: Colors.primary, fontWeight: '600' },
+  pageDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.sm,
+    padding: Spacing.sm,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: BorderRadius.md,
+    minWidth: 60,
+  },
+  pageDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+  },
+  pageDotActive: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    width: 12,
+    height: 8,
+    borderRadius: 4,
+  },
 });
 
 export default PhotoLightboxDialog;

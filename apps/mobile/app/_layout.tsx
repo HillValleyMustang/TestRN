@@ -17,10 +17,10 @@ import { FONT_FAMILY } from '../constants/Typography';
 import { AuthProvider } from './_contexts/auth-context';
 import { DataProvider } from './_contexts/data-context';
 import { PreferencesProvider } from './_contexts/preferences-context';
-import { SyncManagerInitializer } from './_components/SyncManagerInitializer';
 import { WorkoutFlowProvider } from './_contexts/workout-flow-context';
 import { UnsavedChangesModal } from './_components/workout/UnsavedChangesModal';
 import Toast from 'react-native-toast-message';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 export default function RootLayout() {
   // Load Poppins fonts - matches FONT_FAMILY constant in Typography.ts
@@ -74,162 +74,163 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <AuthProvider>
-          <PreferencesProvider>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <AuthProvider>
             <DataProvider>
-              <WorkoutFlowProvider>
-                <StatusBar style="light" />
-                <SyncManagerInitializer />
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen
-                    name="(tabs)"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="login"
-                    options={{ headerShown: false, presentation: 'modal' }}
-                  />
-                  <Stack.Screen
-                    name="history"
-                    options={{ headerShown: true, title: 'Workout History' }}
-                  />
-                  <Stack.Screen
-                    name="workout-detail"
-                    options={{ headerShown: true, title: 'Workout Details' }}
-                  />
-                  <Stack.Screen
-                    name="exercise-picker"
-                    options={{ headerShown: true, title: 'Select Exercise' }}
-                  />
-                  <Stack.Screen
-                    name="templates"
-                    options={{ headerShown: true, title: 'Templates' }}
-                  />
-                  <Stack.Screen
-                    name="measurements"
-                    options={{ headerShown: true, title: 'Body Measurements' }}
-                  />
-                  <Stack.Screen
-                    name="measurements-history"
-                    options={{
-                      headerShown: true,
-                      title: 'Measurements History',
-                    }}
-                  />
-                  <Stack.Screen
-                    name="gyms"
-                    options={{ headerShown: true, title: 'My Gyms' }}
-                  />
-                  <Stack.Screen
-                    name="goals-list"
-                    options={{ headerShown: true, title: 'Goals' }}
-                  />
-                  <Stack.Screen
-                    name="create-goal"
-                    options={{ headerShown: true, title: 'Create Goal' }}
-                  />
-                  <Stack.Screen
-                    name="gym-photo-analyzer"
-                    options={{ headerShown: true, title: 'Analyze Gym' }}
-                  />
-                  <Stack.Screen
-                    name="ai-program-generator"
-                    options={{
-                      headerShown: true,
-                      title: 'AI Program Generator',
-                    }}
-                  />
-                </Stack>
-                <UnsavedChangesModal />
-                <Toast
-                  config={{
-                    success: props => (
-                      <View
-                        style={{
-                          backgroundColor: '#10B981',
-                          borderRadius: 12,
-                          paddingHorizontal: 16,
-                          paddingVertical: 12,
-                          marginHorizontal: 16,
-                          shadowColor: '#000',
-                          shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: 0.25,
-                          shadowRadius: 4,
-                          elevation: 5,
-                        }}
-                      >
-                        <Text
+              <PreferencesProvider>
+                <WorkoutFlowProvider>
+                  <StatusBar style="light" />
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen
+                      name="(tabs)"
+                      options={{ headerShown: false }}
+                    />
+                    <Stack.Screen
+                      name="login"
+                      options={{ headerShown: false, presentation: 'modal' }}
+                    />
+                    <Stack.Screen
+                      name="history"
+                      options={{ headerShown: true, title: 'Workout History' }}
+                    />
+                    <Stack.Screen
+                      name="workout-detail"
+                      options={{ headerShown: true, title: 'Workout Details' }}
+                    />
+                    <Stack.Screen
+                      name="exercise-picker"
+                      options={{ headerShown: true, title: 'Select Exercise' }}
+                    />
+                    <Stack.Screen
+                      name="templates"
+                      options={{ headerShown: true, title: 'Templates' }}
+                    />
+                    <Stack.Screen
+                      name="measurements"
+                      options={{ headerShown: true, title: 'Body Measurements' }}
+                    />
+                    <Stack.Screen
+                      name="measurements-history"
+                      options={{
+                        headerShown: true,
+                        title: 'Measurements History',
+                      }}
+                    />
+                    <Stack.Screen
+                      name="gyms"
+                      options={{ headerShown: true, title: 'My Gyms' }}
+                    />
+                    <Stack.Screen
+                      name="goals-list"
+                      options={{ headerShown: true, title: 'Goals' }}
+                    />
+                    <Stack.Screen
+                      name="create-goal"
+                      options={{ headerShown: true, title: 'Create Goal' }}
+                    />
+                    <Stack.Screen
+                      name="gym-photo-analyzer"
+                      options={{ headerShown: true, title: 'Analyze Gym' }}
+                    />
+                    <Stack.Screen
+                      name="ai-program-generator"
+                      options={{
+                        headerShown: true,
+                        title: 'AI Program Generator',
+                      }}
+                    />
+                  </Stack>
+                  <UnsavedChangesModal />
+                  <Toast
+                    config={{
+                      success: props => (
+                        <View
                           style={{
-                            color: '#FFFFFF',
-                            fontFamily: 'Poppins_500Medium',
-                            fontSize: 14,
-                            fontWeight: '500',
+                            backgroundColor: '#10B981',
+                            borderRadius: 12,
+                            paddingHorizontal: 16,
+                            paddingVertical: 12,
+                            marginHorizontal: 16,
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.25,
+                            shadowRadius: 4,
+                            elevation: 5,
                           }}
                         >
-                          {props.text1}
-                        </Text>
-                        {props.text2 && (
                           <Text
                             style={{
                               color: '#FFFFFF',
-                              fontFamily: 'Poppins_400Regular',
-                              fontSize: 12,
-                              marginTop: 2,
+                              fontFamily: 'Poppins_500Medium',
+                              fontSize: 14,
+                              fontWeight: '500',
                             }}
                           >
-                            {props.text2}
+                            {props.text1}
                           </Text>
-                        )}
-                      </View>
-                    ),
-                    info: props => (
-                      <View
-                        style={{
-                          backgroundColor: '#3B82F6',
-                          borderRadius: 12,
-                          paddingHorizontal: 16,
-                          paddingVertical: 12,
-                          marginHorizontal: 16,
-                          shadowColor: '#000',
-                          shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: 0.25,
-                          shadowRadius: 4,
-                          elevation: 5,
-                        }}
-                      >
-                        <Text
+                          {props.text2 && (
+                            <Text
+                              style={{
+                                color: '#FFFFFF',
+                                fontFamily: 'Poppins_400Regular',
+                                fontSize: 12,
+                                marginTop: 2,
+                              }}
+                            >
+                              {props.text2}
+                            </Text>
+                          )}
+                        </View>
+                      ),
+                      info: props => (
+                        <View
                           style={{
-                            color: '#FFFFFF',
-                            fontFamily: 'Poppins_500Medium',
-                            fontSize: 14,
-                            fontWeight: '500',
+                            backgroundColor: '#3B82F6',
+                            borderRadius: 12,
+                            paddingHorizontal: 16,
+                            paddingVertical: 12,
+                            marginHorizontal: 16,
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.25,
+                            shadowRadius: 4,
+                            elevation: 5,
                           }}
                         >
-                          {props.text1}
-                        </Text>
-                        {props.text2 && (
                           <Text
                             style={{
                               color: '#FFFFFF',
-                              fontFamily: 'Poppins_400Regular',
-                              fontSize: 12,
-                              marginTop: 2,
+                              fontFamily: 'Poppins_500Medium',
+                              fontSize: 14,
+                              fontWeight: '500',
                             }}
                           >
-                            {props.text2}
+                            {props.text1}
                           </Text>
-                        )}
-                      </View>
-                    ),
-                  }}
-                />
-              </WorkoutFlowProvider>
+                          {props.text2 && (
+                            <Text
+                              style={{
+                                color: '#FFFFFF',
+                                fontFamily: 'Poppins_400Regular',
+                                fontSize: 12,
+                                marginTop: 2,
+                              }}
+                            >
+                              {props.text2}
+                            </Text>
+                          )}
+                        </View>
+                      ),
+                    }}
+                  />
+                </WorkoutFlowProvider>
+              </PreferencesProvider>
             </DataProvider>
-          </PreferencesProvider>
-        </AuthProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+          </AuthProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }

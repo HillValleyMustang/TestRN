@@ -6,9 +6,11 @@ import React, {
   useMemo,
   useCallback,
 } from 'react';
+import { AppState, View } from 'react-native';
 import { database, addToSyncQueue } from '../_lib/database';
 import { useSyncQueueProcessor } from '@data/hooks/use-sync-queue-processor';
 import { useAuth } from './auth-context';
+import { Skeleton } from '../_components/ui/Skeleton';
 import type {
   WorkoutSession,
   SetLog,
@@ -254,19 +256,46 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const { supabase, userId } = useAuth();
   const [isInitialized, setIsInitialized] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const [runtimeReady, setRuntimeReady] = useState(false);
+  const [appMounted, setAppMounted] = useState(false);
   const [profileCache, setProfileCache] = useState<DashboardProfile | null>(
     null
   );
 
   useEffect(() => {
-    database.init().then(() => setIsInitialized(true));
+    setAppMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (runtimeReady && appMounted) {
+      database.init().then(() => setIsInitialized(true));
+    }
+  }, [runtimeReady, appMounted]);
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
       setIsOnline(state.isConnected ?? false);
     });
     return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: string) => {
+      if (nextAppState === 'active') {
+        setRuntimeReady(true);
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    // Check initial state
+    if (AppState.currentState === 'active') {
+      setRuntimeReady(true);
+    }
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   const { isSyncing, queueLength } = useSyncQueueProcessor({
@@ -1006,7 +1035,12 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   );
 
   if (!isInitialized) {
-    return null;
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Skeleton height={40} width={200} />
+        <Skeleton height={20} width={150} style={{ marginTop: 10 }} />
+      </View>
+    );
   }
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
