@@ -1,10 +1,9 @@
 /**
- * PhotoLightboxDialog — rewritten
+ * PhotoLightboxDialog — rewritten for Expo Go compatibility
  * Lightbox modal for timeline photos with:
- *  - Pinch-to-zoom (clamped 1x..3x)
- *  - Pan with bounds when zoomed
- *  - Swipe left/right between photos (FlatList paging)
  *  - Double-tap to toggle zoom (1x/2x)
+ *  - Pan with bounds when zoomed (using PanResponder)
+ *  - Swipe left/right between photos (FlatList paging)
  *  - Uploaded date display
  *  - Close button
  *  - Lazy signed-URL fetch with neighbor prefetch
@@ -21,14 +20,11 @@ import {
   FlatList,
   Dimensions,
   Alert,
+  Animated,
+  PanResponder,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import {
-  PanGestureHandler,
-  PinchGestureHandler,
-  TapGestureHandler,
-  State,
-} from 'react-native-gesture-handler';
 import { useAuth } from '../../app/_contexts/auth-context';
 import { createSignedUrl } from '../../lib/imageUtils';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
@@ -72,24 +68,36 @@ export const PhotoLightboxDialog: React.FC<PhotoLightboxDialogProps> = ({
   const [imageUrls, setImageUrls] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(false);
 
-  // Zoom / pan state
+  // Zoom / pan state - simplified for Animated
   const [zoomScale, setZoomScale] = useState(1);
   const [baseScale, setBaseScale] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
-  const [lastOffset, setLastOffset] = useState({ x: 0, y: 0 });
 
   // Refs
   const flatListRef = useRef<FlatList<ProgressPhoto>>(null);
-  const pinchRef = useRef<any>(null);
-  const panRef = useRef<any>(null);
-  const doubleTapRef = useRef<any>(null);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const panAnim = useRef(new Animated.ValueXY({x:0, y:0})).current;
+  const lastTapRef = useRef(0);
+  const panOffsetRef = useRef({x: 0, y: 0});
 
   // Reset zoom/pan
   const resetZoom = useCallback(() => {
     setZoomScale(1);
     setBaseScale(1);
     setPanOffset({ x: 0, y: 0 });
-    setLastOffset({ x: 0, y: 0 });
+    panOffsetRef.current = {x: 0, y: 0};
+    Animated.parallel([
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(panAnim, {
+        toValue: {x: 0, y: 0},
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, []);
 
   // Fetch helpers (lazy + neighbor prefetch)
@@ -134,56 +142,62 @@ export const PhotoLightboxDialog: React.FC<PhotoLightboxDialogProps> = ({
       .finally(() => setLoading(false));
   }, [visible, currentIndex, photos, ensureUrl]);
 
-  // Gesture handlers
-  const onPinchGestureEvent = useCallback((e: any) => {
-    const newScale = clamp(baseScale * e.nativeEvent.scale, SCALE_MIN, SCALE_MAX);
-    setZoomScale(newScale);
-  }, [baseScale]);
+  // PanResponder for gestures - Expo Go compatible
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => zoomScale > 1, // Only respond when zoomed
+      onMoveShouldSetPanResponder: () => zoomScale > 1,
+      onPanResponderGrant: () => {
+        // Start gesture
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        if (zoomScale <= 1) return; // let FlatList handle swipes
 
-  const onPinchHandlerStateChange = useCallback((e: any) => {
-    if (e.nativeEvent.state === State.END) {
-      const finalScale = clamp(baseScale * e.nativeEvent.scale, SCALE_MIN, SCALE_MAX);
-      setBaseScale(finalScale);
-      setZoomScale(finalScale);
-      // If we zoomed back to 1, snap pan back
-      if (finalScale === 1) {
+        // Compute max pan based on container size and scale.
+        const containerW = SCREEN_WIDTH;
+        const containerH = SCREEN_WIDTH; // square container
+        const maxX = ((containerW * zoomScale) - containerW) / 2;
+        const maxY = ((containerH * zoomScale) - containerH) / 2;
+
+        const x = clamp(panOffsetRef.current.x + gestureState.dx, -maxX, maxX);
+        const y = clamp(panOffsetRef.current.y + gestureState.dy, -maxY, maxY);
+        panAnim.setValue({x, y});
+      },
+      onPanResponderRelease: () => {
+        // Commit pan offset
+        panOffsetRef.current = {x: panAnim.x._value, y: panAnim.y._value};
+        setPanOffset(panOffsetRef.current);
+      },
+    })
+  ).current;
+
+  const handlePress = useCallback(() => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 250) {
+      if (zoomScale > 1) {
+        resetZoom();
+      } else {
+        setZoomScale(2);
+        setBaseScale(2);
         setPanOffset({ x: 0, y: 0 });
-        setLastOffset({ x: 0, y: 0 });
+        panOffsetRef.current = {x: 0, y: 0};
+        Animated.parallel([
+          Animated.timing(scaleAnim, {
+            toValue: 2,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(panAnim, {
+            toValue: {x: 0, y: 0},
+            duration: 200,
+            useNativeDriver: true,
+          }),
+        ]).start();
       }
     }
-  }, [baseScale]);
-
-  const onPanGestureEvent = useCallback((e: any) => {
-    if (zoomScale <= 1) return; // let FlatList handle swipes
-
-    // Compute max pan based on container size and scale.
-    // Our image container below uses aspectRatio: 1 and fills screen width.
-    const containerW = SCREEN_WIDTH;
-    const containerH = SCREEN_WIDTH; // square container
-    const maxX = ((containerW * zoomScale) - containerW) / 2;
-    const maxY = ((containerH * zoomScale) - containerH) / 2;
-
-    const x = clamp(lastOffset.x + e.nativeEvent.translationX, -maxX, maxX);
-    const y = clamp(lastOffset.y + e.nativeEvent.translationY, -maxY, maxY);
-    setPanOffset({ x, y });
-  }, [zoomScale, lastOffset.x, lastOffset.y]);
-
-  const onPanHandlerStateChange = useCallback((e: any) => {
-    if (e.nativeEvent.state === State.END) {
-      setLastOffset(panOffset);
-    }
-  }, [panOffset]);
-
-  const onDoubleTapActivated = useCallback(() => {
-    if (zoomScale > 1) {
-      resetZoom();
-    } else {
-      setZoomScale(2);
-      setBaseScale(2);
-      setPanOffset({ x: 0, y: 0 });
-      setLastOffset({ x: 0, y: 0 });
-    }
+    lastTapRef.current = now;
   }, [zoomScale, resetZoom]);
+
 
   // Handle scroll end to update current index
   const onMomentumScrollEnd = useCallback((event: any) => {
@@ -207,49 +221,34 @@ export const PhotoLightboxDialog: React.FC<PhotoLightboxDialogProps> = ({
     return (
       <View style={styles.slide}>
         <View style={styles.gestureWrap}>
-          <TapGestureHandler ref={doubleTapRef} numberOfTaps={2} onActivated={onDoubleTapActivated}>
-            <View style={styles.gestureContainer}>
-              <PinchGestureHandler
-                ref={pinchRef}
-                simultaneousHandlers={[panRef, doubleTapRef]}
-                onGestureEvent={onPinchGestureEvent}
-                onHandlerStateChange={onPinchHandlerStateChange}
-              >
-                <PanGestureHandler
-                  ref={panRef}
-                  simultaneousHandlers={[pinchRef, doubleTapRef]}
-                  onGestureEvent={onPanGestureEvent}
-                  onHandlerStateChange={onPanHandlerStateChange}
-                  minPointers={1}
-                  maxPointers={1}
-                >
-                  <View style={styles.imageBox}>
-                    {loading && !uri ? (
-                      <View style={styles.loading}><ActivityIndicator size="large" color={Colors.primary} /></View>
-                    ) : uri ? (
-                      <Image
-                        source={{ uri }}
-                        style={[styles.image, {
-                          transform: [
-                            { scale: zoomScale },
-                            { translateX: panOffset.x },
-                            { translateY: panOffset.y },
-                          ],
-                        }]}
-                        resizeMode="contain"
-                        onError={() => console.log('[PhotoLightboxDialog] Image failed')}
-                      />
-                    ) : (
-                      <View style={styles.error}>
-                        <Ionicons name="image-outline" size={64} color={Colors.mutedForeground} />
-                        <Text style={styles.errorText}>Failed to load photo</Text>
-                      </View>
-                    )}
-                  </View>
-                </PanGestureHandler>
-              </PinchGestureHandler>
-            </View>
-          </TapGestureHandler>
+          <Pressable
+            onPress={handlePress}
+            {...(zoomScale > 1 ? panResponder.panHandlers : {})}
+          >
+            <Animated.View style={styles.imageBox}>
+              {loading && !uri ? (
+                <View style={styles.loading}><ActivityIndicator size="large" color={Colors.primary} /></View>
+              ) : uri ? (
+                <Animated.Image
+                  source={{ uri }}
+                  style={[styles.image, {
+                    transform: [
+                      { scale: scaleAnim },
+                      { translateX: panAnim.x },
+                      { translateY: panAnim.y },
+                    ],
+                  }]}
+                  resizeMode="contain"
+                  onError={() => console.log('[PhotoLightboxDialog] Image failed')}
+                />
+              ) : (
+                <View style={styles.error}>
+                  <Ionicons name="image-outline" size={64} color={Colors.mutedForeground} />
+                  <Text style={styles.errorText}>Failed to load photo</Text>
+                </View>
+              )}
+            </Animated.View>
+          </Pressable>
         </View>
 
         <View style={styles.info}>
@@ -279,7 +278,7 @@ export const PhotoLightboxDialog: React.FC<PhotoLightboxDialogProps> = ({
          </View>
       </View>
     );
-  }, [imageUrls, loading, onDoubleTapActivated, onPanGestureEvent, onPanHandlerStateChange, onPinchGestureEvent, onPinchHandlerStateChange, formatDate, panOffset.x, panOffset.y, zoomScale]);
+  }, [imageUrls, loading, handlePress, formatDate, zoomScale, panOffset.x, panOffset.y]);
 
   if (!visible || photos.length === 0) return null;
 
@@ -317,6 +316,8 @@ export const PhotoLightboxDialog: React.FC<PhotoLightboxDialogProps> = ({
           decelerationRate="fast"
           snapToInterval={SCREEN_WIDTH}
           snapToAlignment="start"
+          // Disable pan responder when scrolling is enabled
+          // {...(zoomScale === 1 ? {} : panResponder.panHandlers)}
         />
 
         {/* Zoom helper when >1x */}
@@ -361,6 +362,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   gestureWrap: {
+    width: '100%',
+  },
+  gestureContainer: {
     width: '100%',
   },
   imageBox: {
