@@ -5,6 +5,7 @@
     "platforms": ["ios","android"],
     "scheme": "dyad-react-native",
     "plugins": ["expo-router"],
-    "experiments": { "typedRoutes": false }
+    "experiments": { "typedRoutes": false },
+    "router": { "appDir": "app" }
   }
 }

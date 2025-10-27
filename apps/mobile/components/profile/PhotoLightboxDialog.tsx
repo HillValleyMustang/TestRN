@@ -80,6 +80,12 @@ export const PhotoLightboxDialog: React.FC<PhotoLightboxDialogProps> = ({
   const lastTapRef = useRef(0);
   const panOffsetRef = useRef({x: 0, y: 0});
 
+  // keep latest zoom readable inside responder
+  const zoomScaleRef = useRef(1);
+  useEffect(() => { zoomScaleRef.current = zoomScale; }, [zoomScale]);
+
+  const startOffsetRef = useRef({ x: 0, y: 0 });
+
   // Reset zoom/pan
   const resetZoom = useCallback(() => {
     setZoomScale(1);
@@ -142,39 +148,10 @@ export const PhotoLightboxDialog: React.FC<PhotoLightboxDialogProps> = ({
       .finally(() => setLoading(false));
   }, [visible, currentIndex, photos, ensureUrl]);
 
-  // PanResponder for gestures - Expo Go compatible
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => zoomScale > 1, // Only respond when zoomed
-      onMoveShouldSetPanResponder: () => zoomScale > 1,
-      onPanResponderGrant: () => {
-        // Start gesture
-      },
-      onPanResponderMove: (evt, gestureState) => {
-        if (zoomScale <= 1) return; // let FlatList handle swipes
-
-        // Compute max pan based on container size and scale.
-        const containerW = SCREEN_WIDTH;
-        const containerH = SCREEN_WIDTH; // square container
-        const maxX = ((containerW * zoomScale) - containerW) / 2;
-        const maxY = ((containerH * zoomScale) - containerH) / 2;
-
-        const x = clamp(panOffsetRef.current.x + gestureState.dx, -maxX, maxX);
-        const y = clamp(panOffsetRef.current.y + gestureState.dy, -maxY, maxY);
-        panAnim.setValue({x, y});
-      },
-      onPanResponderRelease: () => {
-        // Commit pan offset
-        panOffsetRef.current = {x: panAnim.x._value, y: panAnim.y._value};
-        setPanOffset(panOffsetRef.current);
-      },
-    })
-  ).current;
-
   const handlePress = useCallback(() => {
     const now = Date.now();
     if (now - lastTapRef.current < 250) {
-      if (zoomScale > 1) {
+      if (zoomScaleRef.current > 1) {
         resetZoom();
       } else {
         setZoomScale(2);
@@ -196,7 +173,46 @@ export const PhotoLightboxDialog: React.FC<PhotoLightboxDialogProps> = ({
       }
     }
     lastTapRef.current = now;
-  }, [zoomScale, resetZoom]);
+  }, [resetZoom]);
+
+  const MOVE_SLOP = 2; // pixels
+  const panResponder = useMemo(() => PanResponder.create({
+    // Don't claim touches initially - let FlatList handle swiping
+    onStartShouldSetPanResponder: () => false,
+    // Only claim moves when zoomed in for panning
+    onMoveShouldSetPanResponder: (evt, gestureState) => zoomScaleRef.current > 1,
+
+    onPanResponderGrant: () => {
+      panAnim.stopAnimation();
+      startOffsetRef.current = { ...panOffsetRef.current };
+    },
+
+    onPanResponderMove: (evt, g) => {
+      // Only pan if zoomed in
+      if (zoomScaleRef.current <= 1) {
+        return;
+      }
+
+      const containerW = SCREEN_WIDTH;
+      const containerH = SCREEN_WIDTH;
+      const maxX = ((containerW * zoomScaleRef.current) - containerW) / 2;
+      const maxY = ((containerH * zoomScaleRef.current) - containerH) / 2;
+      const x = clamp(startOffsetRef.current.x + g.dx, -maxX, maxX);
+      const y = clamp(startOffsetRef.current.y + g.dy, -maxY, maxY);
+      panAnim.setValue({ x, y });
+    },
+
+    onPanResponderRelease: () => {
+      // Commit pan offset
+      panOffsetRef.current = { x: panAnim.x, y: panAnim.y };
+      setPanOffset(panOffsetRef.current);
+    },
+
+    // Allow FlatList to steal gestures when not zoomed
+    onPanResponderTerminationRequest: () => {
+      return zoomScaleRef.current <= 1;
+    },
+  }), [panAnim, handlePress]);
 
 
   // Handle scroll end to update current index
@@ -220,65 +236,62 @@ export const PhotoLightboxDialog: React.FC<PhotoLightboxDialogProps> = ({
 
     return (
       <View style={styles.slide}>
-        <View style={styles.gestureWrap}>
-          <Pressable
-            onPress={handlePress}
-            {...(zoomScale > 1 ? panResponder.panHandlers : {})}
-          >
-            <Animated.View style={styles.imageBox}>
-              {loading && !uri ? (
-                <View style={styles.loading}><ActivityIndicator size="large" color={Colors.primary} /></View>
-              ) : uri ? (
-                <Animated.Image
-                  source={{ uri }}
-                  style={[styles.image, {
-                    transform: [
-                      { scale: scaleAnim },
-                      { translateX: panAnim.x },
-                      { translateY: panAnim.y },
-                    ],
-                  }]}
-                  resizeMode="contain"
-                  onError={() => console.log('[PhotoLightboxDialog] Image failed')}
-                />
-              ) : (
-                <View style={styles.error}>
-                  <Ionicons name="image-outline" size={64} color={Colors.mutedForeground} />
-                  <Text style={styles.errorText}>Failed to load photo</Text>
-                </View>
-              )}
-            </Animated.View>
-          </Pressable>
+        <View
+          style={styles.gestureWrap}
+          {...panResponder.panHandlers}
+        >
+          <Animated.View style={styles.imageBox}>
+            {loading && !uri ? (
+              <View style={styles.loading}><ActivityIndicator size="large" color={Colors.primary} /></View>
+            ) : uri ? (
+              <Animated.Image
+                source={{ uri }}
+                style={[styles.image, {
+                  transform: [
+                    { scale: scaleAnim },
+                    { translateX: panAnim.x },
+                    { translateY: panAnim.y },
+                  ],
+                }]}
+                resizeMode="contain"
+                onError={() => console.log('[PhotoLightboxDialog] Image failed')}
+              />
+            ) : (
+              <View style={styles.error}>
+                <Ionicons name="image-outline" size={64} color={Colors.mutedForeground} />
+                <Text style={styles.errorText}>Failed to load photo</Text>
+              </View>
+            )}
+          </Animated.View>
         </View>
-
         <View style={styles.info}>
-           <Text style={styles.dateText}>{formatDate(item.created_at)}</Text>
-           {!!item.notes && <Text style={styles.notes}>{item.notes}</Text>}
+          <Text style={styles.dateText}>{formatDate(item.created_at)}</Text>
+          {!!item.notes && <Text style={styles.notes}>{item.notes}</Text>}
 
-           {/* Page dots indicator - positioned under date/notes */}
-           {photos.length > 1 && (
-             <View style={styles.pageDots}>
-               {photos.map((_, index) => (
-                 <TouchableOpacity
-                   key={index}
-                   style={[
-                     styles.pageDot,
-                     index === currentIndex && styles.pageDotActive,
-                   ]}
-                   onPress={() => {
-                     flatListRef.current?.scrollToIndex({
-                       index,
-                       animated: true,
-                     });
-                   }}
-                 />
-               ))}
-             </View>
-           )}
-         </View>
+          {/* Page dots indicator - positioned under date/notes */}
+          {photos.length > 1 && (
+            <View style={styles.pageDots}>
+              {photos.map((_, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.pageDot,
+                    index === currentIndex && styles.pageDotActive,
+                  ]}
+                  onPress={() => {
+                    flatListRef.current?.scrollToIndex({
+                      index,
+                      animated: true,
+                    });
+                  }}
+                />
+              ))}
+            </View>
+          )}
+        </View>
       </View>
     );
-  }, [imageUrls, loading, handlePress, formatDate, zoomScale, panOffset.x, panOffset.y]);
+  }, [imageUrls, loading, handlePress, formatDate, panResponder.panHandlers]);
 
   if (!visible || photos.length === 0) return null;
 

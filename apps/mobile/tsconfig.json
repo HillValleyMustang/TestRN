@@ -21,7 +21,7 @@
       "@data/*": ["../../packages/data/src/*"],
       "@features/*": ["../../packages/features/src/*"],
       "@ui/*": ["../../packages/ui/src/*"],
-      "@shared/*": ["../../packages/*"]
+      "@app/shared/*": ["../../packages/data/src/*"]
     }
   },
   "include": [

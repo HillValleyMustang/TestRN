@@ -21,6 +21,7 @@ import { WorkoutFlowProvider } from './_contexts/workout-flow-context';
 import { UnsavedChangesModal } from './_components/workout/UnsavedChangesModal';
 import Toast from 'react-native-toast-message';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { MenuProvider } from 'react-native-popup-menu';
 
 export default function RootLayout() {
   // Load Poppins fonts - matches FONT_FAMILY constant in Typography.ts
@@ -75,12 +76,13 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <SafeAreaProvider>
-          <AuthProvider>
-            <DataProvider>
-              <PreferencesProvider>
-                <WorkoutFlowProvider>
+      <MenuProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <SafeAreaProvider>
+            <AuthProvider>
+              <DataProvider>
+                <PreferencesProvider>
+                  <WorkoutFlowProvider>
                   <StatusBar style="light" />
                   <Stack screenOptions={{ headerShown: false }}>
                     <Stack.Screen
@@ -143,94 +145,95 @@ export default function RootLayout() {
                     />
                   </Stack>
                   <UnsavedChangesModal />
-                  <Toast
-                    config={{
-                      success: props => (
-                        <View
-                          style={{
-                            backgroundColor: '#10B981',
-                            borderRadius: 12,
-                            paddingHorizontal: 16,
-                            paddingVertical: 12,
-                            marginHorizontal: 16,
-                            shadowColor: '#000',
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.25,
-                            shadowRadius: 4,
-                            elevation: 5,
-                          }}
-                        >
-                          <Text
+                    <Toast
+                      config={{
+                        success: props => (
+                          <View
                             style={{
-                              color: '#FFFFFF',
-                              fontFamily: 'Poppins_500Medium',
-                              fontSize: 14,
-                              fontWeight: '500',
+                              backgroundColor: '#10B981',
+                              borderRadius: 12,
+                              paddingHorizontal: 16,
+                              paddingVertical: 12,
+                              marginHorizontal: 16,
+                              shadowColor: '#000',
+                              shadowOffset: { width: 0, height: 2 },
+                              shadowOpacity: 0.25,
+                              shadowRadius: 4,
+                              elevation: 5,
                             }}
                           >
-                            {props.text1}
-                          </Text>
-                          {props.text2 && (
                             <Text
                               style={{
                                 color: '#FFFFFF',
-                                fontFamily: 'Poppins_400Regular',
-                                fontSize: 12,
-                                marginTop: 2,
+                                fontFamily: 'Poppins_500Medium',
+                                fontSize: 14,
+                                fontWeight: '500',
                               }}
                             >
-                              {props.text2}
+                              {props.text1}
                             </Text>
-                          )}
-                        </View>
-                      ),
-                      info: props => (
-                        <View
-                          style={{
-                            backgroundColor: '#3B82F6',
-                            borderRadius: 12,
-                            paddingHorizontal: 16,
-                            paddingVertical: 12,
-                            marginHorizontal: 16,
-                            shadowColor: '#000',
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.25,
-                            shadowRadius: 4,
-                            elevation: 5,
-                          }}
-                        >
-                          <Text
+                            {props.text2 && (
+                              <Text
+                                style={{
+                                  color: '#FFFFFF',
+                                  fontFamily: 'Poppins_400Regular',
+                                  fontSize: 12,
+                                  marginTop: 2,
+                                }}
+                              >
+                                {props.text2}
+                              </Text>
+                            )}
+                          </View>
+                        ),
+                        info: props => (
+                          <View
                             style={{
-                              color: '#FFFFFF',
-                              fontFamily: 'Poppins_500Medium',
-                              fontSize: 14,
-                              fontWeight: '500',
+                              backgroundColor: '#3B82F6',
+                              borderRadius: 12,
+                              paddingHorizontal: 16,
+                              paddingVertical: 12,
+                              marginHorizontal: 16,
+                              shadowColor: '#000',
+                              shadowOffset: { width: 0, height: 2 },
+                              shadowOpacity: 0.25,
+                              shadowRadius: 4,
+                              elevation: 5,
                             }}
                           >
-                            {props.text1}
-                          </Text>
-                          {props.text2 && (
                             <Text
                               style={{
                                 color: '#FFFFFF',
-                                fontFamily: 'Poppins_400Regular',
-                                fontSize: 12,
-                                marginTop: 2,
+                                fontFamily: 'Poppins_500Medium',
+                                fontSize: 14,
+                                fontWeight: '500',
                               }}
                             >
-                              {props.text2}
+                              {props.text1}
                             </Text>
-                          )}
-                        </View>
-                      ),
-                    }}
-                  />
-                </WorkoutFlowProvider>
-              </PreferencesProvider>
-            </DataProvider>
-          </AuthProvider>
-        </SafeAreaProvider>
-      </GestureHandlerRootView>
+                            {props.text2 && (
+                              <Text
+                                style={{
+                                  color: '#FFFFFF',
+                                  fontFamily: 'Poppins_400Regular',
+                                  fontSize: 12,
+                                  marginTop: 2,
+                                }}
+                              >
+                                {props.text2}
+                              </Text>
+                            )}
+                          </View>
+                        ),
+                      }}
+                    />
+                  </WorkoutFlowProvider>
+                </PreferencesProvider>
+              </DataProvider>
+            </AuthProvider>
+          </SafeAreaProvider>
+        </GestureHandlerRootView>
+      </MenuProvider>
     </ErrorBoundary>
   );
 }

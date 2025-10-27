@@ -1,3 +1,8 @@
-// metro.config.js
 const { getDefaultConfig } = require("@expo/metro-config");
-module.exports = getDefaultConfig(__dirname);
+
+const config = getDefaultConfig(__dirname);
+
+// Add watch folders for monorepo packages
+config.watchFolders = [__dirname + "/packages"];
+
+module.exports = config;

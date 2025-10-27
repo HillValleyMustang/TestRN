@@ -65,6 +65,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    marginTop: -Spacing.xl, // Move header up
   },
   content: {
     flexDirection: 'row',
@@ -72,13 +73,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.md,
     minHeight: 56,
+    justifyContent: 'center',
   },
   backButton: {
     marginRight: Spacing.md,
     padding: Spacing.xs,
   },
   titleContainer: {
-    flex: 1,
+    alignItems: 'center',
   },
   title: {
     ...TextStyles.h3,
