@@ -13,6 +13,11 @@ export interface ExercisesApi {
 // Basic implementation - can be expanded to match web API exactly
 export const exercisesApi: ExercisesApi = {
   fetchExercises: async (supabase: SupabaseClient) => {
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    const userId = user?.id;
+
+    // First get all exercises
     const { data, error } = await supabase
       .from('exercise_definitions')
       .select('*')
@@ -20,10 +25,30 @@ export const exercisesApi: ExercisesApi = {
 
     if (error) throw error;
 
+    if (!userId) {
+      return (data || []).map(ex => ({
+        ...ex,
+        id: ex.id,
+        is_favorited_by_current_user: false,
+        is_favorite: false,
+        movement_type: ex.movement_type,
+        movement_pattern: ex.movement_pattern,
+      }));
+    }
+
+    // Get user's global favorites
+    const { data: globalFavorites } = await supabase
+      .from('user_global_favorites')
+      .select('exercise_id')
+      .eq('user_id', userId);
+
+    const favoriteIds = new Set((globalFavorites || []).map(f => f.exercise_id));
+
     return (data || []).map(ex => ({
       ...ex,
       id: ex.id,
-      is_favorited_by_current_user: false, // This would need user context
+      is_favorited_by_current_user: favoriteIds.has(ex.id),
+      is_favorite: ex.user_id === userId ? ex.is_favorite : false,
       movement_type: ex.movement_type,
       movement_pattern: ex.movement_pattern,
     }));

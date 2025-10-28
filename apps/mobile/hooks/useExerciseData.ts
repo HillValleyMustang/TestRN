@@ -58,23 +58,46 @@ export const useExerciseData = ({ supabase }: UseExerciseDataProps): UseExercise
   const availableMuscleGroups = useMemo(() => getUniqueMuscleGroups(allExercises), [allExercises]);
 
   const filteredExercises = useMemo(() => {
+    const isFavoritesMode = selectedMuscleFilter === 'favorites';
     const filters = {
-      muscleGroup: selectedMuscleFilter === 'all' ? '' : selectedMuscleFilter,
+      muscleGroup: isFavoritesMode ? '' : (selectedMuscleFilter === 'all' ? '' : selectedMuscleFilter),
       searchTerm: searchTerm.trim(),
-      favoritesOnly: selectedMuscleFilter === 'favorites',
+      favoritesOnly: isFavoritesMode,
+      gymId: selectedGymFilter,
     };
     return filterExercises(allExercises, filters);
-  }, [allExercises, selectedMuscleFilter, searchTerm]);
+  }, [allExercises, selectedMuscleFilter, selectedGymFilter, searchTerm]);
 
-  const userExercises = useMemo(() =>
-    filteredExercises.filter(ex => ex.user_id === userId && ex.library_id === null),
-    [filteredExercises, userId]
-  );
+  const userExercises = useMemo(() => {
+    let exercises = filteredExercises.filter(ex => ex.user_id === userId && ex.library_id === null);
 
-  const globalExercises = useMemo(() =>
-    filteredExercises.filter(ex => ex.user_id === null),
-    [filteredExercises]
-  );
+    // Apply gym filter for user exercises
+    if (selectedGymFilter && selectedGymFilter !== 'all') {
+      exercises = exercises.filter(ex => {
+        const exerciseId = ex.id as string;
+        const gymIds = exerciseGymsMap[exerciseId] || [];
+        return gymIds.includes(selectedGymFilter);
+      });
+    }
+
+    return exercises;
+  }, [filteredExercises, userId, selectedGymFilter, exerciseGymsMap]);
+
+  const globalExercises = useMemo(() => {
+    let exercises = filteredExercises.filter(ex => ex.user_id === null || ex.library_id !== null);
+
+    // Apply gym filter for global exercises (though global exercises typically don't have gym associations)
+    if (selectedGymFilter && selectedGymFilter !== 'all') {
+      exercises = exercises.filter(ex => {
+        const exerciseId = ex.id as string;
+        const gymIds = exerciseGymsMap[exerciseId] || [];
+        return gymIds.includes(selectedGymFilter);
+      });
+    }
+
+    return exercises;
+  }, [filteredExercises, selectedGymFilter, exerciseGymsMap]);
+
 
   // Fetch functions
   const fetchExercises = useCallback(async () => {

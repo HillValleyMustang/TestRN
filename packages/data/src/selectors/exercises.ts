@@ -7,6 +7,7 @@ export interface ExerciseFilters {
   difficulty?: string;
   searchTerm?: string;
   favoritesOnly?: boolean;
+  gymId?: string;
 }
 
 export const filterExercises = (
@@ -52,6 +53,12 @@ export const filterExercises = (
       if (!exercise.is_favorited_by_current_user && !exercise.is_favorite) {
         return false;
       }
+    }
+
+    // Gym filter
+    if (filters.gymId && filters.gymId !== 'all') {
+      // This would need gym association data - for now, skip this filter
+      // The gym filtering should be handled at the component level using exerciseGymsMap
     }
 
     return true;

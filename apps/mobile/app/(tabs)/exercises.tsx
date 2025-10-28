@@ -1,8 +1,7 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Dimensions, TextInput, Animated } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Dimensions, TextInput, Animated, Modal, FlatList } from 'react-native';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
 import { ScreenHeader, ScreenContainer } from '../../components/layout';
 import { BackgroundRoot } from '../../components/BackgroundRoot';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
@@ -22,6 +21,7 @@ export default function ExercisesScreen({ navigation }: ExercisesScreenProps) {
   const { supabase } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('my-exercises');
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+  const [dropdownVisible, setDropdownVisible] = useState<'muscle' | 'gym' | null>(null);
   const filterHeightAnim = useRef(new Animated.Value(0)).current;
   const tabSlideAnim = useRef(new Animated.Value(0)).current; // For tab transition animation
   const scrollViewRef = useRef<ScrollView>(null);
@@ -46,6 +46,8 @@ export default function ExercisesScreen({ navigation }: ExercisesScreenProps) {
     handleAddToWorkout,
     refreshExercises,
   } = useExerciseData({ supabase });
+
+  console.log('Exercises screen - userGyms:', userGyms?.length || 0);
 
   console.log('Exercises screen - globalExercises:', globalExercises?.length || 0);
   console.log('Exercises screen - loading:', loading);
@@ -97,26 +99,42 @@ export default function ExercisesScreen({ navigation }: ExercisesScreenProps) {
   const handleFilterPress = useCallback(() => {
     setIsFilterExpanded(!isFilterExpanded);
     Animated.timing(filterHeightAnim, {
-      toValue: isFilterExpanded ? 0 : 160, // Increased height for filter controls
+      toValue: isFilterExpanded ? 0 : 200, // Height for filter controls without apply button
       duration: 300,
       useNativeDriver: false,
     }).start();
   }, [isFilterExpanded, filterHeightAnim]);
 
-  const handleApplyFilters = useCallback(() => {
-    // In real implementation, this would trigger filtering logic
-    // The selectedMuscleFilter and selectedGymFilter state variables are connected
-    // and would be used to filter the exercises list
-    console.log('Applied filters:', { selectedMuscleFilter, selectedGymFilter });
-
+  const handleCloseFilters = useCallback(() => {
     // Close the filter panel
+    setIsFilterExpanded(false);
+    setDropdownVisible(null);
+    Animated.timing(filterHeightAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [filterHeightAnim]);
+
+  const handleDropdownToggle = useCallback((type: 'muscle' | 'gym') => {
+    setDropdownVisible(dropdownVisible === type ? null : type);
+  }, [dropdownVisible]);
+
+  const handleDropdownSelect = useCallback((type: 'muscle' | 'gym', value: string) => {
+    if (type === 'muscle') {
+      setSelectedMuscleFilter(value);
+    } else {
+      setSelectedGymFilter(value);
+    }
+    setDropdownVisible(null);
+    // Close filter panel after selection for better UX
     setIsFilterExpanded(false);
     Animated.timing(filterHeightAnim, {
       toValue: 0,
       duration: 300,
       useNativeDriver: false,
     }).start();
-  }, [selectedMuscleFilter, selectedGymFilter, filterHeightAnim]);
+  }, [filterHeightAnim]);
 
   // Removed duplicate handleApplyFilters - now defined above
 
@@ -182,48 +200,76 @@ export default function ExercisesScreen({ navigation }: ExercisesScreenProps) {
           </View>
 
           {/* Expandable Filter Controls */}
-          <Animated.View style={[styles.filterControls, { height: filterHeightAnim, maxHeight: 200 }]}>
+          <Animated.View style={[styles.filterControls, { height: filterHeightAnim.interpolate({
+            inputRange: [0, 200],
+            outputRange: [0, 200] // Reduced height to eliminate bottom gap
+          }), maxHeight: 200 }]}>
             <View style={styles.filterControlsContent}>
               <View style={styles.filterRow}>
                 <Text style={styles.filterLabel}>Muscle Group:</Text>
-                <View style={styles.pickerContainer}>
-                  <Picker
-                    selectedValue={selectedMuscleFilter}
-                    onValueChange={(value) => setSelectedMuscleFilter(value)}
-                    style={styles.picker}
-                    itemStyle={styles.pickerItem}
-                  >
-                    <Picker.Item label="All" value="all" />
-                    <Picker.Item label="Favorites" value="favorites" />
-                    {availableMuscleGroups.map((muscle) => (
-                      <Picker.Item key={muscle} label={muscle} value={muscle} />
-                    ))}
-                  </Picker>
-                </View>
+                <TouchableOpacity
+                  style={styles.dropdownButton}
+                  onPress={() => handleDropdownToggle('muscle')}
+                >
+                  <Text style={styles.dropdownButtonText}>
+                    {selectedMuscleFilter === 'all' ? 'All' :
+                     selectedMuscleFilter === 'favorites' ? 'Favourites' :
+                     selectedMuscleFilter}
+                  </Text>
+                  <Ionicons
+                    name={dropdownVisible === 'muscle' ? "chevron-up" : "chevron-down"}
+                    size={16}
+                    color={Colors.mutedForeground}
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {/* Favourites Toggle */}
+              <View style={styles.filterRow}>
+                <Text style={styles.filterLabel}>Show Favourites:</Text>
+                <TouchableOpacity
+                  style={[styles.favouriteToggle, selectedMuscleFilter === 'favorites' && styles.favouriteToggleSelected]}
+                  onPress={() => {
+                    if (selectedMuscleFilter === 'favorites') {
+                      setSelectedMuscleFilter('all');
+                    } else {
+                      setSelectedMuscleFilter('favorites');
+                    }
+                  }}
+                >
+                  <Ionicons
+                    name="heart"
+                    size={16}
+                    color={selectedMuscleFilter === 'favorites' ? Colors.primaryForeground : Colors.primary}
+                  />
+                  <Text style={[styles.favouriteToggleText, selectedMuscleFilter === 'favorites' && styles.favouriteToggleTextSelected]}>
+                    {selectedMuscleFilter === 'favorites' ? 'On' : 'Off'}
+                  </Text>
+                </TouchableOpacity>
               </View>
 
               {userGyms.length > 1 && (
-                <View style={styles.filterRow}>
+                <View style={[styles.filterRow, { marginBottom: 0 }]}>
                   <Text style={styles.filterLabel}>Gym:</Text>
-                  <View style={styles.pickerContainer}>
-                    <Picker
-                      selectedValue={selectedGymFilter}
-                      onValueChange={(value) => setSelectedGymFilter(value)}
-                      style={styles.picker}
-                      itemStyle={styles.pickerItem}
-                    >
-                      <Picker.Item label="All Gyms" value="all" />
-                      {userGyms.map((gym) => (
-                        <Picker.Item key={gym.id} label={gym.name} value={gym.id} />
-                      ))}
-                    </Picker>
-                  </View>
+                  <TouchableOpacity
+                    style={styles.dropdownButton}
+                    onPress={() => handleDropdownToggle('gym')}
+                  >
+                    <Text style={styles.dropdownButtonText}>
+                      {selectedGymFilter === 'all' ? 'All Gyms' :
+                       userGyms.find(g => g.id === selectedGymFilter)?.name || 'All Gyms'}
+                    </Text>
+                    <Ionicons
+                      name={dropdownVisible === 'gym' ? "chevron-up" : "chevron-down"}
+                      size={16}
+                      color={Colors.mutedForeground}
+                    />
+                  </TouchableOpacity>
                 </View>
               )}
 
-              <TouchableOpacity style={styles.applyFiltersButton} onPress={handleApplyFilters}>
-                <Text style={styles.applyFiltersButtonText}>Apply Filters</Text>
-              </TouchableOpacity>
+
+
             </View>
           </Animated.View>
 
@@ -289,6 +335,67 @@ export default function ExercisesScreen({ navigation }: ExercisesScreenProps) {
           </PanGestureHandler>
         </View>
       </ScrollView>
+
+      {/* Custom Dropdown Modal */}
+      <Modal
+        visible={dropdownVisible !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDropdownVisible(null)}
+      >
+        <View style={styles.dropdownModal}>
+          <View style={styles.dropdownContainer}>
+            <View style={styles.dropdownHeader}>
+              <Text style={styles.dropdownTitle}>
+                {dropdownVisible === 'muscle' ? 'Select Muscle Group' : 'Select Gym'}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setDropdownVisible(null)}
+                style={styles.dropdownCloseButton}
+              >
+                <Ionicons name="close" size={24} color={Colors.foreground} />
+              </TouchableOpacity>
+            </View>
+
+            <FlatList
+              data={
+                dropdownVisible === 'muscle'
+                  ? [
+                      { label: 'All', value: 'all' },
+                      ...availableMuscleGroups.map(m => ({ label: m, value: m }))
+                    ].sort((a, b) => a.label.localeCompare(b.label))
+                  : [
+                      { label: 'All Gyms', value: 'all' },
+                      ...userGyms.map(g => ({ label: g.name, value: g.id }))
+                    ]
+              }
+              keyExtractor={(item) => item.value}
+              renderItem={({ item }) => {
+                const isSelected =
+                  dropdownVisible === 'muscle'
+                    ? selectedMuscleFilter === item.value
+                    : selectedGymFilter === item.value;
+
+                return (
+                  <TouchableOpacity
+                    style={[styles.dropdownItem, isSelected && styles.dropdownItemSelected]}
+                    onPress={() => handleDropdownSelect(dropdownVisible!, item.value)}
+                  >
+                    <Text style={[styles.dropdownItemText, isSelected && styles.dropdownItemTextSelected]}>
+                      {item.label}
+                    </Text>
+                    {isSelected && (
+                      <View style={styles.dropdownCheckmark}>
+                        <Ionicons name="checkmark" size={12} color={Colors.primaryForeground} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -318,6 +425,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: Colors.card,
     borderRadius: 8,
     borderWidth: 1,
@@ -333,6 +441,10 @@ const styles = StyleSheet.create({
     ...TextStyles.body,
     color: Colors.foreground,
     paddingVertical: 0, // Remove default padding
+    textAlignVertical: 'center',
+    height: 44,
+    textAlign: 'left',
+    paddingTop: 2,
   },
   tabNavigation: {
     flexDirection: 'row',
@@ -345,10 +457,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     shadowColor: Colors.foreground,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 12,
   },
   tab: {
     flex: 1,
@@ -475,14 +587,18 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    maxHeight: 250, // Increased height to accommodate gym filter
   },
   filterControlsContent: {
     padding: Spacing.md,
+    paddingBottom: 0,
   },
   filterRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   filterLabel: {
     ...TextStyles.body,
@@ -491,17 +607,21 @@ const styles = StyleSheet.create({
   },
   pickerContainer: {
     flex: 1,
-    backgroundColor: Colors.muted,
-    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.card,
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
     borderColor: Colors.border,
   },
   picker: {
     color: Colors.foreground,
+    fontFamily: 'Poppins_400Regular',
+    fontSize: 16,
   },
   pickerItem: {
     color: Colors.foreground,
-    backgroundColor: Colors.muted,
+    backgroundColor: Colors.card,
+    fontFamily: 'Poppins_400Regular',
+    fontSize: 16,
   },
   applyFiltersButton: {
     backgroundColor: Colors.primary,
@@ -513,6 +633,126 @@ const styles = StyleSheet.create({
   },
   applyFiltersButtonText: {
     ...TextStyles.bodyBold,
+    color: Colors.primaryForeground,
+  },
+  dropdownButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.card,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    minHeight: 44,
+  },
+  dropdownButtonText: {
+    fontFamily: 'Poppins_400Regular',
+    fontSize: 16,
+    color: Colors.foreground,
+    flex: 1,
+  },
+  dropdownModal: {
+    flex: 1,
+    backgroundColor: Colors.modalOverlay,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dropdownContainer: {
+    backgroundColor: Colors.background,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    maxHeight: '60%',
+    width: '80%',
+    shadowColor: Colors.foreground,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  dropdownHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  dropdownTitle: {
+    fontFamily: 'Poppins_600SemiBold',
+    fontSize: 18,
+    color: Colors.foreground,
+  },
+  dropdownCloseButton: {
+    padding: Spacing.xs,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  dropdownItemText: {
+    fontFamily: 'Poppins_400Regular',
+    fontSize: 16,
+    color: Colors.foreground,
+  },
+  dropdownItemSelected: {
+    backgroundColor: Colors.muted,
+  },
+  dropdownItemTextSelected: {
+    color: Colors.foreground,
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  dropdownCheckmark: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dropdownItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  favouriteIcon: {
+    marginRight: Spacing.sm,
+  },
+  stickyHeader: {
+    backgroundColor: Colors.background,
+    zIndex: 10,
+  },
+  favouriteToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    minHeight: 44,
+    gap: Spacing.sm,
+  },
+  favouriteToggleSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  favouriteToggleText: {
+    fontFamily: 'Poppins_400Regular',
+    fontSize: 16,
+    color: Colors.foreground,
+  },
+  favouriteToggleTextSelected: {
     color: Colors.primaryForeground,
   },
 });
