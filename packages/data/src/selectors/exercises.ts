@@ -43,7 +43,7 @@ export const filterExercises = (
     if (filters.searchTerm && filters.searchTerm.trim()) {
       const searchLower = filters.searchTerm.toLowerCase();
       if (!exercise.name.toLowerCase().includes(searchLower) &&
-          !exercise.description?.toLowerCase().includes(searchLower)) {
+          !exercise.main_muscle.toLowerCase().includes(searchLower)) {
         return false;
       }
     }
