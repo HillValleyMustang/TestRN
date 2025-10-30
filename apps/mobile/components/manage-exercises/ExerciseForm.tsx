@@ -7,7 +7,9 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  Modal,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as z from 'zod';
 import { useAuth } from '../../app/_contexts/auth-context';
 import { FetchedExerciseDefinition } from '../../../../packages/data/src/types/exercise';
@@ -55,6 +57,7 @@ export const ExerciseForm: React.FC<ExerciseFormProps> = ({
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [youtubeInfoModalVisible, setYoutubeInfoModalVisible] = useState(false);
   const [formData, setFormData] = useState<ExerciseFormData>({
     name: "",
     main_muscles: [],
@@ -323,7 +326,7 @@ export const ExerciseForm: React.FC<ExerciseFormProps> = ({
               >
                 {option.label}
               </Text>
-              <Text style={styles.categoryDescription}>{option.description}</Text>
+              <Text style={[styles.categoryDescription, formData.category === option.value && styles.categoryDescriptionSelected]}>{option.description}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -431,7 +434,15 @@ export const ExerciseForm: React.FC<ExerciseFormProps> = ({
 
       {/* Video URL */}
       <View style={styles.section}>
-        <Text style={styles.label}>Video URL (Optional)</Text>
+        <View style={styles.fieldHeader}>
+          <Text style={styles.label}>Video URL (Optional)</Text>
+          <TouchableOpacity
+            style={styles.infoButton}
+            onPress={() => setYoutubeInfoModalVisible(true)}
+          >
+            <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
+          </TouchableOpacity>
+        </View>
         <TextInput
           style={[styles.input, errors.video_url && styles.inputError]}
           value={formData.video_url || ""}
@@ -450,14 +461,12 @@ export const ExerciseForm: React.FC<ExerciseFormProps> = ({
 
       {/* Action Buttons */}
       <View style={styles.buttonContainer}>
-        <Button
-          variant="outline"
-          size="lg"
+        <TouchableOpacity
+          style={[styles.cancelButton, { backgroundColor: 'transparent', borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg, alignItems: 'center' }]}
           onPress={onCancelEdit}
-          style={styles.cancelButton}
         >
-          Cancel
-        </Button>
+          <Text style={{ color: Colors.foreground, fontFamily: 'Poppins_500Medium', fontSize: 16 }}>Cancel</Text>
+        </TouchableOpacity>
         <Button
           variant="primary"
           size="lg"
@@ -468,6 +477,71 @@ export const ExerciseForm: React.FC<ExerciseFormProps> = ({
           {editingExercise ? "Update Exercise" : "Save Exercise"}
         </Button>
       </View>
+
+      {/* YouTube Info Modal */}
+      <Modal
+        visible={youtubeInfoModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setYoutubeInfoModalVisible(false)}
+      >
+        <View style={styles.youtubeInfoModal}>
+          <View style={styles.youtubeInfoContainer}>
+            <TouchableOpacity
+              style={styles.youtubeInfoClose}
+              onPress={() => setYoutubeInfoModalVisible(false)}
+            >
+              <Ionicons name="close" size={24} color={Colors.foreground} />
+            </TouchableOpacity>
+
+            <View style={styles.youtubeInfoTitleContainer}>
+              <Ionicons name="logo-youtube" size={28} color="#FF0000" />
+              <Text style={styles.youtubeInfoTitle}>Video URL Help</Text>
+            </View>
+
+            <ScrollView style={styles.youtubeInfoScrollContent} showsVerticalScrollIndicator={false}>
+              <Text style={styles.youtubeInfoText}>
+                To add a video to your exercise, you need to provide a YouTube embed URL. Here's how:
+              </Text>
+
+              <Text style={styles.youtubeInfoText}>
+                1. Go to the YouTube video you want to use
+              </Text>
+
+              <Text style={styles.youtubeInfoText}>
+                2. Click the "Share" button below the video
+              </Text>
+
+              <Text style={styles.youtubeInfoText}>
+                3. Click the "Embed" option
+              </Text>
+
+              <Text style={styles.youtubeInfoText}>
+                4. Look for the src attribute within the iframe tag
+              </Text>
+
+              <Text style={styles.youtubeInfoText}>
+                5. Copy only the URL inside the src attribute
+              </Text>
+
+              <Text style={styles.youtubeInfoText}>
+                6. Paste this embed URL into the Video URL field
+              </Text>
+
+              <Text style={styles.youtubeInfoText}>
+                The app will automatically convert this to an embeddable format for the best viewing experience.
+              </Text>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.youtubeInfoGotItButton}
+              onPress={() => setYoutubeInfoModalVisible(false)}
+            >
+              <Text style={styles.youtubeInfoGotItButtonText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
@@ -484,6 +558,7 @@ const styles = StyleSheet.create({
     color: Colors.foreground,
     marginBottom: Spacing.sm,
     fontWeight: '600',
+    fontFamily: 'Poppins_500Medium',
   },
   input: {
     borderWidth: 1,
@@ -493,6 +568,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.foreground,
     backgroundColor: Colors.card,
+    fontFamily: 'Poppins_400Regular',
   },
   inputError: {
     borderColor: Colors.destructive,
@@ -506,11 +582,13 @@ const styles = StyleSheet.create({
     color: Colors.foreground,
     backgroundColor: Colors.card,
     minHeight: 80,
+    fontFamily: 'Poppins_400Regular',
   },
   errorText: {
     color: Colors.destructive,
     fontSize: 14,
     marginTop: Spacing.xs,
+    fontFamily: 'Poppins_400Regular',
   },
   muscleGrid: {
     flexDirection: 'row',
@@ -532,10 +610,12 @@ const styles = StyleSheet.create({
   muscleButtonText: {
     color: Colors.foreground,
     fontSize: 14,
+    fontFamily: 'Poppins_400Regular',
   },
   muscleButtonTextSelected: {
     color: Colors.white,
     fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   typeContainer: {
     flexDirection: 'row',
@@ -558,9 +638,11 @@ const styles = StyleSheet.create({
     color: Colors.foreground,
     fontSize: 16,
     fontWeight: '500',
+    fontFamily: 'Poppins_500Medium',
   },
   typeButtonTextSelected: {
     color: Colors.white,
+    fontFamily: 'Poppins_600SemiBold',
   },
   categoryContainer: {
     gap: Spacing.sm,
@@ -581,13 +663,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     marginBottom: Spacing.xs,
+    fontFamily: 'Poppins_500Medium',
   },
   categoryButtonTextSelected: {
     color: Colors.white,
+    fontFamily: 'Poppins_600SemiBold',
   },
   categoryDescription: {
     color: Colors.mutedForeground,
     fontSize: 14,
+    fontFamily: 'Poppins_400Regular',
+  },
+  categoryDescriptionSelected: {
+    color: Colors.white,
+    fontSize: 14,
+    fontFamily: 'Poppins_400Regular',
   },
   movementContainer: {
     flexDirection: 'row',
@@ -609,10 +699,12 @@ const styles = StyleSheet.create({
   movementButtonText: {
     color: Colors.foreground,
     fontSize: 14,
+    fontFamily: 'Poppins_400Regular',
   },
   movementButtonTextSelected: {
     color: Colors.white,
     fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -622,6 +714,79 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
+  },
+  fieldHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.sm,
+  },
+  infoButton: {
+    padding: Spacing.xs,
+  },
+  youtubeInfoModal: {
+    flex: 1,
+    backgroundColor: Colors.modalOverlay,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  youtubeInfoContainer: {
+    backgroundColor: Colors.background,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    maxHeight: '70%',
+    width: '85%',
+    padding: Spacing.lg,
+  },
+  youtubeInfoTitle: {
+    fontFamily: 'Poppins_600SemiBold',
+    fontSize: 18,
+    color: Colors.foreground,
+    marginBottom: Spacing.md,
+  },
+  youtubeInfoText: {
+    fontFamily: 'Poppins_400Regular',
+    fontSize: 16,
+    color: Colors.foreground,
+    lineHeight: 24,
+    marginBottom: Spacing.md,
+  },
+  youtubeInfoClose: {
+    alignSelf: 'flex-end',
+    padding: Spacing.sm,
+  },
+  youtubeInfoTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
+  },
+  youtubeInfoScrollContent: {
+    maxHeight: 400,
+    paddingHorizontal: Spacing.lg,
+  },
+  youtubeInfoTitleContainer: {
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  youtubeInfoGotItButton: {
+    backgroundColor: Colors.primary,
+    padding: Spacing.md,
+    margin: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  youtubeInfoGotItButtonText: {
+    fontFamily: 'Poppins_600SemiBold',
+    fontSize: 16,
+    color: Colors.primaryForeground,
   },
   saveButton: {
     flex: 1,

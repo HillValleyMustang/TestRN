@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -51,64 +52,54 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({
         <View style={styles.exerciseMain}>
           <View style={styles.exerciseInfo}>
             <Text style={styles.exerciseName}>{exercise.name}</Text>
-            <Text style={styles.exerciseMuscle}>{exercise.main_muscle}</Text>
-          </View>
+            <View style={styles.exerciseMuscleRow}>
+              <Text style={styles.exerciseMuscle}>{exercise.main_muscle}</Text>
+              <View style={styles.exerciseActions}>
+                <TouchableOpacity
+                  style={styles.iconButton}
+                  onPress={() => onInfoPress(exercise)}
+                >
+                  <Ionicons name="information-circle-outline" size={20} color={Colors.mutedForeground} />
+                </TouchableOpacity>
 
-          <View style={styles.exerciseActions}>
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => onInfoPress(exercise)}
-            >
-              <Ionicons name="information-circle-outline" size={24} color={Colors.mutedForeground} />
-            </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.iconButton}
+                  onPress={() => onToggleFavorite(exercise)}
+                >
+                  <Ionicons
+                    name={exercise.is_favorited_by_current_user ? "heart" : "heart-outline"}
+                    size={20}
+                    color={exercise.is_favorited_by_current_user ? "#ef4444" : Colors.mutedForeground}
+                  />
+                </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => onToggleFavorite(exercise)}
-            >
-              <Ionicons
-                name={exercise.is_favorited_by_current_user ? "heart" : "heart-outline"}
-                size={24}
-                color={exercise.is_favorited_by_current_user ? Colors.primary : Colors.mutedForeground}
-              />
-            </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.iconButton}
+                  onPress={() => onAddToWorkout(exercise)}
+                >
+                  <Ionicons name="add-circle-outline" size={20} color={Colors.mutedForeground} />
+                </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => onAddToWorkout(exercise)}
-            >
-              <Ionicons name="add-circle-outline" size={24} color={Colors.mutedForeground} />
-            </TouchableOpacity>
-
-            <Menu>
-              <MenuTrigger>
-                <View style={styles.iconButton}>
-                  <Ionicons name="ellipsis-vertical" size={24} color={Colors.mutedForeground} />
-                </View>
-              </MenuTrigger>
-              <MenuOptions customStyles={menuStyles}>
-                <MenuOption onSelect={() => onManageGyms(exercise)}>
-                  <View style={styles.menuOption}>
-                    <Ionicons name="business" size={16} color={Colors.foreground} />
-                    <Text style={styles.menuOptionText}>Manage Gyms</Text>
-                  </View>
-                </MenuOption>
-              </MenuOptions>
-            </Menu>
-          </View>
-        </View>
-
-        {/* Exercise metadata row */}
-        <View style={styles.exerciseMeta}>
-          <View style={styles.exerciseType}>
-            <Text style={styles.exerciseTypeText}>{exercise.type || 'strength'}</Text>
-          </View>
-          {exercise.category && (
-            <View style={styles.exerciseCategory}>
-              <Text style={styles.exerciseCategoryText}>{exercise.category}</Text>
+                <Menu>
+                  <MenuTrigger>
+                    <View style={styles.iconButton}>
+                      <Ionicons name="ellipsis-vertical" size={20} color={Colors.mutedForeground} />
+                    </View>
+                  </MenuTrigger>
+                  <MenuOptions customStyles={menuStyles}>
+                    <MenuOption onSelect={() => onManageGyms(exercise)}>
+                      <View style={styles.menuOption}>
+                        <Ionicons name="business" size={16} color={Colors.foreground} />
+                        <Text style={styles.menuOptionText}>Manage Gyms</Text>
+                      </View>
+                    </MenuOption>
+                  </MenuOptions>
+                </Menu>
+              </View>
             </View>
-          )}
+          </View>
         </View>
+
       </View>
     </View>
   );
@@ -188,7 +179,7 @@ export const GlobalExerciseList: React.FC<GlobalExerciseListProps> = ({
   }
 
   return (
-    <View style={styles.flatList}>
+    <ScrollView style={styles.flatList} showsVerticalScrollIndicator={false}>
       {renderHeader()}
       {exercises.length === 0 ? renderEmpty() : exercises.map((exercise) => (
         <ExerciseItem
@@ -215,7 +206,7 @@ export const GlobalExerciseList: React.FC<GlobalExerciseListProps> = ({
           // Refresh data or show success message
         }}
       />
-    </View>
+    </ScrollView>
   );
 };
 
@@ -254,6 +245,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     overflow: 'hidden',
+    marginHorizontal: Spacing.md,
   },
   exerciseContent: {
     padding: Spacing.md,
@@ -271,10 +263,16 @@ const styles = StyleSheet.create({
     ...TextStyles.h4,
     color: Colors.foreground,
     marginBottom: Spacing.xs,
+    fontSize: 16,
   },
   exerciseMuscle: {
     ...TextStyles.body,
     color: Colors.mutedForeground,
+  },
+  exerciseMuscleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   exerciseActions: {
     flexDirection: 'row',

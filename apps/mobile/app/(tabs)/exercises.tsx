@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Dimensions, TextInput, Animated, Modal, FlatList } from 'react-native';
-import { PanGestureHandler, State } from 'react-native-gesture-handler';
+import { View, StyleSheet, TouchableOpacity, Text, Dimensions, TextInput, Animated, Modal, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { TabView, SceneMap } from 'react-native-tab-view';
 import { ScreenHeader, ScreenContainer } from '../../components/layout';
 import { BackgroundRoot } from '../../components/BackgroundRoot';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
@@ -18,13 +18,11 @@ interface ExercisesScreenProps {
 type TabType = 'my-exercises' | 'global-library';
 
 export default function ExercisesScreen({ navigation }: ExercisesScreenProps) {
-  const { supabase } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>('my-exercises');
+  const { supabase, userId } = useAuth();
+  const [index, setIndex] = useState(0);
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
   const [dropdownVisible, setDropdownVisible] = useState<'muscle' | 'gym' | null>(null);
   const filterHeightAnim = useRef(new Animated.Value(0)).current;
-  const tabSlideAnim = useRef(new Animated.Value(0)).current; // For tab transition animation
-  const scrollViewRef = useRef<ScrollView>(null);
 
   // Use the new exercise data hook
   const {
@@ -53,48 +51,14 @@ export default function ExercisesScreen({ navigation }: ExercisesScreenProps) {
   console.log('Exercises screen - loading:', loading);
   console.log('Exercises screen - error:', error);
 
-  const tabs: { key: TabType; title: string }[] = [
+  const [routes] = useState([
     { key: 'my-exercises', title: 'My Exercises' },
     { key: 'global-library', title: 'Global Library' },
-  ];
+  ]);
 
-  const handleTabPress = (tabKey: TabType) => {
-    setActiveTab(tabKey);
-    // Animate tab transition
-    Animated.spring(tabSlideAnim, {
-      toValue: tabKey === 'my-exercises' ? 0 : 1,
-      useNativeDriver: true,
-      tension: 100,
-      friction: 8,
-    }).start();
+  const handleTabPress = (tabIndex: number) => {
+    setIndex(tabIndex);
   };
-
-  const handleGestureStateChange = (event: any) => {
-    if (event.nativeEvent.state === State.END) {
-      const { translationX } = event.nativeEvent;
-
-      // Only handle horizontal swipes if not scrolling vertically
-      if (Math.abs(translationX) > 50) { // Minimum swipe distance
-        if (translationX > 0 && activeTab === 'global-library') {
-          // Swipe right from Global Library -> My Exercises
-          handleTabPress('my-exercises');
-        } else if (translationX < 0 && activeTab === 'my-exercises') {
-          // Swipe left from My Exercises -> Global Library
-          handleTabPress('global-library');
-        }
-      }
-    }
-  };
-
-  // Initialize animation on mount
-  React.useEffect(() => {
-    Animated.spring(tabSlideAnim, {
-      toValue: activeTab === 'my-exercises' ? 0 : 1,
-      useNativeDriver: true,
-      tension: 100,
-      friction: 8,
-    }).start();
-  }, []);
 
   const handleFilterPress = useCallback(() => {
     setIsFilterExpanded(!isFilterExpanded);
@@ -140,45 +104,73 @@ export default function ExercisesScreen({ navigation }: ExercisesScreenProps) {
 
   // Removed gesture handler - will implement swipe differently
 
+  const renderScene = SceneMap({
+    'my-exercises': () => (
+      <UserExerciseList
+        exercises={userExercises}
+        totalCount={userExercises.length}
+        loading={loading}
+        userGyms={userGyms}
+        exerciseGymsMap={exerciseGymsMap}
+        availableMuscleGroups={availableMuscleGroups}
+        supabase={supabase}
+        userId={userId}
+        onToggleFavorite={handleToggleFavorite}
+        onDeleteExercise={handleDeleteExercise}
+        onAddToWorkout={(exercise) => handleAddToWorkout(exercise)}
+        onEditExercise={(exercise) => console.log('Edit exercise:', exercise)}
+        onInfoPress={(exercise) => console.log('Info press:', exercise)}
+        onManageGyms={(exercise) => console.log('Manage gyms:', exercise)}
+        onRefreshData={refreshExercises}
+      />
+    ),
+    'global-library': () => (
+      <GlobalExerciseList
+        exercises={globalExercises}
+        totalCount={globalExercises.length}
+        loading={loading}
+        onToggleFavorite={handleToggleFavorite}
+        onAddToWorkout={handleAddToWorkout}
+        onInfoPress={(exercise) => console.log('Info press:', exercise)}
+        onManageGyms={(exercise) => console.log('Manage gyms:', exercise)}
+      />
+    ),
+  });
+
   return (
     <View style={styles.container}>
       <BackgroundRoot />
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.innerContainer}>
-          <ScreenHeader
-            title="My Exercises"
-            subtitle="Browse and manage your exercises"
-            style={{
-              backgroundColor: 'transparent',
-              borderBottomColor: 'transparent',
-            }}
-          />
-          {/* Tab Navigation */}
-          <View style={styles.tabNavigation}>
-            {tabs.map((tab) => (
-              <TouchableOpacity
-                key={tab.key}
+      <View style={styles.innerContainer}>
+        <ScreenHeader
+          title="My Exercises"
+          subtitle="Browse and manage your exercises"
+          style={{
+            backgroundColor: 'transparent',
+            borderBottomColor: 'transparent',
+          }}
+        />
+        {/* Tab Navigation */}
+        <View style={styles.tabNavigation}>
+          {routes.map((route, routeIndex) => (
+            <TouchableOpacity
+              key={route.key}
+              style={[
+                styles.tab,
+                index === routeIndex && styles.activeTab,
+              ]}
+              onPress={() => handleTabPress(routeIndex)}
+            >
+              <Text
                 style={[
-                  styles.tab,
-                  activeTab === tab.key && styles.activeTab,
+                  styles.tabText,
+                  index === routeIndex && styles.activeTabText,
                 ]}
-                onPress={() => handleTabPress(tab.key)}
               >
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === tab.key && styles.activeTabText,
-                  ]}
-                >
-                  {tab.title}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+                {route.title}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
           {/* Search Bar & Filter */}
           <View style={styles.searchContainer}>
@@ -267,74 +259,22 @@ export default function ExercisesScreen({ navigation }: ExercisesScreenProps) {
                   </TouchableOpacity>
                 </View>
               )}
-
-
-
             </View>
           </Animated.View>
 
-          {/* Tab Content with Swipe Support and Animation */}
-          <PanGestureHandler
-            onHandlerStateChange={handleGestureStateChange}
-            enabled={true} // Enable gesture handler for swipe detection
-            minPointers={1}
-            maxPointers={1}
-            shouldCancelWhenOutside={false}
-            activeOffsetX={[-20, 20]} // Only activate for horizontal movement > 20px
-            failOffsetY={[-10, 10]} // Fail if vertical movement > 10px
-          >
-            <Animated.View style={[styles.tabContent, { marginTop: filterHeightAnim.interpolate({
-              inputRange: [0, 160],
-              outputRange: [0, 0], // Content stays in place, filters overlay
-            }) }]}>
-              <Animated.View
-                style={[
-                  styles.tabContainer,
-                  {
-                    transform: [{
-                      translateX: tabSlideAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, -Dimensions.get('window').width],
-                      }),
-                    }],
-                  },
-                ]}
-              >
-                {/* My Exercises Tab */}
-                <View style={styles.tabPage}>
-                  <UserExerciseList
-                    exercises={userExercises}
-                    totalCount={userExercises.length}
-                    loading={loading}
-                    userGyms={userGyms}
-                    exerciseGymsMap={exerciseGymsMap}
-                    onToggleFavorite={handleToggleFavorite}
-                    onDeleteExercise={handleDeleteExercise}
-                    onAddToWorkout={(exercise) => handleAddToWorkout(exercise)}
-                    onEditExercise={(exercise) => console.log('Edit exercise:', exercise)}
-                    onInfoPress={(exercise) => console.log('Info press:', exercise)}
-                    onManageGyms={(exercise) => console.log('Manage gyms:', exercise)}
-                    onRefreshData={refreshExercises}
-                  />
-                </View>
-
-                {/* Global Library Tab */}
-                <View style={styles.tabPage}>
-                  <GlobalExerciseList
-                    exercises={globalExercises}
-                    totalCount={globalExercises.length}
-                    loading={loading}
-                    onToggleFavorite={handleToggleFavorite}
-                    onAddToWorkout={handleAddToWorkout}
-                    onInfoPress={(exercise) => console.log('Info press:', exercise)}
-                    onManageGyms={(exercise) => console.log('Manage gyms:', exercise)}
-                  />
-                </View>
-              </Animated.View>
-            </Animated.View>
-          </PanGestureHandler>
+        {/* Tab Content */}
+        <View style={styles.tabViewContainer}>
+          <TabView
+            navigationState={{ index, routes }}
+            renderScene={renderScene}
+            onIndexChange={setIndex}
+            initialLayout={{ width: Dimensions.get('window').width }}
+            renderTabBar={() => null} // Hide default tab bar, using custom buttons above
+            swipeEnabled={true}
+            animationEnabled={true}
+          />
         </View>
-      </ScrollView>
+      </View>
 
       {/* Custom Dropdown Modal */}
       <Modal
@@ -480,23 +420,8 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: Colors.primaryForeground,
   },
-  tabContent: {
+  tabViewContainer: {
     flex: 1,
-    minHeight: Dimensions.get('window').height * 0.6, // Ensure minimum height for swipe gestures
-  },
-  tabContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    width: Dimensions.get('window').width * 2, // Two screens wide
-  },
-  tabPage: {
-    width: Dimensions.get('window').width,
-    flex: 1,
-  },
-  tabInnerContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 200,
   },
   placeholderText: {
     ...TextStyles.body,

@@ -86,8 +86,14 @@ export const sortExercises = (
 };
 
 export const getUniqueMuscleGroups = (exercises: FetchedExerciseDefinition[]): string[] => {
-  const muscles = new Set(exercises.map(ex => ex.main_muscle));
-  return Array.from(muscles).sort();
+  const muscles = new Set();
+  exercises.forEach(ex => {
+    // Only include muscle groups that don't contain commas (single muscle groups)
+    if (!ex.main_muscle.includes(',')) {
+      muscles.add(ex.main_muscle.trim());
+    }
+  });
+  return Array.from(muscles).sort() as string[];
 };
 
 export const getUniqueCategories = (exercises: FetchedExerciseDefinition[]): string[] => {
