@@ -182,14 +182,61 @@ export const useExerciseData = ({ supabase }: UseExerciseDataProps): UseExercise
     if (!userId) return;
 
     try {
-      // This is a simplified version - in real implementation, this would be more complex
-      // to match the web app's logic for determining which workouts contain which exercises
+      // First get the user's active program from their profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('active_t_path_id')
+        .eq('id', userId)
+        .single();
+
+      if (profileError) throw profileError;
+
+      if (!profile?.active_t_path_id) {
+        // No active program, return empty map
+        setExerciseWorkoutsMap({});
+        return;
+      }
+
+      // Get all workouts that belong to the user's active program (parent + children)
+      const { data: userWorkouts, error: workoutsError } = await supabase
+        .from('t_paths')
+        .select('id, template_name, parent_t_path_id')
+        .eq('user_id', userId)
+        .or(`id.eq.${profile.active_t_path_id},parent_t_path_id.eq.${profile.active_t_path_id}`);
+
+      if (workoutsError) throw workoutsError;
+
+      // Get all t_path_exercises to see which exercises are in which workouts
+      const { data: tPathExercises, error: tpeError } = await supabase
+        .from('t_path_exercises')
+        .select('exercise_id, template_id')
+        .in('template_id', (userWorkouts || []).map(w => w.id));
+
+      if (tpeError) throw tpeError;
+
+      // Create a map of exercise_id -> workouts
       const map: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]> = {};
+
+      (tPathExercises || []).forEach(tpe => {
+        const workout = userWorkouts?.find(w => w.id === tpe.template_id);
+        if (workout) {
+          if (!map[tpe.exercise_id]) {
+            map[tpe.exercise_id] = [];
+          }
+          map[tpe.exercise_id].push({
+            id: workout.id,
+            name: workout.template_name,
+            isUserOwned: true,
+            isBonus: !!workout.parent_t_path_id, // If it has a parent, it's a child workout (bonus)
+          });
+        }
+      });
+
       setExerciseWorkoutsMap(map);
     } catch (err) {
       console.error('Failed to fetch exercise workouts map:', err);
     }
-  }, [userId]);
+  }, [supabase, userId]);
 
   // Actions
   const refreshExercises = useCallback(() => {
@@ -273,7 +320,7 @@ export const useExerciseData = ({ supabase }: UseExerciseDataProps): UseExercise
 
   const handleAddToWorkout = useCallback((exercise: FetchedExerciseDefinition) => {
     // This would implement adding exercise to workout logic
-    console.log('Adding exercise to workout:', { exerciseId: exercise.id });
+    console.log('Adding exercise to workout:', { exerciseId: exercise.id, exerciseName: exercise.name });
   }, []);
 
   const handleRemoveFromWorkout = useCallback(async (workoutId: string, exerciseId: string) => {

@@ -10,6 +10,7 @@ interface SimplePressableProps {
   children?: React.ReactNode;
   onPress?: () => void;
   style?: any;
+  hapticStyle?: string;
 }
 
 export function HapticPressable({

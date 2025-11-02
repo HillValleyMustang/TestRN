@@ -1,620 +1,163 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
-import { useAuth } from './_contexts/auth-context';
-import { useData } from './_contexts/data-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import type { TPath } from '@data/storage/models';
-import { Colors } from '../constants/design-system';
-
-// Color mapping for different workout types - using design system colors
-function getWorkoutColors(workoutName: string) {
-  const name = workoutName.toLowerCase();
-
-  // PPL Colors - match web app design system
-  if (name.includes('push')) {
-    return {
-      bg: Colors.workoutPush,
-      text: Colors.foreground,
-      border: Colors.workoutPushLight,
-    };
-  }
-  if (name.includes('pull')) {
-    return {
-      bg: Colors.workoutPull,
-      text: Colors.foreground,
-      border: Colors.workoutPullLight,
-    };
-  }
-  if (name.includes('leg')) {
-    return {
-      bg: Colors.workoutLegs,
-      text: Colors.foreground,
-      border: Colors.workoutLegsLight,
-    };
-  }
-
-  // ULUL Colors - match web app design system
-  if (
-    name.includes('upper') &&
-    (name.includes('a') || name.includes('1') || !name.includes('b'))
-  ) {
-    return {
-      bg: Colors.workoutUpperA,
-      text: Colors.foreground,
-      border: Colors.workoutUpperALight,
-    };
-  }
-  if (name.includes('upper') && (name.includes('b') || name.includes('2'))) {
-    return {
-      bg: Colors.workoutUpperB,
-      text: Colors.foreground,
-      border: Colors.workoutUpperBLight,
-    };
-  }
-  if (
-    name.includes('lower') &&
-    (name.includes('a') || name.includes('1') || !name.includes('b'))
-  ) {
-    return {
-      bg: Colors.workoutLowerA,
-      text: Colors.foreground,
-      border: Colors.workoutLowerALight,
-    };
-  }
-  if (name.includes('lower') && (name.includes('b') || name.includes('2'))) {
-    return {
-      bg: Colors.workoutLowerB,
-      text: Colors.foreground,
-      border: Colors.workoutLowerBLight,
-    };
-  }
-
-  // Bonus workouts
-  if (name.includes('bonus')) {
-    return {
-      bg: Colors.workoutBonus,
-      text: Colors.foreground,
-      border: Colors.workoutBonusLight,
-    };
-  }
-
-  // Default
-  return {
-    bg: Colors.actionPrimary,
-    text: Colors.foreground,
-    border: Colors.actionPrimaryLight,
-  };
-}
-
-function getSplitTypeFromTPath(tPath: TPath | null): 'ppl' | 'ulul' | null {
-  if (!tPath) {
-    return null;
-  }
-
-  // First, check settings for explicit split type
-  const settings = tPath.settings as any;
-  if (settings?.tPathType === 'ppl' || settings?.tPathType === 'ulul') {
-    return settings.tPathType;
-  }
-
-  // Fallback to template name detection
-  if (
-    tPath.template_name.toLowerCase().includes('push') ||
-    tPath.template_name.toLowerCase().includes('pull') ||
-    tPath.template_name.toLowerCase().includes('ppl')
-  ) {
-    return 'ppl';
-  }
-  if (
-    tPath.template_name.toLowerCase().includes('upper') ||
-    tPath.template_name.toLowerCase().includes('lower') ||
-    tPath.template_name.toLowerCase().includes('ulul')
-  ) {
-    return 'ulul';
-  }
-
-  return null;
-}
+import React, { useEffect, useState } from 'react';
+import { View, FlatList, StyleSheet, Text } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useWorkoutFlow } from './_contexts/workout-flow-context';
+import { WorkoutSessionHeader } from '../components/workout/WorkoutSessionHeader';
+import { ExerciseCard } from '../components/workout/ExerciseCard';
+import { ExerciseInfoModal } from '../components/workout/ExerciseInfoModal';
+import { ExerciseSwapModal } from '../components/workout/ExerciseSwapModal';
+import { Colors, Spacing } from '../constants/Theme';
 
 export default function WorkoutSessionScreen() {
-  const { userId } = useAuth();
-  const { getTPaths, getTPathProgress } = useData();
   const router = useRouter();
-  const params = useLocalSearchParams();
-  const tPathId = params.tPathId as string | undefined;
+  const {
+    isWorkoutActive,
+    activeWorkout,
+    exercisesForSession,
+    exercisesWithSets,
+    sessionStartTime,
+    removeExerciseFromSession,
+    substituteExercise,
+  } = useWorkoutFlow();
 
-  const [mainTPath, setMainTPath] = useState<TPath | null>(null);
-  const [childWorkouts, setChildWorkouts] = useState<TPath[]>([]);
-  const [workoutProgress, setWorkoutProgress] = useState<
-    Record<string, { last_accessed: string | null }>
-  >({});
-  const [loading, setLoading] = useState(true);
-  const [activeGymName, setActiveGymName] = useState<string>('My Gym');
+  const [infoModalVisible, setInfoModalVisible] = useState(false);
+  const [swapModalVisible, setSwapModalVisible] = useState(false);
+  const [selectedExercise, setSelectedExercise] = useState<any>(null);
+  const [currentExerciseId, setCurrentExerciseId] = useState<string>('');
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
-  const loadWorkouts = useCallback(async () => {
-    if (!userId) {
-      return;
-    }
-    setLoading(true);
-    try {
-      const allTPaths = await getTPaths(userId, true);
-
-      // Find the main T-Path (either from params or the first main program)
-      let selectedMainTPath: TPath | null = null;
-      if (tPathId) {
-        selectedMainTPath = allTPaths.find(tp => tp.id === tPathId) || null;
-      } else {
-        // Find first main program (PPL or ULUL)
-        selectedMainTPath =
-          allTPaths.find(
-            tp =>
-              tp.is_main_program &&
-              (tp.template_name.includes('Push/Pull/Legs') ||
-                tp.template_name.includes('Upper/Lower'))
-          ) || null;
-      }
-
-      if (!selectedMainTPath) {
-        setLoading(false);
-        return;
-      }
-
-      setMainTPath(selectedMainTPath);
-
-      // Get child workouts
-      const children = allTPaths.filter(
-        tp => tp.parent_t_path_id === selectedMainTPath.id
-      );
-      setChildWorkouts(children);
-
-      // Load progress for each child workout
-      const progressData: Record<string, { last_accessed: string | null }> = {};
-      for (const child of children) {
-        const progress = await getTPathProgress(child.id, userId);
-        if (progress) {
-          progressData[child.id] = { last_accessed: progress.last_accessed };
-        }
-      }
-      setWorkoutProgress(progressData);
-
-      // Extract gym name from settings if available
-      const settings = selectedMainTPath.settings as any;
-      if (settings?.gymName) {
-        setActiveGymName(settings.gymName);
-      }
-    } catch (error) {
-      console.error('Error loading workouts:', error);
-      Alert.alert('Error', 'Failed to load workouts');
-    } finally {
-      setLoading(false);
-    }
-  }, [getTPathProgress, getTPaths, tPathId, userId]);
-
+  // Redirect to launcher if no active workout
   useEffect(() => {
-    loadWorkouts();
-  }, [loadWorkouts]);
+    if (!isWorkoutActive) {
+      router.replace('/(tabs)/workout');
+    }
+  }, [isWorkoutActive, router]);
 
-  const handleStartWorkout = (workout: TPath) => {
-    router.push({
-      pathname: '/workout',
-      params: { workoutId: workout.id },
-    });
+  const handleInfoPress = (exerciseId: string) => {
+    const exercise = exercisesForSession.find(ex => ex.id === exerciseId);
+    if (exercise) {
+      setSelectedExercise(exercise);
+      setInfoModalVisible(true);
+    }
   };
 
-  const handleStartAdHoc = () => {
-    router.push('/workout');
+  const handleRemoveExercise = async (exerciseId: string) => {
+    await removeExerciseFromSession(exerciseId);
   };
 
-  const getLastTrainedText = (workoutId: string): string => {
-    const progress = workoutProgress[workoutId];
-    if (!progress?.last_accessed) {
-      return 'Never';
-    }
-
-    const lastDate = new Date(progress.last_accessed);
-    const now = new Date();
-    const diffMs = now.getTime() - lastDate.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) {
-      return 'Today';
-    }
-    if (diffDays === 1) {
-      return 'Yesterday';
-    }
-    if (diffDays < 7) {
-      return `${diffDays} days ago`;
-    }
-    if (diffDays < 30) {
-      return `${Math.floor(diffDays / 7)} weeks ago`;
-    }
-    return `${Math.floor(diffDays / 30)} months ago`;
+  const handleSubstituteExercise = (exerciseId: string) => {
+    setCurrentExerciseId(exerciseId);
+    setSwapModalVisible(true);
   };
 
-  if (loading) {
+  const handleExerciseSelected = async (newExercise: any) => {
+    await substituteExercise(currentExerciseId, newExercise);
+    setSwapModalVisible(false);
+    setCurrentExerciseId('');
+  };
+
+  const handleExerciseSaved = (exerciseName: string, setCount: number) => {
+    console.log('handleExerciseSaved called with:', exerciseName, setCount);
+    setSavedMessage('Saved!');
+    // Auto-dismiss after 3 seconds
+    setTimeout(() => {
+      setSavedMessage(null);
+    }, 3000);
+  };
+
+  const handleSavedMessageDismiss = () => {
+    setSavedMessage(null);
+  };
+
+  const renderExercise = ({ item: exercise }: { item: any }) => {
+    const exerciseSets = exercisesWithSets[exercise.id] || [];
+    console.log('Rendering exercise:', exercise.name, 'with onExerciseSaved:', !!handleExerciseSaved);
+
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366F1" />
-        <Text style={styles.loadingText}>Loading workouts...</Text>
+      <ExerciseCard
+        exercise={exercise}
+        sets={exerciseSets}
+        onInfoPress={() => handleInfoPress(exercise.id)}
+        onRemoveExercise={() => handleRemoveExercise(exercise.id)}
+        onSubstituteExercise={() => handleSubstituteExercise(exercise.id)}
+        onExerciseSaved={handleExerciseSaved}
+      />
+    );
+  };
+
+  if (!isWorkoutActive || !activeWorkout) {
+    return (
+      <View style={styles.container}>
+        <Text style={{ color: 'white', textAlign: 'center', marginTop: 50 }}>
+          Loading workout session...
+        </Text>
       </View>
     );
   }
 
-  if (!mainTPath) {
+  if (exercisesForSession.length === 0) {
     return (
-      <ScrollView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Workout Session</Text>
-          <Text style={styles.subtitle}>No workout program found</Text>
-        </View>
-
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>
-            You don't have a workout program yet
-          </Text>
-          <Text style={styles.emptySubtext}>
-            Create one using the AI Program Generator
-          </Text>
-          <TouchableOpacity
-            style={styles.generateButton}
-            onPress={() => router.push('/ai-program-generator')}
-          >
-            <Text style={styles.generateButtonText}>✨ Generate Program</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.adHocSection}>
-          <Text style={styles.adHocTitle}>⚡ Start Ad-Hoc Workout</Text>
-          <Text style={styles.adHocSubtitle}>
-            Start a workout without a T-Path. Add exercises as you go.
-          </Text>
-          <TouchableOpacity
-            style={styles.adHocButton}
-            onPress={handleStartAdHoc}
-          >
-            <Text style={styles.adHocButtonText}>Start Empty</Text>
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-      </ScrollView>
+      <View style={styles.container}>
+        <Text style={{ color: 'white', textAlign: 'center', marginTop: 50 }}>
+          No exercises found for this workout.
+        </Text>
+        <Text style={{ color: 'white', textAlign: 'center', marginTop: 20 }}>
+          Active workout: {activeWorkout?.template_name || 'None'}
+        </Text>
+        <Text style={{ color: 'white', textAlign: 'center', marginTop: 10 }}>
+          Exercises count: {exercisesForSession.length}
+        </Text>
+      </View>
     );
   }
-
-  const splitType = getSplitTypeFromTPath(mainTPath);
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Workout Session</Text>
-        <Text style={styles.subtitle}>
-          Select a workout or start an ad-hoc session.
-        </Text>
-      </View>
+    <View style={styles.container}>
+      <WorkoutSessionHeader
+        workoutName={activeWorkout.template_name}
+        startTime={sessionStartTime}
+        savedMessage={savedMessage}
+        onSavedMessageDismiss={handleSavedMessageDismiss}
+      />
 
-      {/* Active Gym */}
-      <View style={styles.gymSelector}>
-        <Text style={styles.gymLabel}>Active Gym</Text>
-        <View style={styles.gymBadge}>
-          <Text style={styles.gymBadgeIcon}>🏋️</Text>
-          <Text style={styles.gymBadgeText}>{activeGymName}</Text>
-        </View>
-      </View>
+      <FlatList
+        data={exercisesForSession}
+        keyExtractor={(item) => item.id!}
+        renderItem={renderExercise}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      />
 
-      {/* Main Program Header */}
-      <View style={styles.programHeader}>
-        <Text style={styles.programIcon}>🎯</Text>
-        <Text style={styles.programName}>{mainTPath.template_name}</Text>
-      </View>
+      <ExerciseInfoModal
+        exercise={selectedExercise}
+        visible={infoModalVisible}
+        onClose={() => {
+          setInfoModalVisible(false);
+          setSelectedExercise(null);
+        }}
+      />
 
-      {/* Workout Buttons */}
-      <View style={styles.workoutsContainer}>
-        {childWorkouts.length === 0 ? (
-          <View style={styles.noWorkoutsState}>
-            <Text style={styles.noWorkoutsText}>
-              No workouts in this program
-            </Text>
-          </View>
-        ) : (
-          childWorkouts.map(workout => {
-            const colors = getWorkoutColors(workout.template_name, splitType);
-            const lastTrained = getLastTrainedText(workout.id);
-
-            return (
-              <TouchableOpacity
-                key={workout.id}
-                style={[
-                  styles.workoutButton,
-                  { backgroundColor: colors.bg, borderColor: colors.border },
-                ]}
-                onPress={() => handleStartWorkout(workout)}
-              >
-                <View style={styles.workoutButtonContent}>
-                  <View style={styles.workoutButtonLeft}>
-                    <Text
-                      style={[styles.workoutButtonIcon, { color: colors.text }]}
-                    >
-                      {workout.template_name.includes('Push') && '↗️'}
-                      {workout.template_name.includes('Pull') && '↙️'}
-                      {workout.template_name.includes('Legs') && '🦵'}
-                      {workout.template_name.includes('Upper') && '💪'}
-                      {workout.template_name.includes('Lower') && '🏃'}
-                    </Text>
-                    <View>
-                      <Text
-                        style={[
-                          styles.workoutButtonTitle,
-                          { color: colors.text },
-                        ]}
-                      >
-                        {workout.template_name}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.workoutButtonStatus,
-                          { color: colors.text },
-                          styles.workoutButtonStatusOpacity,
-                        ]}
-                      >
-                        {lastTrained}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })
-        )}
-      </View>
-
-      {/* Ad-Hoc Workout Section */}
-      <View style={styles.adHocSection}>
-        <Text style={styles.adHocTitle}>⚡ Start Ad-Hoc Workout</Text>
-        <Text style={styles.adHocSubtitle}>
-          Start a workout without a T-Path. Add exercises as you go.
-        </Text>
-        <View style={styles.adHocButtons}>
-          <TouchableOpacity
-            style={styles.adHocButton}
-            onPress={handleStartAdHoc}
-          >
-            <Text style={styles.adHocButtonText}>Start Empty</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.generateButton}
-            onPress={() => router.push('/ai-program-generator')}
-          >
-            <Text style={styles.generateButtonText}>✨ Generate</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <Text style={styles.backButtonText}>← Back</Text>
-      </TouchableOpacity>
-    </ScrollView>
+      <ExerciseSwapModal
+        visible={swapModalVisible}
+        onClose={() => {
+          setSwapModalVisible(false);
+          setCurrentExerciseId('');
+        }}
+        onSelectExercise={handleExerciseSelected}
+        currentExerciseId={currentExerciseId}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.background,
   },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  header: {
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  gymSelector: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  gymLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '600',
-  },
-  gymBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  gymBadgeIcon: {
-    fontSize: 16,
-    marginRight: 6,
-  },
-  gymBadgeText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  programHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  programIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  programName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  workoutsContainer: {
-    padding: 20,
-  },
-  workoutButton: {
-    borderRadius: 12,
-    borderWidth: 2,
-    padding: 16,
-    marginBottom: 12,
-  },
-  workoutButtonContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  workoutButtonLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  workoutButtonIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  workoutButtonTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  workoutButtonStatus: {
-    fontSize: 14,
-    marginTop: 4,
-  },
-  workoutButtonStatusOpacity: {
-    opacity: 0.8,
-  },
-  adHocSection: {
-    padding: 20,
-    backgroundColor: '#FFFFFF',
-    margin: 20,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    borderStyle: 'dashed',
-  },
-  adHocTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  adHocSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 16,
-  },
-  adHocButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  adHocButton: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  adHocButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  generateButton: {
-    flex: 1,
-    backgroundColor: '#111827',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  generateButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  emptyState: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  noWorkoutsState: {
-    padding: 32,
-    alignItems: 'center',
-  },
-  noWorkoutsText: {
-    fontSize: 16,
-    color: '#9CA3AF',
-  },
-  backButton: {
-    margin: 20,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    alignItems: 'center',
-  },
-  backButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#6366F1',
+  listContent: {
+    padding: Spacing.lg,
+    paddingBottom: Spacing.xl * 2, // Extra space at bottom
   },
 });

@@ -143,6 +143,22 @@ export default function RootLayout() {
                         title: 'AI Program Generator',
                       }}
                     />
+                    <Stack.Screen
+                      name="workout-session"
+                      options={{
+                        presentation: 'modal',
+                        gestureEnabled: false,
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="workout-summary"
+                      options={{
+                        presentation: 'modal',
+                        gestureEnabled: false,
+                        headerShown: false,
+                      }}
+                    />
                   </Stack>
                   <UnsavedChangesModal />
                     <Toast

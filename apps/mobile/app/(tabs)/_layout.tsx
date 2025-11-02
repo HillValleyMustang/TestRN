@@ -4,6 +4,11 @@ import { Colors } from '../../constants/Theme';
 import { useWorkoutFlow } from '../_contexts/workout-flow-context';
 import { AppHeader } from '../../components/AppHeader';
 
+// Wrapper component to ensure context is available
+function HeaderWrapper() {
+  return <AppHeader />;
+}
+
 const tabBarOptions = {
   tabBarActiveTintColor: Colors.foreground, // Black icons when active
   tabBarInactiveTintColor: Colors.mutedForeground, // Gray icons when inactive
@@ -17,7 +22,7 @@ const tabBarOptions = {
     paddingTop: 12,
   },
   headerShown: true,
-  header: () => <AppHeader />,
+  header: () => <HeaderWrapper />,
 };
 
 export default function TabsLayout() {
@@ -42,7 +47,7 @@ export default function TabsLayout() {
         name="dashboard"
         options={{
           title: 'Dashboard',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <Ionicons name="home" size={20} color={color} />
           ),
         }}
@@ -52,7 +57,7 @@ export default function TabsLayout() {
         name="workout"
         options={{
           title: 'Workout',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <Ionicons name="barbell" size={20} color={color} />
           ),
         }}
@@ -62,7 +67,7 @@ export default function TabsLayout() {
         name="exercises"
         options={{
           title: 'Exercises',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <Ionicons name="book" size={20} color={color} />
           ),
         }}
@@ -72,7 +77,7 @@ export default function TabsLayout() {
         name="progress"
         options={{
           title: 'Progress',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <Ionicons name="bar-chart" size={20} color={color} />
           ),
         }}
@@ -82,7 +87,7 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <Ionicons name="person" size={20} color={color} />
           ),
         }}

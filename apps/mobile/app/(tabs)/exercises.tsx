@@ -31,6 +31,7 @@ export default function ExercisesScreen({ navigation }: ExercisesScreenProps) {
     availableMuscleGroups,
     userGyms,
     exerciseGymsMap,
+    exerciseWorkoutsMap,
     loading,
     error,
     searchTerm,
@@ -112,6 +113,7 @@ export default function ExercisesScreen({ navigation }: ExercisesScreenProps) {
         loading={loading}
         userGyms={userGyms}
         exerciseGymsMap={exerciseGymsMap}
+        exerciseWorkoutsMap={exerciseWorkoutsMap}
         availableMuscleGroups={availableMuscleGroups}
         supabase={supabase}
         userId={userId}
@@ -129,8 +131,14 @@ export default function ExercisesScreen({ navigation }: ExercisesScreenProps) {
         exercises={globalExercises}
         totalCount={globalExercises.length}
         loading={loading}
+        exerciseWorkoutsMap={exerciseWorkoutsMap}
         onToggleFavorite={handleToggleFavorite}
-        onAddToWorkout={handleAddToWorkout}
+        onAddToWorkout={(exercise) => {
+          console.log('Global library: Add to workout pressed for:', exercise.name);
+          // The GlobalExerciseList component should handle opening the modal itself
+          // This prop is just to trigger the action, the component handles the modal
+          // But we need to make sure the component's handler is called, not this one
+        }}
         onInfoPress={(exercise) => console.log('Info press:', exercise)}
         onManageGyms={(exercise) => console.log('Manage gyms:', exercise)}
       />

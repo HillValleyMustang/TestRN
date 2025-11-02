@@ -33,13 +33,13 @@ export function GymToggle() {
 
   const loadGyms = async () => {
     if (!userId) return;
-    
+
     try {
       setLoading(true);
-      
+
       const userGyms = await getGyms(userId);
       setGyms(userGyms);
-      
+
       const activeGym = await getActiveGym(userId);
       if (activeGym?.id) {
         setActiveGymId(activeGym.id);
@@ -94,35 +94,32 @@ export function GymToggle() {
   }
 
   const activeGym = gyms.find(g => g.id === activeGymId);
-  const gymName = activeGym?.name || 'No gym selected';
+  const gymName = activeGym?.name || 'Select Gym';
 
   return (
     <Card style={styles.container}>
       <View style={styles.content}>
-        <Pressable 
+        <Pressable
           onPress={handlePrevious}
           style={styles.chevronButton}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="chevron-back" size={24} color={Colors.foreground} />
+          <Ionicons name="chevron-back" size={20} color={Colors.foreground} />
         </Pressable>
 
         <View style={styles.gymInfo}>
-          <View style={styles.labelRow}>
-            <Ionicons name="home" size={16} color={Colors.mutedForeground} />
-            <Text style={styles.label}>Active Gym</Text>
-          </View>
+          <Text style={styles.label}>Active Gym</Text>
           <Text style={styles.gymName} numberOfLines={1}>
             {gymName}
           </Text>
         </View>
 
-        <Pressable 
+        <Pressable
           onPress={handleNext}
           style={styles.chevronButton}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="chevron-forward" size={24} color={Colors.foreground} />
+          <Ionicons name="chevron-forward" size={20} color={Colors.foreground} />
         </Pressable>
       </View>
     </Card>
@@ -131,7 +128,9 @@ export function GymToggle() {
 
 const styles = StyleSheet.create({
   container: {
-    padding: Spacing.md,
+    padding: Spacing.sm,
+    minHeight: 50,
+    minWidth: 280,
   },
   content: {
     flexDirection: 'row',
@@ -141,10 +140,19 @@ const styles = StyleSheet.create({
   },
   chevronButton: {
     padding: Spacing.xs,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.muted,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    width: 28,
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   gymInfo: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     gap: Spacing.xs / 2,
   },
   labelRow: {
@@ -162,5 +170,9 @@ const styles = StyleSheet.create({
     color: Colors.foreground,
     fontWeight: '600',
     textAlign: 'center',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    minWidth: 80,
+    maxWidth: 150,
   },
 });

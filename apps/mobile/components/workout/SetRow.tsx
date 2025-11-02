@@ -1,154 +1,208 @@
-/**
- * SetRow Component
- * Individual set input for tracking reps, weight, and completion
- */
-
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Check } from 'lucide-react-native';
 import { Colors, Spacing } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
+import { usePreferences } from '../../app/_contexts/preferences-context';
+import { useWorkoutFlow } from '../../app/_contexts/workout-flow-context';
+
+interface SetLogState {
+  id: string | null;
+  created_at: string | null;
+  session_id: string | null;
+  exercise_id: string;
+  weight_kg: number | null;
+  reps: number | null;
+  reps_l: number | null;
+  reps_r: number | null;
+  time_seconds: number | null;
+  is_pb: boolean;
+  isSaved: boolean;
+  isPR: boolean;
+  lastWeight: number | null;
+  lastReps: number | null;
+  lastRepsL: number | null;
+  lastRepsR: number | null;
+  lastTimeSeconds: number | null;
+}
 
 interface SetRowProps {
   setNumber: number;
-  reps: string;
-  weight: string;
-  isCompleted: boolean;
-  isPR?: boolean;
-  onRepsChange: (value: string) => void;
+  setData: SetLogState;
+  exerciseId: string;
   onWeightChange: (value: string) => void;
+  onRepsChange: (value: string) => void;
   onToggleComplete: () => void;
+  disabled?: boolean;
 }
 
-export function SetRow({
+export const SetRow: React.FC<SetRowProps> = ({
   setNumber,
-  reps,
-  weight,
-  isCompleted,
-  isPR,
-  onRepsChange,
+  setData,
+  exerciseId,
   onWeightChange,
+  onRepsChange,
   onToggleComplete,
-}: SetRowProps) {
+  disabled = false,
+}) => {
+  const { unitSystem } = usePreferences();
+  const { logSet } = useWorkoutFlow();
+  const [weight, setWeight] = useState(setData.weight_kg?.toString() || '');
+  const [reps, setReps] = useState(setData.reps?.toString() || '');
+
+  const handleWeightChange = (value: string) => {
+    setWeight(value);
+    onWeightChange(value);
+  };
+
+  const handleRepsChange = (value: string) => {
+    setReps(value);
+    onRepsChange(value);
+  };
+
+  const handleToggleComplete = () => {
+    if (!disabled) {
+      if (!setData.isSaved && (!weight || !reps)) {
+        // Alert.alert('Missing Data', 'Please enter weight and reps before completing the set.');
+        return;
+      }
+      const repsNum = parseInt(reps, 10);
+      const weightNum = parseFloat(weight);
+      logSet(exerciseId, setData.id!, repsNum, weightNum);
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.setNumber}>{setNumber}</Text>
-      
-      <TextInput
-        style={[styles.input, isCompleted && styles.inputCompleted]}
-        value={weight}
-        onChangeText={onWeightChange}
-        keyboardType="decimal-pad"
-        placeholder="kg"
-        placeholderTextColor={Colors.mutedForeground}
-        editable={!isCompleted}
-      />
-      
-      <Text style={styles.separator}>×</Text>
-      
-      <TextInput
-        style={[styles.input, isCompleted && styles.inputCompleted]}
-        value={reps}
-        onChangeText={onRepsChange}
-        keyboardType="number-pad"
-        placeholder="reps"
-        placeholderTextColor={Colors.mutedForeground}
-        editable={!isCompleted}
-      />
-      
+      <View style={styles.setNumberContainer}>
+        <Text style={[styles.setNumber, disabled && styles.disabledText]}>
+          {setNumber}
+        </Text>
+      </View>
+
+      <View style={styles.prevContainer}>
+        <Text style={[styles.prevText, disabled && styles.disabledText]}>
+          {setData.lastWeight && setData.lastReps ? `${setData.lastReps} × ${setData.lastWeight}${unitSystem === 'metric' ? 'kg' : 'lbs'}` : '—'}
+        </Text>
+      </View>
+
+      <View style={styles.inputsContainer}>
+        <TextInput
+          style={[styles.input, disabled && styles.disabledInput]}
+          value={weight}
+          onChangeText={handleWeightChange}
+          placeholder="0"
+          keyboardType="numeric"
+          editable={!disabled}
+          selectTextOnFocus
+        />
+        <Text style={[styles.unitText, disabled && styles.disabledText]}>{unitSystem === 'metric' ? 'kg' : 'lbs'}</Text>
+      </View>
+
+      <View style={styles.inputsContainer}>
+        <TextInput
+          style={[styles.input, disabled && styles.disabledInput]}
+          value={reps}
+          onChangeText={handleRepsChange}
+          placeholder="0"
+          keyboardType="numeric"
+          editable={!disabled}
+          selectTextOnFocus
+        />
+      </View>
+
       <Pressable
-        onPress={onToggleComplete}
-        style={({ pressed }) => [
-          styles.checkButton,
-          isCompleted && styles.checkButtonCompleted,
-          isPR && styles.checkButtonPR,
-          pressed && styles.checkButtonPressed,
+        style={[
+          styles.checkbox,
+          setData.isSaved && styles.checkboxCompleted,
+          disabled && styles.disabledCheckbox,
         ]}
+        onPress={handleToggleComplete}
+        disabled={disabled}
       >
-        {isCompleted && (
-          <Ionicons 
-            name="checkmark" 
-            size={20} 
-            color={isPR ? Colors.card : Colors.card} 
-          />
+        {setData.isSaved && (
+          <Check size={16} color={Colors.white} />
         )}
       </Pressable>
-      
-      {isPR && (
-        <View style={styles.prBadge}>
-          <Text style={styles.prText}>PR</Text>
-        </View>
-      )}
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    paddingVertical: Spacing.xs,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    backgroundColor: Colors.card,
+    borderRadius: 8,
+    marginVertical: 2,
+  },
+  setNumberContainer: {
+    width: 30,
+    alignItems: 'center',
   },
   setNumber: {
+    ...TextStyles.bodyMedium,
+    color: Colors.foreground,
+    fontWeight: '600',
+  },
+  prevContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  prevText: {
     ...TextStyles.caption,
     color: Colors.mutedForeground,
-    fontWeight: '600',
-    width: 24,
     textAlign: 'center',
+    fontVariant: ['tabular-nums'],
+  },
+  inputsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: Spacing.xs,
   },
   input: {
-    ...TextStyles.body,
-    flex: 1,
-    height: 40,
-    backgroundColor: Colors.muted,
-    borderRadius: 8,
+    width: 60,
+    height: 36,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 6,
     paddingHorizontal: Spacing.sm,
-    color: Colors.foreground,
     textAlign: 'center',
-  },
-  inputCompleted: {
-    backgroundColor: Colors.muted,
-    opacity: 0.6,
-  },
-  separator: {
     ...TextStyles.body,
-    color: Colors.mutedForeground,
+    color: Colors.foreground,
+    backgroundColor: Colors.background,
   },
-  checkButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  unitText: {
+    ...TextStyles.small,
+    color: Colors.mutedForeground,
+    marginLeft: Spacing.xs,
+    width: 20,
+  },
+  checkbox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.card,
+    marginLeft: Spacing.sm,
   },
-  checkButtonCompleted: {
+  checkboxCompleted: {
     backgroundColor: Colors.success,
     borderColor: Colors.success,
   },
-  checkButtonPR: {
-    backgroundColor: Colors.chart4,
-    borderColor: Colors.chart4,
+  disabledText: {
+    opacity: 0.5,
   },
-  checkButtonPressed: {
-    opacity: 0.8,
+  disabledInput: {
+    opacity: 0.5,
+    backgroundColor: Colors.muted,
   },
-  prBadge: {
-    position: 'absolute',
-    right: 35,
-    top: -4,
-    backgroundColor: Colors.chart4,
-    borderRadius: 8,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-  },
-  prText: {
-    ...TextStyles.caption,
-    fontSize: 10,
-    fontWeight: '700',
-    color: Colors.card,
+  disabledCheckbox: {
+    opacity: 0.5,
   },
 });

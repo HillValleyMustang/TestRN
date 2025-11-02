@@ -19,6 +19,7 @@ interface ScreenHeaderProps {
   onBackPress?: () => void;
   rightAction?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
+  transparent?: boolean;
 }
 
 export function ScreenHeader({
@@ -28,6 +29,7 @@ export function ScreenHeader({
   onBackPress,
   rightAction,
   style,
+  transparent = false,
 }: ScreenHeaderProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -41,7 +43,7 @@ export function ScreenHeader({
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + Spacing.md }, style]}>
+    <View style={[styles.container, { paddingTop: insets.top + Spacing.md }, transparent && styles.transparent, style]}>
       <View style={styles.content}>
         {showBack && (
           <Pressable onPress={handleBack} style={styles.backButton}>
@@ -66,6 +68,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
     marginTop: -Spacing.xl, // Move header up
+  },
+  transparent: {
+    backgroundColor: 'transparent',
+    borderBottomWidth: 0,
   },
   content: {
     flexDirection: 'row',

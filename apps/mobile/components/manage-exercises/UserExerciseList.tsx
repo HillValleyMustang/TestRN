@@ -22,6 +22,7 @@ import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
 import { FetchedExerciseDefinition } from '../../../../packages/data/src/types/exercise';
 import { useAuth } from '../../app/_contexts/auth-context';
+import { getWorkoutColor } from '../../lib/workout-colors';
 import ExerciseInfoModal from './ExerciseInfoModal';
 import EditExerciseModal from './EditExerciseModal';
 import AddToTPathModal from './AddToTPathModal';
@@ -34,6 +35,7 @@ interface UserExerciseListProps {
   loading: boolean;
   userGyms: any[]; // TODO: Define proper type
   exerciseGymsMap: Record<string, string[]>;
+  exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>;
   availableMuscleGroups: string[];
   supabase: any;
   userId: string | null;
@@ -49,6 +51,7 @@ interface UserExerciseListProps {
 interface ExerciseItemProps {
   exercise: FetchedExerciseDefinition;
   exerciseGymsMap: Record<string, string[]>;
+  exerciseWorkoutsMap: Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>;
   onToggleFavorite: (exercise: FetchedExerciseDefinition) => void;
   onDeleteExercise: (exercise: FetchedExerciseDefinition) => void;
   onAddToWorkout: (exercise: FetchedExerciseDefinition) => void;
@@ -60,6 +63,7 @@ interface ExerciseItemProps {
 const ExerciseItem: React.FC<ExerciseItemProps> = ({
   exercise,
   exerciseGymsMap,
+  exerciseWorkoutsMap,
   onToggleFavorite,
   onDeleteExercise,
   onAddToWorkout,
@@ -150,6 +154,27 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({
 
         {/* Exercise metadata row */}
         <View style={styles.exerciseMeta}>
+          {/* Workout tags */}
+          {exerciseWorkoutsMap && exerciseWorkoutsMap[exercise.id as string] && exerciseWorkoutsMap[exercise.id as string].length > 0 && (
+            <View style={styles.exerciseWorkouts}>
+              {exerciseWorkoutsMap[exercise.id as string].slice(0, 2).map((workout, index) => {
+                const workoutColor = getWorkoutColor(workout.name);
+                return (
+                  <View key={index} style={[styles.exerciseWorkoutTag, { backgroundColor: workoutColor.main }]}>
+                    <Text style={styles.exerciseWorkoutTagText}>{workout.name}</Text>
+                  </View>
+                );
+              })}
+              {exerciseWorkoutsMap[exercise.id as string].length > 2 && (
+                <View style={styles.exerciseWorkoutTag}>
+                  <Text style={styles.exerciseWorkoutTagText}>
+                    +{exerciseWorkoutsMap[exercise.id as string].length - 2}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Gym tags */}
           {exerciseGymsMap && exerciseGymsMap[exercise.id as string] && exerciseGymsMap[exercise.id as string].length > 0 && (
             <View style={styles.exerciseGyms}>
@@ -716,6 +741,7 @@ export const UserExerciseList: React.FC<UserExerciseListProps> = ({
   loading,
   userGyms,
   exerciseGymsMap,
+  exerciseWorkoutsMap,
   availableMuscleGroups,
   supabase,
   userId,
@@ -825,6 +851,7 @@ export const UserExerciseList: React.FC<UserExerciseListProps> = ({
     <ExerciseItem
       exercise={item}
       exerciseGymsMap={exerciseGymsMap}
+      exerciseWorkoutsMap={exerciseWorkoutsMap}
       onToggleFavorite={onToggleFavorite}
       onDeleteExercise={onDeleteExercise}
       onAddToWorkout={onAddToWorkout}
@@ -832,7 +859,7 @@ export const UserExerciseList: React.FC<UserExerciseListProps> = ({
       onInfoPress={handleInfoPress}
       onManageGyms={handleManageGyms}
     />
-  ), [exerciseGymsMap, onToggleFavorite, onDeleteExercise, onAddToWorkout, handleEditExercise, handleInfoPress, handleManageGyms]);
+  ), [exerciseGymsMap, exerciseWorkoutsMap, onToggleFavorite, onDeleteExercise, onAddToWorkout, handleEditExercise, handleInfoPress, handleManageGyms]);
 
   const renderEmpty = useCallback(() => (
     <View style={styles.emptyContainer}>
@@ -872,6 +899,7 @@ export const UserExerciseList: React.FC<UserExerciseListProps> = ({
           key={exercise.id}
           exercise={exercise}
           exerciseGymsMap={exerciseGymsMap}
+          exerciseWorkoutsMap={exerciseWorkoutsMap}
           onToggleFavorite={onToggleFavorite}
           onDeleteExercise={onDeleteExercise}
           onAddToWorkout={handleAddToWorkout}
@@ -891,9 +919,8 @@ export const UserExerciseList: React.FC<UserExerciseListProps> = ({
         visible={addToTPathModalVisible}
         onClose={handleCloseAddToTPathModal}
         exercise={exerciseToAdd}
-        onAddSuccess={() => {
-          // Refresh data or show success message
-        }}
+        exerciseWorkoutsMap={exerciseWorkoutsMap}
+        onAddSuccess={onRefreshData}
       />
 
       <EditExerciseModal
@@ -1531,6 +1558,22 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     marginTop: Spacing.sm,
     gap: Spacing.xs,
+  },
+  exerciseWorkouts: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+  },
+  exerciseWorkoutTag: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.sm,
+  },
+  exerciseWorkoutTagText: {
+    ...TextStyles.bodySmall,
+    color: Colors.primaryForeground,
+    fontWeight: '500',
   },
   menuOption: {
     flexDirection: 'row',

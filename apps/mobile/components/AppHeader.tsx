@@ -5,9 +5,11 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { X } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '../constants/Theme';
+import { TextStyles } from '../constants/Typography';
 import { useAuth } from '../app/_contexts/auth-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRollingStatus } from '../hooks/useRollingStatus';
@@ -91,7 +93,9 @@ export function AppHeader() {
             <HapticPressable onPress={() => setShowStatusModal(true)} hapticStyle="light">
               <View style={[styles.badge, { backgroundColor: config.backgroundColor }]}>
                 <Ionicons name={config.icon} size={18} color={config.color} />
-                <Text style={[styles.badgeText, { color: config.color }]}>{status}</Text>
+                <Text style={[styles.badgeText, { color: config.color }]}>
+                  {status}
+                </Text>
               </View>
             </HapticPressable>
           )}
