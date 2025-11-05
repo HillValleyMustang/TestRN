@@ -12,6 +12,11 @@ export const UnsavedChangesModal = () => {
   const { showUnsavedChangesDialog, confirmLeave, cancelLeave } =
     useWorkoutFlow();
 
+  const handleDiscard = () => {
+    // Reset local workout UI state when discarding
+    confirmLeave();
+  };
+
   return (
     <Modal
       visible={showUnsavedChangesDialog}
@@ -36,7 +41,7 @@ export const UnsavedChangesModal = () => {
             </Button>
             <Button
               variant="destructive"
-              onPress={confirmLeave}
+              onPress={handleDiscard}
               style={styles.actionButton}
             >
               Discard

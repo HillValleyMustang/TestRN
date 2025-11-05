@@ -3,9 +3,10 @@
  * Interactive workout selector showing expandable workouts with exercises
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, Alert, ScrollView, Pressable } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { ChevronDown, ChevronRight, Play, Dumbbell } from 'lucide-react-native';
 import { useWorkoutFlow } from '../_contexts/workout-flow-context';
 import { useWorkoutLauncherData } from '../../hooks/useWorkoutLauncherData';
@@ -19,6 +20,8 @@ import { ExerciseCard } from '../../components/workout/ExerciseCard';
 import { ExerciseInfoModal } from '../../components/workout/ExerciseInfoModal';
 import { ExerciseSwapModal } from '../../components/workout/ExerciseSwapModal';
 import { WorkoutPill } from '../../components/workout-launcher';
+import { WorkoutProgressBar } from '../../components/workout/WorkoutProgressBar';
+import WorkoutSummaryModal from '../workout-summary';
 
 interface WorkoutItemProps {
   workout: any;
@@ -89,7 +92,7 @@ const WorkoutItem: React.FC<WorkoutItemProps> = ({
 };
 
 export default function WorkoutLauncherScreen() {
-  // const router = useRouter();
+  const router = useRouter();
   const {
     selectWorkout,
     selectAndStartWorkout,
@@ -100,48 +103,73 @@ export default function WorkoutLauncherScreen() {
     removeExerciseFromSession,
     substituteExercise,
     finishWorkout,
+    completedExercises,
+    currentSessionId,
+    resetWorkoutSession,
+    confirmLeave,
   } = useWorkoutFlow();
   const { profile, activeTPath, childWorkouts, adhocWorkouts, workoutExercisesCache, lastCompletedDates, loading, error, refresh } = useWorkoutLauncherData();
   const { getGyms } = useData();
   const [userGyms, setUserGyms] = useState<any[]>([]);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const [expandedWorkouts, setExpandedWorkouts] = useState<Set<string>>(new Set());
   const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
   const [isWorkoutActiveInline, setIsWorkoutActiveInline] = useState(false);
   const [loadingExercises, setLoadingExercises] = useState(false);
+  const [infoModalVisible, setInfoModalVisible] = useState(false);
+  const [swapModalVisible, setSwapModalVisible] = useState(false);
+  const [selectedExercise, setSelectedExercise] = useState<any>(null);
+  const [currentExerciseId, setCurrentExerciseId] = useState<string>('');
+  const [showWorkoutSummary, setShowWorkoutSummary] = useState(false);
+  const [finishedSessionId, setFinishedSessionId] = useState<string | null>(null);
+  const [hasJustReset, setHasJustReset] = useState(false);
+  const [userHasSelectedWorkout, setUserHasSelectedWorkout] = useState(false);
 
   // Auto-select the first Push workout on component mount for better UX
+  // Only run this when we first load the component and have no workout state
+  // Don't run if we've just reset due to discarding changes or if user has manually selected
   useEffect(() => {
-    if (childWorkouts.length > 0 && !selectedWorkout && profile?.id && !isWorkoutActiveInline) {
+    if (childWorkouts.length > 0 && !selectedWorkout && profile?.id && !isWorkoutActiveInline && !showWorkoutSummary && !activeWorkout && !hasJustReset && !userHasSelectedWorkout) {
+      console.log('[WorkoutScreen] Auto-selecting workout on mount - conditions met');
       // Find the first Push workout to auto-select
       const pushWorkout = childWorkouts.find(workout =>
         workout.template_name.toLowerCase().includes('push')
       );
       if (pushWorkout) {
+        console.log('[WorkoutScreen] Auto-selecting Push workout:', pushWorkout.id);
         setSelectedWorkout(pushWorkout.id);
         // Auto-start the workout
         selectAndStartWorkout(pushWorkout.id).then(() => {
           setIsWorkoutActiveInline(true);
-        }).catch((error) => {
-          console.error('Failed to auto-start workout:', error);
-        });
-      } else {
-        // If no Push workout found, select the first workout
-        setSelectedWorkout(childWorkouts[0].id);
-        selectAndStartWorkout(childWorkouts[0].id).then(() => {
-          setIsWorkoutActiveInline(true);
+          // Scroll to top after workout is loaded
+          setTimeout(() => {
+            scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+          }, 100);
         }).catch((error) => {
           console.error('Failed to auto-start workout:', error);
         });
       }
     }
-  }, [childWorkouts, selectedWorkout, profile?.id, isWorkoutActiveInline]);
-  const [infoModalVisible, setInfoModalVisible] = useState(false);
-  const [swapModalVisible, setSwapModalVisible] = useState(false);
-  const [selectedExercise, setSelectedExercise] = useState<any>(null);
-  const [currentExerciseId, setCurrentExerciseId] = useState<string>('');
+  }, [childWorkouts, selectedWorkout, profile?.id, isWorkoutActiveInline, showWorkoutSummary, activeWorkout, hasJustReset, userHasSelectedWorkout]);
 
   // Workouts now run inline in this tab - no redirect needed
+
+  // Reset workout UI state when context is reset (e.g., after discarding changes)
+  useEffect(() => {
+    if (!activeWorkout && !currentSessionId) {
+      console.log('[WorkoutScreen] Resetting workout UI state');
+      setIsWorkoutActiveInline(false);
+      setSelectedWorkout(null);
+      setHasJustReset(true);
+      setUserHasSelectedWorkout(false); // Reset user selection flag
+      // Clear the reset flag immediately since we're not auto-selecting anymore
+      setTimeout(() => {
+        console.log('[WorkoutScreen] Clearing hasJustReset flag');
+        setHasJustReset(false);
+      }, 100);
+    }
+  }, [activeWorkout, currentSessionId]);
 
   // Refresh data when tab is focused (only once per focus)
   useFocusEffect(
@@ -181,8 +209,19 @@ export default function WorkoutLauncherScreen() {
   };
 
   const handleSelectWorkout = async (workoutId: string) => {
+    console.log('[WorkoutScreen] handleSelectWorkout called with:', workoutId, 'current selected:', selectedWorkout);
+
+    // If we're switching to a different workout, reset the current session first
+    if (selectedWorkout && selectedWorkout !== workoutId) {
+      console.log('[WorkoutScreen] Switching workouts, resetting current session first');
+      await resetWorkoutSession();
+    }
+
     const newSelectedWorkout = workoutId === selectedWorkout ? null : workoutId;
     setSelectedWorkout(newSelectedWorkout);
+
+    // Mark that user has manually selected a workout
+    setUserHasSelectedWorkout(true);
 
     // Auto-start workout when selected
     if (newSelectedWorkout && newSelectedWorkout !== selectedWorkout) {
@@ -202,6 +241,9 @@ export default function WorkoutLauncherScreen() {
     } else if (!newSelectedWorkout) {
       // Deselecting workout - reset state
       setIsWorkoutActiveInline(false);
+      setSelectedWorkout(null);
+      // Reset workout session when deselecting
+      await resetWorkoutSession();
     }
   };
 
@@ -291,7 +333,11 @@ export default function WorkoutLauncherScreen() {
     <View style={styles.container}>
       <BackgroundRoot />
       <View style={styles.innerContainer}>
-        <ScrollView style={styles.scrollContent}>
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.scrollContent}
+          contentContainerStyle={styles.scrollContentContainer}
+        >
           <ScreenHeader
             title="Start Workout"
             style={{
@@ -399,142 +445,154 @@ export default function WorkoutLauncherScreen() {
         )}
 
         {/* Workout Controls - Only show when workout is active */}
-        {isWorkoutActiveInline && selectedWorkout && (
+        {(isWorkoutActiveInline && selectedWorkout) || loadingExercises ? (
           <View style={styles.contentArea}>
             {loadingExercises ? (
               <View style={styles.loadingExercisesContainer}>
-                <Text style={styles.loadingExercisesText}>Loading exercises...</Text>
+                <Text style={styles.loadingExercisesText}>Loading workout...</Text>
               </View>
             ) : (
               <>
                 {/* Workout Title Pill */}
-                <View style={styles.workoutTitleContainer}>
-                  <WorkoutPill
-                    id={selectedWorkout}
-                    title={activeWorkout?.template_name || 'Workout'}
-                    category={(() => {
-                      const workout = childWorkouts.find(w => w.id === selectedWorkout);
-                      if (workout) {
-                        const lowerTitle = workout.template_name.toLowerCase();
-                        const isUpperLowerSplit = activeTPath?.template_name?.toLowerCase().includes('upper/lower');
-   
-                        if (isUpperLowerSplit) {
-                          if (lowerTitle.includes('upper')) return 'upper';
-                          else if (lowerTitle.includes('lower')) return 'lower';
-                        } else {
-                          if (lowerTitle.includes('push')) return 'push';
-                          else if (lowerTitle.includes('pull')) return 'pull';
-                          else if (lowerTitle.includes('legs')) return 'legs';
-                        }
-                      }
-                      return 'push';
-                    })()}
-                    completedAt={null}
-                    isSelected={true}
-                    onClick={() => {}}
-                    hideLastCompleted={true}
-                  />
-                </View>
-
-            {/* Interactive Exercise Cards */}
-            {exercisesForSession.length > 0 && (
-              <View style={styles.exercisesList}>
-                {exercisesForSession.map((exercise, index) => {
-                  const exerciseSets = exercisesWithSets[exercise.id!] || [];
-                  return (
-                    <ExerciseCard
-                      key={exercise.id!}
-                      exercise={{
-                        id: exercise.id!,
-                        name: exercise.name || 'Unknown Exercise',
-                        main_muscle: exercise.main_muscle || 'Unknown',
-                        type: exercise.type || 'Unknown',
-                        category: exercise.category,
-                        description: exercise.description,
-                        pro_tip: exercise.pro_tip,
-                        video_url: exercise.video_url,
-                        equipment: exercise.equipment,
-                        user_id: null,
-                        library_id: null,
-                        created_at: exercise.created_at,
-                        is_favorite: null,
-                        icon_url: null,
-                        is_bonus_exercise: exercise.is_bonus_exercise || false,
-                      }}
-                      sets={exerciseSets}
-                      exerciseNumber={index + 1}
-                      accentColor={(() => {
-                        // Get the workout category color for the accent
+                {selectedWorkout && (
+                  <View style={styles.workoutTitleContainer}>
+                    <WorkoutPill
+                      id={selectedWorkout}
+                      title={activeWorkout?.template_name || 'Workout'}
+                      category={(() => {
                         const workout = childWorkouts.find(w => w.id === selectedWorkout);
                         if (workout) {
                           const lowerTitle = workout.template_name.toLowerCase();
                           const isUpperLowerSplit = activeTPath?.template_name?.toLowerCase().includes('upper/lower');
 
                           if (isUpperLowerSplit) {
-                            if (lowerTitle.includes('upper')) return '#8B5CF6'; // Purple
-                            else if (lowerTitle.includes('lower')) return '#EF4444'; // Red
+                            if (lowerTitle.includes('upper')) return 'upper';
+                            else if (lowerTitle.includes('lower')) return 'lower';
                           } else {
-                            if (lowerTitle.includes('push')) return '#3B82F6'; // Blue
-                            else if (lowerTitle.includes('pull')) return '#10B981'; // Green
-                            else if (lowerTitle.includes('legs')) return '#F59E0B'; // Amber
+                            if (lowerTitle.includes('push')) return 'push';
+                            else if (lowerTitle.includes('pull')) return 'pull';
+                            else if (lowerTitle.includes('legs')) return 'legs';
                           }
                         }
-                        return undefined;
+                        return 'push';
                       })()}
-                      onInfoPress={() => handleInfoPress(exercise.id!)}
-                      onRemoveExercise={() => handleRemoveExercise(exercise.id!)}
-                      onSubstituteExercise={() => handleSubstituteExercise(exercise.id!)}
-                      onExerciseSaved={(exerciseName, setCount) => {
-                        // Exercise saved - toast notification is handled in ExerciseCard
-                      }}
+                      completedAt={null}
+                      isSelected={true}
+                      onClick={() => {}}
+                      hideLastCompleted={true}
                     />
-                  );
-                })}
-              </View>
-            )}
+                  </View>
+                )}
 
-            <View style={styles.workoutActionButtons}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.cancelWorkoutButton,
-                  pressed && styles.cancelWorkoutButtonPressed,
-                ]}
-                onPress={() => {
-                  Alert.alert(
-                    'Cancel Workout',
-                    'Are you sure you want to cancel this workout? All progress will be lost.',
-                    [
-                      { text: 'Keep Working', style: 'cancel' },
-                      {
-                        text: 'Cancel Workout',
-                        style: 'destructive',
-                        onPress: () => {
-                          // Reset workout state without saving
-                          setIsWorkoutActiveInline(false);
-                          setSelectedWorkout(null);
-                        }
-                      },
-                    ]
-                  );
-                }}
-              >
-                <Text style={styles.cancelWorkoutText}>Cancel Workout</Text>
-              </Pressable>
+                {/* Interactive Exercise Cards */}
+                {exercisesForSession.length > 0 && (
+                  <View style={styles.exercisesList}>
+                    {exercisesForSession.map((exercise, index) => {
+                      const exerciseSets = exercisesWithSets[exercise.id!] || [];
+                      return (
+                        <ExerciseCard
+                          key={exercise.id!}
+                          exercise={{
+                            id: exercise.id!,
+                            name: exercise.name || 'Unknown Exercise',
+                            main_muscle: exercise.main_muscle || 'Unknown',
+                            type: exercise.type || 'Unknown',
+                            category: exercise.category,
+                            description: exercise.description,
+                            pro_tip: exercise.pro_tip,
+                            video_url: exercise.video_url,
+                            equipment: exercise.equipment,
+                            user_id: null,
+                            library_id: null,
+                            created_at: exercise.created_at,
+                            is_favorite: null,
+                            icon_url: (exercise as any).icon_url || null,
+                            is_bonus_exercise: exercise.is_bonus_exercise || false,
+                          }}
+                          sets={exerciseSets}
+                          exerciseNumber={index + 1}
+                          accentColor={(() => {
+                            // Get the workout category color for the accent
+                            const workout = childWorkouts.find(w => w.id === selectedWorkout);
+                            if (workout) {
+                              const lowerTitle = workout.template_name.toLowerCase();
+                              const isUpperLowerSplit = activeTPath?.template_name?.toLowerCase().includes('upper/lower');
 
-              <Pressable
-                style={({ pressed }) => [
-                  styles.startWorkoutButton,
-                  pressed && styles.startWorkoutButtonPressed,
-                ]}
-                onPress={() => finishWorkout()}
-              >
-                <Text style={styles.startWorkoutText}>Finish Workout</Text>
-              </Pressable>
+                              if (isUpperLowerSplit) {
+                                if (lowerTitle.includes('upper')) return '#8B5CF6'; // Purple
+                                else if (lowerTitle.includes('lower')) return '#EF4444'; // Red
+                              } else {
+                                if (lowerTitle.includes('push')) return '#3B82F6'; // Blue
+                                else if (lowerTitle.includes('pull')) return '#10B981'; // Green
+                                else if (lowerTitle.includes('legs')) return '#F59E0B'; // Amber
+                              }
+                            }
+                            return undefined;
+                          })()}
+                          onInfoPress={() => handleInfoPress(exercise.id!)}
+                          onRemoveExercise={() => handleRemoveExercise(exercise.id!)}
+                          onSubstituteExercise={() => handleSubstituteExercise(exercise.id!)}
+                          onExerciseSaved={(exerciseName, setCount) => {
+                            // Exercise saved - toast notification is handled in ExerciseCard
+                          }}
+                        />
+                      );
+                    })}
+                  </View>
+                )}
+
+                <View style={styles.workoutActionButtons}>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.cancelWorkoutButton,
+                      pressed && styles.cancelWorkoutButtonPressed,
+                    ]}
+                    onPress={() => {
+                      Alert.alert(
+                        'Cancel Workout',
+                        'Are you sure you want to cancel this workout? All progress will be lost.',
+                        [
+                          { text: 'Keep Working', style: 'cancel' },
+                          {
+                            text: 'Cancel Workout',
+                            style: 'destructive',
+                            onPress: () => {
+                              // Reset workout state without saving
+                              setIsWorkoutActiveInline(false);
+                              setSelectedWorkout(null);
+                            }
+                          },
+                        ]
+                      );
+                    }}
+                  >
+                    <Text style={styles.cancelWorkoutText}>Cancel Workout</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.cancelWorkoutButton, // Use same style as cancel button for consistency
+                      { backgroundColor: Colors.primary }, // Override background color
+                      pressed && styles.cancelWorkoutButtonPressed,
+                    ]}
+                    onPress={async () => {
+                      const sessionId = await finishWorkout();
+                      if (sessionId) {
+                        console.log('Workout finished, showing summary modal for session:', sessionId);
+                        setFinishedSessionId(sessionId);
+                        setShowWorkoutSummary(true);
+                      } else {
+                        console.log('Workout finish failed - no sessionId returned');
+                      }
+                    }}
+                  >
+                    <Text style={[styles.cancelWorkoutText, { color: Colors.white }]}>Finish Workout</Text>
+                  </Pressable>
                 </View>
               </>
             )}
           </View>
-        )}
+        ) : null}
 
         {/* Ad-hoc Workouts Section */}
         {adhocWorkouts.length > 0 && (
@@ -596,6 +654,57 @@ export default function WorkoutLauncherScreen() {
             setCurrentExerciseId('');
           }}
           currentExerciseId={currentExerciseId}
+        />
+
+        {/* Workout Progress Bar - Only show after user has saved at least one exercise */}
+        {completedExercises.size > 0 && (
+          <WorkoutProgressBar
+            exercisesForSession={exercisesForSession}
+            completedExercises={completedExercises}
+            isWorkoutSessionStarted={!!currentSessionId}
+            activeWorkout={activeWorkout}
+          />
+        )}
+
+        {/* Workout Summary Modal */}
+        <WorkoutSummaryModal
+          visible={showWorkoutSummary}
+          sessionId={finishedSessionId}
+          onClose={() => {
+            setShowWorkoutSummary(false);
+            // Reset workout state when modal is closed via X button
+            resetWorkoutSession();
+            setIsWorkoutActiveInline(false);
+            setSelectedWorkout(null);
+            setFinishedSessionId(null);
+            // Scroll to top after reset
+            setTimeout(() => {
+              scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+            }, 100);
+          }}
+          onDone={() => {
+            setShowWorkoutSummary(false);
+            // Reset workout state and navigate back to dashboard
+            resetWorkoutSession();
+            // Reset local state to show workout selector again
+            setIsWorkoutActiveInline(false);
+            setSelectedWorkout(null);
+            setFinishedSessionId(null);
+            router.replace('/(tabs)/dashboard');
+          }}
+          onStartAnother={() => {
+            setShowWorkoutSummary(false);
+            // Reset workout state and stay on workout tab
+            resetWorkoutSession();
+            // Reset local state to show workout selector again
+            setIsWorkoutActiveInline(false);
+            setSelectedWorkout(null);
+            setFinishedSessionId(null);
+            // Scroll to top after reset
+            setTimeout(() => {
+              scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+            }, 100);
+          }}
         />
       </View>
     </View>
@@ -664,6 +773,9 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flex: 1,
+  },
+  scrollContentContainer: {
+    paddingBottom: 120, // Add padding at bottom so buttons are visible when scrolled to bottom
   },
   workoutItem: {
     backgroundColor: Colors.card,
@@ -740,6 +852,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: Spacing.md,
     gap: Spacing.sm,
+    minHeight: 48, // Ensure consistent height
   },
   startWorkoutButtonPressed: {
     backgroundColor: Colors.primary,
@@ -965,6 +1078,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.mutedForeground,
     backgroundColor: Colors.secondary,
+    minHeight: 48, // Ensure consistent height
   },
   cancelWorkoutButtonPressed: {
     backgroundColor: Colors.muted,

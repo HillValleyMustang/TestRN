@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, Pressable, StyleSheet, Alert, TextInput, Modal } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Alert, TextInput, Modal, Image } from 'react-native';
 import { Info, Menu, Plus, ChevronDown, ChevronUp, History, RotateCcw, X, Save, Lightbulb, Trophy } from 'lucide-react-native';
 import { useWorkoutFlow } from '../../app/_contexts/workout-flow-context';
 import { useRollingStatus } from '../../hooks/useRollingStatus';
@@ -7,7 +7,28 @@ import { useAuth } from '../../app/_contexts/auth-context';
 import { Colors, Spacing } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
 import { supabase } from '../../app/_lib/supabase';
+import { database, addToSyncQueue } from '../../app/_lib/database';
 import Toast from 'react-native-toast-message';
+
+// Simple UUID generator for React Native
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
+// Helper function to check if a set has any user input
+const hasUserInput = (set: SetLogState): boolean => {
+  return (
+    (set.weight_kg !== null && set.weight_kg > 0) ||
+    (set.reps !== null && set.reps > 0) ||
+    (set.reps_l !== null && set.reps_l > 0) ||
+    (set.reps_r !== null && set.reps_r > 0) ||
+    (set.time_seconds !== null && set.time_seconds > 0)
+  );
+};
 
 interface SetLogState {
   id: string | null;
@@ -64,13 +85,12 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
   sets,
   exerciseNumber,
   onInfoPress,
-  onAddSet,
   onRemoveExercise,
   onSubstituteExercise,
   onExerciseSaved,
   accentColor,
 }) => {
-  const { updateSet, currentSessionId } = useWorkoutFlow();
+  const { updateSet, currentSessionId, markExerciseAsCompleted } = useWorkoutFlow();
   const { userId } = useAuth();
   const { refetch } = useRollingStatus();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -82,21 +102,21 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
     buttons: Array<{ text: string; onPress?: () => void; style?: 'default' | 'destructive' }>;
   } | null>(null);
   const [restTimer, setRestTimer] = useState<number | null>(null);
-  const [previousWorkoutSets, setPreviousWorkoutSets] = useState<Array<{ weight_kg: number | null; reps: number | null }>>([]);
   const [isExerciseSaved, setIsExerciseSaved] = useState(false);
+  const [previousSets, setPreviousSets] = useState<Array<{ weight_kg: number | null; reps: number | null }>>([]);
   const [localSets, setLocalSets] = useState<SetLogState[]>(() =>
-    Array.from({ length: 3 }, (_, index) => ({
+    sets && sets.length > 0 ? sets.map(set => ({ ...set })) : Array.from({ length: 3 }, (_, index) => ({
       id: null,
       created_at: null,
       session_id: null,
       exercise_id: exercise.id,
-      weight_kg: sets[index]?.weight_kg || null,
-      reps: sets[index]?.reps || null,
+      weight_kg: null,
+      reps: null,
       reps_l: null,
       reps_r: null,
       time_seconds: null,
       is_pb: false,
-      isSaved: sets[index]?.isSaved || false,
+      isSaved: false,
       isPR: false,
       lastWeight: null,
       lastReps: null,
@@ -131,11 +151,21 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
 
     // Check for personal best (volume PB: weight × reps)
     const currentVolume = (set.weight_kg || 0) * (set.reps || 0);
-    const previousVolumes = localSets
+    const previousSessionVolumes = localSets
       .filter((s: SetLogState) => s.isSaved && s !== set)
       .map((s: SetLogState) => (s.weight_kg || 0) * (s.reps || 0));
-    const maxPreviousVolume = Math.max(...previousVolumes, 0);
-    const isVolumePB = currentVolume > maxPreviousVolume && maxPreviousVolume > 0;
+    const maxPreviousVolume = Math.max(...previousSessionVolumes, 0);
+    // PB if current volume beats the maximum from previous session
+    const isVolumePB = currentVolume > maxPreviousVolume;
+
+    console.log('PB Check:', {
+      currentVolume,
+      previousSessionVolumes,
+      maxPreviousVolume,
+      isVolumePB,
+      exerciseName: exercise.name,
+      setIndex
+    });
 
     const newSets = [...localSets];
     newSets[setIndex] = {
@@ -145,6 +175,16 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
     };
     setLocalSets(newSets);
     updateSet(exercise.id, setIndex, { isSaved: !set.isSaved, isPR: isVolumePB });
+
+    console.log('Set saved with PR status:', {
+      exerciseName: exercise.name,
+      setIndex,
+      isSaved: !set.isSaved,
+      isPR: isVolumePB,
+      weight: set.weight_kg,
+      reps: set.reps,
+      volume: currentVolume
+    });
 
     // Start rest timer when set is saved
     if (!set.isSaved) {
@@ -187,40 +227,62 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
     setShowCustomAlertModal(true);
   };
 
-  // Fetch previous workout sets
+  // Fetch previous workout sets and all historical volumes
   const fetchPreviousWorkoutSets = useCallback(async () => {
     try {
-      // Get the most recent workout session for this exercise (excluding current session)
-      const { data: previousSessions, error: sessionsError } = await supabase
+      // Get all historical workout sessions for this exercise (excluding current session)
+      const { data: allSessions, error: sessionsError } = await supabase
         .from('workout_sessions')
         .select('id')
         .eq('user_id', userId)
         .neq('id', currentSessionId) // Exclude current session
-        .order('session_date', { ascending: false })
-        .limit(1);
+        .order('session_date', { ascending: false });
 
       if (sessionsError) throw sessionsError;
 
-      if (previousSessions && previousSessions.length > 0) {
-        const previousSessionId = previousSessions[0].id;
+      if (allSessions && allSessions.length > 0) {
+        // Get the most recent session for display
+        const mostRecentSessionId = allSessions[0].id;
 
-        // Get set logs for this exercise from the previous session
-        const { data: previousSets, error: setsError } = await supabase
+        // Get set logs for this exercise from the most recent session
+        const { data: previousSetsData, error: setsError } = await supabase
           .from('set_logs')
           .select('weight_kg, reps')
-          .eq('session_id', previousSessionId)
+          .eq('session_id', mostRecentSessionId)
           .eq('exercise_id', exercise.id)
           .order('created_at', { ascending: true });
 
         if (setsError) throw setsError;
 
-        setPreviousWorkoutSets(previousSets || []);
+        // Store previous sets for display
+        setPreviousSets(previousSetsData || []);
+
+        // Update localSets with previous data
+        setLocalSets(prevSets => prevSets.map((set, index) => ({
+          ...set,
+          lastWeight: previousSetsData && previousSetsData[index] ? previousSetsData[index].weight_kg : null,
+          lastReps: previousSetsData && previousSetsData[index] ? previousSetsData[index].reps : null,
+        })));
+
+        // Get all historical volumes for PB calculation
+        const allSessionIds = allSessions.map(session => session.id);
+        const { data: allHistoricalSets, error: historicalError } = await supabase
+          .from('set_logs')
+          .select('weight_kg, reps')
+          .in('session_id', allSessionIds)
+          .eq('exercise_id', exercise.id);
+
+        if (historicalError) throw historicalError;
+
+        // Calculate all historical volumes
+        const historicalVolumes = (allHistoricalSets || []).map(set =>
+          (set.weight_kg || 0) * (set.reps || 0)
+        ).filter(volume => volume > 0);
       } else {
-        setPreviousWorkoutSets([]);
+        setPreviousSets([]);
       }
     } catch (error: any) {
       console.error('Error fetching previous workout sets:', error);
-      setPreviousWorkoutSets([]);
     }
   }, [exercise.id, userId, currentSessionId]);
 
@@ -303,6 +365,19 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
 
       {/* Action Row */}
       <View style={styles.actionRow}>
+        {exercise.icon_url && (
+          <Image
+            source={{ uri: exercise.icon_url }}
+            style={styles.exerciseIcon}
+            resizeMode="contain"
+          />
+        )}
+        <View style={styles.spacer} />
+        {isExerciseSaved && (
+          <View style={styles.completedIcon}>
+            <Text style={styles.completedIconText}>✓</Text>
+          </View>
+        )}
         <Pressable
           style={({ pressed }) => [
             styles.iconButton,
@@ -380,9 +455,10 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
       {isExpanded && (
         <View style={styles.expandedContent}>
           <View style={styles.setsContainer}>
-            {localSets.slice(0, 3).map((set, index) => (
+            {localSets.map((set, index) => (
               <View key={`set-${index}`} style={[
                 styles.setItem,
+                !set.isSaved && styles.elevatedSetItem,
                 set.isSaved && styles.completedSetItem,
                 set.isPR && styles.prSetItem
               ]}>
@@ -397,6 +473,15 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                     </View>
                   )}
                 </View>
+
+                {/* Previous workout performance */}
+                {set.lastWeight !== null && set.lastReps !== null && (
+                  <View style={styles.previousSetContainer}>
+                    <Text style={styles.previousSetText}>
+                      Last {set.lastWeight}kg x {set.lastReps} reps
+                    </Text>
+                  </View>
+                )}
 
                 <View style={styles.setInputs}>
                   <TextInput
@@ -429,33 +514,12 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                   <Pressable
                     style={styles.deleteIconButton}
                     onPress={() => {
-                      // TODO: Implement delete set functionality
                       Alert.alert('Delete Set', `Delete set ${index + 1}?`, [
                         { text: 'Cancel', style: 'cancel' },
                         { text: 'Delete', style: 'destructive', onPress: () => {
                           // Remove the set from localSets
                           const newSets = [...localSets];
                           newSets.splice(index, 1);
-                          // Add empty set at the end to maintain 3 sets
-                          newSets.push({
-                            id: null,
-                            created_at: null,
-                            session_id: null,
-                            exercise_id: exercise.id,
-                            weight_kg: null,
-                            reps: null,
-                            reps_l: null,
-                            reps_r: null,
-                            time_seconds: null,
-                            is_pb: false,
-                            isSaved: false,
-                            isPR: false,
-                            lastWeight: null,
-                            lastReps: null,
-                            lastRepsL: null,
-                            lastRepsR: null,
-                            lastTimeSeconds: null,
-                          });
                           setLocalSets(newSets);
                         }},
                       ]);
@@ -465,14 +529,6 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                   </Pressable>
                 </View>
 
-                {/* Previous workout data */}
-                {previousWorkoutSets.length > index && previousWorkoutSets[index] && (
-                  <View style={styles.previousSetContainer}>
-                    <Text style={styles.previousSetText}>
-                      {previousWorkoutSets[index].weight_kg || 0}×{previousWorkoutSets[index].reps || 0}
-                    </Text>
-                  </View>
-                )}
               </View>
             ))}
           </View>
@@ -480,7 +536,37 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
           <View style={styles.expandedActions}>
             <View style={styles.actionButtonsRow}>
               <View style={styles.leftButtons}>
-                <Pressable style={styles.iconActionButton} onPress={onAddSet}>
+                <Pressable
+                  style={styles.iconActionButton}
+                  onPress={() => {
+                    if (localSets.length >= 5) {
+                      Alert.alert('Maximum Sets Reached', 'You can have a maximum of 5 sets per exercise.');
+                      return;
+                    }
+
+                    const newSet: SetLogState = {
+                      id: generateUUID(),
+                      created_at: null,
+                      session_id: currentSessionId,
+                      exercise_id: exercise.id,
+                      weight_kg: null,
+                      reps: null,
+                      reps_l: null,
+                      reps_r: null,
+                      time_seconds: null,
+                      is_pb: false,
+                      isSaved: false,
+                      isPR: false,
+                      lastWeight: null,
+                      lastReps: null,
+                      lastRepsL: null,
+                      lastRepsR: null,
+                      lastTimeSeconds: null,
+                    };
+
+                    setLocalSets(prev => [...prev, newSet]);
+                  }}
+                >
                   <Plus size={16} color={Colors.primary} />
                 </Pressable>
                 <Pressable
@@ -553,20 +639,109 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
             {!isExerciseSaved && (
               <Pressable
                 style={styles.saveExerciseButton}
-                onPress={() => {
-                  // Save all completed sets for this exercise (sets that are marked as saved but not yet persisted)
-                  const exerciseSets = localSets.filter(set => set.isSaved && set.id === null);
-                  if (exerciseSets.length === 0) {
-                    Alert.alert('No Sets to Save', 'There are no completed sets to save for this exercise.');
+                onPress={async () => {
+                  // Save all sets with user input for this exercise (regardless of individual save status)
+                  const setsToSave = localSets.filter(set => hasUserInput(set));
+                  if (setsToSave.length === 0) {
+                    Alert.alert('No Sets to Save', 'There are no sets with data to save for this exercise.');
                     return;
                   }
 
-                  // The sets are already marked as saved in the UI, now we need to persist them to the database
-                  // This would typically call an API to save the sets, but for now we'll just show success
-                  console.log('Calling onExerciseSaved with:', exercise.name, exerciseSets.length);
-                  onExerciseSaved?.(exercise.name, exerciseSets.length);
+                  console.log(`Saving ${setsToSave.length} sets for exercise: ${exercise.name}`);
+
+                  // Calculate PR status for all sets before saving
+                  const setsWithPR = localSets.map((set, setIndex) => {
+                    if (!hasUserInput(set)) return set;
+
+                    // Check for personal best (volume PB: weight × reps)
+                    const currentVolume = (set.weight_kg || 0) * (set.reps || 0);
+                    const previousSessionVolumes = localSets
+                      .filter((s: SetLogState) => s.isSaved && s !== set)
+                      .map((s: SetLogState) => (s.weight_kg || 0) * (s.reps || 0));
+
+                    const maxPreviousVolume = Math.max(...previousSessionVolumes, 0);
+
+                    // PB if current volume beats the maximum from previous session and all historical data
+                    const isVolumePB = currentVolume > maxPreviousVolume;
+
+                    return { ...set, isPR: isVolumePB };
+                  });
+
+                  // Save each set to the database and collect updates for batch application
+                  const savedSetUpdates: Array<{ setIndex: number; setId: string; created_at: string; isPR: boolean }> = [];
+
+                  for (let i = 0; i < setsWithPR.length; i++) {
+                    const set = setsWithPR[i];
+                    const setIndex = i;
+
+                    // Only save sets that have user input
+                    if (!hasUserInput(set)) {
+                      continue;
+                    }
+
+                    if (currentSessionId) {
+                      try {
+                        const setId = set.id || generateUUID();
+                        const setData = {
+                          id: setId,
+                          session_id: currentSessionId,
+                          exercise_id: exercise.id,
+                          weight_kg: set.weight_kg,
+                          reps: set.reps,
+                          reps_l: null,
+                          reps_r: null,
+                          time_seconds: null,
+                          is_pb: set.isPR || false,
+                          created_at: set.created_at || new Date().toISOString(),
+                        };
+
+                        console.log(`Saving set ${setId} for ${exercise.name}:`, setData);
+                        await database.addSetLog(setData);
+                        await addToSyncQueue('create', 'set_logs', setData);
+                        console.log(`Set ${setId} saved successfully for ${exercise.name} with is_pb: ${set.isPR}`);
+
+                        savedSetUpdates.push({ setIndex, setId, created_at: setData.created_at, isPR: set.isPR || false });
+
+                        // Update context state immediately
+                        updateSet(exercise.id, setIndex, {
+                          id: setId,
+                          isSaved: true,
+                          created_at: setData.created_at
+                        });
+                      } catch (error) {
+                        console.error(`Error saving set for ${exercise.name}:`, error);
+                      }
+                    } else {
+                      console.error(`No currentSessionId available for ${exercise.name}`);
+                    }
+                  }
+
+                  // Apply all local state updates at once
+                  if (savedSetUpdates.length > 0) {
+                    setLocalSets(prevSets => {
+                      const updatedSets = [...prevSets];
+                      savedSetUpdates.forEach(({ setIndex, setId, created_at, isPR }) => {
+                        updatedSets[setIndex] = {
+                          ...updatedSets[setIndex],
+                          id: setId,
+                          isSaved: true,
+                          isPR,
+                          created_at
+                        };
+                      });
+                      return updatedSets;
+                    });
+                  }
+
+                  console.log(`Finished saving ${setsToSave.length} sets for ${exercise.name}`);
+
+                  console.log('Calling onExerciseSaved with:', exercise.name, setsToSave.length);
+                  onExerciseSaved?.(exercise.name, setsToSave.length);
                   setIsExerciseSaved(true); // Hide the save button
                   setIsExpanded(false); // Collapse the card
+
+                  // Mark exercise as completed in the context
+                  markExerciseAsCompleted(exercise.id);
 
                   // Show success toast
                   Toast.show({
@@ -861,6 +1036,21 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     marginTop: Spacing.xs,
   },
+  completedIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#22c55e',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.sm,
+    marginTop: 6,
+  },
+  completedIconText: {
+    color: Colors.white,
+    fontSize: 14,
+    fontWeight: '700',
+  },
   setsContainer: {
     gap: Spacing.md,
   },
@@ -868,6 +1058,15 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.secondary,
     borderRadius: 8,
     padding: Spacing.md,
+  },
+  elevatedSetItem: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   setHeader: {
     flexDirection: 'row',
@@ -1090,6 +1289,11 @@ const styles = StyleSheet.create({
   completedSetItem: {
     borderWidth: 1,
     borderColor: '#22c55e',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   prSetItem: {
     borderWidth: 2,
@@ -1107,12 +1311,28 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   previousSetContainer: {
-    marginTop: Spacing.xs,
-    alignItems: 'center',
+    marginTop: Spacing.sm,
+    alignItems: 'flex-start',
   },
   previousSetText: {
     ...TextStyles.caption,
     color: Colors.mutedForeground,
     fontSize: 12,
+  },
+  exerciseIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    marginRight: Spacing.sm,
+    marginTop: 6,
+  },
+  exerciseIconPlaceholder: {
+    width: 32,
+    height: 32,
+    marginRight: Spacing.sm,
+    marginTop: 6,
+  },
+  spacer: {
+    flex: 1,
   },
 });

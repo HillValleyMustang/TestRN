@@ -96,7 +96,7 @@ interface WorkoutFlowContextValue {
 
   // Navigation
   requestNavigation: (action: () => void) => void;
-  confirmLeave: () => void;
+  confirmLeave: (onLeave?: () => void) => void;
   cancelLeave: () => void;
 }
 
@@ -235,7 +235,8 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
   // Combined select and start workout function
   const selectAndStartWorkout = useCallback(async (workoutId: string | null) => {
     console.log('[WorkoutFlow] selectAndStartWorkout called with:', workoutId);
-    await resetWorkoutSession();
+    // Don't reset the session here - let the caller handle it if needed
+    // await resetWorkoutSession();
     if (!workoutId || !userId) {
       console.log('[WorkoutFlow] No workoutId or userId, returning');
       return;
@@ -542,35 +543,52 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const endTime = new Date();
     const durationMs = endTime.getTime() - sessionStartTime.getTime();
-    const durationMinutes = Math.round(durationMs / 60000);
-    const durationString = durationMinutes < 60
-      ? `${durationMinutes} minutes`
-      : `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m`;
+    const durationSeconds = Math.round(durationMs / 1000);
+    const durationString = durationSeconds < 60
+      ? `${durationSeconds} seconds`
+      : durationSeconds < 3600
+      ? `${Math.floor(durationSeconds / 60)} minutes`
+      : `${Math.floor(durationSeconds / 3600)}h ${Math.floor((durationSeconds % 3600) / 60)}m`;
+
+    console.log('[WorkoutFlow] Finishing workout session:', currentSessionId);
+    console.log('[WorkoutFlow] Duration calculated:', durationString, 'from', durationMs, 'ms');
 
     try {
       const updatePayload = { duration_string: durationString, completed_at: endTime.toISOString() };
+      console.log('[WorkoutFlow] Update payload:', updatePayload);
+
       // Update the session in database
       if (userId) {
         const existingSessions = await database.getWorkoutSessions(userId);
         const existingSession = existingSessions.find(s => s.id === currentSessionId);
+        console.log('[WorkoutFlow] Found existing session:', !!existingSession);
         if (existingSession) {
           const updatedSession = { ...existingSession, ...updatePayload };
+          console.log('[WorkoutFlow] Updating session with:', updatedSession);
           await database.addWorkoutSession(updatedSession); // This will replace due to INSERT OR REPLACE
           await addToSyncQueue('update', 'workout_sessions', updatedSession);
+          console.log('[WorkoutFlow] Session updated successfully');
+
+          // Force a longer delay to ensure the update is committed
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } else {
+          console.error('[WorkoutFlow] Could not find session to update:', currentSessionId);
         }
       }
 
       const finishedSessionId = currentSessionId;
-      await resetWorkoutSession();
 
-      ToastAndroid.show('Workout completed!', ToastAndroid.SHORT);
+      // Don't reset workout session here - let the summary screen handle it
+      // await resetWorkoutSession();
+
+      // Don't show toast here - let the summary modal handle the completion message
       return finishedSessionId;
     } catch (error) {
       console.error('[WorkoutFlow] Error finishing workout session:', error);
       ToastAndroid.show('Failed to save workout duration.', ToastAndroid.SHORT);
       return null;
     }
-  }, [currentSessionId, sessionStartTime, activeWorkout, resetWorkoutSession]);
+  }, [currentSessionId, sessionStartTime, activeWorkout, userId]);
 
   // Update set
   const updateSet = useCallback((exerciseId: string, setIndex: number, updates: Partial<SetLogState>) => {
@@ -586,7 +604,9 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   // Log set (mark as completed and save)
-  const logSet = useCallback((exerciseId: string, setId: string, reps: number, weight: number) => {
+  const logSet = useCallback(async (exerciseId: string, setId: string, reps: number, weight: number) => {
+    console.log('logSet called with:', { exerciseId, setId, reps, weight });
+
     setExercisesWithSets(prev => {
       const exerciseSets = prev[exerciseId];
       if (!exerciseSets) return prev;
@@ -605,7 +625,35 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
 
       return { ...prev, [exerciseId]: updatedSets };
     });
-  }, []);
+
+    // Save to database
+    try {
+      if (!currentSessionId) {
+        console.error('Cannot save set - no current session ID');
+        return;
+      }
+
+      const setData = {
+        id: setId,
+        session_id: currentSessionId,
+        exercise_id: exerciseId,
+        weight_kg: weight,
+        reps: reps,
+        reps_l: null,
+        reps_r: null,
+        time_seconds: null,
+        is_pb: false,
+        created_at: new Date().toISOString(),
+      };
+
+      console.log('Saving set to database:', setData);
+      await database.addSetLog(setData);
+      await addToSyncQueue('create', 'set_logs', setData);
+      console.log('Set saved successfully');
+    } catch (error) {
+      console.error('Error saving set to database:', error);
+    }
+  }, [currentSessionId]);
 
   // Add set
   const addSet = useCallback((exerciseId: string) => {
@@ -770,14 +818,20 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
     [hasUnsavedChanges]
   );
 
-  const confirmLeave = useCallback(async () => {
+  const confirmLeave = useCallback(async (onLeave?: () => void) => {
+    console.log('[WorkoutFlow] confirmLeave called');
     setShowUnsavedChangesDialog(false);
     await resetWorkoutSession();
     const action = pendingActionRef.current;
     pendingActionRef.current = null;
-    if (action) {
-      action();
-    }
+    // Force a small delay to ensure state has propagated
+    setTimeout(() => {
+      if (typeof onLeave === 'function') {
+        onLeave();
+      } else if (action) {
+        action();
+      }
+    }, 100);
   }, [resetWorkoutSession]);
 
   const cancelLeave = useCallback(() => {
@@ -861,6 +915,7 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
       expandedExerciseCards,
       showUnsavedChangesDialog,
       selectWorkout,
+      selectAndStartWorkout,
       startWorkout,
       finishWorkout,
       updateSet,

@@ -154,8 +154,6 @@ export default function RootLayout() {
                     <Stack.Screen
                       name="workout-summary"
                       options={{
-                        presentation: 'modal',
-                        gestureEnabled: false,
                         headerShown: false,
                       }}
                     />

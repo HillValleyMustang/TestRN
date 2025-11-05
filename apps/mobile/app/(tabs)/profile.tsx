@@ -9,7 +9,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   Image,
   Alert,
@@ -128,12 +127,6 @@ export default function ProfileScreen() {
     extrapolate: 'clamp',
   });
 
-  // Content should move up with the header to stay attached to nav bar
-  const contentTranslateY = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE],
-    outputRange: [0, -HEADER_SCROLL_DISTANCE],
-    extrapolate: 'clamp',
-  });
 
   // PagerView ref for programmatic navigation
   const pagerRef = useRef<PagerView>(null);
@@ -794,8 +787,6 @@ export default function ProfileScreen() {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
-  const [selectedPhotosForComparison, setSelectedPhotosForComparison] =
-    useState<any[]>([]);
   const [comparisonSourcePhoto, setComparisonSourcePhoto] = useState<any>(null);
   const [comparisonComparisonPhoto, setComparisonComparisonPhoto] =
     useState<any>(null);
@@ -961,7 +952,6 @@ export default function ProfileScreen() {
         onComparisonOpen={() => setIsComparisonOpen(true)}
         onComparisonClose={() => setIsComparisonOpen(false)}
         onPhotosSelected={(selectedPhotos: any[]) => {
-          setSelectedPhotosForComparison(selectedPhotos);
           setComparisonSourcePhoto(selectedPhotos[0]);
           setComparisonComparisonPhoto(selectedPhotos[1]);
           setIsComparisonOpen(true);
@@ -1029,6 +1019,27 @@ export default function ProfileScreen() {
 
       {/* Data Export */}
       <DataExportCard />
+
+      {/* Workout History Management */}
+      <View style={styles.settingsSection}>
+        <Text style={styles.settingsSectionTitle}>Data Management</Text>
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => {
+            router.push('/workout-history-management');
+          }}
+        >
+          <View style={styles.settingsButtonContent}>
+            <Ionicons name="time" size={20} color={Colors.foreground} />
+            <Text style={styles.settingsButtonText}>Manage Workout History</Text>
+          </View>
+          <Ionicons
+            name="chevron-forward"
+            size={20}
+            color={Colors.foreground}
+          />
+        </TouchableOpacity>
+      </View>
 
       {/* Security Section */}
       <View style={styles.settingsSection}>
@@ -1253,7 +1264,6 @@ export default function ProfileScreen() {
         visible={isComparisonOpen}
         onClose={() => {
           setIsComparisonOpen(false);
-          setSelectedPhotosForComparison([]);
           setComparisonSourcePhoto(null);
           setComparisonComparisonPhoto(null);
         }}
