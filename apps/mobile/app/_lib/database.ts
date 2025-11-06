@@ -1167,6 +1167,44 @@ class Database {
     await db.runAsync('DELETE FROM gyms WHERE id = ?', [gymId]);
   }
 
+  // Cleanup incomplete workout sessions older than specified hours
+  async cleanupIncompleteSessions(olderThanHours: number = 24): Promise<number> {
+    const db = this.getDB();
+    const cutoffDate = new Date();
+    cutoffDate.setHours(cutoffDate.getHours() - olderThanHours);
+
+    console.log(`[Database] Cleaning up incomplete sessions older than ${olderThanHours} hours (${cutoffDate.toISOString()})`);
+
+    // Get incomplete sessions to clean up
+    const incompleteSessions = await db.getAllAsync<{ id: string }>(
+      'SELECT id FROM workout_sessions WHERE completed_at IS NULL AND created_at < ?',
+      [cutoffDate.toISOString()]
+    );
+
+    if (incompleteSessions.length > 0) {
+      const sessionIds = incompleteSessions.map(s => s.id);
+      console.log(`[Database] Found ${incompleteSessions.length} incomplete sessions to clean up:`, sessionIds);
+
+      // Remove associated set logs first
+      await db.runAsync(
+        `DELETE FROM set_logs WHERE session_id IN (${sessionIds.map(() => '?').join(',')})`,
+        sessionIds
+      );
+
+      // Remove the sessions
+      await db.runAsync(
+        `DELETE FROM workout_sessions WHERE id IN (${sessionIds.map(() => '?').join(',')})`,
+        sessionIds
+      );
+
+      console.log(`[Database] Cleaned up ${incompleteSessions.length} incomplete sessions and their associated data`);
+      return incompleteSessions.length;
+    } else {
+      console.log('[Database] No incomplete sessions to clean up');
+      return 0;
+    }
+  }
+
   syncQueue: SyncQueueStore = {
     getAll: async (): Promise<SyncQueueItem[]> => {
       const db = this.getDB();
@@ -1227,6 +1265,17 @@ export const addToSyncQueue = async (
   table: 'workout_sessions' | 'set_logs',
   payload: { id: string; [key: string]: any }
 ) => {
+  // For workout sessions, only queue if completed (has completed_at)
+  if (table === 'workout_sessions' && operation !== 'delete') {
+    if (!payload.completed_at) {
+      console.log(`[addToSyncQueue] Skipping incomplete workout session: ${payload.id}`);
+      return;
+    }
+  }
+
+  // For set logs, allow all for now - cleanup will handle orphaned records
+  // Complex session checking removed to avoid database conflicts
+
   await database.syncQueue.add({
     operation,
     table,

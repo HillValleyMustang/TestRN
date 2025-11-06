@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, Pressable, StyleSheet, Alert, TextInput, Modal, Image } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Alert, TextInput, Modal, Image, ScrollView } from 'react-native';
 import { Info, Menu, Plus, ChevronDown, ChevronUp, History, RotateCcw, X, Save, Lightbulb, Trophy } from 'lucide-react-native';
 import { useWorkoutFlow } from '../../app/_contexts/workout-flow-context';
 import { useRollingStatus } from '../../hooks/useRollingStatus';
@@ -104,6 +104,9 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
   const [restTimer, setRestTimer] = useState<number | null>(null);
   const [isExerciseSaved, setIsExerciseSaved] = useState(false);
   const [previousSets, setPreviousSets] = useState<Array<{ weight_kg: number | null; reps: number | null }>>([]);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [exerciseHistory, setExerciseHistory] = useState<any[]>([]);
+  const [historyTab, setHistoryTab] = useState<'list' | 'graph'>('list');
   const [localSets, setLocalSets] = useState<SetLogState[]>(() =>
     sets && sets.length > 0 ? sets.map(set => ({ ...set })) : Array.from({ length: 3 }, (_, index) => ({
       id: null,
@@ -200,8 +203,8 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
     setShowMenu(false);
     switch (option) {
       case 'history':
-        // TODO: Show history
-        Alert.alert('Coming Soon', 'Exercise history will be available soon.');
+        fetchExerciseHistory();
+        setShowHistoryModal(true);
         break;
       case 'info':
         onInfoPress?.();
@@ -361,6 +364,75 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
     }
   }, [exercise.id, userId, currentSessionId]);
 
+  // Fetch detailed exercise history for the modal
+  const fetchExerciseHistory = useCallback(async () => {
+    try {
+      console.log('[ExerciseCard] Fetching detailed history for', exercise.name);
+
+      // Get sessions that contain this exercise, ordered by most recent
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('set_logs')
+        .select('session_id, created_at')
+        .eq('exercise_id', exercise.id)
+        .order('created_at', { ascending: false })
+        .limit(50); // Get enough to cover multiple sessions
+
+      if (sessionError) throw sessionError;
+
+      // Group by session_id and get unique sessions
+      const sessionMap = new Map();
+      sessionData?.forEach(log => {
+        if (!sessionMap.has(log.session_id)) {
+          sessionMap.set(log.session_id, {
+            session_id: log.session_id,
+            created_at: log.created_at
+          });
+        }
+      });
+
+      const sessions = Array.from(sessionMap.values())
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 10); // Last 10 sessions
+
+      // For each session, get all sets
+      const historyData = await Promise.all(
+        sessions.map(async (session) => {
+          const { data: sets, error: setsError } = await supabase
+            .from('set_logs')
+            .select('weight_kg, reps, is_pb, created_at')
+            .eq('session_id', session.session_id)
+            .eq('exercise_id', exercise.id)
+            .order('created_at', { ascending: true });
+
+          if (setsError) throw setsError;
+
+          const totalVolume = sets?.reduce((sum, set) => sum + ((set.weight_kg || 0) * (set.reps || 0)), 0) || 0;
+          const bestSet = sets?.reduce((best, set) => {
+            const volume = (set.weight_kg || 0) * (set.reps || 0);
+            return volume > best.volume ? { weight: set.weight_kg, reps: set.reps, volume } : best;
+          }, { weight: 0, reps: 0, volume: 0 });
+
+          const hasPR = sets?.some(set => set.is_pb) || false;
+
+          return {
+            session_id: session.session_id,
+            date: session.created_at,
+            sets: sets || [],
+            totalVolume,
+            bestSet,
+            hasPR,
+            setCount: sets?.length || 0
+          };
+        })
+      );
+
+      setExerciseHistory(historyData);
+      console.log('[ExerciseCard] Fetched history:', historyData.length, 'sessions');
+    } catch (error: any) {
+      console.error('[ExerciseCard] Error fetching exercise history:', error);
+    }
+  }, [exercise.id, exercise.name]);
+
   // Rest timer effect
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -378,10 +450,12 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
     };
   }, [restTimer]);
 
-  // Fetch previous workout data on mount
+  // Fetch previous workout data when expanded
   useEffect(() => {
-    fetchPreviousWorkoutSets();
-  }, [fetchPreviousWorkoutSets]);
+    if (isExpanded) {
+      fetchPreviousWorkoutSets();
+    }
+  }, [isExpanded, fetchPreviousWorkoutSets]);
 
   const applyAISuggestions = (sets: SetLogState[]) => {
     // Get user's recent workout history for this exercise (last 3 saved sets)
@@ -549,15 +623,6 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                   )}
                 </View>
 
-                {/* Previous workout performance */}
-                {set.lastWeight !== null && set.lastReps !== null && (
-                  <View style={styles.previousSetContainer}>
-                    <Text style={styles.previousSetText}>
-                      Last {set.lastWeight}kg x {set.lastReps} reps
-                    </Text>
-                  </View>
-                )}
-
                 <View style={styles.setInputs}>
                   <TextInput
                     style={[styles.weightInput, set.isSaved && styles.disabledInput]}
@@ -603,6 +668,15 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                     <X size={16} color={Colors.destructive} />
                   </Pressable>
                 </View>
+
+                {/* Previous workout performance */}
+                {set.lastWeight !== null && set.lastReps !== null && (
+                  <View style={styles.previousSetContainer}>
+                    <Text style={styles.previousSetText}>
+                      Last {set.lastWeight}kg x {set.lastReps} reps
+                    </Text>
+                  </View>
+                )}
 
               </View>
             ))}
@@ -871,6 +945,199 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
           </View>
         </View>
       </Modal>
+
+      {/* Exercise History Modal */}
+      <Modal
+        visible={showHistoryModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowHistoryModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.historyModal}>
+            <View style={styles.historyHeader}>
+              <Text style={styles.historyTitle}>{exercise.name} History</Text>
+              <Pressable
+                style={styles.closeButton}
+                onPress={() => setShowHistoryModal(false)}
+              >
+                <X size={24} color={Colors.foreground} />
+              </Pressable>
+            </View>
+
+            <View style={styles.tabContainer}>
+              <Pressable
+                style={[styles.tabButton, historyTab === 'list' && styles.activeTab]}
+                onPress={() => setHistoryTab('list')}
+              >
+                <Text style={[styles.tabText, historyTab === 'list' && styles.activeTabText]}>List</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.tabButton, historyTab === 'graph' && styles.activeTab]}
+                onPress={() => setHistoryTab('graph')}
+              >
+                <Text style={[styles.tabText, historyTab === 'graph' && styles.activeTabText]}>Graph</Text>
+              </Pressable>
+            </View>
+
+            {exerciseHistory.length > 0 && (
+              <View style={styles.historyStats}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{exerciseHistory.length}</Text>
+                  <Text style={styles.statLabel}>Sessions</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {Math.max(...exerciseHistory.map(s => s.bestSet.weight || 0))}kg
+                  </Text>
+                  <Text style={styles.statLabel}>Best Weight</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {Math.max(...exerciseHistory.map(s => s.totalVolume))}kg
+                  </Text>
+                  <Text style={styles.statLabel}>Best Volume</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {exerciseHistory.filter(s => s.hasPR).length}
+                  </Text>
+                  <Text style={styles.statLabel}>PR Sessions</Text>
+                </View>
+              </View>
+            )}
+
+            {historyTab === 'list' ? (
+              <ScrollView style={styles.historyScrollView}>
+                {exerciseHistory.length === 0 ? (
+                <View style={styles.noHistoryContainer}>
+                  <Text style={styles.noHistoryText}>No history available yet</Text>
+                  <Text style={styles.noHistorySubtext}>Complete some sets to start building your history!</Text>
+                </View>
+              ) : (
+                exerciseHistory.map((session, index) => (
+                  <View key={session.session_id} style={styles.historySession}>
+                    <View style={styles.sessionHeader}>
+                      <Text style={styles.sessionDate}>
+                        {new Date(session.date).toLocaleDateString('en-GB', {
+                          weekday: 'short',
+                          day: 'numeric',
+                          month: 'short'
+                        })}
+                      </Text>
+                      <View style={styles.sessionHeaderRight}>
+                        {session.hasPR && (
+                          <View style={styles.prIndicator}>
+                            <Trophy size={14} color="#FFD700" />
+                            <Text style={[styles.prText, { color: '#000' }]}>PR</Text>
+                          </View>
+                        )}
+                        <Pressable
+                          style={styles.sessionDeleteButton}
+                          onPress={() => {
+                            setCustomAlertConfig({
+                              title: 'Delete Workout Session',
+                              message: `Delete ${exercise.name} session from ${new Date(session.date).toLocaleDateString('en-GB', {
+                                weekday: 'long',
+                                day: 'numeric',
+                                month: 'long'
+                              })}?`,
+                              buttons: [
+                                { text: 'Cancel', onPress: () => setShowCustomAlertModal(false) },
+                                {
+                                  text: 'Delete',
+                                  style: 'destructive',
+                                  onPress: async () => {
+                                    setShowCustomAlertModal(false);
+                                    try {
+                                      // Delete sets for this session and exercise
+                                      await supabase
+                                        .from('set_logs')
+                                        .delete()
+                                        .eq('session_id', session.session_id)
+                                        .eq('exercise_id', exercise.id);
+
+                                      // Refresh history
+                                      await fetchExerciseHistory();
+                                    } catch (error) {
+                                      console.error('Error deleting session:', error);
+                                      setCustomAlertConfig({
+                                        title: 'Error',
+                                        message: 'Failed to delete workout session',
+                                        buttons: [{ text: 'OK', onPress: () => setShowCustomAlertModal(false) }]
+                                      });
+                                      setShowCustomAlertModal(true);
+                                    }
+                                  }
+                                }
+                              ]
+                            });
+                            setShowCustomAlertModal(true);
+                          }}
+                        >
+                          <X size={16} color={Colors.destructive} />
+                        </Pressable>
+                      </View>
+                    </View>
+
+                    <View style={styles.sessionStats}>
+                      <Text style={styles.sessionSets}>{session.setCount} {session.setCount === 1 ? 'set' : 'sets'}</Text>
+                      <Text style={styles.sessionVolume}>{session.totalVolume}kg total</Text>
+                    </View>
+
+                    <View style={styles.sessionBest}>
+                      <Text style={styles.bestLabel}>Best set:</Text>
+                      <Text style={styles.bestValue}>
+                        {session.bestSet.weight}kg × {session.bestSet.reps}
+                      </Text>
+                    </View>
+
+                    <View style={styles.sessionSetsList}>
+                      {session.sets.map((set, setIndex) => (
+                        <Text key={setIndex} style={styles.setItemText}>
+                          {set.weight_kg}kg × {set.reps}
+                          {set.is_pb && <Text style={styles.pbIndicator}> ★</Text>}
+                        </Text>
+                      ))}
+                    </View>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+            ) : (
+              <ScrollView style={styles.historyScrollView}>
+                {exerciseHistory.length === 0 ? (
+                  <View style={styles.noHistoryContainer}>
+                    <Text style={styles.noHistoryText}>No history available yet</Text>
+                    <Text style={styles.noHistorySubtext}>Complete some sets to start building your history!</Text>
+                  </View>
+                ) : (
+                  <View style={styles.graphContainer}>
+                    <Text style={styles.graphTitle}>Total Volume Progression (kg)</Text>
+                    {(() => {
+                      const maxVolume = Math.max(...exerciseHistory.map(s => s.totalVolume || 0));
+                      return exerciseHistory.map((session, index) => {
+                        const width = maxVolume > 0 ? (session.totalVolume / maxVolume) * 100 : 0;
+                        return (
+                          <View key={session.session_id} style={styles.graphBarContainer}>
+                            <Text style={styles.graphDate}>
+                              {new Date(session.date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}
+                            </Text>
+                            <View style={styles.graphBar}>
+                              <View style={[styles.graphBarFill, { width: `${width}%` }]} />
+                            </View>
+                            <Text style={styles.graphValue}>{session.totalVolume}kg</Text>
+                          </View>
+                        );
+                      });
+                    })()}
+                  </View>
+                )}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -961,7 +1228,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 102,
     position: 'absolute',
-    bottom: -160,
+    top: 110,
     right: 80,
     minWidth: 160,
     zIndex: 1000001,
@@ -1385,6 +1652,12 @@ const styles = StyleSheet.create({
   trophyIcon: {
     marginTop: 1,
   },
+  trophyContainer: {
+    borderWidth: 1,
+    borderColor: '#000',
+    borderRadius: 7,
+    padding: 1,
+  },
   previousSetContainer: {
     marginTop: Spacing.sm,
     alignItems: 'flex-start',
@@ -1409,5 +1682,222 @@ const styles = StyleSheet.create({
   },
   spacer: {
     flex: 1,
+  },
+  historyModal: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    margin: Spacing.lg,
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  historyTitle: {
+    ...TextStyles.h3,
+    color: Colors.foreground,
+    flex: 1,
+  },
+  closeButton: {
+    padding: Spacing.sm,
+  },
+  historyScrollView: {
+    maxHeight: 400,
+  },
+  noHistoryContainer: {
+    padding: Spacing.lg,
+    alignItems: 'center',
+  },
+  noHistoryText: {
+    ...TextStyles.body,
+    color: Colors.mutedForeground,
+    textAlign: 'center',
+  },
+  noHistorySubtext: {
+    ...TextStyles.caption,
+    color: Colors.mutedForeground,
+    textAlign: 'center',
+    marginTop: Spacing.sm,
+  },
+  historySession: {
+    padding: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  sessionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  sessionHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  sessionDeleteButton: {
+    padding: Spacing.xs,
+  },
+  sessionDate: {
+    ...TextStyles.body,
+    fontWeight: '600',
+    color: Colors.foreground,
+  },
+  prIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: '#FFD700',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: 12,
+  },
+  prText: {
+    ...TextStyles.caption,
+    color: Colors.card,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  sessionStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.sm,
+  },
+  sessionSets: {
+    ...TextStyles.caption,
+    color: Colors.mutedForeground,
+  },
+  sessionVolume: {
+    ...TextStyles.caption,
+    color: Colors.mutedForeground,
+  },
+  sessionBest: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  bestLabel: {
+    ...TextStyles.caption,
+    color: Colors.mutedForeground,
+  },
+  bestValue: {
+    ...TextStyles.body,
+    color: Colors.foreground,
+    fontWeight: '600',
+  },
+  sessionSetsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  setItemText: {
+    ...TextStyles.caption,
+    color: Colors.foreground,
+    backgroundColor: Colors.secondary,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: 6,
+  },
+  pbIndicator: {
+    color: '#FFD700',
+  },
+  historyStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    backgroundColor: Colors.secondary,
+  },
+  statItem: {
+    alignItems: 'center',
+    maxWidth: 80,
+  },
+  statValue: {
+    ...TextStyles.h4,
+    color: Colors.foreground,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  statLabel: {
+    ...TextStyles.caption,
+    color: Colors.mutedForeground,
+    marginTop: Spacing.xs,
+    textAlign: 'center',
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+  },
+  activeTab: {
+    borderBottomWidth: 2,
+    borderBottomColor: Colors.primary,
+  },
+  tabText: {
+    ...TextStyles.body,
+    color: Colors.mutedForeground,
+  },
+  activeTabText: {
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  graphContainer: {
+    padding: Spacing.md,
+  },
+  graphTitle: {
+    ...TextStyles.h4,
+    color: Colors.foreground,
+    textAlign: 'center',
+    marginBottom: Spacing.md,
+  },
+  graphBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+  },
+  graphBar: {
+    width: 200,
+    height: 20,
+    backgroundColor: Colors.secondary,
+    borderRadius: 4,
+    justifyContent: 'flex-start',
+    marginVertical: Spacing.xs,
+  },
+  graphBarFill: {
+    height: '100%',
+    backgroundColor: Colors.primary,
+    borderRadius: 4,
+  },
+  graphDate: {
+    ...TextStyles.caption,
+    color: Colors.mutedForeground,
+    textAlign: 'center',
+    width: 60,
+  },
+  graphValue: {
+    ...TextStyles.caption,
+    color: Colors.foreground,
+    fontWeight: '600',
+    marginTop: Spacing.xs,
+    marginLeft: Spacing.sm,
   },
 });

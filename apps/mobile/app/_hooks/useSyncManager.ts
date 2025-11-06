@@ -10,6 +10,9 @@ import { useSyncQueueProcessor } from '@data/hooks/use-sync-queue-processor';
 import { useAuth } from '../_contexts/auth-context';
 import { database } from '../_lib/database';
 
+// Cleanup incomplete sessions every 2 hours (matching max workout duration)
+const CLEANUP_INTERVAL = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
+
 export const useMobileSyncManager = () => {
   const { supabase } = useAuth();
   const [isOnline, setIsOnline] = useState(true);
@@ -71,6 +74,38 @@ export const useMobileSyncManager = () => {
       console.error('[useMobileSyncManager] Sync error', error);
     },
   });
+
+  // Periodic cleanup of incomplete sessions
+  useEffect(() => {
+    if (!isDatabaseReady) return;
+
+    const runCleanup = async () => {
+      try {
+        // Only run cleanup if not currently syncing to avoid database conflicts
+        if (processor.isSyncing) {
+          console.log('[useMobileSyncManager] Skipping cleanup - sync in progress');
+          return;
+        }
+
+        const cleanedCount = await database.cleanupIncompleteSessions(2); // Clean sessions older than 2 hours
+        if (cleanedCount > 0) {
+          console.log(`[useMobileSyncManager] Cleaned up ${cleanedCount} incomplete sessions`);
+        }
+      } catch (error) {
+        console.error('[useMobileSyncManager] Failed to cleanup incomplete sessions:', error);
+        // Don't throw - cleanup failures shouldn't break the app
+      }
+    };
+
+    // Run cleanup after a delay on startup, then every 2 hours
+    const startupTimer = setTimeout(runCleanup, 30000); // 30 seconds after startup
+    const cleanupInterval = setInterval(runCleanup, CLEANUP_INTERVAL);
+
+    return () => {
+      clearTimeout(startupTimer);
+      clearInterval(cleanupInterval);
+    };
+  }, [isDatabaseReady, processor.isSyncing]);
 
   return useMemo(
     () => ({

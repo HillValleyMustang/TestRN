@@ -22,6 +22,35 @@ export interface UseSyncQueueProcessorResult {
 
 const DEFAULT_INTERVAL = 5000;
 
+// Helper function to determine if an item should be synced to Supabase
+const shouldSyncToSupabase = (item: SyncQueueItem): boolean => {
+  const { table, payload, operation } = item;
+
+  // Always sync non-workout related data
+  if (table !== 'workout_sessions' && table !== 'set_logs') {
+    return true;
+  }
+
+  // For workout sessions, only sync if completed
+  if (table === 'workout_sessions') {
+    if (operation === 'create' || operation === 'update') {
+      return (payload as any).completed_at !== null;
+    }
+    // Allow deletes
+    return true;
+  }
+
+  // For set logs, only sync if they belong to a completed session
+  if (table === 'set_logs') {
+    // Check if the session exists and is completed in the local database
+    // Since this is in the data package, we can't directly access the database instance
+    // For now, allow syncing - the database will handle cleanup of orphaned records
+    return true;
+  }
+
+  return true;
+};
+
 export const useSyncQueueProcessor = ({
   supabase,
   store,
@@ -52,6 +81,18 @@ export const useSyncQueueProcessor = ({
 
     try {
       const { table, payload, operation } = item;
+
+      // Check if this item should be synced to Supabase
+      const shouldSync = shouldSyncToSupabase(item);
+      if (!shouldSync) {
+        // Remove from queue without syncing
+        if (typeof item.id === 'number') {
+          await store.remove(item.id);
+        }
+        setQueueLength(queue.length - 1);
+        setIsSyncing(false);
+        return;
+      }
 
       if (operation === 'create' || operation === 'update') {
         const { error } = await supabase.from(table).upsert(payload as any, { onConflict: 'id' });
