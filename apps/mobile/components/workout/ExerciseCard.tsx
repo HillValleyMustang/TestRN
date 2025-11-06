@@ -675,6 +675,15 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                     <Text style={styles.previousSetText}>
                       Last {set.lastWeight}kg x {set.lastReps} reps
                     </Text>
+                    <Pressable
+                      style={styles.historyIconButton}
+                      onPress={() => {
+                        fetchExerciseHistory();
+                        setShowHistoryModal(true);
+                      }}
+                    >
+                      <History size={14} color={Colors.mutedForeground} />
+                    </Pressable>
                   </View>
                 )}
 
@@ -1660,12 +1669,17 @@ const styles = StyleSheet.create({
   },
   previousSetContainer: {
     marginTop: Spacing.sm,
-    alignItems: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   previousSetText: {
     ...TextStyles.caption,
     color: Colors.mutedForeground,
     fontSize: 12,
+  },
+  historyIconButton: {
+    padding: Spacing.xs,
   },
   exerciseIcon: {
     width: 32,
