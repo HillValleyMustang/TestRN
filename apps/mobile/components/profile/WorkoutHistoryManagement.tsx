@@ -1,4 +1,4 @@
-uc/**
+/**
  * Workout History Management Component
  * Allows users to clear workout history with different scope options
  */

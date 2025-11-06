@@ -230,39 +230,113 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
   // Fetch previous workout sets and all historical volumes
   const fetchPreviousWorkoutSets = useCallback(async () => {
     try {
-      // Get all historical workout sessions for this exercise (excluding current session)
-      const { data: allSessions, error: sessionsError } = await supabase
+      console.log('[ExerciseCard] Starting fetch for', exercise.name, 'with currentSessionId:', currentSessionId);
+
+      // Get all historical workout sessions for this exercise (excluding current session if it exists)
+      let query = supabase
         .from('workout_sessions')
         .select('id')
         .eq('user_id', userId)
-        .neq('id', currentSessionId) // Exclude current session
+        .not('completed_at', 'is', null)
         .order('session_date', { ascending: false });
 
-      if (sessionsError) throw sessionsError;
+      // Only exclude current session if it exists
+      if (currentSessionId) {
+        query = query.neq('id', currentSessionId);
+        console.log('[ExerciseCard] Excluding current session:', currentSessionId);
+      } else {
+        console.log('[ExerciseCard] No current session to exclude');
+      }
+
+      const { data: allSessions, error: sessionsError } = await query;
+
+      if (sessionsError) {
+        console.error('[ExerciseCard] Sessions query error:', sessionsError);
+        throw sessionsError;
+      }
+
+      console.log('[ExerciseCard] Found', allSessions?.length || 0, 'historical sessions for', exercise.name);
+      console.log('[ExerciseCard] Session IDs:', allSessions?.map(s => s.id));
 
       if (allSessions && allSessions.length > 0) {
         // Get the most recent session for display
-        const mostRecentSessionId = allSessions[0].id;
+        let mostRecentSessionId = allSessions[0].id;
+        console.log('[ExerciseCard] Using most recent session:', mostRecentSessionId);
+
+        // Check if this session actually contains the exercise
+        const { data: checkSession, error: checkError } = await supabase
+          .from('set_logs')
+          .select('id')
+          .eq('session_id', mostRecentSessionId)
+          .eq('exercise_id', exercise.id)
+          .limit(1);
+
+        console.log('[ExerciseCard] Session', mostRecentSessionId, 'contains exercise', exercise.id, '?', checkSession && checkSession.length > 0, 'error:', checkError);
+
+        // If this session doesn't contain the exercise, find the most recent session that does
+        if (!checkSession || checkSession.length === 0) {
+          console.log('[ExerciseCard] Most recent session does not contain exercise, finding another session...');
+
+          // Find sessions that contain this exercise
+          const { data: sessionsWithExercise, error: exerciseSessionsError } = await supabase
+            .from('set_logs')
+            .select('session_id')
+            .eq('exercise_id', exercise.id)
+            .order('created_at', { ascending: false });
+
+          if (exerciseSessionsError) {
+            console.error('[ExerciseCard] Error finding sessions with exercise:', exerciseSessionsError);
+          } else if (sessionsWithExercise?.length) {
+            // Get unique session IDs and find the most recent one that's not the current session
+            const uniqueSessionIds = [...new Set(sessionsWithExercise.map(s => s.session_id))];
+            const validSessionIds = uniqueSessionIds.filter(id => id !== currentSessionId);
+
+            if (validSessionIds.length > 0) {
+              mostRecentSessionId = validSessionIds[0];
+              console.log('[ExerciseCard] Found session with exercise:', mostRecentSessionId);
+            } else {
+              console.log('[ExerciseCard] No valid historical sessions found for exercise');
+            }
+          } else {
+            console.log('[ExerciseCard] No sessions found containing this exercise');
+          }
+        }
 
         // Get set logs for this exercise from the most recent session
+        console.log('[ExerciseCard] Querying set_logs for session:', mostRecentSessionId, 'exercise:', exercise.id, exercise.name);
         const { data: previousSetsData, error: setsError } = await supabase
           .from('set_logs')
-          .select('weight_kg, reps')
+          .select('weight_kg, reps, created_at')
           .eq('session_id', mostRecentSessionId)
           .eq('exercise_id', exercise.id)
           .order('created_at', { ascending: true });
 
-        if (setsError) throw setsError;
+        console.log('[ExerciseCard] Raw set_logs query result:', previousSetsData, 'error:', setsError);
+
+        if (setsError) {
+          console.error('[ExerciseCard] Sets query error:', setsError);
+          throw setsError;
+        }
+
+        console.log('[ExerciseCard] Previous sets data for', exercise.name, ':', previousSetsData);
 
         // Store previous sets for display
         setPreviousSets(previousSetsData || []);
 
         // Update localSets with previous data
-        setLocalSets(prevSets => prevSets.map((set, index) => ({
-          ...set,
-          lastWeight: previousSetsData && previousSetsData[index] ? previousSetsData[index].weight_kg : null,
-          lastReps: previousSetsData && previousSetsData[index] ? previousSetsData[index].reps : null,
-        })));
+        setLocalSets(prevSets => prevSets.map((set, index) => {
+          const prevData = previousSetsData && previousSetsData[index];
+          console.log(`[ExerciseCard] Mapping set ${index} for ${exercise.name}:`, {
+            hasPrevData: !!prevData,
+            prevWeight: prevData?.weight_kg,
+            prevReps: prevData?.reps
+          });
+          return {
+            ...set,
+            lastWeight: prevData ? prevData.weight_kg : null,
+            lastReps: prevData ? prevData.reps : null,
+          };
+        }));
 
         // Get all historical volumes for PB calculation
         const allSessionIds = allSessions.map(session => session.id);
@@ -279,10 +353,11 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
           (set.weight_kg || 0) * (set.reps || 0)
         ).filter(volume => volume > 0);
       } else {
+        console.log('[ExerciseCard] No historical sessions found for', exercise.name);
         setPreviousSets([]);
       }
     } catch (error: any) {
-      console.error('Error fetching previous workout sets:', error);
+      console.error('[ExerciseCard] Error fetching previous workout sets for', exercise.name, ':', error);
     }
   }, [exercise.id, userId, currentSessionId]);
 
