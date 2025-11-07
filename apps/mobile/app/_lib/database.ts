@@ -315,7 +315,7 @@ class Database {
               MIN(sl.created_at) as first_set_at, MAX(sl.created_at) as last_set_at
        FROM workout_sessions ws
        LEFT JOIN set_logs sl ON sl.session_id = ws.id
-       WHERE ws.user_id = ?
+       WHERE ws.user_id = ? AND ws.completed_at IS NOT NULL
        GROUP BY ws.id
        ORDER BY ws.session_date DESC
        LIMIT ?`,

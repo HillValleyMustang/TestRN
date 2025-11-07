@@ -29,11 +29,17 @@ import {
   ArrowUp,
   ArrowDown,
   Plus,
+  Brain,
+  AlertTriangle,
+  Zap,
 } from 'lucide-react-native';
 import { useAuth } from './_contexts/auth-context';
 import { Colors, Spacing, BorderRadius } from '../constants/Theme';
 import { TextStyles } from '../constants/Typography';
 import { supabase } from './_lib/supabase';
+import { dynamicProgramManager } from '../../../packages/data/src/ai/dynamic-program-manager';
+import { performanceForecaster } from '../../../packages/data/src/ai/performance-forecaster';
+import { periodizationManager } from '../../../packages/data/src/ai/periodization-manager';
 
 const getCategoryColor = (category: 'push' | 'pull' | 'legs' | 'upper' | 'lower' | 'ad-hoc'): string => {
   switch (category) {
@@ -115,12 +121,15 @@ export default function WorkoutSummaryModal({
   );
   const [loading, setLoading] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
+  const [aiInsights, setAiInsights] = useState<any>(null);
+  const [loadingInsights, setLoadingInsights] = useState(false);
 
   // Reset state when modal closes
   useEffect(() => {
     if (!visible) {
       setSummaryData(null);
       setRating(null);
+      setAiInsights(null);
     }
   }, [visible]);
 
@@ -129,6 +138,7 @@ export default function WorkoutSummaryModal({
 
     try {
       setLoading(true);
+      setLoadingInsights(true);
 
       console.log('Loading workout summary for session:', sessionId);
 
@@ -237,11 +247,33 @@ export default function WorkoutSummaryModal({
         totalVolume,
         personalRecords,
       });
+
+      // Load AI insights in parallel
+      try {
+        const [recoveryAlerts, periodizationStatus, efficiencyMetrics] = await Promise.all([
+          dynamicProgramManager.generateRecoveryAlerts(userId),
+          periodizationManager.getCurrentCycle(userId),
+          performanceForecaster.analyzeTrainingEfficiency(userId)
+        ]);
+
+        setAiInsights({
+          recoveryAlerts,
+          periodizationStatus,
+          efficiencyMetrics,
+          sessionVolume: totalVolume,
+          sessionDuration: session.duration_string
+        });
+      } catch (insightsError) {
+        console.error('Error loading AI insights:', insightsError);
+        // Don't fail the whole summary if insights fail
+        setAiInsights(null);
+      }
     } catch (error) {
       console.error('Error loading workout summary:', error);
       Alert.alert('Error', 'Failed to load workout summary');
     } finally {
       setLoading(false);
+      setLoadingInsights(false);
     }
   }, [sessionId, userId]);
 
@@ -408,6 +440,94 @@ export default function WorkoutSummaryModal({
                 </View>
               ))}
             </View>
+
+            {/* AI Insights Section */}
+            {aiInsights && (
+              <View style={styles.aiInsightsSection}>
+                <View style={styles.aiInsightsHeader}>
+                  <Brain size={20} color={Colors.primary} />
+                  <Text style={styles.aiInsightsTitle}>AI Training Insights</Text>
+                </View>
+
+                {/* Recovery Alerts */}
+                {aiInsights.recoveryAlerts?.length > 0 && (
+                  <View style={styles.insightsGroup}>
+                    <Text style={styles.insightsGroupTitle}>Recovery Intelligence</Text>
+                    {aiInsights.recoveryAlerts.slice(0, 2).map((alert: any, index: number) => (
+                      <View key={index} style={[
+                        styles.insightCard,
+                        alert.severity === 'urgent' && styles.urgentCard,
+                        alert.severity === 'high' && styles.highCard,
+                        alert.severity === 'moderate' && styles.moderateCard
+                      ]}>
+                        <View style={styles.insightIcon}>
+                          {alert.type === 'overtraining_risk' ? (
+                            <AlertTriangle size={16} color={Colors.white} />
+                          ) : (
+                            <Zap size={16} color={Colors.white} />
+                          )}
+                        </View>
+                        <View style={styles.insightContent}>
+                          <Text style={styles.insightTitle}>{alert.title}</Text>
+                          <Text style={styles.insightMessage}>{alert.message}</Text>
+                          {alert.suggestedActions?.[0] && (
+                            <Text style={styles.insightAction}>
+                              💡 {alert.suggestedActions[0]}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Periodization Status */}
+                {aiInsights.periodizationStatus && (
+                  <View style={styles.insightsGroup}>
+                    <Text style={styles.insightsGroupTitle}>Periodization Status</Text>
+                    <View style={styles.insightCard}>
+                      <View style={styles.insightIcon}>
+                        <Target size={16} color={Colors.white} />
+                      </View>
+                      <View style={styles.insightContent}>
+                        <Text style={styles.insightTitle}>
+                          {aiInsights.periodizationStatus.currentPhase} Phase
+                        </Text>
+                        <Text style={styles.insightMessage}>
+                          {aiInsights.periodizationStatus.phaseDurationWeeks - Math.floor((Date.now() - new Date(aiInsights.periodizationStatus.phaseStartDate).getTime()) / (7 * 24 * 60 * 60 * 1000))} weeks remaining
+                        </Text>
+                        <Text style={styles.insightAction}>
+                          🎯 Progress: {aiInsights.periodizationStatus.progressPercentage}%
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
+
+                {/* Training Efficiency */}
+                {aiInsights.efficiencyMetrics && (
+                  <View style={styles.insightsGroup}>
+                    <Text style={styles.insightsGroupTitle}>Training Efficiency</Text>
+                    <View style={styles.insightCard}>
+                      <View style={styles.insightIcon}>
+                        <TrendingUp size={16} color={Colors.white} />
+                      </View>
+                      <View style={styles.insightContent}>
+                        <Text style={styles.insightTitle}>
+                          Efficiency: {aiInsights.efficiencyMetrics.overallEfficiency}/100
+                        </Text>
+                        <Text style={styles.insightMessage}>
+                          {aiInsights.efficiencyMetrics.recommendations[0] || 'Training efficiency is good'}
+                        </Text>
+                        <Text style={styles.insightAction}>
+                          💪 Strength Rate: +{aiInsights.efficiencyMetrics.strengthGains.toFixed(1)}% monthly
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
+              </View>
+            )}
 
             {/* Rating Section */}
             <View style={styles.ratingSection}>
@@ -725,5 +845,83 @@ const styles = StyleSheet.create({
     ...TextStyles.button,
     color: Colors.primary,
     fontWeight: '600',
+  },
+  aiInsightsSection: {
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.xl,
+  },
+  aiInsightsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  aiInsightsTitle: {
+    ...TextStyles.h4,
+    color: Colors.foreground,
+    fontWeight: '600',
+  },
+  insightsGroup: {
+    marginBottom: Spacing.lg,
+  },
+  insightsGroupTitle: {
+    ...TextStyles.h5,
+    color: Colors.foreground,
+    fontWeight: '600',
+    marginBottom: Spacing.md,
+  },
+  insightCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.md,
+  },
+  urgentCard: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: Colors.destructive,
+    borderWidth: 2,
+  },
+  highCard: {
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderColor: '#F59E0B',
+    borderWidth: 2,
+  },
+  moderateCard: {
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderColor: Colors.primary,
+    borderWidth: 2,
+  },
+  insightIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+  },
+  insightContent: {
+    flex: 1,
+  },
+  insightTitle: {
+    ...TextStyles.body,
+    color: Colors.foreground,
+    fontWeight: '600',
+    marginBottom: Spacing.xs,
+  },
+  insightMessage: {
+    ...TextStyles.caption,
+    color: Colors.foreground,
+    lineHeight: 16,
+    marginBottom: Spacing.xs,
+  },
+  insightAction: {
+    ...TextStyles.caption,
+    color: Colors.primary,
+    fontWeight: '500',
   },
 });

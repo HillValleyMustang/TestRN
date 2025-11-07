@@ -51,6 +51,7 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [stableData, setStableData] = useState<any>(null);
 
   // Dashboard data state
   const [userProfile, setUserProfile] = useState<DashboardProfile | null>(null);
@@ -68,7 +69,7 @@ export default function DashboardScreen() {
   >([]);
   const [nextWorkout, setNextWorkout] = useState<DashboardProgram | null>(null);
 
-  // Animation values for staggered entrance (reduced by 1 since we removed RollingStatusBadge from body)
+  // Animation values for staggered entrance
   const fadeAnims = useRef([
     new Animated.Value(0), // Welcome Header - 0.0s
     new Animated.Value(0), // Weekly Target - 0.1s
@@ -124,14 +125,30 @@ export default function DashboardScreen() {
       }
 
       const snapshot = await loadDashboardSnapshot();
-      setUserProfile(snapshot.profile);
-      setWeeklySummary(snapshot.weeklySummary);
-      setActiveGym(snapshot.activeGym);
-      setActiveTPath(snapshot.activeTPath);
-      setTpathWorkouts(snapshot.tPathWorkouts);
-      setVolumeData(snapshot.volumeHistory);
-      setRecentWorkouts(snapshot.recentWorkouts);
-      setNextWorkout(snapshot.nextWorkout);
+
+      // Store stable data to prevent flickering
+      const newData = {
+        userProfile: snapshot.profile,
+        weeklySummary: snapshot.weeklySummary,
+        activeGym: snapshot.activeGym,
+        activeTPath: snapshot.activeTPath,
+        tpathWorkouts: snapshot.tPathWorkouts,
+        volumeData: snapshot.volumeHistory,
+        recentWorkouts: snapshot.recentWorkouts,
+        nextWorkout: snapshot.nextWorkout,
+      };
+
+      setStableData(newData);
+
+      // Update individual state variables
+      setUserProfile(newData.userProfile);
+      setWeeklySummary(newData.weeklySummary);
+      setActiveGym(newData.activeGym);
+      setActiveTPath(newData.activeTPath);
+      setTpathWorkouts(newData.tpathWorkouts);
+      setVolumeData(newData.volumeData);
+      setRecentWorkouts(newData.recentWorkouts);
+      setNextWorkout(newData.nextWorkout);
     } catch (error) {
       console.error('[Dashboard] Failed to load data', error);
     } finally {

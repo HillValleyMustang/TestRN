@@ -261,6 +261,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const [profileCache, setProfileCache] = useState<DashboardProfile | null>(
     null
   );
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   useEffect(() => {
     setAppMounted(true);
@@ -402,7 +403,8 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     let remoteActiveTPath: DashboardProgram | null = null;
     let remoteChildWorkouts: DashboardProgram[] = [];
 
-    if (isOnline && supabase) {
+    // Only load remote data if we don't have cached profile data and haven't loaded before
+    if (isOnline && supabase && !latestProfile && !dataLoaded) {
       try {
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
@@ -666,7 +668,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
     const nextWorkout = tPathWorkouts.length > 0 ? tPathWorkouts[0] : null;
 
-    return {
+    const result = {
       profile: latestProfile,
       gyms,
       activeGym,
@@ -677,6 +679,11 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       tPathWorkouts,
       nextWorkout,
     } satisfies DashboardSnapshot;
+
+    // Mark data as loaded to prevent future remote fetches
+    setDataLoaded(true);
+
+    return result;
   }, [userId, profileCache, isOnline, supabase]);
 
   const addWorkoutSession = async (session: WorkoutSession): Promise<void> => {

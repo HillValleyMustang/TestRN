@@ -40,6 +40,7 @@ import { WorkoutPreferencesCard } from '../../components/profile/WorkoutPreferen
 import { ProgrammeTypeCard } from '../../components/profile/ProgrammeTypeCard';
 import { MyGymsCardNew } from '../../components/profile/MyGymsCardNew';
 import { AICoachUsageCard } from '../../components/profile/AICoachUsageCard';
+import { TrainingProfileCard } from '../../components/profile/TrainingProfileCard';
 import { DataExportCard } from '../../components/profile/DataExportCard';
 import { ManageGymWorkoutsDialog } from '../../components/profile/ManageGymWorkoutsDialog';
 import { PhotoJourneyTab } from '../../components/profile/PhotoJourneyTab';
@@ -995,6 +996,8 @@ export default function ProfileScreen() {
         profile={profile}
         onUpdate={handleUpdateProfile}
       />
+
+      <TrainingProfileCard profile={profile} onUpdate={handleUpdateProfile} />
 
       <ProgrammeTypeCard profile={profile} onUpdate={handleUpdateProfile} />
 
