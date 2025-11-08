@@ -60,7 +60,6 @@ export function ManageGymWorkoutsDialog({
   gymName,
   onClose,
 }: ManageGymWorkoutsDialogProps) {
-  console.log('🚀 ManageGymWorkoutsDialog RENDERED with:', { visible, gymId, gymName });
 
   const { supabase, userId } = useAuth();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
@@ -110,7 +109,6 @@ export function ManageGymWorkoutsDialog({
 
   useEffect(() => {
     if (visible && gymId) {
-      console.log('🔄 Initializing ManageGymWorkoutsDialog for gym:', gymId);
       setSelectedWorkoutId('');
       setCoreExercises([]);
       setBonusExercises([]);
@@ -136,10 +134,6 @@ export function ManageGymWorkoutsDialog({
     }
   }, [selectedWorkoutId]);
 
-  // Debug useEffect to track state changes
-  useEffect(() => {
-    console.log('🔄 State updated - Core:', coreExercises.length, 'Bonus:', bonusExercises.length, 'SelectedWorkout:', selectedWorkoutId);
-  }, [coreExercises, bonusExercises, selectedWorkoutId]);
 
   // Enhanced drag and drop logic with PanResponder
   useEffect(() => {
@@ -152,7 +146,7 @@ export function ManageGymWorkoutsDialog({
       },
 
       onPanResponderGrant: (evt, gestureState) => {
-        console.log('🎯 PanResponder granted - starting drag detection');
+        // Starting drag detection
       },
 
       onPanResponderMove: (evt, gestureState) => {
@@ -222,12 +216,6 @@ export function ManageGymWorkoutsDialog({
     })
   ).current;
 
-  // Handle drag and drop logic
-  useEffect(() => {
-    if (draggedItem) {
-      console.log('🎯 Drag in progress for:', draggedItem.exercise.exercise_name);
-    }
-  }, [draggedItem]);
 
   // Debounce search query
   useEffect(() => {
@@ -271,11 +259,9 @@ export function ManageGymWorkoutsDialog({
 
   const loadWorkouts = useCallback(async () => {
     if (!userId) {
-      console.log('No userId provided');
       return;
     }
 
-    console.log('Starting loadWorkouts for user:', userId);
     setLoading(true);
 
     try {
@@ -292,19 +278,13 @@ export function ManageGymWorkoutsDialog({
         throw profileError;
       }
 
-      console.log('Profile data:', profile);
-
       if (!profile?.active_t_path_id) {
-        console.log('No active T-Path found in profile');
         Alert.alert('No Active Program', 'Please set up a workout program first');
         setLoading(false);
         return;
       }
 
-      console.log('Active T-Path ID:', profile.active_t_path_id);
-
       // Get the active T-Path to determine type (PPL or ULUL)
-      console.log('Fetching active T-Path...');
       const { data: activeTPath, error: tPathError } = await supabase
         .from('t_paths')
         .select('id, settings')
@@ -316,10 +296,7 @@ export function ManageGymWorkoutsDialog({
         throw tPathError;
       }
 
-      console.log('Active T-Path data:', activeTPath);
-
       // Load child workouts from the active T-Path
-      console.log('Fetching child workouts...');
       const { data, error } = await supabase
         .from('t_paths')
         .select('id, template_name')
@@ -331,51 +308,37 @@ export function ManageGymWorkoutsDialog({
         throw error;
       }
 
-      console.log('Child workouts data:', data);
-
       let sortedWorkouts = data || [];
-      console.log('Initial workouts count:', sortedWorkouts.length);
 
       // Sort workouts based on T-Path type
       const tPathSettings = activeTPath?.settings as { tPathType?: string } | null;
       const tPathType = tPathSettings?.tPathType;
-      console.log('T-Path type:', tPathType);
 
       if (tPathType === 'ppl') {
         sortedWorkouts.sort((a, b) => PPL_ORDER.indexOf(a.template_name) - PPL_ORDER.indexOf(b.template_name));
-        console.log('Sorted for PPL');
       } else if (tPathType === 'ulul') {
         sortedWorkouts.sort((a, b) => ULUL_ORDER.indexOf(a.template_name) - ULUL_ORDER.indexOf(b.template_name));
-        console.log('Sorted for ULUL');
       }
-
-      console.log('Final sorted workouts:', sortedWorkouts);
 
       setWorkouts(sortedWorkouts);
 
       // Set default workout based on T-Path type
       if (sortedWorkouts.length > 0) {
         let defaultWorkout = sortedWorkouts[0];
-        console.log('Default workout (first):', defaultWorkout.template_name);
 
         if (tPathType === 'ppl') {
           const pushWorkout = sortedWorkouts.find(w => w.template_name === 'Push');
           if (pushWorkout) {
             defaultWorkout = pushWorkout;
-            console.log('Found Push workout for PPL');
           }
         } else if (tPathType === 'ulul') {
           const upperAWorkout = sortedWorkouts.find(w => w.template_name === 'Upper Body A');
           if (upperAWorkout) {
             defaultWorkout = upperAWorkout;
-            console.log('Found Upper Body A workout for ULUL');
           }
         }
 
-        console.log('Setting selected workout ID:', defaultWorkout.id);
         setSelectedWorkoutId(defaultWorkout.id);
-      } else {
-        console.log('No workouts found to select');
       }
     } catch (error) {
       console.error('[ManageGymWorkouts] Error loading workouts:', error);
@@ -387,16 +350,13 @@ export function ManageGymWorkoutsDialog({
 
   const loadExercises = useCallback(async () => {
     if (!selectedWorkoutId) {
-      console.log('No selectedWorkoutId provided to loadExercises');
       return;
     }
 
-    console.log('Loading exercises for workout ID:', selectedWorkoutId);
     setLoading(true);
     setHasChanges(false);
 
     try {
-      console.log('Fetching exercises from t_path_exercises...');
       const { data, error } = await supabase
         .from('t_path_exercises')
         .select(`
@@ -416,10 +376,7 @@ export function ManageGymWorkoutsDialog({
         throw error;
       }
 
-      console.log('Raw exercise data:', data);
-
       const formattedExercises = (data || []).map((ex: any) => {
-        console.log('Processing exercise:', ex);
         return {
           id: ex.id,
           exercise_id: ex.exercise_id,
@@ -429,13 +386,8 @@ export function ManageGymWorkoutsDialog({
         };
       });
 
-      console.log('Formatted exercises:', formattedExercises);
-
       const core = formattedExercises.filter((ex) => !ex.is_bonus_exercise);
       const bonus = formattedExercises.filter((ex) => ex.is_bonus_exercise);
-
-      console.log('Core exercises count:', core.length);
-      console.log('Bonus exercises count:', bonus.length);
 
       setCoreExercises(core);
       setBonusExercises(bonus);
@@ -443,9 +395,11 @@ export function ManageGymWorkoutsDialog({
       setOriginalBonusExercises(bonus);
       setExercisesLoaded(true);
 
-      console.log('Set core exercises:', core);
-      console.log('Set bonus exercises:', bonus);
-      console.log('✅ Exercises loaded successfully');
+      setCoreExercises(core);
+      setBonusExercises(bonus);
+      setOriginalCoreExercises(core);
+      setOriginalBonusExercises(bonus);
+      setExercisesLoaded(true);
     } catch (error) {
       console.error('[ManageGymWorkouts] Error loading exercises:', error);
       Alert.alert('Error', 'Failed to load exercises');
@@ -469,7 +423,6 @@ export function ManageGymWorkoutsDialog({
     try {
       setLoading(true);
 
-      console.log('🔄 Loading available exercises for libraryType:', libraryType, 'userId:', userId, 'gymId:', gymId);
 
       let exercises: any[] = [];
       let muscles: string[] = [];
@@ -477,7 +430,6 @@ export function ManageGymWorkoutsDialog({
       let errorFetch = null;
 
       if (libraryType === 'my') {
-        console.log('Fetching "my" exercises (user-created exercises)...');
         // Get exercises created by the user
         const { data, error } = await supabase
           .from('exercise_definitions')
@@ -487,10 +439,8 @@ export function ManageGymWorkoutsDialog({
 
         if (error) errorFetch = error;
         exercises = data || [];
-        console.log('Fetched "my" exercises raw data:', data);
 
       } else {
-        console.log('Fetching "global" exercises (all exercises)...');
         // For now, fall back to showing all exercises since gym_exercises might not be populated
         const { data, error } = await supabase
           .from('exercise_definitions')
@@ -499,7 +449,6 @@ export function ManageGymWorkoutsDialog({
 
         if (error) errorFetch = error;
         exercises = data || [];
-        console.log('Fetched "global" exercises raw data:', data);
       }
 
       if (errorFetch) {
@@ -507,7 +456,6 @@ export function ManageGymWorkoutsDialog({
         throw errorFetch;
       }
 
-      console.log(' exercises before filter: ', exercises);
 
       // Filter based on newly added muscle group dropdown
        if (muscleFilter && muscleFilter !== 'All Muscle Groups') {
@@ -516,10 +464,8 @@ export function ManageGymWorkoutsDialog({
            const exerciseMuscles = ex.main_muscle?.split(',').map((m: string) => m.trim()) || [];
            return exerciseMuscles.includes(muscleFilter);
          });
-         console.log('Exercises filtered by muscle group:', muscleFilter, exercises.length);
        }
 
-      console.log('Fetched exercises after initial assignment:', exercises);
 
       // Extract unique muscle groups from the actual exercise data
       const allMuscles = exercises.flatMap(ex =>

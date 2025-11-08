@@ -141,6 +141,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   title: {
+    fontFamily: 'Poppins_600SemiBold',
     fontSize: 20,
     fontWeight: '600',
     color: Colors.foreground,
@@ -153,6 +154,7 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   workoutName: {
+    fontFamily: 'Poppins_600SemiBold',
     fontSize: 18,
     fontWeight: '600',
     color: Colors.foreground,
@@ -165,10 +167,12 @@ const styles = StyleSheet.create({
     minHeight: 20,
   },
   duration: {
+    fontFamily: 'Poppins_400Regular',
     fontSize: 14,
     color: Colors.mutedForeground,
   },
   lastWorkout: {
+    fontFamily: 'Poppins_400Regular',
     fontSize: 12,
     color: Colors.mutedForeground,
     minHeight: 16,
@@ -181,6 +185,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   startButtonText: {
+    fontFamily: 'Poppins_600SemiBold',
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
@@ -196,6 +201,7 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   errorText: {
+    fontFamily: 'Poppins_400Regular',
     fontSize: 14,
     color: Colors.mutedForeground,
     textAlign: 'center',
@@ -208,6 +214,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
   },
   errorButtonText: {
+    fontFamily: 'Poppins_600SemiBold',
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',

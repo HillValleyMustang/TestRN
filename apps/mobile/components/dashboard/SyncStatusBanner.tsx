@@ -84,11 +84,13 @@ const styles = StyleSheet.create({
   },
   title: {
     ...TextStyles.body,
+    fontFamily: 'Poppins_600SemiBold',
     fontWeight: "600",
     color: Colors.foreground,
   },
   subtitle: {
     ...TextStyles.caption,
+    fontFamily: 'Poppins_400Regular',
     color: Colors.mutedForeground,
   },
 });

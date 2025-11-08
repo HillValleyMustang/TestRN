@@ -77,6 +77,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   title: {
+    fontFamily: 'Poppins_600SemiBold',
     fontSize: 20,
     fontWeight: '600',
     color: Colors.foreground,

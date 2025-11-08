@@ -58,16 +58,16 @@ export function AppHeader() {
   }, [fetchUnreadCount]);
 
   const getInitials = () => {
-    const name = session?.user?.user_metadata?.full_name || 
-                 session?.user?.user_metadata?.first_name || 
-                 session?.user?.email?.split('@')[0] || 
+    const name = session?.user?.user_metadata?.full_name ||
+                 session?.user?.user_metadata?.first_name ||
+                 session?.user?.email?.split('@')[0] ||
                  'A';
-    
+
     const parts = name.trim().split(' ');
     if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
+      return parts[0][0].toUpperCase();
     }
-    return name.slice(0, 2).toUpperCase();
+    return name.slice(0, 1).toUpperCase();
   };
 
   return (

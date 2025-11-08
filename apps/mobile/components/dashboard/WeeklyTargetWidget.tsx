@@ -169,6 +169,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   title: {
+    fontFamily: 'Poppins_600SemiBold',
     fontSize: 18,
     fontWeight: '600',
     color: Colors.foreground,
@@ -197,10 +198,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
   },
   circleText: {
+    fontFamily: 'Poppins_600SemiBold',
     fontSize: 14,
     fontWeight: '600',
   },
   progressText: {
+    fontFamily: 'Poppins_400Regular',
     fontSize: 14,
     color: Colors.mutedForeground,
     textAlign: 'center',
@@ -214,6 +217,7 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.md,
   },
   activitiesText: {
+    fontFamily: 'Poppins_400Regular',
     fontSize: 14,
     color: Colors.mutedForeground,
     textAlign: 'center',
@@ -228,6 +232,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
   },
   errorText: {
+    fontFamily: 'Poppins_400Regular',
     fontSize: 14,
     color: Colors.destructive,
   },
@@ -236,6 +241,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
   },
   emptyText: {
+    fontFamily: 'Poppins_400Regular',
     fontSize: 14,
     color: Colors.mutedForeground,
     textAlign: 'center',

@@ -30,9 +30,10 @@ interface PhotoJourneyTabProps {
   onComparisonOpen?: () => void;
   onComparisonClose?: () => void;
   onPhotosSelected?: (photos: ProgressPhoto[]) => void;
+  onGoalPhysiquePress?: () => void;
 }
 
-export const PhotoJourneyTab = ({ photos, loading, onPhotoPress, onPhotoDelete, onComparisonOpen, onComparisonClose, onPhotosSelected }: PhotoJourneyTabProps) => {
+export const PhotoJourneyTab = ({ photos, loading, onPhotoPress, onPhotoDelete, onComparisonOpen, onComparisonClose, onPhotosSelected, onGoalPhysiquePress }: PhotoJourneyTabProps) => {
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
   const [comparisonSourcePhoto, setComparisonSourcePhoto] = useState<ProgressPhoto | null>(null);
   const [comparisonComparisonPhoto, setComparisonComparisonPhoto] = useState<ProgressPhoto | null>(null);
@@ -147,6 +148,16 @@ export const PhotoJourneyTab = ({ photos, loading, onPhotoPress, onPhotoDelete, 
 
       {!isSelectionMode ? (
         <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.goalPhysiqueButton]}
+            onPress={onGoalPhysiquePress}
+          >
+            <Ionicons name="trophy" size={20} color={Colors.primary} />
+            <Text style={styles.goalPhysiqueButtonText}>
+              Goal Physique
+            </Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.actionButton, styles.compareButton, photos.length < 2 && styles.disabledButton]}
             onPress={handleSelectPhotos}
@@ -397,6 +408,7 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.lg,
+    marginLeft: '-10%',
   },
   actionButton: {
     flexDirection: 'row',
@@ -407,6 +419,14 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     minWidth: 120,
     justifyContent: 'center',
+  },
+  goalPhysiqueButton: {
+    backgroundColor: Colors.muted,
+  },
+  goalPhysiqueButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.primary,
   },
   cameraButton: {
     backgroundColor: Colors.primary,

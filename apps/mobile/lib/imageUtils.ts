@@ -1,4 +1,4 @@
-/**
+ /**
  * Image utility functions for React Native
  * Handles image conversion and processing
  */
@@ -8,6 +8,9 @@ import * as ImageManipulator from 'expo-image-manipulator';
 
 // Private app directory for secure photo storage
 const PHOTOS_DIR = FileSystem.documentDirectory + 'photos/';
+
+// Goal physique photos directory
+const GOAL_PHYSIQUE_DIR = FileSystem.documentDirectory + 'goal-physiques/';
 
 /**
  * Convert image URI to base64 string
@@ -313,6 +316,122 @@ export async function getAllPhotosSecurely(): Promise<Array<{ id: string; uri: s
   } catch (error) {
     console.error('[ImageUtils] Failed to get all photos:', error);
     return [];
+  }
+}
+
+/**
+ * Initialize the goal physique photos directory
+ * @returns Promise that resolves when directory is ready
+ */
+export async function initializeGoalPhysiqueDirectory(): Promise<void> {
+  try {
+    const dirInfo = await FileSystem.getInfoAsync(GOAL_PHYSIQUE_DIR);
+    if (!dirInfo.exists) {
+      await FileSystem.makeDirectoryAsync(GOAL_PHYSIQUE_DIR, { intermediates: true });
+      console.log('[ImageUtils] Created goal physique photos directory:', GOAL_PHYSIQUE_DIR);
+    }
+  } catch (error) {
+    console.error('[ImageUtils] Failed to initialize goal physique directory:', error);
+    throw new Error('Failed to initialize goal physique storage');
+  }
+}
+
+/**
+ * Save a goal physique photo securely to local storage
+ * @param sourceUri - Source image URI (compressed image)
+ * @param goalPhysiqueId - Unique identifier for the goal physique
+ * @returns Local file path for storage in database
+ */
+export async function saveGoalPhysiquePhoto(
+  sourceUri: string,
+  goalPhysiqueId: string
+): Promise<string> {
+  try {
+    // Ensure directory exists
+    await initializeGoalPhysiqueDirectory();
+
+    // Generate secure filename
+    const fileName = `goal_physique_${goalPhysiqueId}_${Date.now()}.jpg`;
+    const localUri = GOAL_PHYSIQUE_DIR + fileName;
+
+    // Copy compressed image to secure location
+    await FileSystem.copyAsync({
+      from: sourceUri,
+      to: localUri,
+    });
+
+    // Return relative path for database storage (not full URI)
+    const relativePath = `goal-physiques/${fileName}`;
+    console.log('[ImageUtils] Goal physique photo saved securely:', relativePath);
+    return relativePath;
+  } catch (error) {
+    console.error('[ImageUtils] Failed to save goal physique photo:', error);
+    throw new Error('Failed to save goal physique photo');
+  }
+}
+
+/**
+ * Get goal physique photo from local storage
+ * @param relativePath - Relative path stored in database
+ * @returns Full local URI if found, null if not found
+ */
+export async function getGoalPhysiquePhoto(relativePath: string): Promise<string | null> {
+  try {
+    if (!relativePath) return null;
+
+    // Handle both full URIs and relative paths
+    let localUri: string;
+    if (relativePath.startsWith('file://')) {
+      // Already a full URI
+      localUri = relativePath;
+    } else {
+      // Convert relative path to full local URI
+      localUri = FileSystem.documentDirectory + relativePath;
+    }
+
+    // Check if file exists
+    const fileInfo = await FileSystem.getInfoAsync(localUri);
+
+    if (!fileInfo.exists) {
+      console.log('[ImageUtils] Goal physique photo not found:', localUri);
+      return null;
+    }
+
+    console.log('[ImageUtils] Goal physique photo retrieved:', localUri);
+    return localUri;
+  } catch (error) {
+    console.error('[ImageUtils] Failed to retrieve goal physique photo:', error);
+    console.error('[ImageUtils] Error details:', error);
+    return null;
+  }
+}
+
+/**
+ * Delete a goal physique photo from local storage
+ * @param relativePath - Relative path stored in database
+ * @returns True if deleted, false if not found
+ */
+export async function deleteGoalPhysiquePhoto(relativePath: string): Promise<boolean> {
+  try {
+    if (!relativePath) return false;
+
+    // Handle both full URIs and relative paths
+    let localUri: string;
+    if (relativePath.startsWith('file://')) {
+      // Already a full URI
+      localUri = relativePath;
+    } else {
+      // Convert relative path to full local URI
+      localUri = FileSystem.documentDirectory + relativePath;
+    }
+
+    await FileSystem.deleteAsync(localUri, { idempotent: true });
+
+    console.log('[ImageUtils] Goal physique photo deleted:', localUri);
+    return true;
+  } catch (error) {
+    console.error('[ImageUtils] Failed to delete goal physique photo:', error);
+    return false;
   }
 }
 

@@ -41,9 +41,6 @@ export function WorkoutPreferencesCard({
 
   useEffect(() => {
     if (profile) {
-      console.log('[WorkoutPreferencesCard] Profile data:', profile);
-      console.log('[WorkoutPreferencesCard] preferred_session_length:', profile.preferred_session_length);
-      console.log('[WorkoutPreferencesCard] sessionLength state:', sessionLength);
       setPrimaryGoal(profile.primary_goal || '');
       setSessionLength(profile.preferred_session_length || 60);
     }
@@ -98,13 +95,9 @@ export function WorkoutPreferencesCard({
   };
 
   const getSessionLabel = (value: number) => {
-    console.log('[WorkoutPreferencesCard] getSessionLabel called with:', value, 'type:', typeof value);
-    console.log('[WorkoutPreferencesCard] SESSION_LENGTH_OPTIONS:', SESSION_LENGTH_OPTIONS);
     const option = SESSION_LENGTH_OPTIONS.find(s => {
-      console.log('[WorkoutPreferencesCard] Comparing', s.value, '===', value, 'types:', typeof s.value, typeof value);
       return Number(s.value) === Number(value);
     });
-    console.log('[WorkoutPreferencesCard] Found option:', option);
     return option ? option.label : '';
   };
 
@@ -207,10 +200,7 @@ export function WorkoutPreferencesCard({
             </View>
           ) : (
             <Text style={styles.value}>
-              {(() => {
-                console.log('[WorkoutPreferencesCard] Rendering sessionLength:', sessionLength);
-                return sessionLength ? getSessionLabel(sessionLength) : 'Not set';
-              })()}
+              {sessionLength ? getSessionLabel(sessionLength) : 'Not set'}
             </Text>
           )}
         </View>

@@ -51,6 +51,9 @@ import { UploadPhotoDialog } from '../../components/profile/UploadPhotoDialog';
 import { PhotoComparisonDialog } from '../../components/profile/PhotoComparisonDialog';
 import { PhotoLightboxDialog } from '../../components/profile/PhotoLightboxDialog';
 import { PhotoSourceSelectionModal } from '../../components/profile/PhotoSourceSelectionModal';
+import { GoalPhysiqueUploadModal } from '../../components/profile/GoalPhysiqueUploadModal';
+import { PhysiqueAnalysisModal } from '../../components/profile/PhysiqueAnalysisModal';
+import { GoalPhysiqueGallery } from '../../components/profile/GoalPhysiqueGallery';
 
 const { width } = Dimensions.get('window');
 
@@ -445,7 +448,6 @@ export default function ProfileScreen() {
             { backgroundColor: levelInfo.backgroundColor },
           ]}
           onPress={() => {
-            console.log('Level badge pressed');
             setLevelModalVisible(true);
           }}
         >
@@ -453,7 +455,7 @@ export default function ProfileScreen() {
             <Text style={[styles.levelText, { color: levelInfo.color }]}>
               {levelInfo.levelName}
             </Text>
-            <Text style={[styles.levelPointsText, { color: levelInfo.color }]}>
+            <Text style={[styles.levelText, { color: levelInfo.color }]}>
               {profile?.total_points || 0} pts
             </Text>
           </View>
@@ -834,6 +836,10 @@ export default function ProfileScreen() {
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [lightboxInitialIndex, setLightboxInitialIndex] = useState(0);
   const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
+  const [isGoalPhysiqueModalOpen, setIsGoalPhysiqueModalOpen] = useState(false);
+  const [isPhysiqueAnalysisModalOpen, setIsPhysiqueAnalysisModalOpen] = useState(false);
+  const [selectedGoalPhysiqueId, setSelectedGoalPhysiqueId] = useState<string | null>(null);
+  const [isGoalPhysiqueGalleryOpen, setIsGoalPhysiqueGalleryOpen] = useState(false);
 
   const handlePhotoDelete = async (photo: any) => {
     Alert.alert(
@@ -979,6 +985,22 @@ export default function ProfileScreen() {
     setIsGalleryPhoto(false);
   };
 
+  const handleGoalPhysiquePress = () => {
+    setIsGoalPhysiqueGalleryOpen(true);
+  };
+
+  const handleGoalPhysiqueUploadSuccess = (goalPhysiqueId: string) => {
+    setSelectedGoalPhysiqueId(goalPhysiqueId);
+    setIsGoalPhysiqueModalOpen(false);
+    setIsPhysiqueAnalysisModalOpen(true);
+  };
+
+  const handleRecommendationsAccepted = (recommendations: any[]) => {
+    console.log('[Profile] Recommendations accepted:', recommendations);
+    // TODO: Implement recommendation acceptance logic
+    // This will integrate with the training plan modification system
+  };
+
   const renderPhotoTab = () => (
     <View style={styles.tabContent}>
       <PhotoJourneyTab
@@ -996,6 +1018,7 @@ export default function ProfileScreen() {
           setComparisonComparisonPhoto(selectedPhotos[1]);
           setIsComparisonOpen(true);
         }}
+        onGoalPhysiquePress={handleGoalPhysiquePress}
       />
     </View>
   );
@@ -1372,6 +1395,33 @@ export default function ProfileScreen() {
         initialPhotoIndex={lightboxInitialIndex}
       />
 
+      <GoalPhysiqueUploadModal
+        visible={isGoalPhysiqueModalOpen}
+        onClose={() => setIsGoalPhysiqueModalOpen(false)}
+        onUploadSuccess={handleGoalPhysiqueUploadSuccess}
+      />
+
+      <PhysiqueAnalysisModal
+        visible={isPhysiqueAnalysisModalOpen}
+        onClose={() => setIsPhysiqueAnalysisModalOpen(false)}
+        goalPhysiqueId={selectedGoalPhysiqueId || ''}
+        onRecommendationsAccepted={handleRecommendationsAccepted}
+      />
+
+      <GoalPhysiqueGallery
+        visible={isGoalPhysiqueGalleryOpen}
+        onClose={() => setIsGoalPhysiqueGalleryOpen(false)}
+        onSelectGoal={(goalPhysique) => {
+          setSelectedGoalPhysiqueId(goalPhysique.id);
+          setIsGoalPhysiqueGalleryOpen(false);
+          setIsPhysiqueAnalysisModalOpen(true);
+        }}
+        onUploadNew={() => {
+          setIsGoalPhysiqueGalleryOpen(false);
+          setIsGoalPhysiqueModalOpen(true);
+        }}
+      />
+
       {/* Level Explanation Modal */}
       <Modal
         visible={levelModalVisible}
@@ -1638,11 +1688,24 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   levelPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: BorderRadius.full,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   levelPillContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   levelModal: {
@@ -1814,6 +1877,7 @@ const styles = StyleSheet.create({
     ...TextStyles.caption,
     fontWeight: '700',
     textTransform: 'uppercase',
+    fontSize: 11,
   },
   memberSince: {
     ...TextStyles.caption,

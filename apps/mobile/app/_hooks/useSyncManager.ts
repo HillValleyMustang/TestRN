@@ -83,14 +83,10 @@ export const useMobileSyncManager = () => {
       try {
         // Only run cleanup if not currently syncing to avoid database conflicts
         if (processor.isSyncing) {
-          console.log('[useMobileSyncManager] Skipping cleanup - sync in progress');
           return;
         }
 
         const cleanedCount = await database.cleanupIncompleteSessions(2); // Clean sessions older than 2 hours
-        if (cleanedCount > 0) {
-          console.log(`[useMobileSyncManager] Cleaned up ${cleanedCount} incomplete sessions`);
-        }
       } catch (error) {
         console.error('[useMobileSyncManager] Failed to cleanup incomplete sessions:', error);
         // Don't throw - cleanup failures shouldn't break the app

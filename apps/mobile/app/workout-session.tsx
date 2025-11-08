@@ -57,7 +57,6 @@ export default function WorkoutSessionScreen() {
   };
 
   const handleExerciseSaved = (exerciseName: string, setCount: number) => {
-    console.log('handleExerciseSaved called with:', exerciseName, setCount);
     setSavedMessage('Saved!');
     // Auto-dismiss after 3 seconds
     setTimeout(() => {
@@ -71,7 +70,6 @@ export default function WorkoutSessionScreen() {
 
   const renderExercise = ({ item: exercise }: { item: any }) => {
     const exerciseSets = exercisesWithSets[exercise.id] || [];
-    console.log('Rendering exercise:', exercise.name, 'with onExerciseSaved:', !!handleExerciseSaved);
 
     return (
       <ExerciseCard

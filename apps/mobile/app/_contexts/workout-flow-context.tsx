@@ -541,6 +541,19 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
       return null;
     }
 
+    // Check if workout has any logged sets (prevent saving incomplete workouts)
+    const hasLoggedSets = Object.values(exercisesWithSets).some(sets =>
+      sets.some(set => set.isSaved && hasUserInput(set))
+    );
+
+    if (!hasLoggedSets) {
+      console.log('[WorkoutFlow] No logged sets found - not saving incomplete workout');
+      ToastAndroid.show('No workout data logged. Session not saved.', ToastAndroid.SHORT);
+      // Reset the session without saving
+      await resetWorkoutSession();
+      return null;
+    }
+
     const endTime = new Date();
     const durationMs = endTime.getTime() - sessionStartTime.getTime();
     const durationSeconds = Math.round(durationMs / 1000);
@@ -588,7 +601,7 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
       ToastAndroid.show('Failed to save workout duration.', ToastAndroid.SHORT);
       return null;
     }
-  }, [currentSessionId, sessionStartTime, activeWorkout, userId]);
+  }, [currentSessionId, sessionStartTime, activeWorkout, userId, exercisesWithSets, resetWorkoutSession]);
 
   // Update set
   const updateSet = useCallback((exerciseId: string, setIndex: number, updates: Partial<SetLogState>) => {

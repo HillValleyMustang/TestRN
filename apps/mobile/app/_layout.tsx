@@ -35,11 +35,9 @@ export default function RootLayout() {
 
   useEffect(() => {
     const handleDeepLink = (event: { url: string }) => {
-      console.log('Deep link received:', event.url);
       try {
         // Parse the URL to see what it contains
         const parsedUrl = Linking.parse(event.url);
-        console.log('Parsed deep link:', parsedUrl);
       } catch (error) {
         console.error('Error parsing deep link:', error);
       }
@@ -52,10 +50,8 @@ export default function RootLayout() {
     Linking.getInitialURL()
       .then(url => {
         if (url) {
-          console.log('App opened from deep link:', url);
           try {
             const parsedUrl = Linking.parse(url);
-            console.log('Parsed initial deep link:', parsedUrl);
           } catch (error) {
             console.error('Error parsing initial deep link:', error);
           }
@@ -92,6 +88,10 @@ export default function RootLayout() {
                     <Stack.Screen
                       name="login"
                       options={{ headerShown: false, presentation: 'modal' }}
+                    />
+                    <Stack.Screen
+                      name="workout-history"
+                      options={{ headerShown: false }}
                     />
                     <Stack.Screen
                       name="history"

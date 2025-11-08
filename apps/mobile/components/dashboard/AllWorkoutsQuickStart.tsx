@@ -153,11 +153,13 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   title: {
+    fontFamily: 'Poppins_600SemiBold',
     fontSize: 20,
     fontWeight: '600',
     color: Colors.foreground,
   },
   programName: {
+    fontFamily: 'Poppins_600SemiBold',
     fontSize: 18,
     fontWeight: '600',
     color: Colors.foreground,
@@ -188,11 +190,13 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   workoutName: {
+    fontFamily: 'Poppins_600SemiBold',
     fontSize: 14,
     fontWeight: '600',
     lineHeight: 16,
   },
   lastCompleted: {
+    fontFamily: 'Poppins_500Medium',
     fontSize: 12,
     fontWeight: '500',
     lineHeight: 14,
@@ -217,6 +221,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: {
+    fontFamily: 'Poppins_400Regular',
     fontSize: 14,
     color: Colors.mutedForeground,
     textAlign: 'center',

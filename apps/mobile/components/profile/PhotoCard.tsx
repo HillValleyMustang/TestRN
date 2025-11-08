@@ -35,7 +35,6 @@ export const PhotoCard = ({ photo, onPress, onDelete, isSelected = false, showSe
   const [loading, setLoading] = useState(false); // Start with false, only load when visible
   const hasLoadedRef = useRef(false);
 
-  console.log('[PhotoCard] Rendered for photo:', photo.id, 'isVisible:', isVisible, 'hasLoaded:', hasLoadedRef.current);
 
   useEffect(() => {
     const fetchSignedUrl = async () => {
@@ -43,10 +42,8 @@ export const PhotoCard = ({ photo, onPress, onDelete, isSelected = false, showSe
 
       setLoading(true);
       try {
-        console.log('[PhotoCard] Fetching signed URL for:', photo.photo_path);
         // Use 1 hour expiration for progress photos since users may view them for extended periods
         const signedUrl = await createSignedUrl(supabase, 'user-photos', photo.photo_path, 3600);
-        console.log('[PhotoCard] Signed URL created:', signedUrl ? 'success' : 'failed');
         setImageUrl(signedUrl);
         hasLoadedRef.current = true;
       } catch (error) {

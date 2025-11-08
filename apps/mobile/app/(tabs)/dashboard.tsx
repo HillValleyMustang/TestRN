@@ -34,7 +34,6 @@ import {
   AllWorkoutsQuickStart,
   SimpleVolumeChart,
   PreviousWorkoutsWidget,
-  SyncStatusBanner,
 } from '../../components/dashboard';
 
 export default function DashboardScreen() {
@@ -163,8 +162,8 @@ export default function DashboardScreen() {
   const userName =
     userProfile?.full_name ||
     userProfile?.first_name ||
-    session?.user?.user_metadata?.full_name ||
     session?.user?.user_metadata?.first_name ||
+    session?.user?.user_metadata?.full_name ||
     session?.user?.email?.split('@')[0] ||
     'Athlete';
 
@@ -207,11 +206,6 @@ export default function DashboardScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        <SyncStatusBanner
-          isOnline={isOnline}
-          isSyncing={isSyncing}
-          queueLength={queueLength}
-        />
 
         {/* 1. Welcome Header - 0.0s */}
         <AnimatedView index={0}>
@@ -227,7 +221,7 @@ export default function DashboardScreen() {
             completedWorkouts={weeklySummary.completed_workouts}
             goalTotal={weeklySummary.goal_total}
             programmeType={weeklySummary.programme_type}
-            onViewCalendar={() => router.push('/history')}
+            onViewCalendar={() => router.push('/workout-history')}
             onViewWorkoutSummary={handleViewSummary}
             loading={loading}
           />
@@ -236,10 +230,10 @@ export default function DashboardScreen() {
         {/* 3. Action Hub - 0.2s */}
         <AnimatedView index={2}>
           <ActionHubWidget
-            onLogActivity={() => console.log('Log activity')}
-            onAICoach={() => console.log('AI Coach')}
-            onWorkoutLog={() => console.log('Workout log')}
-            onConsistencyCalendar={() => console.log('Consistency calendar')}
+            onLogActivity={() => {}}
+            onAICoach={() => {}}
+            onWorkoutLog={() => {}}
+            onConsistencyCalendar={() => {}}
           />
         </AnimatedView>
 

@@ -45,11 +45,13 @@ export function WelcomeHeader({ userName, accountCreatedAt }: WelcomeHeaderProps
       const initial = parts[0][0]?.toUpperCase() || '';
       return initial ? `Athlete ${initial}!` : 'Athlete';
     } else if (parts.length === 2) {
-      const initials = (parts[0][0] + parts[1][0]).toUpperCase();
-      return `Athlete ${initials}!`;
+      const firstInitial = parts[0][0]?.toUpperCase() || '';
+      const secondInitial = parts[1][0]?.toUpperCase() || '';
+      return `Athlete ${firstInitial}${secondInitial}!`;
     } else {
-      const initials = (parts[0][0] + parts[1][0] + parts[2][0]).toUpperCase();
-      return `Athlete ${initials}!`;
+      const firstInitial = parts[0][0]?.toUpperCase() || '';
+      const secondInitial = parts[1][0]?.toUpperCase() || '';
+      return `Athlete ${firstInitial}${secondInitial}!`;
     }
   };
 
@@ -77,6 +79,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   greetingText: {
+    fontFamily: 'Poppins_700Bold',
     fontSize: 36,
     fontWeight: '700',
     letterSpacing: -0.9,
@@ -84,6 +87,7 @@ const styles = StyleSheet.create({
     lineHeight: 42,
   },
   displayNameText: {
+    fontFamily: 'Poppins_700Bold',
     fontSize: 36,
     fontWeight: '700',
     letterSpacing: -0.9,
@@ -91,6 +95,7 @@ const styles = StyleSheet.create({
     lineHeight: 42,
   },
   heading: {
+    fontFamily: 'Poppins_700Bold',
     fontSize: 36,
     fontWeight: '700',
     letterSpacing: -0.9,
@@ -98,6 +103,7 @@ const styles = StyleSheet.create({
     lineHeight: 42,
   },
   subtitle: {
+    fontFamily: 'Poppins_400Regular',
     fontSize: 22,
     color: Colors.mutedForeground,
     marginTop: Spacing.sm,

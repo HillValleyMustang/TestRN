@@ -228,6 +228,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
   },
   title: {
+    fontFamily: 'Poppins_600SemiBold',
     fontSize: 20,
     fontWeight: '600',
     color: Colors.foreground,
@@ -290,6 +291,7 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   buttonText: {
+    fontFamily: 'Poppins_600SemiBold',
     fontSize: 14,
     fontWeight: '600',
     color: Colors.foreground,
@@ -320,6 +322,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
   },
   dropdownText: {
+    fontFamily: 'Poppins_400Regular',
     fontSize: 14,
     color: Colors.foreground,
   },

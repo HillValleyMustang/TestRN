@@ -61,7 +61,7 @@ export function PreviousWorkoutsWidget({
     if (onViewAll) {
       onViewAll();
     } else {
-      router.push('/history');
+      router.push('/workout-history');
     }
   };
 
@@ -176,6 +176,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   title: {
+    fontFamily: 'Poppins_600SemiBold',
     fontSize: 20,
     fontWeight: '600',
     color: Colors.foreground,
@@ -199,11 +200,13 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   workoutName: {
+    fontFamily: 'Poppins_600SemiBold',
     fontSize: 16,
     fontWeight: '600',
     lineHeight: 20,
   },
   timeAgo: {
+    fontFamily: 'Poppins_400Regular',
     fontSize: 12,
     color: Colors.mutedForeground,
     lineHeight: 16,
@@ -230,6 +233,7 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   statText: {
+    fontFamily: 'Poppins_400Regular',
     fontSize: 12,
     color: Colors.mutedForeground,
   },
@@ -242,6 +246,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   viewAllText: {
+    fontFamily: 'Poppins_600SemiBold',
     fontSize: 14,
     fontWeight: '600',
     color: Colors.actionPrimary,
@@ -251,6 +256,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: {
+    fontFamily: 'Poppins_400Regular',
     fontSize: 14,
     color: Colors.destructive,
     textAlign: 'center',
@@ -259,6 +265,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.lg,
   },
   emptyText: {
+    fontFamily: 'Poppins_400Regular',
     fontSize: 14,
     color: Colors.mutedForeground,
     textAlign: 'center',

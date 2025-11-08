@@ -1173,8 +1173,6 @@ class Database {
     const cutoffDate = new Date();
     cutoffDate.setHours(cutoffDate.getHours() - olderThanHours);
 
-    console.log(`[Database] Cleaning up incomplete sessions older than ${olderThanHours} hours (${cutoffDate.toISOString()})`);
-
     // Get incomplete sessions to clean up
     const incompleteSessions = await db.getAllAsync<{ id: string }>(
       'SELECT id FROM workout_sessions WHERE completed_at IS NULL AND created_at < ?',
@@ -1183,7 +1181,6 @@ class Database {
 
     if (incompleteSessions.length > 0) {
       const sessionIds = incompleteSessions.map(s => s.id);
-      console.log(`[Database] Found ${incompleteSessions.length} incomplete sessions to clean up:`, sessionIds);
 
       // Remove associated set logs first
       await db.runAsync(
@@ -1197,10 +1194,8 @@ class Database {
         sessionIds
       );
 
-      console.log(`[Database] Cleaned up ${incompleteSessions.length} incomplete sessions and their associated data`);
       return incompleteSessions.length;
     } else {
-      console.log('[Database] No incomplete sessions to clean up');
       return 0;
     }
   }
@@ -1268,7 +1263,6 @@ export const addToSyncQueue = async (
   // For workout sessions, only queue if completed (has completed_at)
   if (table === 'workout_sessions' && operation !== 'delete') {
     if (!payload.completed_at) {
-      console.log(`[addToSyncQueue] Skipping incomplete workout session: ${payload.id}`);
       return;
     }
   }

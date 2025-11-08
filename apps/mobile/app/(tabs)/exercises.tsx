@@ -46,11 +46,6 @@ export default function ExercisesScreen({ navigation }: ExercisesScreenProps) {
     refreshExercises,
   } = useExerciseData({ supabase });
 
-  console.log('Exercises screen - userGyms:', userGyms?.length || 0);
-
-  console.log('Exercises screen - globalExercises:', globalExercises?.length || 0);
-  console.log('Exercises screen - loading:', loading);
-  console.log('Exercises screen - error:', error);
 
   const [routes] = useState([
     { key: 'my-exercises', title: 'My Exercises' },
@@ -120,9 +115,9 @@ export default function ExercisesScreen({ navigation }: ExercisesScreenProps) {
         onToggleFavorite={handleToggleFavorite}
         onDeleteExercise={handleDeleteExercise}
         onAddToWorkout={(exercise) => handleAddToWorkout(exercise)}
-        onEditExercise={(exercise) => console.log('Edit exercise:', exercise)}
-        onInfoPress={(exercise) => console.log('Info press:', exercise)}
-        onManageGyms={(exercise) => console.log('Manage gyms:', exercise)}
+        onEditExercise={(exercise) => {}}
+        onInfoPress={(exercise) => {}}
+        onManageGyms={(exercise) => {}}
         onRefreshData={refreshExercises}
       />
     ),
@@ -134,13 +129,12 @@ export default function ExercisesScreen({ navigation }: ExercisesScreenProps) {
         exerciseWorkoutsMap={exerciseWorkoutsMap}
         onToggleFavorite={handleToggleFavorite}
         onAddToWorkout={(exercise) => {
-          console.log('Global library: Add to workout pressed for:', exercise.name);
           // The GlobalExerciseList component should handle opening the modal itself
           // This prop is just to trigger the action, the component handles the modal
           // But we need to make sure the component's handler is called, not this one
         }}
-        onInfoPress={(exercise) => console.log('Info press:', exercise)}
-        onManageGyms={(exercise) => console.log('Manage gyms:', exercise)}
+        onInfoPress={(exercise) => {}}
+        onManageGyms={(exercise) => {}}
       />
     ),
   });
