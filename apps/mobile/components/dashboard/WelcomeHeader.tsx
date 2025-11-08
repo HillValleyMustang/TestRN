@@ -11,7 +11,7 @@ import { TextStyles } from '../../constants/Typography';
 
 interface WelcomeHeaderProps {
   userName: string;
-  accountCreatedAt?: Date | string;
+  accountCreatedAt?: Date | string | undefined;
 }
 
 export function WelcomeHeader({ userName, accountCreatedAt }: WelcomeHeaderProps) {
@@ -30,26 +30,26 @@ export function WelcomeHeader({ userName, accountCreatedAt }: WelcomeHeaderProps
 
   const formatDisplayName = (name: string): string => {
     if (!name || name === 'Athlete') return 'Athlete';
-    
+
     let namePart = name.trim();
-    
+
     if (namePart.includes('@')) {
       namePart = namePart.split('@')[0];
     }
-    
+
     const parts = namePart.split(/[\s._-]+/).filter(p => p.length > 0);
-    
+
     if (parts.length === 0) {
       return 'Athlete';
     } else if (parts.length === 1) {
       const initial = parts[0][0]?.toUpperCase() || '';
-      return initial ? `Athlete (${initial})` : 'Athlete';
+      return initial ? `Athlete ${initial}!` : 'Athlete';
     } else if (parts.length === 2) {
       const initials = (parts[0][0] + parts[1][0]).toUpperCase();
-      return `Athlete (${initials})`;
+      return `Athlete ${initials}!`;
     } else {
       const initials = (parts[0][0] + parts[1][0] + parts[2][0]).toUpperCase();
-      return `Athlete (${initials})`;
+      return `Athlete ${initials}!`;
     }
   };
 
@@ -58,11 +58,12 @@ export function WelcomeHeader({ userName, accountCreatedAt }: WelcomeHeaderProps
 
   return (
     <View style={styles.container}>
-      <Text style={styles.heading}>
-        {greeting} {displayName}
-      </Text>
+      <View style={styles.headingContainer}>
+        <Text style={styles.greetingText}>{greeting}</Text>
+        <Text style={styles.displayNameText}>{displayName}</Text>
+      </View>
       <Text style={styles.subtitle}>
-        Ready to Train? Let's get Started!
+        Ready to Train? Let's get Started...
       </Text>
     </View>
   );
@@ -72,6 +73,23 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: Spacing.md,
   },
+  headingContainer: {
+    marginBottom: Spacing.xs,
+  },
+  greetingText: {
+    fontSize: 36,
+    fontWeight: '700',
+    letterSpacing: -0.9,
+    color: Colors.foreground,
+    lineHeight: 42,
+  },
+  displayNameText: {
+    fontSize: 36,
+    fontWeight: '700',
+    letterSpacing: -0.9,
+    color: Colors.foreground,
+    lineHeight: 42,
+  },
   heading: {
     fontSize: 36,
     fontWeight: '700',
@@ -80,9 +98,9 @@ const styles = StyleSheet.create({
     lineHeight: 42,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 22,
     color: Colors.mutedForeground,
     marginTop: Spacing.sm,
-    lineHeight: 20,
+    lineHeight: 26,
   },
 });

@@ -9,7 +9,7 @@ import { TextStyles } from '../../constants/Typography';
 import { supabase } from '../../app/_lib/supabase';
 import { database, addToSyncQueue } from '../../app/_lib/database';
 import Toast from 'react-native-toast-message';
-import { progressionEngine } from '../../../../packages/data/src/ai/progression-engine';
+// import { progressionEngine } from '../../../../packages/data/src/ai/progression-engine';
 
 // Simple UUID generator for React Native
 const generateUUID = () => {
@@ -104,12 +104,11 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
   } | null>(null);
   const [restTimer, setRestTimer] = useState<number | null>(null);
   const [isExerciseSaved, setIsExerciseSaved] = useState(false);
-  const [previousSets, setPreviousSets] = useState<Array<{ weight_kg: number | null; reps: number | null }>>([]);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [exerciseHistory, setExerciseHistory] = useState<any[]>([]);
   const [historyTab, setHistoryTab] = useState<'list' | 'graph'>('list');
   const [localSets, setLocalSets] = useState<SetLogState[]>(() =>
-    sets && sets.length > 0 ? sets.map(set => ({ ...set })) : Array.from({ length: 3 }, (_, index) => ({
+    sets && sets.length > 0 ? sets.map(set => ({ ...set })) : Array.from({ length: 3 }, (_) => ({
       id: null,
       created_at: null,
       session_id: null,
@@ -334,8 +333,6 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
 
         console.log('[ExerciseCard] Previous sets data for', exercise.name, ':', previousSetsData);
 
-        // Store previous sets for display
-        setPreviousSets(previousSetsData || []);
 
         // Update localSets with previous data
         setLocalSets(prevSets => prevSets.map((set, index) => {
@@ -354,21 +351,14 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
 
         // Get all historical volumes for PB calculation
         const allSessionIds = allSessions.map(session => session.id);
-        const { data: allHistoricalSets, error: historicalError } = await supabase
+        await supabase
           .from('set_logs')
           .select('weight_kg, reps')
           .in('session_id', allSessionIds)
           .eq('exercise_id', exercise.id);
 
-        if (historicalError) throw historicalError;
-
-        // Calculate all historical volumes
-        const historicalVolumes = (allHistoricalSets || []).map(set =>
-          (set.weight_kg || 0) * (set.reps || 0)
-        ).filter(volume => volume > 0);
       } else {
         console.log('[ExerciseCard] No historical sessions found for', exercise.name);
-        setPreviousSets([]);
       }
     } catch (error: any) {
       console.error('[ExerciseCard] Error fetching previous workout sets for', exercise.name, ':', error);
@@ -473,117 +463,53 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
 
   const applyAISuggestions = async (sets: SetLogState[]) => {
     try {
-      console.log('[AI Suggestions] Generating enhanced suggestions using progression engine...');
+      // Import the enhanced progression engine
+      const { progressionEngine } = await import('../../../packages/data/src/ai/progression-engine');
 
-      // Get user's last performance from current sets
-      const completedSets = sets.filter(set => hasUserInput(set));
-      if (completedSets.length === 0) {
-        showCustomAlert(
-          'No Performance Data',
-          'Complete at least one set to get AI suggestions.',
-          [{ text: 'OK', onPress: () => setShowCustomAlertModal(false) }]
-        );
-        return;
-      }
-
-      // Find best set from completed sets
-      const bestSet = completedSets.reduce((best, current) => {
-        const currentVolume = (current.weight_kg || 0) * (current.reps || 0);
-        const bestVolume = (best.weight_kg || 0) * (best.reps || 0);
-        return currentVolume > bestVolume ? current : best;
-      });
-
-      // Generate progression recommendation using the new engine
-      const recommendation = await progressionEngine.generateProgressionRecommendation(
-        userId,
+      // Get intelligent suggestions based on user profile and training context
+      const suggestions = await progressionEngine.getProgressionSuggestions(
         exercise.id,
-        { weight: bestSet.weight_kg || 0, reps: bestSet.reps || 0 }
+        userId,
+        sets
       );
 
-      console.log('[AI Suggestions] Recommendation:', recommendation);
-
-      // Apply the suggestions
-      const suggestedWeight = recommendation.suggestedWeight;
-      const suggestedReps = recommendation.suggestedReps;
-
-      // Fill all 3 sets with suggestions
-      console.log('[AI Suggestions] Applying enhanced suggestions:', { suggestedWeight, suggestedReps });
-      for (let i = 0; i < 3; i++) {
-        console.log(`[AI Suggestions] Setting set ${i}: ${suggestedWeight}kg x ${suggestedReps} reps`);
-        handleWeightChange(i, suggestedWeight.toString());
-        handleRepsChange(i, suggestedReps.toString());
-      }
-
-      // Show recommendation details if plateau detected or deload recommended
-      if (recommendation.plateauDetected || recommendation.deloadRecommended) {
-        const message = recommendation.plateauDetected
-          ? 'Plateau detected! Consider a deload week or technique focus.'
-          : 'Deload recommended to prevent overtraining and promote recovery.';
-
+      if (!suggestions || suggestions.length === 0) {
         showCustomAlert(
-          'Progression Alert',
-          message,
-          [{ text: 'Got it', onPress: () => setShowCustomAlertModal(false) }]
-        );
-      }
-
-      console.log('[AI Suggestions] Enhanced suggestions applied successfully');
-    } catch (error) {
-      console.error('[AI Suggestions] Error generating suggestions:', error);
-
-      // Fallback to basic suggestions if enhanced engine fails
-      console.log('[AI Suggestions] Falling back to basic suggestions...');
-
-      // Always fetch fresh history data to ensure we have the latest
-      const freshHistory = await fetchExerciseHistory();
-      console.log('[AI Suggestions] History after fetch:', freshHistory.length, 'sessions');
-
-      // Check if we have enough historical workout sessions
-      if (freshHistory.length < 3) {
-        const progressText = freshHistory.length === 0
-          ? 'You have 0/3 workouts completed with this exercise.'
-          : freshHistory.length === 1
-          ? 'You have 1/3 workouts completed with this exercise. Complete 2 more!'
-          : 'You have 2/3 workouts completed with this exercise. Complete 1 more!';
-  
-        showCustomAlert(
-          'Build Your Workout History',
-          `💡 Get smart progression suggestions! Complete 3 workouts with this exercise to unlock AI recommendations that learn from your training patterns and help you progress optimally. ${progressText}`,
-          [{ text: 'Got it', onPress: () => setShowCustomAlertModal(false) }]
-        );
-        return;
-      }
-
-      // Get user's recent performance from the most recent historical session
-      const lastSession = freshHistory[0];
-      if (!lastSession || lastSession.sets.length === 0) {
-        showCustomAlert(
-          'No Recent Data',
-          'Unable to generate suggestions - no recent workout data available.',
+          'No Suggestions Available',
+          'Unable to generate workout suggestions. Try completing more workouts to build your training history.',
           [{ text: 'OK', onPress: () => setShowCustomAlertModal(false) }]
         );
         return;
       }
 
-      // Use the best set from the last session for suggestions
-      const bestSet = lastSession.sets.reduce((best: any, set: any) => {
-        const volume = (set.weight_kg || 0) * (set.reps || 0);
-        const bestVolume = (best.weight || 0) * (best.reps || 0);
-        return volume > bestVolume ? { weight: set.weight_kg || 0, reps: set.reps || 0 } : best;
-      }, { weight: 0, reps: 0 });
+      // Apply the enhanced suggestions to sets
+      console.log('[Enhanced AI Suggestions] Applying suggestions:', suggestions);
+      suggestions.forEach((suggestion: any, index: number) => {
+        if (index < 3) {
+          console.log(`[Enhanced AI] Setting set ${index}: ${suggestion.weight}kg x ${suggestion.reps} reps`);
+          handleWeightChange(index, suggestion.weight.toString());
+          handleRepsChange(index, suggestion.reps.toString());
+        }
+      });
 
-      // Suggest progressive overload: slight increase from best set
-      const suggestedWeight = Math.round((bestSet.weight * 1.05) * 2) / 2; // Round to nearest 0.5kg
-      const suggestedReps = Math.max(6, Math.min(12, Math.round(bestSet.reps * 0.95))); // Slight decrease in reps
+      // Show success message with reasoning
+      const reasoning = suggestions[0]?.reasoning || 'Based on your training history and goals';
+      Toast.show({
+        type: 'success',
+        text1: 'AI Suggestions Applied!',
+        text2: reasoning,
+        visibilityTime: 3000,
+      });
 
-      // Fill all 3 sets with suggestions
-      console.log('[AI Suggestions] Applying fallback suggestions:', { suggestedWeight, suggestedReps });
-      for (let i = 0; i < 3; i++) {
-        console.log(`[AI Suggestions] Setting set ${i}: ${suggestedWeight}kg x ${suggestedReps} reps`);
-        handleWeightChange(i, suggestedWeight.toString());
-        handleRepsChange(i, suggestedReps.toString());
-      }
-      console.log('[AI Suggestions] Fallback suggestions applied');
+      console.log('[Enhanced AI Suggestions] All suggestions applied successfully');
+    } catch (error) {
+      console.error('Error getting enhanced AI suggestions:', error);
+      // Fallback to basic suggestions if enhanced system fails
+      showCustomAlert(
+        'Suggestion Error',
+        'Unable to generate enhanced suggestions. Using basic progression.',
+        [{ text: 'OK', onPress: () => setShowCustomAlertModal(false) }]
+      );
     }
   };
 
@@ -1202,8 +1128,8 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                     </View>
 
                     <View style={styles.sessionSetsList}>
-                      {session.sets.map((set: any, setIndex: number) => (
-                        <Text key={setIndex} style={styles.setItemText}>
+                      {session.sets.map((set: any) => (
+                        <Text key={set.created_at} style={styles.setItemText}>
                           {set.weight_kg}kg × {set.reps}
                           {set.is_pb && <Text style={styles.pbIndicator}> ★</Text>}
                         </Text>
@@ -1225,7 +1151,7 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                     <Text style={styles.graphTitle}>Total Volume Progression (kg)</Text>
                     {(() => {
                       const maxVolume = Math.max(...exerciseHistory.map(s => s.totalVolume || 0));
-                      return exerciseHistory.map((session, index) => {
+                      return exerciseHistory.map((session) => {
                         const width = maxVolume > 0 ? (session.totalVolume / maxVolume) * 100 : 0;
                         return (
                           <View key={session.session_id} style={styles.graphBarContainer}>

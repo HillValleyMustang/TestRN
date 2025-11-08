@@ -19,7 +19,7 @@ interface WorkoutSession {
   template_name: string;
   completed_at?: string | null;
   exercise_count?: number;
-  duration_string?: string;
+  duration_string?: string | undefined;
 }
 
 interface PreviousWorkoutsWidgetProps {

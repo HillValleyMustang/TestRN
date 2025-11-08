@@ -73,62 +73,6 @@ export interface UserAchievement {
 
 type ProgrammeType = 'ppl' | 'ulul';
 
-interface ProfileRow {
-  id: string;
-  active_t_path_id: string | null;
-  programme_type: string | null;
-  preferred_session_length: string | null;
-  full_name: string | null;
-  first_name: string | null;
-  last_name: string | null;
-}
-
-interface WorkoutSessionRow {
-  id: string;
-  user_id: string;
-  session_date: string;
-  template_name: string | null;
-  completed_at: string | null;
-  rating: number | null;
-  duration_string: string | null;
-  t_path_id: string | null;
-  created_at: string;
-}
-
-interface SetLogRow {
-  id: string;
-  session_id: string;
-  exercise_id: string;
-  weight_kg: number | null;
-  reps: number | null;
-  reps_l: number | null;
-  reps_r: number | null;
-  time_seconds: number | null;
-  is_pb: boolean | null;
-  created_at: string;
-}
-
-interface GymRow {
-  id: string;
-  user_id: string;
-  name: string;
-  description: string | null;
-  equipment: string[] | null;
-  is_active: boolean | null;
-  created_at: string | null;
-  updated_at: string | null;
-}
-
-interface TPathRow {
-  id: string;
-  user_id: string | null;
-  template_name: string;
-  description: string | null;
-  parent_t_path_id: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-  is_bonus?: boolean | null;
-}
 
 export interface DashboardProfile {
   id: string;

@@ -53,7 +53,7 @@ export function EditNameModal({
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ display_name: displayName.trim() })
+        .update({ full_name: displayName.trim() })
         .eq('id', userId);
 
       if (error) throw error;

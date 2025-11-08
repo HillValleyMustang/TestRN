@@ -20,7 +20,7 @@ interface Workout {
 }
 
 interface AllWorkoutsQuickStartProps {
-  programName?: string;
+  programName?: string | undefined;
   workouts: Workout[];
   loading?: boolean;
   error?: string;

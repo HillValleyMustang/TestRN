@@ -13,21 +13,18 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Dimensions,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../_contexts/auth-context';
-import { useData } from '../_contexts/data-context';
-import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
-import { TextStyles } from '../../constants/Typography';
-import { ScreenContainer } from '../../components/layout/ScreenContainer';
-import { Card } from '../../components/ui/Card';
-import Toast from 'react-native-toast-message';
-// Temporarily comment out AI imports until services are properly set up
-// import { performanceAnalytics } from '../../../packages/data/src/ai/performance-analytics';
-// import { recoveryOptimizer } from '../../../packages/data/src/ai/recovery-optimizer';
-// import { trainingContextTracker } from '../../../packages/data/src/ai/training-context-tracker';
+import { useAuth } from './_contexts/auth-context';
+import { useData } from './_contexts/data-context';
+import { Colors, Spacing, BorderRadius } from '../constants/Theme';
+import { TextStyles } from '../constants/Typography';
+import { ScreenContainer } from '../components/layout/ScreenContainer';
+import { Card } from '../components/ui/Card';
+import { performanceAnalytics } from '../../../packages/data/src/ai/performance-analytics';
+import { recoveryOptimizer } from '../../../packages/data/src/ai/recovery-optimizer';
+import { trainingContextTracker } from '../../../packages/data/src/ai/training-context-tracker';
 
 const { width } = Dimensions.get('window');
 
@@ -43,17 +40,11 @@ export default function ProgressScreen() {
   const [recoveryAnalysis, setRecoveryAnalysis] = useState<any>(null);
   const [performanceData, setPerformanceData] = useState<any>(null);
   const [trainingLoad, setTrainingLoad] = useState<any>(null);
-  const [showInfoModal, setShowInfoModal] = useState(false);
-  const [infoModalContent, setInfoModalContent] = useState<{
-    title: string;
-    description: string;
-    features?: string[];
-  } | null>(null);
 
-  // Initialize AI services (temporarily disabled until services are properly set up)
-  // const analyticsService = performanceAnalytics;
-  // const recoveryService = recoveryOptimizer;
-  // const contextService = trainingContextTracker;
+  // Initialize AI services
+  const analyticsService = performanceAnalytics;
+  const recoveryService = recoveryOptimizer;
+  const contextService = trainingContextTracker;
 
   useEffect(() => {
     loadProgressData();
@@ -69,51 +60,24 @@ export default function ProgressScreen() {
       const gym = await getActiveGym(userId);
       setActiveGym(gym);
 
-      // Get training context (mock data for now)
-      const context = {
-        trainingFrequency: 4,
-        averageSessionDuration: 75,
-        totalVolumeThisWeek: 12500,
-        restDaysBetweenSessions: 2,
-        currentStreak: 5,
-        totalWorkouts: 58, // User's actual workout count
-        trainingLoadMetrics: {
-          currentLoad: 1250,
-          sustainableLoad: 1400,
-          loadTrend: 'Increasing'
-        }
-      };
+      // Get training context
+      const context = await contextService.generateTrainingContextSummary(userId);
       setTrainingContext(context);
 
-      // Get performance analytics (mock data for now)
-      const perfAnalytics = {
-        efficiencyScore: 85,
-        strengthGains: 12.5,
-        consistencyScore: 92,
-        totalSessions: 24,
-        averageVolume: 875,
-        bestExercise: 'Bench Press'
-      };
+      // Get performance analytics
+      const perfAnalytics = await analyticsService.getUserAnalyticsSummary(userId);
       setAnalytics(perfAnalytics);
 
-      // Get recovery analysis (mock data for now)
-      const recovery = {
-        recoveryStatus: 'optimal',
-        overallRecoveryHealth: 87,
-        recoveryRecommendations: [
-          { title: "Great recovery! Consider increasing training intensity" },
-          { title: "Your consistency is excellent - keep it up!" }
-        ],
-        analysisSummary: "Your recovery metrics are excellent! Training load is well-balanced with adequate rest periods. Consider maintaining this pattern for optimal progress."
-      };
+      // Get recovery analysis
+      const recovery = await recoveryOptimizer.analyzeRecovery(userId);
       setRecoveryAnalysis(recovery);
 
-      // Get performance data (mock data for now)
-      const perfData = perfAnalytics;
+      // Get performance data
+      const perfData = await performanceAnalytics.getUserAnalyticsSummary(userId);
       setPerformanceData(perfData);
 
-      // Get training load metrics (mock data for now)
-      const loadMetrics = context.trainingLoadMetrics;
+      // Get training load metrics
+      const loadMetrics = await trainingContextTracker.calculateTrainingLoad(userId);
       setTrainingLoad(loadMetrics);
 
     } catch (error) {
@@ -122,16 +86,6 @@ export default function ProgressScreen() {
       setLoading(false);
     }
   }, [userId]);
-
-  const showInfoToast = (title: string, description: string) => {
-    Toast.show({
-      type: 'info',
-      text1: title,
-      text2: description,
-      visibilityTime: 4000,
-      position: 'top',
-    });
-  };
 
   if (loading) {
     return (
@@ -171,13 +125,7 @@ export default function ProgressScreen() {
 
           <View style={styles.intelligenceGrid}>
             {/* Efficiency Score */}
-            <TouchableOpacity
-              style={styles.metricItem}
-              onPress={() => showInfoToast(
-                'Efficiency Score',
-                'Measures how effectively you convert training time into strength gains. Higher scores indicate optimal training efficiency.'
-              )}
-            >
+            <View style={styles.metricItem}>
               <View style={styles.metricHeader}>
                 <Text style={styles.metricLabel}>Efficiency Score</Text>
                 <Ionicons name="trending-up" size={16} color={Colors.success} />
@@ -193,16 +141,10 @@ export default function ProgressScreen() {
                   ]}
                 />
               </View>
-            </TouchableOpacity>
+            </View>
 
             {/* Recovery Status */}
-            <TouchableOpacity
-              style={styles.metricItem}
-              onPress={() => showInfoToast(
-                'Recovery Status',
-                'Tracks your recovery health based on training load, rest periods, and workout frequency. Optimal recovery ensures sustainable progress.'
-              )}
-            >
+            <View style={styles.metricItem}>
               <View style={styles.metricHeader}>
                 <Text style={styles.metricLabel}>Recovery Status</Text>
                 <View style={[
@@ -215,16 +157,10 @@ export default function ProgressScreen() {
               <Text style={styles.metricValue}>
                 {recoveryAnalysis?.recoveryStatus || 'Optimal'}
               </Text>
-            </TouchableOpacity>
+            </View>
 
             {/* Strength Gains */}
-            <TouchableOpacity
-              style={styles.metricItem}
-              onPress={() => showInfoToast(
-                '30-Day Strength Gains',
-                'Total weight progression across all exercises in the last 30 days. Shows your overall strength development trajectory.'
-              )}
-            >
+            <View style={styles.metricItem}>
               <View style={styles.metricHeader}>
                 <Text style={styles.metricLabel}>30-Day Gains</Text>
                 <Ionicons name="barbell" size={16} color={Colors.primary} />
@@ -232,16 +168,10 @@ export default function ProgressScreen() {
               <Text style={styles.metricValue}>
                 +{analytics?.strengthGains || 12.5}kg
               </Text>
-            </TouchableOpacity>
+            </View>
 
             {/* Consistency Score */}
-            <TouchableOpacity
-              style={styles.metricItem}
-              onPress={() => showInfoToast(
-                'Consistency Score',
-                'Measures workout regularity and adherence to your training schedule. Higher scores indicate more consistent training habits.'
-              )}
-            >
+            <View style={styles.metricItem}>
               <View style={styles.metricHeader}>
                 <Text style={styles.metricLabel}>Consistency</Text>
                 <Ionicons name="calendar" size={16} color={Colors.primary} />
@@ -249,7 +179,7 @@ export default function ProgressScreen() {
               <Text style={styles.metricValue}>
                 {analytics?.consistencyScore || 92}%
               </Text>
-            </TouchableOpacity>
+            </View>
           </View>
 
           {/* AI Recommendations */}
@@ -270,13 +200,7 @@ export default function ProgressScreen() {
         </Card>
 
         {/* Fitness Journey Timeline */}
-        <TouchableOpacity
-          style={styles.timelineCard}
-          onPress={() => showInfoToast(
-            'Fitness Journey Timeline',
-            'Interactive charts showing your strength progression over time. Track how you\'ve progressed from beginner to advanced levels across all exercises.'
-          )}
-        >
+        <Card style={styles.timelineCard}>
           <View style={styles.cardHeader}>
             <Ionicons name="time" size={20} color={Colors.primary} />
             <Text style={styles.cardTitle}>Fitness Journey Timeline</Text>
@@ -290,25 +214,16 @@ export default function ProgressScreen() {
           <View style={styles.timelinePlaceholder}>
             <Ionicons name="bar-chart" size={48} color={Colors.mutedForeground} />
             <Text style={styles.timelinePlaceholderText}>
-              {trainingContext?.totalWorkouts >= 5 ? 'Interactive strength curves coming soon' : 'Complete 5+ workouts to unlock'}
+              Interactive strength curves coming soon
             </Text>
             <Text style={styles.timelineSubtext}>
-              {trainingContext?.totalWorkouts >= 5
-                ? 'Personalized strength progression charts showing your journey from beginner to advanced levels.'
-                : 'Complete 5+ workouts to unlock personalized strength progression charts showing your journey from beginner to advanced levels.'
-              }
+              Complete 5+ workouts to unlock personalized strength progression charts showing your journey from beginner to advanced levels.
             </Text>
           </View>
-        </TouchableOpacity>
+        </Card>
 
         {/* Volume Over Time Chart */}
-        <TouchableOpacity
-          style={styles.volumeCard}
-          onPress={() => showInfoToast(
-            'Volume Over Time',
-            'Tracks your total training volume (weight × reps × sets) across all exercises. Helps ensure progressive overload while preventing overtraining.'
-          )}
-        >
+        <Card style={styles.volumeCard}>
           <View style={styles.cardHeader}>
             <Ionicons name="bar-chart" size={20} color={Colors.primary} />
             <Text style={styles.cardTitle}>Volume Over Time</Text>
@@ -328,16 +243,10 @@ export default function ProgressScreen() {
               Monitor your training volume trends to ensure progressive overload while preventing overtraining.
             </Text>
           </View>
-        </TouchableOpacity>
+        </Card>
 
         {/* Weak Point Analysis */}
-        <TouchableOpacity
-          style={styles.weakPointCard}
-          onPress={() => showInfoToast(
-            'Weak Point Analysis',
-            'AI analyzes your exercise performance to identify muscle groups or movements that need improvement. Helps ensure balanced muscle development and prevents imbalances.'
-          )}
-        >
+        <Card style={styles.weakPointCard}>
           <View style={styles.cardHeader}>
             <Ionicons name="warning" size={20} color={Colors.destructive} />
             <Text style={styles.cardTitle}>Weak Point Analysis</Text>
@@ -356,16 +265,10 @@ export default function ProgressScreen() {
               AI will analyze your exercise performance to identify weak points and suggest targeted improvements for balanced muscle development.
             </Text>
           </View>
-        </TouchableOpacity>
+        </Card>
 
         {/* Consistency Tracking */}
-        <TouchableOpacity
-          style={styles.consistencyCard}
-          onPress={() => showInfoToast(
-            'Consistency Tracking',
-            'Monitors your workout regularity and adherence to training schedules. Consistent training is crucial for long-term progress and muscle adaptation.'
-          )}
-        >
+        <Card style={styles.consistencyCard}>
           <View style={styles.cardHeader}>
             <Ionicons name="calendar" size={20} color={Colors.primary} />
             <Text style={styles.cardTitle}>Consistency Tracking</Text>
@@ -384,16 +287,10 @@ export default function ProgressScreen() {
               Consistent training is key to progress. We'll track your workout frequency and help you maintain optimal training consistency.
             </Text>
           </View>
-        </TouchableOpacity>
+        </Card>
 
         {/* Injury Risk Assessment */}
-        <TouchableOpacity
-          style={styles.injuryCard}
-          onPress={() => showInfoToast(
-            'Injury Risk Assessment',
-            'Advanced AI monitoring that analyzes your form, load progression, and recovery patterns to prevent injuries through early risk detection and safety recommendations.'
-          )}
-        >
+        <Card style={styles.injuryCard}>
           <View style={styles.cardHeader}>
             <Ionicons name="shield-checkmark" size={20} color={Colors.success} />
             <Text style={styles.cardTitle}>Injury Risk Assessment</Text>
@@ -412,16 +309,10 @@ export default function ProgressScreen() {
               Advanced AI monitoring to prevent injuries by analyzing your form, load progression, and recovery patterns for early risk detection.
             </Text>
           </View>
-        </TouchableOpacity>
+        </Card>
 
         {/* Goal Achievement Probability */}
-        <TouchableOpacity
-          style={styles.goalCard}
-          onPress={() => showInfoToast(
-            'Goal Achievement Predictions',
-            'Based on your current trajectory, training consistency, and historical progress, we predict your chances of achieving strength and physique goals. Set specific targets in your profile settings.'
-          )}
-        >
+        <Card style={styles.goalCard}>
           <View style={styles.cardHeader}>
             <Ionicons name="trophy" size={20} color={Colors.primary} />
             <Text style={styles.cardTitle}>Goal Achievement</Text>
@@ -440,16 +331,10 @@ export default function ProgressScreen() {
               Based on your current trajectory and training consistency, we'll predict your chances of achieving strength and physique goals.
             </Text>
           </View>
-        </TouchableOpacity>
+        </Card>
 
         {/* Comparative Analytics */}
-        <TouchableOpacity
-          style={styles.comparativeCard}
-          onPress={() => showInfoToast(
-            'How You Compare',
-            'See how your performance stacks up against other athletes with similar experience levels, goals, and training frequency. Get percentile rankings and personalized benchmarks to understand your progress.'
-          )}
-        >
+        <Card style={styles.comparativeCard}>
           <View style={styles.cardHeader}>
             <Ionicons name="people" size={20} color={Colors.primary} />
             <Text style={styles.cardTitle}>How You Compare</Text>
@@ -465,16 +350,10 @@ export default function ProgressScreen() {
             </Text>
             <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
           </TouchableOpacity>
-        </TouchableOpacity>
+        </Card>
 
         {/* Recovery Analysis */}
-        <TouchableOpacity
-          style={styles.periodizationCard}
-          onPress={() => showInfoToast(
-            'Recovery Analysis',
-            'Comprehensive analysis of your recovery health based on training load, rest periods, and workout frequency. Helps prevent overtraining and optimize performance.'
-          )}
-        >
+        <Card style={styles.periodizationCard}>
           <View style={styles.cardHeader}>
             <Ionicons name="heart" size={20} color={Colors.primary} />
             <Text style={styles.cardTitle}>Recovery Analysis</Text>
@@ -505,16 +384,10 @@ export default function ProgressScreen() {
               {recoveryAnalysis?.analysisSummary || "Your recovery metrics are excellent! Training load is well-balanced with adequate rest periods. Consider maintaining this pattern for optimal progress."}
             </Text>
           )}
-        </TouchableOpacity>
+        </Card>
 
         {/* Training Load Analysis */}
-        <TouchableOpacity
-          style={styles.exportCard}
-          onPress={() => showInfoToast(
-            'Training Load Analysis',
-            'Monitors your training stress and recovery balance. Compares current load against sustainable levels to prevent overtraining while ensuring progressive overload.'
-          )}
-        >
+        <Card style={styles.exportCard}>
           <View style={styles.cardHeader}>
             <Ionicons name="bar-chart" size={20} color={Colors.primary} />
             <Text style={styles.cardTitle}>Training Load Analysis</Text>
@@ -565,7 +438,7 @@ export default function ProgressScreen() {
               </View>
             </View>
           )}
-        </TouchableOpacity>
+        </Card>
       </ScrollView>
     </ScreenContainer>
   );
@@ -746,6 +619,109 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
     textAlign: 'center',
   },
+  comparativeSubtitle: {
+    ...TextStyles.body,
+    color: Colors.mutedForeground,
+    marginBottom: Spacing.lg,
+  },
+  comparativeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: Spacing.md,
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.md,
+  },
+  comparativeButtonText: {
+    ...TextStyles.button,
+    color: Colors.white,
+  },
+  phaseIndicator: {
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  phaseName: {
+    ...TextStyles.h4,
+    color: Colors.foreground,
+    fontWeight: '600',
+  },
+  phaseProgress: {
+    width: '100%',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  phaseProgressBar: {
+    width: '100%',
+    height: 8,
+    backgroundColor: Colors.muted,
+    borderRadius: BorderRadius.full,
+    overflow: 'hidden',
+  },
+  phaseProgressFill: {
+    height: '100%',
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.full,
+  },
+  phaseProgressText: {
+    ...TextStyles.caption,
+    color: Colors.mutedForeground,
+  },
+  exportSubtitle: {
+    ...TextStyles.body,
+    color: Colors.mutedForeground,
+    marginBottom: Spacing.lg,
+  },
+  loadMetrics: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: Spacing.md,
+  },
+  loadMetric: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  loadMetricLabel: {
+    ...TextStyles.caption,
+    color: Colors.mutedForeground,
+    marginBottom: Spacing.xs,
+  },
+  loadMetricValue: {
+    ...TextStyles.body,
+    color: Colors.foreground,
+    fontWeight: '600',
+  },
+  recoverySummary: {
+    ...TextStyles.body,
+    color: Colors.mutedForeground,
+    marginTop: Spacing.md,
+    lineHeight: 20,
+  },
+  performanceSection: {
+    marginTop: Spacing.lg,
+  },
+  performanceTitle: {
+    ...TextStyles.h4,
+    color: Colors.foreground,
+    marginBottom: Spacing.md,
+  },
+  performanceMetrics: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  performanceMetric: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  performanceMetricLabel: {
+    ...TextStyles.caption,
+    color: Colors.mutedForeground,
+    marginBottom: Spacing.xs,
+  },
+  performanceMetricValue: {
+    ...TextStyles.body,
+    color: Colors.foreground,
+    fontWeight: '600',
+  },
   timelineSubtext: {
     ...TextStyles.caption,
     color: Colors.mutedForeground,
@@ -882,108 +858,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: Spacing.sm,
     lineHeight: 16,
-  },
-  comparativeSubtitle: {
-    ...TextStyles.body,
-    color: Colors.mutedForeground,
-    marginBottom: Spacing.lg,
-  },
-  comparativeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: Spacing.md,
-    backgroundColor: Colors.primary,
-    borderRadius: BorderRadius.md,
-  },
-  comparativeButtonText: {
-    ...TextStyles.button,
-    color: Colors.white,
-  },
-  phaseIndicator: {
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  phaseName: {
-    ...TextStyles.h4,
-    color: Colors.foreground,
-    fontWeight: '600',
-  },
-  phaseProgress: {
-    width: '100%',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  phaseProgressBar: {
-    width: '100%',
-    height: 8,
-    backgroundColor: Colors.muted,
-    borderRadius: BorderRadius.full,
-    overflow: 'hidden',
-  },
-  phaseProgressFill: {
-    height: '100%',
-    backgroundColor: Colors.primary,
-    borderRadius: BorderRadius.full,
-  },
-  phaseProgressText: {
-    ...TextStyles.caption,
-    color: Colors.mutedForeground,
-  },
-  exportSubtitle: {
-    ...TextStyles.body,
-    color: Colors.mutedForeground,
-    marginBottom: Spacing.lg,
-  },
-  loadMetrics: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: Spacing.md,
-  },
-  loadMetric: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  loadMetricLabel: {
-    ...TextStyles.caption,
-    color: Colors.mutedForeground,
-    marginBottom: Spacing.xs,
-  },
-  loadMetricValue: {
-    ...TextStyles.body,
-    color: Colors.foreground,
-    fontWeight: '600',
-  },
-  recoverySummary: {
-    ...TextStyles.body,
-    color: Colors.mutedForeground,
-    marginTop: Spacing.md,
-    lineHeight: 20,
-  },
-  performanceSection: {
-    marginTop: Spacing.lg,
-  },
-  performanceTitle: {
-    ...TextStyles.h4,
-    color: Colors.foreground,
-    marginBottom: Spacing.md,
-  },
-  performanceMetrics: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  performanceMetric: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  performanceMetricLabel: {
-    ...TextStyles.caption,
-    color: Colors.mutedForeground,
-    marginBottom: Spacing.xs,
-  },
-  performanceMetricValue: {
-    ...TextStyles.body,
-    color: Colors.foreground,
-    fontWeight: '600',
   },
 });

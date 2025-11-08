@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import {
   Brain,
-  TrendingUp,
   AlertTriangle,
   Target,
   Zap,
@@ -22,7 +21,6 @@ import {
   ChevronUp,
   BarChart3,
   Calendar,
-  Award,
 } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';

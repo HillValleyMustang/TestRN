@@ -15,6 +15,8 @@ import {
   ActivityIndicator,
   Dimensions,
   Animated,
+  Modal,
+  ScrollView,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -104,6 +106,7 @@ export default function ProfileScreen() {
   const [preferencesModalVisible, setPreferencesModalVisible] = useState(false);
   const [achievementModalVisible, setAchievementModalVisible] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<any>(null);
+  const [levelModalVisible, setLevelModalVisible] = useState(false);
   const [manageWorkoutsVisible, setManageWorkoutsVisible] = useState(false);
   const [selectedGymId, setSelectedGymId] = useState<string>('');
   const [selectedGymName, setSelectedGymName] = useState<string>('');
@@ -147,7 +150,7 @@ export default function ProfileScreen() {
       // Load profile data
       const profileRes = await supabase
         .from('profiles')
-        .select('*')
+        .select('*, full_name')
         .eq('id', userId)
         .single();
       if (profileRes.error) throw profileRes.error;
@@ -383,16 +386,15 @@ export default function ProfileScreen() {
   };
 
   const getInitials = () => {
-    const name =
-      profile?.display_name ||
-      session?.user?.user_metadata?.full_name ||
-      session?.user?.email?.split('@')[0] ||
-      'A';
-    const parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
-    }
-    return name.slice(0, 2).toUpperCase();
+    const userName = profile?.full_name ||
+                    session?.user?.user_metadata?.full_name ||
+                    'Athlete';
+
+    // Generate initials from the user's actual name - take first letter of each word
+    const nameParts = userName.trim().split(' ');
+    const initials = nameParts.map((part: string) => part[0]).join('').toUpperCase();
+
+    return initials;
   };
 
   const getMemberSince = () => {
@@ -422,22 +424,40 @@ export default function ProfileScreen() {
       {renderAvatar()}
 
       <Text style={styles.displayName}>
-        {profile?.display_name ||
-          session?.user?.user_metadata?.full_name ||
-          'Athlete'}
+        {(() => {
+          // Always use 'Athlete' as the display name, but generate initials from user's actual name
+          const userName = profile?.full_name ||
+                          session?.user?.user_metadata?.full_name ||
+                          'Athlete';
+
+          // Generate initials from the user's actual name - take first letter of each word
+          const nameParts = userName.trim().split(' ');
+          const initials = nameParts.map((part: string) => part[0]).join('').toUpperCase();
+
+          return `Athlete ${initials}`;
+        })()}
       </Text>
 
       <View style={styles.metaRow}>
-        <View
+        <TouchableOpacity
           style={[
             styles.levelPill,
             { backgroundColor: levelInfo.backgroundColor },
           ]}
+          onPress={() => {
+            console.log('Level badge pressed');
+            setLevelModalVisible(true);
+          }}
         >
-          <Text style={[styles.levelText, { color: levelInfo.color }]}>
-            {levelInfo.levelName}
-          </Text>
-        </View>
+          <View style={styles.levelPillContent}>
+            <Text style={[styles.levelText, { color: levelInfo.color }]}>
+              {levelInfo.levelName}
+            </Text>
+            <Text style={[styles.levelPointsText, { color: levelInfo.color }]}>
+              {profile?.total_points || 0} pts
+            </Text>
+          </View>
+        </TouchableOpacity>
         <Text style={styles.memberSince}>Member since {getMemberSince()}</Text>
       </View>
 
@@ -652,62 +672,6 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Body Metrics */}
-        <View style={styles.section}>
-          <View style={styles.bodyMetricsHeader}>
-            <View style={styles.bodyMetricsTitleRow}>
-              <Ionicons name="bar-chart" size={20} color={Colors.foreground} />
-              <Text style={styles.bodyMetricsTitle}>Body Metrics</Text>
-            </View>
-            <TouchableOpacity onPress={() => setBodyMetricsModalVisible(true)}>
-              <Ionicons
-                name="create-outline"
-                size={20}
-                color={Colors.foreground}
-              />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.bodyMetricsGrid}>
-            <View style={styles.bodyMetricItem}>
-              <Text style={styles.bodyMetricValue}>
-                {profile?.height_cm && profile?.weight_kg
-                  ? (
-                      profile.weight_kg / Math.pow(profile.height_cm / 100, 2)
-                    ).toFixed(1)
-                  : '--'}
-              </Text>
-              <Text style={styles.bodyMetricLabel}>BMI</Text>
-            </View>
-            <View style={styles.bodyMetricItem}>
-              <Text style={styles.bodyMetricValue}>
-                {profile?.height_cm || '--'}cm
-              </Text>
-              <Text style={styles.bodyMetricLabel}>Height</Text>
-            </View>
-            <View style={styles.bodyMetricItem}>
-              <Text style={styles.bodyMetricValue}>
-                {profile?.weight_kg || '--'}kg
-              </Text>
-              <Text style={styles.bodyMetricLabel}>Weight</Text>
-            </View>
-            <View style={styles.bodyMetricItem}>
-              <Text style={styles.bodyMetricValue}>
-                {profile?.height_cm && profile?.weight_kg
-                  ? Math.round(
-                      profile.weight_kg * 24 + profile.height_cm * 10
-                    ).toLocaleString()
-                  : '--'}
-              </Text>
-              <Text style={styles.bodyMetricLabel}>Daily Cal (est.)</Text>
-            </View>
-            <View style={styles.bodyMetricItem}>
-              <Text style={styles.bodyMetricValue}>
-                {profile?.body_fat_pct || '--'}%
-              </Text>
-              <Text style={styles.bodyMetricLabel}>Body Fat</Text>
-            </View>
-          </View>
-        </View>
 
         {/* Achievements */}
         <View style={styles.section}>
@@ -745,40 +709,115 @@ export default function ProfileScreen() {
       </Text>
 
       {/* Fitness Level Card */}
-      <View
-        style={[
-          styles.levelCard,
-          { backgroundColor: levelInfo.backgroundColor },
-        ]}
+      <TouchableOpacity
+        style={styles.levelCardContainer}
+        onPress={() => setLevelModalVisible(true)}
       >
-        <Ionicons name="trophy" size={48} color={levelInfo.color} />
-        <Text style={[styles.levelCardTitle, { color: levelInfo.color }]}>
-          {levelInfo.levelName}
-        </Text>
-        {levelInfo.nextThreshold && (
-          <>
-            <View style={styles.levelProgressBar}>
-              <View
-                style={[
-                  styles.levelProgressFill,
-                  {
-                    width: `${levelInfo.progressToNext}%`,
-                    backgroundColor: levelInfo.color,
-                  },
-                ]}
-              />
+        <View style={styles.levelCard}>
+          {/* Header with level name and badge */}
+          <View style={styles.levelCardHeader}>
+            <View style={styles.levelBadge}>
+              <Ionicons name="trophy" size={20} color={Colors.white} />
             </View>
-            <Text style={styles.levelProgressText}>
-              {Math.round(levelInfo.progressToNext)}% to next level
+            <Text style={[styles.levelCardTitle, { color: levelInfo.color }]}>{levelInfo.levelName}</Text>
+          </View>
+
+          {/* Points display */}
+          <View style={styles.levelPointsContainer}>
+            <Text style={[styles.levelPointsValue, { color: levelInfo.color }]}>{profile?.total_points || 0}</Text>
+            <Text style={styles.levelPointsLabel}>points earned</Text>
+          </View>
+
+          {/* Progress section */}
+          {levelInfo.nextThreshold ? (
+            <View style={styles.levelProgressSection}>
+              <View style={styles.levelProgressBar}>
+                <View
+                  style={[
+                    styles.levelProgressFill,
+                    {
+                      width: `${levelInfo.progressToNext}%`,
+                      backgroundColor: levelInfo.color,
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={styles.levelProgressText}>
+                {levelInfo.pointsToNext} to {levelInfo.nextLevelName}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.levelMaxSection}>
+              <Ionicons name="star" size={16} color={Colors.yellow500} />
+              <Text style={styles.levelMaxText}>Maximum level achieved!</Text>
+            </View>
+          )}
+
+          {/* Tap hint */}
+          <View style={styles.levelTapHint}>
+            <Text style={styles.levelTapHintText}>Tap to view all levels</Text>
+            <Ionicons name="chevron-forward" size={14} color={Colors.mutedForeground} />
+          </View>
+        </View>
+      </TouchableOpacity>
+
+      {/* Body Metrics */}
+      <View style={styles.section}>
+        <View style={styles.bodyMetricsHeader}>
+          <View style={styles.bodyMetricsTitleRow}>
+            <Ionicons name="bar-chart" size={20} color={Colors.foreground} />
+            <Text style={styles.bodyMetricsTitle}>Body Metrics</Text>
+          </View>
+          <TouchableOpacity onPress={() => setBodyMetricsModalVisible(true)}>
+            <Ionicons
+              name="create-outline"
+              size={20}
+              color={Colors.foreground}
+            />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.bodyMetricsGrid}>
+          <View style={styles.bodyMetricItem}>
+            <Text style={styles.bodyMetricValue}>
+              {profile?.height_cm && profile?.weight_kg
+                ? (
+                    profile.weight_kg / Math.pow(profile.height_cm / 100, 2)
+                  ).toFixed(1)
+                : '--'}
             </Text>
-          </>
-        )}
+            <Text style={styles.bodyMetricLabel}>BMI</Text>
+          </View>
+          <View style={styles.bodyMetricItem}>
+            <Text style={styles.bodyMetricValue}>
+              {profile?.height_cm || '--'}cm
+            </Text>
+            <Text style={styles.bodyMetricLabel}>Height</Text>
+          </View>
+          <View style={styles.bodyMetricItem}>
+            <Text style={styles.bodyMetricValue}>
+              {profile?.weight_kg || '--'}kg
+            </Text>
+            <Text style={styles.bodyMetricLabel}>Weight</Text>
+          </View>
+          <View style={styles.bodyMetricItem}>
+            <Text style={styles.bodyMetricValue}>
+              {profile?.height_cm && profile?.weight_kg
+                ? Math.round(
+                    profile.weight_kg * 24 + profile.height_cm * 10
+                  ).toLocaleString()
+                : '--'}
+            </Text>
+            <Text style={styles.bodyMetricLabel}>Daily Cal (est.)</Text>
+          </View>
+          <View style={styles.bodyMetricItem}>
+            <Text style={styles.bodyMetricValue}>
+              {profile?.body_fat_pct || '--'}%
+            </Text>
+            <Text style={styles.bodyMetricLabel}>Body Fat</Text>
+          </View>
+        </View>
       </View>
 
-      <Text style={styles.sectionTitle}>Performance Metrics</Text>
-      <Text style={styles.sectionSubtext}>
-        Coming soon: Momentum charts and weekly progress
-      </Text>
     </View>
   );
 
@@ -786,7 +825,6 @@ export default function ProfileScreen() {
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [isCaptureFlowOpen, setIsCaptureFlowOpen] = useState(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
-  const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
   const [comparisonSourcePhoto, setComparisonSourcePhoto] = useState<any>(null);
   const [comparisonComparisonPhoto, setComparisonComparisonPhoto] =
@@ -795,6 +833,7 @@ export default function ProfileScreen() {
   const [isGalleryPhoto, setIsGalleryPhoto] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [lightboxInitialIndex, setLightboxInitialIndex] = useState(0);
+  const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
 
   const handlePhotoDelete = async (photo: any) => {
     Alert.alert(
@@ -1023,6 +1062,48 @@ export default function ProfileScreen() {
       {/* Data Export */}
       <DataExportCard />
 
+      {/* User Points Leaderboard */}
+      <View style={styles.settingsSection}>
+        <Text style={styles.settingsSectionTitle}>Points Leaderboard</Text>
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={async () => {
+            try {
+              const { data, error } = await supabase
+                .from('profiles')
+                .select('display_name, email, total_points')
+                .order('total_points', { ascending: false })
+                .limit(50);
+
+              if (error) throw error;
+
+              const leaderboardText = data?.map((user, index) =>
+                `${index + 1}. ${user.display_name || user.email} - ${user.total_points || 0} points`
+              ).join('\n') || 'No users found';
+
+              Alert.alert(
+                'Points Leaderboard',
+                leaderboardText,
+                [{ text: 'OK' }]
+              );
+            } catch (error) {
+              console.error('Error fetching leaderboard:', error);
+              Alert.alert('Error', 'Failed to load leaderboard');
+            }
+          }}
+        >
+          <View style={styles.settingsButtonContent}>
+            <Ionicons name="trophy" size={20} color={Colors.foreground} />
+            <Text style={styles.settingsButtonText}>View Top Users</Text>
+          </View>
+          <Ionicons
+            name="chevron-forward"
+            size={20}
+            color={Colors.foreground}
+          />
+        </TouchableOpacity>
+      </View>
+
       {/* Workout History Management */}
       <View style={styles.settingsSection}>
         <Text style={styles.settingsSectionTitle}>Data Management</Text>
@@ -1128,7 +1209,9 @@ export default function ProfileScreen() {
             { transform: [{ translateY: headerTranslateY }] },
           ]}
         >
-          <View style={styles.headerContainer}>{renderHeader()}</View>
+          <View style={styles.headerScrollView}>
+            <View style={styles.headerContainer}>{renderHeader()}</View>
+          </View>
         </Animated.View>
 
         {/* The tab bar needs to be a separate interactive layer */}
@@ -1288,6 +1371,166 @@ export default function ProfileScreen() {
         photos={photos}
         initialPhotoIndex={lightboxInitialIndex}
       />
+
+      {/* Level Explanation Modal */}
+      <Modal
+        visible={levelModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setLevelModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.levelModal}>
+            {/* Fixed Header */}
+            <View style={styles.levelModalHeader}>
+              <View style={styles.levelModalHeaderContent}>
+                <Ionicons name="trophy" size={24} color={Colors.primary} />
+                <Text style={styles.levelModalTitle}>Fitness Levels</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setLevelModalVisible(false)}
+              >
+                <Ionicons name="close" size={24} color={Colors.foreground} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Scrollable Content */}
+            <ScrollView
+              style={styles.levelModalScrollView}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.levelModalScrollContent}
+            >
+              {/* Subtitle */}
+              <Text style={styles.levelModalSubtitle}>
+                Earn points through workouts to unlock higher fitness levels and track your progress
+              </Text>
+
+              {/* How to Earn Points Section */}
+              <View style={styles.pointsInfoSection}>
+                <View style={styles.pointsInfoHeader}>
+                  <View style={styles.pointsIconContainer}>
+                    <Ionicons name="bulb" size={20} color={Colors.white} />
+                  </View>
+                  <Text style={styles.pointsInfoTitle}>How to Earn Points</Text>
+                </View>
+                <View style={styles.pointsList}>
+                  <View style={styles.pointsItem}>
+                    <View style={[styles.pointsIconBg, { backgroundColor: Colors.success + '20' }]}>
+                      <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
+                    </View>
+                    <Text style={styles.pointsItemText}>Complete workouts: +5 points each</Text>
+                  </View>
+                  <View style={styles.pointsItem}>
+                    <View style={[styles.pointsIconBg, { backgroundColor: Colors.success + '20' }]}>
+                      <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
+                    </View>
+                    <Text style={styles.pointsItemText}>Set volume personal records: +2 points per set PB</Text>
+                  </View>
+                  <View style={styles.pointsItem}>
+                    <View style={[styles.pointsIconBg, { backgroundColor: Colors.success + '20' }]}>
+                      <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
+                    </View>
+                    <Text style={styles.pointsItemText}>Beat total workout volume: +5 points per session PB</Text>
+                  </View>
+                  <View style={styles.pointsItem}>
+                    <View style={[styles.pointsIconBg, { backgroundColor: Colors.success + '20' }]}>
+                      <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
+                    </View>
+                    <Text style={styles.pointsItemText}>Complete full programme (PPL/ULUL): +10 points per week</Text>
+                  </View>
+                  <View style={styles.pointsItem}>
+                    <View style={[styles.pointsIconBg, { backgroundColor: Colors.destructive + '20' }]}>
+                      <Ionicons name="remove-circle" size={16} color={Colors.destructive} />
+                    </View>
+                    <Text style={styles.pointsItemText}>Incomplete workout week: -5 points</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Levels Grid */}
+              <View style={styles.levelsGrid}>
+                {[
+                  {
+                    name: 'Rookie',
+                    points: '0-49',
+                    color: Colors.gray500,
+                    bgColor: Colors.gray50,
+                    description: 'Just getting started on your fitness journey',
+                    icon: 'leaf',
+                    gradient: ['#F3F4F6', '#E5E7EB']
+                  },
+                  {
+                    name: 'Warrior',
+                    points: '50-149',
+                    color: Colors.blue500,
+                    bgColor: Colors.blue50,
+                    description: 'Building consistency and strength',
+                    icon: 'shield',
+                    gradient: ['#DBEAFE', '#BFDBFE']
+                  },
+                  {
+                    name: 'Champion',
+                    points: '150-299',
+                    color: Colors.purple500,
+                    bgColor: Colors.purple50,
+                    description: 'Dedicated athlete with proven results',
+                    icon: 'trophy',
+                    gradient: ['#F3E8FF', '#E9D5FF']
+                  },
+                  {
+                    name: 'Legend',
+                    points: '300-499',
+                    color: Colors.yellow500,
+                    bgColor: Colors.yellow50,
+                    description: 'Elite performer with exceptional dedication',
+                    icon: 'star',
+                    gradient: ['#FEF9C3', '#FEF08A']
+                  },
+                  {
+                    name: 'Titan',
+                    points: '500+',
+                    color: Colors.red500,
+                    bgColor: Colors.red50,
+                    description: 'Ultimate fitness achievement - true dedication',
+                    icon: 'flame',
+                    gradient: ['#FEE2E2', '#FECACA']
+                  }
+                ].map((level, index) => (
+                  <View key={level.name} style={[styles.levelItem, { backgroundColor: level.bgColor }]}>
+                    <View style={styles.levelItemHeader}>
+                      <View style={[styles.levelIconContainer, { backgroundColor: level.color + '20' }]}>
+                        <Ionicons name={level.icon as any} size={28} color={level.color} />
+                      </View>
+                      <View style={styles.levelItemInfo}>
+                        <Text style={[styles.levelItemName, { color: level.color }]}>{level.name}</Text>
+                        <Text style={styles.levelItemPoints}>{level.points} points</Text>
+                      </View>
+                      {levelInfo.levelName === level.name && (
+                        <View style={styles.currentLevelBadge}>
+                          <Ionicons name="checkmark-circle" size={18} color={Colors.white} />
+                          <Text style={styles.currentLevelText}>Current</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.levelItemDescription}>{level.description}</Text>
+                    {levelInfo.levelName === level.name && (
+                      <View style={styles.currentLevelIndicator}>
+                        <View style={[styles.currentLevelDot, { backgroundColor: level.color }]} />
+                        <Text style={[styles.currentLevelIndicatorText, { color: level.color }]}>
+                          Your current level
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
+
+            {/* No Footer - Removed as requested */}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1301,17 +1544,18 @@ const styles = StyleSheet.create({
     top: 20,
     left: 0,
     right: 0,
-    zIndex: -1, // Behind everything
+    zIndex: -1, // Negative z-index to ensure it goes behind app header
     backgroundColor: 'transparent',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 5,
-    pointerEvents: 'none', // Prevents interaction with the header background
+    pointerEvents: 'auto', // Allow interactions
   },
   headerScrollView: {
     flex: 1,
+    backgroundColor: 'transparent',
   },
   headerContainer: {
     backgroundColor: 'transparent',
@@ -1379,12 +1623,11 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     color: 'white',
-    fontSize: 36,
+    ...TextStyles.h1,
     fontWeight: '700',
   },
   displayName: {
-    fontSize: 28,
-    fontWeight: '600',
+    ...TextStyles.h2,
     color: Colors.foreground,
     marginBottom: Spacing.sm,
   },
@@ -1399,13 +1642,181 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: BorderRadius.full,
   },
+  levelPillContent: {
+    alignItems: 'center',
+  },
+  levelModal: {
+    backgroundColor: Colors.card,
+    borderRadius: BorderRadius.xl,
+    margin: Spacing.lg,
+    height: '90%', // Changed from maxHeight to height to ensure consistent sizing
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderTopLeftRadius: BorderRadius.xl, // Ensure all corners are rounded
+    borderTopRightRadius: BorderRadius.xl,
+    borderBottomLeftRadius: BorderRadius.xl,
+    borderBottomRightRadius: BorderRadius.xl,
+    flexDirection: 'column',
+  },
+  levelModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  levelModalHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.muted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  levelModalTitle: {
+    ...TextStyles.h3,
+    color: Colors.foreground,
+    fontWeight: '700',
+  },
+  levelModalScrollView: {
+    flex: 1,
+  },
+  levelModalScrollContent: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.xl,
+  },
+  levelModalSubtitle: {
+    ...TextStyles.body,
+    color: Colors.mutedForeground,
+    marginBottom: Spacing.lg,
+  },
+  levelsGrid: {
+    gap: Spacing.md,
+  },
+  levelItem: {
+    backgroundColor: Colors.secondary,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  levelItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  levelIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.sm,
+  },
+  levelItemInfo: {
+    flex: 1,
+  },
+  levelItemName: {
+    ...TextStyles.h4,
+    color: Colors.foreground,
+    fontWeight: '600',
+  },
+  levelItemPoints: {
+    ...TextStyles.caption,
+    color: Colors.mutedForeground,
+  },
+  levelItemDescription: {
+    ...TextStyles.body,
+    color: Colors.foreground,
+    lineHeight: 20,
+  },
+  currentLevelBadge: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.sm,
+  },
+  currentLevelText: {
+    ...TextStyles.caption,
+    color: Colors.white,
+    fontWeight: '600',
+  },
+  currentLevelIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Spacing.sm,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  currentLevelDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: Spacing.sm,
+  },
+  currentLevelIndicatorText: {
+    ...TextStyles.smallMedium,
+    fontWeight: '600',
+  },
+  levelModalFooter: {
+    padding: Spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    backgroundColor: Colors.secondary,
+  },
+  footerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  levelModalFooterText: {
+    ...TextStyles.bodyMedium,
+    color: Colors.foreground,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  footerStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    gap: Spacing.md,
+  },
+  footerStat: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  footerStatValue: {
+    ...TextStyles.h4,
+    color: Colors.primary,
+    fontWeight: '700',
+  },
+  footerStatLabel: {
+    ...TextStyles.caption,
+    color: Colors.mutedForeground,
+    textAlign: 'center',
+    marginTop: 2,
+  },
   levelText: {
-    fontSize: 12,
+    ...TextStyles.caption,
     fontWeight: '700',
     textTransform: 'uppercase',
   },
   memberSince: {
-    fontSize: 14,
+    ...TextStyles.caption,
     color: Colors.mutedForeground,
   },
   progressContainer: {
@@ -1425,7 +1836,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
   },
   progressText: {
-    fontSize: 12,
+    ...TextStyles.caption,
     color: Colors.mutedForeground,
     marginTop: 4,
     textAlign: 'center',
@@ -1634,22 +2045,62 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: Spacing.sm,
   },
+  levelCardContainer: {
+    marginBottom: Spacing.lg,
+  },
   levelCard: {
+    backgroundColor: Colors.card,
+    borderRadius: BorderRadius.xl,
     padding: Spacing.xl,
-    borderRadius: BorderRadius.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  levelCardHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
     marginBottom: Spacing.lg,
   },
+  levelBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.sm,
+  },
   levelCardTitle: {
-    fontSize: 32,
-    fontWeight: '700',
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.md,
+    ...TextStyles.h3,
+    color: Colors.foreground,
+    flex: 1,
+  },
+  levelPointsContainer: {
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  levelPointsValue: {
+    ...TextStyles.h1,
+    color: Colors.primary,
+    marginBottom: Spacing.xs,
+  },
+  levelPointsLabel: {
+    ...TextStyles.caption,
+    color: Colors.mutedForeground,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  levelProgressSection: {
+    marginBottom: Spacing.lg,
   },
   levelProgressBar: {
     width: '100%',
-    height: 8,
-    backgroundColor: 'rgba(0,0,0,0.1)',
+    height: 6,
+    backgroundColor: Colors.muted,
     borderRadius: BorderRadius.full,
     overflow: 'hidden',
     marginBottom: Spacing.sm,
@@ -1659,8 +2110,79 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
   },
   levelProgressText: {
-    fontSize: 14,
+    ...TextStyles.caption,
+    color: Colors.mutedForeground,
+    textAlign: 'center',
+  },
+  levelMaxSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  levelMaxText: {
+    ...TextStyles.bodyMedium,
+    color: Colors.success,
     fontWeight: '600',
+  },
+  levelTapHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  levelTapHintText: {
+    ...TextStyles.small,
+    color: Colors.mutedForeground,
+  },
+  pointsInfoSection: {
+    backgroundColor: Colors.secondary,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  pointsInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  pointsIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pointsInfoTitle: {
+    ...TextStyles.h4,
+    color: Colors.foreground,
+    flex: 1,
+  },
+  pointsIconBg: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pointsList: {
+    gap: Spacing.sm,
+  },
+  pointsItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  pointsItemText: {
+    fontSize: 14,
+    color: Colors.mutedForeground,
+    flex: 1,
   },
   emptyState: {
     alignItems: 'center',

@@ -23,7 +23,7 @@ import {
   type DashboardWorkoutSummary,
 } from '../_contexts/data-context';
 import type { Gym } from '@data/storage/models';
-import { Colors, Spacing } from '../../constants/Theme';
+import { Spacing } from '../../constants/Theme';
 import { BackgroundRoot } from '../../components/BackgroundRoot';
 import {
   WelcomeHeader,
@@ -51,7 +51,6 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [stableData, setStableData] = useState<any>(null);
 
   // Dashboard data state
   const [userProfile, setUserProfile] = useState<DashboardProfile | null>(null);
@@ -126,29 +125,16 @@ export default function DashboardScreen() {
 
       const snapshot = await loadDashboardSnapshot();
 
-      // Store stable data to prevent flickering
-      const newData = {
-        userProfile: snapshot.profile,
-        weeklySummary: snapshot.weeklySummary,
-        activeGym: snapshot.activeGym,
-        activeTPath: snapshot.activeTPath,
-        tpathWorkouts: snapshot.tPathWorkouts,
-        volumeData: snapshot.volumeHistory,
-        recentWorkouts: snapshot.recentWorkouts,
-        nextWorkout: snapshot.nextWorkout,
-      };
-
-      setStableData(newData);
 
       // Update individual state variables
-      setUserProfile(newData.userProfile);
-      setWeeklySummary(newData.weeklySummary);
-      setActiveGym(newData.activeGym);
-      setActiveTPath(newData.activeTPath);
-      setTpathWorkouts(newData.tpathWorkouts);
-      setVolumeData(newData.volumeData);
-      setRecentWorkouts(newData.recentWorkouts);
-      setNextWorkout(newData.nextWorkout);
+      setUserProfile(snapshot.profile);
+      setWeeklySummary(snapshot.weeklySummary);
+      setActiveGym(snapshot.activeGym);
+      setActiveTPath(snapshot.activeTPath);
+      setTpathWorkouts(snapshot.tPathWorkouts);
+      setVolumeData(snapshot.volumeHistory);
+      setRecentWorkouts(snapshot.recentWorkouts);
+      setNextWorkout(snapshot.nextWorkout);
     } catch (error) {
       console.error('[Dashboard] Failed to load data', error);
     } finally {

@@ -18,7 +18,7 @@ import {
 import Toast from 'react-native-toast-message';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../app/_contexts/auth-context';
-import { validateImageSize, uploadImageToSupabase } from '../../lib/imageUtils';
+import { validateImageSize, uploadImageToSupabase, compressImage } from '../../lib/imageUtils';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 
 interface UploadPhotoDialogProps {
@@ -98,8 +98,12 @@ export const UploadPhotoDialog = ({
     setLoading(true);
 
     try {
-      // Validate file size
-      await validateImageSize(imageUri, 5);
+      // Compress image first to ensure it's optimized
+      console.log('[UploadPhotoDialog] Compressing image before upload...');
+      const compressedUri = await compressImage(imageUri, 1920, 1920, 80);
+
+      // Validate compressed file size
+      await validateImageSize(compressedUri, 5);
 
       // Calculate workouts since last photo
       const workoutsSinceLastPhoto = await calculateWorkoutsSinceLastPhoto();
@@ -109,8 +113,8 @@ export const UploadPhotoDialog = ({
       const fileName = `progress-photo-${timestamp}.jpg`;
       const filePath = `${session.user.id}/${timestamp}-${fileName}`;
 
-      // Upload to Supabase Storage
-      await uploadImageToSupabase(supabase, 'user-photos', filePath, imageUri);
+      // Upload compressed image to Supabase Storage
+      await uploadImageToSupabase(supabase, 'user-photos', filePath, compressedUri);
 
       // Insert record into database
       const { error: insertError } = await supabase

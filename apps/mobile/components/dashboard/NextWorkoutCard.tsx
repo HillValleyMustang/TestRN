@@ -14,8 +14,8 @@ import { TextStyles } from '../../constants/Typography';
 import { getWorkoutColor } from '../../lib/workout-colors';
 
 interface NextWorkoutCardProps {
-  workoutId?: string;
-  workoutName?: string;
+  workoutId?: string | undefined;
+  workoutName?: string | undefined;
   estimatedDuration?: string;
   lastWorkoutName?: string;
   loading?: boolean;

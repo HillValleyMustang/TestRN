@@ -21,7 +21,6 @@ import {
   TrendingUp,
   Star,
   Home,
-  RotateCcw,
   X,
   ArrowDownLeft,
   ArrowUpRight,
@@ -122,7 +121,6 @@ export default function WorkoutSummaryModal({
   const [loading, setLoading] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
   const [aiInsights, setAiInsights] = useState<any>(null);
-  const [loadingInsights, setLoadingInsights] = useState(false);
 
   // Reset state when modal closes
   useEffect(() => {
@@ -138,7 +136,6 @@ export default function WorkoutSummaryModal({
 
     try {
       setLoading(true);
-      setLoadingInsights(true);
 
       console.log('Loading workout summary for session:', sessionId);
 
@@ -273,7 +270,6 @@ export default function WorkoutSummaryModal({
       Alert.alert('Error', 'Failed to load workout summary');
     } finally {
       setLoading(false);
-      setLoadingInsights(false);
     }
   }, [sessionId, userId]);
 
@@ -311,9 +307,6 @@ export default function WorkoutSummaryModal({
     onDone();
   };
 
-  const handleStartAnotherWorkout = () => {
-    onStartAnother();
-  };
 
   if (loading) {
     return (
