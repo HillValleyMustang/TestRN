@@ -20,9 +20,10 @@ import { TextStyles } from '../constants/Typography';
 export default function WorkoutLauncherScreen() {
   const router = useRouter();
   const { userId } = useAuth();
-  const { getTPaths, getTPath } = useData();
+  const { getTPaths, getTPath, getTPathsByParent } = useData();
 
   const [activeTPath, setActiveTPath] = useState<any | null>(null);
+  const [childWorkouts, setChildWorkouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,6 +41,11 @@ export default function WorkoutLauncherScreen() {
         const fullTPath = await getTPath(tPaths[0].id);
         if (fullTPath) {
           setActiveTPath(fullTPath);
+          
+          // Load actual child workouts from database
+          const childWorkoutsData = await getTPathsByParent(fullTPath.id);
+          console.log('[WorkoutLauncher] Loaded child workouts:', childWorkoutsData);
+          setChildWorkouts(childWorkoutsData);
         }
       }
     } catch (error) {
@@ -49,10 +55,10 @@ export default function WorkoutLauncherScreen() {
     }
   };
 
-  const handleWorkoutPress = (tPathId: string) => {
+  const handleWorkoutPress = (childWorkoutId: string) => {
     router.push({
       pathname: '/(tabs)/workout',
-      params: { tPathId },
+      params: { tPathId: childWorkoutId },
     });
   };
 
@@ -65,24 +71,14 @@ export default function WorkoutLauncherScreen() {
   };
 
   const getWorkoutsList = () => {
-    if (!activeTPath) return [];
+    if (!activeTPath || childWorkouts.length === 0) return [];
 
-    const programType = activeTPath.settings?.tPathType || 'ppl';
-
-    if (programType === 'ulul') {
-      return [
-        { name: 'Upper Body A', id: activeTPath.id },
-        { name: 'Lower Body A', id: activeTPath.id },
-        { name: 'Upper Body B', id: activeTPath.id },
-        { name: 'Lower Body B', id: activeTPath.id },
-      ];
-    } else {
-      return [
-        { name: 'Push', id: activeTPath.id },
-        { name: 'Pull', id: activeTPath.id },
-        { name: 'Legs', id: activeTPath.id },
-      ];
-    }
+    // Return actual child workouts from database instead of fake hardcoded ones
+    return childWorkouts.map(workout => ({
+      name: workout.template_name,
+      id: workout.id,
+      last_completed_at: null, // TODO: Could be enhanced to show actual completion history
+    }));
   };
 
   const workouts = getWorkoutsList();

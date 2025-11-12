@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../ui/Card';
@@ -25,6 +25,7 @@ interface WorkoutSession {
 interface PreviousWorkoutsWidgetProps {
   workouts: WorkoutSession[];
   onViewSummary?: (sessionId: string) => void;
+  onDelete?: (sessionId: string, templateName: string) => void;
   onViewAll?: () => void;
   loading?: boolean;
   error?: string;
@@ -33,6 +34,7 @@ interface PreviousWorkoutsWidgetProps {
 export function PreviousWorkoutsWidget({
   workouts,
   onViewSummary,
+  onDelete,
   onViewAll,
   loading,
   error,
@@ -63,6 +65,21 @@ export function PreviousWorkoutsWidget({
     } else {
       router.push('/workout-history');
     }
+  };
+
+  const handleDelete = (sessionId: string, templateName: string) => {
+    Alert.alert(
+      'Delete Workout Session',
+      `Are you sure you want to delete "${templateName}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => onDelete?.(sessionId, templateName),
+        },
+      ]
+    );
   };
 
   if (error) {
@@ -128,14 +145,24 @@ export function PreviousWorkoutsWidget({
                   <Text style={styles.timeAgo}>{timeAgo}</Text>
                 </View>
 
-                {workout.sessionId && onViewSummary && (
-                  <Pressable
-                    style={styles.viewButton}
-                    onPress={() => onViewSummary(workout.sessionId!)}
-                  >
-                    <Ionicons name="eye-outline" size={16} color={Colors.foreground} />
-                  </Pressable>
-                )}
+                <View style={styles.workoutRight}>
+                  {workout.sessionId && onViewSummary && (
+                    <Pressable
+                      style={styles.viewButton}
+                      onPress={() => onViewSummary(workout.sessionId!)}
+                    >
+                      <Ionicons name="eye-outline" size={16} color={Colors.foreground} />
+                    </Pressable>
+                  )}
+                  {onDelete && (
+                    <Pressable
+                      style={styles.deleteButton}
+                      onPress={() => handleDelete(workout.sessionId!, workout.template_name)}
+                    >
+                      <Ionicons name="trash-outline" size={16} color={Colors.mutedForeground} />
+                    </Pressable>
+                  )}
+                </View>
               </View>
 
               <View style={styles.workoutBottom}>
@@ -199,6 +226,11 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  workoutRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
   workoutName: {
     fontFamily: 'Poppins_600SemiBold',
     fontSize: 16,
@@ -220,6 +252,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  deleteButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   workoutBottom: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -234,7 +275,7 @@ const styles = StyleSheet.create({
   },
   statText: {
     fontFamily: 'Poppins_400Regular',
-    fontSize: 12,
+    fontSize: 14,
     color: Colors.mutedForeground,
   },
   viewAllButton: {

@@ -2,6 +2,6 @@
 
 
 The following build commands failed:
-	PhaseScriptExecution [CP-User]\ Generate\ app.config\ for\ prebuilt\ Constants.manifest /Users/craigd/Library/Developer/Xcode/DerivedData/MyFitnessTrainerMobile-gtsvivywjwawwuhefibyhbfocmqo/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/EXConstants.build/Script-46EB2E00021950.sh (in target 'EXConstants' from project 'Pods')
+	PhaseScriptExecution [CP-User]\ Generate\ app.config\ for\ prebuilt\ Constants.manifest /Users/craigd/Library/Developer/Xcode/DerivedData/MyFitnessTrainerMobile-gtsvivywjwawwuhefibyhbfocmqo/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/EXConstants.build/Script-46EB2E00024980.sh (in target 'EXConstants' from project 'Pods')
 	Building workspace MyFitnessTrainerMobile with scheme MyFitnessTrainerMobile and configuration Debug
 (2 failures)

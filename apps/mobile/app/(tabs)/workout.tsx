@@ -109,7 +109,7 @@ export default function WorkoutLauncherScreen() {
     confirmLeave,
   } = useWorkoutFlow();
   const { profile, activeTPath, childWorkouts, adhocWorkouts, workoutExercisesCache, lastCompletedDates, loading, error, refresh } = useWorkoutLauncherData();
-  const { getGyms } = useData();
+  const { getGyms, setActiveGym } = useData();
   const [userGyms, setUserGyms] = useState<any[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -139,19 +139,19 @@ export default function WorkoutLauncherScreen() {
       if (pushWorkout) {
         console.log('[WorkoutScreen] Auto-selecting Push workout:', pushWorkout.id);
         setSelectedWorkout(pushWorkout.id);
-        // Auto-start the workout
-        selectAndStartWorkout(pushWorkout.id).then(() => {
+        // Just select the workout (don't start session yet)
+        selectWorkout(pushWorkout.id).then(() => {
           setIsWorkoutActiveInline(true);
           // Scroll to top after workout is loaded
           setTimeout(() => {
             scrollViewRef.current?.scrollTo({ y: 0, animated: true });
           }, 100);
         }).catch((error) => {
-          console.error('Failed to auto-start workout:', error);
+          console.error('Failed to select workout:', error);
         });
       }
     }
-  }, [childWorkouts, selectedWorkout, profile?.id, isWorkoutActiveInline, showWorkoutSummary, activeWorkout, hasJustReset, userHasSelectedWorkout]);
+  }, [childWorkouts, selectedWorkout, profile?.id, isWorkoutActiveInline, showWorkoutSummary, activeWorkout, hasJustReset, userHasSelectedWorkout, selectWorkout]);
 
   // Workouts now run inline in this tab - no redirect needed
 
@@ -223,17 +223,17 @@ export default function WorkoutLauncherScreen() {
     // Mark that user has manually selected a workout
     setUserHasSelectedWorkout(true);
 
-    // Auto-start workout when selected
+    // Just select workout when selected (don't start session)
     if (newSelectedWorkout && newSelectedWorkout !== selectedWorkout) {
       try {
-        console.log('Auto-starting workout:', newSelectedWorkout);
+        console.log('Selecting workout:', newSelectedWorkout);
         setLoadingExercises(true);
-        await selectAndStartWorkout(newSelectedWorkout);
-        console.log('Workout session started successfully');
+        await selectWorkout(newSelectedWorkout);
+        console.log('Workout selected successfully');
         setIsWorkoutActiveInline(true);
       } catch (error) {
-        console.error('Failed to auto-start workout:', error);
-        Alert.alert('Error', 'Failed to start workout. Please try again.');
+        console.error('Failed to select workout:', error);
+        Alert.alert('Error', 'Failed to load workout. Please try again.');
         setSelectedWorkout(null);
       } finally {
         setLoadingExercises(false);
@@ -355,7 +355,25 @@ export default function WorkoutLauncherScreen() {
           {/* Gym Toggle - only show if user has more than one gym */}
           {userGyms.length > 1 && (
             <View style={styles.gymToggleContainer}>
-              <GymToggle />
+              <GymToggle
+                gyms={userGyms}
+                activeGym={userGyms.find(g => g.is_active) || null}
+                onGymChange={async (gymId, newActiveGym) => {
+                  // Handle gym change for workout context
+                  try {
+                    if (profile?.id) {
+                      await setActiveGym(profile.id, gymId);
+                      // Update local state
+                      setUserGyms(prev => prev.map(g => ({
+                        ...g,
+                        is_active: g.id === gymId
+                      })));
+                    }
+                  } catch (error) {
+                    console.error('Error changing active gym:', error);
+                  }
+                }}
+              />
             </View>
           )}
 

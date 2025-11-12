@@ -4,7 +4,7 @@
  * Reference: apps/web/src/components/dashboard/gym-toggle.tsx
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../ui/Card';
@@ -12,89 +12,127 @@ import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
 import { useAuth } from '../../app/_contexts/auth-context';
 import { useData } from '../../app/_contexts/data-context';
+import type { Gym } from '@data/storage/models';
 
-interface Gym {
-  id: string;
-  name: string;
-  user_id: string;
+interface GymToggleProps {
+  gyms?: Gym[];
+  activeGym?: Gym | null;
+  onGymChange?: (gymId: string, newActiveGym: Gym | null) => Promise<void>;
 }
 
-export function GymToggle() {
+export function GymToggle({ gyms = [], activeGym = null, onGymChange }: GymToggleProps = {}) {
   const { userId } = useAuth();
   const { getGyms, getActiveGym, setActiveGym } = useData();
   
-  const [gyms, setGyms] = useState<Gym[]>([]);
-  const [activeGymId, setActiveGymId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [localGyms, setLocalGyms] = useState<Gym[]>(gyms);
+  const [activeGymId, setActiveGymId] = useState<string | null>(activeGym?.id || null);
+  const [loading, setLoading] = useState(gyms.length === 0);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   useEffect(() => {
-    loadGyms();
-  }, [userId]);
+    // If gyms are provided via props, use them
+    if (gyms.length > 0) {
+      setLocalGyms(gyms);
+      const gymId = activeGym?.id || gyms[0]?.id || null;
+      if (gymId !== activeGymId) {
+        setActiveGymId(gymId);
+      }
+      setLoading(false);
+      setDataLoaded(true);
+    } else if (!dataLoaded && !loading) {
+      // Fall back to loading from database - load gyms when no props provided
+      loadGyms();
+    }
+  }, [gyms, activeGym, activeGymId, dataLoaded, loading]);
 
-  const loadGyms = async () => {
-    if (!userId) return;
+  const loadGyms = useCallback(async () => {
+    if (!userId || loading) return;
 
     try {
       setLoading(true);
+      console.log('[GymToggle] Loading gyms for user:', userId);
 
       const userGyms = await getGyms(userId);
-      setGyms(userGyms);
+      console.log('[GymToggle] Found gyms:', userGyms.length, userGyms.map(g => ({ id: g.id, name: g.name, is_active: g.is_active })));
+      setLocalGyms(userGyms);
 
-      const activeGym = await getActiveGym(userId);
-      if (activeGym?.id) {
-        setActiveGymId(activeGym.id);
-      } else if (userGyms.length > 0) {
-        const firstGymId = userGyms[0].id;
-        setActiveGymId(firstGymId);
-        await setActiveGym(userId, firstGymId);
+      const activeGymData = await getActiveGym(userId);
+      console.log('[GymToggle] Active gym data:', activeGymData);
+      const targetGymId = activeGymData?.id || (userGyms.length > 0 ? userGyms[0].id : null);
+      
+      // Only update if the gym ID has actually changed
+      if (targetGymId && targetGymId !== activeGymId) {
+        console.log('[GymToggle] Setting active gym ID:', targetGymId);
+        setActiveGymId(targetGymId);
+        
+        // If we had to set the first gym as active, persist it
+        if (!activeGymData && userGyms.length > 0) {
+          console.log('[GymToggle] Persisting first gym as active');
+          await setActiveGym(userId, targetGymId);
+        }
       }
+      
+      setDataLoaded(true);
     } catch (error) {
-      console.error('Error loading gyms:', error);
+      console.error('[GymToggle] Error loading gyms:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId, getGyms, getActiveGym, setActiveGym, activeGymId, loading]);
 
-  const handlePrevious = async () => {
-    if (!userId || gyms.length === 0 || !activeGymId) return;
+  const handlePrevious = useCallback(async () => {
+    const gymsToUse = gyms.length > 0 ? gyms : localGyms;
+    if (!userId || gymsToUse.length === 0 || !activeGymId) return;
     
-    const currentIndex = gyms.findIndex(g => g.id === activeGymId);
+    const currentIndex = gymsToUse.findIndex(g => g.id === activeGymId);
     if (currentIndex === -1) return;
     
-    const previousIndex = currentIndex === 0 ? gyms.length - 1 : currentIndex - 1;
-    const newGymId = gyms[previousIndex].id;
+    const previousIndex = currentIndex === 0 ? gymsToUse.length - 1 : currentIndex - 1;
+    const newGymId = gymsToUse[previousIndex].id;
+    const newActiveGym = gymsToUse[previousIndex];
     
-    try {
-      await setActiveGym(userId, newGymId);
-      setActiveGymId(newGymId);
-    } catch (error) {
-      console.error('Error setting active gym:', error);
+    if (onGymChange) {
+      await onGymChange(newGymId, newActiveGym);
+    } else {
+      try {
+        await setActiveGym(userId, newGymId);
+      } catch (error) {
+        console.error('Error setting active gym:', error);
+      }
     }
-  };
+    setActiveGymId(newGymId);
+  }, [gyms, localGyms, userId, activeGymId, onGymChange, setActiveGym]);
 
-  const handleNext = async () => {
-    if (!userId || gyms.length === 0 || !activeGymId) return;
+  const handleNext = useCallback(async () => {
+    const gymsToUse = gyms.length > 0 ? gyms : localGyms;
+    if (!userId || gymsToUse.length === 0 || !activeGymId) return;
     
-    const currentIndex = gyms.findIndex(g => g.id === activeGymId);
+    const currentIndex = gymsToUse.findIndex(g => g.id === activeGymId);
     if (currentIndex === -1) return;
     
-    const nextIndex = currentIndex === gyms.length - 1 ? 0 : currentIndex + 1;
-    const newGymId = gyms[nextIndex].id;
+    const nextIndex = currentIndex === gymsToUse.length - 1 ? 0 : currentIndex + 1;
+    const newGymId = gymsToUse[nextIndex].id;
+    const newActiveGym = gymsToUse[nextIndex];
     
-    try {
-      await setActiveGym(userId, newGymId);
-      setActiveGymId(newGymId);
-    } catch (error) {
-      console.error('Error setting active gym:', error);
+    if (onGymChange) {
+      await onGymChange(newGymId, newActiveGym);
+    } else {
+      try {
+        await setActiveGym(userId, newGymId);
+      } catch (error) {
+        console.error('Error setting active gym:', error);
+      }
     }
-  };
+    setActiveGymId(newGymId);
+  }, [gyms, localGyms, userId, activeGymId, onGymChange, setActiveGym]);
 
-  if (loading || gyms.length <= 1) {
+  const gymsToUse = gyms.length > 0 ? gyms : localGyms;
+  if (loading || gymsToUse.length <= 1) {
     return null;
   }
 
-  const activeGym = gyms.find(g => g.id === activeGymId);
-  const gymName = activeGym?.name || 'Select Gym';
+  const activeGymObj = gymsToUse.find(g => g.id === activeGymId);
+  const gymName = activeGymObj?.name || 'Select Gym';
 
   return (
     <Card style={styles.container}>

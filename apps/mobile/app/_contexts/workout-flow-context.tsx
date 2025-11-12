@@ -80,6 +80,7 @@ interface WorkoutFlowContextValue {
 
   // Actions
   selectWorkout: (workoutId: string | null) => Promise<void>;
+  selectWorkoutOnly: (workoutId: string | null) => Promise<void>;
   selectAndStartWorkout: (workoutId: string | null) => Promise<void>;
   startWorkout: (firstSetTimestamp: string) => Promise<void>;
   finishWorkout: () => Promise<string | null>;
@@ -198,19 +199,52 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
           console.log('[WorkoutFlow] Fetching exercise definitions for:', exerciseIds.length, 'exercises');
           const exerciseDefs = await fetchExerciseDefinitions(exerciseIds);
           console.log('[WorkoutFlow] Fetched exercise definitions:', exerciseDefs.length);
-          const exerciseDefMap = new Map(exerciseDefs.map((def: any) => [def.id, def]));
+          
+          // Check if exercise definitions are available
+          if (exerciseDefs && exerciseDefs.length > 0) {
+            const exerciseDefMap = new Map(exerciseDefs.map((def: any) => [def.id, def]));
 
-          const workoutExercises: WorkoutExercise[] = exercises
-            .sort((a, b) => a.order_index - b.order_index)
-            .map(ex => {
-              const def = exerciseDefMap.get(ex.exercise_id);
-              return def ? { ...def, is_bonus_exercise: ex.is_bonus_exercise } : null;
-            })
-            .filter(Boolean) as WorkoutExercise[];
+            const workoutExercises: WorkoutExercise[] = exercises
+              .sort((a, b) => a.order_index - b.order_index)
+              .map(ex => {
+                const def = exerciseDefMap.get(ex.exercise_id);
+                return def ? { ...def, is_bonus_exercise: ex.is_bonus_exercise } : null;
+              })
+              .filter(Boolean) as WorkoutExercise[];
 
-          console.log('[WorkoutFlow] Setting exercises for session:', workoutExercises.length);
-          setExercisesForSession(workoutExercises);
-          setExpandedExerciseCards(Object.fromEntries(workoutExercises.map(ex => [ex.id, false])));
+            console.log('[WorkoutFlow] Setting exercises for session:', workoutExercises.length);
+            setExercisesForSession(workoutExercises);
+            setExpandedExerciseCards(Object.fromEntries(workoutExercises.map(ex => [ex.id, false])));
+          } else {
+            // Fallback when exercise_definitions table is empty
+            console.warn('[WorkoutFlow] No exercise definitions found in Supabase, using fallback names');
+            
+            const fallbackExercises = exercises
+              .sort((a, b) => a.order_index - b.order_index)
+              .map(ex => ({
+                id: ex.exercise_id,
+                name: `Exercise ${ex.exercise_id.slice(0, 8)}`, // Use first 8 chars of ID as fallback
+                main_muscle: 'Unknown',
+                type: 'strength' as const,
+                category: 'compound' as const,
+                description: null,
+                pro_tip: null,
+                video_url: null,
+                equipment: 'bodyweight',
+                movement_type: 'strength' as const,
+                movement_pattern: 'push' as const,
+                created_at: null,
+                updated_at: null,
+                is_favorited_by_current_user: false,
+                duplicate_status: 'none' as const,
+                existing_id: null,
+                is_bonus_exercise: ex.is_bonus_exercise
+              }));
+
+            console.log('[WorkoutFlow] Setting fallback exercises for session:', fallbackExercises.length);
+            setExercisesForSession(fallbackExercises);
+            setExpandedExerciseCards(Object.fromEntries(fallbackExercises.map(ex => [ex.id, false])));
+          }
         } else {
           console.log('[WorkoutFlow] No exercise IDs found');
           setExercisesForSession([]);
@@ -232,11 +266,10 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [resetWorkoutSession, userId]);
 
-  // Combined select and start workout function
-  const selectAndStartWorkout = useCallback(async (workoutId: string | null) => {
-    console.log('[WorkoutFlow] selectAndStartWorkout called with:', workoutId);
-    // Don't reset the session here - let the caller handle it if needed
-    // await resetWorkoutSession();
+  // Select workout (loads exercises but doesn't start session)
+  const selectWorkoutOnly = useCallback(async (workoutId: string | null) => {
+    console.log('[WorkoutFlow] selectWorkoutOnly called with:', workoutId);
+    await resetWorkoutSession();
     if (!workoutId || !userId) {
       console.log('[WorkoutFlow] No workoutId or userId, returning');
       return;
@@ -262,62 +295,6 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
       setExercisesWithSets({});
       setCompletedExercises(new Set());
       setExpandedExerciseCards({});
-      // Start the workout immediately for ad-hoc
-      const firstSetTimestamp = new Date().toISOString();
-      console.log('[WorkoutFlow] startWorkout called with exercises:', 0);
-      if (!userId) {
-        console.log('[WorkoutFlow] Cannot start workout - missing userId');
-        ToastAndroid.show('Cannot start workout session.', ToastAndroid.SHORT);
-        return;
-      }
-
-      if (!activeWorkout) {
-        console.log('[WorkoutFlow] Cannot start workout - no activeWorkout');
-        ToastAndroid.show('Cannot start workout session.', ToastAndroid.SHORT);
-        return;
-      }
-
-      if (0 === 0) {
-        console.log('[WorkoutFlow] Cannot start workout - no exercises found');
-        ToastAndroid.show('Cannot start workout - no exercises found.', ToastAndroid.SHORT);
-        return;
-      }
-
-      setIsCreatingSession(true);
-      try {
-        const newSessionId = generateUUID();
-        const sessionData: WorkoutSession = {
-          id: newSessionId,
-          user_id: userId,
-          session_date: firstSetTimestamp,
-          template_name: activeWorkout.template_name,
-          completed_at: null,
-          rating: null,
-          duration_string: null,
-          t_path_id: activeWorkout.id === 'ad-hoc' ? null : activeWorkout.id,
-          created_at: new Date().toISOString(),
-        };
-
-        console.log('[WorkoutFlow] Creating session:', newSessionId);
-        await database.addWorkoutSession(sessionData);
-        await addToSyncQueue('create', 'workout_sessions', sessionData);
-
-        setCurrentSessionId(newSessionId);
-        setSessionStartTime(new Date(firstSetTimestamp));
-
-        // Initialize sets for exercises
-        console.log('[WorkoutFlow] Initializing sets for', 0, 'exercises');
-        const initialSets = {};
-        setExercisesWithSets(initialSets);
-        setExpandedExerciseCards({});
-        console.log('[WorkoutFlow] Workout session started successfully');
-
-      } catch (error) {
-        console.error('[WorkoutFlow] Error starting workout session:', error);
-        ToastAndroid.show('Failed to start workout session.', ToastAndroid.SHORT);
-      } finally {
-        setIsCreatingSession(false);
-      }
       return;
     }
 
@@ -328,9 +305,9 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
       console.log('[WorkoutFlow] Workout found:', workout.template_name);
       setActiveWorkout(workout);
 
-      // Load exercises immediately for structured workouts
+      // Load exercises for preview (no session started)
       try {
-        console.log('[WorkoutFlow] Loading exercises for workout');
+        console.log('[WorkoutFlow] Loading exercises for workout preview');
         const exercises = await database.getTPathExercises(workoutId);
         console.log('[WorkoutFlow] Found exercises:', exercises.length);
         const exerciseIds = exercises.map(ex => ex.exercise_id);
@@ -339,98 +316,51 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
           console.log('[WorkoutFlow] Fetching exercise definitions for:', exerciseIds.length, 'exercises');
           const exerciseDefs = await fetchExerciseDefinitions(exerciseIds);
           console.log('[WorkoutFlow] Fetched exercise definitions:', exerciseDefs.length);
-          const exerciseDefMap = new Map(exerciseDefs.map((def: any) => [def.id, def]));
 
-          const workoutExercises: WorkoutExercise[] = exercises
-            .sort((a, b) => a.order_index - b.order_index)
-            .map(ex => {
-              const def = exerciseDefMap.get(ex.exercise_id);
-              return def ? { ...def, is_bonus_exercise: ex.is_bonus_exercise } : null;
-            })
-            .filter(Boolean) as WorkoutExercise[];
+          // Check if exercise definitions are available
+          if (exerciseDefs && exerciseDefs.length > 0) {
+            const exerciseDefMap = new Map(exerciseDefs.map((def: any) => [def.id, def]));
 
-          console.log('[WorkoutFlow] Setting exercises for session:', workoutExercises.length);
-          setExercisesForSession(workoutExercises);
-          setExpandedExerciseCards(Object.fromEntries(workoutExercises.map(ex => [ex.id, false])));
+            const workoutExercises: WorkoutExercise[] = exercises
+              .sort((a, b) => a.order_index - b.order_index)
+              .map(ex => {
+                const def = exerciseDefMap.get(ex.exercise_id);
+                return def ? { ...def, is_bonus_exercise: ex.is_bonus_exercise } : null;
+              })
+              .filter(Boolean) as WorkoutExercise[];
 
-          // Start workout after exercises are loaded
-          const firstSetTimestamp = new Date().toISOString();
-          console.log('[WorkoutFlow] startWorkout called with exercises:', workoutExercises.length);
-          if (!userId) {
-            console.log('[WorkoutFlow] Cannot start workout - missing userId');
-            ToastAndroid.show('Cannot start workout session.', ToastAndroid.SHORT);
-            return;
-          }
-
-          if (!workout) {
-            console.log('[WorkoutFlow] Cannot start workout - no activeWorkout');
-            ToastAndroid.show('Cannot start workout session.', ToastAndroid.SHORT);
-            return;
-          }
-
-          if (workoutExercises.length === 0) {
-            console.log('[WorkoutFlow] Cannot start workout - no exercises found');
-            ToastAndroid.show('Cannot start workout - no exercises found.', ToastAndroid.SHORT);
-            return;
-          }
-
-          setIsCreatingSession(true);
-          try {
-            const newSessionId = generateUUID();
-            const sessionData: WorkoutSession = {
-              id: newSessionId,
-              user_id: userId,
-              session_date: firstSetTimestamp,
-              template_name: workout.template_name,
-              completed_at: null,
-              rating: null,
-              duration_string: null,
-              t_path_id: workout.id === 'ad-hoc' ? null : workout.id,
-              created_at: new Date().toISOString(),
-            };
-
-            console.log('[WorkoutFlow] Creating session:', newSessionId);
-            await database.addWorkoutSession(sessionData);
-            await addToSyncQueue('create', 'workout_sessions', sessionData);
-
-            setCurrentSessionId(newSessionId);
-            setSessionStartTime(new Date(firstSetTimestamp));
-
-            // Initialize sets for exercises
-            console.log('[WorkoutFlow] Initializing sets for', workoutExercises.length, 'exercises');
-            const initialSets = Object.fromEntries(
-              workoutExercises.map(ex => [
-                ex.id,
-                Array.from({ length: DEFAULT_INITIAL_SETS }, () => ({
-                  id: generateUUID(),
-                  created_at: null,
-                  session_id: newSessionId,
-                  exercise_id: ex.id,
-                  weight_kg: null,
-                  reps: null,
-                  reps_l: null,
-                  reps_r: null,
-                  time_seconds: null,
-                  is_pb: false,
-                  isSaved: false,
-                  isPR: false,
-                  lastWeight: null,
-                  lastReps: null,
-                  lastRepsL: null,
-                  lastRepsR: null,
-                  lastTimeSeconds: null,
-                }))
-              ])
-            );
-            setExercisesWithSets(initialSets);
+            console.log('[WorkoutFlow] Setting exercises for preview:', workoutExercises.length);
+            setExercisesForSession(workoutExercises);
             setExpandedExerciseCards(Object.fromEntries(workoutExercises.map(ex => [ex.id, false])));
-            console.log('[WorkoutFlow] Workout session started successfully');
+          } else {
+            // Fallback when exercise_definitions table is empty
+            console.warn('[WorkoutFlow] No exercise definitions found in Supabase, using fallback names');
 
-          } catch (error) {
-            console.error('[WorkoutFlow] Error starting workout session:', error);
-            ToastAndroid.show('Failed to start workout session.', ToastAndroid.SHORT);
-          } finally {
-            setIsCreatingSession(false);
+            const fallbackExercises = exercises
+              .sort((a, b) => a.order_index - b.order_index)
+              .map(ex => ({
+                id: ex.exercise_id,
+                name: `Exercise ${ex.exercise_id.slice(0, 8)}`, // Use first 8 chars of ID as fallback
+                main_muscle: 'Unknown',
+                type: 'strength' as const,
+                category: 'compound' as const,
+                description: null,
+                pro_tip: null,
+                video_url: null,
+                equipment: 'bodyweight',
+                movement_type: 'strength' as const,
+                movement_pattern: 'push' as const,
+                created_at: null,
+                updated_at: null,
+                is_favorited_by_current_user: false,
+                duplicate_status: 'none' as const,
+                existing_id: null,
+                is_bonus_exercise: ex.is_bonus_exercise
+              }));
+
+            console.log('[WorkoutFlow] Setting fallback exercises for preview:', fallbackExercises.length);
+            setExercisesForSession(fallbackExercises);
+            setExpandedExerciseCards(Object.fromEntries(fallbackExercises.map(ex => [ex.id, false])));
           }
         } else {
           console.log('[WorkoutFlow] No exercise IDs found');
@@ -440,7 +370,7 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
           setExpandedExerciseCards({});
         }
       } catch (error) {
-        console.error('[WorkoutFlow] Error loading exercises in selectAndStartWorkout:', error);
+        console.error('[WorkoutFlow] Error loading exercises in selectWorkoutOnly:', error);
         ToastAndroid.show('Failed to load workout exercises.', ToastAndroid.SHORT);
         setExercisesForSession([]);
         setExercisesWithSets({});
@@ -452,6 +382,13 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
       ToastAndroid.show('Selected workout not found.', ToastAndroid.SHORT);
     }
   }, [resetWorkoutSession, userId]);
+
+  // Combined select and start workout function (kept for backward compatibility)
+  const selectAndStartWorkout = useCallback(async (workoutId: string | null) => {
+    console.log('[WorkoutFlow] selectAndStartWorkout called with:', workoutId);
+    // For now, just select the workout (don't auto-start session)
+    await selectWorkoutOnly(workoutId);
+  }, [selectWorkoutOnly]);
 
   // Start workout session
   const startWorkout = useCallback(async (firstSetTimestamp: string) => {
@@ -616,9 +553,15 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   }, []);
 
-  // Log set (mark as completed and save)
+  // Log set (mark as completed and save) - starts session if not already started
   const logSet = useCallback(async (exerciseId: string, setId: string, reps: number, weight: number) => {
     console.log('logSet called with:', { exerciseId, setId, reps, weight });
+
+    // Start workout session if not already started
+    if (!currentSessionId && activeWorkout) {
+      console.log('[WorkoutFlow] Starting workout session on first set log');
+      await startWorkout(new Date().toISOString());
+    }
 
     setExercisesWithSets(prev => {
       const exerciseSets = prev[exerciseId];
@@ -666,7 +609,7 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (error) {
       console.error('Error saving set to database:', error);
     }
-  }, [currentSessionId]);
+  }, [currentSessionId, activeWorkout, startWorkout]);
 
   // Add set
   const addSet = useCallback((exerciseId: string) => {
@@ -896,6 +839,7 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Actions
       selectWorkout,
+      selectWorkoutOnly,
       selectAndStartWorkout,
       startWorkout,
       finishWorkout,

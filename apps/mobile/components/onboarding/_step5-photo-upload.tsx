@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useAuth } from '../_contexts/auth-context';
+import { useAuth } from '../../app/_contexts/auth-context';
 
 interface DetectedExercise {
   name: string;
@@ -123,7 +123,7 @@ export default function Step5PhotoUpload({ onNext, onBack }: Step5Props) {
       const newExercises = data.identifiedExercises.filter(
         (ex: DetectedExercise) => ex.duplicate_status === 'none'
       );
-      const newConfirmed = new Set(
+      const newConfirmed = new Set<string>(
         newExercises.map((ex: DetectedExercise) => ex.name)
       );
       setConfirmedExercises(newConfirmed);

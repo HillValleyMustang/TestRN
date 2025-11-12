@@ -75,19 +75,23 @@ export default function RootLayout() {
       <MenuProvider>
         <GestureHandlerRootView style={{ flex: 1 }}>
           <SafeAreaProvider>
-            <AuthProvider>
-              <DataProvider>
+            <DataProvider>
+              <AuthProvider>
                 <PreferencesProvider>
                   <WorkoutFlowProvider>
                   <StatusBar style="light" />
                   <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen
+                      name="index"
+                      options={{ headerShown: false }}
+                    />
                     <Stack.Screen
                       name="(tabs)"
                       options={{ headerShown: false }}
                     />
                     <Stack.Screen
                       name="login"
-                      options={{ headerShown: false, presentation: 'modal' }}
+                      options={{ headerShown: false }}
                     />
                     <Stack.Screen
                       name="workout-history"
@@ -156,6 +160,10 @@ export default function RootLayout() {
                       options={{
                         headerShown: false,
                       }}
+                    />
+                    <Stack.Screen
+                      name="onboarding"
+                      options={{ headerShown: false }}
                     />
                   </Stack>
                   <UnsavedChangesModal />
@@ -243,8 +251,8 @@ export default function RootLayout() {
                     />
                   </WorkoutFlowProvider>
                 </PreferencesProvider>
-              </DataProvider>
-            </AuthProvider>
+              </AuthProvider>
+            </DataProvider>
           </SafeAreaProvider>
         </GestureHandlerRootView>
       </MenuProvider>

@@ -5,7 +5,16 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Alert,
 } from 'react-native';
+import { validateStep2, showValidationAlert } from '../../lib/onboardingValidation';
+import {
+  announceStepProgress,
+  generateAccessibleLabel,
+  generateAccessibleHint,
+} from '../../lib/accessibilityHelpers';
+import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
+import { TextStyles } from '../../constants/Typography';
 
 interface Step2Data {
   tPathType: 'ppl' | 'ulul' | null;
@@ -26,6 +35,18 @@ export default function Step2TrainingSetup({
   onBack,
 }: Step2Props) {
   const isValid = data.tPathType && data.experience;
+
+  const handleNext = () => {
+    const validation = validateStep2(data);
+    if (!validation.isValid) {
+      showValidationAlert(validation, 'Please Complete Selection');
+      return;
+    }
+
+    // Announce step progress
+    announceStepProgress(2, 5, 'Training Setup');
+    onNext();
+  };
 
   const splitOptions = [
     {
@@ -148,7 +169,7 @@ export default function Step2TrainingSetup({
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.nextButton, !isValid && styles.nextButtonDisabled]}
-          onPress={onNext}
+          onPress={handleNext}
           disabled={!isValid}
         >
           <Text style={styles.nextButtonText}>Next</Text>
@@ -161,57 +182,54 @@ export default function Step2TrainingSetup({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: Colors.background,
   },
   content: {
-    padding: 20,
+    padding: Spacing.lg,
     paddingBottom: 100,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
+    ...TextStyles.h2,
+    color: Colors.foreground,
+    marginBottom: Spacing.xs,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#888',
-    marginBottom: 32,
+    ...TextStyles.bodySmall,
+    color: Colors.mutedForeground,
+    marginBottom: Spacing['3xl'],
   },
   section: {
-    marginBottom: 24,
+    marginBottom: Spacing.xl,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 16,
+    ...TextStyles.h4,
+    color: Colors.foreground,
+    marginBottom: Spacing.lg,
   },
   card: {
-    backgroundColor: '#1a1a1a',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: Colors.secondary,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
     borderWidth: 2,
-    borderColor: '#333',
-    marginBottom: 12,
+    borderColor: Colors.border,
+    marginBottom: Spacing.md,
   },
   activeCard: {
-    borderColor: '#10B981',
+    borderColor: Colors.success,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
+    ...TextStyles.h5,
+    color: Colors.foreground,
+    marginBottom: Spacing.xs,
   },
   cardSubtitle: {
-    fontSize: 14,
+    ...TextStyles.bodyMedium,
     fontWeight: '600',
   },
   checkmark: {
@@ -222,96 +240,93 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkmarkText: {
-    color: '#fff',
-    fontSize: 14,
+    color: Colors.white,
+    ...TextStyles.smallMedium,
     fontWeight: 'bold',
   },
   frequency: {
-    fontSize: 13,
-    color: '#888',
-    marginBottom: 12,
+    ...TextStyles.caption,
+    color: Colors.mutedForeground,
+    marginBottom: Spacing.md,
   },
   prosContainer: {
-    gap: 4,
+    gap: Spacing.xs,
   },
   proText: {
-    fontSize: 13,
-    color: '#10B981',
+    ...TextStyles.caption,
+    color: Colors.success,
   },
   experienceCard: {
-    backgroundColor: '#1a1a1a',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: Colors.secondary,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: '#333',
-    marginBottom: 12,
+    borderColor: Colors.border,
+    marginBottom: Spacing.md,
   },
   experienceCardActive: {
-    borderColor: '#10B981',
+    borderColor: Colors.success,
     borderWidth: 2,
-    backgroundColor: '#0a1a14',
+    backgroundColor: Colors.secondary,
   },
   experienceHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   experienceTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
+    ...TextStyles.h5,
+    color: Colors.foreground,
   },
   experienceTitleActive: {
-    color: '#10B981',
+    color: Colors.success,
   },
   experienceCheckmark: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#10B981',
+    backgroundColor: Colors.success,
     alignItems: 'center',
     justifyContent: 'center',
   },
   experienceDesc: {
-    fontSize: 14,
-    color: '#888',
+    ...TextStyles.bodySmall,
+    color: Colors.mutedForeground,
   },
   experienceDescActive: {
-    color: '#10B981',
+    color: Colors.success,
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 16,
+    gap: Spacing.md,
+    marginTop: Spacing.md,
   },
   backButton: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
-    padding: 16,
-    borderRadius: 8,
+    backgroundColor: Colors.secondary,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: Colors.border,
   },
   backButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: Colors.foreground,
+    ...TextStyles.button,
   },
   nextButton: {
     flex: 1,
-    backgroundColor: '#10B981',
-    padding: 16,
-    borderRadius: 8,
+    backgroundColor: Colors.success,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
     alignItems: 'center',
   },
   nextButtonDisabled: {
     opacity: 0.5,
   },
   nextButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: Colors.white,
+    ...TextStyles.buttonLarge,
   },
 });

@@ -6,7 +6,11 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
+  Alert,
 } from 'react-native';
+import { validateStep4, showValidationAlert } from '../../lib/onboardingValidation';
+import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
+import { TextStyles } from '../../constants/Typography';
 
 interface Step4Data {
   gymName: string;
@@ -30,12 +34,22 @@ export default function Step4GymConsent({
   onSkipPhoto,
 }: Step4Props) {
   const isValid =
-    data.gymName.trim() !== '' && data.equipmentMethod && data.consentGiven;
+    (data.gymName && data.gymName.trim() !== '') && data.equipmentMethod && data.consentGiven;
 
   const handleContinue = () => {
+    console.log('[Step4] Continue pressed with data:', data);
+    const validation = validateStep4(data);
+    console.log('[Step4] Validation result:', validation);
+    if (!validation.isValid) {
+      showValidationAlert(validation, 'Please Complete Setup');
+      return;
+    }
+
     if (data.equipmentMethod === 'photo') {
+      console.log('[Step4] Going to photo step');
       onNext();
     } else {
+      console.log('[Step4] Skipping photo, completing onboarding');
       onSkipPhoto();
     }
   };
@@ -175,78 +189,75 @@ export default function Step4GymConsent({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: Colors.background,
   },
   content: {
-    padding: 20,
+    padding: Spacing.lg,
     paddingBottom: 100,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
+    ...TextStyles.h2,
+    color: Colors.foreground,
+    marginBottom: Spacing.xs,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#888',
-    marginBottom: 32,
+    ...TextStyles.bodySmall,
+    color: Colors.mutedForeground,
+    marginBottom: Spacing['3xl'],
   },
   section: {
-    marginBottom: 32,
+    marginBottom: Spacing['3xl'],
   },
   numberBadge: {
     width: 32,
     height: 32,
-    borderRadius: 16,
-    backgroundColor: '#14B8A6',
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   numberText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: Colors.white,
+    ...TextStyles.bodyLarge,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 12,
+    ...TextStyles.h4,
+    color: Colors.foreground,
+    marginBottom: Spacing.md,
   },
   input: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: Colors.input,
     borderWidth: 1,
-    borderColor: '#333',
-    borderRadius: 8,
-    padding: 16,
-    fontSize: 16,
-    color: '#fff',
-    marginBottom: 8,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    ...TextStyles.body,
+    color: Colors.foreground,
+    marginBottom: Spacing.sm,
   },
   hint: {
-    fontSize: 12,
-    color: '#666',
+    ...TextStyles.caption,
+    color: Colors.mutedForeground,
     fontStyle: 'italic',
   },
   description: {
-    fontSize: 14,
-    color: '#888',
-    marginBottom: 16,
+    ...TextStyles.bodySmall,
+    color: Colors.mutedForeground,
+    marginBottom: Spacing.lg,
   },
   methodCard: {
-    backgroundColor: '#1a1a1a',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: Colors.secondary,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: '#333',
-    marginBottom: 12,
+    borderColor: Colors.border,
+    marginBottom: Spacing.md,
   },
   methodCardActive: {
-    borderColor: '#10B981',
+    borderColor: Colors.success,
     borderWidth: 2,
-    backgroundColor: '#0a1a14',
+    backgroundColor: Colors.secondary,
   },
   methodHeader: {
     flexDirection: 'row',
@@ -254,29 +265,28 @@ const styles = StyleSheet.create({
   },
   methodIcon: {
     fontSize: 32,
-    marginRight: 16,
+    marginRight: Spacing.lg,
   },
   methodContent: {
     flex: 1,
   },
   methodTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
+    ...TextStyles.bodyLarge,
+    color: Colors.foreground,
+    marginBottom: Spacing.xs,
   },
   methodTitleActive: {
-    color: '#10B981',
+    color: Colors.success,
   },
   methodDesc: {
-    fontSize: 13,
-    color: '#888',
+    ...TextStyles.caption,
+    color: Colors.mutedForeground,
   },
   radioSelected: {
     width: 20,
     height: 20,
-    borderRadius: 10,
-    backgroundColor: '#10B981',
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.success,
   },
   consentRow: {
     flexDirection: 'row',
@@ -285,60 +295,57 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 24,
     height: 24,
-    borderRadius: 4,
+    borderRadius: BorderRadius.sm,
     borderWidth: 2,
-    borderColor: '#333',
-    marginRight: 12,
+    borderColor: Colors.border,
+    marginRight: Spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxActive: {
-    backgroundColor: '#10B981',
-    borderColor: '#10B981',
+    backgroundColor: Colors.success,
+    borderColor: Colors.success,
   },
   checkmark: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: Colors.white,
+    ...TextStyles.bodyMedium,
   },
   consentText: {
     flex: 1,
-    fontSize: 14,
-    color: '#fff',
+    ...TextStyles.bodySmall,
+    color: Colors.foreground,
     lineHeight: 20,
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 16,
+    gap: Spacing.md,
+    marginTop: Spacing.md,
   },
   backButton: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
-    padding: 16,
-    borderRadius: 8,
+    backgroundColor: Colors.secondary,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: Colors.border,
   },
   backButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: Colors.foreground,
+    ...TextStyles.button,
   },
   nextButton: {
     flex: 1,
-    backgroundColor: '#10B981',
-    padding: 16,
-    borderRadius: 8,
+    backgroundColor: Colors.success,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
     alignItems: 'center',
   },
   nextButtonDisabled: {
     opacity: 0.5,
   },
   nextButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: Colors.white,
+    ...TextStyles.buttonLarge,
   },
 });

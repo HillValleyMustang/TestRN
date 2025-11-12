@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   },
   statText: {
     fontFamily: 'Poppins_400Regular',
-    fontSize: 12,
+    fontSize: 14,
     color: Colors.mutedForeground,
   },
   viewSummaryButton: {

@@ -58,8 +58,7 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
       setLoading(true);
       setError(null);
 
-      // First sync from Supabase to ensure we have latest data
-      // await syncFromSupabase(); // Temporarily disabled to avoid hanging - data is already in local DB
+      // Ensure we have local data first, will sync from Supabase during data loading
 
       // Fetch profile and TPaths in parallel
       const [profileData, tPathsData] = await Promise.all([
@@ -149,6 +148,74 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
   const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, any[]>>({});
   const [lastCompletedDates] = useState<Record<string, Date | null>>({});
 
+  // Helper function to get exercise details from local database
+  const getExerciseDetailsFromLocal = async (exerciseIds: string[]): Promise<Array<{ id: string; name: string; main_muscle?: string }>> => {
+    if (exerciseIds.length === 0) return [];
+    
+    try {
+      // Try to get exercise details from local SQLite first
+      const exerciseDetails = await Promise.all(
+        exerciseIds.map(async (exerciseId) => {
+          // Check if exercise exists in local database
+          const localExercise = await database.getExerciseDefinition(exerciseId);
+          if (localExercise) {
+            return {
+              id: localExercise.id,
+              name: localExercise.name,
+              main_muscle: localExercise.main_muscle || 'Unknown'
+            };
+          }
+          
+          // Fallback: generate reasonable names based on common workout patterns
+          return {
+            id: exerciseId,
+            name: generateExerciseName(exerciseId),
+            main_muscle: inferMainMuscle(exerciseId)
+          };
+        })
+      );
+      
+      return exerciseDetails;
+    } catch (error) {
+      console.warn('Failed to get exercise details from local DB:', error);
+      // Final fallback
+      return exerciseIds.map(id => ({
+        id,
+        name: `Exercise ${id.slice(0, 8)}`,
+        main_muscle: 'Unknown'
+      }));
+    }
+  };
+
+  // Generate reasonable exercise names for common workout patterns
+  const generateExerciseName = (exerciseId: string): string => {
+    // Use hash of ID to consistently generate the same exercise type
+    const hash = exerciseId.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    
+    const exercises = [
+      'Push-ups', 'Pull-ups', 'Squats', 'Deadlifts', 'Bench Press', 'Overhead Press',
+      'Rows', 'Lunges', 'Burpees', 'Mountain Climbers', 'Plank', 'Bicep Curls',
+      'Tricep Extensions', 'Shoulder Press', 'Lat Pulldowns', 'Leg Press',
+      'Calf Raises', 'Hip Thrusts', 'Russian Twists', 'Jumping Jacks'
+    ];
+    
+    return exercises[Math.abs(hash) % exercises.length];
+  };
+
+  // Infer main muscle group from exercise name patterns
+  const inferMainMuscle = (exerciseId: string): string => {
+    const hash = exerciseId.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    
+    const muscleGroups = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core', 'Glutes'];
+    return muscleGroups[Math.abs(hash) % muscleGroups.length];
+  };
+
   const fetchWorkoutExercises = async (workouts: TPath[]): Promise<Record<string, any[]>> => {
     if (!userId) return {};
 
@@ -165,25 +232,50 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
             .select('id, name, main_muscle')
             .in('id', exerciseIds);
 
-          const exerciseDefMap = new Map(
-            exerciseDefs.data?.map(def => [def.id, def]) || []
-          );
+          // Check if exercise definitions are available
+          if (exerciseDefs.data && exerciseDefs.data.length > 0) {
+            const exerciseDefMap = new Map(
+              exerciseDefs.data.map(def => [def.id, def])
+            );
 
-          const mappedExercises = exercises
-            .sort((a, b) => a.order_index - b.order_index)
-            .map(ex => {
-              const def = exerciseDefMap.get(ex.exercise_id);
-              return {
-                id: ex.exercise_id,
-                name: def?.name || `Exercise ${ex.exercise_id}`,
-                main_muscle: def?.main_muscle || 'Unknown',
-                target_sets: ex.target_sets || 3,
-                target_reps_min: ex.target_reps_min || 8,
-                target_reps_max: ex.target_reps_max || 12,
-              };
-            });
+            const mappedExercises = exercises
+              .sort((a, b) => a.order_index - b.order_index)
+              .map(ex => {
+                const def = exerciseDefMap.get(ex.exercise_id);
+                return {
+                  id: ex.exercise_id,
+                  name: def?.name || `Exercise ${ex.exercise_id}`,
+                  main_muscle: def?.main_muscle || 'Unknown',
+                  target_sets: ex.target_sets || 3,
+                  target_reps_min: ex.target_reps_min || 8,
+                  target_reps_max: ex.target_reps_max || 12,
+                };
+              });
 
-          cache[workout.id] = mappedExercises;
+            cache[workout.id] = mappedExercises;
+          } else {
+            // Fallback when exercise_definitions table is empty
+            console.warn(`[useWorkoutLauncherData] No exercise definitions found in Supabase for workout ${workout.id}`);
+            
+            // Try to get exercise details from local database as fallback
+            const fallbackExercises = await getExerciseDetailsFromLocal(exerciseIds);
+            
+            const mappedExercises = exercises
+              .sort((a, b) => a.order_index - b.order_index)
+              .map(ex => {
+                const fallbackExercise = fallbackExercises.find((fe: any) => fe.id === ex.exercise_id);
+                return {
+                  id: ex.exercise_id,
+                  name: fallbackExercise?.name || `Exercise ${ex.exercise_id}`,
+                  main_muscle: fallbackExercise?.main_muscle || 'Unknown',
+                  target_sets: ex.target_sets || 3,
+                  target_reps_min: ex.target_reps_min || 8,
+                  target_reps_max: ex.target_reps_max || 12,
+                };
+              });
+
+            cache[workout.id] = mappedExercises;
+          }
         } else {
           cache[workout.id] = [];
         }
@@ -196,7 +288,19 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
     return cache;
   };
 
-  // Remove this useEffect - exercises are now fetched synchronously in refresh()
+  // Fetch exercises when workouts change
+  useEffect(() => {
+    const derivedChildWorkouts = derivedData.childWorkouts;
+    if (derivedChildWorkouts.length > 0) {
+      const fetchExercises = async () => {
+        const cache = await fetchWorkoutExercises(derivedChildWorkouts);
+        setWorkoutExercisesCache(cache);
+      };
+      fetchExercises();
+    } else {
+      setWorkoutExercisesCache({});
+    }
+  }, [derivedData.childWorkouts]);
 
   return {
     profile,

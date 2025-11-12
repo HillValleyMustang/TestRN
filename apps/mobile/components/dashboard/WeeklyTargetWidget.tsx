@@ -22,6 +22,7 @@ interface WeeklyTargetWidgetProps {
   completedWorkouts: CompletedWorkout[];
   goalTotal: number;
   programmeType: 'ppl' | 'ulul';
+  totalSessions?: number;
   onViewCalendar?: () => void;
   onViewWorkoutSummary?: (sessionId: string) => void;
   activitiesCount?: number;
@@ -34,6 +35,7 @@ export function WeeklyTargetWidget({
   completedWorkouts = [],
   goalTotal,
   programmeType,
+  totalSessions,
   onViewCalendar,
   onViewWorkoutSummary,
   activitiesCount = 0,
@@ -92,47 +94,94 @@ export function WeeklyTargetWidget({
         )}
       </View>
 
-      <View style={styles.circlesContainer}>
-        {workoutTypes.map((workoutType, index) => {
-          const isCompleted = index < completedWorkouts.length;
-          const workout = completedWorkouts[index];
-          const colors = getWorkoutColor(workoutType);
+      <View style={[
+        styles.circlesContainer,
+        { justifyContent: totalSessions && totalSessions > goalTotal ? 'flex-start' : 'center' }
+      ]}>
+        {(() => {
+          const coreWorkouts = workoutTypes.slice(0, goalTotal);
+          const hasAdditionalWorkouts = totalSessions ? totalSessions > completedWorkouts.length : false;
+          const additionalWorkoutsCount = Math.min(
+            Math.max(0, (totalSessions || 0) - completedWorkouts.length),
+            7 - goalTotal // Max additional circles to reach 7 total
+          );
 
-          if (isCompleted && workout) {
+          // Render core workout circles
+          const coreCircles = coreWorkouts.map((workoutType, index) => {
+            const isCompleted = index < completedWorkouts.length;
+            const workout = completedWorkouts[index];
+            const colors = getWorkoutColor(workoutType);
+
+            if (isCompleted && workout) {
+              return (
+                <Pressable
+                  key={`core-${index}`}
+                  style={[
+                    styles.circle,
+                    styles.completedCircle,
+                    { backgroundColor: colors.main }
+                  ]}
+                  onPress={() => workout.sessionId && onViewWorkoutSummary?.(workout.sessionId)}
+                >
+                  <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+                </Pressable>
+              );
+            }
+
             return (
-              <Pressable
-                key={index}
+              <View
+                key={`core-${index}`}
                 style={[
                   styles.circle,
-                  styles.completedCircle,
-                  { backgroundColor: colors.main }
+                  styles.incompleteCircle,
+                  { borderColor: colors.main }
                 ]}
-                onPress={() => workout.sessionId && onViewWorkoutSummary?.(workout.sessionId)}
               >
-                <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-              </Pressable>
+                <Text style={[styles.circleText, { color: colors.main }]}>
+                  {getInitial(workoutType)}
+                </Text>
+              </View>
             );
+          });
+
+          // Render additional workout circles if needed
+          const additionalCircles = [];
+          if (hasAdditionalWorkouts && additionalWorkoutsCount > 0) {
+            // Add gap between core and additional circles
+            additionalCircles.push(
+              <View key="gap" style={styles.circleGap} />
+            );
+
+            // Get the color of the most completed workout type for additional circles
+            const mostCompletedWorkout = completedWorkouts[0]; // Since they're deduplicated, first one represents the type
+            const additionalColor = mostCompletedWorkout ? getWorkoutColor(mostCompletedWorkout.name).main : Colors.primary;
+
+            for (let i = 0; i < additionalWorkoutsCount; i++) {
+              additionalCircles.push(
+                <Pressable
+                  key={`additional-${i}`}
+                  style={[
+                    styles.circle,
+                    styles.completedCircle,
+                    { backgroundColor: additionalColor }
+                  ]}
+                  onPress={() => onViewWorkoutSummary?.('')} // Empty string since we don't have specific session IDs for additional workouts
+                >
+                  <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+                </Pressable>
+              );
+            }
           }
 
-          return (
-            <View
-              key={index}
-              style={[
-                styles.circle,
-                styles.incompleteCircle,
-                { borderColor: colors.main }
-              ]}
-            >
-              <Text style={[styles.circleText, { color: colors.main }]}>
-                {getInitial(workoutType)}
-              </Text>
-            </View>
-          );
-        })}
+          return [...coreCircles, ...additionalCircles];
+        })()}
       </View>
 
       <Text style={styles.progressText}>
         {completedWorkouts.length} / {goalTotal} Workouts Completed This Week
+        {totalSessions && totalSessions > completedWorkouts.length && (
+          <Text style={styles.sessionsText}> ({totalSessions} sessions)</Text>
+        )}
       </Text>
 
       {activitiesCount > 0 && onViewActivities && (
@@ -210,6 +259,14 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.md,
+  },
+  sessionsText: {
+    fontFamily: 'Poppins_400Regular',
+    fontSize: 12,
+    color: Colors.mutedForeground,
+  },
+  circleGap: {
+    width: Spacing.md,
   },
   activitiesLink: {
     paddingVertical: Spacing.sm,

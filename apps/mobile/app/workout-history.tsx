@@ -4,7 +4,7 @@
  * Matches web version design and functionality
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,8 +18,10 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useWorkoutHistory } from './_hooks/useWorkoutHistory';
 import { useAuth } from './_contexts/auth-context';
+import { useData } from './_contexts/data-context';
 import { WorkoutHistoryCard } from '../components/ui/WorkoutHistoryCard';
 import { ConsistencyCalendarModal } from '../components/dashboard/ConsistencyCalendarModal';
+import WorkoutSummaryModal from './workout-summary';
 import { AppHeader } from '../components/AppHeader';
 import { Colors, Spacing, BorderRadius } from '../constants/Theme';
 
@@ -27,9 +29,12 @@ export default function WorkoutHistoryPage() {
   const router = useRouter();
   const { userId } = useAuth();
   const { supabase } = useAuth();
-  const { sessions, isLoading, error, refresh } = useWorkoutHistory();
+  const { deleteWorkoutSession } = useData();
+  const { sessions, isLoading, error, refresh, removeSession } = useWorkoutHistory();
   const [refreshing, setRefreshing] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -37,24 +42,68 @@ export default function WorkoutHistoryPage() {
     setRefreshing(false);
   };
 
-  const handleViewSummary = (sessionId: string) => {
-    router.push({ pathname: '/workout-detail', params: { id: sessionId } });
+  const handleViewSummary = async (sessionId: string) => {
+    try {
+      // Check if the session still exists before opening the modal
+      const { data: session, error } = await supabase
+        .from('workout_sessions')
+        .select('id')
+        .eq('id', sessionId)
+        .eq('user_id', userId)
+        .single();
+
+      if (error || !session) {
+        Alert.alert('Error', 'This workout session no longer exists.');
+        // Refresh the data to remove the deleted workout from the list
+        await refresh();
+        return;
+      }
+
+      setSelectedSessionId(sessionId);
+      setIsSummaryModalOpen(true);
+    } catch (err) {
+      console.error('Error checking session existence:', err);
+      Alert.alert('Error', 'Failed to load workout summary');
+    }
   };
 
   const handleDeleteSession = async (sessionId: string, templateName: string | null) => {
     if (!userId) return;
 
     try {
-      // For now, we'll just show a success message since the actual deletion
-      // would need to be implemented in the data context
+      console.log('Deleting session:', sessionId);
+
+      // Actually delete the workout session from the database
+      const { error: sessionError } = await supabase.from('workout_sessions').delete().eq('id', sessionId).eq('user_id', userId);
+      if (sessionError) throw sessionError;
+
+      // Also delete associated set logs
+      const { error: setsError } = await supabase.from('set_logs').delete().eq('session_id', sessionId);
+      if (setsError) throw setsError;
+
+      console.log('Successfully deleted from database');
+
       Alert.alert(
         'Success',
         `"${templateName || 'Ad Hoc Workout'}" has been deleted.`,
         [{ text: 'OK' }]
       );
 
-      // Refresh the data
-      await refresh();
+      // Immediately remove from hook state to update UI
+      removeSession(sessionId);
+
+      console.log('Removed from UI state');
+
+      // Also delete from local database to ensure consistency
+      try {
+        await deleteWorkoutSession(sessionId);
+        console.log('Deleted from local database');
+      } catch (localError) {
+        console.warn('Failed to delete from local database:', localError);
+        console.log('deleteWorkoutSession function:', typeof deleteWorkoutSession);
+        // Don't fail the whole operation if local delete fails
+      }
+
     } catch (err) {
       console.error('Failed to delete workout session:', err);
       Alert.alert('Error', 'Failed to delete workout session');
@@ -144,6 +193,7 @@ export default function WorkoutHistoryPage() {
             />
           }
           showsVerticalScrollIndicator={false}
+          key={sessions.length} // Force re-render when data length changes
         />
       )}
 
@@ -151,6 +201,24 @@ export default function WorkoutHistoryPage() {
       <ConsistencyCalendarModal
         open={isCalendarOpen}
         onOpenChange={setIsCalendarOpen}
+      />
+
+      <WorkoutSummaryModal
+        visible={isSummaryModalOpen}
+        sessionId={selectedSessionId}
+        onClose={() => {
+          setIsSummaryModalOpen(false);
+          setSelectedSessionId(null);
+        }}
+        onDone={() => {
+          setIsSummaryModalOpen(false);
+          setSelectedSessionId(null);
+        }}
+        onStartAnother={() => {
+          setIsSummaryModalOpen(false);
+          setSelectedSessionId(null);
+          router.push('/workout-launcher');
+        }}
       />
     </View>
   );

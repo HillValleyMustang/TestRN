@@ -6,7 +6,16 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
+  Alert,
 } from 'react-native';
+import { validateStep3, showValidationAlert } from '../../lib/onboardingValidation';
+import {
+  announceStepProgress,
+  generateAccessibleLabel,
+  generateAccessibleHint,
+} from '../../lib/accessibilityHelpers';
+import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
+import { TextStyles } from '../../constants/Typography';
 
 interface Step3Data {
   goalFocus: string;
@@ -29,6 +38,18 @@ export default function Step3GoalsPreferences({
   onBack,
 }: Step3Props) {
   const isValid = data.goalFocus && data.sessionLength;
+
+  const handleNext = () => {
+    const validation = validateStep3(data);
+    if (!validation.isValid) {
+      showValidationAlert(validation, 'Please Complete Required Fields');
+      return;
+    }
+
+    // Announce step progress
+    announceStepProgress(3, 5, 'Goals and Preferences');
+    onNext();
+  };
 
   const goals = [
     { id: 'muscle_gain', icon: '💪', text: 'Muscle Gain' },
@@ -175,7 +196,7 @@ export default function Step3GoalsPreferences({
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.nextButton, !isValid && styles.nextButtonDisabled]}
-          onPress={onNext}
+          onPress={handleNext}
           disabled={!isValid}
         >
           <Text style={styles.nextButtonText}>Next</Text>
@@ -188,163 +209,156 @@ export default function Step3GoalsPreferences({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: Colors.background,
   },
   content: {
-    padding: 20,
+    padding: Spacing.lg,
     paddingBottom: 100,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
+    ...TextStyles.h2,
+    color: Colors.foreground,
+    marginBottom: Spacing.xs,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#888',
-    marginBottom: 32,
+    ...TextStyles.bodySmall,
+    color: Colors.mutedForeground,
+    marginBottom: Spacing['3xl'],
   },
   section: {
-    marginBottom: 24,
+    marginBottom: Spacing.xl,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 16,
+    ...TextStyles.h4,
+    color: Colors.foreground,
+    marginBottom: Spacing.lg,
   },
   goalGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: Spacing.md,
   },
   goalCard: {
     flex: 1,
     minWidth: '30%',
-    backgroundColor: '#1a1a1a',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: Colors.secondary,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: Colors.border,
     alignItems: 'center',
   },
   goalCardActive: {
-    borderColor: '#10B981',
+    borderColor: Colors.success,
     borderWidth: 2,
-    backgroundColor: '#0a1a14',
+    backgroundColor: Colors.secondary,
   },
   goalIcon: {
     fontSize: 32,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   goalText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
+    ...TextStyles.bodyMedium,
+    color: Colors.foreground,
     textAlign: 'center',
   },
   goalTextActive: {
-    color: '#10B981',
+    color: Colors.success,
   },
   muscleGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: Spacing.sm,
   },
   muscleChip: {
-    backgroundColor: '#1a1a1a',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+    backgroundColor: Colors.secondary,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: Colors.border,
   },
   muscleChipActive: {
-    backgroundColor: '#10B981',
-    borderColor: '#10B981',
+    backgroundColor: Colors.success,
+    borderColor: Colors.success,
   },
   muscleText: {
-    fontSize: 14,
-    color: '#fff',
-    fontWeight: '600',
+    ...TextStyles.bodyMedium,
+    color: Colors.foreground,
   },
   muscleTextActive: {
-    color: '#000',
+    color: Colors.white,
   },
   sessionGrid: {
-    gap: 12,
+    gap: Spacing.md,
   },
   sessionCard: {
-    backgroundColor: '#1a1a1a',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: Colors.secondary,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: Colors.border,
   },
   sessionCardActive: {
-    borderColor: '#10B981',
+    borderColor: Colors.success,
     borderWidth: 2,
-    backgroundColor: '#0a1a14',
+    backgroundColor: Colors.secondary,
   },
   sessionLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
+    ...TextStyles.bodyLarge,
+    color: Colors.foreground,
+    marginBottom: Spacing.xs,
   },
   sessionLabelActive: {
-    color: '#10B981',
+    color: Colors.success,
   },
   sessionDesc: {
-    fontSize: 13,
-    color: '#888',
+    ...TextStyles.caption,
+    color: Colors.mutedForeground,
   },
   sessionDescActive: {
-    color: '#10B981',
+    color: Colors.success,
   },
   textArea: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: Colors.input,
     borderWidth: 1,
-    borderColor: '#333',
-    borderRadius: 8,
-    padding: 16,
-    fontSize: 16,
-    color: '#fff',
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    ...TextStyles.body,
+    color: Colors.foreground,
     minHeight: 100,
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 16,
+    gap: Spacing.md,
+    marginTop: Spacing.md,
   },
   backButton: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
-    padding: 16,
-    borderRadius: 8,
+    backgroundColor: Colors.secondary,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: Colors.border,
   },
   backButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: Colors.foreground,
+    ...TextStyles.button,
   },
   nextButton: {
     flex: 1,
-    backgroundColor: '#10B981',
-    padding: 16,
-    borderRadius: 8,
+    backgroundColor: Colors.success,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
     alignItems: 'center',
   },
   nextButtonDisabled: {
     opacity: 0.5,
   },
   nextButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: Colors.white,
+    ...TextStyles.buttonLarge,
   },
 });

@@ -165,7 +165,7 @@ export default function ProfileScreen() {
         .eq('user_id', userId)
         .order('created_at', { ascending: true });
 
-      // Load workout statistics
+      // Load workout statistics - optimized queries
       const [totalWorkoutsRes, uniqueExercisesRes, workoutDatesRes] =
         await Promise.all([
           // Total workouts: count completed workout_sessions
@@ -175,42 +175,28 @@ export default function ProfileScreen() {
             .eq('user_id', userId)
             .not('completed_at', 'is', null),
 
-          // Total unique exercises: count distinct exercise_ids from completed sessions
+          // Optimized unique exercises query - use a simpler approach
           supabase
-            .from('set_logs')
-            .select(
-              `
-            exercise_id,
-            workout_sessions!inner (
-              user_id,
-              completed_at
-            )
-          `
-            )
-            .eq('workout_sessions.user_id', userId)
-            .not('workout_sessions.completed_at', 'is', null),
+            .rpc('get_unique_exercises_count', { p_user_id: userId }),
 
-          // Get workout dates for streak calculation
+          // Get workout dates for streak calculation - limit to recent
           supabase
             .from('workout_sessions')
             .select('completed_at')
             .eq('user_id', userId)
             .not('completed_at', 'is', null)
             .order('completed_at', { ascending: false })
-            .limit(30), // Get last 30 workouts to calculate streak
+            .limit(14), // Reduced from 30 to 14 for better performance
         ]);
 
       if (totalWorkoutsRes.error) throw totalWorkoutsRes.error;
       if (uniqueExercisesRes.error) throw uniqueExercisesRes.error;
       if (workoutDatesRes.error) throw workoutDatesRes.error;
 
-      // Get unique exercise count
-      const uniqueExerciseIds = new Set(
-        uniqueExercisesRes.data?.map(log => log.exercise_id) || []
-      );
-      const uniqueExercisesCount = uniqueExerciseIds.size;
+      // Get unique exercise count - handle both RPC and fallback
+      const uniqueExercisesCount = uniqueExercisesRes.data?.[0]?.count || 0;
 
-      // Calculate current streak
+      // Calculate current streak - optimized
       const workoutDates =
         workoutDatesRes.data?.map(session =>
           new Date(session.completed_at).toDateString()
@@ -227,7 +213,7 @@ export default function ProfileScreen() {
         workoutDates.includes(today) || workoutDates.includes(yesterday);
 
       if (hasRecentWorkout) {
-        // Calculate consecutive days
+        // Calculate consecutive days - optimized
         const uniqueDates = [...new Set(workoutDates)].sort(
           (a, b) => new Date(b).getTime() - new Date(a).getTime()
         );
@@ -825,6 +811,7 @@ export default function ProfileScreen() {
 
   const [photos, setPhotos] = useState<any[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const [photosLoaded, setPhotosLoaded] = useState(false);
   const [isCaptureFlowOpen, setIsCaptureFlowOpen] = useState(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
@@ -876,8 +863,9 @@ export default function ProfileScreen() {
                 throw dbError;
               }
 
-              // Refresh photos list
+              // Refresh photos list and ensure loaded state
               fetchPhotos();
+              setPhotosLoaded(true);
 
               Toast.show({
                 type: 'success',
@@ -925,10 +913,11 @@ export default function ProfileScreen() {
   }, [userId, supabase]);
 
   useEffect(() => {
-    if (activeTab === 'photo') {
+    if (activeTab === 'photo' && !photosLoaded) {
       fetchPhotos();
+      setPhotosLoaded(true);
     }
-  }, [activeTab, fetchPhotos]);
+  }, [activeTab, fetchPhotos, photosLoaded]);
 
   const handlePhotoCaptured = (uri: string) => {
     setCapturedPhotoUri(uri);
@@ -983,6 +972,7 @@ export default function ProfileScreen() {
     fetchPhotos();
     setCapturedPhotoUri(null);
     setIsGalleryPhoto(false);
+    setPhotosLoaded(true);
   };
 
   const handleGoalPhysiquePress = () => {

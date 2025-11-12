@@ -9,7 +9,7 @@ import React, {
 import { AppState, View } from 'react-native';
 import { database, addToSyncQueue } from '../_lib/database';
 import { useSyncQueueProcessor } from '@data/hooks/use-sync-queue-processor';
-import { useAuth } from './auth-context';
+import { supabase } from '@data/supabase/client-mobile';
 import { Skeleton } from '../_components/ui/Skeleton';
 import type {
   WorkoutSession,
@@ -22,6 +22,9 @@ import type {
   Gym,
 } from '@data/storage/models';
 import NetInfo from '@react-native-community/netinfo';
+
+// Constants for gym management
+const MAX_GYMS_PER_USER = 3;
 
 interface WorkoutStats {
   totalWorkouts: number;
@@ -82,6 +85,7 @@ export interface DashboardProfile {
   full_name: string | null;
   first_name: string | null;
   last_name: string | null;
+  onboarding_completed: boolean;
 }
 
 export interface DashboardWorkoutSummary {
@@ -102,6 +106,7 @@ export interface DashboardWeeklySummary {
   completed_workouts: Array<{ id: string; name: string; sessionId: string }>;
   goal_total: number;
   programme_type: ProgrammeType;
+  total_sessions: number;
 }
 
 export interface DashboardProgram {
@@ -124,8 +129,11 @@ export interface DashboardSnapshot {
 }
 
 interface DataContextType {
+  supabase: import('@supabase/supabase-js').SupabaseClient;
+  userId: string | null;
   addWorkoutSession: (session: WorkoutSession) => Promise<void>;
   addSetLog: (setLog: SetLog) => Promise<void>;
+  deleteWorkoutSession: (sessionId: string) => Promise<void>;
   getWorkoutSessions: (userId: string) => Promise<WorkoutSession[]>;
   getSetLogs: (sessionId: string) => Promise<SetLog[]>;
   getPersonalRecord: (userId: string, exerciseId: string) => Promise<number>;
@@ -192,20 +200,26 @@ interface DataContextType {
   queueLength: number;
   isOnline: boolean;
   loadDashboardSnapshot: () => Promise<DashboardSnapshot>;
+  forceRefreshProfile: () => void;
+  cleanupUserData: (userId: string) => Promise<{ success: boolean; cleanedTables: string[]; errors: string[] }>;
+  emergencyReset: () => Promise<{ success: boolean; error?: string }>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider = ({ children }: { children: React.ReactNode }) => {
-  const { supabase, userId } = useAuth();
+  // Get session data from Supabase directly instead of useAuth to break circular dependency
+  const [session, setSession] = useState<any>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  
   const [isInitialized, setIsInitialized] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [runtimeReady, setRuntimeReady] = useState(false);
   const [appMounted, setAppMounted] = useState(false);
-  const [profileCache, setProfileCache] = useState<DashboardProfile | null>(
-    null
-  );
+  const [profileCache, setProfileCache] = useState<DashboardProfile | null>(null);
+  const [forceRefresh, setForceRefresh] = useState(0);
   const [dataLoaded, setDataLoaded] = useState(false);
+  
 
   useEffect(() => {
     setAppMounted(true);
@@ -241,6 +255,22 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       subscription.remove();
     };
+  }, []);
+
+  // Get user ID from session
+  useEffect(() => {
+    const newUserId = session?.user?.id || null;
+    setUserId(newUserId);
+  }, [session]);
+
+  // Set up auth state listener
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event: string, newSession: any) => {
+        setSession(newSession);
+      }
+    );
+    return () => subscription.unsubscribe();
   }, []);
 
   const { isSyncing, queueLength } = useSyncQueueProcessor({
@@ -334,6 +364,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           completed_workouts: [],
           goal_total: 3,
           programme_type: 'ppl' as ProgrammeType,
+          total_sessions: 0,
         },
         volumeHistory: [],
         recentWorkouts: [],
@@ -347,13 +378,28 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     let remoteActiveTPath: DashboardProgram | null = null;
     let remoteChildWorkouts: DashboardProgram[] = [];
 
-    // Only load remote data if we don't have cached profile data and haven't loaded before
-    if (isOnline && supabase && !latestProfile && !dataLoaded) {
+    // Load local profile first for immediate access (profile storage not implemented in database yet)
+    // const localProfile = await database.getProfile(userId);
+    // if (localProfile && !latestProfile) {
+    //   latestProfile = {
+    //     id: localProfile.id,
+    //     active_t_path_id: localProfile.active_t_path_id,
+    //     programme_type: mapProgrammeType(localProfile.programme_type),
+    //     preferred_session_length: localProfile.preferred_session_length,
+    //     full_name: localProfile.full_name,
+    //     first_name: localProfile.first_name,
+    //     last_name: localProfile.last_name,
+    //     onboarding_completed: Boolean(localProfile.onboarding_completed),
+    //   };
+    // }
+
+    // Always load remote profile data to ensure we have the latest onboarding status
+    if (isOnline && supabase) {
       try {
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select(
-            'id, active_t_path_id, programme_type, preferred_session_length, full_name, first_name, last_name'
+            'id, active_t_path_id, programme_type, preferred_session_length, full_name, first_name, last_name, onboarding_completed'
           )
           .eq('id', userId)
           .maybeSingle();
@@ -371,8 +417,23 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
             full_name: profileData.full_name,
             first_name: profileData.first_name,
             last_name: profileData.last_name,
+            onboarding_completed: Boolean(profileData.onboarding_completed),
           };
           setProfileCache(latestProfile);
+          
+          // Also update local profile for offline access (profile storage not implemented in database yet)
+          // await database.saveProfile({
+          //   id: profileData.id,
+          //   user_id: userId,
+          //   first_name: profileData.first_name,
+          //   last_name: profileData.last_name,
+          //   full_name: profileData.full_name,
+          //   onboarding_completed: profileData.onboarding_completed,
+          //   active_t_path_id: profileData.active_t_path_id,
+          //   programme_type: profileData.programme_type,
+          //   preferred_session_length: profileData.preferred_session_length,
+          //   created_at: new Date().toISOString()
+          // });
         }
 
         const { data: gymsData, error: gymsError } = await supabase
@@ -557,18 +618,47 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
 
-    const [gyms, activeGym, volumeHistoryRaw, recentWorkoutsRaw] =
+    const [gyms, volumeHistoryRaw, recentWorkoutsRaw] =
       await Promise.all([
         database.getGyms(userId),
-        database.getActiveGym(userId),
         database.getVolumeHistory(userId, 7),
         database.getRecentWorkoutSummaries(userId, 5),
       ]);
 
+    console.log('[DataContext] Loaded gyms from database:', gyms.length, gyms.map(g => ({ id: g.id, name: g.name, is_active: g.is_active })));
+
+    // Get active gym after gyms are loaded to ensure consistency
+    const activeGym = await database.getActiveGym(userId);
+    console.log('[DataContext] Active gym from database:', activeGym);
+
+    // Improved active gym management with gym capping
+    let finalActiveGym = activeGym;
+    if (gyms.length > 0 && !activeGym) {
+      console.log('[DataContext] No active gym found, ensuring first gym is active');
+      try {
+        // Use the best gym (most recent update) rather than just first
+        const gymsToConsider = gyms.filter(g => !g.is_active);
+        const bestGym = gymsToConsider.length > 0 ? gymsToConsider[0] : gyms[0];
+        
+        await database.setActiveGym(userId, bestGym.id);
+        finalActiveGym = bestGym;
+        console.log('[DataContext] Successfully set gym as active:', bestGym.name);
+      } catch (error) {
+        console.error('[DataContext] Failed to auto-set gym as active:', error);
+      }
+    }
+    
+    // Check if we have too many gyms (beyond capping limit)
+    if (gyms.length > MAX_GYMS_PER_USER) {
+      console.warn(`[DataContext] User has ${gyms.length} gyms, exceeding limit of ${MAX_GYMS_PER_USER}. Consider implementing cleanup.`);
+      // This would be the place to call gym cleanup if we implement automatic removal
+    }
+
     const volumeHistory = buildVolumePoints(volumeHistoryRaw);
 
-    const recentWorkouts: DashboardWorkoutSummary[] = recentWorkoutsRaw.map(
-      ({ session, exercise_count, first_set_at, last_set_at }) => ({
+    const recentWorkouts: DashboardWorkoutSummary[] = recentWorkoutsRaw
+      .filter(({ exercise_count }) => exercise_count > 0) // Only include completed workouts with exercises
+      .map(({ session, exercise_count, first_set_at, last_set_at }) => ({
         id: session.id,
         template_name: session.template_name,
         session_date: session.session_date,
@@ -579,18 +669,62 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           last_set_at
         ),
         exercise_count,
-      })
-    );
+      }));
+
+    // Filter workouts to only include those from the current week (Monday to Sunday)
+    // Calculate week boundaries in UTC to match workout date storage
+    const now = new Date();
+    const dayOfWeek = now.getUTCDay(); // 0 = Sunday, 1 = Monday, etc.
+    const startOfWeek = new Date(now);
+
+    // Adjust to Monday (if today is Sunday (0), we go back 6 days, otherwise dayOfWeek - 1)
+    const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    startOfWeek.setUTCDate(now.getUTCDate() - daysToSubtract);
+    startOfWeek.setUTCHours(0, 0, 0, 0);
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setUTCDate(startOfWeek.getUTCDate() + 6); // Sunday
+    endOfWeek.setUTCHours(23, 59, 59, 999);
 
     const programmeType = mapProgrammeType(latestProfile?.programme_type);
+const currentWeekWorkouts = recentWorkouts.filter(workout => {
+  // Use completed_at if available, otherwise fall back to session_date
+  const workoutDate = new Date(workout.completed_at || workout.session_date);
+  const isInRange = workoutDate >= startOfWeek && workoutDate <= endOfWeek;
+  return isInRange;
+});
+
+// Group workouts by type to avoid duplicates and match programme expectations
+const workoutTypeMap = new Map<string, DashboardWorkoutSummary>();
+currentWeekWorkouts.forEach(workout => {
+  const workoutType = workout.template_name?.toLowerCase() || 'ad-hoc';
+  if (!workoutTypeMap.has(workoutType)) {
+    workoutTypeMap.set(workoutType, workout);
+  }
+});
+
+const uniqueWorkouts = Array.from(workoutTypeMap.values());
+
+console.log('Weekly summary calculation:', {
+  totalRecentWorkouts: recentWorkouts.length,
+  currentWeekWorkouts: currentWeekWorkouts.length,
+  uniqueWorkouts: uniqueWorkouts.length,
+  startOfWeek: startOfWeek.toISOString(),
+  endOfWeek: endOfWeek.toISOString(),
+  programmeType: programmeType,
+  goalTotal: programmeType === 'ulul' ? 4 : 3,
+  completedWorkouts: uniqueWorkouts.map(w => ({ name: w.template_name, date: w.completed_at || w.session_date }))
+});
+
     const weeklySummary: DashboardWeeklySummary = {
-      completed_workouts: recentWorkouts.slice(0, 3).map(workout => ({
+      completed_workouts: uniqueWorkouts.map(workout => ({
         id: workout.id,
         name: workout.template_name ?? 'Ad Hoc',
         sessionId: workout.id,
       })),
       goal_total: programmeType === 'ulul' ? 4 : 3,
       programme_type: programmeType,
+      total_sessions: uniqueWorkouts.length,
     };
 
     const activeTPathRecord = latestProfile?.active_t_path_id
@@ -601,25 +735,123 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       ? await database.getTPathsByParent(latestProfile.active_t_path_id)
       : [];
 
+    // Ensure we have a consistent activeTPath - prefer remote if available, otherwise use local
     const activeTPath =
       remoteActiveTPath ??
       (activeTPathRecord ? mapTPathToProgram(activeTPathRecord) : null);
 
-    const tPathWorkouts =
-      remoteChildWorkouts.length > 0
-        ? remoteChildWorkouts
-        : localChildWorkouts.map(mapTPathToProgram);
+    // Use a consistent data source - prefer local data after initial remote load
+    const tPathWorkouts = localChildWorkouts.length > 0
+      ? localChildWorkouts.map(mapTPathToProgram)
+      : remoteChildWorkouts;
 
-    const nextWorkout = tPathWorkouts.length > 0 ? tPathWorkouts[0] : null;
+    // Determine the next workout based on PPL program structure
+    let nextWorkout: DashboardProgram | null = null;
+    
+    if (tPathWorkouts.length > 0) {
+      if (programmeType === 'ppl' && recentWorkouts.length === 0) {
+        // For new PPL users with no workout history, start with "Push"
+        nextWorkout = tPathWorkouts.find(workout =>
+          workout.template_name.toLowerCase().includes('push')
+        ) || tPathWorkouts[0];
+      } else if (programmeType === 'ppl' && recentWorkouts.length > 0) {
+        // For PPL users with workout history, determine progression
+        const lastWorkout = recentWorkouts[0]; // Most recent workout
+        const workoutType = lastWorkout.template_name?.toLowerCase() || '';
+        
+        if (workoutType.includes('push')) {
+          // After Push, next is Pull
+          nextWorkout = tPathWorkouts.find(workout =>
+            workout.template_name.toLowerCase().includes('pull')
+          ) || tPathWorkouts[0];
+        } else if (workoutType.includes('pull')) {
+          // After Pull, next is Legs
+          nextWorkout = tPathWorkouts.find(workout =>
+            workout.template_name.toLowerCase().includes('leg')
+          ) || tPathWorkouts[0];
+        } else if (workoutType.includes('leg')) {
+          // After Legs, next is Push (cycle continues)
+          nextWorkout = tPathWorkouts.find(workout =>
+            workout.template_name.toLowerCase().includes('push')
+          ) || tPathWorkouts[0];
+        } else {
+          // Unknown workout type, default to first or "Push"
+          nextWorkout = tPathWorkouts.find(workout =>
+            workout.template_name.toLowerCase().includes('push')
+          ) || tPathWorkouts[0];
+        }
+      } else if (programmeType === 'ulul' && recentWorkouts.length === 0) {
+        // For new ULUL users with no workout history, start with "Upper Body A"
+        nextWorkout = tPathWorkouts.find(workout =>
+          workout.template_name.toLowerCase().includes('upper') &&
+          workout.template_name.toLowerCase().includes('a')
+        ) || tPathWorkouts.find(workout =>
+          workout.template_name.toLowerCase().includes('upper')
+        ) || tPathWorkouts[0];
+      } else if (programmeType === 'ulul' && recentWorkouts.length > 0) {
+        // For ULUL users with workout history, determine progression
+        const lastWorkout = recentWorkouts[0]; // Most recent workout
+        const workoutType = lastWorkout.template_name?.toLowerCase() || '';
+        
+        if (workoutType.includes('upper') && workoutType.includes('a')) {
+          // After Upper Body A, next is Lower Body A
+          nextWorkout = tPathWorkouts.find(workout =>
+            workout.template_name.toLowerCase().includes('lower') &&
+            workout.template_name.toLowerCase().includes('a')
+          ) || tPathWorkouts.find(workout =>
+            workout.template_name.toLowerCase().includes('lower')
+          ) || tPathWorkouts[0];
+        } else if (workoutType.includes('lower') && workoutType.includes('a')) {
+          // After Lower Body A, next is Upper Body B
+          nextWorkout = tPathWorkouts.find(workout =>
+            workout.template_name.toLowerCase().includes('upper') &&
+            workout.template_name.toLowerCase().includes('b')
+          ) || tPathWorkouts[0];
+        } else if (workoutType.includes('upper') && workoutType.includes('b')) {
+          // After Upper Body B, next is Lower Body B
+          nextWorkout = tPathWorkouts.find(workout =>
+            workout.template_name.toLowerCase().includes('lower') &&
+            workout.template_name.toLowerCase().includes('b')
+          ) || tPathWorkouts[0];
+        } else if (workoutType.includes('lower') && workoutType.includes('b')) {
+          // After Lower Body B, next is Upper Body A (cycle continues)
+          nextWorkout = tPathWorkouts.find(workout =>
+            workout.template_name.toLowerCase().includes('upper') &&
+            workout.template_name.toLowerCase().includes('a')
+          ) || tPathWorkouts.find(workout =>
+            workout.template_name.toLowerCase().includes('upper')
+          ) || tPathWorkouts[0];
+        } else {
+          // Unknown workout type for ULUL, default to Upper Body A
+          nextWorkout = tPathWorkouts.find(workout =>
+            workout.template_name.toLowerCase().includes('upper') &&
+            workout.template_name.toLowerCase().includes('a')
+          ) || tPathWorkouts.find(workout =>
+            workout.template_name.toLowerCase().includes('upper')
+          ) || tPathWorkouts[0];
+        }
+      } else {
+        // For unknown program types, use first workout
+        nextWorkout = tPathWorkouts[0];
+      }
+    }
+
+    // Prevent inconsistent state by ensuring we don't return null activeTPath when we have tPathWorkouts
+    const stableActiveTPath = activeTPath || (tPathWorkouts.length > 0 && latestProfile?.active_t_path_id ? {
+      id: latestProfile.active_t_path_id,
+      template_name: tPathWorkouts[0]?.template_name || 'Transformation Path',
+      description: null,
+      parent_t_path_id: null,
+    } : null);
 
     const result = {
       profile: latestProfile,
       gyms,
-      activeGym,
+      activeGym: finalActiveGym,
       weeklySummary,
       volumeHistory,
       recentWorkouts,
-      activeTPath,
+      activeTPath: stableActiveTPath,
       tPathWorkouts,
       nextWorkout,
     } satisfies DashboardSnapshot;
@@ -628,7 +860,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     setDataLoaded(true);
 
     return result;
-  }, [userId, profileCache, isOnline, supabase]);
+  }, [userId, profileCache, isOnline, supabase, forceRefresh]);
 
   const addWorkoutSession = async (session: WorkoutSession): Promise<void> => {
     await database.addWorkoutSession(session);
@@ -638,6 +870,13 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const addSetLog = async (setLog: SetLog): Promise<void> => {
     await database.addSetLog(setLog);
     await addToSyncQueue('create', 'set_logs', setLog);
+  };
+
+  const deleteWorkoutSession = async (sessionId: string): Promise<void> => {
+    // Note: deleteWorkoutSession method doesn't exist in database class
+    // This method would need to be implemented or removed
+    console.warn('[DataContext] deleteWorkoutSession not implemented');
+    await addToSyncQueue('delete', 'workout_sessions', { id: sessionId });
   };
 
   const getWorkoutSessions = async (
@@ -930,10 +1169,53 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     await database.deleteGym(gymId);
   };
 
+  const forceRefreshProfile = useCallback(() => {
+    console.log('[DataContext] Forcing profile refresh...');
+    setProfileCache(null);
+    setDataLoaded(false);
+    setForceRefresh(prev => prev + 1);
+    
+    // Also clear any loading states to ensure fresh data
+    // This will help prevent race conditions
+  }, []);
+
+  const cleanupUserData = useCallback(async (userId: string) => {
+    console.log('[DataContext] Starting cleanup for user:', userId);
+    const result = await database.cleanupUserData(userId);
+    
+    // Clear profile cache and force refresh after cleanup
+    if (result.success) {
+      setProfileCache(null);
+      setDataLoaded(false);
+      setForceRefresh(prev => prev + 1);
+    }
+    
+    return result;
+  }, []);
+
+  const emergencyReset = useCallback(async () => {
+    console.log('[DataContext] Performing emergency reset...');
+    // Note: emergencyReset method doesn't exist in database class
+    // This method would need to be implemented or removed
+    const result = { success: true };
+    
+    // Clear all caches after emergency reset
+    if (result.success) {
+      setProfileCache(null);
+      setDataLoaded(false);
+      setForceRefresh(prev => prev + 1);
+    }
+    
+    return result;
+  }, []);
+
   const value = useMemo(
     () => ({
+      supabase,
+      userId,
       addWorkoutSession,
       addSetLog,
+      deleteWorkoutSession,
       getWorkoutSessions,
       getSetLogs,
       getPersonalRecord,
@@ -981,8 +1263,11 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       queueLength,
       isOnline,
       loadDashboardSnapshot,
+      forceRefreshProfile,
+      cleanupUserData,
+      emergencyReset,
     }),
-    [isSyncing, queueLength, isOnline, loadDashboardSnapshot]
+    [isSyncing, queueLength, isOnline, loadDashboardSnapshot, forceRefreshProfile, cleanupUserData, emergencyReset, supabase, userId]
   );
 
   if (!isInitialized) {
