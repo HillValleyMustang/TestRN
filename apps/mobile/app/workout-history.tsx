@@ -4,7 +4,7 @@
  * Matches web version design and functionality
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -16,12 +16,11 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useWorkoutHistory } from './_hooks/useWorkoutHistory';
+import useWorkoutHistory from './_hooks/useWorkoutHistory';
 import { useAuth } from './_contexts/auth-context';
 import { useData } from './_contexts/data-context';
 import { WorkoutHistoryCard } from '../components/ui/WorkoutHistoryCard';
 import { ConsistencyCalendarModal } from '../components/dashboard/ConsistencyCalendarModal';
-import WorkoutSummaryModal from './workout-summary';
 import { AppHeader } from '../components/AppHeader';
 import { Colors, Spacing, BorderRadius } from '../constants/Theme';
 
@@ -33,8 +32,6 @@ export default function WorkoutHistoryPage() {
   const { sessions, isLoading, error, refresh, removeSession } = useWorkoutHistory();
   const [refreshing, setRefreshing] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -44,7 +41,7 @@ export default function WorkoutHistoryPage() {
 
   const handleViewSummary = async (sessionId: string) => {
     try {
-      // Check if the session still exists before opening the modal
+      // Check if the session still exists before navigating
       const { data: session, error } = await supabase
         .from('workout_sessions')
         .select('id')
@@ -59,8 +56,8 @@ export default function WorkoutHistoryPage() {
         return;
       }
 
-      setSelectedSessionId(sessionId);
-      setIsSummaryModalOpen(true);
+      // Navigate to the workout summary page
+      router.push(`/workout-summary?sessionId=${sessionId}`);
     } catch (err) {
       console.error('Error checking session existence:', err);
       Alert.alert('Error', 'Failed to load workout summary');
@@ -203,23 +200,7 @@ export default function WorkoutHistoryPage() {
         onOpenChange={setIsCalendarOpen}
       />
 
-      <WorkoutSummaryModal
-        visible={isSummaryModalOpen}
-        sessionId={selectedSessionId}
-        onClose={() => {
-          setIsSummaryModalOpen(false);
-          setSelectedSessionId(null);
-        }}
-        onDone={() => {
-          setIsSummaryModalOpen(false);
-          setSelectedSessionId(null);
-        }}
-        onStartAnother={() => {
-          setIsSummaryModalOpen(false);
-          setSelectedSessionId(null);
-          router.push('/workout-launcher');
-        }}
-      />
+      <WorkoutSummaryModal />
     </View>
   );
 }

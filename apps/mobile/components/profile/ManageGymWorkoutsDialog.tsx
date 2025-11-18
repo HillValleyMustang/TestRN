@@ -266,7 +266,6 @@ export function ManageGymWorkoutsDialog({
 
     try {
       // Get user's profile to find active T-Path
-      console.log('Fetching user profile...');
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('active_t_path_id')
@@ -413,7 +412,6 @@ export function ManageGymWorkoutsDialog({
 
     // Check cache first (unless reset is true)
     if (!reset && exercisesCache[libraryType]) {
-      console.log('📋 Using cached exercises for', libraryType);
       setAvailableExercises(exercisesCache[libraryType]);
       if (musclesCache[libraryType]) setAvailableMuscles(musclesCache[libraryType]);
       if (categoriesCache[libraryType]) setAvailableCategories(categoriesCache[libraryType]);
@@ -473,11 +471,7 @@ export function ManageGymWorkoutsDialog({
       );
       muscles = [...new Set(allMuscles)].sort();
 
-      console.log('Using predefined unique muscles for dropdown:', muscles);
       categories = [...new Set(exercises.map(ex => ex.category).filter(Boolean))].sort();
-
-      console.log('Available muscles:', muscles);
-      console.log('Available categories:', categories);
 
       // Cache the results
       setExercisesCache(prev => ({ ...prev, [libraryType]: exercises }));
@@ -487,7 +481,6 @@ export function ManageGymWorkoutsDialog({
       setAvailableExercises(exercises);
       setAvailableMuscles(muscles);
       setAvailableCategories(categories);
-      console.log('✅ Available exercises state updated with count:', exercises.length);
 
     } catch (error) {
       console.error('[ManageGymWorkouts] Error in loadAvailableExercises:', error);
@@ -597,7 +590,6 @@ export function ManageGymWorkoutsDialog({
   };
 
   const handleDragStart = (exercise: Exercise, index: number, isBonus: boolean) => {
-    console.log('🎯 Drag started for:', exercise.exercise_name);
     setDraggedItem({ exercise, isBonus, index });
     setShowDragOptions(true);
   };
@@ -704,8 +696,6 @@ export function ManageGymWorkoutsDialog({
 
   const handleExerciseInfo = async (exercise: Exercise) => {
     try {
-      console.log('🔍 Fetching exercise info for:', exercise.exercise_name, 'ID:', exercise.exercise_id);
-
       // Fetch detailed exercise information from the database
       const { data: exerciseDetails, error } = await supabase
         .from('exercise_definitions')
@@ -725,8 +715,6 @@ export function ManageGymWorkoutsDialog({
         console.error('❌ Exercise details fetch error:', error);
         throw error;
       }
-
-      console.log('✅ Exercise details fetched:', exerciseDetails);
 
       // Set the exercise data for the info sheet
       setSelectedExerciseForInfo(exerciseDetails);
@@ -819,7 +807,6 @@ export function ManageGymWorkoutsDialog({
   };
 
   const handleClose = () => {
-    console.log('🔒 Handle close called. Has changes:', hasChanges, 'Core exercises:', coreExercises.length);
     if (hasChanges) {
       Alert.alert(
         'Unsaved Changes',
@@ -830,16 +817,12 @@ export function ManageGymWorkoutsDialog({
         ]
       );
     } else {
-      console.log('🔒 Closing modal with no changes');
       onClose();
     }
   };
 
   const renderExercise = (exercise: Exercise, index: number, isBonus: boolean, total: number) => {
-    console.log('🎯 Rendering exercise:', exercise.exercise_name, 'isBonus:', isBonus, 'index:', index);
-
     const handleReorder = (direction: 'up' | 'down') => {
-      console.log('🔄 Reordering exercise:', exercise.exercise_name, direction);
       moveExercise(index, direction, isBonus);
     };
 
@@ -849,7 +832,6 @@ export function ManageGymWorkoutsDialog({
 
     // Simplified drag handler - just use TouchableOpacity for now
     const handleDragStartSimple = () => {
-      console.log('🎯 Starting drag for:', exercise.exercise_name);
       handleDragStart(exercise, index, isBonus);
     };
 
@@ -981,68 +963,48 @@ export function ManageGymWorkoutsDialog({
             </View>
           ) : (
             <ScrollView style={styles.exerciseList} showsVerticalScrollIndicator={false}>
-              {(() => {
-                console.log('🎨 Rendering exercise sections - Core:', coreExercises.length, 'Bonus:', bonusExercises.length, 'SelectedWorkout:', selectedWorkoutId);
-
-                const sections = [];
-
-                if (coreExercises.length > 0) {
-                  console.log('🎨 Rendering Core Exercises section');
-                  sections.push(
-                    <View key="core-header">
-                      <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Core Exercises</Text>
-                        <Text style={styles.sectionCount}>
-                          {coreExercises.length} / {coreExercises.length + bonusExercises.length}
-                        </Text>
-                      </View>
-                      <View style={styles.exerciseCard}>
-                        <View style={styles.exerciseListContainer}>
-                          {coreExercises.map((exercise, index) => {
-                            console.log('🎨 Calling renderExercise for core:', exercise.exercise_name);
-                            return renderExercise(exercise, index, false, coreExercises.length);
-                          })}
-                        </View>
-                      </View>
+              {coreExercises.length > 0 && (
+                <View key="core-header">
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Core Exercises</Text>
+                    <Text style={styles.sectionCount}>
+                      {coreExercises.length} / {coreExercises.length + bonusExercises.length}
+                    </Text>
+                  </View>
+                  <View style={styles.exerciseCard}>
+                    <View style={styles.exerciseListContainer}>
+                      {coreExercises.map((exercise, index) => {
+                        return renderExercise(exercise, index, false, coreExercises.length);
+                      })}
                     </View>
-                  );
-                }
+                  </View>
+                </View>
+              )}
 
-                if (bonusExercises.length > 0) {
-                  console.log('🎨 Rendering Bonus Exercises section');
-                  sections.push(
-                    <View key="bonus-header">
-                      <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Bonus Exercises</Text>
-                        <Text style={styles.sectionCount}>
-                          {bonusExercises.length} / {coreExercises.length + bonusExercises.length}
-                        </Text>
-                      </View>
-                      <View style={styles.exerciseCard}>
-                        <View style={styles.exerciseListContainer}>
-                          {bonusExercises.map((exercise, index) => {
-                            console.log('🎨 Calling renderExercise for bonus:', exercise.exercise_name);
-                            return renderExercise(exercise, index, true, bonusExercises.length);
-                          })}
-                        </View>
-                      </View>
+              {bonusExercises.length > 0 && (
+                <View key="bonus-header">
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Bonus Exercises</Text>
+                    <Text style={styles.sectionCount}>
+                      {bonusExercises.length} / {coreExercises.length + bonusExercises.length}
+                    </Text>
+                  </View>
+                  <View style={styles.exerciseCard}>
+                    <View style={styles.exerciseListContainer}>
+                      {bonusExercises.map((exercise, index) => {
+                        return renderExercise(exercise, index, true, bonusExercises.length);
+                      })}
                     </View>
-                  );
-                }
+                  </View>
+                </View>
+              )}
 
-                if (coreExercises.length === 0 && bonusExercises.length === 0 && selectedWorkoutId) {
-                  console.log('🎨 Rendering empty state - no exercises loaded');
-                  sections.push(
-                    <View key="empty" style={styles.emptyState}>
-                      <Text style={styles.emptyText}>No exercises in this workout</Text>
-                      <Text style={styles.emptySubtext}>Tap "Add Exercises" to get started</Text>
-                    </View>
-                  );
-                }
-
-                console.log('🎨 Total sections to render:', sections.length);
-                return sections;
-              })()}
+              {coreExercises.length === 0 && bonusExercises.length === 0 && selectedWorkoutId && (
+                <View key="empty" style={styles.emptyState}>
+                  <Text style={styles.emptyText}>No exercises in this workout</Text>
+                  <Text style={styles.emptySubtext}>Tap "Add Exercises" to get started</Text>
+                </View>
+              )}
             </ScrollView>
           )}
 

@@ -165,7 +165,7 @@ export function BackgroundRoot() {
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: -1,
+    zIndex: 0,
   },
   base: {
     ...StyleSheet.absoluteFillObject,

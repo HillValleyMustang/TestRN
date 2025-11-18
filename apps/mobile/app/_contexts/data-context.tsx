@@ -354,7 +354,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     return points;
   };
 
-  const loadDashboardSnapshot = useCallback(async () => {
+  const loadDashboardSnapshot = useCallback(async (): Promise<DashboardSnapshot> => {
     if (!userId) {
       return {
         profile: null,
@@ -371,7 +371,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         activeTPath: null,
         tPathWorkouts: [],
         nextWorkout: null,
-      } satisfies DashboardSnapshot;
+      };
     }
 
     let latestProfile = profileCache;
@@ -636,12 +636,12 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     if (gyms.length > 0 && !activeGym) {
       console.log('[DataContext] No active gym found, ensuring first gym is active');
       try {
-        // Use the best gym (most recent update) rather than just first
-        const gymsToConsider = gyms.filter(g => !g.is_active);
-        const bestGym = gymsToConsider.length > 0 ? gymsToConsider[0] : gyms[0];
+        // Use the most recently created gym as active
+        const gymsToConsider = gyms;
+        const bestGym = gymsToConsider[0]; // Take first gym
         
         await database.setActiveGym(userId, bestGym.id);
-        finalActiveGym = bestGym;
+        finalActiveGym = { ...bestGym, is_active: true }; // Force set is_active to true
         console.log('[DataContext] Successfully set gym as active:', bestGym.name);
       } catch (error) {
         console.error('[DataContext] Failed to auto-set gym as active:', error);
@@ -727,6 +727,14 @@ console.log('Weekly summary calculation:', {
       total_sessions: uniqueWorkouts.length,
     };
 
+    // Use the filtered recentWorkouts for workout progression logic
+    // Sort by date to get the most recent completed workout first
+    const sortedRecentWorkouts = [...recentWorkouts].sort((a, b) => {
+      const dateA = new Date(a.completed_at || a.session_date);
+      const dateB = new Date(b.completed_at || b.session_date);
+      return dateB.getTime() - dateA.getTime(); // Most recent first
+    });
+
     const activeTPathRecord = latestProfile?.active_t_path_id
       ? await database.getTPath(latestProfile.active_t_path_id)
       : null;
@@ -749,92 +757,233 @@ console.log('Weekly summary calculation:', {
     let nextWorkout: DashboardProgram | null = null;
     
     if (tPathWorkouts.length > 0) {
-      if (programmeType === 'ppl' && recentWorkouts.length === 0) {
-        // For new PPL users with no workout history, start with "Push"
-        nextWorkout = tPathWorkouts.find(workout =>
-          workout.template_name.toLowerCase().includes('push')
-        ) || tPathWorkouts[0];
-      } else if (programmeType === 'ppl' && recentWorkouts.length > 0) {
-        // For PPL users with workout history, determine progression
-        const lastWorkout = recentWorkouts[0]; // Most recent workout
-        const workoutType = lastWorkout.template_name?.toLowerCase() || '';
-        
-        if (workoutType.includes('push')) {
-          // After Push, next is Pull
-          nextWorkout = tPathWorkouts.find(workout =>
-            workout.template_name.toLowerCase().includes('pull')
-          ) || tPathWorkouts[0];
-        } else if (workoutType.includes('pull')) {
-          // After Pull, next is Legs
-          nextWorkout = tPathWorkouts.find(workout =>
-            workout.template_name.toLowerCase().includes('leg')
-          ) || tPathWorkouts[0];
-        } else if (workoutType.includes('leg')) {
-          // After Legs, next is Push (cycle continues)
+      // Handle programme type determination with proper type checking
+      if (programmeType === 'ppl') {
+        if (recentWorkouts.length === 0) {
+          // For new PPL users with no workout history, start with "Push"
           nextWorkout = tPathWorkouts.find(workout =>
             workout.template_name.toLowerCase().includes('push')
           ) || tPathWorkouts[0];
+        } else if (sortedRecentWorkouts.length > 0) {
+          // For PPL users with workout history, determine progression
+          const lastWorkout = sortedRecentWorkouts[0]; // Most recent workout
+          const secondLastWorkout = sortedRecentWorkouts[1]; // Second most recent
+          const workoutType = lastWorkout.template_name?.toLowerCase() || '';
+          const secondWorkoutType = secondLastWorkout?.template_name?.toLowerCase() || '';
+          
+          console.log('PPL progression - last workout:', workoutType);
+          console.log('PPL progression - second last workout:', secondWorkoutType);
+          console.log('Available workouts:', tPathWorkouts.map(w => w.template_name));
+          
+          // First, detect if we have a duplicate workout sequence (like Push -> Push)
+          // This handles cases where "Legs" template actually contains Push exercises
+          const isDuplicateSequence = (
+            // Direct duplicates
+            workoutType === secondWorkoutType ||
+            // Template name mismatches but same muscle groups
+            (workoutType.includes('push') && secondWorkoutType.includes('push')) ||
+            (workoutType.includes('pull') && secondWorkoutType.includes('pull')) ||
+            (workoutType.includes('leg') && secondWorkoutType.includes('leg')) ||
+            // Cross-template mismatches (Legs template with Push exercises after Push workout)
+            (workoutType.includes('leg') && secondWorkoutType.includes('push'))
+          );
+          
+          console.log('Duplicate sequence detected:', isDuplicateSequence);
+          
+          if (isDuplicateSequence) {
+            // Handle duplicate sequence by skipping to the next logical workout
+            console.log('🎯 DETECTED DUPLICATE SEQUENCE! Handling accordingly...');
+            
+            if (workoutType.includes('push') || workoutType.includes('leg')) {
+              // If last workout was Push (or Legs template with Push exercises), next should be Pull
+              const pullWorkout = tPathWorkouts.find(workout =>
+                workout.template_name.toLowerCase().includes('pull')
+              );
+              
+              if (pullWorkout) {
+                nextWorkout = pullWorkout;
+                console.log('✅ Duplicate Push sequence → Pull selected:', nextWorkout?.template_name);
+              } else {
+                // Fallback: find any non-Push/non-Legs workout
+                const fallbackWorkout = tPathWorkouts.find(workout =>
+                  !workout.template_name.toLowerCase().includes('push') &&
+                  !workout.template_name.toLowerCase().includes('leg')
+                );
+                nextWorkout = fallbackWorkout || tPathWorkouts[0];
+                console.log('⚠️  No Pull found, using fallback:', nextWorkout?.template_name);
+              }
+            } else if (workoutType.includes('pull')) {
+              // If last workout was Pull, next should be Legs
+              const legsWorkout = tPathWorkouts.find(workout =>
+                workout.template_name.toLowerCase().includes('leg')
+              );
+              
+              if (legsWorkout) {
+                nextWorkout = legsWorkout;
+                console.log('✅ Duplicate Pull sequence → Legs selected:', nextWorkout?.template_name);
+              } else {
+                // Fallback: find any non-Pull workout
+                const fallbackWorkout = tPathWorkouts.find(workout =>
+                  !workout.template_name.toLowerCase().includes('pull')
+                );
+                nextWorkout = fallbackWorkout || tPathWorkouts[0];
+                console.log('⚠️  No Legs found, using fallback:', nextWorkout?.template_name);
+              }
+            } else {
+              // Default for other duplicates - prioritize Pull
+              nextWorkout = tPathWorkouts.find(workout =>
+                workout.template_name.toLowerCase().includes('pull')
+              ) || tPathWorkouts[0];
+              console.log('🔄 Unknown duplicate, defaulting to Pull:', nextWorkout?.template_name);
+            }
+          } else {
+            // Enhanced logic that considers multiple recent workouts
+            if (workoutType.includes('push') && !secondWorkoutType.includes('pull')) {
+              // If last was Push and second last wasn't Pull, next should be Pull
+              nextWorkout = tPathWorkouts.find(workout =>
+                workout.template_name.toLowerCase().includes('pull')
+              ) || tPathWorkouts[0];
+              console.log('After Push, next should be Pull:', nextWorkout?.template_name);
+            } else if (workoutType.includes('pull') && !secondWorkoutType.includes('leg')) {
+              // If last was Pull and second last wasn't Legs, next should be Legs
+              nextWorkout = tPathWorkouts.find(workout =>
+                workout.template_name.toLowerCase().includes('leg')
+              ) || tPathWorkouts[0];
+              console.log('After Pull, next should be Legs:', nextWorkout?.template_name);
+            } else {
+              // Enhanced logic that considers multiple recent workouts
+              if (workoutType.includes('leg')) {
+                // Check if this "Legs" workout is actually a duplicate of Push
+                const isLegsWorkoutActuallyPush = secondWorkoutType.includes('push');
+                
+                if (isLegsWorkoutActuallyPush) {
+                  // If last was "Legs" (but actually Push) and second was Push, next should be Pull
+                  nextWorkout = tPathWorkouts.find(workout =>
+                    workout.template_name.toLowerCase().includes('pull')
+                  ) || tPathWorkouts.find(workout =>
+                    !workout.template_name.toLowerCase().includes('push') &&
+                    !workout.template_name.toLowerCase().includes('leg')
+                  ) || tPathWorkouts[0];
+                  console.log('Legs workout (actually Push) after Push, next should be Pull:', nextWorkout?.template_name);
+                } else {
+                  // If it was a real Legs workout (not following Push), next should be Push
+                  nextWorkout = tPathWorkouts.find(workout =>
+                    workout.template_name.toLowerCase().includes('push')
+                  ) || tPathWorkouts[0];
+                  console.log('Real Legs workout (not Push), next should be Push:', nextWorkout?.template_name);
+                }
+              } else if (workoutType.includes('pull') && secondWorkoutType.includes('push')) {
+                // If sequence was Push -> Pull, next should be Legs
+                nextWorkout = tPathWorkouts.find(workout =>
+                  workout.template_name.toLowerCase().includes('leg')
+                ) || tPathWorkouts[0];
+                console.log('Push -> Pull sequence, next should be Legs:', nextWorkout?.template_name);
+              } else {
+                // Unknown workout sequence, try to infer from available workouts
+                if (tPathWorkouts.length === 3) {
+                  // Standard PPL has 3 workouts
+                  const hasPush = tPathWorkouts.some(w => w.template_name.toLowerCase().includes('push'));
+                  const hasPull = tPathWorkouts.some(w => w.template_name.toLowerCase().includes('pull'));
+                  const hasLegs = tPathWorkouts.some(w => w.template_name.toLowerCase().includes('leg'));
+                  
+                  if (hasPush && hasPull && hasLegs) {
+                    if (workoutType.includes('pull')) {
+                      nextWorkout = tPathWorkouts.find(w => w.template_name.toLowerCase().includes('leg')) || tPathWorkouts[0];
+                    } else if (workoutType.includes('push')) {
+                      nextWorkout = tPathWorkouts.find(w => w.template_name.toLowerCase().includes('pull')) || tPathWorkouts[0];
+                    } else {
+                      nextWorkout = tPathWorkouts.find(w => w.template_name.toLowerCase().includes('push')) || tPathWorkouts[0];
+                    }
+                  } else {
+                    nextWorkout = tPathWorkouts[0];
+                  }
+                } else {
+                  // Unknown workout type, default to first or "Push"
+                  nextWorkout = tPathWorkouts.find(workout =>
+                    workout.template_name.toLowerCase().includes('push')
+                  ) || tPathWorkouts[0];
+                }
+                console.log('Unknown workout type or sequence, defaulted to:', nextWorkout?.template_name);
+              }
+            }
+          }
         } else {
-          // Unknown workout type, default to first or "Push"
-          nextWorkout = tPathWorkouts.find(workout =>
-            workout.template_name.toLowerCase().includes('push')
-          ) || tPathWorkouts[0];
+          // PPL with no sorted recent workouts, use first workout
+          nextWorkout = tPathWorkouts[0];
         }
-      } else if (programmeType === 'ulul' && recentWorkouts.length === 0) {
-        // For new ULUL users with no workout history, start with "Upper Body A"
-        nextWorkout = tPathWorkouts.find(workout =>
-          workout.template_name.toLowerCase().includes('upper') &&
-          workout.template_name.toLowerCase().includes('a')
-        ) || tPathWorkouts.find(workout =>
-          workout.template_name.toLowerCase().includes('upper')
-        ) || tPathWorkouts[0];
-      } else if (programmeType === 'ulul' && recentWorkouts.length > 0) {
-        // For ULUL users with workout history, determine progression
-        const lastWorkout = recentWorkouts[0]; // Most recent workout
-        const workoutType = lastWorkout.template_name?.toLowerCase() || '';
-        
-        if (workoutType.includes('upper') && workoutType.includes('a')) {
-          // After Upper Body A, next is Lower Body A
-          nextWorkout = tPathWorkouts.find(workout =>
-            workout.template_name.toLowerCase().includes('lower') &&
-            workout.template_name.toLowerCase().includes('a')
-          ) || tPathWorkouts.find(workout =>
-            workout.template_name.toLowerCase().includes('lower')
-          ) || tPathWorkouts[0];
-        } else if (workoutType.includes('lower') && workoutType.includes('a')) {
-          // After Lower Body A, next is Upper Body B
-          nextWorkout = tPathWorkouts.find(workout =>
-            workout.template_name.toLowerCase().includes('upper') &&
-            workout.template_name.toLowerCase().includes('b')
-          ) || tPathWorkouts[0];
-        } else if (workoutType.includes('upper') && workoutType.includes('b')) {
-          // After Upper Body B, next is Lower Body B
-          nextWorkout = tPathWorkouts.find(workout =>
-            workout.template_name.toLowerCase().includes('lower') &&
-            workout.template_name.toLowerCase().includes('b')
-          ) || tPathWorkouts[0];
-        } else if (workoutType.includes('lower') && workoutType.includes('b')) {
-          // After Lower Body B, next is Upper Body A (cycle continues)
+      } else if (programmeType === 'ulul') {
+        if (recentWorkouts.length === 0) {
+          // For new ULUL users with no workout history, start with "Upper Body A"
           nextWorkout = tPathWorkouts.find(workout =>
             workout.template_name.toLowerCase().includes('upper') &&
             workout.template_name.toLowerCase().includes('a')
           ) || tPathWorkouts.find(workout =>
             workout.template_name.toLowerCase().includes('upper')
           ) || tPathWorkouts[0];
+        } else if (sortedRecentWorkouts.length > 0) {
+          // For ULUL users with workout history, determine progression
+          const lastWorkout = sortedRecentWorkouts[0]; // Most recent workout
+          const secondLastWorkout = sortedRecentWorkouts[1]; // Second most recent
+          const workoutType = lastWorkout.template_name?.toLowerCase() || '';
+          const secondWorkoutType = secondLastWorkout?.template_name?.toLowerCase() || '';
+          
+          console.log('ULUL progression - last workout:', workoutType);
+          console.log('ULUL progression - second last workout:', secondWorkoutType);
+          
+          if (workoutType.includes('upper') && workoutType.includes('a') && !secondWorkoutType.includes('lower')) {
+            // After Upper A and last wasn't Lower A, next should be Lower A
+            nextWorkout = tPathWorkouts.find(workout =>
+              workout.template_name.toLowerCase().includes('lower') &&
+              workout.template_name.toLowerCase().includes('a')
+            ) || tPathWorkouts.find(workout =>
+              workout.template_name.toLowerCase().includes('lower')
+            ) || tPathWorkouts[0];
+          } else if (workoutType.includes('lower') && workoutType.includes('a') && !secondWorkoutType.includes('upper')) {
+            // After Lower A and last wasn't Upper B, next should be Upper B
+            nextWorkout = tPathWorkouts.find(workout =>
+              workout.template_name.toLowerCase().includes('upper') &&
+              workout.template_name.toLowerCase().includes('b')
+            ) || tPathWorkouts[0];
+          } else if (workoutType.includes('upper') && workoutType.includes('b') && !secondWorkoutType.includes('lower')) {
+            // After Upper B and last wasn't Lower B, next should be Lower B
+            nextWorkout = tPathWorkouts.find(workout =>
+              workout.template_name.toLowerCase().includes('lower') &&
+              workout.template_name.toLowerCase().includes('b')
+            ) || tPathWorkouts[0];
+          } else if (workoutType.includes('lower') && workoutType.includes('b')) {
+            // After Lower B, next is Upper A (cycle continues)
+            nextWorkout = tPathWorkouts.find(workout =>
+              workout.template_name.toLowerCase().includes('upper') &&
+              workout.template_name.toLowerCase().includes('a')
+            ) || tPathWorkouts.find(workout =>
+              workout.template_name.toLowerCase().includes('upper')
+            ) || tPathWorkouts[0];
+          } else {
+            // Unknown workout type for ULUL, default to Upper Body A
+            nextWorkout = tPathWorkouts.find(workout =>
+              workout.template_name.toLowerCase().includes('upper') &&
+              workout.template_name.toLowerCase().includes('a')
+            ) || tPathWorkouts.find(workout =>
+              workout.template_name.toLowerCase().includes('upper')
+            ) || tPathWorkouts[0];
+          }
         } else {
-          // Unknown workout type for ULUL, default to Upper Body A
-          nextWorkout = tPathWorkouts.find(workout =>
-            workout.template_name.toLowerCase().includes('upper') &&
-            workout.template_name.toLowerCase().includes('a')
-          ) || tPathWorkouts.find(workout =>
-            workout.template_name.toLowerCase().includes('upper')
-          ) || tPathWorkouts[0];
+          // ULUL with no sorted recent workouts, use first workout
+          nextWorkout = tPathWorkouts[0];
         }
       } else {
         // For unknown program types, use first workout
         nextWorkout = tPathWorkouts[0];
       }
     }
+
+    console.log('Final nextWorkout determination:', {
+      programmeType,
+      totalRecentWorkouts: sortedRecentWorkouts.length,
+      lastWorkout: sortedRecentWorkouts[0]?.template_name,
+      nextWorkout: nextWorkout?.template_name,
+      availableWorkouts: tPathWorkouts.map(w => w.template_name)
+    });
 
     // Prevent inconsistent state by ensuring we don't return null activeTPath when we have tPathWorkouts
     const stableActiveTPath = activeTPath || (tPathWorkouts.length > 0 && latestProfile?.active_t_path_id ? {

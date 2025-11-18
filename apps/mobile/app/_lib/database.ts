@@ -31,7 +31,7 @@ class Database {
 
     this.initPromise = (async () => {
       console.log('[Database] Starting database initialization with MIGRATION BLOCKING');
-      
+
       try {
         this.db = await SQLite.openDatabaseAsync(DB_NAME);
         console.log('[Database] Database connection opened');
@@ -58,7 +58,7 @@ class Database {
       // Only create standard tables AFTER migration is complete
       await this.db!.execAsync(`
       PRAGMA journal_mode = WAL;
-      
+
       CREATE TABLE IF NOT EXISTS workout_sessions (
         id TEXT PRIMARY KEY NOT NULL,
         user_id TEXT,
@@ -70,7 +70,7 @@ class Database {
         completed_at TEXT,
         t_path_id TEXT
       );
-      
+
       CREATE TABLE IF NOT EXISTS set_logs (
         id TEXT PRIMARY KEY NOT NULL,
         session_id TEXT NOT NULL,
@@ -84,7 +84,7 @@ class Database {
         created_at TEXT NOT NULL,
         FOREIGN KEY (session_id) REFERENCES workout_sessions(id)
       );
-      
+
       CREATE TABLE IF NOT EXISTS sync_queue (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         operation TEXT NOT NULL,
@@ -94,7 +94,7 @@ class Database {
         attempts INTEGER NOT NULL DEFAULT 0,
         error TEXT
       );
-      
+
       CREATE TABLE IF NOT EXISTS workout_templates (
         id TEXT PRIMARY KEY NOT NULL,
         user_id TEXT NOT NULL,
@@ -324,29 +324,71 @@ class Database {
           
           // PHASE 2: Migration t_path_exercises table
           console.log(`[DEBUG] 🔧 PHASE 2: Migrating t_path_exercises table...`);
-          try {
+          
+          // Check if table needs migration first (safer approach)
+          const tPathExercisesTableInfo = await db.getAllAsync<any>("PRAGMA table_info(t_path_exercises);");
+          const tPathExercisesColumns = tPathExercisesTableInfo.map((col: any) => col.name);
+          
+          // Only drop and recreate if template_id column is missing
+          if (!tPathExercisesColumns.includes('template_id')) {
+            console.log(`[DEBUG] 🔄 template_id column missing, performing table migration...`);
+            
+            // Backup existing data if any (before dropping)
+            const existingData = await db.getAllAsync<any>('SELECT * FROM t_path_exercises');
+            console.log(`[DEBUG] 💾 Backing up ${existingData.length} existing t_path_exercises records`);
+            
+            // Drop and recreate with proper schema
             await db.execAsync('DROP TABLE IF EXISTS t_path_exercises');
             console.log(`[DEBUG] ✅ Dropped existing t_path_exercises table`);
-          } catch (dropError: any) {
-            console.warn(`[DEBUG] ❌ Drop t_path_exercises table failed:`, dropError.message);
+            
+            await db.execAsync(`CREATE TABLE t_path_exercises (
+              id TEXT PRIMARY KEY NOT NULL,
+              template_id TEXT NOT NULL,
+              exercise_id TEXT NOT NULL,
+              order_index INTEGER NOT NULL DEFAULT 0,
+              created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              is_bonus_exercise INTEGER DEFAULT 0
+            )`);
+            console.log(`[DEBUG] ✅ Created fresh t_path_exercises table with template_id`);
+            
+            // Restore data if any existed (using t_path_id -> template_id mapping)
+            if (existingData.length > 0) {
+              console.log(`[DEBUG] 🔄 Restoring ${existingData.length} t_path_exercises records...`);
+              
+              for (const record of existingData) {
+                try {
+                  // Map old t_path_id to template_id
+                  const templateId = record.t_path_id || record.template_id;
+                  await db.runAsync(
+                    `INSERT OR REPLACE INTO t_path_exercises
+                     (id, template_id, exercise_id, order_index, created_at, is_bonus_exercise)
+                     VALUES (?, ?, ?, ?, ?, ?)`,
+                    [
+                      record.id,
+                      templateId,
+                      record.exercise_id,
+                      record.order_index || 0,
+                      record.created_at || new Date().toISOString(),
+                      record.is_bonus_exercise ? 1 : 0
+                    ]
+                  );
+                } catch (restoreError: any) {
+                  console.warn(`[DEBUG] ⚠️  Failed to restore t_path_exercises record:`, restoreError.message);
+                }
+              }
+              
+              console.log(`[DEBUG] ✅ Completed t_path_exercises data restoration`);
+            }
+          } else {
+            console.log(`[DEBUG] ✅ t_path_exercises table already has template_id column - no migration needed`);
           }
           
-          await db.execAsync(`CREATE TABLE t_path_exercises (
-            id TEXT PRIMARY KEY NOT NULL,
-            template_id TEXT NOT NULL,
-            exercise_id TEXT NOT NULL,
-            order_index INTEGER NOT NULL DEFAULT 0,
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            is_bonus_exercise INTEGER DEFAULT 0
-          )`);
-          console.log(`[DEBUG] ✅ Created fresh t_path_exercises table with template_id`);
+          // Verify t_path_exercises table structure
+          const tPathExercisesFinalCheck = await db.getAllAsync<any>("PRAGMA table_info(t_path_exercises);");
+          const tPathExercisesFinalColumns = tPathExercisesFinalCheck.map((col: any) => col.name);
+          console.log(`[DEBUG] ✅ t_path_exercises final columns:`, tPathExercisesFinalColumns);
           
-          // Verify t_path_exercises table creation
-          const tPathExercisesVerification = await db.getAllAsync<any>("PRAGMA table_info(t_path_exercises);");
-          const tPathExercisesVerificationColumns = tPathExercisesVerification.map((col: any) => col.name);
-          console.log(`[DEBUG] ✅ t_path_exercises verification columns:`, tPathExercisesVerificationColumns);
-          
-          if (!tPathExercisesVerificationColumns.includes('template_id')) {
+          if (!tPathExercisesFinalColumns.includes('template_id')) {
             throw new Error('CRITICAL: template_id column missing after t_path_exercises table creation');
           }
 
@@ -553,7 +595,7 @@ class Database {
     // Backup existing data if any
     let existingData: any[] = [];
     try {
-      existingData = await db.getAllAsync<any>('SELECT * FROM profiles');
+      existingData = await db.getAllAsync('SELECT * FROM profiles');
       console.log(`[DEBUG] 💾 Backing up ${existingData.length} existing profile records`);
       
       // Log sample of existing data structure
@@ -667,11 +709,11 @@ class Database {
     }
     
     // Final verification
-    const restoredCount = await db.getFirstAsync<any>('SELECT COUNT(*) as count FROM profiles');
+    const restoredCount = await db.getFirstAsync('SELECT COUNT(*) as count FROM profiles');
     console.log(`[DEBUG] ✅ Final profile count: ${restoredCount?.count || 0}`);
     
     // Verify critical columns exist
-    const finalProfilesTableInfo = await db.getAllAsync<any>("PRAGMA table_info(profiles);");
+    const finalProfilesTableInfo = await db.getAllAsync("PRAGMA table_info(profiles);");
     const finalProfileColumns = finalProfilesTableInfo.map((col: any) => col.name);
     console.log(`[DEBUG] ✅ Final profiles columns:`, finalProfileColumns);
     
@@ -1851,6 +1893,14 @@ class Database {
     return result || null;
   }
 
+  async getExerciseDefinitions(): Promise<any[]> {
+    const db = this.getDB();
+    const result = await db.getAllAsync<any>(
+      'SELECT id, name FROM exercise_definitions ORDER BY name ASC'
+    );
+    return result;
+  }
+
   // Cleanup incomplete workout sessions older than specified hours
   async cleanupIncompleteSessions(olderThanHours: number = 24): Promise<number> {
     const db = this.getDB();
@@ -2200,6 +2250,194 @@ class Database {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       console.error('[Database] Emergency reset failed:', error);
       return { success: false, error: errorMsg };
+    }
+  }
+
+  // DATA CLEANUP METHODS - Prevent storage bloat
+  async cleanupOldWorkoutData(userId: string): Promise<{ cleanedRecords: number; freedSpace: string }> {
+    const db = this.getDB();
+    let totalCleaned = 0;
+
+    try {
+      // Keep detailed set logs for only last 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const detailedCutoff = thirtyDaysAgo.toISOString();
+
+      // Delete old detailed set logs (keep summaries)
+      const oldSetLogsResult = await db.runAsync(
+        `DELETE FROM set_logs WHERE created_at < ? AND session_id IN (
+          SELECT id FROM workout_sessions WHERE completed_at < ?
+        )`,
+        [detailedCutoff, detailedCutoff]
+      );
+      totalCleaned += oldSetLogsResult.changes || 0;
+      console.log(`[Cleanup] Removed ${oldSetLogsResult.changes || 0} old set logs`);
+
+      // Keep only last 100 workout sessions per user
+      const recentSessions = await db.getAllAsync<{ id: string }>(
+        `SELECT id FROM workout_sessions
+         WHERE user_id = ?
+         ORDER BY completed_at DESC
+         LIMIT 100 OFFSET 100`, // Skip first 100, delete the rest
+        [userId]
+      );
+
+      if (recentSessions.length > 0) {
+        const sessionIds = recentSessions.map(s => s.id);
+        const oldSessionsResult = await db.runAsync(
+          `DELETE FROM workout_sessions WHERE id IN (${sessionIds.map(() => '?').join(',')})`,
+          sessionIds
+        );
+        totalCleaned += oldSessionsResult.changes || 0;
+        console.log(`[Cleanup] Removed ${oldSessionsResult.changes || 0} old workout sessions`);
+      }
+
+      // Estimate freed space (rough calculation)
+      const avgRecordSize = 500; // bytes per record
+      const freedBytes = totalCleaned * avgRecordSize;
+      const freedSpace = freedBytes > 1024 * 1024
+        ? `${(freedBytes / (1024 * 1024)).toFixed(1)}MB`
+        : `${(freedBytes / 1024).toFixed(1)}KB`;
+
+      console.log(`[Cleanup] Total records cleaned: ${totalCleaned}, estimated space freed: ${freedSpace}`);
+
+      return { cleanedRecords: totalCleaned, freedSpace };
+    } catch (error) {
+      console.error('[Database] Cleanup failed:', error);
+      return { cleanedRecords: 0, freedSpace: '0KB' };
+    }
+  }
+
+  async getStorageStats(userId: string): Promise<{
+    workoutSessions: number;
+    setLogs: number;
+    estimatedSize: string;
+    lastCleanup: string | null;
+  }> {
+    const db = this.getDB();
+
+    try {
+      const sessionsResult = await db.getFirstAsync<{ count: number }>(
+        'SELECT COUNT(*) as count FROM workout_sessions WHERE user_id = ?',
+        [userId]
+      );
+
+      const setLogsResult = await db.getFirstAsync<{ count: number }>(
+        'SELECT COUNT(*) as count FROM set_logs WHERE session_id IN (SELECT id FROM workout_sessions WHERE user_id = ?)',
+        [userId]
+      );
+
+      const workoutSessions = sessionsResult?.count || 0;
+      const setLogs = setLogsResult?.count || 0;
+
+      // Rough size estimation
+      const estimatedBytes = (workoutSessions * 800) + (setLogs * 300); // Rough per-record sizes
+      const estimatedSize = estimatedBytes > 1024 * 1024
+        ? `${(estimatedBytes / (1024 * 1024)).toFixed(1)}MB`
+        : `${(estimatedBytes / 1024).toFixed(1)}KB`;
+
+      return {
+        workoutSessions,
+        setLogs,
+        estimatedSize,
+        lastCleanup: null // Could track this in a preferences table
+      };
+    } catch (error) {
+      console.error('[Database] Failed to get storage stats:', error);
+      return {
+        workoutSessions: 0,
+        setLogs: 0,
+        estimatedSize: '0KB',
+        lastCleanup: null
+      };
+    }
+  }
+
+  // AUTO CLEANUP - Call this during app initialization
+  async performAutoCleanup(userId: string): Promise<{ performed: boolean; cleanedRecords: number; reason: string }> {
+    try {
+      // Check if cleanup is needed (run weekly)
+      const lastCleanupKey = 'last_cleanup';
+      const lastCleanup = await this.getUserPreference(userId, lastCleanupKey);
+
+      const now = new Date();
+      const lastCleanupDate = lastCleanup ? new Date(lastCleanup) : null;
+      const daysSinceCleanup = lastCleanupDate
+        ? Math.floor((now.getTime() - lastCleanupDate.getTime()) / (1000 * 60 * 60 * 24))
+        : 999; // Force cleanup if never done
+
+      if (daysSinceCleanup < 7) {
+        return { performed: false, cleanedRecords: 0, reason: `Last cleanup ${daysSinceCleanup} days ago` };
+      }
+
+      console.log(`[AutoCleanup] Starting cleanup for user ${userId} (${daysSinceCleanup} days since last cleanup)`);
+
+      // Perform cleanup
+      const result = await this.cleanupOldWorkoutData(userId);
+
+      // Record cleanup timestamp
+      await this.saveUserPreference(userId, lastCleanupKey, now.toISOString());
+
+      console.log(`[AutoCleanup] Completed: ${result.cleanedRecords} records cleaned, ${result.freedSpace} freed`);
+
+      return {
+        performed: true,
+        cleanedRecords: result.cleanedRecords,
+        reason: `Cleaned ${result.cleanedRecords} records, freed ${result.freedSpace}`
+      };
+
+    } catch (error) {
+      console.error('[AutoCleanup] Failed:', error);
+      return { performed: false, cleanedRecords: 0, reason: 'Cleanup failed' };
+    }
+  }
+
+  // Helper methods for preferences (using existing user_preferences table structure)
+  private async getUserPreference(userId: string, key: string): Promise<string | null> {
+    try {
+      const db = this.getDB();
+      // Store preferences as JSON in the theme field (hack for now)
+      const result = await db.getFirstAsync<{ theme: string }>(
+        'SELECT theme FROM user_preferences WHERE user_id = ?',
+        [userId]
+      );
+
+      if (result?.theme && result.theme.startsWith('{')) {
+        const prefs = JSON.parse(result.theme);
+        return prefs[key] || null;
+      }
+
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async saveUserPreference(userId: string, key: string, value: string): Promise<void> {
+    try {
+      const db = this.getDB();
+
+      // Get existing preferences
+      const existingPrefs = await this.getUserPreference(userId, key) || '{}';
+      let prefs;
+      try {
+        prefs = JSON.parse(existingPrefs);
+      } catch {
+        prefs = {};
+      }
+
+      // Update preference
+      prefs[key] = value;
+
+      // Save back as JSON string in theme field (temporary solution)
+      await db.runAsync(
+        'INSERT OR REPLACE INTO user_preferences (user_id, theme, updated_at) VALUES (?, ?, ?)',
+        [userId, JSON.stringify(prefs), new Date().toISOString()]
+      );
+    } catch (error) {
+      console.warn('[Database] Failed to save preference:', error);
     }
   }
 

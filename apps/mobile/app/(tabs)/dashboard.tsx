@@ -10,8 +10,9 @@ import {
   ScrollView,
   RefreshControl,
   StyleSheet,
-  Animated,
   Alert,
+  Pressable,
+  Text,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '../_contexts/auth-context';
@@ -39,7 +40,7 @@ import {
 
 export default function DashboardScreen() {
   const { session, userId, loading: authLoading } = useAuth();
-  const { loadDashboardSnapshot, deleteWorkoutSession, setActiveGym, isSyncing, queueLength, isOnline } = useData();
+  const { loadDashboardSnapshot, deleteWorkoutSession, setActiveGym, isSyncing, queueLength, isOnline, forceRefreshProfile } = useData();
   const router = useRouter();
 
   useEffect(() => {
@@ -76,63 +77,7 @@ export default function DashboardScreen() {
   >([]);
   const [nextWorkout, setNextWorkout] = useState<DashboardProgram | null>(null);
 
-  // Animation values for staggered entrance - start fully visible
-  const fadeAnims = useRef([
-    new Animated.Value(1), // Welcome Header - 0.0s
-    new Animated.Value(1), // Weekly Target - 0.1s
-    new Animated.Value(1), // Action Hub - 0.2s
-    new Animated.Value(1), // Gym Toggle - 0.3s
-    new Animated.Value(1), // Next Workout - 0.4s
-    new Animated.Value(1), // All Workouts - 0.5s
-    new Animated.Value(1), // Volume Chart - 0.6s
-    new Animated.Value(1), // Previous Workouts - 0.7s
-  ]).current;
-
-  const translateYAnims = useRef([
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-  ]).current;
-
-  // Track if entrance animation has run
-  const hasAnimatedRef = useRef(false);
-
-  // Staggered animation on first load only
-  useEffect(() => {
-    if (hasAnimatedRef.current) return;
-
-    // Set initial values for animation
-    fadeAnims.forEach(anim => anim.setValue(0));
-    translateYAnims.forEach(anim => anim.setValue(-10));
-
-    const delays = [0, 100, 200, 300, 400, 500, 600, 700]; // milliseconds (0.0s → 0.7s in 0.1s increments)
-
-    const animations = fadeAnims.map((fadeAnim, index) => {
-      return Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 400,
-          delay: delays[index],
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateYAnims[index], {
-          toValue: 0,
-          duration: 400,
-          delay: delays[index],
-          useNativeDriver: true,
-        }),
-      ]);
-    });
-
-    Animated.stagger(0, animations).start(() => {
-      hasAnimatedRef.current = true;
-    });
-  }, []);
+  
 
   const fetchDashboardData = useCallback(async () => {
     if (!userId || isRefreshing) return;
@@ -218,11 +163,19 @@ export default function DashboardScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await fetchDashboardData();
+      // Force clear any cached data and refresh using the data context
+      console.log('[Dashboard] Manual refresh triggered - forcing data context refresh');
+      forceRefreshProfile();
+      
+      // Small delay to let the cache clear, then fetch fresh data
+      setTimeout(() => {
+        fetchDashboardData();
+        console.log('[Dashboard] Refresh completed');
+      }, 200);
     } finally {
       setRefreshing(false);
     }
-  }, [fetchDashboardData]);
+  }, [fetchDashboardData, forceRefreshProfile]);
 
   const userName =
     userProfile?.full_name ||
@@ -255,23 +208,7 @@ export default function DashboardScreen() {
     [deleteWorkoutSession, fetchDashboardData]
   );
 
-  // Component animation wrappers
-  const AnimatedView = ({
-    index,
-    children,
-  }: {
-    index: number;
-    children: React.ReactNode;
-  }) => (
-    <Animated.View
-      style={{
-        opacity: fadeAnims[index],
-        transform: [{ translateY: translateYAnims[index] }],
-      }}
-    >
-      {children}
-    </Animated.View>
-  );
+  
 
   // Show loading screen while checking onboarding status or data is being fetched
   if (!authLoading && session && userId && (!userProfile || loading)) {
@@ -308,16 +245,16 @@ export default function DashboardScreen() {
         }
       >
 
-        {/* 1. Welcome Header - 0.0s */}
-        <AnimatedView index={0}>
+        {/* 1. Welcome Header */}
+        <View>
           <WelcomeHeader
             userName={userName}
             accountCreatedAt={accountCreatedAt}
           />
-        </AnimatedView>
+        </View>
 
-        {/* 2. Weekly Target - 0.1s */}
-        <AnimatedView index={1}>
+        {/* 2. Weekly Target */}
+        <View>
           <WeeklyTargetWidget
             completedWorkouts={weeklySummary.completed_workouts}
             goalTotal={weeklySummary.goal_total}
@@ -327,21 +264,21 @@ export default function DashboardScreen() {
             onViewWorkoutSummary={handleViewSummary}
             loading={loading}
           />
-        </AnimatedView>
+        </View>
 
-        {/* 3. Action Hub - 0.2s */}
-        <AnimatedView index={2}>
+        {/* 3. Action Hub */}
+        <View>
           <ActionHubWidget
             onLogActivity={() => {}}
             onAICoach={() => {}}
             onWorkoutLog={() => {}}
             onConsistencyCalendar={() => {}}
           />
-        </AnimatedView>
+        </View>
 
-        {/* 4. Gym Toggle (only show if 2+ gyms) - 0.3s */}
+        {/* 4. Gym Toggle (only show if 2+ gyms) */}
         {gyms.length > 1 && (
-          <AnimatedView index={3}>
+          <View>
             <GymToggle
               gyms={gyms}
               activeGym={activeGym}
@@ -360,11 +297,11 @@ export default function DashboardScreen() {
                 }
               }}
             />
-          </AnimatedView>
+          </View>
         )}
 
-        {/* 5. Next Workout Card - 0.4s */}
-        <AnimatedView index={4}>
+        {/* 5. Next Workout Card */}
+        <View>
           <NextWorkoutCard
             workoutId={nextWorkout?.id}
             workoutName={nextWorkout?.template_name}
@@ -375,24 +312,24 @@ export default function DashboardScreen() {
             noActiveGym={!activeGym}
             noActiveTPath={!activeTPath}
           />
-        </AnimatedView>
+        </View>
 
-        {/* 6. All Workouts Quick Start - 0.5s */}
-        <AnimatedView index={5}>
+        {/* 6. All Workouts Quick Start */}
+        <View>
           <AllWorkoutsQuickStart
             programName={activeTPath?.template_name}
             workouts={tpathWorkouts}
             loading={loading}
           />
-        </AnimatedView>
+        </View>
 
-        {/* 7. Weekly Volume Chart - 0.6s */}
-        <AnimatedView index={6}>
+        {/* 7. Weekly Volume Chart */}
+        <View>
           <SimpleVolumeChart data={volumeData} />
-        </AnimatedView>
+        </View>
 
-        {/* 8. Previous Workouts - 0.7s */}
-        <AnimatedView index={7}>
+        {/* 8. Previous Workouts */}
+        <View>
           <PreviousWorkoutsWidget
             workouts={recentWorkouts.map(workout => ({
               id: workout.id,
@@ -406,7 +343,22 @@ export default function DashboardScreen() {
             onDelete={handleDeleteWorkout}
             loading={loading}
           />
-        </AnimatedView>
+        </View>
+
+        {/* Debug: Force Refresh Button */}
+        <View style={{ marginTop: 20, padding: 10, backgroundColor: '#f0f0f0', borderRadius: 8 }}>
+          <Pressable 
+            onPress={onRefresh}
+            style={{ padding: 10, backgroundColor: '#007AFF', borderRadius: 6 }}
+          >
+            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '600' }}>
+              🔄 Force Refresh Data
+            </Text>
+          </Pressable>
+          <Text style={{ fontSize: 12, color: '#666', marginTop: 5, textAlign: 'center' }}>
+            Debug: Force refresh to apply workout progression fix
+          </Text>
+        </View>
       </ScrollView>
     </View>
   );

@@ -7,7 +7,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../_contexts/auth-context';
 import { useData } from '../_contexts/data-context';
-import type { WorkoutSession } from '@data/storage/models';
 
 interface WorkoutHistorySession {
   id: string;
@@ -108,7 +107,7 @@ export default function useWorkoutHistory(): UseWorkoutHistoryReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [userId, getWorkoutSessions, getSetLogs]);
+  }, [userId]);
 
   useEffect(() => {
     fetchWorkoutHistory();

@@ -43,6 +43,8 @@ export function WeeklyTargetWidget({
   loading,
   error,
 }: WeeklyTargetWidgetProps) {
+  
+
   const workoutTypes = programmeType === 'ulul'
     ? ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B']
     : ['Push', 'Pull', 'Legs'];
@@ -179,7 +181,7 @@ export function WeeklyTargetWidget({
 
       <Text style={styles.progressText}>
         {completedWorkouts.length} / {goalTotal} Workouts Completed This Week
-        {totalSessions && totalSessions > completedWorkouts.length && (
+        {totalSessions && totalSessions > completedWorkouts.length && totalSessions > 0 && (
           <Text style={styles.sessionsText}> ({totalSessions} sessions)</Text>
         )}
       </Text>

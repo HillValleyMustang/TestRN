@@ -1,7 +1,6 @@
 /**
  * Workout Summary Modal
  * Shows a detailed summary of the completed workout
- * Reference: Web app workout summary functionality
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -14,6 +13,7 @@ import {
   Alert,
   Modal,
 } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import {
   CheckCircle,
   Clock,
@@ -33,12 +33,14 @@ import {
   Zap,
 } from 'lucide-react-native';
 import { useAuth } from './_contexts/auth-context';
+import { useRouter } from 'expo-router';
 import { Colors, Spacing, BorderRadius } from '../constants/Theme';
 import { TextStyles } from '../constants/Typography';
 import { supabase } from './_lib/supabase';
-import { dynamicProgramManager } from '../../../packages/data/src/ai/dynamic-program-manager';
-import { performanceForecaster } from '../../../packages/data/src/ai/performance-forecaster';
-import { periodizationManager } from '../../../packages/data/src/ai/periodization-manager';
+import { database } from './_lib/database';
+import { ScreenContainer } from '../components/layout';
+import { BackgroundRoot } from '../components/BackgroundRoot';
+import { ScreenHeader } from '../components/layout';
 
 const getCategoryColor = (category: 'push' | 'pull' | 'legs' | 'upper' | 'lower' | 'ad-hoc'): string => {
   switch (category) {
@@ -98,190 +100,281 @@ interface WorkoutSummaryData {
   personalRecords: number;
 }
 
-interface WorkoutSummaryModalProps {
-  visible: boolean;
-  sessionId: string | null;
-  onClose: () => void;
-  onDone: () => void;
-  onStartAnother: () => void;
-}
-
-export default function WorkoutSummaryModal({
-  visible,
-  sessionId,
-  onClose,
-  onDone,
-  onStartAnother,
-}: WorkoutSummaryModalProps) {
+export default function WorkoutSummaryModal() {
   const { userId } = useAuth();
+  const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
+  const router = useRouter();
 
-  const [summaryData, setSummaryData] = useState<WorkoutSummaryData | null>(
-    null
-  );
+  // Redirect to workout page if no valid sessionId
+  useEffect(() => {
+    if (!sessionId || !userId) {
+      console.log('[WorkoutSummary] No sessionId or userId, redirecting to workout page');
+      router.replace('/(tabs)/workout');
+      return;
+    }
+  }, [sessionId, userId, router]);
+
+  const [summaryData, setSummaryData] = useState<WorkoutSummaryData | null>(null);
   const [loading, setLoading] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
-  const [aiInsights, setAiInsights] = useState<any>(null);
 
-  // Reset state when modal closes
+  // Reset state when component unmounts
   useEffect(() => {
-    if (!visible) {
+    return () => {
       setSummaryData(null);
       setRating(null);
-      setAiInsights(null);
-    }
-  }, [visible]);
+    };
+  }, []);
 
-  const loadWorkoutSummary = useCallback(async () => {
-    if (!sessionId || !userId) return;
+  // CRITICAL: Enhanced data loading with user filtering
+  const loadWorkoutSummary = useCallback(async (): Promise<void> => {
+    if (!sessionId || !userId) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
+    // ENHANCED: Proper timeout protection that doesn't overwrite real data
+    let hasRealData = false;
+    const fallbackTimer = setTimeout(() => {
+      if (!hasRealData) {
+        const fallbackData: WorkoutSummaryData = {
+          sessionId: sessionId || 'unknown',
+          workoutName: 'Workout',
+          workoutCategory: 'ad-hoc',
+          duration: 'Completed',
+          completedAt: new Date().toISOString(),
+          exercises: [],
+          totalSets: 0,
+          totalVolume: 0,
+          personalRecords: 0,
+        };
+        setSummaryData(fallbackData);
+        setLoading(false);
+      }
+    }, 3000); // 3 second timeout
 
     try {
-      setLoading(true);
+      // HYBRID STRATEGY: Local DB first, Supabase as backup
+      // Step 1: Try local database (immediate, always available)
+      try {
+        const localSessions = await database.getWorkoutSessions(userId);
 
-      console.log('Loading workout summary for session:', sessionId);
+        const foundSession = localSessions.find((s: any) => s.id === sessionId);
 
-      // Get workout session details - force fresh data
-      const { data: session, error: sessionError } = await supabase
-        .from('workout_sessions')
-        .select('*')
-        .eq('id', sessionId)
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false }) // Force fresh query
-        .single();
+        if (foundSession) {
+          // Get set logs from local database
+          const setLogs = await database.getSetLogs(sessionId);
 
-      if (sessionError) throw sessionError;
+          if (setLogs && setLogs.length > 0) {
+            // Get exercise definitions from local database
+            const exerciseDefinitions = await database.getExerciseDefinitions();
+            const exerciseMap = new Map();
+            exerciseDefinitions.forEach((ex: any) => {
+              exerciseMap.set(ex.id, ex.name);
+            });
 
-      console.log('Session loaded:', session);
-      console.log('Session duration_string:', session.duration_string);
+            // Process workout data (same logic as before)
+            const exerciseMapResult = new Map();
+            let totalSets = setLogs.length;
+            let totalVolume = 0;
+            let personalRecords = 0;
 
-      // Get all set logs for this session
-      const { data: setLogs, error: setsError } = await supabase
-        .from('set_logs')
-        .select(
-          `
-          *,
-          exercise:exercise_definitions(name, main_muscle)
-        `
-        )
-        .eq('session_id', sessionId)
-        .order('exercise_id', { ascending: true })
-        .order('created_at', { ascending: true });
+            setLogs.forEach((set: any, index: number) => {
+              const exerciseName = exerciseMap.get(set.exercise_id) || `Exercise ${set.exercise_id?.slice(-4) || `Ex-${index}`}`;
 
-      console.log('Set logs for session:', sessionId, setLogs?.length || 0, 'sets found');
+              if (!exerciseMapResult.has(set.exercise_id)) {
+                exerciseMapResult.set(set.exercise_id, {
+                  id: set.exercise_id,
+                  name: exerciseName,
+                  sets: [],
+                });
+              }
 
-      if (setsError) throw setsError;
+              const exercise = exerciseMapResult.get(set.exercise_id);
+              const isPR = set.is_pb || false;
+              exercise.sets.push({
+                weight_kg: set.weight_kg,
+                reps: set.reps,
+                isPR: isPR,
+              });
 
-      // Group sets by exercise
-      const exerciseMap = new Map();
-      let totalSets = 0;
-      let totalVolume = 0;
-      let personalRecords = 0;
+              if (set.weight_kg && set.reps) {
+                totalVolume += set.weight_kg * set.reps;
+              }
+              if (isPR) {
+                personalRecords++;
+              }
+            });
 
-      setLogs?.forEach((set: any) => {
-        console.log('Processing set:', set);
-        console.log('Set is_pb value:', set.is_pb);
-        if (!exerciseMap.has(set.exercise_id)) {
-          exerciseMap.set(set.exercise_id, {
-            id: set.exercise_id,
-            name: set.exercise?.name || 'Unknown Exercise',
-            sets: [],
+            const exercises = Array.from(exerciseMapResult.values());
+
+            const workoutName = foundSession.template_name || 'Workout';
+            let workoutCategory: 'push' | 'pull' | 'legs' | 'upper' | 'lower' | 'ad-hoc' = 'ad-hoc';
+            const name = workoutName.toLowerCase();
+            if (name.includes('push')) workoutCategory = 'push';
+            else if (name.includes('pull')) workoutCategory = 'pull';
+            else if (name.includes('legs')) workoutCategory = 'legs';
+            else if (name.includes('upper')) workoutCategory = 'upper';
+            else if (name.includes('lower')) workoutCategory = 'lower';
+
+            const processedData: WorkoutSummaryData = {
+              sessionId,
+              workoutName,
+              workoutCategory,
+              duration: foundSession.duration_string || 'Completed',
+              completedAt: foundSession.completed_at || new Date().toISOString(),
+              exercises,
+              totalSets,
+              totalVolume,
+              personalRecords,
+            };
+
+            hasRealData = true;
+            clearTimeout(fallbackTimer);
+            setSummaryData(processedData);
+            return; // SUCCESS - no need to check Supabase
+          }
+        }
+      } catch (localError) {
+        // Local database query failed, falling back to Supabase
+      }
+
+      // Step 2: Local DB failed or no data - try Supabase as backup
+      const dataPromise = Promise.all([
+        supabase
+          .from('workout_sessions')
+          .select('*')
+          .eq('id', sessionId)
+          .eq('user_id', userId)
+          .maybeSingle(),
+        supabase
+          .from('set_logs')
+          .select('*')
+          .eq('session_id', sessionId)
+          .order('created_at', { ascending: true })
+      ]);
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Supabase timeout')), 2000)
+      );
+
+      const [{ data: sessionData }, { data: setLogs }] = await Promise.race([dataPromise, timeoutPromise]) as any;
+
+      if (setLogs && setLogs.length > 0) {
+
+        // Get exercise definitions from Supabase
+        const exerciseDefinitionsPromise = supabase
+          .from('exercise_definitions')
+          .select('id, name')
+          .or(`user_id.eq.${userId},user_id.is.null`);
+
+        const { data: exerciseDefinitions } = await exerciseDefinitionsPromise;
+
+        const exerciseMap = new Map();
+        if (exerciseDefinitions) {
+          exerciseDefinitions.forEach(ex => {
+            exerciseMap.set(ex.id, ex.name);
           });
         }
 
-        const exercise = exerciseMap.get(set.exercise_id);
-        const isPR = set.is_pb || false;
-        exercise.sets.push({
-          weight_kg: set.weight_kg,
-          reps: set.reps,
-          isPR: isPR,
+        // Process workout data (same as local)
+        const exerciseMapResult = new Map();
+        let totalSets = setLogs.length;
+        let totalVolume = 0;
+        let personalRecords = 0;
+
+        setLogs.forEach((set: any, index: number) => {
+          const exerciseName = exerciseMap.get(set.exercise_id) || `Exercise ${set.exercise_id?.slice(-4) || `Ex-${index}`}`;
+
+          if (!exerciseMapResult.has(set.exercise_id)) {
+            exerciseMapResult.set(set.exercise_id, {
+              id: set.exercise_id,
+              name: exerciseName,
+              sets: [],
+            });
+          }
+
+          const exercise = exerciseMapResult.get(set.exercise_id);
+          const isPR = set.is_pb || false;
+          exercise.sets.push({
+            weight_kg: set.weight_kg,
+            reps: set.reps,
+            isPR: isPR,
+          });
+
+          if (set.weight_kg && set.reps) {
+            totalVolume += set.weight_kg * set.reps;
+          }
+          if (isPR) {
+            personalRecords++;
+          }
         });
 
-        totalSets++;
-        if (set.weight_kg && set.reps) {
-          totalVolume += set.weight_kg * set.reps;
-        }
-        if (isPR) {
-          personalRecords++;
-          console.log('Found PR set:', { exercise: exercise.name, weight: set.weight_kg, reps: set.reps });
-        }
-      });
+        const exercises = Array.from(exerciseMapResult.values());
 
-      console.log('Exercise map size:', exerciseMap.size);
-      console.log('Exercises found:', Array.from(exerciseMap.keys()));
+        const workoutName = sessionData?.template_name || 'Workout';
+        let workoutCategory: 'push' | 'pull' | 'legs' | 'upper' | 'lower' | 'ad-hoc' = 'ad-hoc';
+        const name = workoutName.toLowerCase();
+        if (name.includes('push')) workoutCategory = 'push';
+        else if (name.includes('pull')) workoutCategory = 'pull';
+        else if (name.includes('legs')) workoutCategory = 'legs';
+        else if (name.includes('upper')) workoutCategory = 'upper';
+        else if (name.includes('lower')) workoutCategory = 'lower';
 
-      console.log('Summary data:', {
-        totalSets,
-        totalVolume,
-        personalRecords,
-        exercises: Array.from(exerciseMap.values()),
-      });
+        const processedData: WorkoutSummaryData = {
+          sessionId,
+          workoutName,
+          workoutCategory,
+          duration: sessionData?.duration_string || 'Completed',
+          completedAt: sessionData?.completed_at || new Date().toISOString(),
+          exercises,
+          totalSets,
+          totalVolume,
+          personalRecords,
+        };
 
-      console.log('Final PR count:', personalRecords);
-
-      const exercises = Array.from(exerciseMap.values());
-
-      // Determine workout category for styling
-      const lowerTitle = session.template_name.toLowerCase();
-      const isUpperLowerSplit = session.template_name?.toLowerCase().includes('upper/lower');
-      let workoutCategory: 'push' | 'pull' | 'legs' | 'upper' | 'lower' | 'ad-hoc' = 'push';
-
-      if (isUpperLowerSplit) {
-        if (lowerTitle.includes('upper')) workoutCategory = 'upper';
-        else if (lowerTitle.includes('lower')) workoutCategory = 'lower';
+        hasRealData = true;
+        clearTimeout(fallbackTimer);
+        setSummaryData(processedData);
       } else {
-        if (lowerTitle.includes('push')) workoutCategory = 'push';
-        else if (lowerTitle.includes('pull')) workoutCategory = 'pull';
-        else if (lowerTitle.includes('legs')) workoutCategory = 'legs';
-      }
+        // Check if session exists but set logs haven't synced
+        if (sessionData) {
+          const basicData: WorkoutSummaryData = {
+            sessionId,
+            workoutName: sessionData.template_name || 'Workout',
+            workoutCategory: (sessionData.template_name || '').toLowerCase().includes('push') ? 'push' : 'ad-hoc',
+            duration: sessionData.duration_string || 'Completed',
+            completedAt: sessionData.completed_at || new Date().toISOString(),
+            exercises: [],
+            totalSets: 0,
+            totalVolume: 0,
+            personalRecords: 0,
+          };
 
-      setSummaryData({
-        sessionId,
-        workoutName: session.template_name,
-        workoutCategory,
-        duration: session.duration_string || '0 seconds',
-        completedAt: session.completed_at,
-        exercises,
-        totalSets,
-        totalVolume,
-        personalRecords,
-      });
-
-      // Load AI insights in parallel
-      try {
-        const [recoveryAlerts, periodizationStatus, efficiencyMetrics] = await Promise.all([
-          dynamicProgramManager.generateRecoveryAlerts(userId),
-          periodizationManager.getCurrentCycle(userId),
-          performanceForecaster.analyzeTrainingEfficiency(userId)
-        ]);
-
-        setAiInsights({
-          recoveryAlerts,
-          periodizationStatus,
-          efficiencyMetrics,
-          sessionVolume: totalVolume,
-          sessionDuration: session.duration_string
-        });
-      } catch (insightsError) {
-        console.error('Error loading AI insights:', insightsError);
-        // Don't fail the whole summary if insights fail
-        setAiInsights(null);
+          hasRealData = true;
+          clearTimeout(fallbackTimer);
+          setSummaryData(basicData);
+        }
       }
     } catch (error) {
-      console.error('Error loading workout summary:', error);
-      Alert.alert('Error', 'Failed to load workout summary');
-    } finally {
-      setLoading(false);
+      // Error loading workout data from both sources
     }
+
+    // CRITICAL FIX: Only clear timeout if we have real data
+    if (hasRealData) {
+      clearTimeout(fallbackTimer);
+    }
+    
+    setLoading(false);
   }, [sessionId, userId]);
 
   useEffect(() => {
-    if (visible && sessionId) {
-      // Add a small delay to ensure the session has been updated with duration
-      const timer = setTimeout(() => {
-        loadWorkoutSummary();
-      }, 2000); // Increased to 2 seconds to be safe
-      return () => clearTimeout(timer);
+    if (sessionId) {
+      loadWorkoutSummary();
     }
-  }, [visible, sessionId, loadWorkoutSummary]);
+  }, [sessionId, loadWorkoutSummary]);
 
   const handleRating = async (newRating: number) => {
     if (!sessionId || !userId) return;
@@ -289,7 +382,6 @@ export default function WorkoutSummaryModal({
     try {
       setRating(newRating);
 
-      // Update session rating
       const { error } = await supabase
         .from('workout_sessions')
         .update({ rating: newRating })
@@ -303,49 +395,35 @@ export default function WorkoutSummaryModal({
     }
   };
 
-  const handleDone = () => {
-    onDone();
-  };
-
-
   if (loading) {
     return (
-      <Modal visible={visible} transparent={true} animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Loading summary...</Text>
-          </View>
+      <ScreenContainer>
+        <BackgroundRoot />
+        <ScreenHeader title="Workout Summary" />
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading summary...</Text>
         </View>
-      </Modal>
+      </ScreenContainer>
     );
   }
 
   if (!summaryData) {
     return (
-      <Modal visible={visible} transparent={true} animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Loading workout summary...</Text>
-          </View>
+      <ScreenContainer>
+        <BackgroundRoot />
+        <ScreenHeader title="Workout Summary" />
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading workout summary...</Text>
         </View>
-      </Modal>
+      </ScreenContainer>
     );
   }
 
   return (
-    <Modal visible={visible} transparent={true} animationType="slide" statusBarTranslucent={true}>
-      <View style={[styles.modalOverlay, { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999 }]}>
-        <View style={[styles.modalContent, { zIndex: 10000 }]}>
-          <ScrollView
-            style={styles.scrollContent}
-            contentContainerStyle={styles.scrollContentContainer}
-          >
-            <View style={styles.header}>
-              <Text style={styles.headerTitle}>Workout Complete!</Text>
-              <Pressable style={styles.closeButton} onPress={onClose}>
-                <X size={24} color={Colors.foreground} />
-              </Pressable>
-            </View>
+    <ScreenContainer>
+      <BackgroundRoot />
+      <ScreenHeader title="Workout Complete!" />
+      <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollContentContainer}>
 
             {/* Success Header */}
             <View style={styles.successHeader}>
@@ -398,9 +476,7 @@ export default function WorkoutSummaryModal({
                   <View style={[styles.statIconContainer, styles.prIconContainer]}>
                     <Star size={28} color="#FFD700" fill="#FFD700" />
                   </View>
-                  <Text style={[styles.statValue, { color: '#FFD700' }]}>
-                    {summaryData.personalRecords}
-                  </Text>
+                  <Text style={[styles.statValue, { color: '#FFD700' }]}>{summaryData.personalRecords}</Text>
                   <Text style={styles.statLabel}>Personal Records</Text>
                 </View>
               )}
@@ -421,11 +497,7 @@ export default function WorkoutSummaryModal({
                           {set.weight_kg || 0}kg × {set.reps || 0} reps
                         </Text>
                         {set.isPR && (
-                          <Star
-                            size={14}
-                            color="#FFD700"
-                            style={styles.prIcon}
-                          />
+                          <Star size={14} color="#FFD700" style={styles.prIcon} />
                         )}
                       </View>
                     ))}
@@ -434,114 +506,16 @@ export default function WorkoutSummaryModal({
               ))}
             </View>
 
-            {/* AI Insights Section */}
-            {aiInsights && (
-              <View style={styles.aiInsightsSection}>
-                <View style={styles.aiInsightsHeader}>
-                  <Brain size={20} color={Colors.primary} />
-                  <Text style={styles.aiInsightsTitle}>AI Training Insights</Text>
-                </View>
-
-                {/* Recovery Alerts */}
-                {aiInsights.recoveryAlerts?.length > 0 && (
-                  <View style={styles.insightsGroup}>
-                    <Text style={styles.insightsGroupTitle}>Recovery Intelligence</Text>
-                    {aiInsights.recoveryAlerts.slice(0, 2).map((alert: any, index: number) => (
-                      <View key={index} style={[
-                        styles.insightCard,
-                        alert.severity === 'urgent' && styles.urgentCard,
-                        alert.severity === 'high' && styles.highCard,
-                        alert.severity === 'moderate' && styles.moderateCard
-                      ]}>
-                        <View style={styles.insightIcon}>
-                          {alert.type === 'overtraining_risk' ? (
-                            <AlertTriangle size={16} color={Colors.white} />
-                          ) : (
-                            <Zap size={16} color={Colors.white} />
-                          )}
-                        </View>
-                        <View style={styles.insightContent}>
-                          <Text style={styles.insightTitle}>{alert.title}</Text>
-                          <Text style={styles.insightMessage}>{alert.message}</Text>
-                          {alert.suggestedActions?.[0] && (
-                            <Text style={styles.insightAction}>
-                              💡 {alert.suggestedActions[0]}
-                            </Text>
-                          )}
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                )}
-
-                {/* Periodization Status */}
-                {aiInsights.periodizationStatus && (
-                  <View style={styles.insightsGroup}>
-                    <Text style={styles.insightsGroupTitle}>Periodization Status</Text>
-                    <View style={styles.insightCard}>
-                      <View style={styles.insightIcon}>
-                        <Target size={16} color={Colors.white} />
-                      </View>
-                      <View style={styles.insightContent}>
-                        <Text style={styles.insightTitle}>
-                          {aiInsights.periodizationStatus.currentPhase} Phase
-                        </Text>
-                        <Text style={styles.insightMessage}>
-                          {aiInsights.periodizationStatus.phaseDurationWeeks - Math.floor((Date.now() - new Date(aiInsights.periodizationStatus.phaseStartDate).getTime()) / (7 * 24 * 60 * 60 * 1000))} weeks remaining
-                        </Text>
-                        <Text style={styles.insightAction}>
-                          🎯 Progress: {aiInsights.periodizationStatus.progressPercentage}%
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                )}
-
-                {/* Training Efficiency */}
-                {aiInsights.efficiencyMetrics && (
-                  <View style={styles.insightsGroup}>
-                    <Text style={styles.insightsGroupTitle}>Training Efficiency</Text>
-                    <View style={styles.insightCard}>
-                      <View style={styles.insightIcon}>
-                        <TrendingUp size={16} color={Colors.white} />
-                      </View>
-                      <View style={styles.insightContent}>
-                        <Text style={styles.insightTitle}>
-                          Efficiency: {aiInsights.efficiencyMetrics.overallEfficiency}/100
-                        </Text>
-                        <Text style={styles.insightMessage}>
-                          {aiInsights.efficiencyMetrics.recommendations[0] || 'Training efficiency is good'}
-                        </Text>
-                        <Text style={styles.insightAction}>
-                          💪 Strength Rate: +{aiInsights.efficiencyMetrics.strengthGains.toFixed(1)}% monthly
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                )}
-              </View>
-            )}
-
             {/* Rating Section */}
             <View style={styles.ratingSection}>
               <Text style={styles.ratingTitle}>How was your workout?</Text>
               <View style={styles.ratingStars}>
                 {[1, 2, 3, 4, 5].map(star => (
-                  <Pressable
-                    key={star}
-                    onPress={() => handleRating(star)}
-                    style={styles.starButton}
-                  >
+                  <Pressable key={star} onPress={() => handleRating(star)} style={styles.starButton}>
                     <Star
                       size={32}
-                      color={
-                        rating && star <= rating
-                          ? '#FFD700'
-                          : Colors.mutedForeground
-                      }
-                      fill={
-                        rating && star <= rating ? '#FFD700' : 'transparent'
-                      }
+                      color={rating && star <= rating ? '#FFD700' : Colors.mutedForeground}
+                      fill={rating && star <= rating ? '#FFD700' : 'transparent'}
                     />
                   </Pressable>
                 ))}
@@ -551,20 +525,21 @@ export default function WorkoutSummaryModal({
             {/* Action Buttons */}
             <View style={styles.actionButtons}>
               <Pressable
-                style={({ pressed }) => [
-                  styles.primaryButton,
-                  pressed && styles.primaryButtonPressed,
-                ]}
-                onPress={handleDone}
+                style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryButtonPressed]}
+                onPress={() => router.replace('/(tabs)/workout')}
+              >
+                <Text style={styles.secondaryButtonText}>Start Another Workout</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}
+                onPress={() => router.replace('/(tabs)/dashboard')}
               >
                 <Home size={24} color={Colors.white} />
                 <Text style={styles.primaryButtonText}>Done</Text>
               </Pressable>
             </View>
           </ScrollView>
-        </View>
-      </View>
-    </Modal>
+      </ScreenContainer>
   );
 }
 
@@ -575,6 +550,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.lg,
+    zIndex: 9999,
   },
   modalContent: {
     backgroundColor: Colors.background,
@@ -587,6 +563,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 20,
     elevation: 20,
+    zIndex: 10000,
   },
   header: {
     flexDirection: 'row',
@@ -620,17 +597,6 @@ const styles = StyleSheet.create({
     ...TextStyles.body,
     color: Colors.mutedForeground,
   },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.lg,
-  },
-  errorText: {
-    ...TextStyles.h3,
-    color: Colors.destructive,
-    textAlign: 'center',
-  },
   successHeader: {
     alignItems: 'center',
     paddingVertical: Spacing.xl,
@@ -657,12 +623,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
     textAlign: 'center',
     fontWeight: '700',
-  },
-  workoutName: {
-    ...TextStyles.h4,
-    color: Colors.foreground,
-    textAlign: 'center',
-    fontWeight: '600',
   },
   workoutPill: {
     paddingHorizontal: Spacing.lg,
@@ -818,103 +778,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   secondaryButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.secondary,
+    backgroundColor: 'transparent',
     paddingVertical: Spacing.lg,
     paddingHorizontal: Spacing.lg,
     borderRadius: 16,
-    borderWidth: 2,
-    borderColor: Colors.primary,
+    borderWidth: 1,
+    borderColor: Colors.border,
     gap: Spacing.sm,
     minHeight: 60,
   },
   secondaryButtonPressed: {
-    backgroundColor: Colors.muted,
+    backgroundColor: Colors.secondary,
   },
   secondaryButtonText: {
     ...TextStyles.button,
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  aiInsightsSection: {
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.xl,
-  },
-  aiInsightsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.lg,
-  },
-  aiInsightsTitle: {
-    ...TextStyles.h4,
     color: Colors.foreground,
     fontWeight: '600',
-  },
-  insightsGroup: {
-    marginBottom: Spacing.lg,
-  },
-  insightsGroupTitle: {
-    ...TextStyles.h5,
-    color: Colors.foreground,
-    fontWeight: '600',
-    marginBottom: Spacing.md,
-  },
-  insightCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.md,
-  },
-  urgentCard: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderColor: Colors.destructive,
-    borderWidth: 2,
-  },
-  highCard: {
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-    borderColor: '#F59E0B',
-    borderWidth: 2,
-  },
-  moderateCard: {
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    borderColor: Colors.primary,
-    borderWidth: 2,
-  },
-  insightIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-  },
-  insightContent: {
-    flex: 1,
-  },
-  insightTitle: {
-    ...TextStyles.body,
-    color: Colors.foreground,
-    fontWeight: '600',
-    marginBottom: Spacing.xs,
-  },
-  insightMessage: {
-    ...TextStyles.caption,
-    color: Colors.foreground,
-    lineHeight: 16,
-    marginBottom: Spacing.xs,
-  },
-  insightAction: {
-    ...TextStyles.caption,
-    color: Colors.primary,
-    fontWeight: '500',
   },
 });

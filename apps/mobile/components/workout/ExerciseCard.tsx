@@ -91,7 +91,7 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
   onExerciseSaved,
   accentColor,
 }) => {
-  const { updateSet, currentSessionId, markExerciseAsCompleted } = useWorkoutFlow();
+  const { updateSet, currentSessionId, markExerciseAsCompleted, startWorkout, activeWorkout } = useWorkoutFlow();
   const { userId } = useAuth();
   const { refetch } = useRollingStatus();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -128,6 +128,11 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
       lastTimeSeconds: null,
     }))
   );
+
+  // Helper function to check if a set has both weight and reps (complete set)
+  const isCompleteSet = (set: SetLogState): boolean => {
+    return set.weight_kg !== null && set.weight_kg > 0 && set.reps !== null && set.reps > 0;
+  };
 
   const handleWeightChange = (setIndex: number, value: string) => {
     console.log(`[handleWeightChange] Set ${setIndex}: "${value}"`);
@@ -461,17 +466,31 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
     }
   }, [isExpanded, fetchPreviousWorkoutSets]);
 
+  // Auto-start workout session when user completes their first set
+  useEffect(() => {
+    if (!currentSessionId && activeWorkout) {
+      const hasCompleteSet = localSets.some(set => isCompleteSet(set));
+      if (hasCompleteSet) {
+        console.log('[ExerciseCard] User started first complete set - auto-starting workout session');
+        startWorkout(new Date().toISOString());
+      }
+    }
+  }, [localSets, currentSessionId, activeWorkout, startWorkout]);
+
   const applyAISuggestions = async (sets: SetLogState[]) => {
     try {
       // Import the enhanced progression engine
-      const { progressionEngine } = await import('../../../packages/data/src/ai/progression-engine');
+      // const { progressionEngine } = await import('../../../packages/data/src/ai/progression-engine');
 
       // Get intelligent suggestions based on user profile and training context
-      const suggestions = await progressionEngine.getProgressionSuggestions(
-        exercise.id,
-        userId,
-        sets
-      );
+      // const suggestions = await progressionEngine.getProgressionSuggestions(
+      //   exercise.id,
+      //   userId,
+      //   sets
+      // );
+
+      // TODO: Implement AI suggestions logic
+      const suggestions: any[] = [];
 
       if (!suggestions || suggestions.length === 0) {
         showCustomAlert(

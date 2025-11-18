@@ -28,7 +28,9 @@ export default function WorkoutSessionScreen() {
 
   // Redirect to launcher if no active workout
   useEffect(() => {
+    console.log('[WorkoutSessionScreen] isWorkoutActive:', isWorkoutActive);
     if (!isWorkoutActive) {
+      console.log('[WorkoutSessionScreen] No active workout, redirecting to workout tab');
       router.replace('/(tabs)/workout');
     }
   }, [isWorkoutActive, router]);

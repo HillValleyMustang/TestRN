@@ -21,7 +21,6 @@ import { ExerciseInfoModal } from '../../components/workout/ExerciseInfoModal';
 import { ExerciseSwapModal } from '../../components/workout/ExerciseSwapModal';
 import { WorkoutPill } from '../../components/workout-launcher';
 import { WorkoutProgressBar } from '../../components/workout/WorkoutProgressBar';
-import WorkoutSummaryModal from '../workout-summary';
 
 interface WorkoutItemProps {
   workout: any;
@@ -121,8 +120,6 @@ export default function WorkoutLauncherScreen() {
   const [swapModalVisible, setSwapModalVisible] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<any>(null);
   const [currentExerciseId, setCurrentExerciseId] = useState<string>('');
-  const [showWorkoutSummary, setShowWorkoutSummary] = useState(false);
-  const [finishedSessionId, setFinishedSessionId] = useState<string | null>(null);
   const [hasJustReset, setHasJustReset] = useState(false);
   const [userHasSelectedWorkout, setUserHasSelectedWorkout] = useState(false);
 
@@ -130,7 +127,7 @@ export default function WorkoutLauncherScreen() {
   // Only run this when we first load the component and have no workout state
   // Don't run if we've just reset due to discarding changes or if user has manually selected
   useEffect(() => {
-    if (childWorkouts.length > 0 && !selectedWorkout && profile?.id && !isWorkoutActiveInline && !showWorkoutSummary && !activeWorkout && !hasJustReset && !userHasSelectedWorkout) {
+    if (childWorkouts.length > 0 && !selectedWorkout && profile?.id && !isWorkoutActiveInline && !activeWorkout && !hasJustReset && !userHasSelectedWorkout) {
       console.log('[WorkoutScreen] Auto-selecting workout on mount - conditions met');
       // Find the first Push workout to auto-select
       const pushWorkout = childWorkouts.find(workout =>
@@ -151,7 +148,7 @@ export default function WorkoutLauncherScreen() {
         });
       }
     }
-  }, [childWorkouts, selectedWorkout, profile?.id, isWorkoutActiveInline, showWorkoutSummary, activeWorkout, hasJustReset, userHasSelectedWorkout, selectWorkout]);
+  }, [childWorkouts, selectedWorkout, profile?.id, isWorkoutActiveInline, activeWorkout, hasJustReset, userHasSelectedWorkout, selectWorkout]);
 
   // Workouts now run inline in this tab - no redirect needed
 
@@ -596,11 +593,8 @@ export default function WorkoutLauncherScreen() {
                     onPress={async () => {
                       const sessionId = await finishWorkout();
                       if (sessionId) {
-                        console.log('Workout finished, showing summary modal for session:', sessionId);
-                        setFinishedSessionId(sessionId);
-                        setShowWorkoutSummary(true);
-                      } else {
-                        console.log('Workout finish failed - no sessionId returned');
+                        // Navigate to workout summary screen
+                        router.push(`/workout-summary?sessionId=${sessionId}`);
                       }
                     }}
                   >
@@ -684,46 +678,6 @@ export default function WorkoutLauncherScreen() {
           />
         )}
 
-        {/* Workout Summary Modal */}
-        <WorkoutSummaryModal
-          visible={showWorkoutSummary}
-          sessionId={finishedSessionId}
-          onClose={() => {
-            setShowWorkoutSummary(false);
-            // Reset workout state when modal is closed via X button
-            resetWorkoutSession();
-            setIsWorkoutActiveInline(false);
-            setSelectedWorkout(null);
-            setFinishedSessionId(null);
-            // Scroll to top after reset
-            setTimeout(() => {
-              scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-            }, 100);
-          }}
-          onDone={() => {
-            setShowWorkoutSummary(false);
-            // Reset workout state and navigate back to dashboard
-            resetWorkoutSession();
-            // Reset local state to show workout selector again
-            setIsWorkoutActiveInline(false);
-            setSelectedWorkout(null);
-            setFinishedSessionId(null);
-            router.replace('/(tabs)/dashboard');
-          }}
-          onStartAnother={() => {
-            setShowWorkoutSummary(false);
-            // Reset workout state and stay on workout tab
-            resetWorkoutSession();
-            // Reset local state to show workout selector again
-            setIsWorkoutActiveInline(false);
-            setSelectedWorkout(null);
-            setFinishedSessionId(null);
-            // Scroll to top after reset
-            setTimeout(() => {
-              scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-            }, 100);
-          }}
-        />
       </View>
     </View>
   );
