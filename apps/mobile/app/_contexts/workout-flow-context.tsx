@@ -56,11 +56,11 @@ const DEFAULT_INITIAL_SETS = 3;
 // Helper function to check if a set has any user input
 const hasUserInput = (set: SetLogState): boolean => {
   return (
-    (set.weight_kg !== null && set.weight_kg > 0) ||
-    (set.reps !== null && set.reps > 0) ||
-    (set.reps_l !== null && set.reps_l > 0) ||
-    (set.reps_r !== null && set.reps_r > 0) ||
-    (set.time_seconds !== null && set.time_seconds > 0)
+    set.weight_kg !== null ||
+    set.reps !== null ||
+    set.reps_l !== null ||
+    set.reps_r !== null ||
+    set.time_seconds !== null
   );
 };
 
@@ -478,17 +478,44 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
       return null;
     }
 
-    // Check if workout has any logged sets (prevent saving incomplete workouts)
-    const hasLoggedSets = Object.values(exercisesWithSets).some(sets =>
-      sets.some(set => set.isSaved && hasUserInput(set))
-    );
+    // Allow time-based workout tracking - no longer require logged sets
+    console.log('[WorkoutFlow] Allowing workout completion for time-based tracking');
 
-    if (!hasLoggedSets) {
-      console.log('[WorkoutFlow] No logged sets found - not saving incomplete workout');
-      ToastAndroid.show('No workout data logged. Session not saved.', ToastAndroid.SHORT);
-      // Reset the session without saving
-      await resetWorkoutSession();
-      return null;
+    // Save any sets that have user input but aren't marked as saved yet
+    const setsToSave: Array<{ exerciseId: string; set: SetLogState; setIndex: number }> = [];
+    for (const [exerciseId, sets] of Object.entries(exercisesWithSets)) {
+      sets.forEach((set, setIndex) => {
+        if (!set.isSaved && hasUserInput(set) && set.id && typeof set.id === 'string') {
+          setsToSave.push({ exerciseId, set, setIndex });
+        }
+      });
+    }
+
+    // Save the unsaved sets
+    for (const { exerciseId, set, setIndex } of setsToSave) {
+      try {
+        const setData = {
+          id: set.id!,
+          session_id: currentSessionId!,
+          exercise_id: exerciseId,
+          weight_kg: set.weight_kg,
+          reps: set.reps,
+          reps_l: set.reps_l,
+          reps_r: set.reps_r,
+          time_seconds: set.time_seconds,
+          is_pb: set.is_pb,
+          created_at: set.created_at || new Date().toISOString(),
+        };
+
+        console.log('Saving unsaved set to database:', setData);
+        await database.addSetLog(setData);
+        await addToSyncQueue('create', 'set_logs', setData);
+
+        // Update the set as saved in local state
+        updateSet(exerciseId, setIndex, { isSaved: true });
+      } catch (error) {
+        console.error('Error saving unsaved set:', error);
+      }
     }
 
     const endTime = new Date();
@@ -541,7 +568,17 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [currentSessionId, sessionStartTime, activeWorkout, userId, exercisesWithSets, resetWorkoutSession]);
 
   // Update set
-  const updateSet = useCallback((exerciseId: string, setIndex: number, updates: Partial<SetLogState>) => {
+  const updateSet = useCallback(async (exerciseId: string, setIndex: number, updates: Partial<SetLogState>) => {
+    // Auto-start workout session when user enters weight/reps data
+    const hasWeightOrRepsData = updates.weight_kg !== undefined || updates.reps !== undefined ||
+                               updates.reps_l !== undefined || updates.reps_r !== undefined ||
+                               updates.time_seconds !== undefined;
+
+    if (!currentSessionId && activeWorkout && hasWeightOrRepsData) {
+      console.log('[WorkoutFlow] Auto-starting workout session on data entry');
+      await startWorkout(new Date().toISOString());
+    }
+
     setExercisesWithSets(prev => {
       const exerciseSets = prev[exerciseId];
       if (!exerciseSets || !exerciseSets[setIndex]) return prev;
@@ -551,7 +588,7 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
 
       return { ...prev, [exerciseId]: updatedSets };
     });
-  }, []);
+  }, [currentSessionId, activeWorkout, startWorkout]);
 
   // Log set (mark as completed and save) - starts session if not already started
   const logSet = useCallback(async (exerciseId: string, setId: string, reps: number, weight: number) => {

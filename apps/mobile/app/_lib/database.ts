@@ -68,7 +68,8 @@ class Database {
         created_at TEXT NOT NULL,
         rating INTEGER,
         completed_at TEXT,
-        t_path_id TEXT
+        t_path_id TEXT,
+        sync_status TEXT DEFAULT 'local_only'
       );
 
       CREATE TABLE IF NOT EXISTS set_logs (
@@ -442,6 +443,33 @@ class Database {
             // Continue without failing - t_paths errors are less critical
           }
           
+          // PHASE 2.6: Migration workout_sessions table - add sync_status column
+          console.log(`[DEBUG] 🔧 PHASE 2.6: Migrating workout_sessions table...`);
+          try {
+            // Check current workout_sessions table structure
+            const workoutSessionsTableInfo = await db.getAllAsync<any>("PRAGMA table_info(workout_sessions);");
+            const workoutSessionsColumns = workoutSessionsTableInfo.map((col: any) => col.name);
+            console.log(`[DEBUG] 📋 Current workout_sessions columns:`, workoutSessionsColumns);
+
+            // Add sync_status column if missing
+            if (!workoutSessionsColumns.includes('sync_status')) {
+              console.log(`[DEBUG] ➕ Adding sync_status column to workout_sessions table`);
+              await db.execAsync('ALTER TABLE workout_sessions ADD COLUMN sync_status TEXT DEFAULT "local_only"');
+              console.log(`[DEBUG] ✅ Successfully added sync_status column to workout_sessions`);
+            } else {
+              console.log(`[DEBUG] ✅ sync_status column already exists in workout_sessions table`);
+            }
+
+            // Verify workout_sessions table after migration
+            const afterWorkoutSessionsMigrationInfo = await db.getAllAsync<any>("PRAGMA table_info(workout_sessions);");
+            const afterWorkoutSessionsColumns = afterWorkoutSessionsMigrationInfo.map((col: any) => col.name);
+            console.log(`[DEBUG] ✅ Final workout_sessions columns:`, afterWorkoutSessionsColumns);
+
+          } catch (workoutSessionsError: any) {
+            console.error(`[DEBUG] ❌ workout_sessions table migration failed:`, workoutSessionsError.message);
+            // Continue without failing - workout_sessions errors are less critical
+          }
+
           // PHASE 3: Migration profiles table - add missing columns
           console.log(`[DEBUG] 🔧 PHASE 3: Migrating profiles table...`);
           try {
@@ -743,9 +771,9 @@ class Database {
   async addWorkoutSession(session: WorkoutSession): Promise<void> {
     const db = this.getDB();
     await db.runAsync(
-      `INSERT OR REPLACE INTO workout_sessions 
-       (id, user_id, session_date, template_name, completed_at, rating, duration_string, t_path_id, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO workout_sessions
+       (id, user_id, session_date, template_name, completed_at, rating, duration_string, t_path_id, created_at, sync_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         session.id,
         session.user_id,
@@ -756,6 +784,7 @@ class Database {
         session.duration_string,
         session.t_path_id,
         session.created_at,
+        (session as any).sync_status || 'local_only',
       ]
     );
   }
@@ -2482,8 +2511,8 @@ class Database {
     incrementAttempts: async (id: number, error: string): Promise<void> => {
       const db = this.getDB();
       await db.runAsync(
-        'UPDATE sync_queue SET attempts = attempts + 1, error = ? WHERE id = ?',
-        [error, id]
+        'UPDATE sync_queue SET attempts = attempts + 1, error = ?, timestamp = ? WHERE id = ?',
+        [error, Date.now(), id]
       );
     },
 

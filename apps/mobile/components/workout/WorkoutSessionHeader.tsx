@@ -11,6 +11,7 @@ interface WorkoutSessionHeaderProps {
   startTime: Date | null;
   savedMessage?: string | null;
   onSavedMessageDismiss?: () => void;
+  onShowSummary?: () => void;
 }
 
 export const WorkoutSessionHeader: React.FC<WorkoutSessionHeaderProps> = ({
@@ -18,6 +19,7 @@ export const WorkoutSessionHeader: React.FC<WorkoutSessionHeaderProps> = ({
   startTime,
   savedMessage,
   onSavedMessageDismiss,
+  onShowSummary,
 }) => {
   const router = useRouter();
   const { finishWorkout, requestNavigation, hasUnsavedChanges } = useWorkoutFlow();
@@ -59,11 +61,8 @@ export const WorkoutSessionHeader: React.FC<WorkoutSessionHeaderProps> = ({
   const handleFinish = async () => {
     try {
       const sessionId = await finishWorkout();
-      if (sessionId) {
-        router.replace({
-          pathname: '/workout-summary',
-          params: { sessionId }
-        });
+      if (sessionId && onShowSummary) {
+        onShowSummary();
       }
     } catch (error) {
       console.error('Failed to finish workout:', error);

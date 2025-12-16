@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Alert, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Alert, ScrollView, Pressable, KeyboardAvoidingView, Platform, Keyboard, TextInput, Dimensions } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useRouter } from 'expo-router';
 import { ChevronDown, ChevronRight, Play, Dumbbell } from 'lucide-react-native';
@@ -14,11 +14,14 @@ import { ScreenContainer, ScreenHeader } from '../../components/layout';
 import { GymToggle } from '../../components/dashboard/GymToggle';
 import { BackgroundRoot } from '../../components/BackgroundRoot';
 import { useData } from '../_contexts/data-context';
+import { useAuth } from '../_contexts/auth-context';
+import { database } from '../_lib/database';
 import { Colors, Spacing } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
 import { ExerciseCard } from '../../components/workout/ExerciseCard';
 import { ExerciseInfoModal } from '../../components/workout/ExerciseInfoModal';
 import { ExerciseSwapModal } from '../../components/workout/ExerciseSwapModal';
+import { WorkoutSummaryModal } from '../../components/workout/WorkoutSummaryModal';
 import { WorkoutPill } from '../../components/workout-launcher';
 import { WorkoutProgressBar } from '../../components/workout/WorkoutProgressBar';
 
@@ -99,6 +102,7 @@ export default function WorkoutLauncherScreen() {
     activeWorkout,
     exercisesForSession,
     exercisesWithSets,
+    sessionStartTime,
     removeExerciseFromSession,
     substituteExercise,
     finishWorkout,
@@ -109,6 +113,7 @@ export default function WorkoutLauncherScreen() {
   } = useWorkoutFlow();
   const { profile, activeTPath, childWorkouts, adhocWorkouts, workoutExercisesCache, lastCompletedDates, loading, error, refresh } = useWorkoutLauncherData();
   const { getGyms, setActiveGym } = useData();
+  const { userId } = useAuth();
   const [userGyms, setUserGyms] = useState<any[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -118,28 +123,29 @@ export default function WorkoutLauncherScreen() {
   const [loadingExercises, setLoadingExercises] = useState(false);
   const [infoModalVisible, setInfoModalVisible] = useState(false);
   const [swapModalVisible, setSwapModalVisible] = useState(false);
+  const [summaryModalVisible, setSummaryModalVisible] = useState(false);
+  const [summaryModalData, setSummaryModalData] = useState<{
+    exercises: any[];
+    workoutName: string;
+    startTime: Date;
+  } | null>(null);
   const [selectedExercise, setSelectedExercise] = useState<any>(null);
   const [currentExerciseId, setCurrentExerciseId] = useState<string>('');
   const [hasJustReset, setHasJustReset] = useState(false);
   const [userHasSelectedWorkout, setUserHasSelectedWorkout] = useState(false);
 
   // Auto-select the first Push workout on component mount for better UX
-  // Only run this when we first load the component and have no workout state
-  // Don't run if we've just reset due to discarding changes or if user has manually selected
   useEffect(() => {
     if (childWorkouts.length > 0 && !selectedWorkout && profile?.id && !isWorkoutActiveInline && !activeWorkout && !hasJustReset && !userHasSelectedWorkout) {
       console.log('[WorkoutScreen] Auto-selecting workout on mount - conditions met');
-      // Find the first Push workout to auto-select
       const pushWorkout = childWorkouts.find(workout =>
         workout.template_name.toLowerCase().includes('push')
       );
       if (pushWorkout) {
         console.log('[WorkoutScreen] Auto-selecting Push workout:', pushWorkout.id);
         setSelectedWorkout(pushWorkout.id);
-        // Just select the workout (don't start session yet)
         selectWorkout(pushWorkout.id).then(() => {
           setIsWorkoutActiveInline(true);
-          // Scroll to top after workout is loaded
           setTimeout(() => {
             scrollViewRef.current?.scrollTo({ y: 0, animated: true });
           }, 100);
@@ -150,17 +156,14 @@ export default function WorkoutLauncherScreen() {
     }
   }, [childWorkouts, selectedWorkout, profile?.id, isWorkoutActiveInline, activeWorkout, hasJustReset, userHasSelectedWorkout, selectWorkout]);
 
-  // Workouts now run inline in this tab - no redirect needed
-
-  // Reset workout UI state when context is reset (e.g., after discarding changes)
+  // Reset workout UI state when context is reset
   useEffect(() => {
     if (!activeWorkout && !currentSessionId) {
       console.log('[WorkoutScreen] Resetting workout UI state');
       setIsWorkoutActiveInline(false);
       setSelectedWorkout(null);
       setHasJustReset(true);
-      setUserHasSelectedWorkout(false); // Reset user selection flag
-      // Clear the reset flag immediately since we're not auto-selecting anymore
+      setUserHasSelectedWorkout(false);
       setTimeout(() => {
         console.log('[WorkoutScreen] Clearing hasJustReset flag');
         setHasJustReset(false);
@@ -168,15 +171,41 @@ export default function WorkoutLauncherScreen() {
     }
   }, [activeWorkout, currentSessionId]);
 
-  // Refresh data when tab is focused (only once per focus)
+  // Refresh data when tab is focused
   useFocusEffect(
     useCallback(() => {
-      // Only refresh if we don't have data yet
       if (!profile) {
         refresh();
       }
     }, [refresh, profile])
   );
+
+  // Handle keyboard show to scroll focused input into view
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', (e) => {
+      const focusedInput = TextInput.State.currentlyFocusedInput();
+      if (focusedInput && scrollViewRef.current) {
+        (scrollViewRef.current as any).measure((scrollX: number, scrollY: number, scrollWidth: number, scrollHeight: number, scrollPageX: number, scrollPageY: number) => {
+          focusedInput.measure((x: number, y: number, width: number, height: number, pageX: number, pageY: number) => {
+            const keyboardHeight = e.endCoordinates.height;
+            const screenHeight = Dimensions.get('window').height;
+            const visibleArea = screenHeight - keyboardHeight - 50;
+            const contentY = pageY - scrollPageY;
+            const inputBottom = contentY + height;
+
+            if (inputBottom > visibleArea) {
+              const scrollToY = Math.max(0, contentY - (visibleArea - height - 50));
+              scrollViewRef.current?.scrollTo({ y: scrollToY, animated: true });
+            }
+          });
+        });
+      }
+    });
+
+    return () => {
+      keyboardDidShowListener.remove();
+    };
+  }, []);
 
   // Load gyms for toggle
   useEffect(() => {
@@ -208,7 +237,6 @@ export default function WorkoutLauncherScreen() {
   const handleSelectWorkout = async (workoutId: string) => {
     console.log('[WorkoutScreen] handleSelectWorkout called with:', workoutId, 'current selected:', selectedWorkout);
 
-    // If we're switching to a different workout, reset the current session first
     if (selectedWorkout && selectedWorkout !== workoutId) {
       console.log('[WorkoutScreen] Switching workouts, resetting current session first');
       await resetWorkoutSession();
@@ -216,11 +244,8 @@ export default function WorkoutLauncherScreen() {
 
     const newSelectedWorkout = workoutId === selectedWorkout ? null : workoutId;
     setSelectedWorkout(newSelectedWorkout);
-
-    // Mark that user has manually selected a workout
     setUserHasSelectedWorkout(true);
 
-    // Just select workout when selected (don't start session)
     if (newSelectedWorkout && newSelectedWorkout !== selectedWorkout) {
       try {
         console.log('Selecting workout:', newSelectedWorkout);
@@ -236,10 +261,8 @@ export default function WorkoutLauncherScreen() {
         setLoadingExercises(false);
       }
     } else if (!newSelectedWorkout) {
-      // Deselecting workout - reset state
       setIsWorkoutActiveInline(false);
       setSelectedWorkout(null);
-      // Reset workout session when deselecting
       await resetWorkoutSession();
     }
   };
@@ -249,32 +272,14 @@ export default function WorkoutLauncherScreen() {
       console.log('Starting workout with ID:', workoutId);
       await selectWorkout(workoutId);
       console.log('Workout selected, starting session...');
-      // Start the workout session with current timestamp
       await startWorkout(new Date().toISOString());
       console.log('Workout session started, staying inline...');
-      // Stay on the same page and show the workout inline
       setIsWorkoutActiveInline(true);
     } catch (error) {
       console.error('Failed to start workout:', error);
       Alert.alert('Error', 'Failed to start workout. Please try again.');
     }
   };
-
-  // const handleStartWorkoutInline = async (workoutId: string | null) => {
-  //   try {
-  //     console.log('Starting inline workout with ID:', workoutId);
-  //     await selectWorkout(workoutId);
-  //     console.log('Workout selected, starting inline session...');
-  //     // Start the workout session with current timestamp
-  //     await startWorkout(new Date().toISOString());
-  //     console.log('Inline workout session started, staying on page...');
-  //     // Don't navigate - stay on the same page and show the workout inline
-  //     setIsWorkoutActiveInline(true);
-  //   } catch (error) {
-  //     console.error('Failed to start inline workout:', error);
-  //     Alert.alert('Error', 'Failed to start workout. Please try again.');
-  //   }
-  // };
 
   const handleInfoPress = (exerciseId: string) => {
     const exercise = exercisesForSession.find(ex => ex.id === exerciseId);
@@ -293,15 +298,55 @@ export default function WorkoutLauncherScreen() {
     setSwapModalVisible(true);
   };
 
-  // const handleExerciseSelected = async (newExercise: any) => {
-  //   await substituteExercise(currentExerciseId, newExercise);
-  //   setSwapModalVisible(false);
-  //   setCurrentExerciseId('');
-  // };
+  const getModalExercises = () => {
+    return exercisesForSession
+      .filter(exercise => exercise.id)
+      .map(exercise => {
+        const sets = exercisesWithSets[exercise.id!] || [];
+        const modalSets = sets
+          .filter(set => set.isSaved)
+          .map(set => ({
+            weight: set.weight_kg?.toString() || '0',
+            reps: set.reps?.toString() || '0',
+            isCompleted: set.isSaved,
+            isPR: set.isPR,
+          }));
 
-  // const handleStartAdHocWorkout = () => {
-  //   handleStartWorkout('ad-hoc');
-  // };
+        const result: any = {
+          exerciseId: exercise.id!,
+          exerciseName: exercise.name,
+          sets: modalSets,
+        };
+        if (exercise.main_muscle) {
+          result.muscleGroup = exercise.main_muscle;
+        }
+        return result;
+      })
+      .filter(exercise => exercise.sets.length > 0);
+  };
+
+  const handleSaveWorkout = async () => {
+    router.replace('/(tabs)/dashboard');
+  };
+
+  const handleRateWorkout = async (rating: number) => {
+    if (!currentSessionId || !userId) return;
+
+    try {
+      const existingSessions = await database.getWorkoutSessions(userId);
+      const existingSession = existingSessions.find(s => s.id === currentSessionId);
+      if (existingSession) {
+        const updatedSession = { ...existingSession, rating };
+        await database.addWorkoutSession(updatedSession);
+      }
+    } catch (error) {
+      console.error('Error saving rating:', error);
+    }
+  };
+
+  const handleSummaryModalClose = () => {
+    setSummaryModalVisible(false);
+  };
 
   if (loading) {
     return (
@@ -327,359 +372,371 @@ export default function WorkoutLauncherScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <BackgroundRoot />
-      <View style={styles.innerContainer}>
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.scrollContent}
-          contentContainerStyle={styles.scrollContentContainer}
-        >
-          <ScreenHeader
-            title="Start Workout"
-            style={{
-              backgroundColor: 'transparent',
-              borderBottomColor: 'transparent',
-            }}
-          />
-
-          <View style={styles.descriptionContainer}>
-            <Text style={[styles.descriptionText, { textAlign: 'center' }]}>
-              Select a workout or start an ad-hoc session
-            </Text>
-          </View>
-
-          {/* Gym Toggle - only show if user has more than one gym */}
-          {userGyms.length > 1 && (
-            <View style={styles.gymToggleContainer}>
-              <GymToggle
-                gyms={userGyms}
-                activeGym={userGyms.find(g => g.is_active) || null}
-                onGymChange={async (gymId, newActiveGym) => {
-                  // Handle gym change for workout context
-                  try {
-                    if (profile?.id) {
-                      await setActiveGym(profile.id, gymId);
-                      // Update local state
-                      setUserGyms(prev => prev.map(g => ({
-                        ...g,
-                        is_active: g.id === gymId
-                      })));
-                    }
-                  } catch (error) {
-                    console.error('Error changing active gym:', error);
-                  }
+    <>
+      <View style={styles.container}>
+        <BackgroundRoot />
+        <View style={styles.innerContainer}>
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.scrollContent}
+            contentContainerStyle={styles.scrollContentContainer}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
+            <View style={{flex: 1}}>
+              <ScreenHeader
+                title="Start Workout"
+                style={{
+                  backgroundColor: 'transparent',
+                  borderBottomColor: 'transparent',
                 }}
               />
-            </View>
-          )}
 
-          {activeTPath && (
-            <View style={styles.programHeader}>
-              <Dumbbell size={20} color={Colors.foreground} />
-              <Text style={[styles.programTitle, { textAlign: 'center' }]}>{activeTPath.template_name}</Text>
-            </View>
-          )}
-        {/* Program Workouts Section */}
-        {childWorkouts.length > 0 && (
-          <View style={styles.workoutsScroll}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={[styles.workoutButtonsContainer, { paddingLeft: -Spacing.lg }]}
-            >
-              {childWorkouts
-                .sort((a, b) => {
-                  // Sort by category priority: Push, Pull, Legs (for Push-Pull-Legs programs)
-                  // or Upper, Lower (for Upper-Lower programs)
-                  const aLower = a.template_name.toLowerCase();
-                  const bLower = b.template_name.toLowerCase();
-                  const isUpperLowerSplit = activeTPath?.template_name?.toLowerCase().includes('upper/lower');
-
-                  if (isUpperLowerSplit) {
-                    // Upper-Lower split: Upper first, then Lower
-                    if (aLower.includes('upper') && bLower.includes('lower')) return -1;
-                    if (aLower.includes('lower') && bLower.includes('upper')) return 1;
-                  } else {
-                    // Push-Pull-Legs: Push, Pull, Legs order
-                    const categoryOrder = { 'push': 1, 'pull': 2, 'legs': 3 };
-                    const aCategory = aLower.includes('push') ? 'push' : aLower.includes('pull') ? 'pull' : aLower.includes('legs') ? 'legs' : 'push';
-                    const bCategory = bLower.includes('push') ? 'push' : bLower.includes('pull') ? 'pull' : bLower.includes('legs') ? 'legs' : 'push';
-                    return categoryOrder[aCategory] - categoryOrder[bCategory];
-                  }
-                  return 0;
-                })
-                .map((workout) => {
-                  // Determine workout type and category based on name (matching web app logic)
-                  const lowerTitle = workout.template_name.toLowerCase();
-                  const isUpperLowerSplit = activeTPath?.template_name?.toLowerCase().includes('upper/lower');
-                  const workoutType: 'push-pull-legs' | 'upper-lower' = isUpperLowerSplit ? 'upper-lower' : 'push-pull-legs';
-
-                  let category: 'push' | 'pull' | 'legs' | 'upper' | 'lower';
-
-                  if (isUpperLowerSplit) {
-                    if (lowerTitle.includes('upper')) category = 'upper';
-                    else if (lowerTitle.includes('lower')) category = 'lower';
-                    else category = 'upper';
-                  } else {
-                    if (lowerTitle.includes('push')) category = 'push';
-                    else if (lowerTitle.includes('pull')) category = 'pull';
-                    else if (lowerTitle.includes('legs')) category = 'legs';
-                    else category = 'push';
-                  }
-
-                  const isSelected = selectedWorkout === workout.id;
-                  const completedAt = lastCompletedDates[workout.id] || null;
-
-                  return (
-                    <WorkoutPill
-                      key={workout.id}
-                      id={workout.id}
-                      title={workout.template_name}
-                      category={category}
-                      completedAt={completedAt}
-                      isSelected={isSelected}
-                      onClick={handleSelectWorkout}
-                    />
-                  );
-                })}
-              {/* Ad-hoc Workout Pill */}
-              <WorkoutPill
-                key="ad-hoc"
-                id="ad-hoc"
-                title="Ad-hoc"
-                category="ad-hoc"
-                completedAt={null}
-                isSelected={selectedWorkout === 'ad-hoc'}
-                onClick={() => {
-                  handleSelectWorkout('ad-hoc');
-                }}
-              />
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Workout Controls - Only show when workout is active */}
-        {(isWorkoutActiveInline && selectedWorkout) || loadingExercises ? (
-          <View style={styles.contentArea}>
-            {loadingExercises ? (
-              <View style={styles.loadingExercisesContainer}>
-                <Text style={styles.loadingExercisesText}>Loading workout...</Text>
+              <View style={styles.descriptionContainer}>
+                <Text style={[styles.descriptionText, { textAlign: 'center' }]}>
+                  Select a workout or start an ad-hoc session
+                </Text>
               </View>
-            ) : (
-              <>
-                {/* Workout Title Pill */}
-                {selectedWorkout && (
-                  <View style={styles.workoutTitleContainer}>
-                    <WorkoutPill
-                      id={selectedWorkout}
-                      title={activeWorkout?.template_name || 'Workout'}
-                      category={(() => {
-                        const workout = childWorkouts.find(w => w.id === selectedWorkout);
-                        if (workout) {
-                          const lowerTitle = workout.template_name.toLowerCase();
-                          const isUpperLowerSplit = activeTPath?.template_name?.toLowerCase().includes('upper/lower');
 
-                          if (isUpperLowerSplit) {
-                            if (lowerTitle.includes('upper')) return 'upper';
-                            else if (lowerTitle.includes('lower')) return 'lower';
-                          } else {
-                            if (lowerTitle.includes('push')) return 'push';
-                            else if (lowerTitle.includes('pull')) return 'pull';
-                            else if (lowerTitle.includes('legs')) return 'legs';
-                          }
+              {/* Gym Toggle */}
+              {userGyms.length > 1 && (
+                <View style={styles.gymToggleContainer}>
+                  <GymToggle
+                    gyms={userGyms}
+                    activeGym={userGyms.find(g => g.is_active) || null}
+                    onGymChange={async (gymId, newActiveGym) => {
+                      try {
+                        if (profile?.id) {
+                          await setActiveGym(profile.id, gymId);
+                          setUserGyms(prev => prev.map(g => ({
+                            ...g,
+                            is_active: g.id === gymId
+                          })));
                         }
-                        return 'push';
-                      })()}
-                      completedAt={null}
-                      isSelected={true}
-                      onClick={() => {}}
-                      hideLastCompleted={true}
-                    />
-                  </View>
-                )}
-
-                {/* Interactive Exercise Cards */}
-                {exercisesForSession.length > 0 && (
-                  <View style={styles.exercisesList}>
-                    {exercisesForSession.map((exercise, index) => {
-                      const exerciseSets = exercisesWithSets[exercise.id!] || [];
-                      return (
-                        <ExerciseCard
-                          key={exercise.id!}
-                          exercise={{
-                            id: exercise.id!,
-                            name: exercise.name || 'Unknown Exercise',
-                            main_muscle: exercise.main_muscle || 'Unknown',
-                            type: exercise.type || 'Unknown',
-                            category: exercise.category,
-                            description: exercise.description,
-                            pro_tip: exercise.pro_tip,
-                            video_url: exercise.video_url,
-                            equipment: exercise.equipment,
-                            user_id: null,
-                            library_id: null,
-                            created_at: exercise.created_at,
-                            is_favorite: null,
-                            icon_url: (exercise as any).icon_url || null,
-                            is_bonus_exercise: exercise.is_bonus_exercise || false,
-                          }}
-                          sets={exerciseSets}
-                          exerciseNumber={index + 1}
-                          accentColor={(() => {
-                            // Get the workout category color for the accent
-                            const workout = childWorkouts.find(w => w.id === selectedWorkout);
-                            if (workout) {
-                              const lowerTitle = workout.template_name.toLowerCase();
-                              const isUpperLowerSplit = activeTPath?.template_name?.toLowerCase().includes('upper/lower');
-
-                              if (isUpperLowerSplit) {
-                                if (lowerTitle.includes('upper')) return '#8B5CF6'; // Purple
-                                else if (lowerTitle.includes('lower')) return '#EF4444'; // Red
-                              } else {
-                                if (lowerTitle.includes('push')) return '#3B82F6'; // Blue
-                                else if (lowerTitle.includes('pull')) return '#10B981'; // Green
-                                else if (lowerTitle.includes('legs')) return '#F59E0B'; // Amber
-                              }
-                            }
-                            return undefined;
-                          })()}
-                          onInfoPress={() => handleInfoPress(exercise.id!)}
-                          onRemoveExercise={() => handleRemoveExercise(exercise.id!)}
-                          onSubstituteExercise={() => handleSubstituteExercise(exercise.id!)}
-                          onExerciseSaved={(exerciseName, setCount) => {
-                            // Exercise saved - toast notification is handled in ExerciseCard
-                          }}
-                        />
-                      );
-                    })}
-                  </View>
-                )}
-
-                <View style={styles.workoutActionButtons}>
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.cancelWorkoutButton,
-                      pressed && styles.cancelWorkoutButtonPressed,
-                    ]}
-                    onPress={() => {
-                      Alert.alert(
-                        'Cancel Workout',
-                        'Are you sure you want to cancel this workout? All progress will be lost.',
-                        [
-                          { text: 'Keep Working', style: 'cancel' },
-                          {
-                            text: 'Cancel Workout',
-                            style: 'destructive',
-                            onPress: () => {
-                              // Reset workout state without saving
-                              setIsWorkoutActiveInline(false);
-                              setSelectedWorkout(null);
-                            }
-                          },
-                        ]
-                      );
-                    }}
-                  >
-                    <Text style={styles.cancelWorkoutText}>Cancel Workout</Text>
-                  </Pressable>
-
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.cancelWorkoutButton, // Use same style as cancel button for consistency
-                      { backgroundColor: Colors.primary }, // Override background color
-                      pressed && styles.cancelWorkoutButtonPressed,
-                    ]}
-                    onPress={async () => {
-                      const sessionId = await finishWorkout();
-                      if (sessionId) {
-                        // Navigate to workout summary screen
-                        router.push(`/workout-summary?sessionId=${sessionId}`);
+                      } catch (error) {
+                        console.error('Error changing active gym:', error);
                       }
                     }}
-                  >
-                    <Text style={[styles.cancelWorkoutText, { color: Colors.white }]}>Finish Workout</Text>
-                  </Pressable>
+                  />
                 </View>
-              </>
-            )}
-          </View>
-        ) : null}
+              )}
 
-        {/* Ad-hoc Workouts Section */}
-        {adhocWorkouts.length > 0 && (
-          <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>My Ad-hoc Workouts</Text>
+              {activeTPath && (
+                <View style={styles.programHeader}>
+                  <Dumbbell size={20} color={Colors.foreground} />
+                  <Text style={[styles.programTitle, { textAlign: 'center' }]}>{activeTPath.template_name}</Text>
+                </View>
+              )}
+
+              {/* Program Workouts Section */}
+              {childWorkouts.length > 0 && (
+                <View style={styles.workoutsScroll}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={[styles.workoutButtonsContainer, { paddingLeft: -Spacing.lg }]}
+                  >
+                    {childWorkouts
+                      .sort((a, b) => {
+                        const aLower = a.template_name.toLowerCase();
+                        const bLower = b.template_name.toLowerCase();
+                        const isUpperLowerSplit = activeTPath?.template_name?.toLowerCase().includes('upper/lower');
+
+                        if (isUpperLowerSplit) {
+                          if (aLower.includes('upper') && bLower.includes('lower')) return -1;
+                          if (aLower.includes('lower') && bLower.includes('upper')) return 1;
+                        } else {
+                          const categoryOrder = { 'push': 1, 'pull': 2, 'legs': 3 };
+                          const aCategory = aLower.includes('push') ? 'push' : aLower.includes('pull') ? 'pull' : aLower.includes('legs') ? 'legs' : 'push';
+                          const bCategory = bLower.includes('push') ? 'push' : bLower.includes('pull') ? 'pull' : bLower.includes('legs') ? 'legs' : 'push';
+                          return categoryOrder[aCategory] - categoryOrder[bCategory];
+                        }
+                        return 0;
+                      })
+                      .map((workout) => {
+                        const lowerTitle = workout.template_name.toLowerCase();
+                        const isUpperLowerSplit = activeTPath?.template_name?.toLowerCase().includes('upper/lower');
+                        let category: 'push' | 'pull' | 'legs' | 'upper' | 'lower';
+
+                        if (isUpperLowerSplit) {
+                          if (lowerTitle.includes('upper')) category = 'upper';
+                          else if (lowerTitle.includes('lower')) category = 'lower';
+                          else category = 'upper';
+                        } else {
+                          if (lowerTitle.includes('push')) category = 'push';
+                          else if (lowerTitle.includes('pull')) category = 'pull';
+                          else if (lowerTitle.includes('legs')) category = 'legs';
+                          else category = 'push';
+                        }
+
+                        const isSelected = selectedWorkout === workout.id;
+                        const completedAt = lastCompletedDates[workout.id] || null;
+
+                        return (
+                          <WorkoutPill
+                            key={workout.id}
+                            id={workout.id}
+                            title={workout.template_name}
+                            category={category}
+                            completedAt={completedAt}
+                            isSelected={isSelected}
+                            onClick={handleSelectWorkout}
+                          />
+                        );
+                      })}
+                    <WorkoutPill
+                      key="ad-hoc"
+                      id="ad-hoc"
+                      title="Ad-hoc"
+                      category="ad-hoc"
+                      completedAt={null}
+                      isSelected={selectedWorkout === 'ad-hoc'}
+                      onClick={() => {
+                        handleSelectWorkout('ad-hoc');
+                      }}
+                    />
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* Workout Controls */}
+              {(isWorkoutActiveInline && selectedWorkout) || loadingExercises ? (
+                <View style={styles.contentArea}>
+                  {loadingExercises ? (
+                    <View style={styles.loadingExercisesContainer}>
+                      <Text style={styles.loadingExercisesText}>Loading workout...</Text>
+                    </View>
+                  ) : (
+                    <>
+                      {selectedWorkout && (
+                        <View style={styles.workoutTitleContainer}>
+                          <WorkoutPill
+                            id={selectedWorkout}
+                            title={activeWorkout?.template_name || 'Workout'}
+                            category={(() => {
+                              const workout = childWorkouts.find(w => w.id === selectedWorkout);
+                              if (workout) {
+                                const lowerTitle = workout.template_name.toLowerCase();
+                                const isUpperLowerSplit = activeTPath?.template_name?.toLowerCase().includes('upper/lower');
+
+                                if (isUpperLowerSplit) {
+                                  if (lowerTitle.includes('upper')) return 'upper';
+                                  else if (lowerTitle.includes('lower')) return 'lower';
+                                } else {
+                                  if (lowerTitle.includes('push')) return 'push';
+                                  else if (lowerTitle.includes('pull')) return 'pull';
+                                  else if (lowerTitle.includes('legs')) return 'legs';
+                                }
+                              }
+                              return 'push';
+                            })()}
+                            completedAt={null}
+                            isSelected={true}
+                            onClick={() => {}}
+                            hideLastCompleted={true}
+                          />
+                        </View>
+                      )}
+
+                      {exercisesForSession.length > 0 && (
+                        <View style={styles.exercisesList}>
+                          {exercisesForSession.map((exercise, index) => {
+                            const exerciseSets = exercisesWithSets[exercise.id!] || [];
+                            return (
+                              <ExerciseCard
+                                key={exercise.id!}
+                                exercise={{
+                                  id: exercise.id!,
+                                  name: exercise.name || 'Unknown Exercise',
+                                  main_muscle: exercise.main_muscle || 'Unknown',
+                                  type: exercise.type || 'Unknown',
+                                  category: exercise.category,
+                                  description: exercise.description,
+                                  pro_tip: exercise.pro_tip,
+                                  video_url: exercise.video_url,
+                                  equipment: exercise.equipment,
+                                  user_id: null,
+                                  library_id: null,
+                                  created_at: exercise.created_at,
+                                  is_favorite: null,
+                                  icon_url: (exercise as any).icon_url || null,
+                                  is_bonus_exercise: exercise.is_bonus_exercise || false,
+                                }}
+                                sets={exerciseSets}
+                                exerciseNumber={index + 1}
+                                accentColor={(() => {
+                                  const workout = childWorkouts.find(w => w.id === selectedWorkout);
+                                  if (workout) {
+                                    const lowerTitle = workout.template_name.toLowerCase();
+                                    const isUpperLowerSplit = activeTPath?.template_name?.toLowerCase().includes('upper/lower');
+
+                                    if (isUpperLowerSplit) {
+                                      if (lowerTitle.includes('upper')) return '#8B5CF6';
+                                      else if (lowerTitle.includes('lower')) return '#EF4444';
+                                    } else {
+                                      if (lowerTitle.includes('push')) return '#3B82F6';
+                                      else if (lowerTitle.includes('pull')) return '#10B981';
+                                      else if (lowerTitle.includes('legs')) return '#F59E0B';
+                                    }
+                                  }
+                                  return undefined;
+                                })()}
+                                onInfoPress={() => handleInfoPress(exercise.id!)}
+                                onRemoveExercise={() => handleRemoveExercise(exercise.id!)}
+                                onSubstituteExercise={() => handleSubstituteExercise(exercise.id!)}
+                                onExerciseSaved={(exerciseName, setCount) => {}}
+                              />
+                            );
+                          })}
+                        </View>
+                      )}
+
+                      <View style={styles.workoutActionButtons}>
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.cancelWorkoutButton,
+                            pressed && styles.cancelWorkoutButtonPressed,
+                          ]}
+                          onPress={() => {
+                            Alert.alert(
+                              'Cancel Workout',
+                              'Are you sure you want to cancel this workout? All progress will be lost.',
+                              [
+                                { text: 'Keep Working', style: 'cancel' },
+                                {
+                                  text: 'Cancel Workout',
+                                  style: 'destructive',
+                                  onPress: () => {
+                                    setIsWorkoutActiveInline(false);
+                                    setSelectedWorkout(null);
+                                  }
+                                },
+                              ]
+                            );
+                          }}
+                        >
+                          <Text style={styles.cancelWorkoutText}>Cancel Workout</Text>
+                        </Pressable>
+
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.cancelWorkoutButton,
+                            { backgroundColor: Colors.primary },
+                            pressed && styles.cancelWorkoutButtonPressed,
+                          ]}
+                          onPress={async () => {
+                            const sessionId = await finishWorkout();
+                            if (sessionId) {
+                              const modalExercises = getModalExercises();
+                              const workoutName = activeWorkout?.template_name || 'Workout';
+                              const startTime = sessionStartTime || new Date();
+
+                              setSummaryModalData({
+                                exercises: modalExercises,
+                                workoutName,
+                                startTime,
+                              });
+
+                              await resetWorkoutSession();
+                              setIsWorkoutActiveInline(false);
+
+                              setTimeout(() => {
+                                setSummaryModalVisible(true);
+                              }, 100);
+                            }
+                          }}
+                        >
+                          <Text style={[styles.cancelWorkoutText, { color: Colors.white }]}>Finish Workout</Text>
+                        </Pressable>
+                      </View>
+                    </>
+                  )}
+                </View>
+              ) : null}
+
+              {/* Ad-hoc Workouts Section */}
+              {adhocWorkouts.length > 0 && (
+                <>
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>My Ad-hoc Workouts</Text>
+                  </View>
+                  {adhocWorkouts.map((workout) => {
+                    const exercises = workoutExercisesCache[workout.id] || [];
+                    const isExpanded = expandedWorkouts.has(workout.id);
+
+                    return (
+                      <WorkoutItem
+                        key={workout.id}
+                        workout={workout}
+                        exercises={exercises}
+                        isExpanded={isExpanded}
+                        onToggle={() => handleToggleWorkout(workout.id)}
+                        onStartWorkout={() => handleStartWorkout(workout.id)}
+                      />
+                    );
+                  })}
+                </>
+              )}
+
+              {/* Empty State */}
+              {childWorkouts.length === 0 && adhocWorkouts.length === 0 && (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>No workouts available</Text>
+                  <Text style={styles.emptySubtext}>
+                    Create your first workout program to get started
+                  </Text>
+                </View>
+              )}
             </View>
-            {adhocWorkouts.map((workout) => {
-              const exercises = workoutExercisesCache[workout.id] || [];
-              const isExpanded = expandedWorkouts.has(workout.id);
-
-              return (
-                <WorkoutItem
-                  key={workout.id}
-                  workout={workout}
-                  exercises={exercises}
-                  isExpanded={isExpanded}
-                  onToggle={() => handleToggleWorkout(workout.id)}
-                  onStartWorkout={() => handleStartWorkout(workout.id)}
-                />
-              );
-            })}
-          </>
-        )}
-
-        {/* Empty State */}
-        {childWorkouts.length === 0 && adhocWorkouts.length === 0 && (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No workouts available</Text>
-            <Text style={styles.emptySubtext}>
-              Create your first workout program to get started
-            </Text>
-          </View>
-        )}
-
-
-        </ScrollView>
-      {/* Modals */}
-        <ExerciseInfoModal
-          exercise={selectedExercise}
-          visible={infoModalVisible}
-          onClose={() => {
-            setInfoModalVisible(false);
-            setSelectedExercise(null);
-          }}
-        />
-
-        <ExerciseSwapModal
-          visible={swapModalVisible}
-          onClose={() => {
-            setSwapModalVisible(false);
-            setCurrentExerciseId('');
-          }}
-          onSelectExercise={async (newExercise) => {
-            if (currentExerciseId) {
-              await substituteExercise(currentExerciseId, newExercise);
-            }
-            setSwapModalVisible(false);
-            setCurrentExerciseId('');
-          }}
-          currentExerciseId={currentExerciseId}
-        />
-
-        {/* Workout Progress Bar - Only show after user has saved at least one exercise */}
-        {completedExercises.size > 0 && (
-          <WorkoutProgressBar
-            exercisesForSession={exercisesForSession}
-            completedExercises={completedExercises}
-            isWorkoutSessionStarted={!!currentSessionId}
-            activeWorkout={activeWorkout}
-          />
-        )}
-
+          </ScrollView>
+        </View>
       </View>
-    </View>
+
+      {/* Modals */}
+      <ExerciseInfoModal
+        exercise={selectedExercise}
+        visible={infoModalVisible}
+        onClose={() => {
+          setInfoModalVisible(false);
+          setSelectedExercise(null);
+        }}
+      />
+
+      <ExerciseSwapModal
+        visible={swapModalVisible}
+        onClose={() => {
+          setSwapModalVisible(false);
+          setCurrentExerciseId('');
+        }}
+        onSelectExercise={async (newExercise) => {
+          if (currentExerciseId) {
+            await substituteExercise(currentExerciseId, newExercise);
+          }
+          setSwapModalVisible(false);
+          setCurrentExerciseId('');
+        }}
+        currentExerciseId={currentExerciseId}
+      />
+
+      {completedExercises.size > 0 && (
+        <WorkoutProgressBar
+          exercisesForSession={exercisesForSession}
+          completedExercises={completedExercises}
+          isWorkoutSessionStarted={!!currentSessionId}
+          activeWorkout={activeWorkout}
+        />
+      )}
+
+      <WorkoutSummaryModal
+        visible={summaryModalVisible}
+        onClose={handleSummaryModalClose}
+        exercises={summaryModalData?.exercises || []}
+        workoutName={summaryModalData?.workoutName || 'Workout'}
+        startTime={summaryModalData?.startTime || new Date()}
+        onSaveWorkout={handleSaveWorkout}
+        onRateWorkout={handleRateWorkout}
+      />
+    </>
   );
 }
 
@@ -690,6 +747,9 @@ const styles = StyleSheet.create({
   innerContainer: {
     flex: 1,
     backgroundColor: 'transparent',
+  },
+  keyboardAvoidingView: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -747,7 +807,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContentContainer: {
-    paddingBottom: 120, // Add padding at bottom so buttons are visible when scrolled to bottom
+    paddingBottom: 120,
   },
   workoutItem: {
     backgroundColor: Colors.card,
@@ -824,7 +884,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: Spacing.md,
     gap: Spacing.sm,
-    minHeight: 48, // Ensure consistent height
+    minHeight: 48,
   },
   startWorkoutButtonPressed: {
     backgroundColor: Colors.primary,
@@ -1050,7 +1110,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.mutedForeground,
     backgroundColor: Colors.secondary,
-    minHeight: 48, // Ensure consistent height
+    minHeight: 48,
   },
   cancelWorkoutButtonPressed: {
     backgroundColor: Colors.muted,

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Card } from "../ui/Card";
 import { Colors, Spacing, BorderRadius } from "../../constants/Theme";
@@ -9,12 +9,14 @@ interface SyncStatusBannerProps {
   isOnline: boolean;
   isSyncing: boolean;
   queueLength: number;
+  onManualSync?: () => void;
 }
 
 export function SyncStatusBanner({
   isOnline,
   isSyncing,
   queueLength,
+  onManualSync,
 }: SyncStatusBannerProps) {
   let title = "All changes synced";
   let subtitle = "Your workouts are safely stored.";
@@ -56,6 +58,15 @@ export function SyncStatusBanner({
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.subtitle}>{subtitle}</Text>
         </View>
+        {queueLength > 0 && !isSyncing && onManualSync && (
+          <Pressable
+            style={styles.syncButton}
+            onPress={onManualSync}
+          >
+            <Ionicons name="refresh" size={16} color={Colors.actionPrimary} />
+            <Text style={styles.syncButtonText}>Sync Now</Text>
+          </Pressable>
+        )}
       </View>
     </Card>
   );
@@ -92,5 +103,20 @@ const styles = StyleSheet.create({
     ...TextStyles.caption,
     fontFamily: 'Poppins_400Regular',
     color: Colors.mutedForeground,
+  },
+  syncButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    backgroundColor: Colors.secondary,
+    borderRadius: BorderRadius.sm,
+  },
+  syncButtonText: {
+    ...TextStyles.caption,
+    fontFamily: 'Poppins_600SemiBold',
+    fontWeight: '600',
+    color: Colors.actionPrimary,
   },
 });

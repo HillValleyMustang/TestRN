@@ -78,12 +78,12 @@ export const Colors = {
   workoutLowerBodyBLight: hslToRgb(270, 67, 50),
   
   // Workout Colors - PPL Split
-  workoutPush: hslToRgb(120, 60, 45), // hsl(120 60% 45%) - Forest Green
-  workoutPushLight: hslToRgb(120, 60, 55),
-  workoutPull: hslToRgb(35, 85, 55), // hsl(35 85% 55%) - Vintage Orange
-  workoutPullLight: hslToRgb(35, 85, 65),
-  workoutLegs: hslToRgb(280, 55, 50), // hsl(280 55% 50%) - Purple/Magenta
-  workoutLegsLight: hslToRgb(280, 55, 60),
+  workoutPush: hslToRgb(217, 91, 60), // hsl(217 91% 60%) - Blue
+  workoutPushLight: hslToRgb(217, 91, 70),
+  workoutPull: hslToRgb(160, 84, 39), // hsl(160 84% 39%) - Green
+  workoutPullLight: hslToRgb(160, 84, 49),
+  workoutLegs: hslToRgb(43, 96, 51), // hsl(43 96% 51%) - Orange
+  workoutLegsLight: hslToRgb(43, 96, 61),
   
   // Workout Special
   workoutBonus: hslToRgb(50, 75, 60), // hsl(50 75% 60%) - Golden Yellow
@@ -208,12 +208,12 @@ export const Colors = {
 
 // Convenient workout color exports (hex values for compatibility)
 export const WorkoutColors = {
-  push: '#228B22',
-  pushLight: '#2ea32e',
-  pull: '#F89C4D',
-  pullLight: '#fab86d',
-  legs: '#B645D9',
-  legsLight: '#c966e3',
+  push: '#3B82F6',
+  pushLight: '#60A5FA',
+  pull: '#10B981',
+  pullLight: '#34D399',
+  legs: '#F59E0B',
+  legsLight: '#FBBF24',
   upperA: '#1e3a8a',
   upperALight: '#2563eb',
   upperB: '#EF4444',

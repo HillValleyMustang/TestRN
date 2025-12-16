@@ -102,10 +102,6 @@ export default function RootLayout() {
                       options={{ headerShown: true, title: 'Workout History' }}
                     />
                     <Stack.Screen
-                      name="workout-detail"
-                      options={{ headerShown: true, title: 'Workout Details' }}
-                    />
-                    <Stack.Screen
                       name="exercise-picker"
                       options={{ headerShown: true, title: 'Select Exercise' }}
                     />
@@ -145,14 +141,6 @@ export default function RootLayout() {
                       options={{
                         headerShown: true,
                         title: 'AI Program Generator',
-                      }}
-                    />
-                    <Stack.Screen
-                      name="workout-session"
-                      options={{
-                        presentation: 'modal',
-                        gestureEnabled: false,
-                        headerShown: false,
                       }}
                     />
                     <Stack.Screen

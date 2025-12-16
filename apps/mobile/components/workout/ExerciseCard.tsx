@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, Pressable, StyleSheet, Alert, TextInput, Modal, Image, ScrollView } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Alert, TextInput, Modal, Image, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Info, Menu, Plus, ChevronDown, ChevronUp, History, RotateCcw, X, Save, Lightbulb, Trophy } from 'lucide-react-native';
 import { useWorkoutFlow } from '../../app/_contexts/workout-flow-context';
 import { useRollingStatus } from '../../hooks/useRollingStatus';
@@ -9,26 +9,13 @@ import { TextStyles } from '../../constants/Typography';
 import { supabase } from '../../app/_lib/supabase';
 import { database, addToSyncQueue } from '../../app/_lib/database';
 import Toast from 'react-native-toast-message';
-// import { progressionEngine } from '../../../../packages/data/src/ai/progression-engine';
 
-// Simple UUID generator for React Native
 const generateUUID = () => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     const r = Math.random() * 16 | 0;
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
-};
-
-// Helper function to check if a set has any user input
-const hasUserInput = (set: SetLogState): boolean => {
-  return (
-    (set.weight_kg !== null && set.weight_kg > 0) ||
-    (set.reps !== null && set.reps > 0) ||
-    (set.reps_l !== null && set.reps_l > 0) ||
-    (set.reps_r !== null && set.reps_r > 0) ||
-    (set.time_seconds !== null && set.time_seconds > 0)
-  );
 };
 
 interface SetLogState {
@@ -51,6 +38,16 @@ interface SetLogState {
   lastTimeSeconds: number | null;
 }
 
+const hasUserInput = (set: SetLogState): boolean => {
+  return (
+    (set.weight_kg !== null && set.weight_kg > 0) ||
+    (set.reps !== null && set.reps > 0) ||
+    (set.reps_l !== null && set.reps_l > 0) ||
+    (set.reps_r !== null && set.reps_r > 0) ||
+    (set.time_seconds !== null && set.time_seconds > 0)
+  );
+};
+  
 interface WorkoutExercise {
   id: string;
   name: string;
@@ -68,7 +65,7 @@ interface WorkoutExercise {
   icon_url: string | null;
   is_bonus_exercise?: boolean;
 }
-
+  
 interface ExerciseCardProps {
   exercise: WorkoutExercise;
   sets: SetLogState[];
@@ -82,1118 +79,748 @@ interface ExerciseCardProps {
 }
 
 export const ExerciseCard: React.FC<ExerciseCardProps> = ({
-  exercise,
-  sets,
-  exerciseNumber,
-  onInfoPress,
-  onRemoveExercise,
-  onSubstituteExercise,
-  onExerciseSaved,
-  accentColor,
+    exercise,
+    sets,
+    exerciseNumber,
+    onInfoPress,
+    onRemoveExercise,
+    onSubstituteExercise,
+    onExerciseSaved,
+    accentColor,
 }) => {
-  const { updateSet, currentSessionId, markExerciseAsCompleted, startWorkout, activeWorkout } = useWorkoutFlow();
-  const { userId } = useAuth();
-  const { refetch } = useRollingStatus();
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
-  const [showCustomAlertModal, setShowCustomAlertModal] = useState(false);
-  const [customAlertConfig, setCustomAlertConfig] = useState<{
-    title: string;
-    message: string;
-    buttons: Array<{ text: string; onPress?: () => void; style?: 'default' | 'destructive' }>;
-  } | null>(null);
-  const [restTimer, setRestTimer] = useState<number | null>(null);
-  const [isExerciseSaved, setIsExerciseSaved] = useState(false);
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [exerciseHistory, setExerciseHistory] = useState<any[]>([]);
-  const [historyTab, setHistoryTab] = useState<'list' | 'graph'>('list');
-  const [localSets, setLocalSets] = useState<SetLogState[]>(() =>
-    sets && sets.length > 0 ? sets.map(set => ({ ...set })) : Array.from({ length: 3 }, (_) => ({
-      id: null,
-      created_at: null,
-      session_id: null,
-      exercise_id: exercise.id,
-      weight_kg: null,
-      reps: null,
-      reps_l: null,
-      reps_r: null,
-      time_seconds: null,
-      is_pb: false,
-      isSaved: false,
-      isPR: false,
-      lastWeight: null,
-      lastReps: null,
-      lastRepsL: null,
-      lastRepsR: null,
-      lastTimeSeconds: null,
-    }))
-  );
+    const { updateSet, currentSessionId, markExerciseAsCompleted, startWorkout, activeWorkout } = useWorkoutFlow();
+    const { userId } = useAuth();
+    const { refetch } = useRollingStatus();
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [showMenu, setShowMenu] = useState(false);
+    const [showCustomAlertModal, setShowCustomAlertModal] = useState(false);
+    const [customAlertConfig, setCustomAlertConfig] = useState<{
+      title: string;
+      message: string;
+      buttons: Array<{ text: string; onPress?: () => void; style?: 'default' | 'destructive' }>;
+    } | null>(null);
+    const [restTimer, setRestTimer] = useState<number | null>(null);
+    const [isExerciseSaved, setIsExerciseSaved] = useState(false);
+    const [showHistoryModal, setShowHistoryModal] = useState(false);
+    const [exerciseHistory, setExerciseHistory] = useState<any[]>([]);
+    const [historyTab, setHistoryTab] = useState<'list' | 'graph'>('list');
+    const [localSets, setLocalSets] = useState<SetLogState[]>(() =>
+        sets && sets.length > 0 ? sets.map(set => ({ ...set })) : Array.from({ length: 3 }, (_) => ({
+            id: null,
+            created_at: null,
+            session_id: null,
+            exercise_id: exercise.id,
+            weight_kg: null,
+            reps: null,
+            reps_l: null,
+            reps_r: null,
+            time_seconds: null,
+            is_pb: false,
+            isSaved: false,
+            isPR: false,
+            lastWeight: null,
+            lastReps: null,
+            lastRepsL: null,
+            lastRepsR: null,
+            lastTimeSeconds: null,
+        }))
+    );
 
-  // Helper function to check if a set has both weight and reps (complete set)
-  const isCompleteSet = (set: SetLogState): boolean => {
-    return set.weight_kg !== null && set.weight_kg > 0 && set.reps !== null && set.reps > 0;
-  };
-
-  const handleWeightChange = (setIndex: number, value: string) => {
-    console.log(`[handleWeightChange] Set ${setIndex}: "${value}"`);
-    const weight = value === '' ? null : parseFloat(value);
-    console.log(`[handleWeightChange] Parsed weight: ${weight}`);
-    setLocalSets(prevSets => {
-      const newSets = [...prevSets];
-      newSets[setIndex] = { ...newSets[setIndex], weight_kg: weight };
-      console.log(`[handleWeightChange] Updated localSets[${setIndex}].weight_kg:`, newSets[setIndex].weight_kg);
-      return newSets;
-    });
-    updateSet(exercise.id, setIndex, { weight_kg: weight });
-  };
-
-  const handleRepsChange = (setIndex: number, value: string) => {
-    console.log(`[handleRepsChange] Set ${setIndex}: "${value}"`);
-    const reps = value === '' ? null : parseInt(value, 10);
-    console.log(`[handleRepsChange] Parsed reps: ${reps}`);
-    setLocalSets(prevSets => {
-      const newSets = [...prevSets];
-      newSets[setIndex] = { ...newSets[setIndex], reps: reps };
-      console.log(`[handleRepsChange] Updated localSets[${setIndex}].reps:`, newSets[setIndex].reps);
-      return newSets;
-    });
-    updateSet(exercise.id, setIndex, { reps });
-  };
-
-  const handleToggleComplete = (setIndex: number) => {
-    const set = localSets[setIndex];
-    if (!set.isSaved && (!set.weight_kg || !set.reps)) {
-      Alert.alert('Missing Data', 'Please enter weight and reps before completing the set.');
-      return;
-    }
-
-    // Check for personal best (volume PB: weight × reps)
-    const currentVolume = (set.weight_kg || 0) * (set.reps || 0);
-    const previousSessionVolumes = localSets
-      .filter((s: SetLogState) => s.isSaved && s !== set)
-      .map((s: SetLogState) => (s.weight_kg || 0) * (s.reps || 0));
-    const maxPreviousVolume = Math.max(...previousSessionVolumes, 0);
-    // PB if current volume beats the maximum from previous session
-    const isVolumePB = currentVolume > maxPreviousVolume;
-
-    console.log('PB Check:', {
-      currentVolume,
-      previousSessionVolumes,
-      maxPreviousVolume,
-      isVolumePB,
-      exerciseName: exercise.name,
-      setIndex
-    });
-
-    const newSets = [...localSets];
-    newSets[setIndex] = {
-      ...newSets[setIndex],
-      isSaved: !set.isSaved,
-      isPR: isVolumePB
+    const isCompleteSet = (set: SetLogState): boolean => {
+        return set.weight_kg !== null && set.weight_kg > 0 && set.reps !== null && set.reps > 0;
     };
-    setLocalSets(newSets);
-    updateSet(exercise.id, setIndex, { isSaved: !set.isSaved, isPR: isVolumePB });
 
-    console.log('Set saved with PR status:', {
-      exerciseName: exercise.name,
-      setIndex,
-      isSaved: !set.isSaved,
-      isPR: isVolumePB,
-      weight: set.weight_kg,
-      reps: set.reps,
-      volume: currentVolume
-    });
+    const handleWeightChange = (setIndex: number, value: string) => {
+        const weight = value === '' ? null : parseFloat(value);
+        setLocalSets(prevSets => {
+            const newSets = [...prevSets];
+            newSets[setIndex] = { ...newSets[setIndex], weight_kg: weight };
+            return newSets;
+        });
+        updateSet(exercise.id, setIndex, { weight_kg: weight });
+    };
 
-    // Start rest timer when set is saved
-    if (!set.isSaved) {
-      setRestTimer(60);
-    }
-  };
+    const handleRepsChange = (setIndex: number, value: string) => {
+        const reps = value === '' ? null : parseInt(value, 10);
+        setLocalSets(prevSets => {
+            const newSets = [...prevSets];
+            newSets[setIndex] = { ...newSets[setIndex], reps: reps };
+            return newSets;
+        });
+        updateSet(exercise.id, setIndex, { reps });
+    };
 
-  const handleMenuPress = () => {
-    setShowMenu(!showMenu);
-  };
+    const handleToggleComplete = async (setIndex: number) => {
+        const set = localSets[setIndex];
+        if (!set.isSaved && (!set.weight_kg || !set.reps)) {
+            Alert.alert('Missing Data', 'Please enter weight and reps before completing the set.');
+            return;
+        }
 
-  const handleMenuOption = (option: string) => {
-    setShowMenu(false);
-    switch (option) {
-      case 'history':
-        fetchExerciseHistory();
-        setShowHistoryModal(true);
-        break;
-      case 'info':
-        onInfoPress?.();
-        break;
-      case 'swap':
-        onSubstituteExercise?.();
-        break;
-      case 'cant-do':
-        Alert.alert(
-          'Remove Exercise',
-          `Remove ${exercise.name} from this workout?`,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Remove', style: 'destructive', onPress: onRemoveExercise },
-          ]
-        );
-        break;
-    }
-  };
+        const currentVolume = (set.weight_kg || 0) * (set.reps || 0);
+        
+        try {
+            const { data: historicalSets, error: historyError } = await supabase
+                .from('set_logs')
+                .select('weight_kg, reps')
+                .eq('exercise_id', exercise.id)
+                .neq('session_id', currentSessionId || '')
+                .not('weight_kg', 'is', null)
+                .not('reps', 'is', null);
 
-  const showCustomAlert = (title: string, message: string, buttons: Array<{ text: string; onPress?: () => void; style?: 'default' | 'destructive' }>) => {
-    setCustomAlertConfig({ title, message, buttons });
-    setShowCustomAlertModal(true);
-  };
-
-  // Fetch previous workout sets and all historical volumes
-  const fetchPreviousWorkoutSets = useCallback(async () => {
-    try {
-      console.log('[ExerciseCard] Starting fetch for', exercise.name, 'with currentSessionId:', currentSessionId);
-
-      // Get all historical workout sessions for this exercise (excluding current session if it exists)
-      let query = supabase
-        .from('workout_sessions')
-        .select('id')
-        .eq('user_id', userId)
-        .not('completed_at', 'is', null)
-        .order('session_date', { ascending: false });
-
-      // Only exclude current session if it exists
-      if (currentSessionId) {
-        query = query.neq('id', currentSessionId);
-        console.log('[ExerciseCard] Excluding current session:', currentSessionId);
-      } else {
-        console.log('[ExerciseCard] No current session to exclude');
-      }
-
-      const { data: allSessions, error: sessionsError } = await query;
-
-      if (sessionsError) {
-        console.error('[ExerciseCard] Sessions query error:', sessionsError);
-        throw sessionsError;
-      }
-
-      console.log('[ExerciseCard] Found', allSessions?.length || 0, 'historical sessions for', exercise.name);
-      console.log('[ExerciseCard] Session IDs:', allSessions?.map(s => s.id));
-
-      if (allSessions && allSessions.length > 0) {
-        // Get the most recent session for display
-        let mostRecentSessionId = allSessions[0].id;
-        console.log('[ExerciseCard] Using most recent session:', mostRecentSessionId);
-
-        // Check if this session actually contains the exercise
-        const { data: checkSession, error: checkError } = await supabase
-          .from('set_logs')
-          .select('id')
-          .eq('session_id', mostRecentSessionId)
-          .eq('exercise_id', exercise.id)
-          .limit(1);
-
-        console.log('[ExerciseCard] Session', mostRecentSessionId, 'contains exercise', exercise.id, '?', checkSession && checkSession.length > 0, 'error:', checkError);
-
-        // If this session doesn't contain the exercise, find the most recent session that does
-        if (!checkSession || checkSession.length === 0) {
-          console.log('[ExerciseCard] Most recent session does not contain exercise, finding another session...');
-
-          // Find sessions that contain this exercise
-          const { data: sessionsWithExercise, error: exerciseSessionsError } = await supabase
-            .from('set_logs')
-            .select('session_id')
-            .eq('exercise_id', exercise.id)
-            .order('created_at', { ascending: false });
-
-          if (exerciseSessionsError) {
-            console.error('[ExerciseCard] Error finding sessions with exercise:', exerciseSessionsError);
-          } else if (sessionsWithExercise?.length) {
-            // Get unique session IDs and find the most recent one that's not the current session
-            const uniqueSessionIds = [...new Set(sessionsWithExercise.map(s => s.session_id))];
-            const validSessionIds = uniqueSessionIds.filter(id => id !== currentSessionId);
-
-            if (validSessionIds.length > 0) {
-              mostRecentSessionId = validSessionIds[0];
-              console.log('[ExerciseCard] Found session with exercise:', mostRecentSessionId);
-            } else {
-              console.log('[ExerciseCard] No valid historical sessions found for exercise');
+            if (historyError) {
+                console.error('[ExerciseCard] Error fetching historical data for PB check:', historyError);
             }
-          } else {
-            console.log('[ExerciseCard] No sessions found containing this exercise');
-          }
+
+            const historicalVolumes = historicalSets?.map(s => (s.weight_kg || 0) * (s.reps || 0)) || [];
+            const maxHistoricalVolume = Math.max(...historicalVolumes, 0);
+            
+            const isVolumePB = currentVolume > maxHistoricalVolume;
+
+            const newSets = [...localSets];
+            newSets[setIndex] = {
+                ...newSets[setIndex],
+                isSaved: !set.isSaved,
+                isPR: isVolumePB
+            };
+            setLocalSets(newSets);
+            updateSet(exercise.id, setIndex, { isSaved: !set.isSaved, isPR: isVolumePB });
+
+            if (!set.isSaved) {
+                setRestTimer(60);
+            }
+        } catch (error) {
+            console.error('[ExerciseCard] Error in PB calculation:', error);
+            const newSets = [...localSets];
+            newSets[setIndex] = {
+                ...newSets[setIndex],
+                isSaved: !set.isSaved,
+                isPR: false
+            };
+            setLocalSets(newSets);
+            updateSet(exercise.id, setIndex, { isSaved: !set.isSaved, isPR: false });
         }
-
-        // Get set logs for this exercise from the most recent session
-        console.log('[ExerciseCard] Querying set_logs for session:', mostRecentSessionId, 'exercise:', exercise.id, exercise.name);
-        const { data: previousSetsData, error: setsError } = await supabase
-          .from('set_logs')
-          .select('weight_kg, reps, created_at')
-          .eq('session_id', mostRecentSessionId)
-          .eq('exercise_id', exercise.id)
-          .order('created_at', { ascending: true });
-
-        console.log('[ExerciseCard] Raw set_logs query result:', previousSetsData, 'error:', setsError);
-
-        if (setsError) {
-          console.error('[ExerciseCard] Sets query error:', setsError);
-          throw setsError;
-        }
-
-        console.log('[ExerciseCard] Previous sets data for', exercise.name, ':', previousSetsData);
-
-
-        // Update localSets with previous data
-        setLocalSets(prevSets => prevSets.map((set, index) => {
-          const prevData = previousSetsData && previousSetsData[index];
-          console.log(`[ExerciseCard] Mapping set ${index} for ${exercise.name}:`, {
-            hasPrevData: !!prevData,
-            prevWeight: prevData?.weight_kg,
-            prevReps: prevData?.reps
-          });
-          return {
-            ...set,
-            lastWeight: prevData ? prevData.weight_kg : null,
-            lastReps: prevData ? prevData.reps : null,
-          };
-        }));
-
-        // Get all historical volumes for PB calculation
-        const allSessionIds = allSessions.map(session => session.id);
-        await supabase
-          .from('set_logs')
-          .select('weight_kg, reps')
-          .in('session_id', allSessionIds)
-          .eq('exercise_id', exercise.id);
-
-      } else {
-        console.log('[ExerciseCard] No historical sessions found for', exercise.name);
-      }
-    } catch (error: any) {
-      console.error('[ExerciseCard] Error fetching previous workout sets for', exercise.name, ':', error);
-    }
-  }, [exercise.id, userId, currentSessionId]);
-
-  // Fetch detailed exercise history for the modal
-  const fetchExerciseHistory = useCallback(async () => {
-    try {
-      console.log('[ExerciseCard] Fetching detailed history for', exercise.name);
-
-      // Get sessions that contain this exercise, ordered by most recent
-      const { data: sessionData, error: sessionError } = await supabase
-        .from('set_logs')
-        .select('session_id, created_at')
-        .eq('exercise_id', exercise.id)
-        .order('created_at', { ascending: false })
-        .limit(50); // Get enough to cover multiple sessions
-
-      if (sessionError) throw sessionError;
-
-      // Group by session_id and get unique sessions
-      const sessionMap = new Map();
-      sessionData?.forEach(log => {
-        if (!sessionMap.has(log.session_id)) {
-          sessionMap.set(log.session_id, {
-            session_id: log.session_id,
-            created_at: log.created_at
-          });
-        }
-      });
-
-      const sessions = Array.from(sessionMap.values())
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 10); // Last 10 sessions
-
-      // For each session, get all sets
-      const historyData = await Promise.all(
-        sessions.map(async (session) => {
-          const { data: sets, error: setsError } = await supabase
-            .from('set_logs')
-            .select('weight_kg, reps, is_pb, created_at')
-            .eq('session_id', session.session_id)
-            .eq('exercise_id', exercise.id)
-            .order('created_at', { ascending: true });
-
-          if (setsError) throw setsError;
-
-          const totalVolume = sets?.reduce((sum, set) => sum + ((set.weight_kg || 0) * (set.reps || 0)), 0) || 0;
-          const bestSet = sets?.reduce((best, set) => {
-            const volume = (set.weight_kg || 0) * (set.reps || 0);
-            const bestVolume = (best.weight || 0) * (best.reps || 0);
-            return volume > bestVolume ? { weight: set.weight_kg, reps: set.reps, volume } : best;
-          }, { weight: 0, reps: 0, volume: 0 });
-
-          const hasPR = sets?.some(set => set.is_pb) || false;
-
-          return {
-            session_id: session.session_id,
-            date: session.created_at,
-            sets: sets || [],
-            totalVolume,
-            bestSet,
-            hasPR,
-            setCount: sets?.length || 0
-          };
-        })
-      );
-
-      setExerciseHistory(historyData);
-      console.log('[ExerciseCard] Fetched history:', historyData.length, 'sessions');
-      return historyData; // Return the data so it can be used immediately
-    } catch (error: any) {
-      console.error('[ExerciseCard] Error fetching exercise history:', error);
-      return [];
-    }
-  }, [exercise.id, exercise.name]);
-
-  // Rest timer effect
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-
-    if (restTimer !== null && restTimer > 0) {
-      interval = setInterval(() => {
-        setRestTimer((prev: number | null) => prev !== null && prev > 0 ? prev - 1 : null);
-      }, 1000);
-    } else if (restTimer === 0) {
-      setRestTimer(null);
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
     };
-  }, [restTimer]);
 
-  // Fetch previous workout data when expanded
-  useEffect(() => {
-    if (isExpanded) {
-      fetchPreviousWorkoutSets();
-    }
-  }, [isExpanded, fetchPreviousWorkoutSets]);
+    const handleMenuPress = () => {
+        setShowMenu(!showMenu);
+    };
 
-  // Auto-start workout session when user completes their first set
-  useEffect(() => {
-    if (!currentSessionId && activeWorkout) {
-      const hasCompleteSet = localSets.some(set => isCompleteSet(set));
-      if (hasCompleteSet) {
-        console.log('[ExerciseCard] User started first complete set - auto-starting workout session');
-        startWorkout(new Date().toISOString());
-      }
-    }
-  }, [localSets, currentSessionId, activeWorkout, startWorkout]);
-
-  const applyAISuggestions = async (sets: SetLogState[]) => {
-    try {
-      // Import the enhanced progression engine
-      // const { progressionEngine } = await import('../../../packages/data/src/ai/progression-engine');
-
-      // Get intelligent suggestions based on user profile and training context
-      // const suggestions = await progressionEngine.getProgressionSuggestions(
-      //   exercise.id,
-      //   userId,
-      //   sets
-      // );
-
-      // TODO: Implement AI suggestions logic
-      const suggestions: any[] = [];
-
-      if (!suggestions || suggestions.length === 0) {
-        showCustomAlert(
-          'No Suggestions Available',
-          'Unable to generate workout suggestions. Try completing more workouts to build your training history.',
-          [{ text: 'OK', onPress: () => setShowCustomAlertModal(false) }]
-        );
-        return;
-      }
-
-      // Apply the enhanced suggestions to sets
-      console.log('[Enhanced AI Suggestions] Applying suggestions:', suggestions);
-      suggestions.forEach((suggestion: any, index: number) => {
-        if (index < 3) {
-          console.log(`[Enhanced AI] Setting set ${index}: ${suggestion.weight}kg x ${suggestion.reps} reps`);
-          handleWeightChange(index, suggestion.weight.toString());
-          handleRepsChange(index, suggestion.reps.toString());
+    const handleMenuOption = (option: string) => {
+        setShowMenu(false);
+        switch (option) {
+            case 'history':
+                fetchExerciseHistory();
+                setShowHistoryModal(true);
+                break;
+            case 'info':
+                onInfoPress?.();
+                break;
+            case 'swap':
+                onSubstituteExercise?.();
+                break;
+            case 'cant-do':
+                Alert.alert(
+                    'Remove Exercise',
+                    `Remove ${exercise.name} from this workout?`,
+                    [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Remove', style: 'destructive', onPress: onRemoveExercise },
+                    ]
+                );
+                break;
         }
-      });
+    };
 
-      // Show success message with reasoning
-      const reasoning = suggestions[0]?.reasoning || 'Based on your training history and goals';
-      Toast.show({
-        type: 'success',
-        text1: 'AI Suggestions Applied!',
-        text2: reasoning,
-        visibilityTime: 3000,
-      });
+    const showCustomAlert = (title: string, message: string, buttons: Array<{ text: string; onPress?: () => void; style?: 'default' | 'destructive' }>) => {
+        setCustomAlertConfig({ title, message, buttons });
+        setShowCustomAlertModal(true);
+    };
 
-      console.log('[Enhanced AI Suggestions] All suggestions applied successfully');
-    } catch (error) {
-      console.error('Error getting enhanced AI suggestions:', error);
-      // Fallback to basic suggestions if enhanced system fails
-      showCustomAlert(
-        'Suggestion Error',
-        'Unable to generate enhanced suggestions. Using basic progression.',
-        [{ text: 'OK', onPress: () => setShowCustomAlertModal(false) }]
-      );
-    }
-  };
+    const fetchPreviousWorkoutSets = useCallback(async () => {
+        try {
+            // Use local database instead of Supabase for better performance and offline support
+            const db = database.getDB();
 
-  return (
-    <View style={[styles.container, accentColor && { borderWidth: 2, borderColor: accentColor }, showMenu && { zIndex: 999999, elevation: 100 }]}>
-      {/* Header */}
-      <Pressable
-        style={styles.header}
-        onPress={() => setIsExpanded(!isExpanded)}
-      >
-        <View style={styles.exerciseInfo}>
-          <Text style={styles.exerciseName}>
-            {exerciseNumber ? `${exerciseNumber}. ` : ''}{exercise.name}
-          </Text>
-          <Text style={styles.muscleGroup}>{exercise.main_muscle}</Text>
-        </View>
-      </Pressable>
+            // First, find the most recent workout session for this exercise (excluding current session)
+            let sessionQuery = `
+                SELECT DISTINCT sl.session_id
+                FROM set_logs sl
+                WHERE sl.exercise_id = ?
+            `;
+            const sessionParams: any[] = [exercise.id];
 
-      {/* Action Row */}
-      <View style={styles.actionRow}>
-        {exercise.icon_url && (
-          <Image
-            source={{ uri: exercise.icon_url }}
-            style={styles.exerciseIcon}
-            resizeMode="contain"
-          />
-        )}
-        <View style={styles.spacer} />
-        {isExerciseSaved && (
-          <View style={styles.completedIcon}>
-            <Text style={styles.completedIconText}>✓</Text>
-          </View>
-        )}
-        <Pressable
-          style={({ pressed }) => [
-            styles.iconButton,
-            pressed && styles.iconButtonPressed,
-          ]}
-          onPress={handleMenuPress}
-        >
-          <Menu size={20} color={Colors.foreground} />
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [
-            styles.iconButton,
-            pressed && styles.iconButtonPressed,
-          ]}
-          onPress={() => setIsExpanded(!isExpanded)}
-        >
-          {isExpanded ? (
-            <ChevronUp size={20} color={Colors.foreground} />
-          ) : (
-            <ChevronDown size={20} color={Colors.foreground} />
-          )}
-        </Pressable>
-      </View>
+            if (currentSessionId && currentSessionId !== '') {
+                sessionQuery += ' AND sl.session_id != ?';
+                sessionParams.push(currentSessionId);
+            }
 
+            sessionQuery += `
+                AND sl.weight_kg IS NOT NULL
+                AND sl.reps IS NOT NULL
+                ORDER BY sl.created_at DESC
+                LIMIT 1
+            `;
 
-      {/* Action Menu */}
-      {showMenu && (
-        <Pressable style={styles.menuOverlay} onPress={() => setShowMenu(false)}>
-          <View style={styles.menu}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.menuItem,
-                pressed && styles.menuItemPressed,
-              ]}
-              onPress={() => handleMenuOption('history')}
-            >
-              <History size={16} color={Colors.foreground} />
-              <Text style={styles.menuText}>History</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [
-                styles.menuItem,
-                pressed && styles.menuItemPressed,
-              ]}
-              onPress={() => handleMenuOption('info')}
-            >
-              <Info size={16} color={Colors.foreground} />
-              <Text style={styles.menuText}>Info</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [
-                styles.menuItem,
-                pressed && styles.menuItemPressed,
-              ]}
-              onPress={() => handleMenuOption('swap')}
-            >
-              <RotateCcw size={16} color={Colors.foreground} />
-              <Text style={styles.menuText}>Swap Exercise</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [
-                styles.menuItem,
-                pressed && styles.menuItemPressed,
-              ]}
-              onPress={() => handleMenuOption('cant-do')}
-            >
-              <X size={16} color={Colors.destructive} />
-              <Text style={[styles.menuText, styles.destructiveText]}>Can't Do</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      )}
+            const recentSessionResult = await db.getFirstAsync<any>(sessionQuery, sessionParams);
 
-      {/* Expanded Content */}
-      {isExpanded && (
-        <View style={styles.expandedContent}>
-          <View style={styles.setsContainer}>
-            {localSets.map((set, index) => (
-              <View key={`set-${index}`} style={[
-                styles.setItem,
-                !set.isSaved && styles.elevatedSetItem,
-                set.isSaved && styles.completedSetItem,
-                set.isPR && styles.prSetItem
-              ]}>
-                <View style={styles.setHeader}>
-                  <Text style={styles.setTitle}>Set {index + 1}</Text>
-                  {set.isSaved && (
-                    <View style={styles.completedContainer}>
-                      <Text style={[styles.completedBadge, set.isPR && styles.prBadge]}>✓</Text>
-                      {set.isPR && (
-                        <Trophy size={12} color="#FFD700" style={styles.trophyIcon} />
-                      )}
-                    </View>
-                  )}
-                </View>
+            if (recentSessionResult) {
+                // Get all sets from that session for this exercise, ordered by creation time
+                const setsQuery = `
+                    SELECT weight_kg, reps, created_at
+                    FROM set_logs
+                    WHERE session_id = ?
+                    AND exercise_id = ?
+                    AND weight_kg IS NOT NULL
+                    AND reps IS NOT NULL
+                    ORDER BY created_at ASC
+                `;
 
-                <View style={styles.setInputs}>
-                  <TextInput
-                    style={[styles.weightInput, set.isSaved && styles.disabledInput]}
-                    value={set.weight_kg?.toString() || ''}
-                    onChangeText={(value) => !set.isSaved && handleWeightChange(index, value)}
-                    placeholder="kg"
-                    keyboardType="numeric"
-                    placeholderTextColor={Colors.mutedForeground}
-                    editable={!set.isSaved}
-                  />
-                  <Text style={styles.multiplierText}>x</Text>
-                  <TextInput
-                    style={[styles.repsInput, set.isSaved && styles.disabledInput]}
-                    value={set.reps?.toString() || ''}
-                    onChangeText={(value) => !set.isSaved && handleRepsChange(index, value)}
-                    placeholder="reps"
-                    keyboardType="numeric"
-                    placeholderTextColor={Colors.mutedForeground}
-                    editable={!set.isSaved}
-                  />
-                  {!set.isSaved && (
-                    <Pressable
-                      style={styles.saveIconButton}
-                      onPress={() => handleToggleComplete(index)}
-                    >
-                      <Save size={16} color={Colors.primary} />
-                    </Pressable>
-                  )}
-                  <Pressable
-                    style={styles.deleteIconButton}
-                    onPress={() => {
-                      setCustomAlertConfig({
-                        title: 'Delete Set',
-                        message: `Delete set ${index + 1}?`,
-                        buttons: [
-                          { text: 'Cancel', onPress: () => setShowCustomAlertModal(false) },
-                          {
-                            text: 'Delete',
-                            style: 'destructive',
-                            onPress: () => {
-                              setShowCustomAlertModal(false);
-                              // Remove the set from localSets
-                              const newSets = [...localSets];
-                              newSets.splice(index, 1);
-                              setLocalSets(newSets);
-                            }
-                          }
-                        ]
-                      });
-                      setShowCustomAlertModal(true);
-                    }}
-                  >
-                    <X size={16} color={Colors.destructive} />
-                  </Pressable>
-                </View>
+                const previousSets = await db.getAllAsync<any>(setsQuery, [recentSessionResult.session_id, exercise.id]);
 
-                {/* Previous workout performance */}
-                {set.lastWeight !== null && set.lastReps !== null && (
-                  <View style={styles.previousSetContainer}>
-                    <Text style={styles.previousSetText}>
-                      Last {set.lastWeight}kg x {set.lastReps} reps
-                    </Text>
-                    <Pressable
-                      style={styles.historyIconButton}
-                      onPress={() => {
-                        fetchExerciseHistory();
-                        setShowHistoryModal(true);
-                      }}
-                    >
-                      <History size={14} color={Colors.mutedForeground} />
-                    </Pressable>
-                  </View>
-                )}
-
-              </View>
-            ))}
-          </View>
-
-          <View style={styles.expandedActions}>
-            <View style={styles.actionButtonsRow}>
-              <View style={styles.leftButtons}>
-                <Pressable
-                  style={styles.iconActionButton}
-                  onPress={() => {
-                    if (localSets.length >= 5) {
-                      Alert.alert('Maximum Sets Reached', 'You can have a maximum of 5 sets per exercise.');
-                      return;
-                    }
-
-                    const newSet: SetLogState = {
-                      id: generateUUID(),
-                      created_at: null,
-                      session_id: currentSessionId,
-                      exercise_id: exercise.id,
-                      weight_kg: null,
-                      reps: null,
-                      reps_l: null,
-                      reps_r: null,
-                      time_seconds: null,
-                      is_pb: false,
-                      isSaved: false,
-                      isPR: false,
-                      lastWeight: null,
-                      lastReps: null,
-                      lastRepsL: null,
-                      lastRepsR: null,
-                      lastTimeSeconds: null,
-                    };
-
-                    setLocalSets(prev => [...prev, newSet]);
-                  }}
-                >
-                  <Plus size={16} color={Colors.primary} />
-                </Pressable>
-                <Pressable
-                  style={styles.iconActionButton}
-                  onPress={async () => {
-                    try {
-                      // Check if any sets already have data
-                      const hasExistingData = localSets.some(set =>
-                        (set.weight_kg && set.weight_kg > 0) ||
-                        (set.reps && set.reps > 0) ||
-                        (set.reps_l && set.reps_l > 0) ||
-                        (set.reps_r && set.reps_r > 0) ||
-                        (set.time_seconds && set.time_seconds > 0)
-                      );
-
-                      if (hasExistingData) {
-                        showCustomAlert(
-                          'Clear Exercise Data First',
-                          'AI suggestions can only be applied at the start of an exercise. Please clear all set data first, then try again.',
-                          [
-                            { text: 'Cancel', onPress: () => setShowCustomAlertModal(false) },
-                            {
-                              text: 'Clear & Suggest',
-                              onPress: () => {
-                                setShowCustomAlertModal(false);
-                                // Clear all sets
-                                const clearedSets = localSets.map((set: SetLogState) => ({
-                                  ...set,
-                                  weight_kg: null,
-                                  reps: null,
-                                  reps_l: null,
-                                  reps_r: null,
-                                  time_seconds: null,
-                                  id: null,
-                                  created_at: null,
-                                  session_id: null,
-                                  lastWeight: null,
-                                  lastReps: null,
-                                  lastRepsL: null,
-                                  lastRepsR: null,
-                                  lastTimeSeconds: null,
-                                }));
-                                setLocalSets(clearedSets);
-                                // Now apply suggestions
-                                applyAISuggestions(clearedSets);
-                              }
-                            }
-                          ]
-                        );
-                        return;
-                      }
-
-                      // Apply suggestions to empty sets
-                      await applyAISuggestions(localSets);
-                    } catch (error: any) {
-                      console.error('Error generating AI suggestion:', error);
-                      Alert.alert('Suggestion Error', 'Unable to generate workout suggestions at this time.');
-                    }
-                  }}
-                >
-                  <Lightbulb size={16} color="orange" />
-                </Pressable>
-              </View>
-              {restTimer !== null && (
-                <View style={styles.timerContainer}>
-                  <Text style={styles.timerText}>{restTimer}s</Text>
-                </View>
-              )}
-            </View>
-            {!isExerciseSaved && (
-              <Pressable
-                style={styles.saveExerciseButton}
-                onPress={async () => {
-                  // Save all sets with user input for this exercise (regardless of individual save status)
-                  const setsToSave = localSets.filter(set => hasUserInput(set));
-                  if (setsToSave.length === 0) {
-                    Alert.alert('No Sets to Save', 'There are no sets with data to save for this exercise.');
-                    return;
-                  }
-
-                  console.log(`Saving ${setsToSave.length} sets for exercise: ${exercise.name}`);
-
-                  // Calculate PR status for all sets before saving
-                  const setsWithPR = localSets.map((set, setIndex) => {
-                    if (!hasUserInput(set)) return set;
-
-                    // Check for personal best (volume PB: weight × reps)
-                    const currentVolume = (set.weight_kg || 0) * (set.reps || 0);
-                    const previousSessionVolumes = localSets
-                      .filter((s: SetLogState) => s.isSaved && s !== set)
-                      .map((s: SetLogState) => (s.weight_kg || 0) * (s.reps || 0));
-
-                    const maxPreviousVolume = Math.max(...previousSessionVolumes, 0);
-
-                    // PB if current volume beats the maximum from previous session and all historical data
-                    const isVolumePB = currentVolume > maxPreviousVolume;
-
-                    return { ...set, isPR: isVolumePB };
-                  });
-
-                  // Save each set to the database and collect updates for batch application
-                  const savedSetUpdates: Array<{ setIndex: number; setId: string; created_at: string; isPR: boolean }> = [];
-
-                  for (let i = 0; i < setsWithPR.length; i++) {
-                    const set = setsWithPR[i];
-                    const setIndex = i;
-
-                    // Only save sets that have user input
-                    if (!hasUserInput(set)) {
-                      continue;
-                    }
-
-                    if (currentSessionId) {
-                      try {
-                        const setId = set.id || generateUUID();
-                        const setData = {
-                          id: setId,
-                          session_id: currentSessionId,
-                          exercise_id: exercise.id,
-                          weight_kg: set.weight_kg,
-                          reps: set.reps,
-                          reps_l: null,
-                          reps_r: null,
-                          time_seconds: null,
-                          is_pb: set.isPR || false,
-                          created_at: set.created_at || new Date().toISOString(),
+                if (previousSets && previousSets.length > 0) {
+                    // Map previous sets to current sets by index
+                    setLocalSets(prevSets => prevSets.map((set, index) => {
+                        const previousSet = previousSets[index]; // Get corresponding set by index
+                        return {
+                            ...set,
+                            lastWeight: previousSet ? previousSet.weight_kg : null,
+                            lastReps: previousSet ? previousSet.reps : null,
                         };
+                    }));
+                } else {
+                    // No sets found, clear last values
+                    setLocalSets(prevSets => prevSets.map(set => ({
+                        ...set,
+                        lastWeight: null,
+                        lastReps: null,
+                    })));
+                }
+            } else {
+                // No previous session found, clear last values
+                setLocalSets(prevSets => prevSets.map(set => ({
+                    ...set,
+                    lastWeight: null,
+                    lastReps: null,
+                })));
+            }
+        } catch (error) {
+            console.error('[ExerciseCard] Error fetching previous workout sets for', exercise.name, ':', error);
+            // Clear last values on error
+            setLocalSets(prevSets => prevSets.map(set => ({
+                ...set,
+                lastWeight: null,
+                lastReps: null,
+            })));
+        }
+    }, [exercise.id, currentSessionId]);
 
-                        console.log(`Saving set ${setId} for ${exercise.name}:`, setData);
-                        await database.addSetLog(setData);
-                        await addToSyncQueue('create', 'set_logs', setData);
-                        console.log(`Set ${setId} saved successfully for ${exercise.name} with is_pb: ${set.isPR}`);
+    const fetchExerciseHistory = useCallback(async () => {
+        try {
+            const { data: sessionData, error: sessionError } = await supabase
+                .from('set_logs')
+                .select('session_id, created_at')
+                .eq('exercise_id', exercise.id)
+                .order('created_at', { ascending: false })
+                .limit(50);
 
-                        savedSetUpdates.push({ setIndex, setId, created_at: setData.created_at, isPR: set.isPR || false });
+            if (sessionError) throw sessionError;
 
-                        // Update context state immediately
-                        updateSet(exercise.id, setIndex, {
-                          id: setId,
-                          isSaved: true,
-                          created_at: setData.created_at
-                        });
-                      } catch (error) {
-                        console.error(`Error saving set for ${exercise.name}:`, error);
-                      }
-                    } else {
-                      console.error(`No currentSessionId available for ${exercise.name}`);
-                    }
-                  }
-
-                  // Apply all local state updates at once
-                  if (savedSetUpdates.length > 0) {
-                    setLocalSets(prevSets => {
-                      const updatedSets = [...prevSets];
-                      savedSetUpdates.forEach(({ setIndex, setId, created_at, isPR }) => {
-                        updatedSets[setIndex] = {
-                          ...updatedSets[setIndex],
-                          id: setId,
-                          isSaved: true,
-                          isPR,
-                          created_at
-                        };
-                      });
-                      return updatedSets;
+            const sessionMap = new Map();
+            sessionData?.forEach(log => {
+                if (!sessionMap.has(log.session_id)) {
+                    sessionMap.set(log.session_id, {
+                        session_id: log.session_id,
+                        created_at: log.created_at
                     });
-                  }
+                }
+            });
 
-                  console.log(`Finished saving ${setsToSave.length} sets for ${exercise.name}`);
+            const sessions = Array.from(sessionMap.values())
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                .slice(0, 10);
 
-                  console.log('Calling onExerciseSaved with:', exercise.name, setsToSave.length);
-                  onExerciseSaved?.(exercise.name, setsToSave.length);
-                  setIsExerciseSaved(true); // Hide the save button
-                  setIsExpanded(false); // Collapse the card
+            const historyData = await Promise.all(
+                sessions.map(async (session) => {
+                    const { data: sets, error: setsError } = await supabase
+                        .from('set_logs')
+                        .select('weight_kg, reps, is_pb, created_at')
+                        .eq('session_id', session.session_id)
+                        .eq('exercise_id', exercise.id)
+                        .order('created_at', { ascending: true });
 
-                  // Mark exercise as completed in the context
-                  markExerciseAsCompleted(exercise.id);
+                    if (setsError) throw setsError;
 
-                  // Show success toast
-                  Toast.show({
-                    type: 'success',
-                    text1: 'Exercise Saved!',
-                    text2: 'Your progress has been recorded',
-                    visibilityTime: 3000,
-                  });
-                  // Refresh rolling status to update the badge
-                  refetch();
-                }}
-              >
-                <Text style={styles.saveExerciseText}>Save Exercise</Text>
-              </Pressable>
-            )}
-          </View>
-        </View>
-      )}
+                    const totalVolume = sets?.reduce((sum, set) => sum + ((set.weight_kg || 0) * (set.reps || 0)), 0) || 0;
+                    const bestSet = sets?.reduce((best, set) => {
+                        const volume = (set.weight_kg || 0) * (set.reps || 0);
+                        const bestVolume = (best.weight || 0) * (best.reps || 0);
+                        return volume > bestVolume ? { weight: set.weight_kg, reps: set.reps, volume } : best;
+                    }, { weight: 0, reps: 0, volume: 0 });
 
-      {/* Custom Alert Modal */}
-      <Modal
-        visible={showCustomAlertModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowCustomAlertModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.customAlert}>
-            <Text style={styles.alertTitle}>{customAlertConfig?.title}</Text>
-            <Text style={styles.alertMessage}>{customAlertConfig?.message}</Text>
-            <View style={styles.alertButtons}>
-              {customAlertConfig?.buttons.map((button, index) => (
-                <Pressable
-                  key={index}
-                  style={[
-                    styles.alertButton,
-                    button.style === 'destructive' && styles.alertButtonDestructive,
-                  ]}
-                  onPress={() => {
-                    button.onPress?.();
-                  }}
-                >
-                  <Text style={[
-                    styles.alertButtonText,
-                    button.style === 'destructive' && styles.alertButtonTextDestructive,
-                  ]}>
-                    {button.text}
-                  </Text>
+                    const hasPR = sets?.some(set => set.is_pb) || false;
+
+                    return {
+                        session_id: session.session_id,
+                        date: session.created_at,
+                        sets: sets || [],
+                        totalVolume,
+                        bestSet,
+                        hasPR,
+                        setCount: sets?.length || 0
+                    };
+                })
+            );
+
+            setExerciseHistory(historyData);
+            return historyData;
+        } catch (error) {
+            console.error('[ExerciseCard] Error fetching exercise history:', error);
+            return [];
+        }
+    }, [exercise.id, exercise.name]);
+
+    useEffect(() => {
+        let interval: NodeJS.Timeout | null = null;
+        if (restTimer !== null && restTimer > 0) {
+            interval = setInterval(() => {
+                setRestTimer((prev) => prev !== null && prev > 0 ? prev - 1 : null);
+            }, 1000);
+        } else if (restTimer === 0) {
+            setRestTimer(null);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [restTimer]);
+
+    useEffect(() => {
+        fetchPreviousWorkoutSets();
+    }, [exercise.id, fetchPreviousWorkoutSets, currentSessionId]);
+
+    useEffect(() => {
+        if (!currentSessionId && activeWorkout) {
+            const hasCompleteSet = localSets.some(set => isCompleteSet(set));
+            if (hasCompleteSet) {
+                startWorkout(new Date().toISOString());
+            }
+        }
+    }, [localSets, currentSessionId, activeWorkout, startWorkout]);
+
+    const applyAISuggestions = async (setsToSuggest: SetLogState[]) => {
+        try {
+            // const { progressionEngine } = await import('../../../packages/data/src/ai/progression-engine');
+            // const suggestions = await progressionEngine.getProgressionSuggestions(exercise.id, userId, setsToSuggest);
+            const suggestions: any[] = [];
+
+            if (!suggestions || suggestions.length === 0) {
+                showCustomAlert(
+                    'No Suggestions Available',
+                    'Unable to generate workout suggestions. Try completing more workouts to build your training history.',
+                    [{ text: 'OK', onPress: () => setShowCustomAlertModal(false) }]
+                );
+                return;
+            }
+
+            suggestions.forEach((suggestion, index) => {
+                if (index < 3) {
+                    handleWeightChange(index, suggestion.weight.toString());
+                    handleRepsChange(index, suggestion.reps.toString());
+                }
+            });
+
+            const reasoning = suggestions[0]?.reasoning || 'Based on your training history and goals';
+            Toast.show({
+                type: 'success',
+                text1: 'AI Suggestions Applied!',
+                text2: reasoning,
+                visibilityTime: 3000,
+            });
+        } catch (error) {
+            console.error('Error getting enhanced AI suggestions:', error);
+            showCustomAlert(
+                'Suggestion Error',
+                'Unable to generate enhanced suggestions. Using basic progression.',
+                [{ text: 'OK', onPress: () => setShowCustomAlertModal(false) }]
+            );
+        }
+    };
+    return (
+        <View style={[styles.container, accentColor && { borderWidth: 2, borderColor: accentColor }, showMenu && { zIndex: 999999, elevation: 100 }]}>
+            <Pressable style={styles.header} onPress={() => setIsExpanded(!isExpanded)}>
+                <View style={styles.exerciseInfo}>
+                    <Text style={styles.exerciseName}>{exerciseNumber ? `${exerciseNumber}. ` : ''}{exercise.name}</Text>
+                    <Text style={styles.muscleGroup}>{exercise.main_muscle}</Text>
+                </View>
+            </Pressable>
+
+            <View style={styles.actionRow}>
+                {exercise.icon_url && (<Image source={{ uri: exercise.icon_url }} style={styles.exerciseIcon} resizeMode="contain" />)}
+                <View style={styles.spacer} />
+                {isExerciseSaved && (<View style={styles.completedIcon}><Text style={styles.completedIconText}>✓</Text></View>)}
+                <Pressable style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed,]} onPress={handleMenuPress}>
+                    <Menu size={20} color={Colors.foreground} />
                 </Pressable>
-              ))}
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Exercise History Modal */}
-      <Modal
-        visible={showHistoryModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowHistoryModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.historyModal}>
-            <View style={styles.historyHeader}>
-              <Text style={styles.historyTitle}>{exercise.name} History</Text>
-              <Pressable
-                style={styles.closeButton}
-                onPress={() => setShowHistoryModal(false)}
-              >
-                <X size={24} color={Colors.foreground} />
-              </Pressable>
+                <Pressable style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed,]} onPress={() => setIsExpanded(!isExpanded)}>
+                    {isExpanded ? <ChevronUp size={20} color={Colors.foreground} /> : <ChevronDown size={20} color={Colors.foreground} />}
+                </Pressable>
             </View>
 
-            <View style={styles.tabContainer}>
-              <Pressable
-                style={[styles.tabButton, historyTab === 'list' && styles.activeTab]}
-                onPress={() => setHistoryTab('list')}
-              >
-                <Text style={[styles.tabText, historyTab === 'list' && styles.activeTabText]}>List</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.tabButton, historyTab === 'graph' && styles.activeTab]}
-                onPress={() => setHistoryTab('graph')}
-              >
-                <Text style={[styles.tabText, historyTab === 'graph' && styles.activeTabText]}>Graph</Text>
-              </Pressable>
-            </View>
-
-            {exerciseHistory.length > 0 && (
-              <View style={styles.historyStats}>
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>{exerciseHistory.length}</Text>
-                  <Text style={styles.statLabel}>Sessions</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>
-                    {Math.max(...exerciseHistory.map(s => s.bestSet.weight || 0))}kg
-                  </Text>
-                  <Text style={styles.statLabel}>Best Weight</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>
-                    {Math.max(...exerciseHistory.map(s => s.totalVolume))}kg
-                  </Text>
-                  <Text style={styles.statLabel}>Best Volume</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>
-                    {exerciseHistory.filter(s => s.hasPR).length}
-                  </Text>
-                  <Text style={styles.statLabel}>PR Sessions</Text>
-                </View>
-              </View>
-            )}
-
-            {historyTab === 'list' ? (
-              <ScrollView style={styles.historyScrollView}>
-                {exerciseHistory.length === 0 ? (
-                <View style={styles.noHistoryContainer}>
-                  <Text style={styles.noHistoryText}>No history available yet</Text>
-                  <Text style={styles.noHistorySubtext}>Complete some sets to start building your history!</Text>
-                </View>
-              ) : (
-                exerciseHistory.map((session, index) => (
-                  <View key={session.session_id} style={styles.historySession}>
-                    <View style={styles.sessionHeader}>
-                      <Text style={styles.sessionDate}>
-                        {new Date(session.date).toLocaleDateString('en-GB', {
-                          weekday: 'short',
-                          day: 'numeric',
-                          month: 'short'
-                        })}
-                      </Text>
-                      <View style={styles.sessionHeaderRight}>
-                        {session.hasPR && (
-                          <View style={styles.prIndicator}>
-                            <Trophy size={14} color="#FFD700" />
-                            <Text style={[styles.prText, { color: '#000' }]}>PR</Text>
-                          </View>
-                        )}
-                        <Pressable
-                          style={styles.sessionDeleteButton}
-                          onPress={() => {
-                            setCustomAlertConfig({
-                              title: 'Delete Workout Session',
-                              message: `Delete ${exercise.name} session from ${new Date(session.date).toLocaleDateString('en-GB', {
-                                weekday: 'long',
-                                day: 'numeric',
-                                month: 'long'
-                              })}?`,
-                              buttons: [
-                                { text: 'Cancel', onPress: () => setShowCustomAlertModal(false) },
-                                {
-                                  text: 'Delete',
-                                  style: 'destructive',
-                                  onPress: async () => {
-                                    setShowCustomAlertModal(false);
-                                    try {
-                                      // Delete sets for this session and exercise
-                                      await supabase
-                                        .from('set_logs')
-                                        .delete()
-                                        .eq('session_id', session.session_id)
-                                        .eq('exercise_id', exercise.id);
-
-                                      // Refresh history
-                                      await fetchExerciseHistory();
-                                    } catch (error) {
-                                      console.error('Error deleting session:', error);
-                                      setCustomAlertConfig({
-                                        title: 'Error',
-                                        message: 'Failed to delete workout session',
-                                        buttons: [{ text: 'OK', onPress: () => setShowCustomAlertModal(false) }]
-                                      });
-                                      setShowCustomAlertModal(true);
-                                    }
-                                  }
-                                }
-                              ]
-                            });
-                            setShowCustomAlertModal(true);
-                          }}
-                        >
-                          <X size={16} color={Colors.destructive} />
+            {showMenu && (
+                <Pressable style={styles.menuOverlay} onPress={() => setShowMenu(false)}>
+                    <View style={styles.menu}>
+                        <Pressable style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed,]} onPress={() => handleMenuOption('history')}>
+                            <History size={16} color={Colors.foreground} />
+                            <Text style={styles.menuText}>History</Text>
                         </Pressable>
-                      </View>
+                        <Pressable style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed,]} onPress={() => handleMenuOption('info')}>
+                            <Info size={16} color={Colors.foreground} />
+                            <Text style={styles.menuText}>Info</Text>
+                        </Pressable>
+                        <Pressable style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed,]} onPress={() => handleMenuOption('swap')}>
+                            <RotateCcw size={16} color={Colors.foreground} />
+                            <Text style={styles.menuText}>Swap Exercise</Text>
+                        </Pressable>
+                        <Pressable style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed,]} onPress={() => handleMenuOption('cant-do')}>
+                            <X size={16} color={Colors.destructive} />
+                            <Text style={[styles.menuText, styles.destructiveText]}>Can't Do</Text>
+                        </Pressable>
                     </View>
-
-                    <View style={styles.sessionStats}>
-                      <Text style={styles.sessionSets}>{session.setCount} {session.setCount === 1 ? 'set' : 'sets'}</Text>
-                      <Text style={styles.sessionVolume}>{session.totalVolume}kg total</Text>
-                    </View>
-
-                    <View style={styles.sessionBest}>
-                      <Text style={styles.bestLabel}>Best set:</Text>
-                      <Text style={styles.bestValue}>
-                        {session.bestSet.weight}kg × {session.bestSet.reps}
-                      </Text>
-                    </View>
-
-                    <View style={styles.sessionSetsList}>
-                      {session.sets.map((set: any) => (
-                        <Text key={set.created_at} style={styles.setItemText}>
-                          {set.weight_kg}kg × {set.reps}
-                          {set.is_pb && <Text style={styles.pbIndicator}> ★</Text>}
-                        </Text>
-                      ))}
-                    </View>
-                  </View>
-                ))
-              )}
-            </ScrollView>
-            ) : (
-              <ScrollView style={styles.historyScrollView}>
-                {exerciseHistory.length === 0 ? (
-                  <View style={styles.noHistoryContainer}>
-                    <Text style={styles.noHistoryText}>No history available yet</Text>
-                    <Text style={styles.noHistorySubtext}>Complete some sets to start building your history!</Text>
-                  </View>
-                ) : (
-                  <View style={styles.graphContainer}>
-                    <Text style={styles.graphTitle}>Total Volume Progression (kg)</Text>
-                    {(() => {
-                      const maxVolume = Math.max(...exerciseHistory.map(s => s.totalVolume || 0));
-                      return exerciseHistory.map((session) => {
-                        const width = maxVolume > 0 ? (session.totalVolume / maxVolume) * 100 : 0;
-                        return (
-                          <View key={session.session_id} style={styles.graphBarContainer}>
-                            <Text style={styles.graphDate}>
-                              {new Date(session.date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}
-                            </Text>
-                            <View style={styles.graphBar}>
-                              <View style={[styles.graphBarFill, { width: `${width}%` }]} />
-                            </View>
-                            <Text style={styles.graphValue}>{session.totalVolume}kg</Text>
-                          </View>
-                        );
-                      });
-                    })()}
-                  </View>
-                )}
-              </ScrollView>
+                </Pressable>
             )}
-          </View>
+
+            {isExpanded && (
+                <View style={styles.expandedContent}>
+                    <View style={styles.setsContainer}>
+                        {localSets.map((set, index) => (
+                            <View key={`set-${index}`} style={[styles.setItem, !set.isSaved && styles.elevatedSetItem, set.isSaved && styles.completedSetItem, set.isPR && styles.prSetItem]}>
+                                <View style={styles.setHeader}>
+                                    <Text style={styles.setTitle}>Set {index + 1}</Text>
+                                    {set.isSaved && (
+                                        <View style={styles.completedContainer}>
+                                            <Text style={[styles.completedBadge, set.isPR && styles.prBadge]}>✓</Text>
+                                            {set.isPR && (<Trophy size={12} color="#FFD700" style={styles.trophyIcon} />)}
+                                        </View>
+                                    )}
+                                </View>
+                                <View style={styles.setInputs}>
+                                    <TextInput
+                                        style={[styles.weightInput, set.isSaved && styles.disabledInput]}
+                                        value={set.weight_kg?.toString() || ''}
+                                        onChangeText={(value) => !set.isSaved && handleWeightChange(index, value)}
+                                        placeholder="kg"
+                                        keyboardType="numeric"
+                                        placeholderTextColor={Colors.mutedForeground}
+                                        editable={!set.isSaved}
+                                    />
+                                    <Text style={styles.multiplierText}>x</Text>
+                                    <TextInput
+                                        style={[styles.repsInput, set.isSaved && styles.disabledInput]}
+                                        value={set.reps?.toString() || ''}
+                                        onChangeText={(value) => !set.isSaved && handleRepsChange(index, value)}
+                                        placeholder="reps"
+                                        keyboardType="numeric"
+                                        placeholderTextColor={Colors.mutedForeground}
+                                        editable={!set.isSaved}
+                                    />
+                                    {!set.isSaved && (
+                                        <Pressable style={styles.saveIconButton} onPress={() => handleToggleComplete(index)}>
+                                            <Save size={16} color={Colors.primary} />
+                                        </Pressable>
+                                    )}
+                                    <Pressable style={styles.deleteIconButton} onPress={() => {
+                                        setCustomAlertConfig({
+                                            title: 'Delete Set',
+                                            message: `Delete set ${index + 1}?`,
+                                            buttons: [
+                                                { text: 'Cancel', onPress: () => setShowCustomAlertModal(false) },
+                                                { text: 'Delete', style: 'destructive', onPress: () => {
+                                                    setShowCustomAlertModal(false);
+                                                    const newSets = [...localSets];
+                                                    newSets.splice(index, 1);
+                                                    setLocalSets(newSets);
+                                                }}
+                                            ]
+                                        });
+                                        setShowCustomAlertModal(true);
+                                    }}>
+                                        <X size={16} color={Colors.destructive} />
+                                    </Pressable>
+                                </View>
+                                {set.lastWeight !== null && set.lastReps !== null && (
+                                    <View style={styles.previousSetContainer}>
+                                        <Text style={styles.previousSetText}>Last {set.lastWeight}kg x {set.lastReps} reps</Text>
+                                        <Pressable style={styles.historyIconButton} onPress={() => {
+                                            fetchExerciseHistory();
+                                            setShowHistoryModal(true);
+                                        }}>
+                                            <History size={14} color={Colors.mutedForeground} />
+                                        </Pressable>
+                                    </View>
+                                )}
+                            </View>
+                        ))}
+                    </View>
+                    <View style={styles.expandedActions}>
+                        <View style={styles.actionButtonsRow}>
+                            <View style={styles.leftButtons}>
+                                <Pressable style={styles.iconActionButton} onPress={() => {
+                                    if (localSets.length >= 5) {
+                                        Alert.alert('Maximum Sets Reached', 'You can have a maximum of 5 sets per exercise.');
+                                        return;
+                                    }
+                                    const newSet: SetLogState = {
+                                        id: generateUUID(),
+                                        created_at: null,
+                                        session_id: currentSessionId,
+                                        exercise_id: exercise.id,
+                                        weight_kg: null,
+                                        reps: null,
+                                        reps_l: null,
+                                        reps_r: null,
+                                        time_seconds: null,
+                                        is_pb: false,
+                                        isSaved: false,
+                                        isPR: false,
+                                        lastWeight: null,
+                                        lastReps: null,
+                                        lastRepsL: null,
+                                        lastRepsR: null,
+                                        lastTimeSeconds: null,
+                                    };
+                                    setLocalSets(prev => [...prev, newSet]);
+                                }}>
+                                    <Plus size={16} color={Colors.primary} />
+                                </Pressable>
+                                <Pressable style={styles.iconActionButton} onPress={async () => {
+                                    try {
+                                        const hasExistingData = localSets.some(set => (set.weight_kg && set.weight_kg > 0) || (set.reps && set.reps > 0) || (set.reps_l && set.reps_l > 0) || (set.reps_r && set.reps_r > 0) || (set.time_seconds && set.time_seconds > 0));
+                                        if (hasExistingData) {
+                                            showCustomAlert(
+                                                'Clear Exercise Data First',
+                                                'AI suggestions can only be applied at the start of an exercise. Please clear all set data first, then try again.',
+                                                [
+                                                    { text: 'Cancel', onPress: () => setShowCustomAlertModal(false) },
+                                                    { text: 'Clear & Suggest', onPress: () => {
+                                                        setShowCustomAlertModal(false);
+                                                        const clearedSets = localSets.map((set) => ({ ...set, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, id: null, created_at: null, session_id: null, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null }));
+                                                        setLocalSets(clearedSets);
+                                                        applyAISuggestions(clearedSets);
+                                                    }}
+                                                ]
+                                            );
+                                            return;
+                                        }
+                                        await applyAISuggestions(localSets);
+                                    } catch (error) {
+                                        console.error('Error generating AI suggestion:', error);
+                                        Alert.alert('Suggestion Error', 'Unable to generate workout suggestions at this time.');
+                                    }
+                                }}>
+                                    <Lightbulb size={16} color="orange" />
+                                </Pressable>
+                            </View>
+                            {restTimer !== null && (<View style={styles.timerContainer}><Text style={styles.timerText}>{restTimer}s</Text></View>)}
+                        </View>
+                        {!isExerciseSaved && (
+                            <Pressable style={styles.saveExerciseButton} onPress={async () => {
+                                const setsToSave = localSets.filter(set => hasUserInput(set));
+                                if (setsToSave.length === 0) {
+                                    Alert.alert('No Sets to Save', 'There are no sets with data to save for this exercise.');
+                                    return;
+                                }
+
+                                const setsWithPR = localSets.map((set, setIndex) => {
+                                    if (!hasUserInput(set)) return set;
+                                    const currentVolume = (set.weight_kg || 0) * (set.reps || 0);
+                                    const previousSessionVolumes = localSets.filter((s) => s.isSaved && s !== set).map((s) => (s.weight_kg || 0) * (s.reps || 0));
+                                    const maxPreviousVolume = Math.max(...previousSessionVolumes, 0);
+                                    const isVolumePB = currentVolume > maxPreviousVolume;
+                                    return { ...set, isPR: isVolumePB };
+                                });
+
+                                const savedSetUpdates: Array<{ setIndex: number; setId: string; created_at: string; isPR: boolean }> = [];
+
+                                for (let i = 0; i < setsWithPR.length; i++) {
+                                    const set = setsWithPR[i];
+                                    const setIndex = i;
+                                    if (!hasUserInput(set)) {
+                                        continue;
+                                    }
+                                    if (currentSessionId) {
+                                        try {
+                                            const setId = set.id || generateUUID();
+                                            const setData = {
+                                                id: setId,
+                                                session_id: currentSessionId,
+                                                exercise_id: exercise.id,
+                                                weight_kg: set.weight_kg,
+                                                reps: set.reps,
+                                                reps_l: null,
+                                                reps_r: null,
+                                                time_seconds: null,
+                                                is_pb: set.isPR || false,
+                                                created_at: set.created_at || new Date().toISOString(),
+                                            };
+                                            await database.addSetLog(setData);
+                                            await addToSyncQueue('create', 'set_logs', setData);
+                                            savedSetUpdates.push({ setIndex, setId, created_at: setData.created_at, isPR: set.isPR || false });
+                                            updateSet(exercise.id, setIndex, { id: setId, isSaved: true, created_at: setData.created_at });
+                                        } catch (error) {
+                                            console.error(`Error saving set for ${exercise.name}:`, error);
+                                        }
+                                    } else {
+                                        console.error(`No currentSessionId available for ${exercise.name}`);
+                                    }
+                                }
+
+                                if (savedSetUpdates.length > 0) {
+                                    setLocalSets(prevSets => {
+                                        const updatedSets = [...prevSets];
+                                        savedSetUpdates.forEach(({ setIndex, setId, created_at, isPR }) => {
+                                            updatedSets[setIndex] = { ...updatedSets[setIndex], id: setId, isSaved: true, isPR, created_at };
+                                        });
+                                        return updatedSets;
+                                    });
+                                }
+
+                                onExerciseSaved?.(exercise.name, setsToSave.length);
+                                setIsExerciseSaved(true);
+                                setIsExpanded(false);
+                                markExerciseAsCompleted(exercise.id);
+                                Toast.show({ type: 'success', text1: 'Exercise Saved!', text2: 'Your progress has been recorded', visibilityTime: 3000 });
+                                refetch();
+                            }}>
+                                <Text style={styles.saveExerciseText}>Save Exercise</Text>
+                            </Pressable>
+                        )}
+                    </View>
+                </View>
+            )}
+
+            <Modal visible={showCustomAlertModal} transparent={true} animationType="fade" onRequestClose={() => setShowCustomAlertModal(false)}>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.customAlert}>
+                        <Text style={styles.alertTitle}>{customAlertConfig?.title}</Text>
+                        <Text style={styles.alertMessage}>{customAlertConfig?.message}</Text>
+                        <View style={styles.alertButtons}>
+                            {customAlertConfig?.buttons.map((button, index) => (
+                                <Pressable key={index} style={[styles.alertButton, button.style === 'destructive' && styles.alertButtonDestructive]} onPress={() => button.onPress?.()}>
+                                    <Text style={[styles.alertButtonText, button.style === 'destructive' && styles.alertButtonTextDestructive]}>{button.text}</Text>
+                                </Pressable>
+                            ))}
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            <Modal visible={showHistoryModal} transparent={true} animationType="slide" onRequestClose={() => setShowHistoryModal(false)}>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.historyModal}>
+                        <View style={styles.historyHeader}>
+                            <Text style={styles.historyTitle}>{exercise.name} History</Text>
+                            <Pressable style={styles.closeButton} onPress={() => setShowHistoryModal(false)}>
+                                <X size={24} color={Colors.foreground} />
+                            </Pressable>
+                        </View>
+                        <View style={styles.tabContainer}>
+                            <Pressable style={[styles.tabButton, historyTab === 'list' && styles.activeTab]} onPress={() => setHistoryTab('list')}>
+                                <Text style={[styles.tabText, historyTab === 'list' && styles.activeTabText]}>List</Text>
+                            </Pressable>
+                            <Pressable style={[styles.tabButton, historyTab === 'graph' && styles.activeTab]} onPress={() => setHistoryTab('graph')}>
+                                <Text style={[styles.tabText, historyTab === 'graph' && styles.activeTabText]}>Graph</Text>
+                            </Pressable>
+                        </View>
+                        {exerciseHistory.length > 0 && (
+                            <View style={styles.historyStats}>
+                                <View style={styles.statItem}><Text style={styles.statValue}>{exerciseHistory.length}</Text><Text style={styles.statLabel}>Sessions</Text></View>
+                                <View style={styles.statItem}><Text style={styles.statValue}>{Math.max(...exerciseHistory.map(s => s.bestSet.weight || 0))}kg</Text><Text style={styles.statLabel}>Best Weight</Text></View>
+                                <View style={styles.statItem}><Text style={styles.statValue}>{Math.max(...exerciseHistory.map(s => s.totalVolume))}kg</Text><Text style={styles.statLabel}>Best Volume</Text></View>
+                                <View style={styles.statItem}><Text style={styles.statValue}>{exerciseHistory.filter(s => s.hasPR).length}</Text><Text style={styles.statLabel}>PR Sessions</Text></View>
+                            </View>
+                        )}
+                        {historyTab === 'list' ? (
+                            <ScrollView style={styles.historyScrollView}>
+                                {exerciseHistory.length === 0 ? (
+                                    <View style={styles.noHistoryContainer}><Text style={styles.noHistoryText}>No history available yet</Text><Text style={styles.noHistorySubtext}>Complete some sets to start building your history!</Text></View>
+                                ) : (
+                                    exerciseHistory.map((session, index) => (
+                                        <View key={session.session_id} style={styles.historySession}>
+                                            <View style={styles.sessionHeader}>
+                                                <Text style={styles.sessionDate}>{new Date(session.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</Text>
+                                                <View style={styles.sessionHeaderRight}>
+                                                    {session.hasPR && (<View style={styles.prIndicator}><Trophy size={14} color="#FFD700" /><Text style={[styles.prText, { color: '#000' }]}>PR</Text></View>)}
+                                                    <Pressable style={styles.sessionDeleteButton} onPress={() => {
+                                                        setCustomAlertConfig({
+                                                            title: 'Delete Workout Session',
+                                                            message: `Delete ${exercise.name} session from ${new Date(session.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}?`,
+                                                            buttons: [
+                                                                { text: 'Cancel', onPress: () => setShowCustomAlertModal(false) },
+                                                                { text: 'Delete', style: 'destructive', onPress: async () => {
+                                                                    setShowCustomAlertModal(false);
+                                                                    try {
+                                                                        await supabase.from('set_logs').delete().eq('session_id', session.session_id).eq('exercise_id', exercise.id);
+                                                                        await fetchExerciseHistory();
+                                                                    } catch (error) {
+                                                                        console.error('Error deleting session:', error);
+                                                                        setCustomAlertConfig({ title: 'Error', message: 'Failed to delete workout session', buttons: [{ text: 'OK', onPress: () => setShowCustomAlertModal(false) }] });
+                                                                        setShowCustomAlertModal(true);
+                                                                    }
+                                                                }}
+                                                            ]
+                                                        });
+                                                        setShowCustomAlertModal(true);
+                                                    }}>
+                                                        <X size={16} color={Colors.destructive} />
+                                                    </Pressable>
+                                                </View>
+                                            </View>
+                                            <View style={styles.sessionStats}>
+                                                <Text style={styles.sessionSets}>{session.setCount} {session.setCount === 1 ? 'set' : 'sets'}</Text>
+                                                <Text style={styles.sessionVolume}>{session.totalVolume}kg total</Text>
+                                            </View>
+                                            <View style={styles.sessionBest}>
+                                                <Text style={styles.bestLabel}>Best set:</Text>
+                                                <Text style={styles.bestValue}>{session.bestSet.weight}kg × {session.bestSet.reps}</Text>
+                                            </View>
+                                            <View style={styles.sessionSetsList}>
+                                                {session.sets.map((set: any) => (
+                                                    <Text key={set.created_at} style={styles.setItemText}>{set.weight_kg}kg × {set.reps}{set.is_pb && <Text style={styles.pbIndicator}> ★</Text>}</Text>
+                                                ))}
+                                            </View>
+                                        </View>
+                                    ))
+                                )}
+                            </ScrollView>
+                        ) : (
+                            <ScrollView style={styles.historyScrollView}>
+                                {exerciseHistory.length === 0 ? (
+                                    <View style={styles.noHistoryContainer}><Text style={styles.noHistoryText}>No history available yet</Text><Text style={styles.noHistorySubtext}>Complete some sets to start building your history!</Text></View>
+                                ) : (
+                                    <View style={styles.graphContainer}>
+                                        <Text style={styles.graphTitle}>Total Volume Progression (kg)</Text>
+                                        {(() => {
+                                            const maxVolume = Math.max(...exerciseHistory.map(s => s.totalVolume || 0));
+                                            return exerciseHistory.map((session) => {
+                                                const width = maxVolume > 0 ? (session.totalVolume / maxVolume) * 100 : 0;
+                                                return (
+                                                    <View key={session.session_id} style={styles.graphBarContainer}>
+                                                        <Text style={styles.graphDate}>{new Date(session.date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}</Text>
+                                                        <View style={styles.graphBar}><View style={[styles.graphBarFill, { width: `${width}%` }]} /></View>
+                                                        <Text style={styles.graphValue}>{session.totalVolume}kg</Text>
+                                                    </View>
+                                                );
+                                            });
+                                        })()}
+                                    </View>
+                                )}
+                            </ScrollView>
+                        )}
+                    </View>
+                </View>
+            </Modal>
         </View>
-      </Modal>
-    </View>
-  );
+    );
 };
 
 const styles = StyleSheet.create({

@@ -20,6 +20,7 @@ interface WorkoutSession {
   completed_at?: string | null;
   exercise_count?: number;
   duration_string?: string | undefined;
+  sync_status?: 'local_only' | 'syncing' | 'synced' | 'sync_failed';
 }
 
 interface PreviousWorkoutsWidgetProps {
@@ -57,6 +58,19 @@ export function PreviousWorkoutsWidget({
 
     const diffDays = Math.floor(diffHours / 24);
     return `${diffDays}d ago`;
+  };
+
+  const getSyncStatusDisplay = (syncStatus?: string) => {
+    switch (syncStatus) {
+      case 'syncing':
+        return { text: 'Syncing', color: Colors.actionPrimary, icon: 'sync' as const };
+      case 'sync_failed':
+        return { text: 'Sync Failed', color: Colors.destructive, icon: 'close-circle' as const };
+      case 'local_only':
+        return { text: 'Local Only', color: Colors.mutedForeground, icon: 'cloud-offline' as const };
+      default:
+        return null; // Synced - no badge needed
+    }
   };
 
   const handleViewAll = () => {
@@ -125,6 +139,7 @@ export function PreviousWorkoutsWidget({
         {displayWorkouts.map((workout) => {
           const colors = getWorkoutColor(workout.template_name);
           const timeAgo = formatTimeAgo(workout.completed_at);
+          const syncStatus = getSyncStatusDisplay(workout.sync_status);
 
           return (
             <View
@@ -136,12 +151,20 @@ export function PreviousWorkoutsWidget({
             >
               <View style={styles.workoutTop}>
                 <View style={styles.workoutLeft}>
-                  <Text
-                    style={[styles.workoutName, { color: colors.main }]}
-                    numberOfLines={1}
-                  >
-                    {workout.template_name}
-                  </Text>
+                  <View style={styles.workoutHeader}>
+                    <Text
+                      style={[styles.workoutName, { color: colors.main }]}
+                      numberOfLines={1}
+                    >
+                      {workout.template_name}
+                    </Text>
+                    {syncStatus && (
+                      <View style={[styles.syncBadge, { backgroundColor: syncStatus.color }]}>
+                        <Ionicons name={syncStatus.icon} size={10} color={Colors.white} />
+                        <Text style={styles.syncBadgeText}>{syncStatus.text}</Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={styles.timeAgo}>{timeAgo}</Text>
                 </View>
 
@@ -225,6 +248,24 @@ const styles = StyleSheet.create({
   workoutLeft: {
     flex: 1,
     gap: 2,
+  },
+  workoutHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  syncBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+  },
+  syncBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.white,
   },
   workoutRight: {
     flexDirection: 'row',

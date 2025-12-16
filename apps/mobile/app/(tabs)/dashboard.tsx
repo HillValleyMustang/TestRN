@@ -25,6 +25,7 @@ import {
   type DashboardWorkoutSummary,
 } from '../_contexts/data-context';
 import type { Gym } from '@data/storage/models';
+import { getExerciseById } from '@data/exercises';
 import { Spacing } from '../../constants/Theme';
 import { BackgroundRoot } from '../../components/BackgroundRoot';
 import {
@@ -37,10 +38,11 @@ import {
   SimpleVolumeChart,
   PreviousWorkoutsWidget,
 } from '../../components/dashboard';
+import { WorkoutSummaryModal } from '../../components/workout/WorkoutSummaryModal';
 
 export default function DashboardScreen() {
   const { session, userId, loading: authLoading } = useAuth();
-  const { loadDashboardSnapshot, deleteWorkoutSession, setActiveGym, isSyncing, queueLength, isOnline, forceRefreshProfile } = useData();
+  const { loadDashboardSnapshot, deleteWorkoutSession, setActiveGym, isSyncing, queueLength, isOnline, forceRefreshProfile, getWorkoutSessions, getSetLogs } = useData();
   const router = useRouter();
 
   useEffect(() => {
@@ -77,7 +79,15 @@ export default function DashboardScreen() {
   >([]);
   const [nextWorkout, setNextWorkout] = useState<DashboardProgram | null>(null);
 
-  
+  // Workout summary modal state
+  const [workoutSummaryModalVisible, setWorkoutSummaryModalVisible] = useState(false);
+  const [selectedSessionData, setSelectedSessionData] = useState<{
+    exercises: any[];
+    workoutName: string;
+    startTime: Date;
+  } | null>(null);
+
+
 
   const fetchDashboardData = useCallback(async () => {
     if (!userId || isRefreshing) return;
@@ -188,10 +198,59 @@ export default function DashboardScreen() {
   const accountCreatedAt = session?.user?.created_at;
 
   const handleViewSummary = useCallback(
-    (sessionId: string) => {
-      router.push({ pathname: '/workout-detail', params: { id: sessionId } });
+    async (sessionId: string) => {
+      if (!userId) return;
+
+      try {
+        // Load session data
+        const allSessions = await getWorkoutSessions(userId);
+        const foundSession = allSessions.find(s => s.id === sessionId);
+
+        if (foundSession) {
+          // Load set logs
+          const setLogs = await getSetLogs(sessionId);
+
+          // Transform data to modal format
+          const exerciseMap = new Map();
+          setLogs.forEach((set: any) => {
+            const exercise = getExerciseById(set.exercise_id);
+            const exerciseName = exercise?.name || `Exercise ${set.exercise_id?.slice(-4) || `Ex`}`;
+
+            if (!exerciseMap.has(set.exercise_id)) {
+              exerciseMap.set(set.exercise_id, {
+                exerciseId: set.exercise_id,
+                exerciseName,
+                muscleGroup: exercise?.category || 'Unknown',
+                sets: [],
+              });
+            }
+
+            const exerciseData = exerciseMap.get(set.exercise_id);
+            exerciseData.sets.push({
+              weight: set.weight_kg?.toString() || '0',
+              reps: set.reps?.toString() || '0',
+              isCompleted: true, // Assume completed since it's saved
+              isPR: set.is_pb || false,
+            });
+          });
+
+          const exercises = Array.from(exerciseMap.values());
+          const startTime = new Date(foundSession.session_date);
+
+          setSelectedSessionData({
+            exercises,
+            workoutName: foundSession.template_name || 'Workout',
+            startTime,
+          });
+
+          setWorkoutSummaryModalVisible(true);
+        }
+      } catch (error) {
+        console.error('Failed to load workout summary:', error);
+        Alert.alert('Error', 'Failed to load workout summary');
+      }
     },
-    [router]
+    [userId, getWorkoutSessions, getSetLogs]
   );
 
   const handleDeleteWorkout = useCallback(
@@ -233,134 +292,153 @@ export default function DashboardScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      {/* Aurora Background with 3 animated blobs */}
-      <BackgroundRoot />
+    <>
+      <View style={styles.container}>
+        {/* Aurora Background with 3 animated blobs */}
+        <BackgroundRoot />
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
 
-        {/* 1. Welcome Header */}
-        <View>
-          <WelcomeHeader
-            userName={userName}
-            accountCreatedAt={accountCreatedAt}
-          />
-        </View>
-
-        {/* 2. Weekly Target */}
-        <View>
-          <WeeklyTargetWidget
-            completedWorkouts={weeklySummary.completed_workouts}
-            goalTotal={weeklySummary.goal_total}
-            programmeType={weeklySummary.programme_type}
-            totalSessions={weeklySummary.total_sessions}
-            onViewCalendar={() => router.push('/workout-history')}
-            onViewWorkoutSummary={handleViewSummary}
-            loading={loading}
-          />
-        </View>
-
-        {/* 3. Action Hub */}
-        <View>
-          <ActionHubWidget
-            onLogActivity={() => {}}
-            onAICoach={() => {}}
-            onWorkoutLog={() => {}}
-            onConsistencyCalendar={() => {}}
-          />
-        </View>
-
-        {/* 4. Gym Toggle (only show if 2+ gyms) */}
-        {gyms.length > 1 && (
+          {/* 1. Welcome Header */}
           <View>
-            <GymToggle
-              gyms={gyms}
-              activeGym={activeGym}
-              onGymChange={async (gymId: string, newActiveGym: Gym | null) => {
-                if (userId) {
-                  // Update dashboard state immediately for UI consistency
-                  setActiveGymState(newActiveGym);
-                  
-                  // Update the database
-                  await setActiveGym(userId, gymId);
-                  
-                  // Trigger a data refresh to sync all components
-                  setTimeout(() => {
-                    fetchDashboardData();
-                  }, 100);
-                }
-              }}
+            <WelcomeHeader
+              userName={userName}
+              accountCreatedAt={accountCreatedAt}
             />
           </View>
-        )}
 
-        {/* 5. Next Workout Card */}
-        <View>
-          <NextWorkoutCard
-            workoutId={nextWorkout?.id}
-            workoutName={nextWorkout?.template_name}
-            estimatedDuration={
-              userProfile?.preferred_session_length || '45 minutes'
-            }
-            loading={loading}
-            noActiveGym={!activeGym}
-            noActiveTPath={!activeTPath}
-          />
-        </View>
+          {/* 2. Weekly Target */}
+          <View>
+            <WeeklyTargetWidget
+              completedWorkouts={weeklySummary.completed_workouts}
+              goalTotal={weeklySummary.goal_total}
+              programmeType={weeklySummary.programme_type}
+              totalSessions={weeklySummary.total_sessions}
+              onViewCalendar={() => router.push('/workout-history')}
+              onViewWorkoutSummary={handleViewSummary}
+              loading={loading}
+            />
+          </View>
 
-        {/* 6. All Workouts Quick Start */}
-        <View>
-          <AllWorkoutsQuickStart
-            programName={activeTPath?.template_name}
-            workouts={tpathWorkouts}
-            loading={loading}
-          />
-        </View>
+          {/* 3. Action Hub */}
+          <View>
+            <ActionHubWidget
+              onLogActivity={() => {}}
+              onAICoach={() => {}}
+              onWorkoutLog={() => {}}
+              onConsistencyCalendar={() => {}}
+            />
+          </View>
 
-        {/* 7. Weekly Volume Chart */}
-        <View>
-          <SimpleVolumeChart data={volumeData} />
-        </View>
+          {/* 4. Gym Toggle (only show if 2+ gyms) */}
+          {gyms.length > 1 && (
+            <View>
+              <GymToggle
+                gyms={gyms}
+                activeGym={activeGym}
+                onGymChange={async (gymId: string, newActiveGym: Gym | null) => {
+                  if (userId) {
+                    // Update dashboard state immediately for UI consistency
+                    setActiveGymState(newActiveGym);
 
-        {/* 8. Previous Workouts */}
-        <View>
-          <PreviousWorkoutsWidget
-            workouts={recentWorkouts.map(workout => ({
-              id: workout.id,
-              sessionId: workout.id,
-              template_name: workout.template_name || 'Ad Hoc Workout',
-              completed_at: workout.completed_at || workout.session_date,
-              exercise_count: workout.exercise_count,
-              duration_string: workout.duration_string ?? undefined,
-            }))}
-            onViewSummary={handleViewSummary}
-            onDelete={handleDeleteWorkout}
-            loading={loading}
-          />
-        </View>
+                    // Update the database
+                    await setActiveGym(userId, gymId);
 
-        {/* Debug: Force Refresh Button */}
-        <View style={{ marginTop: 20, padding: 10, backgroundColor: '#f0f0f0', borderRadius: 8 }}>
-          <Pressable 
-            onPress={onRefresh}
-            style={{ padding: 10, backgroundColor: '#007AFF', borderRadius: 6 }}
-          >
-            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '600' }}>
-              🔄 Force Refresh Data
+                    // Trigger a data refresh to sync all components
+                    setTimeout(() => {
+                      fetchDashboardData();
+                    }, 100);
+                  }
+                }}
+              />
+            </View>
+          )}
+
+          {/* 5. Next Workout Card */}
+          <View>
+            <NextWorkoutCard
+              workoutId={nextWorkout?.id}
+              workoutName={nextWorkout?.template_name}
+              estimatedDuration={
+                userProfile?.preferred_session_length || '45 minutes'
+              }
+              loading={loading}
+              noActiveGym={!activeGym}
+              noActiveTPath={!activeTPath}
+            />
+          </View>
+
+          {/* 6. All Workouts Quick Start */}
+          <View>
+            <AllWorkoutsQuickStart
+              programName={activeTPath?.template_name}
+              workouts={tpathWorkouts}
+              loading={loading}
+            />
+          </View>
+
+          {/* 7. Weekly Volume Chart */}
+          <View>
+            <SimpleVolumeChart data={volumeData} />
+          </View>
+
+          {/* 8. Previous Workouts */}
+          <View>
+            <PreviousWorkoutsWidget
+              workouts={recentWorkouts.map(workout => ({
+                id: workout.id,
+                sessionId: workout.id,
+                template_name: workout.template_name || 'Ad Hoc Workout',
+                completed_at: workout.completed_at || workout.session_date,
+                exercise_count: workout.exercise_count,
+                duration_string: workout.duration_string ?? undefined,
+              }))}
+              onViewSummary={handleViewSummary}
+              onDelete={handleDeleteWorkout}
+              loading={loading}
+            />
+          </View>
+
+          {/* Debug: Force Refresh Button */}
+          <View style={{ marginTop: 20, padding: 10, backgroundColor: '#f0f0f0', borderRadius: 8 }}>
+            <Pressable
+              onPress={onRefresh}
+              style={{ padding: 10, backgroundColor: '#007AFF', borderRadius: 6 }}
+            >
+              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '600' }}>
+                🔄 Force Refresh Data
+              </Text>
+            </Pressable>
+            <Text style={{ fontSize: 12, color: '#666', marginTop: 5, textAlign: 'center' }}>
+              Debug: Force refresh to apply workout progression fix
             </Text>
-          </Pressable>
-          <Text style={{ fontSize: 12, color: '#666', marginTop: 5, textAlign: 'center' }}>
-            Debug: Force refresh to apply workout progression fix
-          </Text>
-        </View>
-      </ScrollView>
-    </View>
+          </View>
+        </ScrollView>
+      </View>
+
+      {/* Workout Summary Modal */}
+      <WorkoutSummaryModal
+        visible={workoutSummaryModalVisible}
+        onClose={() => setWorkoutSummaryModalVisible(false)}
+        exercises={selectedSessionData?.exercises || []}
+        workoutName={selectedSessionData?.workoutName || ''}
+        startTime={selectedSessionData?.startTime || new Date()}
+        onSaveWorkout={async () => {
+          // Since this is a view-only modal for past workouts, we don't need to save anything
+          setWorkoutSummaryModalVisible(false);
+        }}
+        onRateWorkout={(rating) => {
+          // Could implement rating functionality here if needed
+          console.log('Workout rated:', rating);
+        }}
+      />
+    </>
   );
 }
 

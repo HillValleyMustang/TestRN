@@ -10,9 +10,9 @@ export interface WorkoutColorScheme {
 }
 
 export const WORKOUT_COLORS: Record<string, WorkoutColorScheme> = {
-  'Push': { main: '#228B22', light: '#2ea32e' },
-  'Pull': { main: '#F89C4D', light: '#fab86d' },
-  'Legs': { main: '#B645D9', light: '#c966e3' },
+  'Push': { main: '#3B82F6', light: '#60A5FA' },
+  'Pull': { main: '#10B981', light: '#34D399' },
+  'Legs': { main: '#F59E0B', light: '#FBBF24' },
   
   'Upper Body A': { main: '#1e3a8a', light: '#2563eb' },
   'Upper A': { main: '#1e3a8a', light: '#2563eb' },
@@ -26,7 +26,7 @@ export const WORKOUT_COLORS: Record<string, WorkoutColorScheme> = {
   'Bonus': { main: '#F59E0B', light: '#FBBF24' },
   'Ad Hoc Workout': { main: '#F59E0B', light: '#FBBF24' },
   
-  '3-Day Push/Pull/Legs': { main: '#228B22', light: '#2ea32e' },
+  '3-Day Push/Pull/Legs': { main: '#3B82F6', light: '#60A5FA' },
   '4-Day Upper/Lower': { main: '#1e3a8a', light: '#2563eb' },
 };
 

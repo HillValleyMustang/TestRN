@@ -39,6 +39,8 @@ interface WorkoutSummaryModalProps {
   startTime: Date;
   onSaveWorkout: () => Promise<void>;
   onRateWorkout?: (rating: number) => void;
+  syncStatus?: 'idle' | 'syncing' | 'synced' | 'sync_failed';
+  onRetrySync?: () => void;
 }
 
 export function WorkoutSummaryModal({
@@ -48,7 +50,9 @@ export function WorkoutSummaryModal({
   workoutName,
   startTime,
   onSaveWorkout,
-  onRateWorkout
+  onRateWorkout,
+  syncStatus = 'idle',
+  onRetrySync
 }: WorkoutSummaryModalProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [rating, setRating] = useState<number>(0);
@@ -78,11 +82,24 @@ export function WorkoutSummaryModal({
     setIsSaving(true);
     try {
       await onSaveWorkout();
-      onClose();
+      // Don't close modal immediately - let user see sync status
     } catch (error) {
       Alert.alert('Error', 'Failed to save workout');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const getSyncStatusDisplay = () => {
+    switch (syncStatus) {
+      case 'syncing':
+        return { text: 'Syncing...', color: Colors.mutedForeground, icon: 'sync' as const };
+      case 'synced':
+        return { text: 'Synced', color: Colors.success || '#10B981', icon: 'checkmark-circle' as const };
+      case 'sync_failed':
+        return { text: 'Sync Failed', color: Colors.destructive, icon: 'close-circle' as const };
+      default:
+        return { text: 'Saved Locally', color: Colors.mutedForeground, icon: 'cloud-offline' as const };
     }
   };
 
@@ -154,16 +171,13 @@ export function WorkoutSummaryModal({
     );
   };
 
+  if (!visible) return null;
+
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
-    >
-      <Pressable style={styles.overlay} onPress={onClose}>
+    <View style={styles.overlay}>
+      <Pressable style={styles.overlayPressable} onPress={onClose}>
         <View style={styles.modalContainer}>
-          <Pressable onPress={(e: any) => e.stopPropagation()} style={styles.modalContent}>
+          <View style={styles.modalContent}>
             <View style={styles.header}>
               <Text style={styles.title}>Workout Summary</Text>
               <HapticPressable onPress={onClose} style={styles.closeButton}>
@@ -171,7 +185,13 @@ export function WorkoutSummaryModal({
               </HapticPressable>
             </View>
 
-            <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={styles.content}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              onStartShouldSetResponder={() => true}
+              onMoveShouldSetResponder={() => true}
+            >
               {/* Workout Stats */}
               <View style={styles.statsContainer}>
                 <Card style={styles.statsCard}>
@@ -227,38 +247,99 @@ export function WorkoutSummaryModal({
                 </Card>
               )}
 
-              {/* Action Button */}
+              {/* Sync Status */}
+              <Card style={styles.syncStatusCard}>
+                <View style={styles.syncStatusContent}>
+                  <Ionicons
+                    name={getSyncStatusDisplay().icon}
+                    size={20}
+                    color={getSyncStatusDisplay().color}
+                  />
+                  <Text style={[styles.syncStatusText, { color: getSyncStatusDisplay().color }]}>
+                    {getSyncStatusDisplay().text}
+                  </Text>
+                  {syncStatus === 'sync_failed' && onRetrySync && (
+                    <HapticPressable
+                      style={styles.retryButton}
+                      onPress={onRetrySync}
+                    >
+                      <Ionicons name="refresh" size={16} color={Colors.primary} />
+                      <Text style={styles.retryText}>Retry</Text>
+                    </HapticPressable>
+                  )}
+                </View>
+              </Card>
+
+              {/* Action Buttons */}
               <View style={styles.actionContainer}>
-                <Button
-                  onPress={handleSave}
-                  disabled={isSaving}
-                  style={styles.saveButton}
-                >
-                  {isSaving ? "Saving..." : "Save Workout"}
-                </Button>
+                {syncStatus === 'synced' ? (
+                  <Button
+                    onPress={onClose}
+                    style={styles.saveButton}
+                  >
+                    Continue
+                  </Button>
+                ) : (
+                  <View style={styles.actionButtonsRow}>
+                    <Button
+                      onPress={onClose}
+                      variant="outline"
+                      style={styles.secondaryButton}
+                    >
+                      Close
+                    </Button>
+                    {syncStatus !== 'syncing' && (
+                      <Button
+                        onPress={handleSave}
+                        disabled={isSaving}
+                        style={styles.saveButton}
+                      >
+                        {isSaving ? "Saving..." : "Save Workout"}
+                      </Button>
+                    )}
+                  </View>
+                )}
               </View>
             </ScrollView>
-          </Pressable>
+          </View>
         </View>
       </Pressable>
-    </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   overlay: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+  },
+  overlayPressable: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   modalContainer: {
-    width: '100%',
-    maxHeight: '90%',
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    width: '90%',
+    height: '95%',
+    maxHeight: 712,
+    transform: [{ translateX: '-50%' }, { translateY: '-50%' }],
+    zIndex: 10000,
   },
   modalContent: {
     backgroundColor: Colors.background,
-    borderTopLeftRadius: BorderRadius.xl,
-    borderTopRightRadius: BorderRadius.xl,
+    borderRadius: BorderRadius.xl,
     paddingTop: Spacing.lg,
     flex: 1,
   },
@@ -395,7 +476,43 @@ const styles = StyleSheet.create({
   actionContainer: {
     marginBottom: Spacing.xl,
   },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    justifyContent: 'space-between',
+  },
+  secondaryButton: {
+    flex: 1,
+  },
   saveButton: {
-    width: '100%',
+    flex: 1,
+  },
+  syncStatusCard: {
+    marginBottom: Spacing.lg,
+  },
+  syncStatusContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+  },
+  syncStatusText: {
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    backgroundColor: Colors.secondary,
+    borderRadius: 6,
+  },
+  retryText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.primary,
   },
 });

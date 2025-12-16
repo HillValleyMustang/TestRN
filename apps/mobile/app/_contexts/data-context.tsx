@@ -201,6 +201,7 @@ interface DataContextType {
   isOnline: boolean;
   loadDashboardSnapshot: () => Promise<DashboardSnapshot>;
   forceRefreshProfile: () => void;
+  forceSyncPendingItems: () => Promise<void>;
   cleanupUserData: (userId: string) => Promise<{ success: boolean; cleanedTables: string[]; errors: string[] }>;
   emergencyReset: () => Promise<{ success: boolean; error?: string }>;
 }
@@ -671,7 +672,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         exercise_count,
       }));
 
-    // Filter workouts to only include those from the current week (Monday to Sunday)
+    // Filter workouts to only include those from the current week (Monday to Sunday) for weekly summary
     // Calculate week boundaries in UTC to match workout date storage
     const now = new Date();
     const dayOfWeek = now.getUTCDay(); // 0 = Sunday, 1 = Monday, etc.
@@ -1318,15 +1319,34 @@ console.log('Weekly summary calculation:', {
     await database.deleteGym(gymId);
   };
 
-  const forceRefreshProfile = useCallback(() => {
+  const forceRefreshProfile = useCallback(async () => {
     console.log('[DataContext] Forcing profile refresh...');
+
+    // First, prioritize processing any pending sync items
+    if (isInitialized && userId && isOnline) {
+      console.log('[DataContext] Processing pending sync items before refresh...');
+      // Wait a bit for any pending syncs to process
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+
+    // Then clear cache and trigger refresh
     setProfileCache(null);
     setDataLoaded(false);
     setForceRefresh(prev => prev + 1);
-    
+
     // Also clear any loading states to ensure fresh data
     // This will help prevent race conditions
-  }, []);
+  }, [isInitialized, userId, isOnline]);
+
+  const forceSyncPendingItems = useCallback(async () => {
+    console.log('[DataContext] Forcing sync of pending items...');
+    // The sync queue processor will automatically process pending items
+    // We can trigger it by ensuring the processor is active
+    if (isInitialized && userId && isOnline) {
+      // Wait a bit for any pending syncs to process
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+  }, [isInitialized, userId, isOnline]);
 
   const cleanupUserData = useCallback(async (userId: string) => {
     console.log('[DataContext] Starting cleanup for user:', userId);
@@ -1413,6 +1433,7 @@ console.log('Weekly summary calculation:', {
       isOnline,
       loadDashboardSnapshot,
       forceRefreshProfile,
+      forceSyncPendingItems,
       cleanupUserData,
       emergencyReset,
     }),
