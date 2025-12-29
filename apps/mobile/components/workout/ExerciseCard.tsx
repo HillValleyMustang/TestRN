@@ -630,14 +630,8 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                                     return;
                                 }
 
-                                const setsWithPR = localSets.map((set, setIndex) => {
-                                    if (!hasUserInput(set)) return set;
-                                    const currentVolume = (set.weight_kg || 0) * (set.reps || 0);
-                                    const previousSessionVolumes = localSets.filter((s) => s.isSaved && s !== set).map((s) => (s.weight_kg || 0) * (s.reps || 0));
-                                    const maxPreviousVolume = Math.max(...previousSessionVolumes, 0);
-                                    const isVolumePB = currentVolume > maxPreviousVolume;
-                                    return { ...set, isPR: isVolumePB };
-                                });
+                                // Use the PR status that was already determined during real-time completion
+                                const setsWithPR = localSets;
 
                                 const savedSetUpdates: Array<{ setIndex: number; setId: string; created_at: string; isPR: boolean }> = [];
 

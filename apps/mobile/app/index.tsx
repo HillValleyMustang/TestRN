@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from './_contexts/auth-context';
@@ -9,6 +9,7 @@ export default function Index() {
   const { session, userId, loading: authLoading, supabase } = useAuth();
   const { forceRefreshProfile } = useData();
   const router = useRouter();
+  const navigatedRef = useRef(false);
 
   // Feature flag for new onboarding flow
   const USE_NEW_ONBOARDING = false; // Set to true when ready to use new flow
@@ -39,7 +40,10 @@ export default function Index() {
             if (profile) {
               if (profile.onboarding_completed) {
                 console.log('[Index] User has completed onboarding, redirecting to dashboard');
-                router.replace('/(tabs)/dashboard');
+                if (!navigatedRef.current) {
+                  navigatedRef.current = true;
+                  router.replace('/(tabs)/dashboard');
+                }
               } else {
                 console.log('[Index] User needs onboarding, redirecting to onboarding');
                 if (USE_NEW_ONBOARDING) {

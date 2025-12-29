@@ -15,7 +15,8 @@ import { GymToggle } from '../../components/dashboard/GymToggle';
 import { BackgroundRoot } from '../../components/BackgroundRoot';
 import { useData } from '../_contexts/data-context';
 import { useAuth } from '../_contexts/auth-context';
-import { database } from '../_lib/database';
+import { database, addToSyncQueue } from '../_lib/database';
+import { supabase } from '../_lib/supabase';
 import { Colors, Spacing } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
 import { ExerciseCard } from '../../components/workout/ExerciseCard';
@@ -128,6 +129,13 @@ export default function WorkoutLauncherScreen() {
     exercises: any[];
     workoutName: string;
     startTime: Date;
+    duration?: string | undefined;
+    historicalWorkout?: any;
+    weeklyVolumeData?: any;
+    nextWorkoutSuggestion?: any;
+    isOnTPath?: boolean;
+    historicalRating?: number;
+    sessionId?: string;
   } | null>(null);
   const [selectedExercise, setSelectedExercise] = useState<any>(null);
   const [currentExerciseId, setCurrentExerciseId] = useState<string>('');
@@ -298,6 +306,325 @@ export default function WorkoutLauncherScreen() {
     setSwapModalVisible(true);
   };
 
+  // Helper function to get historical workout for comparison
+  const getHistoricalWorkout = async (workoutName: string): Promise<any | null> => {
+    if (!userId || !workoutName) return null;
+
+    try {
+      console.log('[Workout] Fetching historical workout for:', workoutName, 'userId:', userId);
+      console.log('[Workout] getHistoricalWorkout function called');
+      
+      // Check if Supabase client is available
+      if (!supabase) {
+        console.error('[Workout] Supabase client not available');
+        return null;
+      }
+      
+      // Check if user is authenticated
+      const { data: { session }, error: authError } = await supabase.auth.getSession();
+      if (authError) {
+        console.error('[Workout] Auth error:', authError);
+        return null;
+      }
+      if (!session) {
+        console.error('[Workout] No active session found');
+        return null;
+      }
+      
+      // Get previous workouts of the same type from Supabase
+      const { data: sessions, error } = await supabase
+        .from('workout_sessions')
+        .select(`
+          id,
+          session_date,
+          duration_string,
+          rating,
+          set_logs (
+            exercise_id,
+            weight_kg,
+            reps,
+            is_pb
+          )
+        `)
+        .eq('user_id', userId)
+        .eq('template_name', workoutName)
+        .order('session_date', { ascending: false })
+        .limit(2); // Get current + previous
+
+      if (error) {
+        console.error('[Workout] Error fetching historical workouts:', error);
+        console.error('[Workout] Query details - userId:', userId, 'workoutName:', workoutName);
+        console.error('[Workout] Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        return null;
+      }
+
+      if (!sessions) {
+        console.log('[Workout] No sessions found for historical query');
+        return null;
+      }
+      
+      // Additional validation
+      if (!Array.isArray(sessions)) {
+        console.error('[Workout] Invalid sessions data type:', typeof sessions);
+        return null;
+      }
+
+      console.log('[Workout] Historical sessions fetched:', sessions?.length || 0);
+
+      if (sessions && sessions.length > 1) {
+        const previousSession = sessions[1]; // Skip current session
+        const previousSets = previousSession.set_logs || [];
+        
+        console.log('[Workout] Previous session sets:', previousSets.length);
+        
+        // Group sets by exercise
+        const exerciseMap = new Map();
+        previousSets.forEach((set: any) => {
+          if (!exerciseMap.has(set.exercise_id)) {
+            exerciseMap.set(set.exercise_id, {
+              exerciseId: set.exercise_id,
+              exerciseName: `Exercise ${set.exercise_id?.slice(-4) || 'Ex'}`,
+              sets: [],
+            });
+          }
+          
+          const exerciseData = exerciseMap.get(set.exercise_id);
+          exerciseData.sets.push({
+            weight: set.weight_kg?.toString() || '0',
+            reps: set.reps?.toString() || '0',
+            isCompleted: true,
+            isPR: set.is_pb || false,
+          });
+        });
+
+        const exercises = Array.from(exerciseMap.values());
+        const totalVolume = exercises.flatMap(ex => ex.sets).reduce((total, set) => {
+          const weight = parseFloat(set.weight) || 0;
+          const reps = parseInt(set.reps, 10) || 0;
+          return total + (weight * reps);
+        }, 0);
+
+        const result = {
+          exercises,
+          duration: previousSession.duration_string || '45:00',
+          totalVolume,
+          prCount: exercises.flatMap(ex => ex.sets).filter(set => set.isPR).length,
+          date: new Date(previousSession.session_date),
+        };
+        
+        console.log('[Workout] Historical workout result:', result);
+        return result;
+      } else {
+        console.log('[Workout] No historical data found - sessions:', sessions?.length || 0);
+      }
+    } catch (error) {
+      console.error('Error getting historical workout:', error);
+    }
+    
+    return null;
+  };
+
+  // Helper function to get weekly volume data
+  const getWeeklyVolumeData = async (): Promise<any> => {
+    if (!userId) return {};
+
+    try {
+      console.log('[Workout] Fetching weekly volume data for userId:', userId);
+      console.log('[Workout] getWeeklyVolumeData function called');
+      
+      // Check if Supabase client is available
+      if (!supabase) {
+        console.error('[Workout] Supabase client not available');
+        return {};
+      }
+      
+      // Check if user is authenticated
+      const { data: { session }, error: authError } = await supabase.auth.getSession();
+      if (authError) {
+        console.error('[Workout] Auth error:', authError);
+        return {};
+      }
+      if (!session) {
+        console.error('[Workout] No active session found');
+        return {};
+      }
+      
+      const { data: sessions, error } = await supabase
+        .from('workout_sessions')
+        .select(`
+          session_date,
+          set_logs (
+            exercise_id,
+            weight_kg,
+            reps
+          )
+        `)
+        .eq('user_id', userId)
+        .gte('session_date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        .order('session_date', { ascending: true });
+
+      if (error) {
+        console.error('[Workout] Error fetching weekly volume data:', error);
+        console.error('[Workout] Query details - userId:', userId);
+        console.error('[Workout] Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        return {};
+      }
+
+      console.log('[Workout] Weekly sessions fetched:', sessions?.length || 0);
+
+      if (!sessions) {
+        console.log('[Workout] No sessions found for weekly volume query');
+        return {};
+      }
+      
+      // Additional validation
+      if (!Array.isArray(sessions)) {
+        console.error('[Workout] Invalid sessions data type:', typeof sessions);
+        return {};
+      }
+
+      // Get exercise definitions to map muscle groups
+      const { data: exercises, error: exError } = await supabase
+        .from('exercise_definitions')
+        .select('id, category')
+        .or(`user_id.eq.${userId},user_id.is.null`);
+
+      if (exError) {
+        console.error('[Workout] Error fetching exercise definitions:', exError);
+        console.error('[Workout] Query details - userId:', userId);
+        return {};
+      }
+
+      console.log('[Workout] Exercise definitions fetched:', exercises?.length || 0);
+
+      if (!exercises) {
+        console.log('[Workout] No exercise definitions found');
+        return {};
+      }
+
+      const exerciseLookup = new Map();
+      exercises?.forEach((ex: any) => {
+        exerciseLookup.set(ex.id, ex.category);
+      });
+
+      // Calculate daily volume by muscle group
+      const dailyVolumes: { [date: string]: { [muscle: string]: number } } = {};
+      const muscleGroups = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
+
+      sessions?.forEach((session: any) => {
+        const date = new Date(session.session_date).toDateString();
+        if (!dailyVolumes[date]) {
+          dailyVolumes[date] = {};
+          muscleGroups.forEach(group => {
+            dailyVolumes[date][group] = 0;
+          });
+        }
+
+        session.set_logs?.forEach((set: any) => {
+          const muscleGroup = exerciseLookup.get(set.exercise_id) || 'Other';
+          const volume = (parseFloat(set.weight_kg) || 0) * (parseInt(set.reps) || 0);
+          dailyVolumes[date][muscleGroup] = (dailyVolumes[date][muscleGroup] || 0) + volume;
+        });
+      });
+
+      // Convert to 7-day array format
+      const result: any = {};
+      muscleGroups.forEach(group => {
+        result[group] = [];
+      });
+
+      // Fill in last 7 days
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toDateString();
+        muscleGroups.forEach(group => {
+          result[group].push(dailyVolumes[date]?.[group] || 0);
+        });
+      }
+
+      console.log('[Workout] Weekly volume data result:', result);
+      return result;
+    } catch (error) {
+      console.error('Error getting weekly volume data:', error);
+      return {};
+    }
+  };
+
+  // Helper function to get next workout suggestion
+  const getNextWorkoutSuggestion = async (currentWorkoutName: string): Promise<any | null> => {
+    if (!userId || !activeTPath) return null;
+
+    try {
+      console.log('[Workout] Fetching next workout suggestion for:', currentWorkoutName, 'T-path:', activeTPath.id);
+      console.log('[Workout] getNextWorkoutSuggestion function called');
+      
+      // Get T-path child workouts
+      const { data: childWorkouts, error } = await supabase
+        .from('t_paths')
+        .select('id, template_name')
+        .eq('parent_t_path_id', activeTPath.id)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching T-path workouts:', error);
+        console.error('Query details - parent_t_path_id:', activeTPath.id);
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        return null;
+      }
+
+      console.log('[Workout] T-path child workouts fetched:', childWorkouts?.length || 0);
+
+      if (!childWorkouts) {
+        console.log('[Workout] No T-path child workouts found');
+        return null;
+      }
+      
+      // Additional validation
+      if (!Array.isArray(childWorkouts)) {
+        console.error('[Workout] Invalid childWorkouts data type:', typeof childWorkouts);
+        return null;
+      }
+
+      if (childWorkouts && childWorkouts.length > 0) {
+        // Find current workout index
+        const currentIndex = childWorkouts.findIndex(w => w.template_name === currentWorkoutName);
+        const nextIndex = (currentIndex + 1) % childWorkouts.length;
+        
+        // Calculate ideal next workout date (2 days from now)
+        const idealDate = new Date();
+        idealDate.setDate(idealDate.getDate() + 2);
+
+        const result = {
+          name: childWorkouts[nextIndex].template_name,
+          idealDate,
+        };
+        
+        console.log('[Workout] Next workout suggestion result:', result);
+        return result;
+      } else {
+        console.log('[Workout] No T-path child workouts found');
+      }
+    } catch (error) {
+      console.error('Error getting next workout suggestion:', error);
+    }
+
+    return null;
+  };
+
   const getModalExercises = () => {
     return exercisesForSession
       .filter(exercise => exercise.id)
@@ -316,31 +643,150 @@ export default function WorkoutLauncherScreen() {
           exerciseId: exercise.id!,
           exerciseName: exercise.name,
           sets: modalSets,
+          iconUrl: (exercise as any).icon_url,
         };
-        if (exercise.main_muscle) {
-          result.muscleGroup = exercise.main_muscle;
-        }
+
+        // Helper function to map exercise names to muscle groups
+        const getMuscleGroupFromExercise = (ex: any): string => {
+          const name = (ex?.name || '').toLowerCase();
+          
+          // Chest exercises
+          if (name.includes('bench') || name.includes('press') || name.includes('fly') ||
+              name.includes('push up') || name.includes('dip') || name.includes('pec')) {
+            return 'Chest';
+          }
+          
+          // Back exercises
+          if (name.includes('row') || name.includes('pull') || name.includes('lat') ||
+              name.includes('deadlift') || name.includes('shrug') || name.includes('face pull')) {
+            return 'Back';
+          }
+          
+          // Legs exercises
+          if (name.includes('squat') || name.includes('lunge') || name.includes('leg') ||
+              name.includes('deadlift') || name.includes('hip') || name.includes('calf')) {
+            return 'Legs';
+          }
+          
+          // Shoulders exercises
+          if (name.includes('shoulder') || name.includes('overhead') || name.includes('raise') ||
+              name.includes('arnold') || name.includes('upright')) {
+            return 'Shoulders';
+          }
+          
+          // Arms exercises
+          if (name.includes('curl') || name.includes('extension') || name.includes('tricep') ||
+              name.includes('bicep') || name.includes('hammer')) {
+            return 'Arms';
+          }
+          
+          // Core exercises
+          if (name.includes('crunch') || name.includes('plank') || name.includes('sit') ||
+              name.includes('leg raise') || name.includes('Russian twist')) {
+            return 'Core';
+          }
+          
+          // Default to Unknown if we can't determine
+          return 'Unknown';
+        };
+
+        result.muscleGroup = getMuscleGroupFromExercise(exercise);
         return result;
       })
       .filter(exercise => exercise.sets.length > 0);
   };
 
-  const handleSaveWorkout = async () => {
+  const handleSaveWorkout = async (rating?: number) => {
+    console.log('[Workout] handleSaveWorkout called with rating:', rating);
+    
+    // If a rating was provided, save it before navigating away
+    if (rating && rating > 0 && summaryModalData?.sessionId) {
+      console.log('[Workout] Saving rating via handleSaveWorkout:', rating, 'sessionId:', summaryModalData.sessionId);
+      await handleRateWorkout(rating, summaryModalData.sessionId);
+    } else {
+      console.log('[Workout] Skipping rating save - missing data:', { rating, sessionId: summaryModalData?.sessionId });
+    }
+    
     router.replace('/(tabs)/dashboard');
   };
 
-  const handleRateWorkout = async (rating: number) => {
-    if (!currentSessionId || !userId) return;
+  const handleRateWorkout = async (rating: number, sessionId?: string) => {
+    const targetSessionId = sessionId || currentSessionId;
+    if (!targetSessionId || !userId) {
+      console.log('[Workout] handleRateWorkout - missing sessionId or userId:', { targetSessionId, userId });
+      return;
+    }
 
     try {
-      const existingSessions = await database.getWorkoutSessions(userId);
-      const existingSession = existingSessions.find(s => s.id === currentSessionId);
+      console.log('[Workout] handleRateWorkout called with rating:', rating, 'sessionId:', targetSessionId);
+      
+      // Use direct database lookup to ensure we get the session data regardless of cache state
+      const existingSession = await database.getWorkoutSessionById(targetSessionId);
+      
+      console.log('[Workout] Found existing session:', !!existingSession);
+      console.log('[Workout] Existing session rating:', existingSession?.rating);
+      
       if (existingSession) {
-        const updatedSession = { ...existingSession, rating };
+        // Update the session with the rating, preserving the original duration
+        const updatedSession = {
+          ...existingSession,
+          rating,
+          // Ensure the session is marked as completed
+          completed_at: existingSession.completed_at || new Date().toISOString(),
+          // Preserve the original duration string to fix regression
+          duration_string: existingSession.duration_string || '00:00'
+        };
+        console.log('[Workout] Updated session data:', updatedSession);
         await database.addWorkoutSession(updatedSession);
+        await addToSyncQueue('update', 'workout_sessions', updatedSession);
+        console.log('[Workout] Rating saved successfully for session:', targetSessionId);
+      } else {
+        // Session doesn't exist yet, create it with the rating
+        // Calculate duration from session start time if available
+        const now = new Date();
+        const startTime = sessionStartTime ? new Date(sessionStartTime) : now;
+        const durationMs = now.getTime() - startTime.getTime();
+        const durationSeconds = Math.round(durationMs / 1000);
+        
+        // Format duration as "X seconds" for consistency
+        let durationString = '00:00';
+        if (durationSeconds < 60) {
+          durationString = `${durationSeconds} seconds`;
+        } else if (durationSeconds < 3600) {
+          const minutes = Math.floor(durationSeconds / 60);
+          const seconds = durationSeconds % 60;
+          durationString = `${minutes}m ${seconds}s`;
+        } else {
+          const hours = Math.floor(durationSeconds / 3600);
+          const minutes = Math.floor((durationSeconds % 3600) / 60);
+          durationString = `${hours}h ${minutes}m`;
+        }
+        
+        const newSession = {
+          id: targetSessionId,
+          user_id: userId,
+          session_date: startTime.toISOString(),
+          template_name: activeWorkout?.template_name || 'Workout',
+          rating: rating,
+          created_at: startTime.toISOString(),
+          completed_at: now.toISOString(),
+          duration_string: durationString,
+          t_path_id: activeTPath?.id || null,
+          sync_status: 'local_only'
+        };
+        console.log('[Workout] Creating new session with rating:', newSession);
+        await database.addWorkoutSession(newSession);
+        await addToSyncQueue('create', 'workout_sessions', newSession);
+        console.log('[Workout] Rating saved successfully for new session:', targetSessionId);
       }
+      
+      // Verify the rating was saved correctly using direct lookup
+      const verifySession = await database.getWorkoutSessionById(targetSessionId);
+      console.log('[Workout] Verification - session rating after save:', verifySession?.rating);
+      
     } catch (error) {
       console.error('Error saving rating:', error);
+      Alert.alert('Error', 'Failed to save rating. Please try again.');
     }
   };
 
@@ -626,15 +1072,98 @@ export default function WorkoutLauncherScreen() {
                           ]}
                           onPress={async () => {
                             const sessionId = await finishWorkout();
-                            if (sessionId) {
+                            if (sessionId && userId) {
+                              // Fetch the completed session data to get duration and rating
+                              const sessions = await database.getWorkoutSessions(userId);
+                              const completedSession = sessions.find(s => s.id === sessionId);
+
                               const modalExercises = getModalExercises();
                               const workoutName = activeWorkout?.template_name || 'Workout';
                               const startTime = sessionStartTime || new Date();
 
+                              // Fetch the current session's rating for historical display
+                              const currentSessionRating = completedSession?.rating || 0;
+
+                              // Fetch all required data for advanced features
+                              console.log('[Workout] Fetching advanced modal data...');
+                              
+                              // First, verify Supabase is working
+                              try {
+                                const { data: { session }, error: authError } = await supabase.auth.getSession();
+                                console.log('[Workout] Supabase auth check:', { hasSession: !!session, authError });
+                                
+                                if (authError) {
+                                  console.error('[Workout] Auth error:', authError);
+                                  return;
+                                }
+                                if (!session) {
+                                  console.error('[Workout] No active session found');
+                                  return;
+                                }
+                              } catch (authCheckError) {
+                                console.error('[Workout] Auth check failed:', authCheckError);
+                                return;
+                              }
+                              
+                              console.log('[Workout] Starting data fetch calls...');
+                              
+                              // Call each function individually to see which one fails
+                              console.log('[Workout] Calling getHistoricalWorkout...');
+                              const historicalWorkout = await getHistoricalWorkout(workoutName);
+                              console.log('[Workout] getHistoricalWorkout result:', !!historicalWorkout);
+                              
+                              console.log('[Workout] Calling getWeeklyVolumeData...');
+                              const weeklyVolumeData = await getWeeklyVolumeData();
+                              console.log('[Workout] getWeeklyVolumeData result:', Object.keys(weeklyVolumeData || {}));
+                              
+                              console.log('[Workout] Calling getNextWorkoutSuggestion...');
+                              const nextWorkoutSuggestion = await getNextWorkoutSuggestion(workoutName);
+                              console.log('[Workout] getNextWorkoutSuggestion result:', !!nextWorkoutSuggestion);
+                              
+                              console.log('[Workout] Data fetch completed, results:', {
+                                historicalWorkout: !!historicalWorkout,
+                                weeklyVolumeData: Object.keys(weeklyVolumeData || {}),
+                                nextWorkoutSuggestion: !!nextWorkoutSuggestion
+                              });
+                              
+                              // Set the modal data
                               setSummaryModalData({
                                 exercises: modalExercises,
                                 workoutName,
                                 startTime,
+                                duration: completedSession?.duration_string || undefined,
+                                historicalWorkout,
+                                weeklyVolumeData,
+                                nextWorkoutSuggestion,
+                                isOnTPath: !!activeTPath,
+                                historicalRating: currentSessionRating,
+                                sessionId: sessionId, // Store session ID for rating saves
+                              });
+                              
+                              console.log('[Workout] Modal data set, showing modal...');
+
+                              console.log('[Workout] Historical workout:', historicalWorkout ? 'Found' : 'Not found');
+                              console.log('[Workout] Weekly volume data keys:', Object.keys(weeklyVolumeData || {}));
+                              console.log('[Workout] Weekly volume data:', weeklyVolumeData);
+                              console.log('[Workout] Next workout suggestion:', nextWorkoutSuggestion?.name || 'Not found');
+                              console.log('[Workout] Next workout suggestion data:', nextWorkoutSuggestion);
+                              console.log('[Workout] isOnTPath:', !!activeTPath);
+
+                              // Debug: Check if any data was actually fetched
+                              const hasData = !!historicalWorkout || Object.keys(weeklyVolumeData || {}).length > 0 || !!nextWorkoutSuggestion;
+                              console.log('[Workout] Data fetch result - hasData:', hasData);
+                              console.log('[Workout] Historical workout details:', historicalWorkout);
+                              console.log('[Workout] Weekly volume data details:', weeklyVolumeData);
+                              console.log('[Workout] Next workout suggestion details:', nextWorkoutSuggestion);
+
+                              // Debug: Log the data being passed to modal
+                              console.log('[Workout] Setting modal data with:', {
+                                exercisesCount: modalExercises.length,
+                                workoutName,
+                                historicalWorkout: !!historicalWorkout,
+                                weeklyVolumeData: Object.keys(weeklyVolumeData || {}),
+                                nextWorkoutSuggestion: !!nextWorkoutSuggestion,
+                                isOnTPath: !!activeTPath,
                               });
 
                               await resetWorkoutSession();
@@ -733,6 +1262,13 @@ export default function WorkoutLauncherScreen() {
         exercises={summaryModalData?.exercises || []}
         workoutName={summaryModalData?.workoutName || 'Workout'}
         startTime={summaryModalData?.startTime || new Date()}
+        {...(summaryModalData?.duration && { duration: summaryModalData.duration })}
+        {...(summaryModalData?.historicalWorkout && { historicalWorkout: summaryModalData.historicalWorkout })}
+        {...(summaryModalData?.weeklyVolumeData && { weeklyVolumeData: summaryModalData.weeklyVolumeData })}
+        {...(summaryModalData?.nextWorkoutSuggestion && { nextWorkoutSuggestion: summaryModalData.nextWorkoutSuggestion })}
+        {...(summaryModalData?.isOnTPath !== undefined && { isOnTPath: summaryModalData.isOnTPath })}
+        {...(summaryModalData?.historicalRating !== undefined && { historicalRating: summaryModalData.historicalRating })}
+        syncStatus="synced"
         onSaveWorkout={handleSaveWorkout}
         onRateWorkout={handleRateWorkout}
       />

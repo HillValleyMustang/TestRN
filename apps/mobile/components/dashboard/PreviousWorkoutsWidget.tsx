@@ -169,10 +169,10 @@ export function PreviousWorkoutsWidget({
                 </View>
 
                 <View style={styles.workoutRight}>
-                  {workout.sessionId && onViewSummary && (
+                  {onViewSummary && (
                     <Pressable
                       style={styles.viewButton}
-                      onPress={() => onViewSummary(workout.sessionId!)}
+                      onPress={() => onViewSummary(workout.sessionId || workout.id)}
                     >
                       <Ionicons name="eye-outline" size={16} color={Colors.foreground} />
                     </Pressable>
@@ -180,7 +180,7 @@ export function PreviousWorkoutsWidget({
                   {onDelete && (
                     <Pressable
                       style={styles.deleteButton}
-                      onPress={() => handleDelete(workout.sessionId!, workout.template_name)}
+                      onPress={() => handleDelete(workout.sessionId || workout.id, workout.template_name)}
                     >
                       <Ionicons name="trash-outline" size={16} color={Colors.mutedForeground} />
                     </Pressable>

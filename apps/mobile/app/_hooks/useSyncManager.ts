@@ -42,13 +42,27 @@ export const useMobileSyncManager = () => {
 
   useEffect(() => {
     const networkUnsubscribe = addNetInfoListener(state => {
-      setIsOnline(Boolean(state.isConnected && state.isInternetReachable));
+      const wasOnline = isOnline;
+      const nowOnline = Boolean(state.isConnected && state.isInternetReachable);
+      setIsOnline(nowOnline);
+
+      // Trigger immediate sync when coming back online
+      if (!wasOnline && nowOnline && processor.processNext) {
+        processor.processNext();
+      }
     });
 
     const appStateListener = (state: AppStateStatus) => {
       if (state === 'active') {
         fetchNetInfo().then(info => {
-          setIsOnline(Boolean(info.isConnected && info.isInternetReachable));
+          const wasOnline = isOnline;
+          const nowOnline = Boolean(info.isConnected && info.isInternetReachable);
+          setIsOnline(nowOnline);
+
+          // Trigger immediate sync when app comes to foreground and is online
+          if (nowOnline && processor.processNext) {
+            processor.processNext();
+          }
         });
       }
     };

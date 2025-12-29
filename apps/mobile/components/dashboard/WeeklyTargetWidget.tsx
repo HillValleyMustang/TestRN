@@ -43,6 +43,14 @@ export function WeeklyTargetWidget({
   loading,
   error,
 }: WeeklyTargetWidgetProps) {
+  // Construct progress text safely
+  const progressText = (() => {
+    const baseText = `${completedWorkouts.length} / ${goalTotal} Workouts Completed This Week`;
+    if (totalSessions && typeof totalSessions === 'number' && totalSessions > completedWorkouts.length && totalSessions > goalTotal) {
+      return `${baseText} (${totalSessions} sessions)`;
+    }
+    return baseText;
+  })();
   
 
   const workoutTypes = programmeType === 'ulul'
@@ -123,7 +131,12 @@ export function WeeklyTargetWidget({
                     styles.completedCircle,
                     { backgroundColor: colors.main }
                   ]}
-                  onPress={() => workout.sessionId && onViewWorkoutSummary?.(workout.sessionId)}
+                  onPress={() => {
+                    const sessionId = workout.sessionId || workout.id;
+                    if (sessionId) {
+                      onViewWorkoutSummary?.(sessionId);
+                    }
+                  }}
                 >
                   <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
                 </Pressable>
@@ -180,10 +193,7 @@ export function WeeklyTargetWidget({
       </View>
 
       <Text style={styles.progressText}>
-        {completedWorkouts.length} / {goalTotal} Workouts Completed This Week
-        {totalSessions && totalSessions > completedWorkouts.length && totalSessions > 0 && (
-          <Text style={styles.sessionsText}> ({totalSessions} sessions)</Text>
-        )}
+        {progressText}
       </Text>
 
       {activitiesCount > 0 && onViewActivities && (

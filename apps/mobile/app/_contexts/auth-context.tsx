@@ -14,6 +14,11 @@ import { useData } from './data-context';
 import { clearOnboardingData } from '../../lib/onboardingStorage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// DEVELOPMENT AUTO-LOGIN - Set to true to auto-login during development
+const AUTO_LOGIN_FOR_DEVELOPMENT = true;
+const DEV_EMAIL = 'craig.duffill@gmail.com';
+const DEV_PASSWORD = 'lufclufc';
+
 // Additional AsyncStorage keys to clear on user change
 const APP_STORAGE_KEYS = [
   'profile_active_tab', // Profile tab state
@@ -51,27 +56,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const previousUserId = useRef<string | null>(null);
   const { cleanupUserData } = useData();
+  const initialLoadRef = useRef(true);
 
   const userId = useMemo(() => session?.user?.id || null, [session?.user?.id]);
 
   useEffect(() => {
-    // Force sign out to clear any cached sessions for testing
-    supabase.auth.signOut().then(() => {
-      console.log('[Auth] Forced sign out completed for testing');
-      setSession(null);
-      setLoading(false);
-    });
-
+    // Always set up the auth state change listener first
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
       async (_event: string, newSession: Session | null) => {
         const newUserId = newSession?.user?.id || null;
         const oldUserId = previousUserId.current;
-        
+
         console.log('[Auth] Auth state changed:', newSession ? `authenticated (user: ${newSession?.user?.email})` : 'not authenticated');
         console.log('[Auth] User transition:', { from: oldUserId, to: newUserId });
-        
+
+        // Set loading to false on first auth state change
+        if (initialLoadRef.current) {
+          initialLoadRef.current = false;
+          setLoading(false);
+        }
+
         // Check if user changed (different user or signed out)
         if (oldUserId && oldUserId !== newUserId) {
           console.log('[Auth] User change detected, cleaning up local data for previous user:', oldUserId);
@@ -95,12 +101,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             console.error('[Auth] Failed to clear onboarding data for new user:', error);
           }
         }
-        
+
         // Update previous user ID
         previousUserId.current = newUserId;
         setSession(newSession);
       }
     );
+
+    if (AUTO_LOGIN_FOR_DEVELOPMENT) {
+      // DEVELOPMENT AUTO-LOGIN: Sign in with real credentials
+      console.log('[Auth] 🔧 DEVELOPMENT MODE: Auto-logging in with dev credentials');
+      supabase.auth.signInWithPassword({
+        email: DEV_EMAIL,
+        password: DEV_PASSWORD,
+      }).catch((error) => {
+        console.error('[Auth] Auto-login failed:', error.message);
+        console.log('[Auth] Falling back to normal auth flow');
+        // Auth state change listener will handle setting session to null
+      });
+      return () => subscription.unsubscribe();
+    }
+
+    // Force sign out to clear any cached sessions for testing
+    supabase.auth.signOut().catch((error) => {
+      console.error('[Auth] Failed to sign out:', error);
+      // Auth state change listener will handle the session state
+    });
 
     return () => subscription.unsubscribe();
   }, [/* cleanupUserData removed from deps to prevent re-subscription on every cleanupUserData change */]);

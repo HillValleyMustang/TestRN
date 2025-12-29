@@ -220,6 +220,15 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const [profileCache, setProfileCache] = useState<DashboardProfile | null>(null);
   const [forceRefresh, setForceRefresh] = useState(0);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [dashboardCache, setDashboardCache] = useState<{
+    data: DashboardSnapshot;
+    timestamp: number;
+  } | null>(null);
+  
+  const [gymActivationCache, setGymActivationCache] = useState<{
+    [userId: string]: Gym | null;
+  }>({});
   
 
   useEffect(() => {
@@ -355,7 +364,37 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     return points;
   };
 
+  const CACHE_DURATION = 60000; // 60 seconds (increased from 30)
+  
   const loadDashboardSnapshot = useCallback(async (): Promise<DashboardSnapshot> => {
+    // Prevent concurrent loads
+    if (isLoading) {
+      console.log('[DataContext] Skipping load - already in progress');
+      return dashboardCache?.data || {
+        profile: null,
+        gyms: [],
+        activeGym: null,
+        weeklySummary: {
+          completed_workouts: [],
+          goal_total: 3,
+          programme_type: 'ppl' as ProgrammeType,
+          total_sessions: 0,
+        },
+        volumeHistory: [],
+        recentWorkouts: [],
+        activeTPath: null,
+        tPathWorkouts: [],
+        nextWorkout: null,
+      };
+    }
+
+    // Check cache validity
+    const currentTime = Date.now();
+    if (dashboardCache && (currentTime - dashboardCache.timestamp < CACHE_DURATION)) {
+      console.log('[DataContext] Using cached dashboard data (smart caching)');
+      return dashboardCache.data;
+    }
+
     if (!userId) {
       return {
         profile: null,
@@ -374,6 +413,8 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         nextWorkout: null,
       };
     }
+
+    setIsLoading(true);
 
     let latestProfile = profileCache;
     let remoteActiveTPath: DashboardProgram | null = null;
@@ -474,27 +515,34 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           .limit(20);
 
         const sessionIds: string[] = [];
-
+        
         if (sessionsError) {
           console.warn(
             '[DataContext] Failed to load workout sessions',
             sessionsError
           );
         } else if (sessionsData) {
+          // Get existing sessions to avoid duplicates
+          const existingSessions = await database.getWorkoutSessions(userId);
+          const existingSessionIds = new Set(existingSessions.map(s => s.id));
+          
           for (const sessionRow of sessionsData) {
-            sessionIds.push(sessionRow.id);
-            const session: WorkoutSession = {
-              id: sessionRow.id,
-              user_id: sessionRow.user_id,
-              session_date: sessionRow.session_date,
-              template_name: sessionRow.template_name,
-              completed_at: sessionRow.completed_at,
-              rating: sessionRow.rating,
-              duration_string: sessionRow.duration_string,
-              t_path_id: sessionRow.t_path_id,
-              created_at: sessionRow.created_at,
-            };
-            await database.addWorkoutSession(session);
+            // Only add sessions that don't already exist locally
+            if (!existingSessionIds.has(sessionRow.id)) {
+              sessionIds.push(sessionRow.id);
+              const session: WorkoutSession = {
+                id: sessionRow.id,
+                user_id: sessionRow.user_id,
+                session_date: sessionRow.session_date,
+                template_name: sessionRow.template_name,
+                completed_at: sessionRow.completed_at,
+                rating: sessionRow.rating,
+                duration_string: sessionRow.duration_string,
+                t_path_id: sessionRow.t_path_id,
+                created_at: sessionRow.created_at,
+              };
+              await database.addWorkoutSession(session);
+            }
           }
         }
 
@@ -571,7 +619,11 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
               created_at: ensureIsoString(activeTPathData.created_at),
               updated_at: ensureIsoString(activeTPathData.created_at),
             };
-            await database.addTPath(tPathRecord);
+            // Check if TPath already exists before adding
+            const existingTPath = await database.getTPath(activeTPathData.id);
+            if (!existingTPath) {
+              await database.addTPath(tPathRecord);
+            }
           }
 
           const { data: childWorkoutsData, error: childWorkoutsError } =
@@ -610,12 +662,39 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
                 created_at: ensureIsoString(child.created_at),
                 updated_at: ensureIsoString(child.created_at),
               };
-              await database.addTPath(childRecord);
+              // Check if child TPath already exists before adding
+              const existingChildTPath = await database.getTPath(child.id);
+              if (!existingChildTPath) {
+                await database.addTPath(childRecord);
+              }
             }
           }
         }
       } catch (error) {
         console.warn('[DataContext] Dashboard snapshot refresh failed', error);
+        setIsLoading(false);
+        
+        // Return cached data if available, otherwise return empty data
+        if (dashboardCache) {
+          return dashboardCache.data;
+        }
+        
+        return {
+          profile: null,
+          gyms: [],
+          activeGym: null,
+          weeklySummary: {
+            completed_workouts: [],
+            goal_total: 3,
+            programme_type: 'ppl' as ProgrammeType,
+            total_sessions: 0,
+          },
+          volumeHistory: [],
+          recentWorkouts: [],
+          activeTPath: null,
+          tPathWorkouts: [],
+          nextWorkout: null,
+        };
       }
     }
 
@@ -628,24 +707,39 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
     console.log('[DataContext] Loaded gyms from database:', gyms.length, gyms.map(g => ({ id: g.id, name: g.name, is_active: g.is_active })));
 
-    // Get active gym after gyms are loaded to ensure consistency
-    const activeGym = await database.getActiveGym(userId);
-    console.log('[DataContext] Active gym from database:', activeGym);
+    // Check gym activation cache first
+    const cachedActiveGym = gymActivationCache[userId];
+    let finalActiveGym: Gym | null = null;
+    
+    if (cachedActiveGym) {
+      console.log('[DataContext] Using cached active gym:', cachedActiveGym);
+      finalActiveGym = cachedActiveGym;
+    } else {
+      // Get active gym after gyms are loaded to ensure consistency
+      const activeGym = await database.getActiveGym(userId);
+      console.log('[DataContext] Active gym from database:', activeGym);
 
-    // Improved active gym management with gym capping
-    let finalActiveGym = activeGym;
-    if (gyms.length > 0 && !activeGym) {
-      console.log('[DataContext] No active gym found, ensuring first gym is active');
-      try {
-        // Use the most recently created gym as active
-        const gymsToConsider = gyms;
-        const bestGym = gymsToConsider[0]; // Take first gym
-        
-        await database.setActiveGym(userId, bestGym.id);
-        finalActiveGym = { ...bestGym, is_active: true }; // Force set is_active to true
-        console.log('[DataContext] Successfully set gym as active:', bestGym.name);
-      } catch (error) {
-        console.error('[DataContext] Failed to auto-set gym as active:', error);
+      // Improved active gym management with gym capping
+      finalActiveGym = activeGym;
+      if (gyms.length > 0 && !activeGym) {
+        console.log('[DataContext] No active gym found, ensuring first gym is active');
+        try {
+          // Use the most recently created gym as active
+          const gymsToConsider = gyms;
+          const bestGym = gymsToConsider[0]; // Take first gym
+          
+          await database.setActiveGym(userId, bestGym.id);
+          finalActiveGym = { ...bestGym, is_active: true }; // Force set is_active to true
+          console.log('[DataContext] Successfully set gym as active:', bestGym.name);
+          
+          // Cache the result
+          setGymActivationCache(prev => ({ ...prev, [userId]: finalActiveGym }));
+        } catch (error) {
+          console.error('[DataContext] Failed to auto-set gym as active:', error);
+        }
+      } else if (activeGym) {
+        // Cache existing active gym
+        setGymActivationCache(prev => ({ ...prev, [userId]: activeGym }));
       }
     }
     
@@ -1009,12 +1103,22 @@ console.log('Weekly summary calculation:', {
     // Mark data as loaded to prevent future remote fetches
     setDataLoaded(true);
 
+    // Cache the result
+    setDashboardCache({
+      data: result,
+      timestamp: Date.now()
+    });
+
+    setIsLoading(false);
+
     return result;
-  }, [userId, profileCache, isOnline, supabase, forceRefresh]);
+  }, [userId, profileCache, isOnline, supabase, forceRefresh, isLoading, dashboardCache]);
 
   const addWorkoutSession = async (session: WorkoutSession): Promise<void> => {
     await database.addWorkoutSession(session);
     await addToSyncQueue('create', 'workout_sessions', session);
+    // Clear session cache when data changes
+    database.clearSessionCache(session.user_id);
   };
 
   const addSetLog = async (setLog: SetLog): Promise<void> => {
@@ -1329,13 +1433,12 @@ console.log('Weekly summary calculation:', {
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
 
-    // Then clear cache and trigger refresh
+    // Clear all caches and loading states
     setProfileCache(null);
     setDataLoaded(false);
+    setDashboardCache(null);
+    setIsLoading(false);
     setForceRefresh(prev => prev + 1);
-
-    // Also clear any loading states to ensure fresh data
-    // This will help prevent race conditions
   }, [isInitialized, userId, isOnline]);
 
   const forceSyncPendingItems = useCallback(async () => {
@@ -1352,10 +1455,12 @@ console.log('Weekly summary calculation:', {
     console.log('[DataContext] Starting cleanup for user:', userId);
     const result = await database.cleanupUserData(userId);
     
-    // Clear profile cache and force refresh after cleanup
+    // Clear all caches and force refresh after cleanup
     if (result.success) {
       setProfileCache(null);
       setDataLoaded(false);
+      setDashboardCache(null);
+      setIsLoading(false);
       setForceRefresh(prev => prev + 1);
     }
     
@@ -1372,6 +1477,8 @@ console.log('Weekly summary calculation:', {
     if (result.success) {
       setProfileCache(null);
       setDataLoaded(false);
+      setDashboardCache(null);
+      setIsLoading(false);
       setForceRefresh(prev => prev + 1);
     }
     

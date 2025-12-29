@@ -1,0 +1,7 @@
+** BUILD FAILED **
+
+
+The following build commands failed:
+	PhaseScriptExecution [CP-User]\ Generate\ app.config\ for\ prebuilt\ Constants.manifest /Users/craigd/Library/Developer/Xcode/DerivedData/dyadreactnativeexpotemplate-gnxkbsjgwqsbmdataypdxiyfgmbe/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/EXConstants.build/Script-46EB2E0001C9D0.sh (in target 'EXConstants' from project 'Pods')
+	Building workspace dyadreactnativeexpotemplate with scheme dyadreactnativeexpotemplate and configuration Debug
+(2 failures)

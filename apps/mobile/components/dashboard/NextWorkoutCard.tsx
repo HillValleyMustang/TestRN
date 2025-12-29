@@ -4,7 +4,7 @@
  * Reference: MOBILE_SPEC_02_DASHBOARD.md Section 6
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +12,8 @@ import { Card } from '../ui/Card';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
 import { getWorkoutColor } from '../../lib/workout-colors';
+import { NextWorkoutInfoModal } from './NextWorkoutInfoModal';
+import { HapticPressable } from '../HapticPressable';
 
 interface NextWorkoutCardProps {
   workoutId?: string | undefined;
@@ -35,6 +37,7 @@ export function NextWorkoutCard({
   noActiveTPath,
 }: NextWorkoutCardProps) {
   const router = useRouter();
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   const handleStartWorkout = () => {
     if (workoutId) {
@@ -90,6 +93,13 @@ export function NextWorkoutCard({
       <View style={styles.header}>
         <Ionicons name="barbell" size={20} color={Colors.foreground} />
         <Text style={styles.title}>Your Next Workout</Text>
+        <HapticPressable
+          onPress={() => setShowInfoModal(true)}
+          style={styles.infoButton}
+          hitSlop={10}
+        >
+          <Ionicons name="information-circle-outline" size={20} color={Colors.mutedForeground} />
+        </HapticPressable>
       </View>
 
       {loading ? (
@@ -125,6 +135,11 @@ export function NextWorkoutCard({
           </Pressable>
         </View>
       ) : null}
+
+      <NextWorkoutInfoModal
+        visible={showInfoModal}
+        onClose={() => setShowInfoModal(false)}
+      />
     </Card>
   );
 }
@@ -137,8 +152,11 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    justifyContent: 'space-between',
     marginBottom: Spacing.md,
+  },
+  infoButton: {
+    padding: Spacing.xs,
   },
   title: {
     fontFamily: 'Poppins_600SemiBold',

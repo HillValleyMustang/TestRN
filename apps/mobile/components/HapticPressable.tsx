@@ -11,6 +11,7 @@ interface SimplePressableProps {
   onPress?: () => void;
   style?: any;
   hapticStyle?: string;
+  hitSlop?: number | { top?: number; left?: number; bottom?: number; right?: number };
 }
 
 export function HapticPressable({

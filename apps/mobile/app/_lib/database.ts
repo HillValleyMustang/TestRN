@@ -14,6 +14,13 @@ import type {
 
 const DB_NAME = 'fitness_tracker.db';
 
+// Conditional debug logging - only logs in development
+const debugLog = (...args: any[]) => {
+  if (__DEV__) {
+    console.log('[Database]', ...args);
+  }
+};
+
 class Database {
   private db: SQLite.SQLiteDatabase | null = null;
   private initPromise: Promise<void> | null = null;
@@ -283,8 +290,10 @@ class Database {
     this.migrationPromise = (async () => {
       const db = this.getDB();
       
-      console.log(`[DEBUG] 🔄 MIGRATION BLOCKING: Starting comprehensive migrations`);
-      console.log(`[DEBUG] 📅 Migration start time: ${new Date().toISOString()}`);
+      if (__DEV__) {
+        console.log(`[DEBUG] 🔄 MIGRATION BLOCKING: Starting comprehensive migrations`);
+        console.log(`[DEBUG] 📅 Migration start time: ${new Date().toISOString()}`);
+      }
       
       // CRITICAL: This migration must block ALL other database operations
       let migrationSuccessful = false;
@@ -293,34 +302,34 @@ class Database {
       
       while (!migrationSuccessful && retryCount < maxRetries) {
         try {
-          console.log(`[DEBUG] 📋 MIGRATION ATTEMPT ${retryCount + 1}/${maxRetries}`);
+          debugLog(`📋 MIGRATION ATTEMPT ${retryCount + 1}/${maxRetries}`);
           
           // PHASE 1: Check ALL existing table schemas BEFORE migration
-          console.log(`[DEBUG] 🔍 PHASE 1: Analyzing existing database structure...`);
+          debugLog(`🔍 PHASE 1: Analyzing existing database structure...`);
           const allTables = await db.getAllAsync<any>("SELECT name FROM sqlite_master WHERE type='table'");
-          console.log(`[DEBUG] 📊 Found ${allTables.length} tables:`, allTables.map(t => t.name));
+          debugLog(`📊 Found ${allTables.length} tables:`, allTables.map(t => t.name));
           
           // Check t_path_exercises table
           try {
             const tPathExercisesTableInfo = await db.getAllAsync<any>("PRAGMA table_info(t_path_exercises);");
             const tPathExercisesColumns = tPathExercisesTableInfo.map((col: any) => col.name);
-            console.log(`[DEBUG] 📋 Current t_path_exercises columns:`, tPathExercisesColumns);
+            debugLog(`📋 Current t_path_exercises columns:`, tPathExercisesColumns);
           } catch (tableError: any) {
-            console.log(`[DEBUG] ⚠️  t_path_exercises table doesn't exist or error:`, tableError.message);
+            debugLog(`⚠️  t_path_exercises table doesn't exist or error:`, tableError.message);
           }
           
           // Check profiles table
           try {
             const profilesTableInfo = await db.getAllAsync<any>("PRAGMA table_info(profiles);");
             const profileColumns = profilesTableInfo.map((col: any) => col.name);
-            console.log(`[DEBUG] 📋 Current profiles columns:`, profileColumns);
+            debugLog(`📋 Current profiles columns:`, profileColumns);
             
             // Log existing profile records count
             const profileRecordCount = await db.getFirstAsync<any>('SELECT COUNT(*) as count FROM profiles');
-            console.log(`[DEBUG] 📊 Existing profile records:`, profileRecordCount?.count || 0);
+            debugLog(`📊 Existing profile records:`, profileRecordCount?.count || 0);
             
           } catch (profilesError: any) {
-            console.log(`[DEBUG] ⚠️  Profiles table doesn't exist or error:`, profilesError.message);
+            debugLog(`⚠️  Profiles table doesn't exist or error:`, profilesError.message);
           }
           
           // PHASE 2: Migration t_path_exercises table
@@ -770,6 +779,7 @@ class Database {
 
   async addWorkoutSession(session: WorkoutSession): Promise<void> {
     const db = this.getDB();
+    console.log('[Database] addWorkoutSession called with rating:', session.rating);
     await db.runAsync(
       `INSERT OR REPLACE INTO workout_sessions
        (id, user_id, session_date, template_name, completed_at, rating, duration_string, t_path_id, created_at, sync_status)
@@ -787,6 +797,47 @@ class Database {
         (session as any).sync_status || 'local_only',
       ]
     );
+    console.log('[Database] addWorkoutSession completed');
+    
+    // Clear session cache to ensure fresh data is loaded
+    this.clearSessionCache(session.user_id);
+  }
+
+  async updateWorkoutSession(sessionId: string, updates: Partial<WorkoutSession>): Promise<void> {
+    const db = this.getDB();
+    console.log('[Database] updateWorkoutSession called for session:', sessionId, 'updates:', updates);
+    
+    const fields: string[] = [];
+    const values: any[] = [];
+
+    if (updates.rating !== undefined) {
+      fields.push('rating = ?');
+      values.push(updates.rating);
+    }
+    if (updates.completed_at !== undefined) {
+      fields.push('completed_at = ?');
+      values.push(updates.completed_at);
+    }
+    if (updates.duration_string !== undefined) {
+      fields.push('duration_string = ?');
+      values.push(updates.duration_string);
+    }
+    if ((updates as any).sync_status !== undefined) {
+      fields.push('sync_status = ?');
+      values.push((updates as any).sync_status);
+    }
+
+    if (fields.length > 0) {
+      values.push(sessionId);
+      await db.runAsync(
+        `UPDATE workout_sessions SET ${fields.join(', ')} WHERE id = ?`,
+        values
+      );
+      console.log('[Database] updateWorkoutSession completed');
+      
+      // Clear session cache to ensure fresh data is loaded
+      this.clearSessionCache();
+    }
   }
 
   async addSetLog(setLog: SetLog): Promise<void> {
@@ -838,13 +889,55 @@ class Database {
     }
   }
 
+  // Session caching
+  private sessionCache: {[userId: string]: WorkoutSession[]} = {};
+  
   async getWorkoutSessions(userId: string): Promise<WorkoutSession[]> {
+    // Check cache first
+    if (this.sessionCache[userId]) {
+      console.log('[Database] Using cached workout sessions for user:', userId);
+      return this.sessionCache[userId];
+    }
+    
     const db = this.getDB();
+    console.log('[Database] getWorkoutSessions called for user:', userId);
     const result = await db.getAllAsync<WorkoutSession>(
       'SELECT * FROM workout_sessions WHERE user_id = ? ORDER BY session_date DESC',
       [userId]
     );
+    console.log('[Database] getWorkoutSessions returned', result.length, 'sessions');
+    if (result.length > 0) {
+      console.log('[Database] Sample session rating:', result[0].rating);
+    }
+    
+    // Cache the result
+    this.sessionCache[userId] = result;
+    console.log('[Database] Cached workout sessions for user:', userId, 'count:', result.length);
+    
     return result;
+  }
+  
+  async getWorkoutSessionById(sessionId: string): Promise<WorkoutSession | null> {
+    const db = this.getDB();
+    console.log('[Database] getWorkoutSessionById called for session:', sessionId);
+    const result = await db.getFirstAsync<WorkoutSession>(
+      'SELECT * FROM workout_sessions WHERE id = ?',
+      [sessionId]
+    );
+    console.log('[Database] getWorkoutSessionById returned:', !!result);
+    if (result) {
+      console.log('[Database] Session rating:', result.rating);
+    }
+    return result || null;
+  }
+  
+  // Clear session cache (call when data changes)
+  clearSessionCache(userId?: string): void {
+    if (userId) {
+      delete this.sessionCache[userId];
+    } else {
+      this.sessionCache = {};
+    }
   }
 
   async getRecentWorkoutSummaries(

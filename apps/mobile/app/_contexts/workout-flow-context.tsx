@@ -83,7 +83,7 @@ interface WorkoutFlowContextValue {
   selectWorkoutOnly: (workoutId: string | null) => Promise<void>;
   selectAndStartWorkout: (workoutId: string | null) => Promise<void>;
   startWorkout: (firstSetTimestamp: string) => Promise<void>;
-  finishWorkout: () => Promise<string | null>;
+  finishWorkout: (rating?: number) => Promise<string | null>;
   updateSet: (exerciseId: string, setIndex: number, updates: Partial<SetLogState>) => void;
   addSet: (exerciseId: string) => void;
   removeSet: (exerciseId: string, setIndex: number) => void;
@@ -472,7 +472,8 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [userId, activeWorkout, exercisesForSession]);
 
   // Finish workout session
-  const finishWorkout = useCallback(async (): Promise<string | null> => {
+  const finishWorkout = useCallback(async (rating?: number): Promise<string | null> => {
+    console.log('[WorkoutFlow] finishWorkout called with rating:', rating);
     if (!currentSessionId || !sessionStartTime || !activeWorkout) {
       ToastAndroid.show('Workout session not properly started.', ToastAndroid.SHORT);
       return null;
@@ -524,20 +525,27 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
     const durationString = durationSeconds < 60
       ? `${durationSeconds} seconds`
       : durationSeconds < 3600
-      ? `${Math.floor(durationSeconds / 60)} minutes`
+      ? `${Math.floor(durationSeconds / 60)}m ${durationSeconds % 60}s`
       : `${Math.floor(durationSeconds / 3600)}h ${Math.floor((durationSeconds % 3600) / 60)}m`;
 
     console.log('[WorkoutFlow] Finishing workout session:', currentSessionId);
     console.log('[WorkoutFlow] Duration calculated:', durationString, 'from', durationMs, 'ms');
 
     try {
-      const updatePayload = { duration_string: durationString, completed_at: endTime.toISOString() };
-      console.log('[WorkoutFlow] Update payload:', updatePayload);
+      const updatePayload: any = { duration_string: durationString, completed_at: endTime.toISOString() };
+      console.log('[WorkoutFlow] Update payload before rating check:', updatePayload);
+      if (rating !== undefined) {
+        updatePayload.rating = rating;
+        console.log('[WorkoutFlow] Added rating to update payload:', rating);
+      } else {
+        console.log('[WorkoutFlow] Rating is undefined, not adding to payload');
+      }
+      console.log('[WorkoutFlow] Update payload after rating check:', updatePayload);
 
       // Update the session in database
       if (userId) {
-        const existingSessions = await database.getWorkoutSessions(userId);
-        const existingSession = existingSessions.find(s => s.id === currentSessionId);
+        // Directly query the session by its ID instead of filtering from all sessions
+        const existingSession = await database.getWorkoutSessionById(currentSessionId);
         console.log('[WorkoutFlow] Found existing session:', !!existingSession);
         if (existingSession) {
           const updatedSession = { ...existingSession, ...updatePayload };

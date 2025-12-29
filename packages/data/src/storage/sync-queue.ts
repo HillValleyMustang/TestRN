@@ -6,6 +6,7 @@ export interface SyncQueueItem {
   timestamp: number;
   attempts: number;
   error?: string;
+  priority?: number; // Higher number = higher priority
 }
 
 export interface SyncQueueStore {
