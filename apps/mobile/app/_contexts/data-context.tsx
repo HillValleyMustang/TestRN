@@ -100,6 +100,7 @@ export interface DashboardWorkoutSummary {
 export interface DashboardVolumePoint {
   date: string;
   volume: number;
+  workoutType?: string; // Added for color mapping
 }
 
 export interface DashboardWeeklySummary {
@@ -204,6 +205,12 @@ interface DataContextType {
   forceSyncPendingItems: () => Promise<void>;
   cleanupUserData: (userId: string) => Promise<{ success: boolean; cleanedTables: string[]; errors: string[] }>;
   emergencyReset: () => Promise<{ success: boolean; error?: string }>;
+  invalidateDashboardCache: () => void;
+  handleWorkoutCompletion: (session?: WorkoutSession | undefined) => Promise<void>;
+  shouldRefreshDashboard: boolean;
+  setShouldRefreshDashboard: (value: boolean) => void;
+  lastWorkoutCompletionTime: number;
+  setLastWorkoutCompletionTime: (value: number) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -225,6 +232,8 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     data: DashboardSnapshot;
     timestamp: number;
   } | null>(null);
+  const [shouldRefreshDashboard, setShouldRefreshDashboard] = useState(false);
+  const [lastWorkoutCompletionTime, setLastWorkoutCompletionTime] = useState<number>(0);
   
   const [gymActivationCache, setGymActivationCache] = useState<{
     [userId: string]: Gym | null;
@@ -342,22 +351,89 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     return `${diffMinutes} min`;
   };
 
-  const buildVolumePoints = (
-    raw: Array<{ date: string; volume: number }>
-  ): DashboardVolumePoint[] => {
+  const buildVolumePoints = async (
+    raw: Array<{ date: string; volume: number }>,
+    userId: string
+  ): Promise<DashboardVolumePoint[]> => {
     const map = new Map(
       raw.map(entry => [entry.date.split('T')[0], entry.volume || 0])
     );
+    
+    // Get recent workouts to determine first workout type per day
+    const recentWorkouts = await database.getRecentWorkoutSummaries(userId, 50);
+    
+    // Group workouts by date and get the first one of each day
+    const workoutTypeByDate = new Map<string, string>();
+    const workoutsByDate = new Map<string, Array<{ session: any; first_set_at: string | null }>>();
+    
+    recentWorkouts.forEach(({ session, first_set_at }) => {
+      const date = session.session_date.split('T')[0];
+      if (!workoutsByDate.has(date)) {
+        workoutsByDate.set(date, []);
+      }
+      workoutsByDate.get(date)!.push({ session, first_set_at });
+    });
+    
+    // Sort workouts by time and get the first one of each day
+    workoutsByDate.forEach((workouts, date) => {
+      workouts.sort((a, b) => {
+        const timeA = a.first_set_at ? new Date(a.first_set_at).getTime() : 0;
+        const timeB = b.first_set_at ? new Date(b.first_set_at).getTime() : 0;
+        return timeA - timeB;
+      });
+      
+      const firstWorkout = workouts[0];
+      const workoutName = firstWorkout.session.template_name?.toLowerCase() || '';
+      
+      console.log(`[buildVolumePoints] Date ${date}: Found ${workouts.length} workouts, first: "${workoutName}"`);
+      
+      // Map workout names to types for color coding
+      let workoutType = 'other';
+      if (workoutName.includes('push')) {
+        workoutType = 'push';
+      } else if (workoutName.includes('pull')) {
+        workoutType = 'pull';
+      } else if (workoutName.includes('leg')) {
+        workoutType = 'legs';
+      } else if (workoutName.includes('upper')) {
+        workoutType = 'upper';
+      } else if (workoutName.includes('lower')) {
+        workoutType = 'lower';
+      } else if (workoutName.includes('chest')) {
+        workoutType = 'chest';
+      } else if (workoutName.includes('back')) {
+        workoutType = 'back';
+      } else if (workoutName.includes('shoulder')) {
+        workoutType = 'shoulders';
+      }
+      
+      workoutTypeByDate.set(date, workoutType);
+    });
+
     const today = new Date();
     const points: DashboardVolumePoint[] = [];
 
-    for (let i = 6; i >= 0; i -= 1) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - i);
+    // Calculate Monday as the start of the week
+    const dayOfWeek = today.getUTCDay(); // 0 = Sunday, 1 = Monday, etc.
+    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const monday = new Date(today);
+    monday.setUTCDate(today.getUTCDate() - daysToMonday);
+    monday.setUTCHours(0, 0, 0, 0);
+
+    // Generate 7 days starting from Monday
+    for (let i = 0; i < 7; i += 1) {
+      const date = new Date(monday);
+      date.setUTCDate(monday.getUTCDate() + i);
       const key = date.toISOString().split('T')[0];
+      const volume = Math.max(0, Number(map.get(key) ?? 0));
+      const workoutType = workoutTypeByDate.get(key);
+      
+      console.log(`[buildVolumePoints] Date: ${key}, Volume: ${volume}, WorkoutType: ${workoutType}, Should show color: ${volume > 0 && workoutType}`);
+      
       points.push({
         date: key,
-        volume: Math.max(0, Number(map.get(key) ?? 0)),
+        volume: volume,
+        ...(workoutType && { workoutType }),
       });
     }
 
@@ -366,9 +442,70 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
   const CACHE_DURATION = 60000; // 60 seconds (increased from 30)
   
+  // Enhanced cache invalidation for workout completions
+  const invalidateDashboardCache = useCallback(() => {
+    console.log('[DataContext] Invalidating dashboard cache due to workout completion');
+    setDashboardCache(null);
+    // Note: shouldRefreshDashboard is set to true in deleteWorkoutSession
+    // and will be reset to false after loadDashboardSnapshot completes
+  }, []);
+  
+  // Enhanced cache invalidation for all related caches
+  const invalidateAllCaches = useCallback(() => {
+    console.log('[DataContext] Starting atomic cache invalidation');
+    
+    // Invalidate all dashboard-related caches
+    setDashboardCache(null);
+    setProfileCache(null);
+    setDataLoaded(false);
+    setIsLoading(false);
+    
+    // Clear database caches
+    if (database.clearSessionCache) {
+      database.clearSessionCache(userId || '');
+    }
+    if (database.clearWeeklyVolumeCache) {
+      database.clearWeeklyVolumeCache(userId || '');
+    }
+    if (database.clearExerciseDefinitionsCache) {
+      database.clearExerciseDefinitionsCache();
+    }
+    
+    // Clear gym activation cache
+    setGymActivationCache({});
+    
+    console.log('[DataContext] Cache invalidation completed');
+  }, [userId]);
+  
+  // Global trigger function for dashboard refresh from other components
+  useEffect(() => {
+    (global as any).triggerDashboardRefresh = () => {
+      console.log('[DataContext] Global triggerDashboardRefresh called');
+      setShouldRefreshDashboard(true);
+      setLastWorkoutCompletionTime(Date.now());
+    };
+    
+    return () => {
+      delete (global as any).triggerDashboardRefresh;
+    };
+  }, []);
+  
   const loadDashboardSnapshot = useCallback(async (): Promise<DashboardSnapshot> => {
-    // Prevent concurrent loads
-    if (isLoading) {
+    // Check cache validity with simplified logic
+    const currentTime = Date.now();
+    const cacheAge = dashboardCache ? currentTime - dashboardCache.timestamp : Infinity;
+    
+    // Force refresh if:
+    // 1. Should refresh flag is set (highest priority)
+    // 2. Cache is older than 60 seconds
+    // 3. Cache is null (cleared after deletion)
+    const shouldForceRefresh = shouldRefreshDashboard ||
+                              cacheAge > CACHE_DURATION ||
+                              !dashboardCache;
+    
+    // Prevent concurrent loads first
+    // BUT: Always bypass if shouldRefreshDashboard is true (deletion/completion needs fresh data)
+    if (isLoading && !shouldRefreshDashboard) {
       console.log('[DataContext] Skipping load - already in progress');
       return dashboardCache?.data || {
         profile: null,
@@ -387,12 +524,19 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         nextWorkout: null,
       };
     }
-
-    // Check cache validity
-    const currentTime = Date.now();
-    if (dashboardCache && (currentTime - dashboardCache.timestamp < CACHE_DURATION)) {
-      console.log('[DataContext] Using cached dashboard data (smart caching)');
+    
+    if (dashboardCache && !shouldForceRefresh) {
+      console.log('[DataContext] Using cached dashboard data (cache age:', cacheAge, 'ms)');
       return dashboardCache.data;
+    }
+    
+    if (shouldForceRefresh) {
+      console.log('[DataContext] Forcing dashboard refresh - cache bypassed due to:', {
+        shouldRefreshDashboard,
+        cacheAge,
+        cacheExists: !!dashboardCache,
+        cacheDuration: CACHE_DURATION
+      });
     }
 
     if (!userId) {
@@ -702,7 +846,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       await Promise.all([
         database.getGyms(userId),
         database.getVolumeHistory(userId, 7),
-        database.getRecentWorkoutSummaries(userId, 5),
+        database.getRecentWorkoutSummaries(userId, 50), // Increased from 5 to capture all recent workouts including testing sessions
       ]);
 
     console.log('[DataContext] Loaded gyms from database:', gyms.length, gyms.map(g => ({ id: g.id, name: g.name, is_active: g.is_active })));
@@ -749,7 +893,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       // This would be the place to call gym cleanup if we implement automatic removal
     }
 
-    const volumeHistory = buildVolumePoints(volumeHistoryRaw);
+    const volumeHistory = await buildVolumePoints(volumeHistoryRaw, userId);
 
     const recentWorkouts: DashboardWorkoutSummary[] = recentWorkoutsRaw
       .filter(({ exercise_count }) => exercise_count > 0) // Only include completed workouts with exercises
@@ -790,15 +934,27 @@ const currentWeekWorkouts = recentWorkouts.filter(workout => {
 });
 
 // Group workouts by type to avoid duplicates and match programme expectations
+// Use the MOST RECENT workout of each type for sessionId accuracy
 const workoutTypeMap = new Map<string, DashboardWorkoutSummary>();
 currentWeekWorkouts.forEach(workout => {
   const workoutType = workout.template_name?.toLowerCase() || 'ad-hoc';
+  
+  // Store the most recent workout of each type (currentWeekWorkouts is already sorted by date desc)
   if (!workoutTypeMap.has(workoutType)) {
     workoutTypeMap.set(workoutType, workout);
   }
 });
 
 const uniqueWorkouts = Array.from(workoutTypeMap.values());
+
+// Debug: Log the mapping to verify session IDs are correct
+if (__DEV__) {
+  console.log('🎯 Workout type mapping debug:', uniqueWorkouts.map(w => ({
+    type: w.template_name,
+    sessionId: w.id,
+    date: w.completed_at || w.session_date
+  })));
+}
 
 console.log('Weekly summary calculation:', {
   totalRecentWorkouts: recentWorkouts.length,
@@ -808,7 +964,9 @@ console.log('Weekly summary calculation:', {
   endOfWeek: endOfWeek.toISOString(),
   programmeType: programmeType,
   goalTotal: programmeType === 'ulul' ? 4 : 3,
-  completedWorkouts: uniqueWorkouts.map(w => ({ name: w.template_name, date: w.completed_at || w.session_date }))
+  completedWorkouts: uniqueWorkouts.map(w => ({ name: w.template_name, date: w.completed_at || w.session_date })),
+  rawSessionsThisWeek: currentWeekWorkouts.length, // Total raw sessions before deduplication
+  testingNote: 'If you see many sessions of same type, this is likely from testing'
 });
 
     const weeklySummary: DashboardWeeklySummary = {
@@ -819,7 +977,7 @@ console.log('Weekly summary calculation:', {
       })),
       goal_total: programmeType === 'ulul' ? 4 : 3,
       programme_type: programmeType,
-      total_sessions: uniqueWorkouts.length,
+      total_sessions: currentWeekWorkouts.length, // Show total raw sessions for display
     };
 
     // Use the filtered recentWorkouts for workout progression logic
@@ -1112,14 +1270,32 @@ console.log('Weekly summary calculation:', {
     setIsLoading(false);
 
     return result;
-  }, [userId, profileCache, isOnline, supabase, forceRefresh, isLoading, dashboardCache]);
+  }, [userId, profileCache, isOnline, supabase, forceRefresh, isLoading, dashboardCache, shouldRefreshDashboard]);
 
   const addWorkoutSession = async (session: WorkoutSession): Promise<void> => {
     await database.addWorkoutSession(session);
     await addToSyncQueue('create', 'workout_sessions', session);
     // Clear session cache when data changes
     database.clearSessionCache(session.user_id);
+    // Invalidate dashboard cache to show fresh data
+    invalidateDashboardCache();
   };
+
+  // Enhanced method to handle workout completion refresh
+  const handleWorkoutCompletion = useCallback(async (session?: WorkoutSession | undefined): Promise<void> => {
+    console.log('[DataContext] Handling workout completion for dashboard refresh');
+    
+    // Clear all caches immediately
+    invalidateAllCaches();
+    
+    // Set refresh flag to ensure dashboard shows updated data
+    setShouldRefreshDashboard(true);
+    
+    // Update last workout completion time for debugging
+    setLastWorkoutCompletionTime(Date.now());
+    
+    console.log('[DataContext] Workout completion refresh triggered successfully');
+  }, [invalidateAllCaches, setShouldRefreshDashboard, setLastWorkoutCompletionTime]);
 
   const addSetLog = async (setLog: SetLog): Promise<void> => {
     await database.addSetLog(setLog);
@@ -1127,10 +1303,48 @@ console.log('Weekly summary calculation:', {
   };
 
   const deleteWorkoutSession = async (sessionId: string): Promise<void> => {
-    // Note: deleteWorkoutSession method doesn't exist in database class
-    // This method would need to be implemented or removed
-    console.warn('[DataContext] deleteWorkoutSession not implemented');
-    await addToSyncQueue('delete', 'workout_sessions', { id: sessionId });
+    try {
+      console.log('[DataContext] Starting enhanced workout session deletion:', sessionId);
+      
+      // 1. Delete from local database first
+      await database.deleteWorkoutSession(sessionId);
+      console.log('[DataContext] Deleted workout session from local database');
+      
+      // 2. Add to sync queue for remote deletion
+      await addToSyncQueue('delete', 'workout_sessions', { id: sessionId });
+      console.log('[DataContext] Added deletion to sync queue');
+      
+      // 3. Clear all related caches immediately
+      database.clearSessionCache(userId || '');
+      database.clearWeeklyVolumeCache(userId || '');
+      database.clearExerciseDefinitionsCache();
+      console.log('[DataContext] Cleared all related caches');
+      
+      // 4. Enhanced cache invalidation for workout deletion
+      console.log('[DataContext] Invalidating dashboard cache due to workout deletion');
+      setDashboardCache(null);
+      setShouldRefreshDashboard(true);
+      setLastWorkoutCompletionTime(Date.now());
+      
+      // 5. Force immediate state reset to prevent empty dashboard
+      console.log('[DataContext] Resetting data context state to prevent empty dashboard');
+      setProfileCache(null);
+      setDataLoaded(false);
+      setIsLoading(false);
+      
+      // 6. Force immediate reload of critical data
+      console.log('[DataContext] Forcing immediate data reload after deletion');
+      setTimeout(() => {
+        loadDashboardSnapshot().catch(error => {
+          console.error('[DataContext] Failed to reload dashboard after deletion:', error);
+        });
+      }, 500); // Increased delay to ensure all caches are cleared
+      
+      console.log('[DataContext] Enhanced workout session deletion completed successfully');
+    } catch (error) {
+      console.error('[DataContext] Failed to delete workout session:', error);
+      throw error;
+    }
   };
 
   const getWorkoutSessions = async (
@@ -1543,6 +1757,13 @@ console.log('Weekly summary calculation:', {
       forceSyncPendingItems,
       cleanupUserData,
       emergencyReset,
+      invalidateDashboardCache,
+      invalidateAllCaches,
+      handleWorkoutCompletion,
+      shouldRefreshDashboard,
+      setShouldRefreshDashboard,
+      lastWorkoutCompletionTime,
+      setLastWorkoutCompletionTime,
     }),
     [isSyncing, queueLength, isOnline, loadDashboardSnapshot, forceRefreshProfile, cleanupUserData, emergencyReset, supabase, userId]
   );

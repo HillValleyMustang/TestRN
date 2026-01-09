@@ -4,20 +4,22 @@
  * Reference: MOBILE_SPEC_02_DASHBOARD.md Section 4
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { View, Text, Pressable, StyleSheet, Modal, TouchableOpacity, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../ui/Card';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
+import { WorkoutType } from '../../types/common';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface ActionHubWidgetProps {
-  onLogActivity?: () => void;
+  onLogActivity?: (activity?: any) => void;
   onAICoach?: () => void;
   onWorkoutLog?: () => void;
   onConsistencyCalendar?: () => void;
+  onStartWorkout?: (workoutType?: WorkoutType) => void;
 }
 
 export function ActionHubWidget({
@@ -25,6 +27,7 @@ export function ActionHubWidget({
   onAICoach,
   onWorkoutLog,
   onConsistencyCalendar,
+  onStartWorkout,
 }: ActionHubWidgetProps) {
   const router = useRouter();
   const [moreMenuVisible, setMoreMenuVisible] = useState(false);
@@ -74,10 +77,14 @@ export function ActionHubWidget({
     setMoreMenuVisible(false);
   };
 
-  const handleMoreMenuOption = (route: string) => {
+  const handleMoreMenuOption = (route: string, workoutType?: WorkoutType) => {
     setMoreMenuVisible(false);
     if (route === '/workout') {
-      router.push('/(tabs)/workout');
+      if (onStartWorkout && workoutType) {
+        onStartWorkout(workoutType);
+      } else {
+        router.push('/(tabs)/workout');
+      }
     } else {
       router.push(route as any);
     }
@@ -100,7 +107,7 @@ export function ActionHubWidget({
             ]}
             onPress={handleLogActivity}
           >
-            <Ionicons name="fitness" size={20} color="#F97316" />
+            <Ionicons name="fitness" size={22} color="#F97316" />
             <Text style={styles.buttonText}>Log Activity</Text>
           </Pressable>
 
@@ -112,7 +119,7 @@ export function ActionHubWidget({
             ]}
             onPress={handleAICoach}
           >
-            <Ionicons name="sparkles" size={20} color="#FBBF24" />
+            <Ionicons name="sparkles" size={22} color="#FBBF24" />
             <Text style={styles.buttonText}>AI Coach</Text>
           </Pressable>
 
@@ -124,7 +131,7 @@ export function ActionHubWidget({
             ]}
             onPress={handleWorkoutLog}
           >
-            <Ionicons name="time" size={20} color="#3B82F6" />
+            <Ionicons name="time" size={22} color="#3B82F6" />
             <Text style={styles.buttonText}>Workout Log</Text>
           </Pressable>
 
@@ -138,7 +145,7 @@ export function ActionHubWidget({
             ]}
             onPress={handleConsistencyCalendar}
           >
-            <Ionicons name="calendar" size={20} color="#8B5CF6" />
+            <Ionicons name="calendar" size={22} color="#8B5CF6" />
             <Text style={styles.buttonText}>Consistency Calendar</Text>
           </Pressable>
 
@@ -153,7 +160,7 @@ export function ActionHubWidget({
             >
               <Ionicons
                 name={moreMenuVisible ? "chevron-up" : "chevron-down"}
-                size={20}
+                size={22}
                 color={Colors.foreground}
               />
               <Text style={styles.buttonText}>More</Text>
@@ -183,11 +190,33 @@ export function ActionHubWidget({
           ]}>
             <Pressable
               style={styles.dropdownItem}
-              onPress={() => handleMoreMenuOption('/workout')}
+              onPress={() => handleMoreMenuOption('/workout', 'push')}
             >
               <Ionicons name="barbell" size={16} color={Colors.foreground} />
-              <Text style={styles.dropdownText}>Start Workout</Text>
+              <Text style={styles.dropdownText}>Start Push Workout</Text>
             </Pressable>
+            <Pressable
+              style={styles.dropdownItem}
+              onPress={() => handleMoreMenuOption('/workout', 'pull')}
+            >
+              <Ionicons name="barbell" size={16} color={Colors.foreground} />
+              <Text style={styles.dropdownText}>Start Pull Workout</Text>
+            </Pressable>
+            <Pressable
+              style={styles.dropdownItem}
+              onPress={() => handleMoreMenuOption('/workout', 'legs')}
+            >
+              <Ionicons name="barbell" size={16} color={Colors.foreground} />
+              <Text style={styles.dropdownText}>Start Legs Workout</Text>
+            </Pressable>
+            <Pressable
+              style={styles.dropdownItem}
+              onPress={() => handleMoreMenuOption('/workout', 'full_body')}
+            >
+              <Ionicons name="barbell" size={16} color={Colors.foreground} />
+              <Text style={styles.dropdownText}>Start Full Body Workout</Text>
+            </Pressable>
+            <View style={styles.dropdownDivider} />
             <Pressable
               style={styles.dropdownItem}
               onPress={() => handleMoreMenuOption('/exercises')}
@@ -224,7 +253,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: Spacing.lg,
-    paddingBottom: Spacing.sm,
+    paddingBottom: Spacing.xs,
     paddingHorizontal: Spacing.lg,
   },
   title: {
@@ -242,11 +271,13 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.sm,
   },
   button: {
-    height: 80,
+    height: 78,
     backgroundColor: Colors.card,
     borderWidth: 0,
     borderRadius: 12,
-    padding: Spacing.sm,
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 4,
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
@@ -270,11 +301,13 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   buttonInner: {
-    height: 80,
+    height: 78,
     backgroundColor: Colors.card,
     borderWidth: 0,
     borderRadius: 12,
-    padding: Spacing.sm,
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 4,
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
@@ -292,11 +325,13 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontFamily: 'Poppins_600SemiBold',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: Colors.foreground,
     textAlign: 'center',
     lineHeight: 16,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   modalOverlay: {
     flex: 1,

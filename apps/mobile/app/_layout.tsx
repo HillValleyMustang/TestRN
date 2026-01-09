@@ -18,6 +18,7 @@ import { AuthProvider } from './_contexts/auth-context';
 import { DataProvider } from './_contexts/data-context';
 import { PreferencesProvider } from './_contexts/preferences-context';
 import { WorkoutFlowProvider } from './_contexts/workout-flow-context';
+import { QueryProvider } from './_components/QueryProvider';
 import { UnsavedChangesModal } from './_components/workout/UnsavedChangesModal';
 import Toast from 'react-native-toast-message';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -72,13 +73,14 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
-      <MenuProvider>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <SafeAreaProvider>
-            <DataProvider>
-              <AuthProvider>
-                <PreferencesProvider>
-                  <WorkoutFlowProvider>
+      <QueryProvider>
+        <MenuProvider>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <SafeAreaProvider>
+              <DataProvider>
+                <AuthProvider>
+                  <PreferencesProvider>
+                    <WorkoutFlowProvider>
                   <StatusBar style="light" />
                   <Stack screenOptions={{ headerShown: false }}>
                     <Stack.Screen
@@ -231,13 +233,14 @@ export default function RootLayout() {
                         ),
                       }}
                     />
-                  </WorkoutFlowProvider>
-                </PreferencesProvider>
-              </AuthProvider>
-            </DataProvider>
-          </SafeAreaProvider>
-        </GestureHandlerRootView>
-      </MenuProvider>
+                    </WorkoutFlowProvider>
+                  </PreferencesProvider>
+                </AuthProvider>
+              </DataProvider>
+            </SafeAreaProvider>
+          </GestureHandlerRootView>
+        </MenuProvider>
+      </QueryProvider>
     </ErrorBoundary>
   );
 }

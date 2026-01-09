@@ -707,6 +707,24 @@ export default function WorkoutLauncherScreen() {
       console.log('[Workout] Skipping rating save - missing data:', { rating, sessionId: summaryModalData?.sessionId });
     }
     
+    // Trigger dashboard refresh before navigation
+    try {
+      console.log('[Workout] Triggering dashboard refresh before navigation');
+      // Use the data context's handleWorkoutCompletion method if available
+      // This will set the shouldRefreshDashboard flag and lastWorkoutCompletionTime
+      if (typeof (global as any).triggerDashboardRefresh === 'function') {
+        (global as any).triggerDashboardRefresh();
+        console.log('[Workout] Global triggerDashboardRefresh called successfully');
+      }
+      
+      // CRITICAL FIX: Wait for state updates to propagate before navigating
+      // This ensures the dashboard's useFocusEffect sees the updated state
+      await new Promise(resolve => setTimeout(resolve, 100));
+      console.log('[Workout] State update delay complete, now navigating to dashboard');
+    } catch (error) {
+      console.warn('[Workout] Failed to trigger dashboard refresh:', error);
+    }
+    
     router.replace('/(tabs)/dashboard');
   };
 

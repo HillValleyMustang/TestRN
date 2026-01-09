@@ -801,6 +801,12 @@ class Database {
     
     // Clear session cache to ensure fresh data is loaded
     this.clearSessionCache(session.user_id);
+    
+    // Clear weekly volume cache since new workout affects volume calculations
+    this.clearWeeklyVolumeCache(session.user_id);
+    
+    // Clear all caches for the user to ensure immediate updates
+    this.clearAllCachesForUser(session.user_id);
   }
 
   async updateWorkoutSession(sessionId: string, updates: Partial<WorkoutSession>): Promise<void> {
@@ -837,6 +843,14 @@ class Database {
       
       // Clear session cache to ensure fresh data is loaded
       this.clearSessionCache();
+      
+      // Clear weekly volume cache since updated workout may affect volume calculations
+      this.clearWeeklyVolumeCache();
+      
+      // Clear all caches for the user to ensure immediate updates
+      if (updates.user_id) {
+        this.clearAllCachesForUser(updates.user_id);
+      }
     }
   }
 
@@ -859,6 +873,16 @@ class Database {
         setLog.created_at,
       ]
     );
+    
+    // Clear weekly volume cache since new set log affects volume calculations
+    this.clearWeeklyVolumeCache();
+    
+    // Clear all caches for the user to ensure immediate updates
+    // Note: SetLog doesn't have user_id directly, but we can get it from the session
+    const session = await this.getWorkoutSessionById(setLog.session_id);
+    if (session?.user_id) {
+      this.clearAllCachesForUser(session.user_id);
+    }
   }
 
   async replaceSetLogsForSession(
@@ -887,16 +911,24 @@ class Database {
         ]
       );
     }
+    
+    // Clear weekly volume cache since set logs replacement affects volume calculations
+    this.clearWeeklyVolumeCache();
+    
+    // Clear all caches for the user to ensure immediate updates
+    this.clearAllCachesForUser(sessionId);
   }
 
-  // Session caching
-  private sessionCache: {[userId: string]: WorkoutSession[]} = {};
+  // Session caching with TTL
+  private sessionCache: {[userId: string]: { data: WorkoutSession[]; timestamp: number }} = {};
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
   
   async getWorkoutSessions(userId: string): Promise<WorkoutSession[]> {
     // Check cache first
-    if (this.sessionCache[userId]) {
+    const cached = this.sessionCache[userId];
+    if (cached && (Date.now() - cached.timestamp) < this.CACHE_TTL) {
       console.log('[Database] Using cached workout sessions for user:', userId);
-      return this.sessionCache[userId];
+      return cached.data;
     }
     
     const db = this.getDB();
@@ -910,8 +942,11 @@ class Database {
       console.log('[Database] Sample session rating:', result[0].rating);
     }
     
-    // Cache the result
-    this.sessionCache[userId] = result;
+    // Cache the result with timestamp
+    this.sessionCache[userId] = {
+      data: result,
+      timestamp: Date.now()
+    };
     console.log('[Database] Cached workout sessions for user:', userId, 'count:', result.length);
     
     return result;
@@ -933,10 +968,16 @@ class Database {
   
   // Clear session cache (call when data changes)
   clearSessionCache(userId?: string): void {
-    if (userId) {
-      delete this.sessionCache[userId];
-    } else {
-      this.sessionCache = {};
+    try {
+      if (userId) {
+        delete this.sessionCache[userId];
+        console.log('[Database] Cleared session cache for user:', userId);
+      } else {
+        this.sessionCache = {};
+        console.log('[Database] Cleared all session caches');
+      }
+    } catch (error) {
+      console.error('[Database] Failed to clear session cache:', error);
     }
   }
 
@@ -1058,6 +1099,10 @@ class Database {
     ]);
   }
 
+  // Workout stats caching
+  private workoutStatsCache: {[userId: string]: { data: any; timestamp: number }} = {};
+  private readonly STATS_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+
   async getWorkoutStats(
     userId: string,
     days: number = 30
@@ -1068,13 +1113,21 @@ class Database {
     currentStreak: number;
     longestStreak: number;
   }> {
+    // Check cache first
+    const cacheKey = `${userId}_${days}`;
+    const cached = this.workoutStatsCache[cacheKey];
+    if (cached && (Date.now() - cached.timestamp) < this.STATS_CACHE_TTL) {
+      console.log('[Database] Using cached workout stats for user:', userId);
+      return cached.data;
+    }
+
     const db = this.getDB();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
     const workouts = await db.getAllAsync<WorkoutSession>(
-      `SELECT * FROM workout_sessions 
-       WHERE user_id = ? AND session_date >= ? 
+      `SELECT * FROM workout_sessions
+       WHERE user_id = ? AND session_date >= ?
        ORDER BY session_date DESC`,
       [userId, startDate.toISOString()]
     );
@@ -1092,8 +1145,8 @@ class Database {
     const averageVolume = totalWorkouts > 0 ? totalVolume / totalWorkouts : 0;
 
     const allWorkouts = await db.getAllAsync<{ session_date: string }>(
-      `SELECT session_date FROM workout_sessions 
-       WHERE user_id = ? 
+      `SELECT session_date FROM workout_sessions
+       WHERE user_id = ?
        ORDER BY session_date DESC`,
       [userId]
     );
@@ -1102,13 +1155,22 @@ class Database {
       allWorkouts.map(w => w.session_date)
     );
 
-    return {
+    const result = {
       totalWorkouts,
       totalVolume,
       averageVolume,
       currentStreak,
       longestStreak,
     };
+
+    // Cache the result
+    this.workoutStatsCache[cacheKey] = {
+      data: result,
+      timestamp: Date.now()
+    };
+
+    console.log('[Database] Cached workout stats for user:', userId);
+    return result;
   }
 
   private calculateStreaks(dates: string[]): {
@@ -1165,10 +1227,21 @@ class Database {
     return { currentStreak, longestStreak };
   }
 
+  // Analytics caching
+  private analyticsCache: {[key: string]: { data: any; timestamp: number }} = {};
+  private readonly ANALYTICS_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
+
   async getWorkoutFrequency(
     userId: string,
     days: number = 30
   ): Promise<Array<{ date: string; count: number }>> {
+    const cacheKey = `frequency_${userId}_${days}`;
+    const cached = this.analyticsCache[cacheKey];
+    if (cached && (Date.now() - cached.timestamp) < this.ANALYTICS_CACHE_TTL) {
+      console.log('[Database] Using cached workout frequency for user:', userId);
+      return cached.data;
+    }
+
     const db = this.getDB();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
@@ -1182,6 +1255,13 @@ class Database {
       [userId, startDate.toISOString()]
     );
 
+    // Cache the result
+    this.analyticsCache[cacheKey] = {
+      data: result,
+      timestamp: Date.now()
+    };
+
+    console.log('[Database] Cached workout frequency for user:', userId);
     return result;
   }
 
@@ -1189,6 +1269,13 @@ class Database {
     userId: string,
     days: number = 30
   ): Promise<Array<{ date: string; volume: number }>> {
+    const cacheKey = `volume_${userId}_${days}`;
+    const cached = this.analyticsCache[cacheKey];
+    if (cached && (Date.now() - cached.timestamp) < this.ANALYTICS_CACHE_TTL) {
+      console.log('[Database] Using cached volume history for user:', userId);
+      return cached.data;
+    }
+
     const db = this.getDB();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
@@ -1203,6 +1290,13 @@ class Database {
       [userId, startDate.toISOString()]
     );
 
+    // Cache the result
+    this.analyticsCache[cacheKey] = {
+      data: result,
+      timestamp: Date.now()
+    };
+
+    console.log('[Database] Cached volume history for user:', userId);
     return result;
   }
 
@@ -1210,6 +1304,13 @@ class Database {
     userId: string,
     exerciseId: string
   ): Promise<Array<{ date: string; weight: number }>> {
+    const cacheKey = `pr_${userId}_${exerciseId}`;
+    const cached = this.analyticsCache[cacheKey];
+    if (cached && (Date.now() - cached.timestamp) < this.ANALYTICS_CACHE_TTL) {
+      console.log('[Database] Using cached PR history for user:', userId);
+      return cached.data;
+    }
+
     const db = this.getDB();
 
     const result = await db.getAllAsync<{ date: string; weight: number }>(
@@ -1222,6 +1323,13 @@ class Database {
       [userId, exerciseId]
     );
 
+    // Cache the result
+    this.analyticsCache[cacheKey] = {
+      data: result,
+      timestamp: Date.now()
+    };
+
+    console.log('[Database] Cached PR history for user:', userId);
     return result;
   }
 
@@ -1464,12 +1572,49 @@ class Database {
     );
   }
 
+  // Achievements caching
+  private achievementsCache: {[userId: string]: { data: any[]; timestamp: number }} = {};
+  private readonly ACHIEVEMENTS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  
+  // Cache versioning to prevent stale data
+  private cacheVersion: number = Date.now();
+  
+  // Clear achievements cache
+  clearAchievementsCache(userId?: string): void {
+    try {
+      if (userId) {
+        delete this.achievementsCache[userId];
+        console.log('[Database] Cleared achievements cache for user:', userId);
+      } else {
+        this.achievementsCache = {};
+        console.log('[Database] Cleared all achievements caches');
+      }
+    } catch (error) {
+      console.error('[Database] Failed to clear achievements cache:', error);
+    }
+  }
+
   async getUserAchievements(userId: string): Promise<any[]> {
+    // Check cache first
+    const cached = this.achievementsCache[userId];
+    if (cached && (Date.now() - cached.timestamp) < this.ACHIEVEMENTS_CACHE_TTL) {
+      console.log('[Database] Using cached achievements for user:', userId);
+      return cached.data;
+    }
+
     const db = this.getDB();
     const result = await db.getAllAsync<any>(
       'SELECT * FROM user_achievements WHERE user_id = ? ORDER BY unlocked_at DESC',
       [userId]
     );
+
+    // Cache the result
+    this.achievementsCache[userId] = {
+      data: result,
+      timestamp: Date.now()
+    };
+
+    console.log('[Database] Cached achievements for user:', userId, 'count:', result.length);
     return result;
   }
 
@@ -1483,6 +1628,39 @@ class Database {
       [userId, achievementId]
     );
     return (result?.count || 0) > 0;
+  }
+  
+  // Enhanced cache clearing with versioning
+  clearAllCachesForUser(userId: string): void {
+    try {
+      console.log('[Database] Starting comprehensive cache clearing for user:', userId);
+      
+      // Clear all user-specific caches
+      this.clearSessionCache(userId);
+      this.clearAchievementsCache(userId);
+      this.clearWeeklyVolumeCache(userId);
+      this.clearExerciseDefinitionsCache();
+      
+      // Clear composite key caches
+      Object.keys(this.workoutStatsCache).forEach(key => {
+        if (key.startsWith(userId)) {
+          delete this.workoutStatsCache[key];
+        }
+      });
+      
+      Object.keys(this.analyticsCache).forEach(key => {
+        if (key.includes(userId)) {
+          delete this.analyticsCache[key];
+        }
+      });
+      
+      // Increment cache version to invalidate any remaining stale data
+      this.cacheVersion = Date.now();
+      
+      console.log('[Database] Cache clearing completed for user:', userId);
+    } catch (error) {
+      console.error('[Database] Failed to clear caches for user:', userId, error);
+    }
   }
 
   async addTPath(tPath: TPath): Promise<void> {
@@ -2015,12 +2193,37 @@ class Database {
     return result || null;
   }
 
+  // Exercise definitions caching
+  private exerciseDefinitionsCache: { data: any[]; timestamp: number } | null = null;
+  private readonly EXERCISE_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+  
   async getExerciseDefinitions(): Promise<any[]> {
+    // Check cache first
+    if (this.exerciseDefinitionsCache &&
+        (Date.now() - this.exerciseDefinitionsCache.timestamp) < this.EXERCISE_CACHE_TTL) {
+      console.log('[Database] Using cached exercise definitions');
+      return this.exerciseDefinitionsCache.data;
+    }
+    
     const db = this.getDB();
+    console.log('[Database] Fetching exercise definitions from database');
     const result = await db.getAllAsync<any>(
       'SELECT id, name FROM exercise_definitions ORDER BY name ASC'
     );
+    
+    // Cache the result
+    this.exerciseDefinitionsCache = {
+      data: result,
+      timestamp: Date.now()
+    };
+    
+    console.log('[Database] Cached exercise definitions:', result.length);
     return result;
+  }
+  
+  // Clear exercise definitions cache
+  clearExerciseDefinitionsCache(): void {
+    this.exerciseDefinitionsCache = null;
   }
 
   // Cleanup incomplete workout sessions older than specified hours
@@ -2231,10 +2434,50 @@ class Database {
 
   async deleteWorkoutSession(sessionId: string): Promise<void> {
     const db = this.getDB();
+    
+    // Get the user_id before deleting the session
+    const session = await db.getFirstAsync<{ user_id: string }>(
+      'SELECT user_id FROM workout_sessions WHERE id = ?',
+      [sessionId]
+    );
+    
+    console.log('[Database] Starting enhanced workout session deletion:', sessionId, 'user:', session?.user_id);
+    
+    // Clear ALL caches immediately before deletion to prevent stale data restoration
+    if (session?.user_id) {
+      console.log('[Database] Clearing ALL caches before deletion for user:', session.user_id);
+      this.clearAllCachesForUser(session.user_id);
+      
+      // Also clear any analytics caches that might contain this session
+      Object.keys(this.analyticsCache).forEach(key => {
+        if (key.includes(session.user_id)) {
+          delete this.analyticsCache[key];
+          console.log('[Database] Cleared analytics cache:', key);
+        }
+      });
+      
+      // Clear workout stats cache
+      Object.keys(this.workoutStatsCache).forEach(key => {
+        if (key.startsWith(session.user_id)) {
+          delete this.workoutStatsCache[key];
+          console.log('[Database] Cleared stats cache:', key);
+        }
+      });
+    }
+    
     // Delete associated set logs first
     await db.runAsync('DELETE FROM set_logs WHERE session_id = ?', [sessionId]);
+    console.log('[Database] Deleted set logs for session:', sessionId);
+    
     // Then delete the workout session
-    await db.runAsync('DELETE FROM workout_sessions WHERE id = ?', [sessionId]);
+    const deleteResult = await db.runAsync('DELETE FROM workout_sessions WHERE id = ?', [sessionId]);
+    console.log('[Database] Deleted workout session:', sessionId, 'changes:', deleteResult.changes);
+    
+    // Clear caches one more time after deletion to be absolutely sure
+    if (session?.user_id) {
+      this.clearAllCachesForUser(session.user_id);
+      console.log('[Database] Final cache clear completed for user:', session.user_id);
+    }
   }
 
   async cleanupUserData(userId: string): Promise<{
@@ -2477,6 +2720,138 @@ class Database {
     }
   }
 
+  // WEEKLY VOLUME CACHE - Performance optimization for WorkoutSummaryModal
+  private weeklyVolumeCache: {[userId: string]: { data: any; timestamp: number }} = {};
+  private readonly WEEKLY_VOLUME_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+  async getWeeklyVolumeData(userId: string): Promise<{
+    Arms: number[];
+    Back: number[];
+    Chest: number[];
+    Core: number[];
+    Legs: number[];
+    Shoulders: number[];
+  }> {
+    // Check cache first
+    const cached = this.weeklyVolumeCache[userId];
+    if (cached && (Date.now() - cached.timestamp) < this.WEEKLY_VOLUME_CACHE_TTL) {
+      console.log('[Database] Using cached weekly volume data for user:', userId);
+      return cached.data;
+    }
+
+    console.log('[Database] Calculating weekly volume data for user:', userId);
+    
+    // Get workouts from this week (last 7 days)
+    const db = this.getDB();
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    
+    const workouts = await db.getAllAsync<any>(
+      `SELECT ws.id, ws.session_date, sl.exercise_id, sl.reps, sl.weight_kg
+       FROM workout_sessions ws
+       JOIN set_logs sl ON ws.id = sl.session_id
+       WHERE ws.user_id = ? AND ws.session_date >= ?
+       ORDER BY ws.session_date ASC`,
+      [userId, oneWeekAgo.toISOString()]
+    );
+
+    // Get exercise definitions for muscle group mapping
+    const exerciseDefinitions = await this.getExerciseDefinitions();
+    const exerciseMap = new Map(exerciseDefinitions.map(ex => [ex.id, ex.name]));
+
+    // Standardized muscle groups from WorkoutSummaryModal charts
+    const STANDARD_MUSCLE_GROUPS = [
+      'Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core'
+    ];
+
+    // Standardized muscle groups from WorkoutSummaryModal constants
+    const UPPER_BODY_MUSCLES = [
+      'Abs', 'Abdominals', 'Core',
+      'Back', 'Lats',
+      'Biceps',
+      'Chest', 'Pectorals',
+      'Shoulders', 'Deltoids',
+      'Traps', 'Rear Delts',
+      'Triceps',
+      'Full Body'
+    ];
+    
+    const LOWER_BODY_MUSCLES = [
+      'Calves',
+      'Glutes', 'Outer Glutes',
+      'Hamstrings',
+      'Inner Thighs',
+      'Quads', 'Quadriceps'
+    ];
+
+    // Initialize weekly data arrays (7 days) for all muscle groups
+    const weeklyData: any = {};
+    [...UPPER_BODY_MUSCLES, ...LOWER_BODY_MUSCLES].forEach(muscle => {
+      weeklyData[muscle] = new Array(7).fill(0);
+    });
+
+    // Process each workout set
+    for (const set of workouts) {
+      const exerciseName = exerciseMap.get(set.exercise_id) || 'Unknown';
+      const volume = (set.reps || 0) * (set.weight_kg || 0);
+      
+      // Determine muscle group from exercise name
+      const muscleGroup = this.getMuscleGroupFromExercise(exerciseName);
+      
+      if (muscleGroup) {
+        // Calculate day index (0 = today, 6 = 6 days ago)
+        const workoutDate = new Date(set.session_date);
+        const dayIndex = Math.floor((new Date().getTime() - workoutDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (dayIndex >= 0 && dayIndex < 7) {
+          weeklyData[muscleGroup][dayIndex] += volume;
+        }
+      }
+    }
+
+    // Cache the result
+    this.weeklyVolumeCache[userId] = {
+      data: weeklyData,
+      timestamp: Date.now()
+    };
+
+    console.log('[Database] Cached weekly volume data for user:', userId);
+    return weeklyData;
+  }
+
+  private getMuscleGroupFromExercise(exerciseName: string): string | null {
+    const name = exerciseName.toLowerCase();
+    
+    // Upper body muscle groups
+    if (name.includes('abs') || name.includes('abdominals')) return 'Abs';
+    if (name.includes('core')) return 'Core';
+    if (name.includes('back') || name.includes('lats')) return 'Back';
+    if (name.includes('biceps')) return 'Biceps';
+    if (name.includes('chest') || name.includes('pectorals')) return 'Chest';
+    if (name.includes('shoulders') || name.includes('deltoids')) return 'Shoulders';
+    if (name.includes('traps') || name.includes('rear delts')) return 'Traps';
+    if (name.includes('triceps')) return 'Triceps';
+    if (name.includes('full body')) return 'Full Body';
+    
+    // Lower body muscle groups
+    if (name.includes('calves')) return 'Calves';
+    if (name.includes('glutes') || name.includes('outer glutes')) return 'Glutes';
+    if (name.includes('hamstrings')) return 'Hamstrings';
+    if (name.includes('inner thighs')) return 'Inner Thighs';
+    if (name.includes('quads') || name.includes('quadriceps')) return 'Quads';
+    
+    return null;
+  }
+
+  // Clear weekly volume cache (call when new workouts sync)
+  clearWeeklyVolumeCache(userId?: string): void {
+    if (userId) {
+      delete this.weeklyVolumeCache[userId];
+    } else {
+      this.weeklyVolumeCache = {};
+    }
+  }
+
   // AUTO CLEANUP - Call this during app initialization
   async performAutoCleanup(userId: string): Promise<{ performed: boolean; cleanedRecords: number; reason: string }> {
     try {
@@ -2563,6 +2938,33 @@ class Database {
     }
   }
 
+  // Cache invalidation triggers - call these when data changes
+  async invalidateCachesForUser(userId: string): Promise<void> {
+    // Clear all caches for the user when their data changes
+    this.clearSessionCache(userId);
+    this.clearExerciseDefinitionsCache();
+    this.clearWeeklyVolumeCache(userId);
+    
+    // Clear workout stats cache (has composite keys)
+    Object.keys(this.workoutStatsCache).forEach(key => {
+      if (key.startsWith(userId)) {
+        delete this.workoutStatsCache[key];
+      }
+    });
+    
+    // Clear analytics cache (has composite keys)
+    Object.keys(this.analyticsCache).forEach(key => {
+      if (key.includes(userId)) {
+        delete this.analyticsCache[key];
+      }
+    });
+    
+    // Clear achievements cache
+    delete this.achievementsCache[userId];
+    
+    console.log('[Database] Cleared all caches for user:', userId);
+  }
+
   syncQueue: SyncQueueStore = {
     getAll: async (): Promise<SyncQueueItem[]> => {
       const db = this.getDB();
@@ -2618,6 +3020,25 @@ class Database {
 
 export const database = new Database();
 
+// Export cache management functions for external use
+export const clearAllCaches = () => {
+  database.clearSessionCache();
+  database.clearExerciseDefinitionsCache();
+  database.clearWeeklyVolumeCache();
+  console.log('[Database] Cleared all caches');
+};
+
+export const getCacheStats = () => {
+  return {
+    sessionCache: 0,
+    exerciseCache: 0,
+    weeklyVolumeCache: 0,
+    statsCache: 0,
+    analyticsCache: 0,
+    achievementsCache: 0,
+  };
+};
+
 export const addToSyncQueue = async (
   operation: 'create' | 'update' | 'delete',
   table: 'workout_sessions' | 'set_logs',
@@ -2640,6 +3061,11 @@ export const addToSyncQueue = async (
     timestamp: Date.now(),
     attempts: 0,
   });
+
+  // Invalidate relevant caches when data changes
+  if (payload.user_id) {
+    await database.invalidateCachesForUser(payload.user_id);
+  }
 };
 
 export default Database;

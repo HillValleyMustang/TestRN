@@ -15,8 +15,3 @@ export { SimpleVolumeChart } from "./SimpleVolumeChart";
 export { PreviousWorkoutsWidget } from "./PreviousWorkoutsWidget";
 export { SyncStatusBanner } from "./SyncStatusBanner";
 
-// Legacy exports (for backwards compatibility)
-export { StatCard } from "./StatCard";
-export { QuickActions } from "./QuickActions";
-export { WeeklyTarget } from "./WeeklyTarget";
-export { RecentWorkouts } from "./RecentWorkouts";

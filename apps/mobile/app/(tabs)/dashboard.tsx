@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   ScrollView,
@@ -38,29 +38,29 @@ import {
   PreviousWorkoutsWidget,
 } from '../../components/dashboard';
 import { WorkoutSummaryModal } from '../../components/workout/WorkoutSummaryModal';
+import { ActivityLoggingModal_new as ActivityLoggingModal } from '../../components/dashboard/ActivityLoggingModal_new';
 
 export default function DashboardScreen() {
   const { session, userId, loading: authLoading } = useAuth();
-  const { loadDashboardSnapshot, deleteWorkoutSession, setActiveGym, isSyncing, queueLength, isOnline, forceRefreshProfile, getWorkoutSessions, getSetLogs } = useData();
+  const { loadDashboardSnapshot, deleteWorkoutSession, setActiveGym, isSyncing, queueLength, isOnline, forceRefreshProfile, getWorkoutSessions, getSetLogs, shouldRefreshDashboard, setShouldRefreshDashboard, lastWorkoutCompletionTime, setLastWorkoutCompletionTime, handleWorkoutCompletion } = useData();
+  
   const router = useRouter();
-
-  useEffect(() => {
-    if (!authLoading && !session && !AUTO_LOGIN_FOR_DEVELOPMENT) {
-      console.log('[Dashboard] No session, redirecting to login');
-      router.replace('/login');
-      return;
-    }
-  }, [session, authLoading, router]);
-
-  const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-  const hasFetchedDataRef = useRef(false);
-  const lastRefreshRef = useRef<number>(0);
-  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const isFirstFocusRef = useRef(true);
+  
+  // Cache for expensive operations
+  const [dataCache, setDataCache] = useState<{
+    lastFetch: number;
+    data: any | null;
+  }>({ lastFetch: 0, data: null });
+  
+  const [modalDataCache, setModalDataCache] = useState<{
+    [sessionId: string]: {
+      historicalWorkout: any;
+      weeklyVolumeData: any;
+      nextWorkoutSuggestion: any;
+      isOnTPath: boolean;
+      timestamp: number;
+    };
+  }>({});
 
   // Dashboard data state
   const [userProfile, setUserProfile] = useState<DashboardProfile | null>(null);
@@ -96,35 +96,226 @@ export default function DashboardScreen() {
     sessionId?: string;
   } | null>(null);
 
+  // Activity logging modal state
+  const [activityModalVisible, setActivityModalVisible] = useState(false);
 
+  // State variables that need to be declared before fetchDashboardData
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [deletionInProgress, setDeletionInProgress] = useState<string | null>(null);
+  const hasFetchedDataRef = useRef(false);
+  const lastRefreshRef = useRef<number>(0);
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isFirstFocusRef = useRef(true);
+  const lastDeletionTimeRef = useRef<number>(0);
+  const loadingStartTimeRef = useRef<number>(0);
+  const LOADING_TIMEOUT = 15000; // 15 seconds max loading time
+  
+  // Refresh mutex to prevent concurrent refresh calls causing race conditions
+  const refreshInProgressRef = useRef(false);
+  const pendingRefreshRef = useRef(false);
+
+  // Enhanced cache invalidation function - now calls data context's handleWorkoutCompletion
+  const dashboardInvalidateAllCaches = useCallback(async () => {
+    console.log('[Dashboard] Starting atomic cache invalidation');
+    
+    // Invalidate all dashboard-related caches
+    setDataCache({ lastFetch: 0, data: null });
+    setShouldRefreshDashboard(true);
+    
+    // Only call setLastWorkoutCompletionTime if it's available (safety check)
+    if (typeof setLastWorkoutCompletionTime === 'function') {
+      setLastWorkoutCompletionTime(Date.now());
+    }
+    
+    // Clear the modal data cache
+    setModalDataCache({});
+    
+    // Call the data context's invalidateAllCaches to clear database-level caches
+    try {
+      console.log('[Dashboard] Calling data context invalidateAllCaches');
+      // Use the data context's invalidateAllCaches function
+      await handleWorkoutCompletionRefresh();
+      console.log('[Dashboard] Data context cache invalidation completed successfully');
+    } catch (error) {
+      console.error('[Dashboard] Error during data context cache invalidation:', error);
+    }
+  }, [userId, setShouldRefreshDashboard, handleWorkoutCompletion, setLastWorkoutCompletionTime]);
+
+  // Enhanced coordinated refresh function
+  const triggerCoordinatedRefresh = useCallback(async () => {
+    console.log('[Dashboard] Starting coordinated refresh');
+    
+    // Clear any existing timeout
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+    
+    // Use debounced refresh to prevent multiple rapid calls
+    refreshTimeoutRef.current = setTimeout(async () => {
+      try {
+        await fetchDashboardData();
+        console.log('[Dashboard] Coordinated refresh completed');
+      } catch (error) {
+        console.error('[Dashboard] Coordinated refresh failed:', error);
+      }
+    }, 100); // Small delay to ensure all caches are cleared
+  }, []);
 
   const fetchDashboardData = useCallback(async () => {
     if (!userId || isRefreshing) return;
+    
+    // Additional safeguard: prevent rapid successive calls
+    const currentTimestamp = Date.now();
+    const timeSinceLastRefresh = currentTimestamp - lastRefreshRef.current;
+    if (timeSinceLastRefresh < 1000) { // Minimum 1 second between refreshes
+      return;
+    }
+
+    const now = Date.now();
+    const cacheDuration = 60000; // 60 seconds (increased from 30)
+
+    // Check cache first, but bypass if force refresh is needed
+    const hasValidCache = dataCache.data && (currentTimestamp - dataCache.lastFetch < cacheDuration);
+    
+    if (hasValidCache) {
+      // Enhanced force refresh conditions - include empty state and deletion scenarios
+      const timeSinceLastCompletion = currentTimestamp - lastWorkoutCompletionTime;
+      const timeSinceLastDeletion = currentTimestamp - lastDeletionTimeRef.current;
+      const shouldForceRefresh = shouldRefreshDashboard ||
+                               timeSinceLastCompletion < 5 * 60 * 1000 ||
+                               timeSinceLastDeletion < 10000 || // Force refresh for 10 seconds after deletion
+                               recentWorkouts.length === 0 || // Empty state after deletion
+                               (dataCache.data && recentWorkouts.length === 0) || // Cache shows data but UI is empty
+                               dataCache.lastFetch === 0 || // Cache was explicitly cleared
+                               !dataCache.data; // Cache is null/undefined
+      
+      console.log('[Dashboard] Cache check:', {
+        hasCache: !!dataCache.data,
+        cacheAge: currentTimestamp - dataCache.lastFetch,
+        cacheLastFetch: dataCache.lastFetch,
+        hasValidCache,
+        shouldForceRefresh,
+        shouldRefreshDashboard,
+        timeSinceLastCompletion,
+        timeSinceLastDeletion,
+        recentWorkoutsCount: recentWorkouts.length,
+        deletionDetected: dataCache.lastFetch === 0,
+        lastDeletionTime: lastDeletionTimeRef.current
+      });
+      
+      if (shouldForceRefresh) {
+        console.log('[Dashboard] Bypassing cache due to force refresh conditions');
+        // Bypass cache due to recent workout completion, refresh flag, or empty state
+      } else {
+        // Only update state if data has actually changed to prevent infinite loops
+        if (JSON.stringify(dataCache.data.profile) !== JSON.stringify(userProfile)) {
+          setUserProfile(dataCache.data.profile);
+        }
+        if (JSON.stringify(dataCache.data.gyms) !== JSON.stringify(gyms)) {
+          setGyms(dataCache.data.gyms);
+        }
+        if (JSON.stringify(dataCache.data.weeklySummary) !== JSON.stringify(weeklySummary)) {
+          console.log('[Dashboard] Weekly summary changed, updating state:', {
+            oldSummary: weeklySummary,
+            newSummary: dataCache.data.weeklySummary,
+            completedWorkoutsCount: dataCache.data.weeklySummary.completed_workouts.length,
+            totalSessions: dataCache.data.weeklySummary.total_sessions
+          });
+          setWeeklySummary(dataCache.data.weeklySummary);
+        }
+        if (JSON.stringify(dataCache.data.activeGym) !== JSON.stringify(activeGym)) {
+          setActiveGymState(dataCache.data.activeGym);
+        }
+        if (JSON.stringify(dataCache.data.activeTPath) !== JSON.stringify(activeTPath)) {
+          setActiveTPath(dataCache.data.activeTPath);
+        }
+        if (JSON.stringify(dataCache.data.tPathWorkouts) !== JSON.stringify(tpathWorkouts)) {
+          setTpathWorkouts(dataCache.data.tPathWorkouts);
+        }
+        if (JSON.stringify(dataCache.data.volumeHistory) !== JSON.stringify(volumeData)) {
+          console.log('[Dashboard] Volume data changed, updating state:', {
+            oldVolumeData: volumeData,
+            newVolumeData: dataCache.data.volumeHistory,
+            difference: dataCache.data.volumeHistory.length - volumeData.length
+          });
+          setVolumeData(dataCache.data.volumeHistory);
+        }
+        if (JSON.stringify(dataCache.data.recentWorkouts) !== JSON.stringify(recentWorkouts)) {
+          setRecentWorkouts(dataCache.data.recentWorkouts);
+        }
+        if (JSON.stringify(dataCache.data.nextWorkout) !== JSON.stringify(nextWorkout)) {
+          setNextWorkout(dataCache.data.nextWorkout);
+        }
+        return;
+      }
+    } else {
+      console.log('[Dashboard] No valid cache data available, proceeding with fetch');
+    }
 
     try {
       if (isInitialLoad) {
         setLoading(true);
       }
 
-      console.log('[Dashboard] Fetching dashboard data...');
       const snapshot = await loadDashboardSnapshot();
-      console.log('[Dashboard] Dashboard data fetched:', {
-        profile: snapshot.profile,
-        onboarding_completed: snapshot.profile?.onboarding_completed
-      });
 
-      // Update individual state variables
-      setUserProfile(snapshot.profile);
-      setGyms(snapshot.gyms);
-      console.log('[Dashboard] Setting gyms state:', snapshot.gyms.length, 'gyms');
-      setWeeklySummary(snapshot.weeklySummary);
-      console.log('[Dashboard] Setting activeGym state:', snapshot.activeGym);
-      setActiveGymState(snapshot.activeGym);
-      setActiveTPath(snapshot.activeTPath);
-      setTpathWorkouts(snapshot.tPathWorkouts);
-      setVolumeData(snapshot.volumeHistory);
-      setRecentWorkouts(snapshot.recentWorkouts);
-      setNextWorkout(snapshot.nextWorkout);
+      // Only update state if data has actually changed to prevent infinite loops
+      if (JSON.stringify(snapshot.profile) !== JSON.stringify(userProfile)) {
+        setUserProfile(snapshot.profile);
+      }
+      if (JSON.stringify(snapshot.gyms) !== JSON.stringify(gyms)) {
+        setGyms(snapshot.gyms);
+      }
+      if (JSON.stringify(snapshot.weeklySummary) !== JSON.stringify(weeklySummary)) {
+        console.log('[Dashboard] Weekly summary changed, updating state:', {
+          oldSummary: weeklySummary,
+          newSummary: snapshot.weeklySummary,
+          completedWorkoutsCount: snapshot.weeklySummary.completed_workouts.length,
+          totalSessions: snapshot.weeklySummary.total_sessions
+        });
+        setWeeklySummary(snapshot.weeklySummary);
+      }
+      if (JSON.stringify(snapshot.activeGym) !== JSON.stringify(activeGym)) {
+        setActiveGymState(snapshot.activeGym);
+      }
+      if (JSON.stringify(snapshot.activeTPath) !== JSON.stringify(activeTPath)) {
+        setActiveTPath(snapshot.activeTPath);
+      }
+      if (JSON.stringify(snapshot.tPathWorkouts) !== JSON.stringify(tpathWorkouts)) {
+        setTpathWorkouts(snapshot.tPathWorkouts);
+      }
+      if (JSON.stringify(snapshot.volumeHistory) !== JSON.stringify(volumeData)) {
+        console.log('[Dashboard] Volume data changed, updating state from snapshot:', {
+          oldVolumeData: volumeData,
+          newVolumeData: snapshot.volumeHistory,
+          difference: snapshot.volumeHistory.length - volumeData.length
+        });
+        setVolumeData(snapshot.volumeHistory);
+      } else {
+        console.log('[Dashboard] Volume data unchanged after snapshot fetch. Current:', volumeData.length, 'Snapshot:', snapshot.volumeHistory.length);
+      }
+      if (JSON.stringify(snapshot.recentWorkouts) !== JSON.stringify(recentWorkouts)) {
+        setRecentWorkouts(snapshot.recentWorkouts);
+      }
+      if (JSON.stringify(snapshot.nextWorkout) !== JSON.stringify(nextWorkout)) {
+        setNextWorkout(snapshot.nextWorkout);
+      }
+      
+      // Cache the data
+      setDataCache({
+        lastFetch: currentTimestamp,
+        data: snapshot
+      });
+      
+      // Sync local state with cached data from data context
+      if (snapshot.profile && !userProfile) {
+        console.log('[Dashboard] Syncing userProfile from cached data');
+        setUserProfile(snapshot.profile);
+      }
     } catch (error) {
       console.error('[Dashboard] Failed to load data', error);
     } finally {
@@ -134,7 +325,111 @@ export default function DashboardScreen() {
         setInitialLoadComplete(true);
       }
     }
-  }, [userId, isRefreshing]);
+  }, [userId, isRefreshing, dataCache, isInitialLoad, shouldRefreshDashboard, lastWorkoutCompletionTime, userProfile, gyms, weeklySummary, activeGym, activeTPath, tpathWorkouts, volumeData, recentWorkouts, nextWorkout]);
+
+  // Global refresh function that can be called from anywhere in the app
+  const triggerDashboardRefresh = useCallback(() => {
+    console.log('[Dashboard] Global triggerDashboardRefresh called');
+    
+    // Check if refresh is already in progress
+    if (refreshInProgressRef.current) {
+      console.log('[Dashboard] Refresh already in progress, skipping duplicate call');
+      return;
+    }
+    
+    // Set flag to prevent concurrent refreshes
+    refreshInProgressRef.current = true;
+    
+    setShouldRefreshDashboard(true);
+    // Directly invalidate caches and trigger refresh
+    setDataCache({ lastFetch: 0, data: null });
+    setModalDataCache({});
+    setLastWorkoutCompletionTime(Date.now());
+    
+    // Trigger coordinated refresh after cache clear
+    setTimeout(() => {
+      fetchDashboardData().then(() => {
+        console.log('[Dashboard] Dashboard refresh completed after trigger');
+      }).catch((error) => {
+        console.error('[Dashboard] Dashboard refresh failed:', error);
+      }).finally(() => {
+        // Release the mutex
+        refreshInProgressRef.current = false;
+        
+        // Check if there's a pending refresh that was queued
+        if (pendingRefreshRef.current) {
+          console.log('[Dashboard] Processing queued refresh after current one completed');
+          pendingRefreshRef.current = false;
+          // Trigger another refresh
+          setTimeout(() => triggerDashboardRefresh(), 50);
+        }
+      });
+    }, 100);
+  }, [setShouldRefreshDashboard, fetchDashboardData]);
+  
+  // Make the refresh function globally available
+  (global as any).triggerDashboardRefresh = triggerDashboardRefresh;
+
+  // Debug: Log when global trigger is called
+  useEffect(() => {
+    const originalTrigger = (global as any).triggerDashboardRefresh;
+    (global as any).triggerDashboardRefresh = function() {
+      console.log('[Dashboard] Global triggerDashboardRefresh INTERCEPTED at', new Date().toISOString());
+      return originalTrigger.apply(this, arguments);
+    };
+    
+    return () => {
+      (global as any).triggerDashboardRefresh = originalTrigger;
+    };
+  }, []);
+
+  // Enhanced function to handle workout completion and cache invalidation
+  const handleWorkoutCompletionRefresh = useCallback(async () => {
+    console.log('[Dashboard] Handling workout completion refresh');
+    
+    // Check if refresh is already in progress
+    if (refreshInProgressRef.current) {
+      console.log('[Dashboard] Refresh already in progress, queueing workout completion refresh');
+      pendingRefreshRef.current = true;
+      return;
+    }
+    
+    // Set flag to prevent concurrent refreshes
+    refreshInProgressRef.current = true;
+    
+    // Call the data context's invalidateAllCaches to properly invalidate caches
+    // We don't pass a session object to avoid database constraint errors
+    try {
+      console.log('[Dashboard] Calling data context invalidateAllCaches for cache invalidation');
+      // Use the data context's invalidateAllCaches function directly
+      await handleWorkoutCompletion(undefined);
+      console.log('[Dashboard] Data context cache invalidation completed');
+      
+      // Then trigger coordinated refresh
+      await triggerCoordinatedRefresh();
+    } catch (error) {
+      console.error('[Dashboard] Error during workout completion refresh:', error);
+    } finally {
+      // Release the mutex
+      refreshInProgressRef.current = false;
+      
+      // Check if there's a pending refresh that was queued
+      if (pendingRefreshRef.current) {
+        console.log('[Dashboard] Processing queued refresh after workout completion');
+        pendingRefreshRef.current = false;
+        // Trigger another refresh
+        setTimeout(() => triggerDashboardRefresh(), 50);
+      }
+    }
+  }, [handleWorkoutCompletion, triggerCoordinatedRefresh, triggerDashboardRefresh]);
+
+  useEffect(() => {
+    if (!authLoading && !session && !AUTO_LOGIN_FOR_DEVELOPMENT) {
+      console.log('[Dashboard] No session, redirecting to login');
+      router.replace('/login');
+      return;
+    }
+  }, [session, authLoading, router]);
 
   // Initial data load effect - only run once
   useEffect(() => {
@@ -148,53 +443,116 @@ export default function DashboardScreen() {
   useEffect(() => {
     if (!authLoading && session && userId && userProfile && userProfile.onboarding_completed !== undefined) {
       const needsOnboarding = !userProfile.onboarding_completed;
-      console.log('[Dashboard] Onboarding check - userProfile:', userProfile, 'needsOnboarding:', needsOnboarding);
       if (needsOnboarding) {
-        console.log('[Dashboard] User needs onboarding, redirecting...');
         router.replace('/onboarding');
         return;
-      } else {
-        console.log('[Dashboard] User has completed onboarding, showing dashboard');
+      }
+      
+      // Reset loading start time when profile is loaded
+      if (loadingStartTimeRef.current > 0) {
+        console.log('[Dashboard] Profile loaded, resetting loading timeout');
+        loadingStartTimeRef.current = 0;
       }
     }
   }, [session, authLoading, userId, userProfile?.onboarding_completed, router]);
 
-  // Debounced refresh on screen focus with better frequency control
+  // Enhanced focus effect to handle both regular refresh and workout completion refresh
   useFocusEffect(
     useCallback(() => {
-      console.log('[Dashboard] Dashboard screen focused - userProfile:', userProfile, 'onboarding_completed:', userProfile?.onboarding_completed);
-      if (userProfile?.onboarding_completed && initialLoadComplete) {
-        const now = Date.now();
-        // Skip refresh on first focus to prevent duplicate initial loads
-        if (isFirstFocusRef.current) {
-          console.log('[Dashboard] Skipping refresh on first focus');
-          isFirstFocusRef.current = false;
-          return;
-        }
-        // Increased minimum interval to 10 seconds to prevent excessive refreshes
-        if (now - lastRefreshRef.current > 10000 && !isRefreshing) {
-          console.log('[Dashboard] Dashboard focused, scheduling refresh...');
+      async function fetchOnFocus() {
+        if (userProfile?.onboarding_completed && initialLoadComplete) {
+          const now = Date.now();
+
+          // Enhanced check for forced refresh - includes empty state detection
+          const timeSinceLastDeletion = now - lastDeletionTimeRef.current;
+          const shouldForceRefresh = shouldRefreshDashboard ||
+                                   recentWorkouts.length === 0 || // Handle empty state after deletion
+                                   (dataCache.data === null) || // Handle cache cleared state
+                                   timeSinceLastDeletion < 10000; // Handle recent deletion (10 second window)
+
+          // Check time since last workout completion (5 minutes window)
+          const timeSinceLastCompletion = now - lastWorkoutCompletionTime;
+          const recentWorkoutCompletion = timeSinceLastCompletion < 5 * 60 * 1000;
           
-          // Clear any existing timeout
-          if (refreshTimeoutRef.current) {
-            clearTimeout(refreshTimeoutRef.current);
+          // FIX: Fetch fresh recentWorkouts count from database to avoid stale state
+          let freshRecentWorkoutsCount = recentWorkouts.length;
+          if (recentWorkoutCompletion && recentWorkouts.length === 49 && userId) {
+            // Likely stale state, fetch fresh count from database
+            try {
+              const freshSessions = await getWorkoutSessions(userId);
+              freshRecentWorkoutsCount = freshSessions.length;
+              console.log('[Dashboard] Fresh recentWorkouts count from DB:', freshRecentWorkoutsCount);
+            } catch (error) {
+              console.error('[Dashboard] Failed to fetch fresh workouts count:', error);
+            }
           }
-          
-          // Debounce the refresh by 500ms to prevent rapid firing
-          refreshTimeoutRef.current = setTimeout(() => {
-            console.log('[Dashboard] Debounced refresh executing...');
-            setIsRefreshing(true);
-            fetchDashboardData().finally(() => {
-              setIsRefreshing(false);
-              lastRefreshRef.current = Date.now();
-              refreshTimeoutRef.current = null;
-            });
-          }, 500);
-        } else {
-          console.log('[Dashboard] Skipping refresh - too soon or already refreshing');
+
+          console.log('[Dashboard] Focus effect refresh check:', {
+            shouldForceRefresh,
+            recentWorkoutCompletion,
+            hasDataCache: !!dataCache.data,
+            recentWorkoutsCount: freshRecentWorkoutsCount,
+            isRefreshing,
+            timeSinceLastDeletion: now - lastDeletionTimeRef.current,
+            lastDeletionTime: lastDeletionTimeRef.current
+          });
+
+          // Prevent infinite loops by checking if we're already refreshing
+          // Also check the mutex to prevent race conditions
+          if ((shouldForceRefresh || recentWorkoutCompletion) && !isRefreshing && !refreshInProgressRef.current) {
+            // Set a minimum time between refreshes to prevent rapid successive calls
+            const timeSinceLastRefresh = now - lastRefreshRef.current;
+            if (timeSinceLastRefresh > 2000) { // Minimum 2 seconds between refreshes
+              console.log('[Dashboard] Focus effect triggering refresh due to:', {
+                shouldForceRefresh,
+                recentWorkoutCompletion,
+                hasDataCache: !!dataCache.data,
+                recentWorkoutsCount: freshRecentWorkoutsCount
+              });
+              
+              // If this is a recent workout completion, use the enhanced refresh function
+              if (recentWorkoutCompletion) {
+                console.log('[Dashboard] Recent workout completion detected, using enhanced refresh');
+                handleWorkoutCompletionRefresh().finally(() => {
+                  lastRefreshRef.current = Date.now();
+                  // Reset the flag only after refresh completes
+                  setShouldRefreshDashboard(false);
+                });
+              } else {
+                // Don't reset the flag immediately - wait until refresh completes
+                setIsRefreshing(true);
+                fetchDashboardData().finally(() => {
+                  setIsRefreshing(false);
+                  lastRefreshRef.current = Date.now();
+                  // Reset the flag only after refresh completes
+                  setShouldRefreshDashboard(false);
+                });
+              }
+            }
+          } else if (now - lastRefreshRef.current > 10000 && !isRefreshing && !refreshInProgressRef.current) {
+            // Clear any existing timeout
+            if (refreshTimeoutRef.current) {
+              clearTimeout(refreshTimeoutRef.current);
+            }
+
+            // Debounce the refresh by 500ms to prevent rapid firing
+            refreshTimeoutRef.current = setTimeout(() => {
+              setIsRefreshing(true);
+              fetchDashboardData().finally(() => {
+                setIsRefreshing(false);
+                lastRefreshRef.current = Date.now();
+                refreshTimeoutRef.current = null;
+              });
+            }, 500);
+          }
         }
       }
-    }, [userProfile?.onboarding_completed, initialLoadComplete, isRefreshing, fetchDashboardData])
+      
+      // Call the async function and discard the returned Promise to avoid TypeScript errors
+      fetchOnFocus().catch((error) => {
+        console.error('[Dashboard] Error in fetchOnFocus:', error);
+      });
+    }, [userProfile?.onboarding_completed, initialLoadComplete, isRefreshing, fetchDashboardData, shouldRefreshDashboard, setShouldRefreshDashboard, lastWorkoutCompletionTime, dataCache.data, recentWorkouts.length, lastDeletionTimeRef.current, handleWorkoutCompletionRefresh, getWorkoutSessions, userId])
   );
 
   const onRefresh = useCallback(async () => {
@@ -224,349 +582,349 @@ export default function DashboardScreen() {
 
   const accountCreatedAt = session?.user?.created_at;
 
-  // Optimized historical workout loading - only loads when modal tab is opened
-  const getHistoricalWorkout = async (workoutName: string): Promise<any | null> => {
-    if (!userId || !workoutName) return null;
+  // Optimized historical workout loading with caching
+  const getHistoricalWorkout = useMemo(() => {
+    const cache = new Map();
+    const cacheTimeout = 5 * 60 * 1000; // 5 minutes
 
-    try {
-      console.log('[Dashboard] Fetching historical workout for:', workoutName, 'userId:', userId);
-      
-      // Check if Supabase client is available
-      if (!supabase) {
-        console.error('[Dashboard] Supabase client not available');
-        return null;
-      }
-      
-      // Check if user is authenticated
-      const { data: { session }, error: authError } = await supabase.auth.getSession();
-      if (authError) {
-        console.error('[Dashboard] Auth error:', authError);
-        return null;
-      }
-      if (!session) {
-        console.error('[Dashboard] No active session found');
-        return null;
-      }
-      
-      // Get previous workouts of the same type from Supabase
-      const { data: sessions, error } = await supabase
-        .from('workout_sessions')
-        .select(`
-          id,
-          session_date,
-          duration_string,
-          rating,
-          set_logs (
-            exercise_id,
-            weight_kg,
-            reps,
-            is_pb
-          )
-        `)
-        .eq('user_id', userId)
-        .eq('template_name', workoutName)
-        .order('session_date', { ascending: false })
-        .limit(2); // Get current + previous
+    return async (workoutName: string): Promise<any | null> => {
+      if (!userId || !workoutName) return null;
 
-      if (error) {
-        console.error('[Dashboard] Error fetching historical workouts:', error);
-        console.error('[Dashboard] Query details - userId:', userId, 'workoutName:', workoutName);
-        console.error('[Dashboard] Error details:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
+      const cacheKey = `${userId}:${workoutName}`;
+      const cached = cache.get(cacheKey);
+      
+      if (cached && (Date.now() - cached.timestamp < cacheTimeout)) {
+        return cached.data;
+      }
+
+      try {
+        // Check if Supabase client is available
+        if (!supabase) {
+          console.error('[Dashboard] Supabase client not available');
+          return null;
+        }
+        
+        // Check if user is authenticated
+        const { data: { session }, error: authError } = await supabase.auth.getSession();
+        if (authError) {
+          console.error('[Dashboard] Auth error:', authError);
+          return null;
+        }
+        if (!session) {
+          console.error('[Dashboard] No active session found');
+          return null;
+        }
+        
+        // Get previous workouts of the same type from Supabase
+        const { data: sessions, error } = await supabase
+          .from('workout_sessions')
+          .select(`
+            id,
+            session_date,
+            duration_string,
+            rating,
+            set_logs (
+              exercise_id,
+              weight_kg,
+              reps,
+              is_pb
+            )
+          `)
+          .eq('user_id', userId)
+          .eq('template_name', workoutName)
+          .order('session_date', { ascending: false })
+          .limit(2); // Get current + previous
+
+        if (error) {
+          console.error('[Dashboard] Error fetching historical workouts:', error);
+          return null;
+        }
+
+        if (!sessions) {
+          return null;
+        }
+        
+        // Additional validation
+        if (!Array.isArray(sessions)) {
+          console.error('[Dashboard] Invalid sessions data type:', typeof sessions);
+          return null;
+        }
+
+        if (sessions && sessions.length > 1) {
+          const previousSession = sessions[1]; // Skip current session
+          const previousSets = previousSession.set_logs || [];
+          
+          // Group sets by exercise
+          const exerciseMap = new Map();
+          previousSets.forEach((set: any) => {
+            if (!exerciseMap.has(set.exercise_id)) {
+              exerciseMap.set(set.exercise_id, {
+                exerciseId: set.exercise_id,
+                exerciseName: `Exercise ${set.exercise_id?.slice(-4) || 'Ex'}`,
+                sets: [],
+              });
+            }
+            
+            const exerciseData = exerciseMap.get(set.exercise_id);
+            exerciseData.sets.push({
+              weight: set.weight_kg?.toString() || '0',
+              reps: set.reps?.toString() || '0',
+              isCompleted: true,
+              isPR: set.is_pb || false,
+            });
+          });
+
+          const exercises = Array.from(exerciseMap.values());
+          const totalVolume = exercises.flatMap(ex => ex.sets).reduce((total, set) => {
+            const weight = parseFloat(set.weight) || 0;
+            const reps = parseInt(set.reps, 10) || 0;
+            return total + (weight * reps);
+          }, 0);
+
+          const result = {
+            exercises,
+            duration: previousSession.duration_string || '45:00',
+            totalVolume,
+            prCount: exercises.flatMap(ex => ex.sets).filter(set => set.isPR).length,
+            date: new Date(previousSession.session_date),
+          };
+          
+          // Cache the result
+          cache.set(cacheKey, {
+            data: result,
+            timestamp: Date.now()
+          });
+          
+          return result;
+        }
+      } catch (error) {
+        console.error('[Dashboard] Error getting historical workout:', error);
+      }
+      
+      return null;
+    };
+  }, [userId, supabase]);
+
+  // Clear weekly volume cache - exposed for external use
+  const clearWeeklyVolumeCache = useCallback(() => {
+    // This will be set after getWeeklyVolumeData is defined
+  }, []);
+
+  // Helper function to get weekly volume data with caching
+  const getWeeklyVolumeData = useMemo(() => {
+    const cache = new Map();
+    const cacheTimeout = 10 * 60 * 1000; // 10 minutes
+
+    // Update the clear function reference
+    (global as any).clearWeeklyVolumeCache = () => {
+      console.log('[Dashboard] Clearing weekly volume cache');
+      cache.clear();
+    };
+
+    return async (): Promise<any> => {
+      if (!userId) return {};
+
+      const cacheKey = `weekly_volume:${userId}`;
+      const cached = cache.get(cacheKey);
+      
+      if (cached && (Date.now() - cached.timestamp < cacheTimeout)) {
+        return cached.data;
+      }
+
+      try {
+        // Check if Supabase client is available
+        if (!supabase) {
+          console.error('[Dashboard] Supabase client not available');
+          return {};
+        }
+        
+        // Check if user is authenticated
+        const { data: { session }, error: authError } = await supabase.auth.getSession();
+        if (authError) {
+          console.error('[Dashboard] Auth error:', authError);
+          return {};
+        }
+        if (!session) {
+          console.error('[Dashboard] No active session found');
+          return {};
+        }
+        
+        const { data: sessions, error } = await supabase
+          .from('workout_sessions')
+          .select(`
+            session_date,
+            set_logs (
+              exercise_id,
+              weight_kg,
+              reps
+            )
+          `)
+          .eq('user_id', userId)
+          .gte('session_date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+          .order('session_date', { ascending: true });
+
+        if (error) {
+          console.error('[Dashboard] Error fetching weekly volume data:', error);
+          return {};
+        }
+
+        if (!sessions) {
+          return {};
+        }
+        
+        // Additional validation
+        if (!Array.isArray(sessions)) {
+          console.error('[Dashboard] Invalid sessions data type:', typeof sessions);
+          return {};
+        }
+
+        // Get exercise definitions to map muscle groups
+        const { data: exercises, error: exError } = await supabase
+          .from('exercise_definitions')
+          .select('id, category')
+          .or(`user_id.eq.${userId},user_id.is.null`);
+
+        if (exError) {
+          console.error('[Dashboard] Error fetching exercise definitions:', exError);
+          return {};
+        }
+
+        if (!exercises) {
+          return {};
+        }
+
+        const exerciseLookup = new Map();
+        exercises?.forEach((ex: any) => {
+          // Map the category to proper muscle groups
+          let muscleGroup = ex.category;
+          
+          // Convert category to proper muscle group names
+          if (muscleGroup === 'Bilateral' || muscleGroup === 'Unilateral') {
+            // For now, map these to Chest as a fallback, but we should use the exercise name
+            muscleGroup = 'Chest';
+          }
+          
+          exerciseLookup.set(ex.id, muscleGroup);
         });
-        return null;
-      }
 
-      if (!sessions) {
-        console.log('[Dashboard] No sessions found for historical query');
-        return null;
-      }
-      
-      // Additional validation
-      if (!Array.isArray(sessions)) {
-        console.error('[Dashboard] Invalid sessions data type:', typeof sessions);
-        return null;
-      }
+        // Calculate daily volume by muscle group
+        const dailyVolumes: { [date: string]: { [muscle: string]: number } } = {};
+        const muscleGroups = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
 
-      console.log('[Dashboard] Historical sessions fetched:', sessions?.length || 0);
-
-      if (sessions && sessions.length > 1) {
-        const previousSession = sessions[1]; // Skip current session
-        const previousSets = previousSession.set_logs || [];
-        
-        console.log('[Dashboard] Previous session sets:', previousSets.length);
-        
-        // Group sets by exercise
-        const exerciseMap = new Map();
-        previousSets.forEach((set: any) => {
-          if (!exerciseMap.has(set.exercise_id)) {
-            exerciseMap.set(set.exercise_id, {
-              exerciseId: set.exercise_id,
-              exerciseName: `Exercise ${set.exercise_id?.slice(-4) || 'Ex'}`,
-              sets: [],
+        sessions?.forEach((session: any) => {
+          const date = new Date(session.session_date).toDateString();
+          if (!dailyVolumes[date]) {
+            dailyVolumes[date] = {};
+            muscleGroups.forEach(group => {
+              dailyVolumes[date][group] = 0;
             });
           }
-          
-          const exerciseData = exerciseMap.get(set.exercise_id);
-          exerciseData.sets.push({
-            weight: set.weight_kg?.toString() || '0',
-            reps: set.reps?.toString() || '0',
-            isCompleted: true,
-            isPR: set.is_pb || false,
+
+          session.set_logs?.forEach((set: any) => {
+            const muscleGroup = exerciseLookup.get(set.exercise_id) || 'Other';
+            const volume = (parseFloat(set.weight_kg) || 0) * (parseInt(set.reps) || 0);
+            
+            dailyVolumes[date][muscleGroup] = (dailyVolumes[date][muscleGroup] || 0) + volume;
           });
         });
 
-        const exercises = Array.from(exerciseMap.values());
-        const totalVolume = exercises.flatMap(ex => ex.sets).reduce((total, set) => {
-          const weight = parseFloat(set.weight) || 0;
-          const reps = parseInt(set.reps, 10) || 0;
-          return total + (weight * reps);
-        }, 0);
-
-        const result = {
-          exercises,
-          duration: previousSession.duration_string || '45:00',
-          totalVolume,
-          prCount: exercises.flatMap(ex => ex.sets).filter(set => set.isPR).length,
-          date: new Date(previousSession.session_date),
-        };
-        
-        console.log('[Dashboard] Historical workout result:', result);
-        return result;
-      } else {
-        console.log('[Dashboard] No historical data found - sessions:', sessions?.length || 0);
-      }
-    } catch (error) {
-      console.error('[Dashboard] Error getting historical workout:', error);
-    }
-    
-    return null;
-  };
-
-  // Helper function to get weekly volume data
-  const getWeeklyVolumeData = async (): Promise<any> => {
-    if (!userId) return {};
-
-    try {
-      console.log('[Dashboard] Fetching weekly volume data for userId:', userId);
-      
-      // Check if Supabase client is available
-      if (!supabase) {
-        console.error('[Dashboard] Supabase client not available');
-        return {};
-      }
-      
-      // Check if user is authenticated
-      const { data: { session }, error: authError } = await supabase.auth.getSession();
-      if (authError) {
-        console.error('[Dashboard] Auth error:', authError);
-        return {};
-      }
-      if (!session) {
-        console.error('[Dashboard] No active session found');
-        return {};
-      }
-      
-      const { data: sessions, error } = await supabase
-        .from('workout_sessions')
-        .select(`
-          session_date,
-          set_logs (
-            exercise_id,
-            weight_kg,
-            reps
-          )
-        `)
-        .eq('user_id', userId)
-        .gte('session_date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-        .order('session_date', { ascending: true });
-
-      if (error) {
-        console.error('[Dashboard] Error fetching weekly volume data:', error);
-        console.error('[Dashboard] Query details - userId:', userId);
-        console.error('[Dashboard] Error details:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
-        });
-        return {};
-      }
-
-      console.log('[Dashboard] Weekly sessions fetched:', sessions?.length || 0);
-
-      if (!sessions) {
-        console.log('[Dashboard] No sessions found for weekly volume query');
-        return {};
-      }
-      
-      // Additional validation
-      if (!Array.isArray(sessions)) {
-        console.error('[Dashboard] Invalid sessions data type:', typeof sessions);
-        return {};
-      }
-
-      // Get exercise definitions to map muscle groups
-      const { data: exercises, error: exError } = await supabase
-        .from('exercise_definitions')
-        .select('id, category')
-        .or(`user_id.eq.${userId},user_id.is.null`);
-
-      if (exError) {
-        console.error('[Dashboard] Error fetching exercise definitions:', exError);
-        console.error('[Dashboard] Query details - userId:', userId);
-        return {};
-      }
-
-      console.log('[Dashboard] Exercise definitions fetched:', exercises?.length || 0);
-
-      if (!exercises) {
-        console.log('[Dashboard] No exercise definitions found');
-        return {};
-      }
-
-      const exerciseLookup = new Map();
-      exercises?.forEach((ex: any) => {
-        // Map the category to proper muscle groups
-        let muscleGroup = ex.category;
-        
-        // Convert category to proper muscle group names
-        if (muscleGroup === 'Bilateral' || muscleGroup === 'Unilateral') {
-          // For now, map these to Chest as a fallback, but we should use the exercise name
-          muscleGroup = 'Chest';
-        }
-        
-        exerciseLookup.set(ex.id, muscleGroup);
-      });
-
-      console.log('[Dashboard] Exercise lookup map created with', exerciseLookup.size, 'entries');
-      console.log('[Dashboard] Sample exercise mappings:', Array.from(exerciseLookup.entries()).slice(0, 5));
-
-      // Calculate daily volume by muscle group
-      const dailyVolumes: { [date: string]: { [muscle: string]: number } } = {};
-      const muscleGroups = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
-
-      sessions?.forEach((session: any) => {
-        const date = new Date(session.session_date).toDateString();
-        if (!dailyVolumes[date]) {
-          dailyVolumes[date] = {};
-          muscleGroups.forEach(group => {
-            dailyVolumes[date][group] = 0;
-          });
-        }
-
-        session.set_logs?.forEach((set: any) => {
-          const muscleGroup = exerciseLookup.get(set.exercise_id) || 'Other';
-          const volume = (parseFloat(set.weight_kg) || 0) * (parseInt(set.reps) || 0);
-          
-          console.log('[Dashboard] Processing set:', {
-            exerciseId: set.exercise_id,
-            muscleGroup,
-            weight: set.weight_kg,
-            reps: set.reps,
-            volume
-          });
-          
-          dailyVolumes[date][muscleGroup] = (dailyVolumes[date][muscleGroup] || 0) + volume;
-        });
-      });
-
-      console.log('[Dashboard] Daily volumes calculated:', dailyVolumes);
-
-      // Convert to 7-day array format
-      const result: any = {};
-      muscleGroups.forEach(group => {
-        result[group] = [];
-      });
-
-      // Fill in last 7 days
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toDateString();
+        // Convert to 7-day array format
+        const result: any = {};
         muscleGroups.forEach(group => {
-          const volume = dailyVolumes[date]?.[group] || 0;
-          result[group].push(volume);
-          
-          if (volume > 0) {
-            console.log('[Dashboard] Found volume for', group, 'on', date, ':', volume);
-          }
+          result[group] = [];
         });
-      }
 
-      console.log('[Dashboard] Weekly volume data result:', result);
-      return result;
-    } catch (error) {
-      console.error('[Dashboard] Error getting weekly volume data:', error);
-      return {};
-    }
-  };
-
-  // Helper function to get next workout suggestion
-  const getNextWorkoutSuggestion = async (currentWorkoutName: string): Promise<any | null> => {
-    if (!userId || !activeTPath) return null;
-
-    try {
-      console.log('[Dashboard] Fetching next workout suggestion for:', currentWorkoutName, 'T-path:', activeTPath.id);
-      
-      // Get T-path child workouts
-      const { data: childWorkouts, error } = await supabase
-        .from('t_paths')
-        .select('id, template_name')
-        .eq('parent_t_path_id', activeTPath.id)
-        .order('created_at', { ascending: true });
-
-      if (error) {
-        console.error('[Dashboard] Error fetching T-path workouts:', error);
-        console.error('[Dashboard] Query details - parent_t_path_id:', activeTPath.id);
-        console.error('[Dashboard] Error details:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
+        // Fill in last 7 days
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toDateString();
+          muscleGroups.forEach(group => {
+            const volume = dailyVolumes[date]?.[group] || 0;
+            result[group].push(volume);
+          });
+        }
+        
+        // Cache the result
+        cache.set(cacheKey, {
+          data: result,
+          timestamp: Date.now()
         });
-        return null;
-      }
-
-      console.log('[Dashboard] T-path child workouts fetched:', childWorkouts?.length || 0);
-
-      if (!childWorkouts) {
-        console.log('[Dashboard] No T-path child workouts found');
-        return null;
-      }
-      
-      // Additional validation
-      if (!Array.isArray(childWorkouts)) {
-        console.error('[Dashboard] Invalid childWorkouts data type:', typeof childWorkouts);
-        return null;
-      }
-
-      if (childWorkouts && childWorkouts.length > 0) {
-        // Find current workout index
-        const currentIndex = childWorkouts.findIndex(w => w.template_name === currentWorkoutName);
-        const nextIndex = (currentIndex + 1) % childWorkouts.length;
         
-        // Calculate ideal next workout date (2 days from now)
-        const idealDate = new Date();
-        idealDate.setDate(idealDate.getDate() + 2);
-
-        const result = {
-          name: childWorkouts[nextIndex].template_name,
-          idealDate,
-        };
-        
-        console.log('[Dashboard] Next workout suggestion result:', result);
         return result;
-      } else {
-        console.log('[Dashboard] No T-path child workouts found');
+      } catch (error) {
+        console.error('[Dashboard] Error getting weekly volume data:', error);
+        return {};
       }
-    } catch (error) {
-      console.error('[Dashboard] Error getting next workout suggestion:', error);
-    }
+    };
+  }, [userId, supabase]);
 
-    return null;
-  };
+  // Helper function to get next workout suggestion with caching
+  const getNextWorkoutSuggestion = useMemo(() => {
+    const cache = new Map();
+    const cacheTimeout = 30 * 60 * 1000; // 30 minutes
+
+    return async (currentWorkoutName: string): Promise<any | null> => {
+      if (!userId || !activeTPath) return null;
+
+      const cacheKey = `next_workout:${userId}:${currentWorkoutName}`;
+      const cached = cache.get(cacheKey);
+      
+      if (cached && (Date.now() - cached.timestamp < cacheTimeout)) {
+        console.log('[Dashboard] Using cached next workout suggestion');
+        return cached.data;
+      }
+
+      try {
+        // Get T-path child workouts
+        const { data: childWorkouts, error } = await supabase
+          .from('t_paths')
+          .select('id, template_name')
+          .eq('parent_t_path_id', activeTPath.id)
+          .order('created_at', { ascending: true });
+
+        if (error) {
+          console.error('[Dashboard] Error fetching T-path workouts:', error);
+          return null;
+        }
+
+        if (!childWorkouts) {
+          return null;
+        }
+        
+        // Additional validation
+        if (!Array.isArray(childWorkouts)) {
+          console.error('[Dashboard] Invalid childWorkouts data type:', typeof childWorkouts);
+          return null;
+        }
+
+        if (childWorkouts && childWorkouts.length > 0) {
+          // Find current workout index
+          const currentIndex = childWorkouts.findIndex(w => w.template_name === currentWorkoutName);
+          const nextIndex = (currentIndex + 1) % childWorkouts.length;
+          
+          // Calculate ideal next workout date (2 days from now)
+          const idealDate = new Date();
+          idealDate.setDate(idealDate.getDate() + 2);
+
+          const result = {
+            name: childWorkouts[nextIndex].template_name,
+            idealDate,
+          };
+          
+          // Cache the result
+          cache.set(cacheKey, {
+            data: result,
+            timestamp: Date.now()
+          });
+          
+          return result;
+        }
+      } catch (error) {
+        console.error('[Dashboard] Error getting next workout suggestion:', error);
+      }
+
+      return null;
+    };
+  }, [userId, activeTPath, supabase]);
 
   // Helper function to check if user is on T-path
   const checkIfOnTPath = async (): Promise<boolean> => {
@@ -581,19 +939,24 @@ export default function DashboardScreen() {
         .single();
 
       if (profileError) {
-        console.error('[Dashboard] Error checking profile for active T-path:', profileError);
         return false;
       }
 
       return !!(profileData && profileData.active_t_path_id);
     } catch (error) {
-      console.error('[Dashboard] Error checking T-path status:', error);
       return false;
     }
   };
 
-  const handleViewSummary = async (sessionId: string) => {
+  const handleViewSummary = useCallback(async (sessionId: string) => {
     console.log('[Dashboard] handleViewSummary called with sessionId:', sessionId);
+    
+    // Prevent duplicate modal openings for the same session
+    if (workoutSummaryModalVisible && selectedSessionData?.sessionId === sessionId) {
+      console.log('[Dashboard] Modal already open for this session, ignoring duplicate call');
+      return;
+    }
+    
     if (!userId) {
       console.log('[Dashboard] No userId, returning');
       return;
@@ -722,52 +1085,77 @@ export default function DashboardScreen() {
         const exercises = Array.from(exerciseMap.values());
         const startTime = new Date(foundSession.session_date);
 
-        // Fetch all required data for advanced features
-        console.log('[Dashboard] Fetching advanced modal data...');
-        
-        // First, verify Supabase is working
-        try {
-          const { data: { session }, error: authError } = await supabase.auth.getSession();
-          console.log('[Dashboard] Supabase auth check:', { hasSession: !!session, authError });
+        // Check if we have cached modal data for this session
+        const cachedModalData = modalDataCache[sessionId];
+        let historicalWorkout: any = null, weeklyVolumeData: any = null, nextWorkoutSuggestion: any = null, isOnTPath: boolean = false;
+
+        if (cachedModalData && (Date.now() - cachedModalData.timestamp < 5 * 60 * 1000)) {
+          // Use cached data
+          console.log('[Dashboard] Using cached modal data');
+          historicalWorkout = cachedModalData.historicalWorkout;
+          weeklyVolumeData = cachedModalData.weeklyVolumeData;
+          nextWorkoutSuggestion = cachedModalData.nextWorkoutSuggestion;
+          isOnTPath = cachedModalData.isOnTPath;
+        } else {
+          // Fetch data and cache it
+          console.log('[Dashboard] Fetching advanced modal data...');
           
-          if (authError) {
-            console.error('[Dashboard] Auth error:', authError);
+          // First, verify Supabase is working
+          try {
+            const { data: { session }, error: authError } = await supabase.auth.getSession();
+            console.log('[Dashboard] Supabase auth check:', { hasSession: !!session, authError });
+            
+            if (authError) {
+              console.error('[Dashboard] Auth error:', authError);
+              return;
+            }
+            if (!session) {
+              console.error('[Dashboard] No active session found');
+              return;
+            }
+          } catch (authCheckError) {
+            console.error('[Dashboard] Auth check failed:', authCheckError);
             return;
           }
-          if (!session) {
-            console.error('[Dashboard] No active session found');
-            return;
-          }
-        } catch (authCheckError) {
-          console.error('[Dashboard] Auth check failed:', authCheckError);
-          return;
+          
+          console.log('[Dashboard] Starting data fetch calls...');
+          
+          // Call each function individually to see which one fails
+          console.log('[Dashboard] Calling getHistoricalWorkout...');
+          historicalWorkout = await getHistoricalWorkout(foundSession.template_name || 'Workout');
+          console.log('[Dashboard] getHistoricalWorkout result:', !!historicalWorkout);
+          
+          console.log('[Dashboard] Calling getWeeklyVolumeData...');
+          weeklyVolumeData = await getWeeklyVolumeData();
+          console.log('[Dashboard] getWeeklyVolumeData result:', Object.keys(weeklyVolumeData || {}));
+          
+          console.log('[Dashboard] Calling getNextWorkoutSuggestion...');
+          nextWorkoutSuggestion = await getNextWorkoutSuggestion(foundSession.template_name || 'Workout');
+          console.log('[Dashboard] getNextWorkoutSuggestion result:', !!nextWorkoutSuggestion);
+          
+          console.log('[Dashboard] Calling checkIfOnTPath...');
+          isOnTPath = await checkIfOnTPath();
+          console.log('[Dashboard] checkIfOnTPath result:', isOnTPath);
+          
+          console.log('[Dashboard] Data fetch completed, results:', {
+            historicalWorkout: !!historicalWorkout,
+            weeklyVolumeData: Object.keys(weeklyVolumeData || {}),
+            nextWorkoutSuggestion: !!nextWorkoutSuggestion,
+            isOnTPath
+          });
+
+          // Cache the data
+          setModalDataCache(prev => ({
+            ...prev,
+            [sessionId]: {
+              historicalWorkout,
+              weeklyVolumeData,
+              nextWorkoutSuggestion,
+              isOnTPath,
+              timestamp: Date.now()
+            }
+          }));
         }
-        
-        console.log('[Dashboard] Starting data fetch calls...');
-        
-        // Call each function individually to see which one fails
-        console.log('[Dashboard] Calling getHistoricalWorkout...');
-        const historicalWorkout = await getHistoricalWorkout(foundSession.template_name || 'Workout');
-        console.log('[Dashboard] getHistoricalWorkout result:', !!historicalWorkout);
-        
-        console.log('[Dashboard] Calling getWeeklyVolumeData...');
-        const weeklyVolumeData = await getWeeklyVolumeData();
-        console.log('[Dashboard] getWeeklyVolumeData result:', Object.keys(weeklyVolumeData || {}));
-        
-        console.log('[Dashboard] Calling getNextWorkoutSuggestion...');
-        const nextWorkoutSuggestion = await getNextWorkoutSuggestion(foundSession.template_name || 'Workout');
-        console.log('[Dashboard] getNextWorkoutSuggestion result:', !!nextWorkoutSuggestion);
-        
-        console.log('[Dashboard] Calling checkIfOnTPath...');
-        const isOnTPath = await checkIfOnTPath();
-        console.log('[Dashboard] checkIfOnTPath result:', isOnTPath);
-        
-        console.log('[Dashboard] Data fetch completed, results:', {
-          historicalWorkout: !!historicalWorkout,
-          weeklyVolumeData: Object.keys(weeklyVolumeData || {}),
-          nextWorkoutSuggestion: !!nextWorkoutSuggestion,
-          isOnTPath
-        });
 
         // Debug: Log the data being passed to modal
         console.log('[Dashboard] Setting modal data with:', {
@@ -813,20 +1201,217 @@ export default function DashboardScreen() {
       console.error('Failed to load workout summary:', error);
       Alert.alert('Error', 'Failed to load workout summary');
     }
-  };
+  }, [userId, workoutSummaryModalVisible, selectedSessionData?.sessionId, modalDataCache, getHistoricalWorkout, getWeeklyVolumeData, getNextWorkoutSuggestion, checkIfOnTPath]);
+
+
+  // Helper function to get workout date for volume data filtering
+  const getWorkoutDate = useCallback((sessionId: string) => {
+    const workout = recentWorkouts.find(w => w.id === sessionId);
+    return workout?.session_date || new Date().toISOString();
+  }, [recentWorkouts]);
 
   const handleDeleteWorkout = useCallback(
     async (sessionId: string, templateName: string) => {
+      // Prevent concurrent deletions
+      if (deletionInProgress) return;
+      
+      setDeletionInProgress(sessionId);
+      
       try {
+        console.log('[Dashboard] Starting atomic workout deletion:', sessionId);
+        
+        // Show confirmation dialog
+        const confirmed = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            'Delete Workout Session',
+            `Are you sure you want to delete "${templateName}"? This action cannot be undone.`,
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              {
+                text: 'Delete',
+                style: 'destructive',
+                onPress: () => resolve(true),
+              },
+            ]
+          );
+        });
+        
+        if (!confirmed) {
+          setDeletionInProgress(null);
+          return;
+        }
+        
+        // Step 1: Remove from local state immediately for instant UI feedback
+        const deletedWorkoutDate = getWorkoutDate(sessionId);
+        const deletedWorkout = recentWorkouts.find(w => w.id === sessionId);
+        const wasCompleted = deletedWorkout?.completed_at !== null;
+        
+        console.log('[Dashboard] DEBUG: Deletion date comparison:', {
+          sessionId,
+          deletedWorkoutDate,
+          deletedWorkoutDateType: typeof deletedWorkoutDate,
+          volumeDataDates: volumeData.map(v => ({ date: v.date, volume: v.volume })),
+          recentWorkoutDate: deletedWorkout?.session_date,
+        });
+        
+        // Normalize dates to date string for comparison (remove time component)
+        const normalizeDate = (dateStr: string) => {
+          const date = new Date(dateStr);
+          return date.toDateString();
+        };
+        const normalizedDeletedDate = normalizeDate(deletedWorkoutDate);
+        
+        console.log('[Dashboard] DEBUG: Normalized date comparison:', {
+          originalDate: deletedWorkoutDate,
+          normalizedDate: normalizedDeletedDate,
+          volumeDataNormalized: volumeData.map(v => ({ date: normalizeDate(v.date), volume: v.volume })),
+        });
+        
+        setRecentWorkouts(prev => prev.filter(workout => workout.id !== sessionId));
+        setVolumeData(prev => {
+          // Use normalized date comparison to handle time component differences
+          const newData = prev.filter(point => normalizeDate(point.date) !== normalizedDeletedDate);
+          console.log('[Dashboard] Volume data filtered:', {
+            oldCount: prev.length,
+            newCount: newData.length,
+            filteredDate: normalizedDeletedDate,
+            originalDate: deletedWorkoutDate,
+            deletedWorkoutId: sessionId,
+            volumeDataBefore: prev.map(v => ({ date: v.date, volume: v.volume })),
+            volumeDataAfter: newData.map(v => ({ date: v.date, volume: v.volume })),
+            dateMatchCheck: prev.map(v => ({ 
+              original: v.date, 
+              normalized: normalizeDate(v.date),
+              matches: normalizeDate(v.date) === normalizedDeletedDate 
+            }))
+          });
+          return newData;
+        });
+        
+        // CRITICAL FIX: Also update weeklySummary immediately to prevent stale widget data
+        setWeeklySummary(prev => {
+          const newCompletedWorkouts = prev.completed_workouts.filter(w => w.sessionId !== sessionId);
+          const newTotalSessions = wasCompleted ? Math.max(0, prev.total_sessions - 1) : prev.total_sessions;
+          console.log('[Dashboard] Immediate weeklySummary update:', {
+            oldCount: prev.completed_workouts.length,
+            newCount: newCompletedWorkouts.length,
+            oldTotalSessions: prev.total_sessions,
+            newTotalSessions,
+            deletedSessionId: sessionId
+          });
+          return {
+            ...prev,
+            completed_workouts: newCompletedWorkouts,
+            total_sessions: newTotalSessions
+          };
+        });
+        
+        // Update deletion timestamp for cache invalidation
+        lastDeletionTimeRef.current = Date.now();
+        
+        // Step 2: Perform database deletion
         await deleteWorkoutSession(sessionId);
-        // Refresh dashboard data after deletion
-        await fetchDashboardData();
+        console.log('[Dashboard] Workout session deleted from database');
+        
+        // Step 3: Wait for database operations to complete
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Step 4: Enhanced cache invalidation for deletion scenarios
+        console.log('[Dashboard] Starting enhanced cache invalidation for deletion');
+        
+        // Clear dashboard cache immediately to prevent stale data
+        setDataCache({ lastFetch: 0, data: null });
+        setShouldRefreshDashboard(true);
+        
+        // Clear modal data cache for this session
+        setModalDataCache(prev => {
+          const newCache = { ...prev };
+          delete newCache[sessionId];
+          return newCache;
+        });
+        
+        // CRITICAL FIX: Clear weekly volume cache to ensure volume chart updates
+        if ((global as any).clearWeeklyVolumeCache) {
+          console.log('[Dashboard] Clearing weekly volume cache after deletion');
+          (global as any).clearWeeklyVolumeCache();
+        }
+        
+        // Update last workout completion time to trigger data context refresh
+        if (typeof setLastWorkoutCompletionTime === 'function') {
+          console.log('[Dashboard] Updating last workout completion time to trigger data context refresh');
+          setLastWorkoutCompletionTime(Date.now());
+        }
+        
+        // Call the data context's handleWorkoutCompletion for comprehensive cache invalidation
+        try {
+          console.log('[Dashboard] Calling data context handleWorkoutCompletion for comprehensive cache invalidation');
+          await handleWorkoutCompletion(undefined);
+          console.log('[Dashboard] Data context cache invalidation completed successfully');
+        } catch (error) {
+          console.error('[Dashboard] Error during data context cache invalidation:', error);
+        }
+        
+        // Step 5: Trigger immediate dashboard refresh with forced cache bypass
+        console.log('[Dashboard] Triggering immediate dashboard refresh after deletion');
+        
+        // Force refresh by bypassing cache check
+        const currentTimestamp = Date.now();
+        lastRefreshRef.current = 0; // Reset to allow immediate refresh
+        
+        // Clear any existing timeout
+        if (refreshTimeoutRef.current) {
+          clearTimeout(refreshTimeoutRef.current);
+        }
+        
+        // Trigger immediate refresh with enhanced cache invalidation
+        refreshTimeoutRef.current = setTimeout(async () => {
+          try {
+            // Force clear dashboard cache to ensure fresh data
+            setDataCache({ lastFetch: 0, data: null });
+            setShouldRefreshDashboard(true);
+            
+            console.log('[Dashboard] Calling fetchDashboardData after deletion, current volumeData:', volumeData.length);
+            await fetchDashboardData();
+            console.log('[Dashboard] Dashboard refresh completed after deletion, new volumeData:', volumeData.length);
+            
+            // CRITICAL FIX: Force widget re-render by incrementing a key or triggering state sync
+            // This ensures the WeeklyTargetWidget receives the updated weeklySummary immediately
+            if (userId) {
+              const updatedSessions = await getWorkoutSessions(userId);
+              const newWeeklyCount = updatedSessions.filter(s => {
+                const sessionDate = new Date(s.session_date);
+                const now = new Date();
+                const startOfWeek = new Date(now);
+                startOfWeek.setDate(now.getDate() - now.getDay());
+                startOfWeek.setHours(0, 0, 0, 0);
+                return sessionDate >= startOfWeek;
+              }).length;
+              
+              console.log('[Dashboard] Post-refresh session count verification:', {
+                totalSessions: updatedSessions.length,
+                weeklySessions: newWeeklyCount,
+                expectedWidgetCount: newWeeklyCount
+              });
+            }
+            
+            // Show success feedback
+            Alert.alert('Success', 'Workout deleted successfully');
+          } catch (error) {
+            console.error('[Dashboard] Dashboard refresh failed after deletion:', error);
+            Alert.alert('Error', 'Workout deleted but dashboard refresh failed');
+          }
+        }, 100); // Short delay to ensure all caches are cleared
+        
+        console.log('[Dashboard] Workout deletion process initiated successfully');
+        
       } catch (error) {
-        console.error('Failed to delete workout session:', error);
+        console.error('[Dashboard] Failed to delete workout session:', error);
         Alert.alert('Error', 'Failed to delete workout session');
+      } finally {
+        setDeletionInProgress(null);
       }
     },
-    [deleteWorkoutSession, fetchDashboardData]
+    [deletionInProgress, deleteWorkoutSession, getWorkoutDate, setDataCache, setShouldRefreshDashboard, setModalDataCache, fetchDashboardData]
   );
 
   // Handle session rating updates and refresh dashboard
@@ -876,17 +1461,265 @@ export default function DashboardScreen() {
     }
   }, [fetchDashboardData]);
 
-  
+  // Helper function to render dashboard with cached data when loading is stuck
+  const renderDashboardWithData = useCallback((cachedData: any) => {
+    console.log('[Dashboard] Rendering with cached data due to stuck loading');
+    
+    return (
+      <>
+        <View style={styles.container}>
+          <BackgroundRoot />
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.content}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+          >
+            {/* Use cached data for all widgets */}
+            <View>
+              <WelcomeHeader
+                userName={userName}
+                accountCreatedAt={accountCreatedAt}
+              />
+            </View>
+
+            <View>
+              <WeeklyTargetWidget
+                completedWorkouts={cachedData.weeklySummary?.completed_workouts || []}
+                goalTotal={cachedData.weeklySummary?.goal_total || 3}
+                programmeType={cachedData.weeklySummary?.programme_type || 'ppl'}
+                totalSessions={cachedData.weeklySummary?.total_sessions || 0}
+                onViewCalendar={() => router.push('/workout-history')}
+                onViewWorkoutSummary={handleViewSummary}
+                activitiesCount={0}
+                onViewActivities={() => {}}
+                loading={false}
+              />
+            </View>
+
+            <View>
+              <ActionHubWidget
+                onLogActivity={() => setActivityModalVisible(true)}
+                onAICoach={() => {}}
+                onWorkoutLog={() => {}}
+                onConsistencyCalendar={() => {}}
+              />
+            </View>
+
+            {cachedData.gyms?.length > 1 && (
+              <View>
+                <GymToggle
+                  gyms={cachedData.gyms || []}
+                  activeGym={cachedData.activeGym}
+                  onGymChange={async (gymId: string, newActiveGym: Gym | null) => {
+                    if (userId) {
+                      setActiveGymState(newActiveGym);
+                      await setActiveGym(userId, gymId);
+                      setTimeout(() => {
+                        fetchDashboardData();
+                      }, 100);
+                    }
+                  }}
+                />
+              </View>
+            )}
+
+            <View>
+              <NextWorkoutCard
+                workoutId={cachedData.nextWorkout?.id}
+                workoutName={cachedData.nextWorkout?.template_name}
+                estimatedDuration={
+                  cachedData.profile?.preferred_session_length || '45 minutes'
+                }
+                loading={false}
+                noActiveGym={!cachedData.activeGym}
+                noActiveTPath={!cachedData.activeTPath}
+              />
+            </View>
+
+            <View>
+              <AllWorkoutsQuickStart
+                programName={cachedData.activeTPath?.template_name}
+                workouts={cachedData.tPathWorkouts || []}
+              />
+            </View>
+
+            <View>
+              <SimpleVolumeChart data={cachedData.volumeHistory || []} />
+            </View>
+
+            <View>
+              <PreviousWorkoutsWidget
+                workouts={(cachedData.recentWorkouts || []).map((workout: any) => ({
+                  id: workout.id,
+                  sessionId: workout.id,
+                  template_name: workout.template_name || 'Ad Hoc Workout',
+                  completed_at: workout.completed_at || workout.session_date,
+                  exercise_count: workout.exercise_count,
+                  duration_string: workout.duration_string ?? undefined,
+                }))}
+                onViewSummary={handleViewSummary}
+                onDelete={handleDeleteWorkout}
+                loading={false}
+              />
+            </View>
+
+            {/* Debug: Force Refresh Button */}
+            <View style={{ marginTop: 20, padding: 10, backgroundColor: '#f0f0f0', borderRadius: 8 }}>
+              <Pressable
+                onPress={onRefresh}
+                style={{ padding: 10, backgroundColor: '#007AFF', borderRadius: 6 }}
+              >
+                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '600' }}>
+                  🔄 Force Refresh Data
+                </Text>
+              </Pressable>
+              <Text style={{ fontSize: 12, color: '#666', marginTop: 5, textAlign: 'center' }}>
+                Debug: Force refresh to apply workout progression fix
+              </Text>
+            </View>
+          </ScrollView>
+        </View>
+
+        {/* Modals */}
+        <WorkoutSummaryModal
+          visible={workoutSummaryModalVisible}
+          onClose={() => setWorkoutSummaryModalVisible(false)}
+          exercises={selectedSessionData?.exercises || []}
+          workoutName={selectedSessionData?.workoutName || ''}
+          startTime={selectedSessionData?.startTime || new Date()}
+          {...(selectedSessionData?.duration && { duration: selectedSessionData.duration })}
+          {...(selectedSessionData?.historicalRating !== null && selectedSessionData?.historicalRating !== undefined && { historicalRating: selectedSessionData.historicalRating })}
+          showActions={false}
+          showSyncStatus={false}
+          onSaveWorkout={async () => {
+            setWorkoutSummaryModalVisible(false);
+          }}
+          onRateWorkout={async (rating) => {
+            if (!selectedSessionData || !selectedSessionData.sessionId) return;
+            try {
+              await handleSessionRatingUpdate(selectedSessionData.sessionId, rating);
+            } catch (error) {
+              Alert.alert('Error', 'Failed to save workout rating');
+            }
+          }}
+        />
+
+        <ActivityLoggingModal
+          visible={activityModalVisible}
+          onClose={() => setActivityModalVisible(false)}
+          onLogActivity={async (activity: any) => {
+            try {
+              const activityData = {
+                user_id: userId,
+                type: activity.type,
+                duration_minutes: activity.duration,
+                notes: activity.notes,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              };
+
+              const { data, error } = await supabase
+                .from('activity_logs')
+                .insert([activityData])
+                .select();
+
+              if (error) {
+                Alert.alert('Error', 'Failed to log activity. Please try again.');
+                return;
+              }
+
+              setActivityModalVisible(false);
+              await fetchDashboardData();
+              Alert.alert('Success', 'Activity logged successfully!');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to log activity. Please try again.');
+            }
+          }}
+        />
+      </>
+    );
+  }, [userName, accountCreatedAt, handleViewSummary, handleDeleteWorkout, userId, setActiveGym, fetchDashboardData, refreshing, onRefresh, workoutSummaryModalVisible, selectedSessionData, handleSessionRatingUpdate, activityModalVisible, setActivityModalVisible]);
 
   // Show loading screen while checking onboarding status or data is being fetched
-  if (!authLoading && session && userId && (!userProfile || loading)) {
-    console.log('[Dashboard] Profile loading or data fetching, showing loading screen...');
+  // Modified condition: check if we actually need to load data, not just if local state is null
+  const hasDataContextProfile = dataCache.data?.profile;
+  const hasValidProfile = userProfile && userProfile.onboarding_completed !== undefined;
+  const needsLoading = (!authLoading && session && userId && (!userProfile || loading) && !hasDataContextProfile && !hasValidProfile);
+  
+  if (needsLoading) {
+    // Track loading start time to prevent infinite loading
+    if (loading && loadingStartTimeRef.current === 0) {
+      loadingStartTimeRef.current = Date.now();
+      console.log('[Dashboard] Started tracking loading time:', loadingStartTimeRef.current);
+    }
+    
+    const loadingDuration = loadingStartTimeRef.current > 0 ? Date.now() - loadingStartTimeRef.current : 0;
+    const hasLoadingTimeout = loadingDuration > LOADING_TIMEOUT;
+    
+    console.log('[Dashboard] Profile loading or data fetching, showing loading screen...', {
+      hasUserProfile: !!userProfile,
+      hasDataContextProfile: !!hasDataContextProfile,
+      isLoading: loading,
+      authLoading,
+      hasSession: !!session,
+      hasUserId: !!userId,
+      hasDataCache: !!dataCache.data,
+      loadingDuration,
+      hasLoadingTimeout,
+      loadingStartTime: loadingStartTimeRef.current,
+      needsLoading
+    });
+    
+    // Force render with cached data if:
+    // 1. We're still loading but have cached data, OR
+    // 2. We've been loading for too long (timeout)
+    if ((loading && dataCache.data) || hasLoadingTimeout) {
+      console.log('[Dashboard] Forcing render with cached data:', {
+        hasCachedData: !!dataCache.data,
+        loadingTimeout: hasLoadingTimeout,
+        loadingDuration
+      });
+      
+      // Reset loading start time
+      loadingStartTimeRef.current = 0;
+      
+      // If we have cached data, render with it; otherwise render with empty state
+      if (dataCache.data) {
+        return renderDashboardWithData(dataCache.data);
+      } else {
+        // Render minimal dashboard with empty states
+        return renderDashboardWithData({
+          profile: null,
+          gyms: [],
+          activeGym: null,
+          weeklySummary: {
+            completed_workouts: [],
+            goal_total: 3,
+            programme_type: 'ppl',
+            total_sessions: 0,
+          },
+          volumeHistory: [],
+          recentWorkouts: [],
+          activeTPath: null,
+          tPathWorkouts: [],
+          nextWorkout: null,
+        });
+      }
+    }
+    
     return (
       <View style={styles.loadingContainer}>
         <BackgroundRoot />
         {/* Loading state while profile loads */}
       </View>
     );
+  }
+  
+  // Reset loading start time when not loading
+  if (!loading && loadingStartTimeRef.current > 0) {
+    loadingStartTimeRef.current = 0;
   }
 
   // Show loading screen if we have profile but no dashboard data yet
@@ -923,7 +1756,7 @@ export default function DashboardScreen() {
           </View>
 
           {/* 2. Weekly Target */}
-          <View>
+          <View key={`weekly-target-${weeklySummary.total_sessions}-${weeklySummary.completed_workouts.length}-${Date.now()}`}>
             <WeeklyTargetWidget
               completedWorkouts={weeklySummary.completed_workouts}
               goalTotal={weeklySummary.goal_total}
@@ -931,6 +1764,8 @@ export default function DashboardScreen() {
               totalSessions={weeklySummary.total_sessions}
               onViewCalendar={() => router.push('/workout-history')}
               onViewWorkoutSummary={handleViewSummary}
+              activitiesCount={0}
+              onViewActivities={() => {}}
               loading={loading}
             />
           </View>
@@ -938,7 +1773,7 @@ export default function DashboardScreen() {
           {/* 3. Action Hub */}
           <View>
             <ActionHubWidget
-              onLogActivity={() => {}}
+              onLogActivity={() => setActivityModalVisible(true)}
               onAICoach={() => {}}
               onWorkoutLog={() => {}}
               onConsistencyCalendar={() => {}}
@@ -988,17 +1823,16 @@ export default function DashboardScreen() {
             <AllWorkoutsQuickStart
               programName={activeTPath?.template_name}
               workouts={tpathWorkouts}
-              loading={loading}
             />
           </View>
 
           {/* 7. Weekly Volume Chart */}
-          <View>
+          <View key={`volume-chart-${volumeData.length}-${Date.now()}`}>
             <SimpleVolumeChart data={volumeData} />
           </View>
 
           {/* 8. Previous Workouts */}
-          <View>
+          <View key={`previous-workouts-${recentWorkouts.length}-${Date.now()}`}>
             <PreviousWorkoutsWidget
               workouts={recentWorkouts.map(workout => ({
                 id: workout.id,
@@ -1010,7 +1844,7 @@ export default function DashboardScreen() {
               }))}
               onViewSummary={handleViewSummary}
               onDelete={handleDeleteWorkout}
-              loading={loading}
+              loading={loading || deletionInProgress !== null}
             />
           </View>
 
@@ -1043,7 +1877,6 @@ export default function DashboardScreen() {
         showActions={false}
         showSyncStatus={false}
         onSaveWorkout={async () => {
-          // Since this is a view-only modal for past workouts, we don't need to save anything
           setWorkoutSummaryModalVisible(false);
         }}
         onRateWorkout={async (rating) => {
@@ -1059,6 +1892,51 @@ export default function DashboardScreen() {
           } catch (error) {
             console.error('[Dashboard] Failed to save workout rating:', error);
             Alert.alert('Error', 'Failed to save workout rating');
+          }
+        }}
+      />
+
+      {/* Activity Logging Modal */}
+      <ActivityLoggingModal
+        visible={activityModalVisible}
+        onClose={() => setActivityModalVisible(false)}
+        onLogActivity={async (activity) => {
+          try {
+            // Log the activity to the database
+            console.log('[Dashboard] Logging activity:', activity);
+            
+            // Create activity log entry
+            const activityData = {
+              user_id: userId,
+              type: activity.type,
+              duration_minutes: activity.duration,
+              notes: activity.notes,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            };
+
+            // Insert into Supabase
+            const { data, error } = await supabase
+              .from('activity_logs')
+              .insert([activityData])
+              .select();
+
+            if (error) {
+              console.error('[Dashboard] Failed to log activity:', error);
+              Alert.alert('Error', 'Failed to log activity. Please try again.');
+              return;
+            }
+
+            console.log('[Dashboard] Activity logged successfully:', data);
+            setActivityModalVisible(false);
+            
+            // Refresh dashboard data to update activity count
+            await fetchDashboardData();
+            
+            Alert.alert('Success', 'Activity logged successfully!');
+          } catch (error) {
+            console.error('[Dashboard] Error logging activity:', error);
+            Alert.alert('Error', 'Failed to log activity. Please try again.');
           }
         }}
       />

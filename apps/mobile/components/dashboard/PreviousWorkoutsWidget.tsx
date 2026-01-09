@@ -82,18 +82,10 @@ export function PreviousWorkoutsWidget({
   };
 
   const handleDelete = (sessionId: string, templateName: string) => {
-    Alert.alert(
-      'Delete Workout Session',
-      `Are you sure you want to delete "${templateName}"? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => onDelete?.(sessionId, templateName),
-        },
-      ]
-    );
+    // Delegate confirmation dialog to parent component (dashboard)
+    if (onDelete) {
+      onDelete(sessionId, templateName);
+    }
   };
 
   if (error) {

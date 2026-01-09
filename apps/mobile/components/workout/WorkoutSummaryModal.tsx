@@ -14,12 +14,13 @@ import {
   findNodeHandle,
   StatusBar
 } from 'react-native';
-import { TabView, SceneMap } from 'react-native-tab-view';
+import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
 import { Ionicons } from '@expo/vector-icons';
 import { HapticPressable } from '../HapticPressable';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { getWorkoutColor } from '../../lib/workout-colors';
+import { useData } from '../../app/_contexts/data-context';
 
 const { width } = Dimensions.get('window');
 
@@ -159,6 +160,28 @@ const formatDurationDisplay = (durationStr: string): string => {
     .replace(' minute', 'm');
 };
 
+const getPreselectedProgressTab = (workoutName: string): 'all' | 'upper' | 'lower' => {
+  const workoutNameLower = workoutName.toLowerCase();
+  
+  // Upper body workouts
+  if (workoutNameLower.includes('push') || 
+      workoutNameLower.includes('pull') ||
+      workoutNameLower.includes('upper body a') ||
+      workoutNameLower.includes('upper body b')) {
+    return 'upper';
+  }
+  
+  // Lower body workouts
+  if (workoutNameLower.includes('legs') ||
+      workoutNameLower.includes('lower body a') ||
+      workoutNameLower.includes('lower body b')) {
+    return 'lower';
+  }
+  
+  // Default to all for other workout types
+  return 'all';
+};
+
 const parseDurationToSeconds = (durationStr: string | number): number => {
   if (!durationStr) return 0;
   if (typeof durationStr === 'number') return durationStr;
@@ -289,9 +312,12 @@ const RatingStars: React.FC<RatingStarsProps> = ({
   readOnly = false,
   historicalRating
 }) => {
-  // Debug logging for rating
+  // Debug logging for rating - debounced to prevent spam
   useEffect(() => {
-    console.log('[RatingStars] Rating data:', { rating, historicalRating, readOnly });
+    const timer = setTimeout(() => {
+      console.log('[RatingStars] Rating data:', { rating, historicalRating, readOnly });
+    }, 100); // 100ms debounce
+    return () => clearTimeout(timer);
   }, [rating, historicalRating, readOnly]);
 
   const handleStarPress = useCallback((star: number) => {
@@ -315,6 +341,7 @@ const RatingStars: React.FC<RatingStarsProps> = ({
         style={styles.starButton}
         onPress={() => handleStarPress(star)}
         accessibilityLabel={`${readOnly ? 'Historical rating' : 'Rate workout'}: ${star} ${RATING_LABELS[star - 1]}`}
+        accessibilityRole="button"
         accessibilityHint={readOnly ? "Historical rating cannot be changed" : `Tap to rate workout ${star} out of 5`}
         disabled={readOnly}
       >
@@ -520,6 +547,7 @@ const SyncStatus: React.FC<SyncStatusProps> = ({ syncStatus, onRetrySync }) => {
             style={styles.retryButton}
             onPress={onRetrySync}
             accessibilityLabel="Retry sync"
+            accessibilityRole="button"
           >
             <Ionicons name="refresh" size={16} color={Colors.primary} />
             <Text style={styles.retryText}>Retry</Text>
@@ -551,27 +579,19 @@ export function WorkoutSummaryModal({
   nextWorkoutSuggestion,
   isOnTPath
 }: WorkoutSummaryModalProps) {
-  // Debug logging
+  // Debug logging - debounced to prevent spam
   useEffect(() => {
     if (visible) {
-      console.log('[WorkoutSummaryModal] Modal opened with data:');
-      console.log('[WorkoutSummaryModal] exercises count:', exercises.length);
-      console.log('[WorkoutSummaryModal] exercises:', exercises.map(e => ({ name: e.exerciseName, sets: e.sets.length })));
-      console.log('[WorkoutSummaryModal] historicalRating:', historicalRating);
-      console.log('[WorkoutSummaryModal] historicalRating type:', typeof historicalRating);
-      console.log('[WorkoutSummaryModal] workoutName:', workoutName);
-      console.log('[WorkoutSummaryModal] showActions:', showActions);
-    }
-  }, [visible, exercises, historicalRating, workoutName, showActions]);
-  // Debug logging
-  useEffect(() => {
-    if (visible) {
-      console.log('[WorkoutSummaryModal] Modal opened with data:');
-      console.log('[WorkoutSummaryModal] exercises count:', exercises.length);
-      console.log('[WorkoutSummaryModal] exercises:', exercises.map(e => ({ name: e.exerciseName, sets: e.sets.length })));
-      console.log('[WorkoutSummaryModal] historicalRating:', historicalRating);
-      console.log('[WorkoutSummaryModal] workoutName:', workoutName);
-      console.log('[WorkoutSummaryModal] showActions:', showActions);
+      const timer = setTimeout(() => {
+        console.log('[WorkoutSummaryModal] Modal opened with data:');
+        console.log('[WorkoutSummaryModal] exercises count:', exercises.length);
+        console.log('[WorkoutSummaryModal] exercises:', exercises.map(e => ({ name: e.exerciseName, sets: e.sets.length })));
+        console.log('[WorkoutSummaryModal] historicalRating:', historicalRating);
+        console.log('[WorkoutSummaryModal] historicalRating type:', typeof historicalRating);
+        console.log('[WorkoutSummaryModal] workoutName:', workoutName);
+        console.log('[WorkoutSummaryModal] showActions:', showActions);
+      }, 100); // 100ms debounce
+      return () => clearTimeout(timer);
     }
   }, [visible, exercises, historicalRating, workoutName, showActions]);
   // ===== STATE =====
@@ -586,13 +606,14 @@ export function WorkoutSummaryModal({
 
   // ===== HOOKS =====
   const metrics = useWorkoutMetrics(exercises, providedDuration);
-  const { handleImageError, hasImageError } = useImageErrorHandling();
+  const { handleImageError } = useImageErrorHandling();
+  const { invalidateDashboardCache, handleWorkoutCompletion, userId } = useData();
 
   // ===== CONSTANTS =====
   const [routes] = useState([
     { key: 'summary', title: 'Summary' },
-    { key: 'progress', title: 'Progress' },
     { key: 'insights', title: 'Insights' },
+    { key: 'progress', title: 'Progress' },
   ]);
 
   // ===== EFFECTS =====
@@ -609,6 +630,14 @@ export function WorkoutSummaryModal({
       }
     }
   }, [visible, startTime, providedDuration]);
+
+  // Preselect progress tab based on workout type
+  useEffect(() => {
+    if (visible && workoutName) {
+      const preselectedTab = getPreselectedProgressTab(workoutName);
+      setSelectedProgressTab(preselectedTab);
+    }
+  }, [visible, workoutName]);
 
   // ===== MEMOIZED VALUES =====
   const volumeDistribution = useMemo(() => {
@@ -758,12 +787,20 @@ export function WorkoutSummaryModal({
     setIsSaving(true);
     try {
       await onSaveWorkout(rating);
+      // Trigger dashboard refresh to ensure fresh data is loaded when user navigates back
+      if (userId) {
+        invalidateDashboardCache();
+        // Also trigger the global refresh mechanism for immediate effect
+        if (typeof (global as any).triggerDashboardRefresh === 'function') {
+          (global as any).triggerDashboardRefresh();
+        }
+      }
     } catch (error) {
       Alert.alert('Error', 'Failed to save workout');
     } finally {
       setIsSaving(false);
     }
-  }, [onSaveWorkout, rating]);
+  }, [onSaveWorkout, rating, userId, invalidateDashboardCache]);
 
   const handleRating = useCallback((newRating: number) => {
     setRating(newRating);
@@ -777,21 +814,59 @@ export function WorkoutSummaryModal({
         onRateWorkout?.(rating);
         setHasRatingChanged(false);
         setRatingSaved(true);
+        // Trigger dashboard refresh when rating is saved
+        if (userId) {
+          invalidateDashboardCache();
+          if (typeof (global as any).triggerDashboardRefresh === 'function') {
+            (global as any).triggerDashboardRefresh();
+          }
+        }
       } catch (error) {
         Alert.alert('Error', 'Failed to save rating');
       } finally {
         setIsSaving(false);
       }
     }
-  }, [hasRatingChanged, rating, onRateWorkout]);
+  }, [hasRatingChanged, rating, onRateWorkout, userId, invalidateDashboardCache]);
 
   const handleSaveAndClose = useCallback(async () => {
     if (hasRatingChanged) {
       await handleSaveRating();
     }
     await handleSave();
-    onClose();
-  }, [hasRatingChanged, handleSaveRating, handleSave, onClose]);
+    // CRITICAL: Ensure dashboard refresh happens immediately when closing the modal
+    if (userId) {
+      console.log('[WorkoutSummaryModal] Triggering immediate dashboard refresh after workout completion');
+      
+      // First, trigger the data context's workout completion handler for immediate cache invalidation
+      try {
+        await handleWorkoutCompletion({} as any);
+        console.log('[WorkoutSummaryModal] Data context cache invalidation completed');
+      } catch (error) {
+        console.error('[WorkoutSummaryModal] Error during data context cache invalidation:', error);
+      }
+      
+      // Then trigger the global refresh mechanism for immediate effect
+      if (typeof (global as any).triggerDashboardRefresh === 'function') {
+        (global as any).triggerDashboardRefresh();
+        console.log('[WorkoutSummaryModal] Global dashboard refresh triggered');
+      }
+      
+      // Wait a bit longer to ensure the dashboard refresh completes before closing
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Also use a small delay to ensure the workout is saved before the dashboard refreshes
+      setTimeout(() => {
+        invalidateDashboardCache();
+        console.log('[WorkoutSummaryModal] Additional cache invalidation completed');
+      }, 500);
+    }
+    
+    // CRITICAL: Add a small delay before closing to ensure dashboard has time to refresh
+    setTimeout(() => {
+      onClose();
+    }, 1500);
+  }, [hasRatingChanged, handleSaveRating, handleSave, onClose, userId, invalidateDashboardCache, handleWorkoutCompletion]);
 
   // ===== TAB ROUTES =====
   const SummaryTab = useCallback(() => (
@@ -810,8 +885,8 @@ export function WorkoutSummaryModal({
         <Card style={styles.statsCard}>
           <View style={styles.statRow}>
             <View style={styles.statItem}>
-              <Text 
-                style={styles.statValue}
+              <Text
+                style={[styles.statValue, { color: getWorkoutColor(workoutName).main }]}
                 accessible={true}
                 accessibilityLabel={`Total volume: ${metrics.totalVolume.toFixed(0)} kilograms`}
               >
@@ -821,8 +896,8 @@ export function WorkoutSummaryModal({
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text 
-                style={styles.statValue}
+              <Text
+                style={[styles.statValue, { color: getWorkoutColor(workoutName).main }]}
                 accessible={true}
                 accessibilityLabel={`Personal records: ${metrics.prCount}`}
               >
@@ -832,8 +907,8 @@ export function WorkoutSummaryModal({
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text 
-                style={styles.statValue}
+              <Text
+                style={[styles.statValue, { color: getWorkoutColor(workoutName).main }]}
                 accessible={true}
                 accessibilityLabel={`Exercises: ${metrics.exerciseCount}`}
               >
@@ -843,8 +918,8 @@ export function WorkoutSummaryModal({
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text 
-                style={styles.statValue}
+              <Text
+                style={[styles.statValue, { color: getWorkoutColor(workoutName).main }]}
                 accessible={true}
                 accessibilityLabel={`Duration: ${duration}`}
               >
@@ -855,6 +930,9 @@ export function WorkoutSummaryModal({
           </View>
         </Card>
       </View>
+
+      {/* Exercise Summary */}
+      <ExerciseSummary exercises={exercises} readOnly={!showActions} />
 
       {/* Rating Section */}
       <Card style={[styles.ratingCard, styles.historicalRatingCard]}>
@@ -881,7 +959,6 @@ export function WorkoutSummaryModal({
                 onPress={handleSaveRating}
                 disabled={isSaving}
                 style={[styles.saveRatingButton, ratingSaved && styles.saveRatingButtonSaved]}
-                accessibilityLabel={isSaving ? 'Saving rating...' : ratingSaved ? 'Rating saved' : 'Save rating'}
               >
                 <Text style={styles.saveRatingButtonText}>
                   {isSaving ? 'Saving...' : ratingSaved ? 'Saved ✓' : 'Save Rating'}
@@ -891,9 +968,6 @@ export function WorkoutSummaryModal({
           )}
         </View>
       </Card>
-
-      {/* Exercise Summary */}
-      <ExerciseSummary exercises={exercises} readOnly={!showActions} />
 
       {/* Motivational Message */}
       <View style={styles.motivationalContainer}>
@@ -956,7 +1030,7 @@ export function WorkoutSummaryModal({
               style={[
                 styles.volumeTab,
                 styles.volumeTabLeft,
-                selectedProgressTab === 'upper' && styles.volumeTabActive
+                (selectedProgressTab === 'upper' || selectedProgressTab === 'all') && { backgroundColor: getWorkoutColor(workoutName).main }
               ]}
               onPress={() => setSelectedProgressTab('upper')}
               accessibilityState={{ selected: selectedProgressTab === 'upper' }}
@@ -972,7 +1046,7 @@ export function WorkoutSummaryModal({
               style={[
                 styles.volumeTab,
                 styles.volumeTabRight,
-                selectedProgressTab === 'lower' && styles.volumeTabActive
+                (selectedProgressTab === 'lower' || selectedProgressTab === 'all') && { backgroundColor: getWorkoutColor(workoutName).main }
               ]}
               onPress={() => setSelectedProgressTab('lower')}
               accessibilityState={{ selected: selectedProgressTab === 'lower' }}
@@ -1002,7 +1076,7 @@ export function WorkoutSummaryModal({
                     <View
                       style={[
                         styles.volumeBarFill,
-                        { width: `${(volume / Math.max(...Object.values(weeklyVolumeTotals), 1)) * 100}%` }
+                        { width: `${(volume / Math.max(...Object.values(weeklyVolumeTotals), 1)) * 100}%`, backgroundColor: getWorkoutColor(workoutName).main }
                       ]}
                     />
                   </View>
@@ -1040,7 +1114,7 @@ export function WorkoutSummaryModal({
                 <View
                   style={[
                     styles.graphBarFill,
-                    { width: maxVolume > 0 ? `${(exerciseVolume / maxVolume) * 100}%` : '0%' }
+                    { width: maxVolume > 0 ? `${(exerciseVolume / maxVolume) * 100}%` : '0%', backgroundColor: getWorkoutColor(workoutName).main }
                   ]}
                 />
               </View>
@@ -1081,7 +1155,7 @@ export function WorkoutSummaryModal({
                 <Ionicons
                   name={historicalComparison.volumeDiff >= 0 ? "trending-up" : "trending-down"}
                   size={16}
-                  color={historicalComparison.volumeDiff >= 0 ? '#10B981' : '#EF4444'}
+                  color={getWorkoutColor(workoutName).main}
                 />
                 <Text style={[styles.comparisonText, { color: historicalComparison.volumeDiff >= 0 ? '#10B981' : '#EF4444' }]}>
                   {historicalComparison.volumeDiff >= 0 ? '+' : ''}{historicalComparison.volumeDiff.toFixed(0)}kg
@@ -1097,7 +1171,7 @@ export function WorkoutSummaryModal({
                 <Ionicons
                   name={historicalComparison.timeDiff <= 0 ? "trending-down" : "trending-up"}
                   size={16}
-                  color={historicalComparison.timeDiff <= 0 ? '#10B981' : '#EF4444'}
+                  color={getWorkoutColor(workoutName).main}
                 />
                 <Text style={[styles.comparisonText, { color: historicalComparison.timeDiff <= 0 ? '#10B981' : '#EF4444' }]}>
                   {historicalComparison.timeDiff >= 0 ? '+' : ''}{Math.floor(Math.abs(historicalComparison.timeDiff) / 60)}:{(Math.abs(historicalComparison.timeDiff) % 60).toString().padStart(2, '0')}
@@ -1110,7 +1184,7 @@ export function WorkoutSummaryModal({
                 <Ionicons
                   name={historicalComparison.prDiff >= 0 ? "trending-up" : "trending-down"}
                   size={16}
-                  color={historicalComparison.prDiff >= 0 ? '#10B981' : '#EF4444'}
+                  color={getWorkoutColor(workoutName).main}
                 />
                 <Text style={[styles.comparisonText, { color: historicalComparison.prDiff >= 0 ? '#10B981' : '#EF4444' }]}>
                   {historicalComparison.prDiff >= 0 ? '+' : ''}{historicalComparison.prDiff}
@@ -1123,7 +1197,7 @@ export function WorkoutSummaryModal({
                 <Ionicons
                   name={historicalComparison.avgTimePerSetDiff <= 0 ? "trending-down" : "trending-up"}
                   size={16}
-                  color={historicalComparison.avgTimePerSetDiff <= 0 ? '#10B981' : '#EF4444'}
+                  color={getWorkoutColor(workoutName).main}
                 />
                 <Text style={[styles.comparisonText, { color: historicalComparison.avgTimePerSetDiff <= 0 ? '#10B981' : '#EF4444' }]}>
                   {historicalComparison.avgTimePerSetDiff >= 0 ? '+' : ''}{historicalComparison.avgTimePerSetDiff}s
@@ -1142,19 +1216,18 @@ export function WorkoutSummaryModal({
         <View style={styles.cardContent}>
           <View style={styles.metricRow}>
             <Text style={styles.metricLabel}>Avg Time per Set:</Text>
-            <Text style={styles.metricValue}>{metrics.averageTimePerSet}s</Text>
+            <Text style={[styles.metricValue, { color: getWorkoutColor(workoutName).main }]}>{metrics.averageTimePerSet}s</Text>
           </View>
           <View style={styles.metricRow}>
             <View style={styles.metricLabelContainer}>
               <Text style={styles.metricLabel}>Intensity Score:</Text>
               <HapticPressable
                 onPress={() => Alert.alert('Intensity Score', 'Calculated based on volume efficiency (70%) and PR achievement (30%). Higher scores indicate more intense workouts.')}
-                accessibilityLabel="Intensity score information"
               >
                 <Ionicons name="information-circle" size={16} color={Colors.mutedForeground} />
               </HapticPressable>
             </View>
-            <Text style={styles.metricValue}>{metrics.intensityScore}/100</Text>
+            <Text style={[styles.metricValue, { color: getWorkoutColor(workoutName).main }]}>{metrics.intensityScore}/100</Text>
           </View>
         </View>
       </Card>
@@ -1162,7 +1235,7 @@ export function WorkoutSummaryModal({
       {/* Upper/Lower Body Toggle */}
       <Card style={[styles.insightsCard, styles.muscleGroupsCard]}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>Muscle Groups</Text>
+          <Text style={styles.cardTitle}>Muscle Groups used in this Workout</Text>
         </View>
         <View style={[styles.cardContent, styles.muscleGroupsCardContent]}>
           {/* Upper/Lower Body Tabs */}
@@ -1171,14 +1244,14 @@ export function WorkoutSummaryModal({
               style={[
                 styles.volumeTab,
                 styles.volumeTabLeft,
-                selectedVolumeTab === 'upper' && styles.volumeTabActive
+                (selectedVolumeTab === 'upper' || selectedVolumeTab === 'all') && { backgroundColor: getWorkoutColor(workoutName).main }
               ]}
               onPress={() => setSelectedVolumeTab('upper')}
               accessibilityState={{ selected: selectedVolumeTab === 'upper' }}
             >
               <Text style={[
                 styles.volumeTabText,
-                selectedVolumeTab === 'upper' && styles.volumeTabTextActive
+                (selectedVolumeTab === 'upper' || selectedVolumeTab === 'all') && styles.volumeTabTextActive
               ]}>
                 Upper Body
               </Text>
@@ -1187,14 +1260,14 @@ export function WorkoutSummaryModal({
               style={[
                 styles.volumeTab,
                 styles.volumeTabRight,
-                selectedVolumeTab === 'lower' && styles.volumeTabActive
+                (selectedVolumeTab === 'lower' || selectedVolumeTab === 'all') && { backgroundColor: getWorkoutColor(workoutName).main }
               ]}
               onPress={() => setSelectedVolumeTab('lower')}
               accessibilityState={{ selected: selectedVolumeTab === 'lower' }}
             >
               <Text style={[
                 styles.volumeTabText,
-                selectedVolumeTab === 'lower' && styles.volumeTabTextActive
+                (selectedVolumeTab === 'lower' || selectedVolumeTab === 'all') && styles.volumeTabTextActive
               ]}>
                 Lower Body
               </Text>
@@ -1217,7 +1290,7 @@ export function WorkoutSummaryModal({
                     <View
                       style={[
                         styles.volumeBarFill,
-                        { width: `${(volume / Math.max(...Object.values(volumeDistribution))) * 100}%` }
+                        { width: `${(volume / Math.max(...Object.values(volumeDistribution))) * 100}%`, backgroundColor: getWorkoutColor(workoutName).main }
                       ]}
                     />
                   </View>
@@ -1247,12 +1320,12 @@ export function WorkoutSummaryModal({
         <View style={[styles.modalContainer, !showActions && styles.historicalModalContainer]}>
           <View style={styles.modalHeader}>
             <View style={styles.modalHeaderLeft}>
-              <View 
-                style={[styles.workoutNameBadge, { backgroundColor: Colors.primary }]}
+              <View
+                style={[styles.workoutNameBadge, { backgroundColor: getWorkoutColor(workoutName).main }]}
                 accessible={true}
                 accessibilityLabel={`Workout: ${workoutName}`}
               >
-                <Text 
+                <Text
                   style={styles.workoutNameText}
                   accessible={false}
                 >
@@ -1296,6 +1369,17 @@ export function WorkoutSummaryModal({
             swipeEnabled={true}
             animationEnabled={true}
             accessible={true}
+            renderTabBar={(props) => (
+              <View style={[styles.defaultTabBarContainer, { backgroundColor: getWorkoutColor(workoutName).main }]}>
+                <TabBar
+                  {...props}
+                  style={styles.defaultTabBar}
+                  indicatorStyle={[{ backgroundColor: Colors.foreground }, styles.defaultTabIndicator]}
+                  activeColor={Colors.white}
+                  inactiveColor={'#FFFFFFCC'}
+                />
+              </View>
+            )}
           />
         </View>
       </View>
@@ -1465,7 +1549,7 @@ const styles = StyleSheet.create({
   },
   historicalRatingContainer: {
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.lg,
   },
   lockIndicator: {
     flexDirection: 'row',
@@ -1475,6 +1559,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs,
     backgroundColor: Colors.secondary,
     borderRadius: 12,
+    marginBottom: Spacing.lg,
   },
   lockText: {
     ...TextStyles.smallMedium,
@@ -1636,7 +1721,47 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
   volumeTabActive: {
-    backgroundColor: Colors.primary,
+    // Removed hardcoded backgroundColor to allow dynamic workout colors
+  },
+  mainTabsContainer: {
+    flexDirection: 'row',
+    backgroundColor: Colors.secondary,
+    borderRadius: 8,
+    padding: 2,
+    marginBottom: Spacing.md,
+  },
+  mainTab: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  mainTabText: {
+    ...TextStyles.smallMedium,
+    color: Colors.mutedForeground,
+    fontWeight: '500',
+  },
+  mainTabTextActive: {
+    color: Colors.white,
+    fontWeight: '600',
+  },
+  defaultTabBarContainer: {
+    marginBottom: Spacing.md,
+  },
+  defaultTabBar: {
+    backgroundColor: 'transparent',
+    elevation: 0,
+    shadowOpacity: 0,
+    borderWidth: 0,
+    borderColor: 'transparent',
+  },
+  defaultTabIndicator: {
+    height: 3,
+    borderRadius: 2,
+  },
+  tabViewContainer: {
+    flex: 1,
   },
   volumeTabText: {
     ...TextStyles.smallMedium,

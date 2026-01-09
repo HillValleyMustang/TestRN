@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, fireEvent, screen } from '@testing-library/react-native';
+import { View, Pressable, Text } from 'react-native';
 import { EditExerciseModal } from '../../../components/manage-exercises/EditExerciseModal';
 import { FetchedExerciseDefinition } from '../../../../../packages/data/src/types/exercise';
 
@@ -106,14 +107,14 @@ describe('EditExerciseModal', () => {
     // Mock the ExerciseForm component
     jest.mock('../../../components/manage-exercises/ExerciseForm', () => ({
       ExerciseForm: ({ onSaveSuccess }: any) => (
-        <div data-testid="exercise-form">
-          <button
+        <View data-testid="exercise-form">
+          <Pressable
             data-testid="save-button"
-            onClick={() => onSaveSuccess()}
+            onPress={() => onSaveSuccess()}
           >
-            Save
-          </button>
-        </div>
+            <Text>Save</Text>
+          </Pressable>
+        </View>
       ),
     }));
 

@@ -1,0 +1,97 @@
+# Constants Import Resolution Fix
+
+## Issue Summary
+Android bundling failed with the error:
+```
+Unable to resolve "../../../constants/Theme" from "apps/mobile/components/ui/Card.tsx"
+```
+
+## Root Cause Analysis
+
+### Problem Identification
+The issue was caused by **missing TypeScript configuration** for the `constants` directory. The error occurred because:
+
+1. **Missing Directory Inclusion**: The `constants` directory was not included in the TypeScript `tsconfig.json` file's `include` array
+2. **Module Resolution Failure**: Metro bundler (used by Expo) couldn't resolve imports from the `constants` directory because TypeScript wasn't configured to recognize these files
+3. **Build-Time Error**: The bundling process failed during the module resolution phase before compilation
+
+### File Structure Analysis
+- **Card.tsx location**: `apps/mobile/components/ui/Card.tsx`
+- **Theme.ts location**: `apps/mobile/constants/Theme.ts`
+- **Import path**: `../../../constants/Theme` (correct relative path)
+- **Export verification**: All required exports (`Colors`, `BorderRadius`, `Spacing`, `Shadows`) exist in Theme.ts
+
+### Technical Details
+The original `tsconfig.json` included:
+```json
+"include": [
+  "./app/**/*",
+  "./components/**/*", 
+  "../../packages/**/*"
+]
+```
+
+But was **missing** the constants directory, causing TypeScript and Metro bundler to ignore all files in `apps/mobile/constants/`.
+
+## Solution Implementation
+
+### Fix Applied
+Updated `apps/mobile/tsconfig.json` to include the constants directory:
+
+```json
+"include": [
+  "./app/**/*",
+  "./components/**/*",
+  "./constants/**/*",  // ← ADDED THIS LINE
+  "../../packages/**/*"
+]
+```
+
+### Why This Fixes The Issue
+1. **TypeScript Recognition**: Now TypeScript compiler includes all files in the constants directory during type checking
+2. **Metro Bundler Support**: Metro bundler can now resolve imports from the constants directory during the bundling process  
+3. **Module Resolution**: Import statements like `import { Colors } from '../../../constants/Theme'` now resolve correctly
+
+## Verification Steps
+
+### Expected Result
+After applying this fix and restarting the development server with `--clear` flag, the bundling should succeed and the import error should be resolved.
+
+### Testing Commands
+```bash
+# Clear Metro cache and restart
+cd apps/mobile
+npx expo start --clear
+
+# Or with npm script
+npm run start -- --clear
+```
+
+## Prevention Measures
+
+### Future Considerations
+1. **Directory Structure**: When adding new directories with shared utilities/constants, ensure they're included in `tsconfig.json`
+2. **Path Mapping**: Consider using path aliases in `tsconfig.json` for better import management:
+   ```json
+   "paths": {
+     "@constants/*": ["./constants/*"]
+   }
+   ```
+3. **CI/CD Checks**: Add TypeScript compilation checks to catch import resolution issues early
+
+## Files Modified
+- `apps/mobile/tsconfig.json` - Added `"./constants/**/*"` to include array
+
+## Related Files (Unchanged)
+- `apps/mobile/components/ui/Card.tsx` - Import statements were correct
+- `apps/mobile/constants/Theme.ts` - All exports exist and are properly structured  
+- `apps/mobile/constants/Typography.ts` - Export structure is correct
+
+## Impact
+- **Low Risk**: Configuration-only change, no code logic modified
+- **High Impact**: Resolves critical bundling failure preventing app compilation
+- **Scope**: Fixes all constants import issues across the mobile app
+
+---
+
+**Status**: ✅ Fixed - TypeScript configuration updated to include constants directory

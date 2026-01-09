@@ -4,7 +4,7 @@
  * Reference: MOBILE_SPEC_02_DASHBOARD.md Section 3
  */
 
-import React from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../ui/Card';
@@ -43,21 +43,47 @@ export function WeeklyTargetWidget({
   loading,
   error,
 }: WeeklyTargetWidgetProps) {
+  // Use a ref to track the previous completedWorkouts length for debugging
+  const prevCompletedLengthRef = useRef(completedWorkouts.length);
+  const [renderKey, setRenderKey] = useState(0);
+
+  // Force re-render when completedWorkouts changes to ensure fresh data
+  useEffect(() => {
+    if (prevCompletedLengthRef.current !== completedWorkouts.length) {
+      if (__DEV__) {
+        console.log('🔄 WeeklyTargetWidget useEffect triggered:', {
+          oldLength: prevCompletedLengthRef.current,
+          newLength: completedWorkouts.length,
+          completedWorkouts: completedWorkouts.map(w => ({ id: w.id, name: w.name }))
+        });
+      }
+      prevCompletedLengthRef.current = completedWorkouts.length;
+      // Force a re-render by incrementing the render key
+      setRenderKey(prev => prev + 1);
+    }
+  }, [completedWorkouts.length, completedWorkouts]);
+
   // Construct progress text safely
-  const progressText = (() => {
-    const baseText = `${completedWorkouts.length} / ${goalTotal} Workouts Completed This Week`;
-    if (totalSessions && typeof totalSessions === 'number' && totalSessions > completedWorkouts.length && totalSessions > goalTotal) {
+  const progressText = useMemo(() => {
+    const baseText = `${completedWorkouts.length} / ${goalTotal} T-Path Workouts Completed This Week`;
+    if (totalSessions && typeof totalSessions === 'number' && totalSessions > goalTotal) {
       return `${baseText} (${totalSessions} sessions)`;
     }
     return baseText;
-  })();
+  }, [completedWorkouts.length, goalTotal, totalSessions]);
   
 
-  const workoutTypes = programmeType === 'ulul'
-    ? ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B']
-    : ['Push', 'Pull', 'Legs'];
+  
 
-  const getInitial = (workoutName: string): string => {
+  // Memoize workoutTypes to prevent unnecessary recalculations
+  const workoutTypes = useMemo(() => 
+    programmeType === 'ulul'
+      ? ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B']
+      : ['Push', 'Pull', 'Legs']
+  , [programmeType]);
+
+  // Memoize getInitial to prevent unnecessary function recreation
+  const getInitial = useMemo(() => (workoutName: string): string => {
     const name = workoutName.toLowerCase();
     if (name.includes('upper')) return 'U';
     if (name.includes('lower')) return 'L';
@@ -65,7 +91,7 @@ export function WeeklyTargetWidget({
     if (name.includes('pull')) return 'P';
     if (name.includes('leg')) return 'L';
     return workoutName.charAt(0).toUpperCase();
-  };
+  }, []);
 
   if (error) {
     return (
@@ -106,23 +132,40 @@ export function WeeklyTargetWidget({
 
       <View style={[
         styles.circlesContainer,
-        { justifyContent: totalSessions && totalSessions > goalTotal ? 'flex-start' : 'center' }
+        { justifyContent: 'center' } // Always center since additional circles are commented out
       ]}>
         {(() => {
+           const hasAdditionalWorkouts = totalSessions ? totalSessions > goalTotal : false;
+           const additionalWorkoutsCount = Math.min(
+             Math.max(0, (totalSessions || 0) - completedWorkouts.length),
+             7 - goalTotal // Max additional circles to reach 7 total
+           );
+           
+           // Debug logging
+           if (__DEV__) {
+             console.log('WeeklyTargetWidget Debug:', {
+               totalSessions,
+               completedWorkoutsLength: completedWorkouts.length,
+               goalTotal,
+               hasAdditionalWorkouts,
+               additionalWorkoutsCount,
+               maxAdditional: 7 - goalTotal,
+             });
+           }
+
           const coreWorkouts = workoutTypes.slice(0, goalTotal);
-          const hasAdditionalWorkouts = totalSessions ? totalSessions > completedWorkouts.length : false;
-          const additionalWorkoutsCount = Math.min(
-            Math.max(0, (totalSessions || 0) - completedWorkouts.length),
-            7 - goalTotal // Max additional circles to reach 7 total
-          );
 
           // Render core workout circles
           const coreCircles = coreWorkouts.map((workoutType, index) => {
-            const isCompleted = index < completedWorkouts.length;
-            const workout = completedWorkouts[index];
+            // Find the completed workout that matches this workout type
+            const matchingWorkout = completedWorkouts.find(workout =>
+              workout.name.toLowerCase() === workoutType.toLowerCase()
+            );
+            
+            const isCompleted = !!matchingWorkout;
             const colors = getWorkoutColor(workoutType);
 
-            if (isCompleted && workout) {
+            if (isCompleted && matchingWorkout) {
               return (
                 <Pressable
                   key={`core-${index}`}
@@ -132,7 +175,16 @@ export function WeeklyTargetWidget({
                     { backgroundColor: colors.main }
                   ]}
                   onPress={() => {
-                    const sessionId = workout.sessionId || workout.id;
+                    const sessionId = matchingWorkout.sessionId || matchingWorkout.id;
+                    if (__DEV__) {
+                      console.log('🎯 Circle pressed:', {
+                        index,
+                        workoutType,
+                        workoutName: matchingWorkout.name,
+                        sessionId,
+                        completedWorkoutsLength: completedWorkouts.length
+                      });
+                    }
                     if (sessionId) {
                       onViewWorkoutSummary?.(sessionId);
                     }
@@ -159,9 +211,14 @@ export function WeeklyTargetWidget({
             );
           });
 
-          // Render additional workout circles if needed
+          // TEMPORARILY COMMENTED OUT: Additional circles logic
+          // This can be re-enabled later if needed
+          /*
           const additionalCircles = [];
           if (hasAdditionalWorkouts && additionalWorkoutsCount > 0) {
+            if (__DEV__) {
+              console.log('🎯 Creating additional circles:', additionalWorkoutsCount);
+            }
             // Add gap between core and additional circles
             additionalCircles.push(
               <View key="gap" style={styles.circleGap} />
@@ -187,8 +244,9 @@ export function WeeklyTargetWidget({
               );
             }
           }
+          */
 
-          return [...coreCircles, ...additionalCircles];
+          return coreCircles; // Only return core circles, additional circles commented out
         })()}
       </View>
 

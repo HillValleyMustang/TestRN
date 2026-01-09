@@ -27,6 +27,7 @@
   "include": [
     "./app/**/*",
     "./components/**/*",
+    "./constants/**/*",
     "../../packages/**/*"
   ],
   "exclude": [

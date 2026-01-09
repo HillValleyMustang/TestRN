@@ -10,6 +10,9 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "build:android": "expo export:android",
+    "build:ios": "expo export:ios",
+    "build": "npm run build:android && npm run build:ios",
     "lint": "eslint --ext .ts,.tsx ./app",
     "test": "jest",
     "test:watch": "jest --watch"
@@ -20,9 +23,12 @@
     "@expo/vector-icons": "^15.0.2",
     "@miblanchard/react-native-slider": "^2.6.0",
     "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-community/datetimepicker": "^8.5.1",
     "@react-native-community/netinfo": "^11.4.1",
     "@react-native-picker/picker": "2.11.1",
     "@supabase/supabase-js": "^2.55.0",
+    "@tanstack/react-query": "^5.90.16",
+    "@tanstack/react-query-devtools": "^5.91.2",
     "expo": "54.0.20",
     "expo-camera": "^17.0.8",
     "expo-constants": "^18.0.10",
@@ -36,7 +42,9 @@
     "lucide-react-native": "^0.548.0",
     "react": "19.1.0",
     "react-native": "0.81.5",
+    "react-native-date-picker": "^4.4.0",
     "react-native-gesture-handler": "~2.28.0",
+    "react-native-modal-datetime-picker": "^18.0.0",
     "react-native-pager-view": "^6.9.1",
     "react-native-popup-menu": "^0.18.0",
     "react-native-reanimated": "~4.1.1",
@@ -46,7 +54,8 @@
     "react-native-toast-message": "^2.3.3",
     "react-native-webview": "13.15.0",
     "react-native-youtube-iframe": "^2.4.1",
-    "zod": "^4.1.12"
+    "zod": "^4.1.12",
+    "zustand": "^4.5.7"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",

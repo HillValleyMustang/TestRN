@@ -223,6 +223,15 @@ export default function WorkoutHistoryPage() {
         // Don't fail the whole operation if local delete fails
       }
 
+      // Trigger dashboard refresh to update all dashboard cards and charts
+      console.log('[WorkoutHistory] Triggering dashboard refresh after deletion');
+      if (typeof (global as any).triggerDashboardRefresh === 'function') {
+        (global as any).triggerDashboardRefresh();
+        console.log('[WorkoutHistory] Dashboard refresh triggered successfully');
+      } else {
+        console.warn('[WorkoutHistory] Global triggerDashboardRefresh not available');
+      }
+
     } catch (err) {
       console.error('Failed to delete workout session:', err);
       Alert.alert('Error', 'Failed to delete workout session');

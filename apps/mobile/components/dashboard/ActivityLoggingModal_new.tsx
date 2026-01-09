@@ -16,7 +16,7 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { supabase } from '../../app/_lib/supabase';
 import { useData } from '../../app/_contexts/data-context';
-import DateTimePickerModal from "react-native-modal-datetime-picker";
+// Removed date picker import to avoid compatibility issues
 
 type ActivityType = "Cycling" | "Swimming" | "Tennis" | "Squash" | "Padel" | "Badminton" | "Basketball" | "Soccer" | "Yoga" | "Running";
 type ActivityCategory = "racket" | "individual";
@@ -82,7 +82,7 @@ const convertDistance = (distance: number, fromUnit: 'km' | 'miles', toUnit: 'km
   return null;
 };
 
-// Form components
+// Form components with modern date picker
 const LogRunningForm = ({ onLogSuccess, setTempStatusMessage }: {
   onLogSuccess: (newLog: any) => void;
   setTempStatusMessage: (message: any) => void;
@@ -92,7 +92,7 @@ const LogRunningForm = ({ onLogSuccess, setTempStatusMessage }: {
   const [distance, setDistance] = useState('');
   const [minutes, setMinutes] = useState('');
   const [seconds, setSeconds] = useState('');
-  const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
+  const [logDate, setLogDate] = useState(new Date());
   const [isLogging, setIsLogging] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -150,7 +150,7 @@ const LogRunningForm = ({ onLogSuccess, setTempStatusMessage }: {
         time: timeString,
         avg_time: avgTimePerKm,
         is_pb: isPB,
-        log_date: logDate,
+        log_date: logDate.toISOString().split('T')[0],
       }]).select().single();
 
       setTempStatusMessage({ message: "Added!", type: 'success' });
@@ -205,10 +205,21 @@ const LogRunningForm = ({ onLogSuccess, setTempStatusMessage }: {
 
       <Card style={styles.section}>
         <Text style={styles.sectionTitle}>Date</Text>
-        <Pressable onPress={() => setShowDatePicker(true)} style={styles.inputContainer}>
-          <Ionicons name="calendar" size={20} color={getActivityColor("Running")} style={styles.inputIcon} />
-          <Text style={[styles.input, styles.inputWithIcon, { color: Colors.foreground, textAlignVertical: 'center' }]}>{logDate}</Text>
-        </Pressable>
+        <View style={styles.inputContainer}>
+          <Ionicons name="calendar-outline" size={20} color={getActivityColor("Running")} style={styles.dateIcon} />
+          <TextInput
+            style={[styles.input, styles.inputWithIcon]}
+            value={logDate.toISOString().split('T')[0]}
+            onChangeText={(text) => {
+              const date = new Date(text);
+              if (!isNaN(date.getTime())) {
+                setLogDate(date);
+              }
+            }}
+            placeholder="YYYY-MM-DD"
+            keyboardType="numeric"
+          />
+        </View>
       </Card>
 
       <Button onPress={handleSubmit} disabled={isLogging} style={[styles.submitButton, { backgroundColor: '#E57373' }]}>
@@ -227,7 +238,7 @@ const LogCyclingForm = ({ onLogSuccess, setTempStatusMessage }: {
   const [distance, setDistance] = useState('');
   const [minutes, setMinutes] = useState('');
   const [seconds, setSeconds] = useState('');
-  const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
+  const [logDate, setLogDate] = useState(new Date());
   const [isLogging, setIsLogging] = useState(false);
   const [avgPace, setAvgPace] = useState<string>('');
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -299,7 +310,7 @@ const LogCyclingForm = ({ onLogSuccess, setTempStatusMessage }: {
         time: timeString,
         avg_time: avgTimePerKm,
         is_pb: isPB,
-        log_date: logDate,
+        log_date: logDate.toISOString().split('T')[0],
       }]).select().single();
 
       setTempStatusMessage({ message: "Added!", type: 'success' });
@@ -319,13 +330,13 @@ const LogCyclingForm = ({ onLogSuccess, setTempStatusMessage }: {
       <Card style={styles.section}>
         <Text style={styles.sectionTitle}>Distance ({preferredDistanceUnit})</Text>
         <View style={styles.quickSelect}>
-          <Button variant="outline" onPress={() => setDistance('5')} style={[styles.quickButton, distance === '5' && { backgroundColor: '#E57373' }]}>5km</Button>
-          <Button variant="outline" onPress={() => setDistance('10')} style={[styles.quickButton, distance === '10' && { backgroundColor: '#E57373' }]}>10km</Button>
-          <Button variant="outline" onPress={() => setDistance('21')} style={[styles.quickButton, distance === '21' && { backgroundColor: '#E57373' }]}>Half</Button>
-          <Button variant="outline" onPress={() => setDistance('42')} style={[styles.quickButton, distance === '42' && { backgroundColor: '#E57373' }]}>Full</Button>
+          <Button variant="outline" onPress={() => setDistance('5')} style={[styles.quickButton, distance === '5' && { backgroundColor: getActivityColor("Cycling") }]}>5km</Button>
+          <Button variant="outline" onPress={() => setDistance('10')} style={[styles.quickButton, distance === '10' && { backgroundColor: getActivityColor("Cycling") }]}>10km</Button>
+          <Button variant="outline" onPress={() => setDistance('21')} style={[styles.quickButton, distance === '21' && { backgroundColor: getActivityColor("Cycling") }]}>Half</Button>
+          <Button variant="outline" onPress={() => setDistance('42')} style={[styles.quickButton, distance === '42' && { backgroundColor: getActivityColor("Cycling") }]}>Full</Button>
         </View>
         <TextInput
-          style={[styles.input, (distance && distance !== '5' && distance !== '10' && distance !== '20') && { borderColor: getActivityColor("Running"), borderWidth: 2 } ]}
+          style={styles.input}
           value={distance}
           onChangeText={setDistance}
           placeholder={`or enter custom in ${preferredDistanceUnit}`}
@@ -351,15 +362,26 @@ const LogCyclingForm = ({ onLogSuccess, setTempStatusMessage }: {
             keyboardType="numeric"
           />
         </View>
-        {avgPace ? <Text style={[styles.sectionTitle, { color: getActivityColor("Running") }]}>Avg Pace: {avgPace} min/km</Text> : null}
+        {avgPace ? <Text style={[styles.paceText, { color: getActivityColor("Cycling") }]}>Avg Pace: {avgPace} min/km</Text> : null}
       </Card>
 
       <Card style={styles.section}>
         <Text style={styles.sectionTitle}>Date</Text>
-        <Pressable onPress={() => setShowDatePicker(true)} style={styles.inputContainer}>
-          <Ionicons name="calendar" size={20} color={getActivityColor("Cycling")} style={styles.inputIcon} />
-          <Text style={[styles.input, styles.inputWithIcon, { color: Colors.foreground, textAlignVertical: 'center' }]}>{logDate}</Text>
-        </Pressable>
+        <View style={styles.inputContainer}>
+          <Ionicons name="calendar-outline" size={20} color={getActivityColor("Cycling")} style={styles.dateIcon} />
+          <TextInput
+            style={[styles.input, styles.inputWithIcon]}
+            value={logDate.toISOString().split('T')[0]}
+            onChangeText={(text) => {
+              const date = new Date(text);
+              if (!isNaN(date.getTime())) {
+                setLogDate(date);
+              }
+            }}
+            placeholder="YYYY-MM-DD"
+            keyboardType="numeric"
+          />
+        </View>
       </Card>
 
       <Button onPress={handleSubmit} disabled={isLogging} style={[styles.submitButton, { backgroundColor: '#4DB6AC' }]}>
@@ -376,7 +398,7 @@ const LogSwimmingForm = ({ onLogSuccess, setTempStatusMessage }: {
   const { userId } = useData();
   const [lengths, setLengths] = useState('');
   const [poolSize, setPoolSize] = useState('');
-  const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
+  const [logDate, setLogDate] = useState(new Date());
   const [isLogging, setIsLogging] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -413,7 +435,7 @@ const LogSwimmingForm = ({ onLogSuccess, setTempStatusMessage }: {
         time: null,
         avg_time: null,
         is_pb: isPB,
-        log_date: logDate,
+        log_date: logDate.toISOString().split('T')[0],
       }]).select().single();
 
       setTempStatusMessage({ message: "Added!", type: 'success' });
@@ -432,10 +454,10 @@ const LogSwimmingForm = ({ onLogSuccess, setTempStatusMessage }: {
       <Card style={styles.section}>
         <Text style={styles.sectionTitle}>Lengths</Text>
         <View style={styles.quickSelect}>
-          <Button variant="outline" onPress={() => setLengths('20')} style={[styles.quickButton, lengths === '20' && { backgroundColor: '#42A5F5' }]}>20</Button>
-          <Button variant="outline" onPress={() => setLengths('40')} style={[styles.quickButton, lengths === '40' && { backgroundColor: '#42A5F5' }]}>40</Button>
-          <Button variant="outline" onPress={() => setLengths('60')} style={[styles.quickButton, lengths === '60' && { backgroundColor: '#42A5F5' }]}>60</Button>
-          <Button variant="outline" onPress={() => setLengths('100')} style={[styles.quickButton, lengths === '100' && { backgroundColor: '#42A5F5' }]}>100</Button>
+          <Button variant="outline" onPress={() => setLengths('20')} style={[styles.quickButton, lengths === '20' && { backgroundColor: getActivityColor("Swimming") }]}>20</Button>
+          <Button variant="outline" onPress={() => setLengths('40')} style={[styles.quickButton, lengths === '40' && { backgroundColor: getActivityColor("Swimming") }]}>40</Button>
+          <Button variant="outline" onPress={() => setLengths('60')} style={[styles.quickButton, lengths === '60' && { backgroundColor: getActivityColor("Swimming") }]}>60</Button>
+          <Button variant="outline" onPress={() => setLengths('100')} style={[styles.quickButton, lengths === '100' && { backgroundColor: getActivityColor("Swimming") }]}>100</Button>
         </View>
         <TextInput
           style={styles.input}
@@ -459,10 +481,21 @@ const LogSwimmingForm = ({ onLogSuccess, setTempStatusMessage }: {
 
       <Card style={styles.section}>
         <Text style={styles.sectionTitle}>Date</Text>
-        <Pressable onPress={() => setShowDatePicker(true)} style={styles.inputContainer}>
-          <Ionicons name="calendar" size={20} color={getActivityColor("Swimming")} style={styles.inputIcon} />
-          <Text style={[styles.input, styles.inputWithIcon, { color: Colors.foreground, textAlignVertical: 'center' }]}>{logDate}</Text>
-        </Pressable>
+        <View style={styles.inputContainer}>
+          <Ionicons name="calendar-outline" size={20} color={getActivityColor("Swimming")} style={styles.dateIcon} />
+          <TextInput
+            style={[styles.input, styles.inputWithIcon]}
+            value={logDate.toISOString().split('T')[0]}
+            onChangeText={(text) => {
+              const date = new Date(text);
+              if (!isNaN(date.getTime())) {
+                setLogDate(date);
+              }
+            }}
+            placeholder="YYYY-MM-DD"
+            keyboardType="numeric"
+          />
+        </View>
       </Card>
 
       <Button onPress={handleSubmit} disabled={isLogging} style={[styles.submitButton, { backgroundColor: '#42A5F5' }]}>
@@ -472,86 +505,6 @@ const LogSwimmingForm = ({ onLogSuccess, setTempStatusMessage }: {
   );
 };
 
-const LogTennisForm = ({ onLogSuccess, setTempStatusMessage }: {
-  onLogSuccess: (newLog: any) => void;
-  setTempStatusMessage: (message: any) => void;
-}) => {
-  const { userId } = useData();
-  const [duration, setDuration] = useState('');
-  const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
-  const [isLogging, setIsLogging] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-
-  const handleSubmit = async () => {
-    if (!userId || !duration) {
-      Alert.alert('Error', 'Please fill in all required fields');
-      return;
-    }
-
-    setIsLogging(true);
-    try {
-      const durationMinutes = timeStringToSeconds(duration) / 60;
-
-      // Check for PB
-      let isPB = false;
-      const { data: previousLogs } = await supabase
-        .from('activity_logs')
-        .select('time')
-        .eq('user_id', userId)
-        .eq('activity_type', 'Tennis')
-        .order('log_date', { ascending: false });
-
-      const previousDurations = previousLogs?.map(log => timeStringToSeconds(log.time || '0m') / 60) ?? [];
-      isPB = previousDurations.every(prevDur => durationMinutes > prevDur);
-
-      const { data: insertedData } = await supabase.from('activity_logs').insert([{
-        user_id: userId,
-        activity_type: 'Tennis',
-        distance: null,
-        time: duration,
-        avg_time: null,
-        is_pb: isPB,
-        log_date: logDate,
-      }]).select().single();
-
-      setTempStatusMessage({ message: "Added!", type: 'success' });
-      setDuration('');
-      onLogSuccess(insertedData);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to log tennis activity');
-    } finally {
-      setIsLogging(false);
-    }
-  };
-
-  return (
-    <View style={styles.form}>
-      <Card style={styles.section}>
-        <Text style={styles.sectionTitle}>Duration (e.g., 1h 30m or 90m)</Text>
-        <TextInput
-          style={styles.input}
-          value={duration}
-          onChangeText={setDuration}
-          placeholder="Enter duration"
-        />
-      </Card>
-
-      <Card style={styles.section}>
-        <Text style={styles.sectionTitle}>Date</Text>
-        <Pressable onPress={() => { console.log('Date picker pressed'); setShowDatePicker(true); }} style={styles.inputContainer}>
-          <Ionicons name="calendar" size={20} color={getActivityColor("Running")} style={styles.inputIcon} />
-          <Text style={[styles.input, styles.inputWithIcon, { color: Colors.foreground, textAlignVertical: 'center' }]}>{logDate}</Text>
-        </Pressable>
-      </Card>
-
-      <Button onPress={handleSubmit} disabled={isLogging} style={styles.submitButton}>
-        {isLogging ? "Logging..." : "Log Tennis"}
-      </Button>
-    </View>
-  );
-};
-
-// Generic duration-based form for activities like Tennis, Squash, Padel, Basketball, Soccer, Yoga
 const LogRacketForm = ({ onLogSuccess, setTempStatusMessage }: {
   onLogSuccess: (newLog: any) => void;
   setTempStatusMessage: (message: any) => void;
@@ -559,9 +512,8 @@ const LogRacketForm = ({ onLogSuccess, setTempStatusMessage }: {
   const { userId } = useData();
   const [selectedSport, setSelectedSport] = useState<ActivityType | null>(null);
   const [duration, setDuration] = useState('');
-  const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
+  const [logDate, setLogDate] = useState(new Date());
   const [isLogging, setIsLogging] = useState(false);
-  const [avgPace, setAvgPace] = useState<string>('');
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const handleSubmit = async () => {
@@ -593,7 +545,7 @@ const LogRacketForm = ({ onLogSuccess, setTempStatusMessage }: {
         time: duration,
         avg_time: null,
         is_pb: isPB,
-        log_date: logDate,
+        log_date: logDate.toISOString().split('T')[0],
       }]).select().single();
 
       setTempStatusMessage({ message: "Added!", type: 'success' });
@@ -640,7 +592,7 @@ const LogRacketForm = ({ onLogSuccess, setTempStatusMessage }: {
           <Button variant="outline" onPress={() => setDuration('2h')} style={[styles.quickButton, duration === '2h' && selectedSport && { backgroundColor: getActivityColor(selectedSport) }]}>2h</Button>
         </View>
         <View style={styles.inputContainer}>
-          <Ionicons name="time" size={20} color={selectedSport ? getActivityColor(selectedSport) : Colors.muted} style={styles.inputIcon} />
+          <Ionicons name="time-outline" size={20} color={selectedSport ? getActivityColor(selectedSport) : Colors.muted} style={styles.inputIcon} />
           <TextInput
             style={[styles.input, styles.inputWithIcon]}
             value={duration}
@@ -653,14 +605,25 @@ const LogRacketForm = ({ onLogSuccess, setTempStatusMessage }: {
       <Card style={styles.section}>
         <Text style={styles.sectionTitle}>Date</Text>
         <View style={styles.quickSelect}>
-          <Button variant="outline" onPress={() => setLogDate(new Date().toISOString().split('T')[0])} style={[styles.quickButton, logDate === new Date().toISOString().split('T')[0] && selectedSport && { backgroundColor: getActivityColor(selectedSport) }]}>Today</Button>
-          <Button variant="outline" onPress={() => { const d = new Date(); d.setDate(d.getDate()-1); setLogDate(d.toISOString().split('T')[0]); }} style={[styles.quickButton, (() => { const d = new Date(); d.setDate(d.getDate()-1); return logDate === d.toISOString().split('T')[0]; })() && selectedSport && { backgroundColor: getActivityColor(selectedSport) }]}>Yday</Button>
-          <Button variant="outline" onPress={() => { const d = new Date(); d.setDate(d.getDate()-7); setLogDate(d.toISOString().split('T')[0]); }} style={[styles.quickButton, (() => { const d = new Date(); d.setDate(d.getDate()-7); return logDate === d.toISOString().split('T')[0]; })() && selectedSport && { backgroundColor: getActivityColor(selectedSport) }]}>Last Week</Button>
+          <Button variant="outline" onPress={() => setLogDate(new Date())} style={[styles.quickButton, logDate.toDateString() === new Date().toDateString() && selectedSport && { backgroundColor: getActivityColor(selectedSport) }]}>Today</Button>
+          <Button variant="outline" onPress={() => { const d = new Date(); d.setDate(d.getDate()-1); setLogDate(d); }} style={[styles.quickButton, (() => { const d = new Date(); d.setDate(d.getDate()-1); return logDate.toDateString() === d.toDateString(); })() && selectedSport && { backgroundColor: getActivityColor(selectedSport) }]}>Yday</Button>
+          <Button variant="outline" onPress={() => { const d = new Date(); d.setDate(d.getDate()-7); setLogDate(d); }} style={[styles.quickButton, (() => { const d = new Date(); d.setDate(d.getDate()-7); return logDate.toDateString() === d.toDateString(); })() && selectedSport && { backgroundColor: getActivityColor(selectedSport) }]}>Last Week</Button>
         </View>
-        <Pressable onPress={() => setShowDatePicker(true)} style={styles.inputContainer}>
-          <Ionicons name="calendar" size={20} color={selectedSport ? getActivityColor(selectedSport) : Colors.muted} style={styles.inputIcon} />
-          <Text style={[styles.input, styles.inputWithIcon, { color: Colors.foreground, textAlignVertical: 'center' }]}>{logDate}</Text>
-        </Pressable>
+        <View style={styles.inputContainer}>
+          <Ionicons name="calendar-outline" size={20} color={selectedSport ? getActivityColor(selectedSport) : Colors.muted} style={styles.dateIcon} />
+          <TextInput
+            style={[styles.input, styles.inputWithIcon]}
+            value={logDate.toISOString().split('T')[0]}
+            onChangeText={(text) => {
+              const date = new Date(text);
+              if (!isNaN(date.getTime())) {
+                setLogDate(date);
+              }
+            }}
+            placeholder="YYYY-MM-DD"
+            keyboardType="numeric"
+          />
+        </View>
       </Card>
 
       <Button onPress={handleSubmit} disabled={isLogging || !selectedSport} style={[styles.submitButton, selectedSport && { backgroundColor: getActivityColor(selectedSport) }]} icon={<Ionicons name="checkmark" size={20} color={Colors.card} />}>
@@ -677,7 +640,7 @@ const LogDurationForm = ({ activityType, onLogSuccess, setTempStatusMessage }: {
 }) => {
   const { userId } = useData();
   const [duration, setDuration] = useState('');
-  const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
+  const [logDate, setLogDate] = useState(new Date());
   const [isLogging, setIsLogging] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -710,7 +673,7 @@ const LogDurationForm = ({ activityType, onLogSuccess, setTempStatusMessage }: {
         time: duration,
         avg_time: null,
         is_pb: isPB,
-        log_date: logDate,
+        log_date: logDate.toISOString().split('T')[0],
       }]).select().single();
 
       setTempStatusMessage({ message: "Added!", type: 'success' });
@@ -734,7 +697,7 @@ const LogDurationForm = ({ activityType, onLogSuccess, setTempStatusMessage }: {
           <Button variant="outline" onPress={() => setDuration('2h')} style={[styles.quickButton, duration === '2h' && { backgroundColor: getActivityColor(activityType) }]}>2h</Button>
         </View>
         <View style={styles.inputContainer}>
-          <Ionicons name="time" size={20} color={getActivityColor(activityType)} style={styles.inputIcon} />
+          <Ionicons name="time-outline" size={20} color={getActivityColor(activityType)} style={styles.inputIcon} />
           <TextInput
             style={[styles.input, styles.inputWithIcon]}
             value={duration}
@@ -747,23 +710,25 @@ const LogDurationForm = ({ activityType, onLogSuccess, setTempStatusMessage }: {
       <Card style={styles.section}>
         <Text style={styles.sectionTitle}>Date</Text>
         <View style={styles.quickSelect}>
-          <Button variant="outline" onPress={() => setLogDate(new Date().toISOString().split('T')[0])} style={[styles.quickButton, logDate === new Date().toISOString().split('T')[0] && { backgroundColor: getActivityColor(activityType) }]}>Today</Button>
-          <Button variant="outline" onPress={() => { const d = new Date(); d.setDate(d.getDate()-1); setLogDate(d.toISOString().split('T')[0]); }} style={[styles.quickButton, (() => { const d = new Date(); d.setDate(d.getDate()-1); return logDate === d.toISOString().split('T')[0]; })() && { backgroundColor: getActivityColor(activityType) }]}>Yday</Button>
-          <Button variant="outline" onPress={() => { const d = new Date(); d.setDate(d.getDate()-7); setLogDate(d.toISOString().split('T')[0]); }} style={[styles.quickButton, (() => { const d = new Date(); d.setDate(d.getDate()-7); return logDate === d.toISOString().split('T')[0]; })() && { backgroundColor: getActivityColor(activityType) }]}>Last Week</Button>
+          <Button variant="outline" onPress={() => setLogDate(new Date())} style={[styles.quickButton, logDate.toDateString() === new Date().toDateString() && { backgroundColor: getActivityColor(activityType) }]}>Today</Button>
+          <Button variant="outline" onPress={() => { const d = new Date(); d.setDate(d.getDate()-1); setLogDate(d); }} style={[styles.quickButton, (() => { const d = new Date(); d.setDate(d.getDate()-1); return logDate.toDateString() === d.toDateString(); })() && { backgroundColor: getActivityColor(activityType) }]}>Yday</Button>
+          <Button variant="outline" onPress={() => { const d = new Date(); d.setDate(d.getDate()-7); setLogDate(d); }} style={[styles.quickButton, (() => { const d = new Date(); d.setDate(d.getDate()-7); return logDate.toDateString() === d.toDateString(); })() && { backgroundColor: getActivityColor(activityType) }]}>Last Week</Button>
         </View>
-        <Pressable onPress={() => setShowDatePicker(true)} style={styles.inputContainer}>
-          <Ionicons name="calendar" size={20} color={getActivityColor(activityType)} style={styles.inputIcon} />
-          <Text style={[styles.input, styles.inputWithIcon, { color: Colors.foreground, textAlignVertical: 'center' }]}>{logDate}</Text>
-        </Pressable>
-        <DateTimePickerModal
-          isVisible={showDatePicker}
-          mode="date"
-          onConfirm={(date) => {
-            setLogDate(date.toISOString().split('T')[0]);
-            setShowDatePicker(false);
-          }}
-          onCancel={() => setShowDatePicker(false)}
-        />
+        <View style={styles.inputContainer}>
+          <Ionicons name="calendar-outline" size={20} color={getActivityColor(activityType)} style={styles.dateIcon} />
+          <TextInput
+            style={[styles.input, styles.inputWithIcon]}
+            value={logDate.toISOString().split('T')[0]}
+            onChangeText={(text) => {
+              const date = new Date(text);
+              if (!isNaN(date.getTime())) {
+                setLogDate(date);
+              }
+            }}
+            placeholder="YYYY-MM-DD"
+            keyboardType="numeric"
+          />
+        </View>
       </Card>
 
       <Button onPress={handleSubmit} disabled={isLogging} style={[styles.submitButton, { backgroundColor: getActivityColor(activityType) }]} icon={<Ionicons name="checkmark" size={20} color={Colors.card} />}>
@@ -773,7 +738,7 @@ const LogDurationForm = ({ activityType, onLogSuccess, setTempStatusMessage }: {
   );
 };
 
-export function ActivityLoggingModal({
+export function ActivityLoggingModal_new({
   visible,
   onClose,
   onLogActivity
@@ -795,8 +760,6 @@ export function ActivityLoggingModal({
     if (!selectedActivity && !selectedCategory) return 1;
     return 2;
   };
-
-
 
   const handleActivitySelect = (activity: ActivityType) => {
     setSelectedActivity(activity);
@@ -919,7 +882,6 @@ export function ActivityLoggingModal({
               </ScrollView>
             ) : (
               <ScrollView style={[styles.content, { backgroundColor: selectedActivity ? getActivityColor(selectedActivity) + '10' : Colors.card }]} showsVerticalScrollIndicator={false}>
-
                 {selectedActivity === "Running" && <LogRunningForm onLogSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
                 {selectedActivity === "Cycling" && <LogCyclingForm onLogSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
                 {selectedActivity === "Swimming" && <LogSwimmingForm onLogSuccess={handleLogSuccess} setTempStatusMessage={setTempStatusMessage} />}
@@ -1027,6 +989,7 @@ const styles = StyleSheet.create({
   },
   section: {
     padding: Spacing.md,
+    marginBottom: Spacing.md,
   },
   sectionTitle: {
     fontSize: 16,
@@ -1128,5 +1091,30 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     borderRadius: BorderRadius.lg,
     ...Shadows.sm,
+  },
+  dateInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    backgroundColor: Colors.card,
+  },
+  dateIcon: {
+    marginRight: Spacing.sm,
+  },
+  dateText: {
+    flex: 1,
+    fontSize: 16,
+    color: Colors.foreground,
+  },
+  chevronIcon: {
+    marginLeft: Spacing.sm,
+  },
+  paceText: {
+    fontSize: 14,
+    marginTop: Spacing.sm,
+    fontFamily: 'Poppins-Regular',
   },
 });
