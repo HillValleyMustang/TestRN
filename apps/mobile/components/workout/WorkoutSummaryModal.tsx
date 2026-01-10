@@ -21,6 +21,7 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { getWorkoutColor } from '../../lib/workout-colors';
 import { useData } from '../../app/_contexts/data-context';
+import { TextStyles as TypographyTextStyles, FontWeight as TypographyFontWeight } from '../../constants/Typography';
 
 const { width } = Dimensions.get('window');
 
@@ -49,7 +50,7 @@ interface HistoricalWorkout {
 }
 
 interface WeeklyVolumeData {
-  [muscleGroup: string]: number[];
+  [muscleGroup: string]: number;
 }
 
 interface NextWorkoutSuggestion {
@@ -77,29 +78,10 @@ interface WorkoutSummaryModalProps {
   isOnTPath?: boolean;
   historicalData?: boolean;
   weeklyVolumeData?: WeeklyVolumeData;
+  allAvailableMuscleGroups?: string[];
 }
 
 // ===== CONSTANTS =====
-const MUSCLE_GROUPS = {
-  UPPER_BODY: [
-    'Abs', 'Abdominals', 'Core',
-    'Back', 'Lats',
-    'Biceps',
-    'Chest', 'Pectorals',
-    'Shoulders', 'Deltoids',
-    'Traps', 'Rear Delts',
-    'Triceps',
-    'Full Body'
-  ],
-  LOWER_BODY: [
-    'Calves',
-    'Glutes', 'Outer Glutes',
-    'Hamstrings',
-    'Inner Thighs',
-    'Quads', 'Quadriceps'
-  ]
-} as const;
-
 const RATING_LABELS = [
   'Poor', 'Fair', 'Good', 'Great', 'Excellent'
 ] as const;
@@ -131,26 +113,8 @@ const BorderRadius = {
   lg: 12
 };
 
-const TextStyles = {
-  h1: { fontSize: 32, fontWeight: '700' as const },
-  h2: { fontSize: 24, fontWeight: '600' as const },
-  h3: { fontSize: 20, fontWeight: '600' as const },
-  h4: { fontSize: 18, fontWeight: '600' as const },
-  h5: { fontSize: 16, fontWeight: '600' as const },
-  body: { fontSize: 16, fontWeight: '400' as const },
-  bodyMedium: { fontSize: 16, fontWeight: '500' as const },
-  small: { fontSize: 14, fontWeight: '400' as const },
-  smallMedium: { fontSize: 14, fontWeight: '500' as const },
-  caption: { fontSize: 12, fontWeight: '400' as const },
-  captionMedium: { fontSize: 12, fontWeight: '500' as const }
-};
-
-const FontWeight = {
-  normal: '400' as const,
-  medium: '500' as const,
-  semibold: '600' as const,
-  bold: '700' as const
-};
+const TextStyles = TypographyTextStyles;
+const FontWeight = TypographyFontWeight;
 
 // ===== UTILITY FUNCTIONS =====
 const formatDurationDisplay = (durationStr: string): string => {
@@ -196,12 +160,25 @@ const parseDurationToSeconds = (durationStr: string | number): number => {
     return minutes * 60 + seconds;
   }
 
-  // Other formats...
+  // Nm Ns format (e.g., "5m 30s")
   const formattedMatch = str.match(/(\d+)m\s*(\d+)s/);
   if (formattedMatch) {
     const minutes = parseInt(formattedMatch[1], 10);
     const seconds = parseInt(formattedMatch[2], 10);
     return minutes * 60 + seconds;
+  }
+
+  // Nm format (e.g., "5m")
+  const minutesOnlyMatch = str.match(/^(\d+)m$/i);
+  if (minutesOnlyMatch) {
+    const minutes = parseInt(minutesOnlyMatch[1], 10);
+    return minutes * 60;
+  }
+
+  // N seconds format (e.g., "23 seconds" or "23s")
+  const secondsMatch = str.match(/^(\d+)\s*seconds?$/i) || str.match(/^(\d+)s$/i);
+  if (secondsMatch) {
+    return parseInt(secondsMatch[1], 10);
   }
 
   // Try just a number (assume seconds)
@@ -210,33 +187,33 @@ const parseDurationToSeconds = (durationStr: string | number): number => {
     return parseInt(numberMatch[1], 10);
   }
 
+  // Last resort: extract first number from string
+  const anyNumberMatch = str.match(/(\d+)/);
+  if (anyNumberMatch) {
+    return parseInt(anyNumberMatch[1], 10);
+  }
+
   return 0;
 };
 
 const normalizeMuscleGroup = (muscle: string): string => {
-  const muscleLower = muscle.toLowerCase();
-  
-  if (muscleLower.includes('abs') || muscleLower.includes('abdominals')) return 'Abs';
-  if (muscleLower.includes('core')) return 'Core';
-  if (muscleLower.includes('back') || muscleLower.includes('lats')) return 'Back';
-  if (muscleLower.includes('biceps')) return 'Biceps';
-  if (muscleLower.includes('chest') || muscleLower.includes('pectorals')) return 'Chest';
-  if (muscleLower.includes('shoulders') || muscleLower.includes('deltoids')) return 'Shoulders';
-  if (muscleLower.includes('traps') || muscleLower.includes('rear delts')) return 'Traps';
-  if (muscleLower.includes('triceps')) return 'Triceps';
-  if (muscleLower.includes('calves')) return 'Calves';
-  if (muscleLower.includes('glutes') || muscleLower.includes('outer glutes')) return 'Glutes';
-  if (muscleLower.includes('hamstrings')) return 'Hamstrings';
-  if (muscleLower.includes('inner thighs')) return 'Inner Thighs';
-  if (muscleLower.includes('quads') || muscleLower.includes('quadriceps')) return 'Quads';
-  if (muscleLower.includes('full body')) return 'Full Body';
-  
+  // This function is now a no-op to preserve the original muscle group name.
   return muscle;
 };
 
 const getMuscleCategory = (muscle: string): 'upper' | 'lower' | 'other' => {
-  if (MUSCLE_GROUPS.UPPER_BODY.includes(muscle as any)) return 'upper';
-  if (MUSCLE_GROUPS.LOWER_BODY.includes(muscle as any)) return 'lower';
+  // Determine upper/lower based on muscle name patterns
+  const muscleLower = muscle.toLowerCase();
+  
+  // Upper body muscles
+  const upperBodyPatterns = ['abs', 'abdominals', 'core', 'back', 'lats', 'biceps', 'chest', 'pectorals', 'shoulders', 'deltoids', 'traps', 'rear delts', 'triceps', 'full body', 'forearms', 'neck'];
+  
+  // Lower body muscles
+  const lowerBodyPatterns = ['calves', 'glutes', 'hamstrings', 'quads', 'quadriceps', 'inner thighs', 'adductors', 'gastrocnemius', 'soleus'];
+  
+  if (upperBodyPatterns.some(p => muscleLower.includes(p))) return 'upper';
+  if (lowerBodyPatterns.some(p => muscleLower.includes(p))) return 'lower';
+  
   return 'other';
 };
 
@@ -278,11 +255,26 @@ const useWorkoutMetrics = (exercises: WorkoutExercise[], providedDuration?: stri
     const averageTimePerSet = totalDurationSeconds && totalSets > 0 ? Math.round(totalDurationSeconds / totalSets) : 0;
 
     const intensityScore = (() => {
-      if (totalDurationSeconds <= 0) return 0;
+      if (totalDurationSeconds <= 0) {
+        console.log('[DEBUG] IntensityScore: duration is 0 or negative', { totalDurationSeconds });
+        return 0;
+      }
       const minutes = totalDurationSeconds / 60;
       const volumePerMinute = totalVolume / minutes;
       const prRatio = totalSets > 0 ? prCount / totalSets : 0;
-      return Math.round((volumePerMinute / 100) * 70 + prRatio * 30);
+      const score = Math.round((volumePerMinute / 100) * 70 + prRatio * 30);
+      
+      console.log('[DEBUG] IntensityScore calculation:', {
+        totalDurationSeconds,
+        minutes: minutes.toFixed(2),
+        totalVolume,
+        volumePerMinute: volumePerMinute.toFixed(2),
+        prRatio: prRatio.toFixed(2),
+        prCount,
+        totalSets,
+        score
+      });
+      return score;
     })();
 
     return {
@@ -577,7 +569,8 @@ export function WorkoutSummaryModal({
   weeklyVolumeData,
   onAIAnalysis,
   nextWorkoutSuggestion,
-  isOnTPath
+  isOnTPath,
+  allAvailableMuscleGroups
 }: WorkoutSummaryModalProps) {
   // Debug logging - debounced to prevent spam
   useEffect(() => {
@@ -585,15 +578,26 @@ export function WorkoutSummaryModal({
       const timer = setTimeout(() => {
         console.log('[WorkoutSummaryModal] Modal opened with data:');
         console.log('[WorkoutSummaryModal] exercises count:', exercises.length);
-        console.log('[WorkoutSummaryModal] exercises:', exercises.map(e => ({ name: e.exerciseName, sets: e.sets.length })));
+        console.log('[WorkoutSummaryModal] exercises:', exercises.map(e => ({ name: e.exerciseName, sets: e.sets.length, completedSets: e.sets.filter(s => s.isCompleted).length })));
         console.log('[WorkoutSummaryModal] historicalRating:', historicalRating);
         console.log('[WorkoutSummaryModal] historicalRating type:', typeof historicalRating);
         console.log('[WorkoutSummaryModal] workoutName:', workoutName);
         console.log('[WorkoutSummaryModal] showActions:', showActions);
+        console.log('[WorkoutSummaryModal] duration prop:', providedDuration);
+        // Log calculated metrics
+        console.log('[WorkoutSummaryModal] metrics:', {
+          totalVolume: metrics.totalVolume,
+          prCount: metrics.prCount,
+          totalSets: metrics.totalSets,
+          totalDurationSeconds: metrics.totalDurationSeconds,
+          averageTimePerSet: metrics.averageTimePerSet,
+          intensityScore: metrics.intensityScore,
+          completedSetsCount: metrics.completedSets.length
+        });
       }, 100); // 100ms debounce
       return () => clearTimeout(timer);
     }
-  }, [visible, exercises, historicalRating, workoutName, showActions]);
+  }, [visible, exercises, historicalRating, workoutName, showActions, providedDuration, metrics]);
   // ===== STATE =====
   const [isSaving, setIsSaving] = useState(false);
   const [rating, setRating] = useState<number>(0);
@@ -640,15 +644,96 @@ export function WorkoutSummaryModal({
   }, [visible, workoutName]);
 
   // ===== MEMOIZED VALUES =====
+  // DEBUG: Log muscle groups from exercises
+  const debugMuscleGroups = useMemo(() => {
+    console.log('[DEBUG] ===== MUSCLE GROUPS DEBUG =====');
+    console.log('[DEBUG] Total exercises:', exercises.length);
+    console.log('[DEBUG] allAvailableMuscleGroups prop:', allAvailableMuscleGroups);
+    
+    const allMuscleGroups: string[] = [];
+    exercises.forEach((ex, idx) => {
+      console.log(`[DEBUG] Exercise ${idx}: ${ex.exerciseName}, muscleGroup: "${ex.muscleGroup}", exerciseId: "${ex.exerciseId}"`);
+      if (ex.muscleGroup) {
+        // Handle multi-muscle groups (comma-separated)
+        const groups = ex.muscleGroup.split(',').map(m => m.trim());
+        allMuscleGroups.push(...groups);
+        console.log(`[DEBUG]   Split into: ${groups.join(', ')}`);
+        
+        // Check for specific problematic exercises
+        if (ex.exerciseName.toLowerCase().includes('leg press') && !ex.muscleGroup.toLowerCase().includes('leg')) {
+          console.log(`[DEBUG] ⚠️ ISSUE DETECTED: ${ex.exerciseName} has incorrect muscle group: ${ex.muscleGroup}`);
+        }
+      } else {
+        console.log(`[DEBUG]   No muscleGroup defined!`);
+      }
+    });
+    
+    console.log('[DEBUG] All muscle groups from exercises:', allMuscleGroups);
+    console.log('[DEBUG] ===== END MUSCLE GROUPS DEBUG =====');
+    
+    return { allMuscleGroups };
+  }, [exercises, allAvailableMuscleGroups]);
+
+  // Get unique muscle groups - use allAvailableMuscleGroups if provided, otherwise extract from exercises
+  const availableMuscleGroups = useMemo(() => {
+    // If allAvailableMuscleGroups is provided, use it
+    if (allAvailableMuscleGroups && allAvailableMuscleGroups.length > 0) {
+      console.log('[DEBUG] Using allAvailableMuscleGroups prop:', allAvailableMuscleGroups);
+      const result = Array.from(new Set(allAvailableMuscleGroups)).sort((a, b) => a.localeCompare(b));
+      console.log('[DEBUG] availableMuscleGroups from prop:', result);
+      return result;
+    }
+    
+    console.log('[DEBUG] No allAvailableMuscleGroups provided, extracting from exercises');
+    // Otherwise, extract from exercises (fallback behavior)
+    const muscles = new Set<string>();
+    exercises.forEach(ex => {
+      if (ex.muscleGroup) {
+        // Handle multi-muscle groups (comma-separated)
+        const groups = ex.muscleGroup.split(',').map(m => m.trim());
+        groups.forEach(group => {
+          muscles.add(group);
+        });
+      }
+    });
+    const result = Array.from(muscles).sort((a, b) => a.localeCompare(b));
+    console.log('[DEBUG] Extracted availableMuscleGroups from exercises:', result);
+    return result;
+  }, [exercises, allAvailableMuscleGroups]);
+
+  // Categorize muscle groups into upper/lower
+  const { upperBodyMuscles, lowerBodyMuscles } = useMemo(() => {
+    const upper: string[] = [];
+    const lower: string[] = [];
+    
+    availableMuscleGroups.forEach(muscle => {
+      const category = getMuscleCategory(muscle);
+      if (category === 'upper') {
+        upper.push(muscle);
+      } else if (category === 'lower') {
+        lower.push(muscle);
+      }
+    });
+    
+    return { upperBodyMuscles: upper, lowerBodyMuscles: lower };
+  }, [availableMuscleGroups]);
+
   const volumeDistribution = useMemo(() => {
-    const allMusclesForTab = selectedVolumeTab === 'all' 
-      ? [...MUSCLE_GROUPS.UPPER_BODY, ...MUSCLE_GROUPS.LOWER_BODY]
-      : selectedVolumeTab === 'upper' 
-        ? MUSCLE_GROUPS.UPPER_BODY
-        : MUSCLE_GROUPS.LOWER_BODY;
+    console.log('[Debug Modal] volumeDistribution: received exercises:', JSON.stringify(exercises, null, 2));
+    // Filter muscles based on selected tab
+    let musclesForTab: string[] = [];
+    if (selectedVolumeTab === 'all') {
+      musclesForTab = [...upperBodyMuscles, ...lowerBodyMuscles];
+    } else if (selectedVolumeTab === 'upper') {
+      musclesForTab = upperBodyMuscles;
+    } else {
+      musclesForTab = lowerBodyMuscles;
+    }
     
     const acc: { [key: string]: number } = {};
-    allMusclesForTab.forEach(muscle => {
+    
+    // Initialize with 0 for all muscles
+    musclesForTab.forEach(muscle => {
       acc[muscle] = 0;
     });
 
@@ -659,108 +744,50 @@ export function WorkoutSummaryModal({
         return sum + (weight * reps);
       }, 0);
 
-      const muscleGroup = exercise.muscleGroup || 'Other';
-      const normalizedMuscle = normalizeMuscleGroup(muscleGroup);
-      const category = getMuscleCategory(normalizedMuscle);
+      const muscleGroups = (exercise.muscleGroup || 'Other').split(',').map(m => m.trim());
       
-      if (selectedVolumeTab === 'all' ||
+      muscleGroups.forEach(muscleGroup => {
+        const category = getMuscleCategory(muscleGroup);
+        
+        // Check if this muscle should be shown based on selected tab
+        const shouldInclude = selectedVolumeTab === 'all' ||
           (selectedVolumeTab === 'upper' && category === 'upper') ||
-          (selectedVolumeTab === 'lower' && category === 'lower')) {
-        if (acc.hasOwnProperty(normalizedMuscle)) {
-          acc[normalizedMuscle] += exerciseVolume;
-        } else {
-          acc[normalizedMuscle] = exerciseVolume;
+          (selectedVolumeTab === 'lower' && category === 'lower');
+        
+        if (shouldInclude) {
+          if (acc.hasOwnProperty(muscleGroup)) {
+            acc[muscleGroup] += exerciseVolume / muscleGroups.length;
+          } else {
+            acc[muscleGroup] = exerciseVolume / muscleGroups.length;
+          }
         }
-      }
+      });
     });
     
+    console.log('[Debug Modal] volumeDistribution: final accumulator:', JSON.stringify(acc, null, 2));
     return acc;
-  }, [exercises, selectedVolumeTab]);
+  }, [exercises, selectedVolumeTab, upperBodyMuscles, lowerBodyMuscles]);
 
   const weeklyVolumeTotals = useMemo(() => {
-    const allMusclesForTab = selectedProgressTab === 'all' 
-      ? [...MUSCLE_GROUPS.UPPER_BODY, ...MUSCLE_GROUPS.LOWER_BODY]
-      : selectedProgressTab === 'upper' 
-        ? MUSCLE_GROUPS.UPPER_BODY
-        : MUSCLE_GROUPS.LOWER_BODY;
-    
+    console.log('[Debug Modal] weeklyVolumeTotals: received weeklyVolumeData:', JSON.stringify(weeklyVolumeData, null, 2));
     const acc: { [key: string]: number } = {};
-    allMusclesForTab.forEach(muscle => {
-      acc[muscle] = 0;
-    });
 
     if (weeklyVolumeData) {
-      const isAllZeros = Object.values(weeklyVolumeData).every(
-        dailyVolumes => Array.isArray(dailyVolumes) && dailyVolumes.every(value => value === 0)
-      );
-      
-      if (isAllZeros) {
-        // Fallback to current workout data
-        exercises.forEach(exercise => {
-          const exerciseVolume = exercise.sets.filter(set => set.isCompleted).reduce((sum, set) => {
-            const weight = parseFloat(set.weight) || 0;
-            const reps = parseInt(set.reps, 10) || 0;
-            return sum + (weight * reps);
-          }, 0);
+      Object.entries(weeklyVolumeData).forEach(([muscle, volume]) => {
+        const category = getMuscleCategory(muscle);
+        const shouldInclude = selectedProgressTab === 'all' ||
+          (selectedProgressTab === 'upper' && category === 'upper') ||
+          (selectedProgressTab === 'lower' && category === 'lower');
 
-          const muscleGroup = exercise.muscleGroup || 'Other';
-          const normalizedMuscle = normalizeMuscleGroup(muscleGroup);
-          const category = getMuscleCategory(normalizedMuscle);
-          
-          if (selectedProgressTab === 'all' ||
-              (selectedProgressTab === 'upper' && category === 'upper') ||
-              (selectedProgressTab === 'lower' && category === 'lower')) {
-            if (acc.hasOwnProperty(normalizedMuscle)) {
-              acc[normalizedMuscle] += exerciseVolume;
-            } else {
-              acc[normalizedMuscle] = exerciseVolume;
-            }
-          }
-        });
-      } else {
-        Object.entries(weeklyVolumeData).forEach(([muscle, dailyVolumes]) => {
-          const normalizedMuscle = normalizeMuscleGroup(muscle);
-          const category = getMuscleCategory(normalizedMuscle);
-          
-          if (selectedProgressTab === 'all' ||
-              (selectedProgressTab === 'upper' && category === 'upper') ||
-              (selectedProgressTab === 'lower' && category === 'lower')) {
-            const weeklyTotal = dailyVolumes.reduce((sum, dailyVolume) => sum + (dailyVolume || 0), 0);
-            if (acc.hasOwnProperty(normalizedMuscle)) {
-              acc[normalizedMuscle] += weeklyTotal;
-            } else {
-              acc[normalizedMuscle] = weeklyTotal;
-            }
-          }
-        });
-      }
-    } else {
-      // Calculate from current workout
-      exercises.forEach(exercise => {
-        const exerciseVolume = exercise.sets.filter(set => set.isCompleted).reduce((sum, set) => {
-          const weight = parseFloat(set.weight) || 0;
-          const reps = parseInt(set.reps, 10) || 0;
-          return sum + (weight * reps);
-        }, 0);
-
-        const muscleGroup = exercise.muscleGroup || 'Other';
-        const normalizedMuscle = normalizeMuscleGroup(muscleGroup);
-        const category = getMuscleCategory(normalizedMuscle);
-        
-        if (selectedProgressTab === 'all' ||
-            (selectedProgressTab === 'upper' && category === 'upper') ||
-            (selectedProgressTab === 'lower' && category === 'lower')) {
-          if (acc.hasOwnProperty(normalizedMuscle)) {
-            acc[normalizedMuscle] += exerciseVolume;
-          } else {
-            acc[normalizedMuscle] = exerciseVolume;
-          }
+        if (shouldInclude) {
+          acc[muscle] = volume;
         }
       });
     }
     
+    console.log('[Debug Modal] weeklyVolumeTotals: final accumulator:', JSON.stringify(acc, null, 2));
     return acc;
-  }, [exercises, weeklyVolumeData, selectedProgressTab]);
+  }, [weeklyVolumeData, selectedProgressTab]);
 
   const historicalComparison = useMemo(() => {
     if (!historicalWorkout) return null;
@@ -970,10 +997,16 @@ export function WorkoutSummaryModal({
       </Card>
 
       {/* Motivational Message */}
-      <View style={styles.motivationalContainer}>
-        <Text style={styles.motivationalText}>
-          Nice work, keep going! 💪
-        </Text>
+      <View style={[styles.motivationalOuterContainer, { borderColor: getWorkoutColor(workoutName).main + '30' }]}>
+        <View style={[styles.motivationalContainer, { borderColor: getWorkoutColor(workoutName).main }]}>
+          <View style={[styles.motivationalIconContainer, { backgroundColor: getWorkoutColor(workoutName).main + '20' }]}>
+            <Ionicons name="trophy-outline" size={24} color={getWorkoutColor(workoutName).main} />
+          </View>
+          <Text style={styles.motivationalText}>
+            Nice work, keep going!
+          </Text>
+          <Ionicons name="flame" size={20} color={getWorkoutColor(workoutName).main} />
+        </View>
       </View>
 
       {/* Success Message */}
@@ -1085,53 +1118,9 @@ export function WorkoutSummaryModal({
           </View>
         </View>
       </Card>
-
-      {/* Exercise Performance Graph */}
-      <View style={styles.graphContainer}>
-        <Text style={styles.graphTitle}>Exercise Performance</Text>
-        {exercises.map((exercise, index) => {
-          const completedSets = exercise.sets.filter(set => set.isCompleted);
-          const exerciseVolume = completedSets.reduce((sum, set) =>
-            sum + ((parseFloat(set.weight) || 0) * (parseInt(set.reps, 10) || 0)), 0
-          );
-          const maxVolume = Math.max(...exercises.map(ex =>
-            ex.sets.filter(set => set.isCompleted).reduce((sum, set) =>
-              sum + ((parseFloat(set.weight) || 0) * (parseInt(set.reps, 10) || 0)), 0
-            ), 0
-          ));
-
-          return (
-            <View key={`progress-${exercise.exerciseId}-${index}`} style={styles.graphBarContainer}>
-              <Text 
-                style={styles.graphExerciseName} 
-                numberOfLines={1}
-                accessible={true}
-                accessibilityLabel={`${exercise.exerciseName}: ${exerciseVolume.toFixed(0)} kilograms`}
-              >
-                {exercise.exerciseName}
-              </Text>
-              <View style={styles.graphBar}>
-                <View
-                  style={[
-                    styles.graphBarFill,
-                    { width: maxVolume > 0 ? `${(exerciseVolume / maxVolume) * 100}%` : '0%', backgroundColor: getWorkoutColor(workoutName).main }
-                  ]}
-                />
-              </View>
-              <Text 
-                style={styles.graphValue}
-                accessible={true}
-                accessibilityLabel={`${exerciseVolume.toFixed(0)} kilograms`}
-              >
-                {exerciseVolume.toFixed(0)}kg
-              </Text>
-            </View>
-          );
-        })}
-      </View>
     </ScrollView>
   ), [
-    selectedProgressTab, weeklyVolumeTotals, startTime, weeklyVolumeData, exercises
+    selectedProgressTab, weeklyVolumeTotals, startTime, weeklyVolumeData
   ]);
 
   const InsightsTab = useCallback(() => (
@@ -1222,7 +1211,19 @@ export function WorkoutSummaryModal({
             <View style={styles.metricLabelContainer}>
               <Text style={styles.metricLabel}>Intensity Score:</Text>
               <HapticPressable
-                onPress={() => Alert.alert('Intensity Score', 'Calculated based on volume efficiency (70%) and PR achievement (30%). Higher scores indicate more intense workouts.')}
+                onPress={() => Alert.alert(
+                  'Intensity Score',
+                  'Your Intensity Score measures how challenging your workout was on a scale of 0-100.\n\n' +
+                  '📊 How it\'s calculated:\n' +
+                  '• 70% from volume efficiency (total weight moved per minute)\n' +
+                  '• 30% from PR achievement (percentage of sets that were personal records)\n\n' +
+                  '💡 Tips to improve:\n' +
+                  '• Lift heavier weights\n' +
+                  '• Complete more sets\n' +
+                  '• Reduce rest time between sets\n' +
+                  '• Set new personal records\n\n' +
+                  'Higher scores = more intense workouts!'
+                )}
               >
                 <Ionicons name="information-circle" size={16} color={Colors.mutedForeground} />
               </HapticPressable>
@@ -1235,7 +1236,7 @@ export function WorkoutSummaryModal({
       {/* Upper/Lower Body Toggle */}
       <Card style={[styles.insightsCard, styles.muscleGroupsCard]}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>Muscle Groups used in this Workout</Text>
+          <Text style={styles.cardTitle}>Muscle Group Volume Distribution</Text>
         </View>
         <View style={[styles.cardContent, styles.muscleGroupsCardContent]}>
           {/* Upper/Lower Body Tabs */}
@@ -1299,9 +1300,53 @@ export function WorkoutSummaryModal({
           </View>
         </View>
       </Card>
+
+      {/* Exercise Performance Graph */}
+      <View style={styles.graphContainer}>
+        <Text style={styles.graphTitle}>Exercise Performance</Text>
+        {exercises.map((exercise, index) => {
+          const completedSets = exercise.sets.filter(set => set.isCompleted);
+          const exerciseVolume = completedSets.reduce((sum, set) =>
+            sum + ((parseFloat(set.weight) || 0) * (parseInt(set.reps, 10) || 0)), 0
+          );
+          const maxVolume = Math.max(...exercises.map(ex =>
+            ex.sets.filter(set => set.isCompleted).reduce((sum, set) =>
+              sum + ((parseFloat(set.weight) || 0) * (parseInt(set.reps, 10) || 0)), 0
+            ), 0
+          ));
+
+          return (
+            <View key={`insights-${exercise.exerciseId}-${index}`} style={styles.graphBarContainer}>
+              <Text 
+                style={styles.graphExerciseName} 
+                numberOfLines={1}
+                accessible={true}
+                accessibilityLabel={`${exercise.exerciseName}: ${exerciseVolume.toFixed(0)} kilograms`}
+              >
+                {exercise.exerciseName}
+              </Text>
+              <View style={styles.graphBar}>
+                <View
+                  style={[
+                    styles.graphBarFill,
+                    { width: maxVolume > 0 ? `${(exerciseVolume / maxVolume) * 100}%` : '0%', backgroundColor: getWorkoutColor(workoutName).main }
+                  ]}
+                />
+              </View>
+              <Text 
+                style={styles.graphValue}
+                accessible={true}
+                accessibilityLabel={`${exerciseVolume.toFixed(0)} kilograms`}
+              >
+                {exerciseVolume.toFixed(0)}kg
+              </Text>
+            </View>
+          );
+        })}
+      </View>
     </ScrollView>
   ), [
-    historicalComparison, metrics, selectedVolumeTab, volumeDistribution
+    historicalComparison, metrics, selectedVolumeTab, volumeDistribution, exercises, workoutName
   ]);
 
   // ===== RENDER =====
@@ -1669,19 +1714,36 @@ const styles = StyleSheet.create({
     ...TextStyles.smallMedium,
     color: Colors.primary,
   },
-  motivationalContainer: {
+  motivationalOuterContainer: {
     marginBottom: Spacing.md,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    backgroundColor: Colors.secondary,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: '#000000',
+    padding: 2,
+    borderRadius: BorderRadius.lg + 2,
+    borderWidth: 2,
+  },
+  motivationalContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    backgroundColor: Colors.primary + '15',
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  motivationalIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary + '20',
   },
   motivationalText: {
-    ...TextStyles.body,
-    color: Colors.foreground,
+    ...TextStyles.bodyMedium,
+    color: Colors.primary,
+    fontWeight: FontWeight.semibold,
     textAlign: 'center',
   },
   progressCard: {

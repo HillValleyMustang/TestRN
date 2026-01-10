@@ -58,6 +58,7 @@ export default function DashboardScreen() {
       weeklyVolumeData: any;
       nextWorkoutSuggestion: any;
       isOnTPath: boolean;
+      allAvailableMuscleGroups: string[];
       timestamp: number;
     };
   }>({});
@@ -94,6 +95,7 @@ export default function DashboardScreen() {
     isOnTPath?: boolean;
     historicalRating?: number | null;
     sessionId?: string;
+    allAvailableMuscleGroups?: string[];
   } | null>(null);
 
   // Activity logging modal state
@@ -721,10 +723,19 @@ export default function DashboardScreen() {
       cache.clear();
     };
 
-    return async (): Promise<any> => {
+    const getStartOfWeek = () => {
+        const now = new Date();
+        const day = now.getDay(); // 0 (Sun) to 6 (Sat)
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1); // adjust when week starts on Monday
+        const monday = new Date(new Date().setDate(diff));
+        monday.setHours(0, 0, 0, 0);
+        return monday;
+    };
+
+    return async (): Promise<{ [key: string]: number }> => {
       if (!userId) return {};
 
-      const cacheKey = `weekly_volume:${userId}`;
+      const cacheKey = `weekly_volume_total:${userId}`;
       const cached = cache.get(cacheKey);
       
       if (cached && (Date.now() - cached.timestamp < cacheTimeout)) {
@@ -732,22 +743,18 @@ export default function DashboardScreen() {
       }
 
       try {
-        // Check if Supabase client is available
         if (!supabase) {
           console.error('[Dashboard] Supabase client not available');
           return {};
         }
         
-        // Check if user is authenticated
-        const { data: { session }, error: authError } = await supabase.auth.getSession();
-        if (authError) {
-          console.error('[Dashboard] Auth error:', authError);
+        const { data: { session: authSession }, error: authError } = await supabase.auth.getSession();
+        if (authError || !authSession) {
+          console.error('[Dashboard] Not authenticated, cannot fetch weekly volume');
           return {};
         }
-        if (!session) {
-          console.error('[Dashboard] No active session found');
-          return {};
-        }
+
+        const startOfWeek = getStartOfWeek();
         
         const { data: sessions, error } = await supabase
           .from('workout_sessions')
@@ -760,8 +767,7 @@ export default function DashboardScreen() {
             )
           `)
           .eq('user_id', userId)
-          .gte('session_date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-          .order('session_date', { ascending: true });
+          .gte('session_date', startOfWeek.toISOString());
 
         if (error) {
           console.error('[Dashboard] Error fetching weekly volume data:', error);
@@ -771,17 +777,11 @@ export default function DashboardScreen() {
         if (!sessions) {
           return {};
         }
-        
-        // Additional validation
-        if (!Array.isArray(sessions)) {
-          console.error('[Dashboard] Invalid sessions data type:', typeof sessions);
-          return {};
-        }
 
         // Get exercise definitions to map muscle groups
         const { data: exercises, error: exError } = await supabase
           .from('exercise_definitions')
-          .select('id, category')
+          .select('id, main_muscle')
           .or(`user_id.eq.${userId},user_id.is.null`);
 
         if (exError) {
@@ -793,66 +793,85 @@ export default function DashboardScreen() {
           return {};
         }
 
-        const exerciseLookup = new Map();
+        const exerciseLookup = new Map<string, string>();
         exercises?.forEach((ex: any) => {
-          // Map the category to proper muscle groups
-          let muscleGroup = ex.category;
-          
-          // Convert category to proper muscle group names
-          if (muscleGroup === 'Bilateral' || muscleGroup === 'Unilateral') {
-            // For now, map these to Chest as a fallback, but we should use the exercise name
-            muscleGroup = 'Chest';
-          }
-          
-          exerciseLookup.set(ex.id, muscleGroup);
+          exerciseLookup.set(ex.id, ex.main_muscle || 'Other');
         });
 
-        // Calculate daily volume by muscle group
-        const dailyVolumes: { [date: string]: { [muscle: string]: number } } = {};
-        const muscleGroups = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
+        // Calculate total weekly volume by muscle group
+        const weeklyVolume: { [muscle: string]: number } = {};
 
         sessions?.forEach((session: any) => {
-          const date = new Date(session.session_date).toDateString();
-          if (!dailyVolumes[date]) {
-            dailyVolumes[date] = {};
-            muscleGroups.forEach(group => {
-              dailyVolumes[date][group] = 0;
-            });
-          }
-
           session.set_logs?.forEach((set: any) => {
-            const muscleGroup = exerciseLookup.get(set.exercise_id) || 'Other';
+            const muscleGroupsStr = exerciseLookup.get(set.exercise_id) || 'Other';
+            const muscleGroups = muscleGroupsStr.split(',').map(m => m.trim());
             const volume = (parseFloat(set.weight_kg) || 0) * (parseInt(set.reps) || 0);
             
-            dailyVolumes[date][muscleGroup] = (dailyVolumes[date][muscleGroup] || 0) + volume;
+            muscleGroups.forEach(muscleGroup => {
+              if (muscleGroup !== 'Other') {
+                if (!weeklyVolume[muscleGroup]) {
+                  weeklyVolume[muscleGroup] = 0;
+                }
+                weeklyVolume[muscleGroup] += volume / muscleGroups.length;
+              }
+            });
           });
         });
-
-        // Convert to 7-day array format
-        const result: any = {};
-        muscleGroups.forEach(group => {
-          result[group] = [];
-        });
-
-        // Fill in last 7 days
-        for (let i = 6; i >= 0; i--) {
-          const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toDateString();
-          muscleGroups.forEach(group => {
-            const volume = dailyVolumes[date]?.[group] || 0;
-            result[group].push(volume);
-          });
-        }
         
         // Cache the result
         cache.set(cacheKey, {
-          data: result,
+          data: weeklyVolume,
           timestamp: Date.now()
         });
         
-        return result;
+        return weeklyVolume;
       } catch (error) {
         console.error('[Dashboard] Error getting weekly volume data:', error);
         return {};
+      }
+    };
+  }, [userId, supabase]);
+
+  // Helper function to get all available muscle groups from database (like exercise library)
+  const getAvailableMuscleGroups = useMemo(() => {
+    const cache = new Map();
+    const cacheTimeout = 10 * 60 * 1000; // 10 minutes
+
+    return async (): Promise<string[]> => {
+      if (!userId) return ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
+
+      const cacheKey = `muscle_groups:${userId}`;
+      const cached = cache.get(cacheKey);
+      
+      if (cached && (Date.now() - cached.timestamp < cacheTimeout)) {
+        return cached.data;
+      }
+
+      try {
+        const { data: exercises, error } = await supabase
+          .from('exercise_definitions')
+          .select('main_muscle')
+          .or(`user_id.eq.${userId},user_id.is.null`);
+
+        if (error) throw error;
+
+        // Get unique muscle groups (like exercise library does)
+        const muscles = new Set<string>();
+        exercises?.forEach((ex: any) => {
+          if (ex.main_muscle) {
+            ex.main_muscle.split(',').forEach((m: string) => {
+              muscles.add(m.trim());
+            });
+          }
+        });
+
+        const result = Array.from(muscles).sort((a, b) => a.localeCompare(b));
+        
+        cache.set(cacheKey, { data: result, timestamp: Date.now() });
+        return result;
+      } catch (error) {
+        console.error('[Dashboard] Error fetching muscle groups:', error);
+        return ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
       }
     };
   }, [userId, supabase]);
@@ -993,7 +1012,7 @@ export default function DashboardScreen() {
         try {
           const { data, error } = await supabase
             .from('exercise_definitions')
-            .select('id, name, category, icon_url')
+            .select('id, name, main_muscle, category, icon_url')
             .or(`user_id.eq.${userId},user_id.is.null`); // Get user's exercises + global exercises
 
           if (error) {
@@ -1010,50 +1029,6 @@ export default function DashboardScreen() {
           exerciseLookup.set(ex.id, ex);
         });
 
-        // Helper function to map exercise names to muscle groups
-        const getMuscleGroupFromExercise = (ex: any, staticEx: any): string => {
-          const name = (ex?.name || staticEx?.name || '').toLowerCase();
-         
-          // Chest exercises
-          if (name.includes('bench') || name.includes('press') || name.includes('fly') ||
-              name.includes('push up') || name.includes('dip') || name.includes('pec')) {
-            return 'Chest';
-          }
-         
-          // Back exercises
-          if (name.includes('row') || name.includes('pull') || name.includes('lat') ||
-              name.includes('deadlift') || name.includes('shrug') || name.includes('face pull')) {
-            return 'Back';
-          }
-         
-          // Legs exercises
-          if (name.includes('squat') || name.includes('lunge') || name.includes('leg') ||
-              name.includes('deadlift') || name.includes('hip') || name.includes('calf')) {
-            return 'Legs';
-          }
-         
-          // Shoulders exercises
-          if (name.includes('shoulder') || name.includes('overhead') || name.includes('raise') ||
-              name.includes('arnold') || name.includes('upright')) {
-            return 'Shoulders';
-          }
-         
-          // Arms exercises
-          if (name.includes('curl') || name.includes('extension') || name.includes('tricep') ||
-              name.includes('bicep') || name.includes('hammer')) {
-            return 'Arms';
-          }
-         
-          // Core exercises
-          if (name.includes('crunch') || name.includes('plank') || name.includes('sit') ||
-              name.includes('leg raise') || name.includes('Russian twist')) {
-            return 'Core';
-          }
-         
-          // Default to Unknown if we can't determine
-          return 'Unknown';
-        };
-
         // Transform data to modal format
         const exerciseMap = new Map();
         setLogs.forEach((set: any) => {
@@ -1067,7 +1042,7 @@ export default function DashboardScreen() {
             exerciseMap.set(set.exercise_id, {
               exerciseId: set.exercise_id,
               exerciseName,
-              muscleGroup: getMuscleGroupFromExercise(exercise, staticExercise),
+              muscleGroup: exercise?.main_muscle || 'Unknown',
               iconUrl: exercise?.icon_url,
               sets: [],
             });
@@ -1087,7 +1062,7 @@ export default function DashboardScreen() {
 
         // Check if we have cached modal data for this session
         const cachedModalData = modalDataCache[sessionId];
-        let historicalWorkout: any = null, weeklyVolumeData: any = null, nextWorkoutSuggestion: any = null, isOnTPath: boolean = false;
+        let historicalWorkout: any = null, weeklyVolumeData: any = null, nextWorkoutSuggestion: any = null, isOnTPath: boolean = false, allAvailableMuscleGroups: string[] = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
 
         if (cachedModalData && (Date.now() - cachedModalData.timestamp < 5 * 60 * 1000)) {
           // Use cached data
@@ -1096,6 +1071,7 @@ export default function DashboardScreen() {
           weeklyVolumeData = cachedModalData.weeklyVolumeData;
           nextWorkoutSuggestion = cachedModalData.nextWorkoutSuggestion;
           isOnTPath = cachedModalData.isOnTPath;
+          allAvailableMuscleGroups = cachedModalData.allAvailableMuscleGroups || allAvailableMuscleGroups;
         } else {
           // Fetch data and cache it
           console.log('[Dashboard] Fetching advanced modal data...');
@@ -1137,6 +1113,10 @@ export default function DashboardScreen() {
           isOnTPath = await checkIfOnTPath();
           console.log('[Dashboard] checkIfOnTPath result:', isOnTPath);
           
+          console.log('[Dashboard] Calling getAvailableMuscleGroups...');
+          allAvailableMuscleGroups = await getAvailableMuscleGroups();
+          console.log('[Dashboard] getAvailableMuscleGroups result:', allAvailableMuscleGroups);
+          
           console.log('[Dashboard] Data fetch completed, results:', {
             historicalWorkout: !!historicalWorkout,
             weeklyVolumeData: Object.keys(weeklyVolumeData || {}),
@@ -1152,6 +1132,7 @@ export default function DashboardScreen() {
               weeklyVolumeData,
               nextWorkoutSuggestion,
               isOnTPath,
+              allAvailableMuscleGroups,
               timestamp: Date.now()
             }
           }));
@@ -1186,6 +1167,7 @@ export default function DashboardScreen() {
           weeklyVolumeData,
           nextWorkoutSuggestion,
           isOnTPath,
+          allAvailableMuscleGroups,
           ...(foundSession.rating !== null && foundSession.rating !== undefined && foundSession.rating !== 0 && { historicalRating: foundSession.rating }),
           sessionId: foundSession.id,
         });
@@ -1201,7 +1183,7 @@ export default function DashboardScreen() {
       console.error('Failed to load workout summary:', error);
       Alert.alert('Error', 'Failed to load workout summary');
     }
-  }, [userId, workoutSummaryModalVisible, selectedSessionData?.sessionId, modalDataCache, getHistoricalWorkout, getWeeklyVolumeData, getNextWorkoutSuggestion, checkIfOnTPath]);
+  }, [userId, workoutSummaryModalVisible, selectedSessionData?.sessionId, modalDataCache, getHistoricalWorkout, getWeeklyVolumeData, getNextWorkoutSuggestion, checkIfOnTPath, getAvailableMuscleGroups]);
 
 
   // Helper function to get workout date for volume data filtering
@@ -1593,6 +1575,8 @@ export default function DashboardScreen() {
           {...(selectedSessionData?.historicalRating !== null && selectedSessionData?.historicalRating !== undefined && { historicalRating: selectedSessionData.historicalRating })}
           showActions={false}
           showSyncStatus={false}
+          allAvailableMuscleGroups={selectedSessionData?.allAvailableMuscleGroups || []}
+          weeklyVolumeData={selectedSessionData?.weeklyVolumeData || {}}
           onSaveWorkout={async () => {
             setWorkoutSummaryModalVisible(false);
           }}
@@ -1876,6 +1860,8 @@ export default function DashboardScreen() {
         {...(selectedSessionData?.historicalRating !== null && selectedSessionData?.historicalRating !== undefined && { historicalRating: selectedSessionData.historicalRating })}
         showActions={false}
         showSyncStatus={false}
+        allAvailableMuscleGroups={selectedSessionData?.allAvailableMuscleGroups || []}
+        weeklyVolumeData={selectedSessionData?.weeklyVolumeData || {}}
         onSaveWorkout={async () => {
           setWorkoutSummaryModalVisible(false);
         }}
