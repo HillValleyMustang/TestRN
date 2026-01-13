@@ -44,6 +44,12 @@ export default function TabsLayout() {
   return (
     <Tabs screenOptions={tabBarOptions}>
       <Tabs.Screen
+        name="index"
+        options={{
+          href: null, // Hide the index route from tab bar
+        }}
+      />
+      <Tabs.Screen
         name="dashboard"
         options={{
           title: 'Dashboard',

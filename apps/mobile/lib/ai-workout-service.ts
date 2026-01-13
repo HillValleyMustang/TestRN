@@ -19,7 +19,7 @@ export interface OnboardingPayload {
   preferredMuscles: string;
   constraints: string;
   sessionLength: string;
-  gymName: string;
+    gymId: string;
   equipmentMethod: 'photo' | 'skip';
   confirmedExercises?: any[];
   unitSystem: 'metric' | 'imperial';

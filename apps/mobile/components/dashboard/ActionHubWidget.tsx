@@ -10,7 +10,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../ui/Card';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
-import { WorkoutType } from '../../types/common';
+import { WorkoutPerformanceModal } from './WorkoutPerformanceModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -19,7 +19,6 @@ interface ActionHubWidgetProps {
   onAICoach?: () => void;
   onWorkoutLog?: () => void;
   onConsistencyCalendar?: () => void;
-  onStartWorkout?: (workoutType?: WorkoutType) => void;
 }
 
 export function ActionHubWidget({
@@ -27,11 +26,11 @@ export function ActionHubWidget({
   onAICoach,
   onWorkoutLog,
   onConsistencyCalendar,
-  onStartWorkout,
 }: ActionHubWidgetProps) {
   const router = useRouter();
   const [moreMenuVisible, setMoreMenuVisible] = useState(false);
   const [moreButtonLayout, setMoreButtonLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const [workoutPerformanceVisible, setWorkoutPerformanceVisible] = useState(false);
   const moreButtonRef = useRef<View>(null);
 
   const handleLogActivity = () => {
@@ -54,7 +53,7 @@ export function ActionHubWidget({
     if (onWorkoutLog) {
       onWorkoutLog();
     } else {
-      console.log('Workout Log pressed');
+      setWorkoutPerformanceVisible(true);
     }
   };
 
@@ -77,17 +76,9 @@ export function ActionHubWidget({
     setMoreMenuVisible(false);
   };
 
-  const handleMoreMenuOption = (route: string, workoutType?: WorkoutType) => {
+  const handleMoreMenuOption = (route: string) => {
     setMoreMenuVisible(false);
-    if (route === '/workout') {
-      if (onStartWorkout && workoutType) {
-        onStartWorkout(workoutType);
-      } else {
-        router.push('/(tabs)/workout');
-      }
-    } else {
-      router.push(route as any);
-    }
+    router.push(route as any);
   };
 
   return (
@@ -190,57 +181,47 @@ export function ActionHubWidget({
           ]}>
             <Pressable
               style={styles.dropdownItem}
-              onPress={() => handleMoreMenuOption('/workout', 'push')}
-            >
-              <Ionicons name="barbell" size={16} color={Colors.foreground} />
-              <Text style={styles.dropdownText}>Start Push Workout</Text>
-            </Pressable>
-            <Pressable
-              style={styles.dropdownItem}
-              onPress={() => handleMoreMenuOption('/workout', 'pull')}
-            >
-              <Ionicons name="barbell" size={16} color={Colors.foreground} />
-              <Text style={styles.dropdownText}>Start Pull Workout</Text>
-            </Pressable>
-            <Pressable
-              style={styles.dropdownItem}
-              onPress={() => handleMoreMenuOption('/workout', 'legs')}
-            >
-              <Ionicons name="barbell" size={16} color={Colors.foreground} />
-              <Text style={styles.dropdownText}>Start Legs Workout</Text>
-            </Pressable>
-            <Pressable
-              style={styles.dropdownItem}
-              onPress={() => handleMoreMenuOption('/workout', 'full_body')}
-            >
-              <Ionicons name="barbell" size={16} color={Colors.foreground} />
-              <Text style={styles.dropdownText}>Start Full Body Workout</Text>
-            </Pressable>
-            <View style={styles.dropdownDivider} />
-            <Pressable
-              style={styles.dropdownItem}
               onPress={() => handleMoreMenuOption('/exercises')}
             >
-              <Ionicons name="barbell" size={16} color={Colors.foreground} />
+              <Ionicons name="barbell" size={16} color="#F97316" />
               <Text style={styles.dropdownText}>Manage Exercises</Text>
             </Pressable>
             <Pressable
               style={styles.dropdownItem}
               onPress={() => handleMoreMenuOption('/t-paths')}
             >
-              <Ionicons name="list" size={16} color={Colors.foreground} />
+              <Ionicons name="list" size={16} color="#8B5CF6" />
               <Text style={styles.dropdownText}>Manage T-Paths</Text>
             </Pressable>
             <Pressable
               style={styles.dropdownItem}
               onPress={() => handleMoreMenuOption('/profile?tab=settings&edit=true')}
             >
-              <Ionicons name="settings" size={16} color={Colors.foreground} />
+              <Ionicons name="settings" size={16} color="#6B7280" />
               <Text style={styles.dropdownText}>Profile Settings</Text>
+            </Pressable>
+            <Pressable
+              style={styles.dropdownItem}
+              onPress={() => handleMoreMenuOption('/achievements')}
+            >
+              <Ionicons name="trophy" size={16} color="#FBBF24" />
+              <Text style={styles.dropdownText}>Achievements</Text>
+            </Pressable>
+            <Pressable
+              style={styles.dropdownItem}
+              onPress={() => handleMoreMenuOption('/measurements')}
+            >
+              <Ionicons name="bar-chart" size={16} color="#3B82F6" />
+              <Text style={styles.dropdownText}>Measurements</Text>
             </Pressable>
           </View>
         </TouchableOpacity>
       </Modal>
+
+      <WorkoutPerformanceModal
+        visible={workoutPerformanceVisible}
+        onClose={() => setWorkoutPerformanceVisible(false)}
+      />
     </>
   );
 }

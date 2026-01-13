@@ -17,6 +17,7 @@ import { cleanupOnboardingData } from '../lib/onboardingCleanup';
 import { AIWorkoutService, OnboardingPayload } from '../lib/ai-workout-service';
 import { Colors, Spacing, BorderRadius } from '../constants/Theme';
 import { TextStyles } from '../constants/Typography';
+import { v4 as uuidv4 } from 'uuid';
 
 interface Step1Data {
   fullName: string;
@@ -51,7 +52,7 @@ interface Step4Data {
 export default function OnboardingScreen() {
   const { session, userId, supabase } = useAuth();
   const router = useRouter();
-  const { forceRefreshProfile } = useData();
+  const { forceRefreshProfile, addGym } = useData();
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('Setting up your profile...');
   const [showSummaryModal, setShowSummaryModal] = useState(false);
@@ -201,6 +202,22 @@ export default function OnboardingScreen() {
             )
           : [];
 
+      // 1. Create Gym record
+      const newGym = {
+        id: uuidv4(), // Generate a unique ID for the new gym
+        user_id: userId,
+        name: step4Data.gymName,
+        description: `Gym created during onboarding for ${step4Data.gymName}`,
+        equipment: [], // This will be updated by AI later if photo method is used
+        is_active: true, // Set as active by default
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      // Add the new gym to the database
+      await addGym(newGym);
+      console.log(`[Onboarding] Created new gym: ${newGym.name} with ID: ${newGym.id}`);
+
       const payload: OnboardingPayload = {
         fullName: step1Data.fullName,
         heightCm: finalHeightCm!,
@@ -212,7 +229,7 @@ export default function OnboardingScreen() {
         preferredMuscles: step3Data.preferredMuscles,
         constraints: step3Data.constraints,
         sessionLength: step3Data.sessionLength,
-        gymName: step4Data.gymName,
+        gymId: newGym.id, // Pass the newly created gym's ID
         equipmentMethod: step4Data.equipmentMethod!,
         confirmedExercises,
         unitSystem: step1Data.unitSystem,

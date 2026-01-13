@@ -24,6 +24,7 @@ interface NextWorkoutCardProps {
   error?: string;
   noActiveGym?: boolean;
   noActiveTPath?: boolean;
+  recommendationReason?: 'weekly_completion' | 'normal_cycling';
 }
 
 export function NextWorkoutCard({
@@ -35,6 +36,7 @@ export function NextWorkoutCard({
   error,
   noActiveGym,
   noActiveTPath,
+  recommendationReason,
 }: NextWorkoutCardProps) {
   const router = useRouter();
   const [showInfoModal, setShowInfoModal] = useState(false);
@@ -111,9 +113,23 @@ export function NextWorkoutCard({
       ) : workoutName ? (
         <View style={styles.content}>
           <View style={styles.leftSection}>
-            <Text style={styles.workoutName} numberOfLines={2}>
-              {workoutName}
-            </Text>
+            <View style={styles.workoutNameContainer}>
+              <View
+                style={[styles.workoutNameBadge, { backgroundColor: colors.main }]}
+                accessible={true}
+                accessibilityLabel={`Next workout: ${workoutName}`}
+              >
+                <Text style={styles.workoutNameBadgeText} numberOfLines={2}>
+                  {workoutName}
+                </Text>
+              </View>
+              {recommendationReason === 'weekly_completion' && (
+                <View style={styles.weeklyCompletionBadge}>
+                  <Ionicons name="checkmark-circle" size={12} color={Colors.success} />
+                  <Text style={styles.weeklyCompletionText}>Complete week</Text>
+                </View>
+              )}
+            </View>
             {estimatedDuration && (
               <View style={styles.durationRow}>
                 <Ionicons name="time-outline" size={16} color={Colors.mutedForeground} />
@@ -171,12 +187,40 @@ const styles = StyleSheet.create({
   leftSection: {
     gap: Spacing.xs,
   },
-  workoutName: {
+  workoutNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    minHeight: 28,
+  },
+  workoutNameBadge: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    alignSelf: 'flex-start',
+  },
+  workoutNameBadgeText: {
     fontFamily: 'Poppins_600SemiBold',
     fontSize: 18,
     fontWeight: '600',
-    color: Colors.foreground,
-    minHeight: 28,
+    color: '#FFFFFF',
+  },
+  weeklyCompletionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(142, 195, 125, 0.1)', // success color with opacity
+    borderWidth: 1,
+    borderColor: 'rgba(142, 195, 125, 0.3)',
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+    gap: 2,
+  },
+  weeklyCompletionText: {
+    fontFamily: 'Poppins_400Regular',
+    fontSize: 10,
+    color: Colors.success,
+    fontWeight: '500',
   },
   durationRow: {
     flexDirection: 'row',

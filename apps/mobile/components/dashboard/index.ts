@@ -15,3 +15,10 @@ export { SimpleVolumeChart } from "./SimpleVolumeChart";
 export { PreviousWorkoutsWidget } from "./PreviousWorkoutsWidget";
 export { SyncStatusBanner } from "./SyncStatusBanner";
 
+// Workout Performance Modal components
+export { WorkoutPerformanceModal } from "./WorkoutPerformanceModal";
+export { VolumeDistributionChart } from "./VolumeDistributionChart";
+export { WeeklyVolumeChart } from "./WeeklyVolumeChart";
+export { MuscleBreakdownChart } from "./MuscleBreakdownChart";
+export { RecentSessionsList } from "./RecentSessionsList";
+

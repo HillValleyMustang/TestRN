@@ -16,7 +16,9 @@ import {
 import { FONT_FAMILY } from '../constants/Typography';
 import { AuthProvider } from './_contexts/auth-context';
 import { DataProvider } from './_contexts/data-context';
+import { GymProvider } from './_contexts/gym-context';
 import { PreferencesProvider } from './_contexts/preferences-context';
+
 import { WorkoutFlowProvider } from './_contexts/workout-flow-context';
 import { QueryProvider } from './_components/QueryProvider';
 import { UnsavedChangesModal } from './_components/workout/UnsavedChangesModal';
@@ -80,6 +82,7 @@ export default function RootLayout() {
               <DataProvider>
                 <AuthProvider>
                   <PreferencesProvider>
+                    <GymProvider>
                     <WorkoutFlowProvider>
                   <StatusBar style="light" />
                   <Stack screenOptions={{ headerShown: false }}>
@@ -98,10 +101,6 @@ export default function RootLayout() {
                     <Stack.Screen
                       name="workout-history"
                       options={{ headerShown: false }}
-                    />
-                    <Stack.Screen
-                      name="history"
-                      options={{ headerShown: true, title: 'Workout History' }}
                     />
                     <Stack.Screen
                       name="exercise-picker"
@@ -148,6 +147,10 @@ export default function RootLayout() {
                     <Stack.Screen
                       name="onboarding"
                       options={{ headerShown: false }}
+                    />
+                    <Stack.Screen
+                      name="manage-t-paths"
+                      options={{ headerShown: true, title: 'Manage Your T-Path' }}
                     />
                   </Stack>
                   <UnsavedChangesModal />
@@ -234,6 +237,7 @@ export default function RootLayout() {
                       }}
                     />
                     </WorkoutFlowProvider>
+                    </GymProvider>
                   </PreferencesProvider>
                 </AuthProvider>
               </DataProvider>

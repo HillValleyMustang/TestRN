@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { formatAthleteName } from '@/lib/utils'; // Keep web-specific utils;
 import { WeeklyTargetWidget } from '@/components/dashboard/weekly-target-widget';
+import { SyncStatusBanner } from '@/components/dashboard/sync-status-banner';
 
 type Profile = Tables<'profiles'>;
 
@@ -108,12 +109,13 @@ export default function DashboardPage() {
       )}
 
       <div className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
-        <NextWorkoutCard 
+        <NextWorkoutCard
           profile={profile}
           groupedTPaths={groupedTPaths}
           loadingPlans={loadingWorkoutData}
           activeGym={activeGym}
           loadingGyms={loadingGyms}
+          completedWorkoutsThisWeek={weeklySummary?.completed_workouts || []}
         />
       </div>
       <div className="animate-fade-in-slide-up" style={{ animationDelay: '0.5s' }}>

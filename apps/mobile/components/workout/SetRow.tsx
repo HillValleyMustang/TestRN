@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, Alert } from 'react-native';
 import { Check } from 'lucide-react-native';
 import { Colors, Spacing } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
@@ -63,7 +63,7 @@ export const SetRow: React.FC<SetRowProps> = ({
   const handleToggleComplete = () => {
     if (!disabled) {
       if (!setData.isSaved && (!weight || !reps)) {
-        // Alert.alert('Missing Data', 'Please enter weight and reps before completing the set.');
+        Alert.alert('Incomplete Set Data', 'Please enter both weight and reps before completing the set.');
         return;
       }
       const repsNum = parseInt(reps, 10);

@@ -115,6 +115,7 @@ export interface DashboardProgram {
   template_name: string;
   description: string | null;
   parent_t_path_id: string | null;
+  recommendationReason?: 'weekly_completion' | 'normal_cycling';
 }
 
 export interface DashboardSnapshot {
@@ -659,7 +660,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           .limit(20);
 
         const sessionIds: string[] = [];
-        
+
         if (sessionsError) {
           console.warn(
             '[DataContext] Failed to load workout sessions',
@@ -669,10 +670,20 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           // Get existing sessions to avoid duplicates
           const existingSessions = await database.getWorkoutSessions(userId);
           const existingSessionIds = new Set(existingSessions.map(s => s.id));
-          
+
+          // Get pending deletions from sync queue to avoid re-adding deleted sessions
+          const syncQueueItems = await database.syncQueue.getAll();
+          const pendingDeletionIds = new Set(
+            syncQueueItems
+              .filter(item => item.operation === 'delete' && item.table === 'workout_sessions')
+              .map(item => item.payload.id)
+          );
+
+          console.log('[DataContext] Pending deletion IDs from sync queue:', Array.from(pendingDeletionIds));
+
           for (const sessionRow of sessionsData) {
-            // Only add sessions that don't already exist locally
-            if (!existingSessionIds.has(sessionRow.id)) {
+            // Only add sessions that don't already exist locally AND are not pending deletion
+            if (!existingSessionIds.has(sessionRow.id) && !pendingDeletionIds.has(sessionRow.id)) {
               sessionIds.push(sessionRow.id);
               const session: WorkoutSession = {
                 id: sessionRow.id,
@@ -686,6 +697,8 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
                 created_at: sessionRow.created_at,
               };
               await database.addWorkoutSession(session);
+            } else if (pendingDeletionIds.has(sessionRow.id)) {
+              console.log('[DataContext] Skipping re-addition of session pending deletion:', sessionRow.id);
             }
           }
         }

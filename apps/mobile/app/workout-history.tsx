@@ -340,7 +340,6 @@ export default function WorkoutHistoryPage() {
         {...(selectedSessionData?.duration && { duration: selectedSessionData.duration })}
         {...(selectedSessionData?.rating !== undefined && { historicalRating: selectedSessionData.rating })}
         showActions={false}
-        showSyncStatus={false}
         onSaveWorkout={async () => {
           // Since this is a view-only modal for past workouts, we don't need to save anything
           setWorkoutSummaryModalVisible(false);

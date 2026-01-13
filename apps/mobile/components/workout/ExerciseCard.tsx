@@ -47,6 +47,23 @@ const hasUserInput = (set: SetLogState): boolean => {
     (set.time_seconds !== null && set.time_seconds > 0)
   );
 };
+
+const hasIncompleteSetData = (set: SetLogState): boolean => {
+  const hasWeight = set.weight_kg !== null && set.weight_kg > 0;
+  const hasReps = set.reps !== null && set.reps > 0;
+  const hasRepsL = set.reps_l !== null && set.reps_l > 0;
+  const hasRepsR = set.reps_r !== null && set.reps_r > 0;
+  const hasTime = set.time_seconds !== null && set.time_seconds > 0;
+
+  // If user has entered data, they must have both weight and reps for standard exercises
+  if (hasWeight && !hasReps) return true; // weight but no reps
+  if (hasReps && !hasWeight) return true; // reps but no weight
+
+  // For unilateral exercises (reps_l/reps_r), check if they have one side but not the other
+  if ((hasRepsL && !hasRepsR) || (hasRepsR && !hasRepsL)) return true;
+
+  return false;
+};
   
 interface WorkoutExercise {
   id: string;
@@ -152,8 +169,8 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
 
     const handleToggleComplete = async (setIndex: number) => {
         const set = localSets[setIndex];
-        if (!set.isSaved && (!set.weight_kg || !set.reps)) {
-            Alert.alert('Missing Data', 'Please enter weight and reps before completing the set.');
+        if (!set.isSaved && hasIncompleteSetData(set)) {
+            Alert.alert('Incomplete Set Data', 'Please enter both weight and reps before completing the set.');
             return;
         }
 
@@ -627,6 +644,21 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                                 const setsToSave = localSets.filter(set => hasUserInput(set));
                                 if (setsToSave.length === 0) {
                                     Alert.alert('No Sets to Save', 'There are no sets with data to save for this exercise.');
+                                    return;
+                                }
+
+                                // Check for incomplete set data
+                                const incompleteSets = setsToSave.filter(set => hasIncompleteSetData(set));
+                                if (incompleteSets.length > 0) {
+                                    const setNumbers = incompleteSets.map((_, index) => {
+                                        // Find the actual set number by matching with localSets
+                                        const setIndex = localSets.findIndex(set => set === incompleteSets[index]);
+                                        return setIndex + 1;
+                                    }).join(', ');
+                                    Alert.alert(
+                                        'Incomplete Set Data',
+                                        `Please complete all set data before saving. Set(s) ${setNumbers} ${incompleteSets.length === 1 ? 'has' : 'have'} incomplete information (weight or reps missing).`
+                                    );
                                     return;
                                 }
 

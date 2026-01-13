@@ -14,6 +14,7 @@ import { useWorkoutPlans } from '@/hooks/data/useWorkoutPlans';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useGym } from '@/components/gym-context-provider'; // Import useGym
 import Link from 'next/link'; // Import Link
+import { WeeklyWorkoutAnalyzer, type CompletedWorkout } from '@data/ai/weekly-workout-analyzer';
 
 type TPath = Tables<'t_paths'>;
 type Gym = Tables<'gyms'>; // Import Gym type
@@ -28,6 +29,7 @@ interface NextWorkoutCardProps {
   loadingPlans: boolean;
   activeGym: Gym | null;
   loadingGyms: boolean;
+  completedWorkoutsThisWeek?: CompletedWorkout[];
 }
 
 export const NextWorkoutCard = ({
@@ -36,6 +38,7 @@ export const NextWorkoutCard = ({
   loadingPlans,
   activeGym,
   loadingGyms,
+  completedWorkoutsThisWeek = [],
 }: NextWorkoutCardProps) => {
   const router = useRouter();
   const { session } = useSession();
@@ -69,8 +72,51 @@ export const NextWorkoutCard = ({
     currentMainTPath = foundGroup.mainTPath; // Set mainTPath here
 
     const childWorkouts = foundGroup.childWorkouts;
-    const workoutOrder = foundGroup.mainTPath.template_name.includes('Upper/Lower') ? ULUL_ORDER : PPL_ORDER;
+    const programmeType = foundGroup.mainTPath.template_name.includes('Upper/Lower') ? 'ulul' : 'ppl';
 
+    // Use WeeklyWorkoutAnalyzer for intelligent workout recommendations
+    const weeklyAnalysis = WeeklyWorkoutAnalyzer.analyzeWeeklyCompletion(
+      programmeType,
+      completedWorkoutsThisWeek
+    );
+
+    // Determine next workout using weekly-aware logic
+    let nextWorkoutRecommendation = null;
+    if (weeklyAnalysis.nextRecommendedWorkout) {
+      // Prioritize missing workout from weekly target
+      nextWorkoutRecommendation = WeeklyWorkoutAnalyzer.findWorkoutByType(
+        childWorkouts,
+        weeklyAnalysis.nextRecommendedWorkout
+      );
+      console.log(`[NextWorkoutCard] Weekly completion recommendation: ${nextWorkoutRecommendation?.template_name}`);
+    }
+
+    if (!nextWorkoutRecommendation) {
+      // Fall back to normal cycling logic
+      const recentWorkouts = childWorkouts.map(workout => ({
+        session: {
+          template_name: workout.template_name,
+          completed_at: workout.last_completed_at,
+          session_date: workout.last_completed_at
+        }
+      }));
+
+      nextWorkoutRecommendation = WeeklyWorkoutAnalyzer.determineNextWorkoutWeeklyAware(
+        programmeType,
+        recentWorkouts,
+        childWorkouts,
+        completedWorkoutsThisWeek
+      );
+    }
+
+    currentNextWorkout = nextWorkoutRecommendation;
+
+    // Add recommendation reason for UI display
+    if (currentNextWorkout && weeklyAnalysis.recommendationReason) {
+      (currentNextWorkout as any).recommendationReason = weeklyAnalysis.recommendationReason;
+    }
+
+    // Find last completed workout for display
     let lastCompletedWorkout: WorkoutWithLastCompleted | null = null;
     let mostRecentCompletionDate: Date | null = null;
 
@@ -84,20 +130,7 @@ export const NextWorkoutCard = ({
       }
     });
 
-    if (lastCompletedWorkout) {
-      currentLastWorkoutName = (lastCompletedWorkout as WorkoutWithLastCompleted).template_name;
-      const currentIndex = workoutOrder.indexOf(currentLastWorkoutName);
-      if (currentIndex !== -1) {
-        const nextIndex = (currentIndex + 1) % workoutOrder.length;
-        const nextWorkoutName = workoutOrder[nextIndex];
-        currentNextWorkout = childWorkouts.find((w: WorkoutWithLastCompleted) => w.template_name === nextWorkoutName) || null;
-      } else {
-        currentNextWorkout = childWorkouts.find((w: WorkoutWithLastCompleted) => w.template_name === workoutOrder[0]) || null;
-      }
-    } else {
-      currentNextWorkout = childWorkouts.find((w: WorkoutWithLastCompleted) => w.template_name === workoutOrder[0]) || null;
-      currentLastWorkoutName = "No previous workout";
-    }
+    currentLastWorkoutName = lastCompletedWorkout?.template_name || "No previous workout";
 
     // Calculate estimatedDuration only if currentNextWorkout and profile.preferred_session_length are available
     // AND the specific workout's exercises are available in the cache
@@ -127,7 +160,7 @@ export const NextWorkoutCard = ({
     }
 
     return { nextWorkout: currentNextWorkout, derivedEstimatedDuration: currentEstimatedDuration, derivedLastWorkoutName: currentLastWorkoutName, derivedMainTPath: currentMainTPath };
-  }, [session, groupedTPaths, dataError, profile, workoutExercisesCache, activeGym]);
+  }, [session, groupedTPaths, dataError, profile, workoutExercisesCache, activeGym, completedWorkoutsThisWeek]);
 
   const isGymConfigured = useMemo(() => {
     if (!activeGym || !groupedTPaths) return false;
@@ -167,7 +200,17 @@ export const NextWorkoutCard = ({
           <div className="animate-fade-in-fast"> {/* Apply fast fade-in here */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="flex flex-col space-y-1">
-                <h3 className="text-lg font-semibold min-h-[1.75rem]">{nextWorkout?.template_name}</h3>
+                <div className="flex items-center gap-2 min-h-[1.75rem]">
+                  <h3 className="text-lg font-semibold">{nextWorkout?.template_name}</h3>
+                  {(nextWorkout as any)?.recommendationReason === 'weekly_completion' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700 border border-green-200 rounded-full">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      Complete week
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center gap-1 text-muted-foreground min-h-[1.25rem]">
                   {derivedEstimatedDuration && <Clock className="h-4 w-4" />}
                   {derivedEstimatedDuration && <span>Estimated {derivedEstimatedDuration}</span>}

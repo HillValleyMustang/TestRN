@@ -67,10 +67,7 @@ interface WorkoutSummaryModalProps {
   duration?: string;
   onSaveWorkout: (rating?: number) => Promise<void>;
   onRateWorkout?: (rating: number) => void;
-  syncStatus?: 'idle' | 'syncing' | 'synced' | 'sync_failed';
-  onRetrySync?: () => void;
   showActions?: boolean;
-  showSyncStatus?: boolean;
   historicalRating?: number;
   historicalWorkout?: HistoricalWorkout;
   onAIAnalysis?: () => void;
@@ -496,59 +493,6 @@ const ExerciseSummary: React.FC<ExerciseSummaryProps> = ({ exercises, readOnly =
   );
 };
 
-interface SyncStatusProps {
-  syncStatus: 'idle' | 'syncing' | 'synced' | 'sync_failed';
-  onRetrySync?: (() => void) | undefined;
-}
-
-const SyncStatus: React.FC<SyncStatusProps> = ({ syncStatus, onRetrySync }) => {
-  const getSyncStatusDisplay = useCallback(() => {
-    switch (syncStatus) {
-      case 'syncing':
-        return { text: 'Syncing...', color: Colors.mutedForeground, icon: 'sync' as const };
-      case 'synced':
-        return { text: 'Synced', color: Colors.success || '#10B981', icon: 'checkmark-circle' as const };
-      case 'sync_failed':
-        return { text: 'Sync Failed', color: Colors.destructive, icon: 'close-circle' as const };
-      default:
-        return { text: 'Saved Locally', color: Colors.mutedForeground, icon: 'cloud-offline' as const };
-    }
-  }, [syncStatus]);
-
-  const statusDisplay = getSyncStatusDisplay();
-
-  return (
-    <Card style={styles.syncStatusCard}>
-      <View style={styles.syncStatusContent}>
-        <Ionicons
-          name={statusDisplay.icon}
-          size={20}
-          color={statusDisplay.color}
-          accessible={true}
-          accessibilityLabel={`Sync status: ${statusDisplay.text}`}
-        />
-        <Text 
-          style={[styles.syncStatusText, { color: statusDisplay.color }]}
-          accessible={true}
-          accessibilityLabel={`Sync status: ${statusDisplay.text}`}
-        >
-          {statusDisplay.text}
-        </Text>
-        {syncStatus === 'sync_failed' && onRetrySync && (
-          <HapticPressable
-            style={styles.retryButton}
-            onPress={onRetrySync}
-            accessibilityLabel="Retry sync"
-            accessibilityRole="button"
-          >
-            <Ionicons name="refresh" size={16} color={Colors.primary} />
-            <Text style={styles.retryText}>Retry</Text>
-          </HapticPressable>
-        )}
-      </View>
-    </Card>
-  );
-};
 
 // ===== MAIN COMPONENT =====
 export function WorkoutSummaryModal({
@@ -560,10 +504,7 @@ export function WorkoutSummaryModal({
   duration: providedDuration,
   onSaveWorkout,
   onRateWorkout,
-  syncStatus = 'idle',
-  onRetrySync,
   showActions = true,
-  showSyncStatus = true,
   historicalRating,
   historicalWorkout,
   weeklyVolumeData,
@@ -779,7 +720,7 @@ export function WorkoutSummaryModal({
           (selectedProgressTab === 'upper' && category === 'upper') ||
           (selectedProgressTab === 'lower' && category === 'lower');
 
-        if (shouldInclude) {
+        if (shouldInclude && typeof volume === 'number' && !isNaN(volume)) {
           acc[muscle] = volume;
         }
       });
@@ -1021,14 +962,10 @@ export function WorkoutSummaryModal({
         </Card>
       )}
 
-      {/* Sync Status */}
-      {showSyncStatus && (
-        <SyncStatus syncStatus={syncStatus} onRetrySync={onRetrySync} />
-      )}
     </ScrollView>
   ), [
-    showActions, showSyncStatus, metrics, duration, rating, ratingSaved, isSaving, 
-    exercises, syncStatus, onRetrySync, historicalRating, handleRating, handleSaveRating
+    showActions, metrics, duration, rating, ratingSaved, isSaving,
+    exercises, historicalRating, handleRating, handleSaveRating
   ]);
 
   const ProgressTab = useCallback(() => (
@@ -1097,24 +1034,30 @@ export function WorkoutSummaryModal({
           <View style={styles.volumeChartContainer}>
             {Object.entries(weeklyVolumeTotals)
               .sort(([,a], [,b]) => b - a)
-              .map(([muscle, volume]) => (
-                <View key={muscle} style={styles.volumeBarRow}>
-                  <View style={styles.volumeBarLabel}>
-                    <Text style={styles.volumeBarMuscle}>{muscle}</Text>
-                    <Text style={styles.volumeBarValue}>
-                      {volume.toFixed(0)}kg • {((volume / Math.max(...Object.values(weeklyVolumeTotals), 1)) * 100).toFixed(1)}%
-                    </Text>
+              .map(([muscle, volume]) => {
+                const safeVolume = typeof volume === 'number' && !isNaN(volume) ? volume : 0;
+                const maxVolume = Math.max(...Object.values(weeklyVolumeTotals).filter(v => typeof v === 'number' && !isNaN(v)), 1);
+                const percentage = (safeVolume / maxVolume) * 100;
+
+                return (
+                  <View key={muscle} style={styles.volumeBarRow}>
+                    <View style={styles.volumeBarLabel}>
+                      <Text style={styles.volumeBarMuscle}>{muscle}</Text>
+                      <Text style={styles.volumeBarValue}>
+                        {safeVolume.toFixed(0)}kg • {percentage.toFixed(1)}%
+                      </Text>
+                    </View>
+                    <View style={styles.volumeBarBackground}>
+                      <View
+                        style={[
+                          styles.volumeBarFill,
+                          { width: `${percentage}%`, backgroundColor: getWorkoutColor(workoutName).main }
+                        ]}
+                      />
+                    </View>
                   </View>
-                  <View style={styles.volumeBarBackground}>
-                    <View
-                      style={[
-                        styles.volumeBarFill,
-                        { width: `${(volume / Math.max(...Object.values(weeklyVolumeTotals), 1)) * 100}%`, backgroundColor: getWorkoutColor(workoutName).main }
-                      ]}
-                    />
-                  </View>
-                </View>
-              ))}
+                );
+              })}
           </View>
         </View>
       </Card>
@@ -1687,32 +1630,6 @@ const styles = StyleSheet.create({
   successText: {
     ...TextStyles.bodyMedium,
     color: '#92400E',
-  },
-  syncStatusCard: {
-    marginBottom: Spacing.lg,
-  },
-  syncStatusContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    paddingVertical: Spacing.sm,
-  },
-  syncStatusText: {
-    ...TextStyles.captionMedium,
-    flex: 1,
-  },
-  retryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    backgroundColor: Colors.secondary,
-    borderRadius: 6,
-  },
-  retryText: {
-    ...TextStyles.smallMedium,
-    color: Colors.primary,
   },
   motivationalOuterContainer: {
     marginBottom: Spacing.md,

@@ -1803,10 +1803,39 @@ class Database {
       return null;
     }
 
-    const exercises = await db.getAllAsync<any>(
-      'SELECT * FROM t_path_exercises WHERE template_id = ? ORDER BY order_index ASC',
-      [tPathId]
-    );
+    // Try template_id first (new schema), fallback to t_path_id (old schema)
+    let exercisesQuery = 'SELECT * FROM t_path_exercises WHERE ';
+    let exercisesParams: any[] = [tPathId];
+
+    try {
+      // Check if template_id column exists
+      const tableInfo = await db.getAllAsync<any>("PRAGMA table_info(t_path_exercises);");
+      const columns = tableInfo.map((col: any) => col.name);
+
+      if (columns.includes('template_id')) {
+        exercisesQuery += 'template_id = ?';
+      } else if (columns.includes('t_path_id')) {
+        exercisesQuery += 't_path_id = ?';
+      } else {
+        console.warn('[Database] Neither template_id nor t_path_id found in t_path_exercises table');
+        // Return TPath without exercises
+        return {
+          ...tPath,
+          is_bonus: Boolean(tPath.is_bonus),
+          settings: tPath.settings ? JSON.parse(tPath.settings) : null,
+          progression_settings: tPath.progression_settings ? JSON.parse(tPath.progression_settings) : null,
+          exercises: [],
+        };
+      }
+    } catch (error: any) {
+      console.warn('[Database] Could not check t_path_exercises table structure:', error.message);
+      // Default to template_id
+      exercisesQuery += 'template_id = ?';
+    }
+
+    exercisesQuery += ' ORDER BY order_index ASC';
+
+    const exercises = await db.getAllAsync<any>(exercisesQuery, exercisesParams);
 
     return {
       ...tPath,

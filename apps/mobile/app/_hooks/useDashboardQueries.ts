@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { database } from '../_lib/database';
 import { queryKeys } from '../_lib/react-query-client';
 import { supabase } from '../_lib/supabase';
+import { WeeklyWorkoutAnalyzer, type CompletedWorkout } from '@data/ai/weekly-workout-analyzer';
 import type { DashboardProfile, DashboardWeeklySummary, DashboardVolumePoint, DashboardWorkoutSummary, DashboardProgram } from '../_contexts/data-context';
 import type { Gym } from '@data/storage/models';
 
@@ -168,7 +169,8 @@ const processWorkoutData = async (
     userId,
     profile,
     programmeType,
-    recentWorkouts
+    recentWorkouts,
+    weeklySummary.completed_workouts
   );
 
   return {
@@ -216,7 +218,8 @@ const processTPathData = async (
   userId: string,
   profile: DashboardProfile | null,
   programmeType: 'ppl' | 'ulul',
-  recentWorkouts: any[]
+  recentWorkouts: any[],
+  completedWorkoutsThisWeek: CompletedWorkout[]
 ) => {
   if (!profile?.active_t_path_id) {
     return {
@@ -230,10 +233,11 @@ const processTPathData = async (
     const activeTPath = await database.getTPath(profile.active_t_path_id);
     const tPathWorkouts = await database.getTPathsByParent(profile.active_t_path_id);
     
-    const nextWorkout = determineNextWorkout(
+    const nextWorkout = WeeklyWorkoutAnalyzer.determineNextWorkoutWeeklyAware(
       programmeType,
       recentWorkouts,
-      tPathWorkouts
+      tPathWorkouts,
+      completedWorkoutsThisWeek
     );
 
     return {
@@ -262,64 +266,6 @@ const processTPathData = async (
 };
 
 // Determine next workout based on programme type and recent history
-const determineNextWorkout = (
-  programmeType: 'ppl' | 'ulul',
-  recentWorkouts: any[],
-  tPathWorkouts: any[]
-): DashboardProgram | null => {
-  if (tPathWorkouts.length === 0) return null;
-
-  const sortedRecentWorkouts = recentWorkouts
-    .filter(({ session }) => session.completed_at)
-    .sort((a, b) => {
-      const dateA = new Date(a.session.completed_at || a.session.session_date);
-      const dateB = new Date(b.session.completed_at || b.session.session_date);
-      return dateB.getTime() - dateA.getTime();
-    });
-
-  if (sortedRecentWorkouts.length === 0) {
-    // No workout history, start with first workout
-    return {
-      id: tPathWorkouts[0].id,
-      template_name: tPathWorkouts[0].template_name,
-      description: tPathWorkouts[0].description,
-      parent_t_path_id: tPathWorkouts[0].parent_t_path_id,
-    };
-  }
-
-  // Simple progression logic based on last workout
-  const lastWorkout = sortedRecentWorkouts[0].session;
-  const lastWorkoutType = lastWorkout.template_name?.toLowerCase() || '';
-
-  if (programmeType === 'ppl') {
-    if (lastWorkoutType.includes('push')) {
-      return findWorkoutByType(tPathWorkouts, 'pull') || tPathWorkouts[0];
-    } else if (lastWorkoutType.includes('pull')) {
-      return findWorkoutByType(tPathWorkouts, 'leg') || tPathWorkouts[0];
-    } else {
-      return findWorkoutByType(tPathWorkouts, 'push') || tPathWorkouts[0];
-    }
-  } else if (programmeType === 'ulul') {
-    if (lastWorkoutType.includes('upper') && lastWorkoutType.includes('a')) {
-      return findWorkoutByType(tPathWorkouts, 'lower', 'a') || tPathWorkouts[0];
-    } else if (lastWorkoutType.includes('lower') && lastWorkoutType.includes('a')) {
-      return findWorkoutByType(tPathWorkouts, 'upper', 'b') || tPathWorkouts[0];
-    } else {
-      return findWorkoutByType(tPathWorkouts, 'upper', 'a') || tPathWorkouts[0];
-    }
-  }
-
-  return tPathWorkouts[0];
-};
-
-const findWorkoutByType = (workouts: any[], type: string, variant?: string): any => {
-  return workouts.find(workout => {
-    const name = workout.template_name.toLowerCase();
-    const matchesType = name.includes(type);
-    const matchesVariant = !variant || name.includes(variant);
-    return matchesType && matchesVariant;
-  });
-};
 
 // Build volume points with workout type mapping
 const buildVolumePoints = async (

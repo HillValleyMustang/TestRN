@@ -36,6 +36,8 @@ import {
   AllWorkoutsQuickStart,
   SimpleVolumeChart,
   PreviousWorkoutsWidget,
+  WorkoutPerformanceModal,
+  SyncStatusBanner,
 } from '../../components/dashboard';
 import { WorkoutSummaryModal } from '../../components/workout/WorkoutSummaryModal';
 import { ActivityLoggingModal_new as ActivityLoggingModal } from '../../components/dashboard/ActivityLoggingModal_new';
@@ -100,6 +102,9 @@ export default function DashboardScreen() {
 
   // Activity logging modal state
   const [activityModalVisible, setActivityModalVisible] = useState(false);
+
+  // Workout performance modal state
+  const [workoutPerformanceModalVisible, setWorkoutPerformanceModalVisible] = useState(false);
 
   // State variables that need to be declared before fetchDashboardData
   const [refreshing, setRefreshing] = useState(false);
@@ -1250,24 +1255,13 @@ export default function DashboardScreen() {
         });
         
         setRecentWorkouts(prev => prev.filter(workout => workout.id !== sessionId));
-        setVolumeData(prev => {
-          // Use normalized date comparison to handle time component differences
-          const newData = prev.filter(point => normalizeDate(point.date) !== normalizedDeletedDate);
-          console.log('[Dashboard] Volume data filtered:', {
-            oldCount: prev.length,
-            newCount: newData.length,
-            filteredDate: normalizedDeletedDate,
-            originalDate: deletedWorkoutDate,
-            deletedWorkoutId: sessionId,
-            volumeDataBefore: prev.map(v => ({ date: v.date, volume: v.volume })),
-            volumeDataAfter: newData.map(v => ({ date: v.date, volume: v.volume })),
-            dateMatchCheck: prev.map(v => ({ 
-              original: v.date, 
-              normalized: normalizeDate(v.date),
-              matches: normalizeDate(v.date) === normalizedDeletedDate 
-            }))
-          });
-          return newData;
+
+        // Clear volume data to force recalculation after deletion
+        // This ensures correct volume totals if multiple workouts occurred on the same day
+        setVolumeData([]);
+        console.log('[Dashboard] Cleared volume data for recalculation after deletion:', {
+          deletedWorkoutId: sessionId,
+          deletedDate: normalizedDeletedDate
         });
         
         // CRITICAL FIX: Also update weeklySummary immediately to prevent stale widget data
@@ -1466,6 +1460,21 @@ export default function DashboardScreen() {
               />
             </View>
 
+            {/* Only show sync banner when there are sync issues or offline */}
+            {(!isOnline || isSyncing || queueLength > 0) && (
+              <View>
+                <SyncStatusBanner
+                  isOnline={isOnline}
+                  isSyncing={isSyncing}
+                  queueLength={queueLength}
+                  onManualSync={() => {
+                    // Trigger manual sync by refreshing data
+                    onRefresh();
+                  }}
+                />
+              </View>
+            )}
+
             <View>
               <WeeklyTargetWidget
                 completedWorkouts={cachedData.weeklySummary?.completed_workouts || []}
@@ -1484,7 +1493,7 @@ export default function DashboardScreen() {
               <ActionHubWidget
                 onLogActivity={() => setActivityModalVisible(true)}
                 onAICoach={() => {}}
-                onWorkoutLog={() => {}}
+                onWorkoutLog={() => setWorkoutPerformanceModalVisible(true)}
                 onConsistencyCalendar={() => {}}
               />
             </View>
@@ -1517,6 +1526,7 @@ export default function DashboardScreen() {
                 loading={false}
                 noActiveGym={!cachedData.activeGym}
                 noActiveTPath={!cachedData.activeTPath}
+                recommendationReason={(cachedData.nextWorkout as any)?.recommendationReason}
               />
             </View>
 
@@ -1574,7 +1584,6 @@ export default function DashboardScreen() {
           {...(selectedSessionData?.duration && { duration: selectedSessionData.duration })}
           {...(selectedSessionData?.historicalRating !== null && selectedSessionData?.historicalRating !== undefined && { historicalRating: selectedSessionData.historicalRating })}
           showActions={false}
-          showSyncStatus={false}
           allAvailableMuscleGroups={selectedSessionData?.allAvailableMuscleGroups || []}
           weeklyVolumeData={selectedSessionData?.weeklyVolumeData || {}}
           onSaveWorkout={async () => {
@@ -1622,9 +1631,14 @@ export default function DashboardScreen() {
             }
           }}
         />
+
+        <WorkoutPerformanceModal
+          visible={workoutPerformanceModalVisible}
+          onClose={() => setWorkoutPerformanceModalVisible(false)}
+        />
       </>
     );
-  }, [userName, accountCreatedAt, handleViewSummary, handleDeleteWorkout, userId, setActiveGym, fetchDashboardData, refreshing, onRefresh, workoutSummaryModalVisible, selectedSessionData, handleSessionRatingUpdate, activityModalVisible, setActivityModalVisible]);
+  }, [userName, accountCreatedAt, handleViewSummary, handleDeleteWorkout, userId, setActiveGym, fetchDashboardData, refreshing, onRefresh, workoutSummaryModalVisible, selectedSessionData, handleSessionRatingUpdate, activityModalVisible, setActivityModalVisible, workoutPerformanceModalVisible, setWorkoutPerformanceModalVisible]);
 
   // Show loading screen while checking onboarding status or data is being fetched
   // Modified condition: check if we actually need to load data, not just if local state is null
@@ -1739,6 +1753,21 @@ export default function DashboardScreen() {
             />
           </View>
 
+          {/* Sync Status Banner - only show when there are sync issues */}
+          {(!isOnline || isSyncing || queueLength > 0) && (
+            <View>
+              <SyncStatusBanner
+                isOnline={isOnline}
+                isSyncing={isSyncing}
+                queueLength={queueLength}
+                onManualSync={() => {
+                  // Trigger manual sync by refreshing data
+                  onRefresh();
+                }}
+              />
+            </View>
+          )}
+
           {/* 2. Weekly Target */}
           <View key={`weekly-target-${weeklySummary.total_sessions}-${weeklySummary.completed_workouts.length}-${Date.now()}`}>
             <WeeklyTargetWidget
@@ -1759,7 +1788,7 @@ export default function DashboardScreen() {
             <ActionHubWidget
               onLogActivity={() => setActivityModalVisible(true)}
               onAICoach={() => {}}
-              onWorkoutLog={() => {}}
+              onWorkoutLog={() => setWorkoutPerformanceModalVisible(true)}
               onConsistencyCalendar={() => {}}
             />
           </View>
@@ -1799,6 +1828,7 @@ export default function DashboardScreen() {
               loading={loading}
               noActiveGym={!activeGym}
               noActiveTPath={!activeTPath}
+              recommendationReason={(nextWorkout as any)?.recommendationReason}
             />
           </View>
 
@@ -1859,7 +1889,6 @@ export default function DashboardScreen() {
         {...(selectedSessionData?.duration && { duration: selectedSessionData.duration })}
         {...(selectedSessionData?.historicalRating !== null && selectedSessionData?.historicalRating !== undefined && { historicalRating: selectedSessionData.historicalRating })}
         showActions={false}
-        showSyncStatus={false}
         allAvailableMuscleGroups={selectedSessionData?.allAvailableMuscleGroups || []}
         weeklyVolumeData={selectedSessionData?.weeklyVolumeData || {}}
         onSaveWorkout={async () => {
@@ -1925,6 +1954,11 @@ export default function DashboardScreen() {
             Alert.alert('Error', 'Failed to log activity. Please try again.');
           }
         }}
+      />
+
+      <WorkoutPerformanceModal
+        visible={workoutPerformanceModalVisible}
+        onClose={() => setWorkoutPerformanceModalVisible(false)}
       />
     </>
   );
