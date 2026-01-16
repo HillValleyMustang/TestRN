@@ -1,6 +1,7 @@
 /**
  * Hook to calculate user fitness level from total points
  * Levels: Rookie < 50, Warrior 50-149, Champion 150-299, Legend 300-499, Titan 500+
+ * 5 points awarded per completed workout
  */
 
 export interface LevelInfo {

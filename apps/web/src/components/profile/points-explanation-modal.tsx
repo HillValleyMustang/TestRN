@@ -30,7 +30,7 @@ export const PointsExplanationModal = ({ open, onOpenChange }: PointsExplanation
               <div>
                 <h4 className="font-semibold">Workout Sessions:</h4>
                 <p className="text-sm text-muted-foreground">
-                  You earn **10 points** for every completed workout session.
+                  You earn **5 points** for every completed workout session.
                 </p>
               </div>
             </div>

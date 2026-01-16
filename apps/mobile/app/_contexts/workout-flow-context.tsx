@@ -24,6 +24,7 @@ import type { TPath, WorkoutSession } from '@data/storage';
 import type { FetchedExerciseDefinition } from '../_lib/supabase';
 import { database, addToSyncQueue } from '../_lib/database';
 import { fetchExerciseDefinitions } from '../_lib/supabase';
+import { supabase } from '../_lib/supabase';
 import { useAuth } from './auth-context';
 
 // Define types for workout state
@@ -473,7 +474,7 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Finish workout session
   const finishWorkout = useCallback(async (rating?: number): Promise<string | null> => {
-    console.log('[WorkoutFlow] finishWorkout called with rating:', rating);
+    console.log('[WorkoutFlow] finishWorkout called with rating:', rating, 'at', new Date().toISOString());
     if (!currentSessionId || !sessionStartTime || !activeWorkout) {
       ToastAndroid.show('Workout session not properly started.', ToastAndroid.SHORT);
       return null;

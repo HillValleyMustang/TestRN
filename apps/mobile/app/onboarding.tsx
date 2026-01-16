@@ -40,7 +40,7 @@ interface Step3Data {
   goalFocus: string;
   preferredMuscles: string;
   constraints: string;
-  sessionLength: string;
+  sessionLength: string | number;
 }
 
 interface Step4Data {
@@ -52,7 +52,7 @@ interface Step4Data {
 export default function OnboardingScreen() {
   const { session, userId, supabase } = useAuth();
   const router = useRouter();
-  const { forceRefreshProfile, addGym } = useData();
+  const { forceRefreshProfile, addGym, setIsGeneratingPlan } = useData();
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('Setting up your profile...');
   const [showSummaryModal, setShowSummaryModal] = useState(false);
@@ -98,7 +98,7 @@ export default function OnboardingScreen() {
       goalFocus: '',
       preferredMuscles: '',
       constraints: '',
-      sessionLength: '',
+      sessionLength: 0,
     }
   );
 
@@ -194,6 +194,7 @@ export default function OnboardingScreen() {
 
     setLoading(true);
     setLoadingMessage('Creating your personalized workout plan...');
+    
     try {
       const confirmedExercises =
         step4Data.equipmentMethod === 'photo'
@@ -235,6 +236,9 @@ export default function OnboardingScreen() {
         unitSystem: step1Data.unitSystem,
       };
 
+      // Set generating plan status
+      setIsGeneratingPlan(true);
+
       // Use AI service to complete onboarding
       const aiResponse = await AIWorkoutService.completeOnboardingWithAI(
         payload,
@@ -253,6 +257,7 @@ export default function OnboardingScreen() {
         error.message || 'Failed to complete onboarding. Please try again.'
       );
     } finally {
+      setIsGeneratingPlan(false);
       setLoading(false);
       setIsCompleting(false);
     }
@@ -342,7 +347,7 @@ export default function OnboardingScreen() {
           goalFocus: '',
           preferredMuscles: '',
           constraints: '',
-          sessionLength: '',
+          sessionLength: 0,
         });
         setStep4Data({
           gymName: '',

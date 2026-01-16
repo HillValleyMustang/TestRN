@@ -22,10 +22,12 @@ import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import PagerView from 'react-native-pager-view';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../_contexts/auth-context';
+import { useData, UserAchievement } from '../_contexts/data-context';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
+import { achievementsList, ACHIEVEMENT_DISPLAY_INFO, ACHIEVEMENT_IDS } from '@data/constants/achievements';
 import { TextStyles } from '../../constants/Typography';
 import { useLevelFromPoints } from '../../hooks/useLevelFromPoints';
 import { ScreenContainer } from '../../components/layout/ScreenContainer';
@@ -54,6 +56,8 @@ import { PhotoSourceSelectionModal } from '../../components/profile/PhotoSourceS
 import { GoalPhysiqueUploadModal } from '../../components/profile/GoalPhysiqueUploadModal';
 import { PhysiqueAnalysisModal } from '../../components/profile/PhysiqueAnalysisModal';
 import { GoalPhysiqueGallery } from '../../components/profile/GoalPhysiqueGallery';
+import { AIWorkoutService, OnboardingPayload } from '../../lib/ai-workout-service';
+import { database } from '../_lib/database';
 
 const { width } = Dimensions.get('window');
 
@@ -96,7 +100,11 @@ const TAB_COLORS: Record<Tab, string> = {
 
 export default function ProfileScreen() {
   const { session, userId, supabase } = useAuth();
+  const { forceRefresh, invalidateAllCaches, setShouldRefreshDashboard, getUserAchievements } = useData();
+
+  console.log('[Profile] Component rendered with forceRefresh:', forceRefresh, 'profile total_points:', profile?.total_points);
   const router = useRouter();
+  const params = useLocalSearchParams<{ tab?: string; scrollTo?: string }>();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [profile, setProfile] = useState<any>(null);
   const [gyms, setGyms] = useState<any[]>([]);
@@ -109,6 +117,13 @@ export default function ProfileScreen() {
   const [preferencesModalVisible, setPreferencesModalVisible] = useState(false);
   const [achievementModalVisible, setAchievementModalVisible] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<any>(null);
+  const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
+  const [loadingAchievements, setLoadingAchievements] = useState(false);
+  const [complexAchievementProgress, setComplexAchievementProgress] = useState<{
+    weekendWorkouts: number;
+    earlyBirdWorkouts: number;
+    totalSets: number;
+  }>({ weekendWorkouts: 0, earlyBirdWorkouts: 0, totalSets: 0 });
   const [levelModalVisible, setLevelModalVisible] = useState(false);
   const [manageWorkoutsVisible, setManageWorkoutsVisible] = useState(false);
   const [selectedGymId, setSelectedGymId] = useState<string>('');
@@ -138,19 +153,73 @@ export default function ProfileScreen() {
   // PagerView ref for programmatic navigation
   const pagerRef = useRef<PagerView>(null);
 
+  // ScrollView refs for programmatic scrolling
+  const overviewScrollRef = useRef<ScrollView>(null);
+
   const levelInfo = useLevelFromPoints(profile?.total_points || 0);
 
   useEffect(() => {
+    console.log('[Profile] Profile state changed, total_points:', profile?.total_points);
+  }, [profile?.total_points]);
+
+  useEffect(() => {
+    console.log('[Profile] useEffect triggered - loading profile, forceRefresh:', forceRefresh, 'userId:', userId);
+    // Always fetch fresh profile data to ensure points are up to date
     loadProfile();
+    loadAchievements();
     loadSavedTab();
-  }, [userId]);
+  }, [userId, forceRefresh]);
+
+  // Refresh profile data when this tab comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('[Profile] Tab focused - refreshing profile data');
+      loadProfile();
+      loadAchievements();
+    }, [userId])
+  );
+
+  // Also refresh when the component becomes active (not just on focus)
+  useEffect(() => {
+    console.log('[Profile] Component active - ensuring fresh data');
+    const timer = setTimeout(() => {
+      loadProfile();
+    }, 500); // Small delay to ensure other updates complete
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Handle tab query parameter and scrolling
+  useEffect(() => {
+    if (params.tab && ['overview', 'stats', 'photo', 'media', 'social', 'settings'].includes(params.tab)) {
+      const requestedTab = params.tab as Tab;
+      setActiveTab(requestedTab);
+      // Also update the pager view
+      const tabIndex = TABS_ORDER.indexOf(requestedTab);
+      if (pagerRef.current && tabIndex !== -1) {
+        pagerRef.current.setPage(tabIndex);
+      }
+
+      // Handle scrolling to specific sections
+      if (params.scrollTo === 'achievements' && requestedTab === 'overview') {
+        // Delay scrolling to ensure the view is fully rendered
+        setTimeout(() => {
+          if (overviewScrollRef.current) {
+            // Scroll to a position that shows the achievements section
+            // Based on the layout: header + tabs + stat cards + some padding
+            const scrollY = 400; // Approximate position of achievements section
+            overviewScrollRef.current.scrollTo({ y: scrollY, animated: true });
+          }
+        }, 500); // Delay to ensure rendering is complete
+      }
+    }
+  }, [params.tab, params.scrollTo]);
 
   const loadProfile = async () => {
     if (!userId) return;
 
     setLoading(true);
     try {
-      console.log('[Profile] Starting profile load for user:', userId);
+      console.log('[Profile] Starting profile load for user:', userId, 'at timestamp:', Date.now());
 
       // Load profile data
       const profileRes = await supabase
@@ -164,7 +233,7 @@ export default function ProfileScreen() {
         throw profileRes.error;
       }
 
-      console.log('[Profile] Profile data loaded:', profileRes.data?.id);
+      console.log('[Profile] Profile data loaded:', profileRes.data?.id, 'total_points:', profileRes.data?.total_points, 'forceRefresh value:', forceRefresh);
 
       // Load gyms data
       const gymsRes = await supabase
@@ -259,6 +328,7 @@ export default function ProfileScreen() {
         unique_exercises: profileData.unique_exercises
       });
 
+      console.log('[Profile] Setting profile state with total_points:', profileData.total_points);
       setProfile(profileData);
 
       if (gymsRes.data) {
@@ -296,15 +366,246 @@ export default function ProfileScreen() {
   const handleUpdateProfile = async (updates: any) => {
     if (!userId) return;
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', userId);
+    try {
+      console.log('[Profile] Updating profile with:', updates);
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', userId);
 
-    if (error) throw error;
+      if (error) {
+        console.error('[Profile] Database update error:', error);
+        throw error;
+      }
 
-    // Update local state optimistically
-    setProfile({ ...profile, ...updates });
+      console.log('[Profile] Database updated successfully, refreshing caches');
+      
+      // Verify the update was saved (especially important for programme_type changes)
+      if (updates.programme_type) {
+        const { data: verifyData } = await supabase
+          .from('profiles')
+          .select('programme_type')
+          .eq('id', userId)
+          .single();
+        
+        console.log('[Profile] Verification - programme_type in DB:', verifyData?.programme_type, 'Expected:', updates.programme_type);
+      }
+      
+      // Update local state immediately
+      setProfile({ ...profile, ...updates });
+      
+      // Clear all caches immediately to force fresh data fetch
+      invalidateAllCaches();
+      
+      // Set flag to trigger dashboard refresh on next mount/focus
+      setShouldRefreshDashboard(true);
+      
+      // Small delay to ensure Supabase propagation
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Verify the update worked by reloading profile
+      await loadProfile();
+      
+      console.log('[Profile] Profile update and cache refresh complete');
+    } catch (error) {
+      console.error('[Profile] Failed to update profile:', error);
+      throw error;
+    }
+  };
+
+  const handleRegenerateTPath = async (newProgrammeType: 'ppl' | 'ulul') => {
+    if (!userId || !session?.access_token || !profile) {
+      console.error('[Profile] Missing required data for T-Path regeneration');
+      return;
+    }
+
+    try {
+      console.log('[Profile] Starting T-Path regeneration for type:', newProgrammeType);
+      
+      // Get active gym
+      const activeGymId = profile.active_gym_id || gyms[0]?.id;
+      if (!activeGymId) {
+        throw new Error('No active gym found');
+      }
+
+      // Convert session length from number to string format if needed
+      let sessionLengthString: string;
+      const sessionLength = profile.preferred_session_length;
+      if (typeof sessionLength === 'number') {
+        const sessionLengthMap: Record<number, string> = {
+          30: '15-30',
+          45: '30-45',
+          60: '45-60',
+          90: '60-90',
+        };
+        sessionLengthString = sessionLengthMap[sessionLength] || '45-60';
+      } else {
+        sessionLengthString = sessionLength || '45-60';
+      }
+
+      // Build payload for workout generation - USE THE NEW PROGRAMME TYPE PASSED IN
+      const payload: OnboardingPayload = {
+        fullName: profile.full_name || 'Athlete',
+        heightCm: profile.height_cm || 175,
+        weightKg: profile.weight_kg || 75,
+        bodyFatPct: profile.body_fat_pct,
+        tPathType: newProgrammeType, // Use the new type, not from profile state!
+        experience: 'intermediate',
+        goalFocus: profile.primary_goal || 'muscle_gain',
+        preferredMuscles: profile.preferred_muscles || '',
+        constraints: profile.health_notes || '',
+        sessionLength: sessionLengthString,
+        gymId: activeGymId,
+        equipmentMethod: 'skip',
+        unitSystem: profile.unit_system || 'metric',
+      };
+
+      console.log('[Profile] Payload tPathType:', payload.tPathType);
+
+      console.log('[Profile] Generating new workout plan with payload:', payload);
+
+      // Call AI service to generate new workout plan
+      const aiResponse = await AIWorkoutService.generateWorkoutPlan(
+        payload,
+        session.access_token
+      );
+
+      console.log('[Profile] New workout plan generated:', aiResponse);
+
+      // Delete old T-Path and workouts from local database
+      if (profile.active_t_path_id) {
+        console.log('[Profile] Deleting old T-Path:', profile.active_t_path_id);
+        await database.deleteTPath(profile.active_t_path_id);
+      }
+
+      // Save new T-Path to local database
+      console.log('[Profile] Saving new T-Path to local database');
+      await database.addTPath({
+        id: aiResponse.mainTPath.id,
+        user_id: userId,
+        template_name: aiResponse.mainTPath.template_name,
+        description: aiResponse.mainTPath.description,
+        t_path_type: aiResponse.mainTPath.t_path_type,
+        experience_level: aiResponse.mainTPath.experience_level,
+        session_length: aiResponse.mainTPath.session_length,
+        created_at: aiResponse.mainTPath.created_at,
+        updated_at: aiResponse.mainTPath.created_at,
+        parent_id: null,
+        gym_id: activeGymId,
+        is_active: true,
+      });
+
+      // Save child workouts
+      console.log('[Profile] Saving child workouts');
+      for (const workout of aiResponse.childWorkouts) {
+        await database.addTPath({
+          id: workout.id,
+          user_id: userId,
+          template_name: workout.workout_name,
+          description: '',
+          t_path_type: aiResponse.mainTPath.t_path_type,
+          experience_level: aiResponse.mainTPath.experience_level,
+          session_length: aiResponse.mainTPath.session_length,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          parent_id: aiResponse.mainTPath.id,
+          gym_id: activeGymId,
+          is_active: true,
+        });
+
+        // Save exercises for each workout
+        console.log('[Profile] Saving exercises for workout:', workout.workout_name, 'count:', workout.exercises.length);
+        for (const exercise of workout.exercises) {
+          // Get the exercise ID - could be exercise_id or id depending on response structure
+          const exerciseId = (exercise as any).exercise_id || (exercise as any).id;
+          
+          if (!exerciseId) {
+            console.warn('[Profile] Skipping exercise without ID:', exercise);
+            continue;
+          }
+
+          try {
+            await database.addTPathExercise({
+              id: `${workout.id}_${exerciseId}_${Date.now()}_${exercise.order_index}`,
+              t_path_id: workout.id,
+              exercise_id: exerciseId,
+              order_index: exercise.order_index,
+              is_bonus_exercise: Boolean((exercise as any).is_bonus_exercise),
+              created_at: new Date().toISOString(),
+            } as any);
+            console.log('[Profile] Saved exercise:', exerciseId);
+          } catch (exerciseError) {
+            console.error('[Profile] Failed to save exercise:', exerciseId, exerciseError);
+            // Continue with next exercise instead of failing the entire workout
+          }
+        }
+      }
+
+      // Update profile with new active_t_path_id AND programme_type to ensure it's persisted
+      console.log('[Profile] Updating profile with new T-Path ID and programme type:', newProgrammeType);
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ 
+          active_t_path_id: aiResponse.mainTPath.id,
+          programme_type: newProgrammeType,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+
+      if (updateError) {
+        console.error('[Profile] Failed to update profile:', updateError);
+        throw updateError;
+      }
+
+      // Update local state with both the new T-Path ID and programme type
+      setProfile({ 
+        ...profile, 
+        active_t_path_id: aiResponse.mainTPath.id,
+        programme_type: newProgrammeType
+      });
+
+      // Clear all caches and trigger refresh
+      invalidateAllCaches();
+      setShouldRefreshDashboard(true);
+      
+      // Small delay before reloading
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Reload profile to verify
+      await loadProfile();
+
+      // Verify the programme type was saved correctly
+      const { data: verifyData } = await supabase
+        .from('profiles')
+        .select('programme_type, active_t_path_id')
+        .eq('id', userId)
+        .single();
+      
+      console.log('[Profile] Verification - Database values:', {
+        programme_type: verifyData?.programme_type,
+        active_t_path_id: verifyData?.active_t_path_id,
+        expected_programme_type: newProgrammeType,
+        expected_t_path_id: aiResponse.mainTPath.id
+      });
+
+      console.log('[Profile] T-Path regeneration complete');
+      
+      Toast.show({
+        type: 'success',
+        text1: 'Workout Plan Updated',
+        text2: 'Your new workout plan has been generated successfully',
+        position: 'bottom',
+        visibilityTime: 3000,
+      });
+    } catch (error: any) {
+      console.error('[Profile] T-Path regeneration failed:', error);
+      Alert.alert(
+        'Error',
+        `Failed to regenerate workout plan: ${error.message || 'Unknown error'}`
+      );
+      throw error;
+    }
   };
 
   const handleRefreshGyms = async () => {
@@ -322,6 +623,160 @@ export default function ProfileScreen() {
 
     // Also refresh profile to get updated active_gym_id
     await loadProfile();
+  };
+
+  const loadComplexAchievementProgress = async () => {
+    if (!userId) return;
+    
+    try {
+      // Query workout sessions to calculate complex achievement progress
+      const { data: workoutSessions, error: sessionsError } = await supabase
+        .from('workout_sessions')
+        .select('session_date, completed_at')
+        .eq('user_id', userId)
+        .not('completed_at', 'is', null);
+      
+      if (sessionsError) {
+        console.error('[Profile] Error loading workout sessions for achievements:', sessionsError);
+        return;
+      }
+      
+      // Calculate weekend workouts (Saturday = 6, Sunday = 0)
+      const weekendWorkouts = (workoutSessions || []).filter(session => {
+        const date = new Date(session.session_date);
+        const day = date.getDay();
+        return day === 0 || day === 6; // Sunday or Saturday
+      }).length;
+      
+      // Calculate early bird workouts (before 8 AM)
+      const earlyBirdWorkouts = (workoutSessions || []).filter(session => {
+        const date = new Date(session.completed_at);
+        const hour = date.getHours();
+        return hour < 8;
+      }).length;
+      
+      // Query set logs to count total sets
+      const { data: setLogs, error: setLogsError } = await supabase
+        .from('set_logs')
+        .select('id, workout_sessions!inner(user_id)')
+        .eq('workout_sessions.user_id', userId);
+      
+      if (setLogsError) {
+        console.error('[Profile] Error loading set logs for achievements:', setLogsError);
+      }
+      
+      const totalSets = setLogs?.length || 0;
+      
+      setComplexAchievementProgress({
+        weekendWorkouts,
+        earlyBirdWorkouts,
+        totalSets,
+      });
+      
+      console.log('[Profile] Complex achievement progress:', {
+        weekendWorkouts,
+        earlyBirdWorkouts,
+        totalSets,
+      });
+    } catch (error) {
+      console.error('[Profile] Error calculating complex achievement progress:', error);
+    }
+  };
+
+  const loadAchievements = async () => {
+    if (!userId) return;
+    setLoadingAchievements(true);
+    try {
+      const achievements = await getUserAchievements(userId);
+      setUserAchievements(achievements);
+      // Also load complex achievement progress
+      await loadComplexAchievementProgress();
+    } catch (error) {
+      console.error('[Profile] Error loading achievements:', error);
+    } finally {
+      setLoadingAchievements(false);
+    }
+  };
+
+  const calculateAchievementProgress = (achievementId: string, isUnlocked: boolean): { progress: number; total: number } => {
+    if (!profile) return { progress: 0, total: 1 };
+
+    const totalWorkouts = profile.total_workouts || 0;
+    const totalPoints = profile.total_points || 0;
+    const currentStreak = profile.current_streak || 0;
+
+    switch (achievementId) {
+      case ACHIEVEMENT_IDS.FIRST_WORKOUT:
+        return { progress: totalWorkouts >= 1 ? 1 : 0, total: 1 };
+      
+      case ACHIEVEMENT_IDS.TWENTY_FIVE_WORKOUTS:
+        return { progress: totalWorkouts, total: 25 };
+      
+      case ACHIEVEMENT_IDS.FIFTY_WORKOUTS:
+        return { progress: totalWorkouts, total: 50 };
+      
+      case ACHIEVEMENT_IDS.TEN_DAY_STREAK:
+        return { progress: currentStreak, total: 10 };
+      
+      case ACHIEVEMENT_IDS.THIRTY_DAY_STREAK:
+        return { progress: currentStreak, total: 30 };
+      
+      case ACHIEVEMENT_IDS.CENTURY_CLUB:
+        return { progress: totalPoints, total: 1000 };
+      
+      // For complex achievements, use actual calculated progress
+      case ACHIEVEMENT_IDS.WEEKEND_WARRIOR:
+        return { progress: complexAchievementProgress.weekendWorkouts, total: 10 };
+      
+      case ACHIEVEMENT_IDS.EARLY_BIRD:
+        return { progress: complexAchievementProgress.earlyBirdWorkouts, total: 10 };
+      
+      case ACHIEVEMENT_IDS.VOLUME_MASTER:
+        return { progress: complexAchievementProgress.totalSets, total: 100 };
+      
+      case ACHIEVEMENT_IDS.PERFECT_WEEK:
+      case ACHIEVEMENT_IDS.BEAST_MODE:
+      case ACHIEVEMENT_IDS.AI_APPRENTICE:
+        return { progress: isUnlocked ? 1 : 0, total: 1 };
+      
+      default:
+        return { progress: 0, total: 1 };
+    }
+  };
+
+  const mapAchievements = () => {
+    const unlockedIds = new Set(userAchievements.map(a => a.achievement_id));
+    
+    return achievementsList.map(achievement => {
+      const isUnlockedInDb = unlockedIds.has(achievement.id);
+      const displayInfo = ACHIEVEMENT_DISPLAY_INFO[achievement.id];
+      // Calculate progress - for simple achievements, isUnlocked doesn't matter
+      // For complex achievements, we need isUnlockedInDb
+      const { progress, total } = calculateAchievementProgress(achievement.id, isUnlockedInDb);
+      
+      // Determine final unlock status
+      // For most achievements with progress tracking (total > 1), check database OR progress
+      // For achievements we can't track progress (Perfect Week, Beast Mode, AI Apprentice), only check database
+      const isComplexNoProgress = [
+        ACHIEVEMENT_IDS.PERFECT_WEEK,
+        ACHIEVEMENT_IDS.BEAST_MODE,
+        ACHIEVEMENT_IDS.AI_APPRENTICE,
+      ].includes(achievement.id);
+      
+      const isUnlocked = isComplexNoProgress 
+        ? isUnlockedInDb 
+        : isUnlockedInDb || (progress >= total && total > 1);
+      
+      return {
+        id: achievement.id,
+        name: displayInfo?.name || achievement.name,
+        icon: displayInfo?.icon || achievement.icon,
+        description: displayInfo?.description || '',
+        progress,
+        total,
+        unlocked: isUnlocked,
+      };
+    });
   };
 
   const handleManageGym = (gymId: string) => {
@@ -521,118 +976,7 @@ export default function ProfileScreen() {
     );
   };
 
-  const achievements = [
-    {
-      id: 1,
-      emoji: '🏃',
-      title: 'First Workout',
-      description: 'Complete your first workout.',
-      progress: 1,
-      total: 1,
-      unlocked: true,
-    },
-    {
-      id: 2,
-      emoji: '🤖',
-      title: 'AI Apprentice',
-      description: 'Use AI coaching during a workout.',
-      progress: 0,
-      total: 1,
-      unlocked: false,
-    },
-    {
-      id: 3,
-      emoji: '🔥',
-      title: '10 Day Streak',
-      description: 'Log an activity for 10 consecutive days.',
-      progress: profile?.current_streak || 0,
-      total: 10,
-      unlocked: (profile?.current_streak || 0) >= 10,
-    },
-    {
-      id: 4,
-      emoji: '👑',
-      title: 'Consistency King',
-      description: 'Log an activity for 30 consecutive days.',
-      progress: profile?.current_streak || 0,
-      total: 30,
-      unlocked: (profile?.current_streak || 0) >= 30,
-    },
-    {
-      id: 5,
-      emoji: '💪',
-      title: '25 Workouts',
-      description: 'Complete 25 total workouts.',
-      progress: profile?.total_workouts || 0,
-      total: 25,
-      unlocked: (profile?.total_workouts || 0) >= 25,
-    },
-    {
-      id: 6,
-      emoji: '🏆',
-      title: '50 Workouts',
-      description: 'Complete 50 total workouts.',
-      progress: profile?.total_workouts || 0,
-      total: 50,
-      unlocked: (profile?.total_workouts || 0) >= 50,
-    },
-    {
-      id: 7,
-      emoji: '💯',
-      title: 'Century Club',
-      description: 'Complete 100 total workouts.',
-      progress: profile?.total_workouts || 0,
-      total: 100,
-      unlocked: (profile?.total_workouts || 0) >= 100,
-    },
-    {
-      id: 8,
-      emoji: '📅',
-      title: 'Perfect Week',
-      description: 'Complete 7 workouts in a single week.',
-      progress: 0,
-      total: 7,
-      unlocked: false,
-    },
-    {
-      id: 9,
-      emoji: '💥',
-      title: 'Beast Mode',
-      description: 'Set 10 personal records in a single month.',
-      progress: 0,
-      total: 10,
-      unlocked: false,
-    },
-    {
-      id: 10,
-      emoji: '🎉',
-      title: 'Weekend Warrior',
-      description: 'Complete 10 weekend workouts.',
-      progress: 0,
-      total: 10,
-      unlocked: false,
-    },
-    {
-      id: 11,
-      emoji: '🌅',
-      title: 'Early Bird',
-      description: 'Complete 10 workouts before 7 AM.',
-      progress: 0,
-      total: 10,
-      unlocked: false,
-    },
-    {
-      id: 12,
-      emoji: '🏋️',
-      title: 'Volume Master',
-      description: 'Lift 100,000 kg total volume.',
-      progress: 0,
-      total: 100000,
-      unlocked: false,
-    },
-  ];
-
-  const handleAchievementPress = (achievement: (typeof achievements)[0]) => {
+  const handleAchievementPress = (achievement: ReturnType<typeof mapAchievements>[0]) => {
     setSelectedAchievement(achievement);
     setAchievementModalVisible(true);
   };
@@ -714,17 +1058,27 @@ export default function ProfileScreen() {
         {/* Achievements */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Achievements</Text>
-          <View style={styles.achievementsGrid}>{renderAchievements()}</View>
-          <Text style={styles.achievementsTapHint}>
-            Tap to see requirements
-          </Text>
+          {loadingAchievements ? (
+            <View style={styles.achievementsLoading}>
+              <ActivityIndicator size="large" color={Colors.primary} />
+              <Text style={styles.achievementsLoadingText}>Loading achievements...</Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.achievementsGrid}>{renderAchievements()}</View>
+              <Text style={styles.achievementsTapHint}>
+                Tap to see requirements
+              </Text>
+            </>
+          )}
         </View>
       </View>
     );
   };
 
   const renderAchievements = () => {
-    return achievements.map(achievement => (
+    const mappedAchievements = mapAchievements();
+    return mappedAchievements.map(achievement => (
       <TouchableOpacity
         key={achievement.id}
         style={[
@@ -733,8 +1087,8 @@ export default function ProfileScreen() {
         ]}
         onPress={() => handleAchievementPress(achievement)}
       >
-        <Text style={styles.achievementEmoji}>{achievement.emoji}</Text>
-        <Text style={styles.achievementTitle}>{achievement.title}</Text>
+        <Text style={styles.achievementEmoji}>{achievement.icon}</Text>
+        <Text style={styles.achievementTitle}>{achievement.name}</Text>
       </TouchableOpacity>
     ));
   };
@@ -1101,7 +1455,11 @@ export default function ProfileScreen() {
 
       <TrainingProfileCard profile={profile} onUpdate={handleUpdateProfile} />
 
-      <ProgrammeTypeCard profile={profile} onUpdate={handleUpdateProfile} />
+      <ProgrammeTypeCard 
+        profile={profile} 
+        onUpdate={handleUpdateProfile}
+        onRegenerateTPath={handleRegenerateTPath}
+      />
 
       <MyGymsCardNew
         userId={userId!}
@@ -1208,7 +1566,7 @@ export default function ProfileScreen() {
       </View>
 
       {/* Security Actions */}
-      <View style={styles.settingsSection}>
+      <View style={[styles.settingsSection, { marginBottom: 0 }]}>
         <TouchableOpacity
           style={styles.dangerButton}
           onPress={() => {
@@ -1265,13 +1623,14 @@ export default function ProfileScreen() {
     <View style={styles.mainContainer}>
       {/* Aurora Background with 3 animated blobs */}
       <BackgroundRoot />
-      <ScreenContainer scroll={false}>
-        <Animated.View
-          style={[
-            styles.headerWrapper,
-            { transform: [{ translateY: headerTranslateY }] },
-          ]}
-        >
+      <View style={styles.screenContentWrapper}>
+        <ScreenContainer scroll={false} edges={['left', 'right']}>
+          <Animated.View
+            style={[
+              styles.headerWrapper,
+              { transform: [{ translateY: headerTranslateY }] },
+            ]}
+          >
           <View style={styles.headerScrollView}>
             <View style={styles.headerContainer}>{renderHeader()}</View>
           </View>
@@ -1297,6 +1656,7 @@ export default function ProfileScreen() {
           {TABS_ORDER.map(tab => (
             <View key={tab} style={styles.page}>
               <Animated.ScrollView
+                ref={tab === 'overview' ? overviewScrollRef : undefined}
                 style={{ flex: 1 }}
                 showsVerticalScrollIndicator={false}
                 scrollEventThrottle={16}
@@ -1310,7 +1670,8 @@ export default function ProfileScreen() {
             </View>
           ))}
         </PagerView>
-      </ScreenContainer>
+        </ScreenContainer>
+      </View>
 
       {/* Camera FAB - only show on photo tab */}
       {activeTab === 'photo' && (
@@ -1368,7 +1729,7 @@ export default function ProfileScreen() {
         userId={userId || ''}
         currentPreferences={{
           unit_system: profile?.unit_system,
-          t_path_type: profile?.t_path_type,
+          t_path_type: profile?.programme_type,
           default_session_length: profile?.default_session_length,
         }}
         onSuccess={prefs => {
@@ -1628,19 +1989,24 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
+    overflow: 'hidden', // Clip content so it doesn't render over the AppHeader on Android
+  },
+  screenContentWrapper: {
+    flex: 1,
+    overflow: 'hidden', // Clip content so profile header can't escape bounds
   },
   headerWrapper: {
     position: 'absolute',
     top: 20,
     left: 0,
     right: 0,
-    zIndex: 100, // Above content but below AppHeader (which has zIndex: 10000)
+    zIndex: 100, // Above content but below AppHeader (which uses elevation: 100 on Android)
     backgroundColor: 'transparent',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 5,
+    elevation: 5, // Lower elevation than AppHeader (100) to ensure it stays below on Android
     pointerEvents: 'auto', // Allow interactions
   },
   headerScrollView: {
@@ -1679,7 +2045,7 @@ const styles = StyleSheet.create({
   tabContent: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.lg,
-    paddingBottom: Spacing.lg,
+    paddingBottom: 0, // Remove bottom padding to eliminate gap above footer
     marginTop: Spacing.lg * 10 + HEADER_OFFSET + 20, // Increased from *8 to *10 to move content back up
     width: '100%',
   },
@@ -2148,6 +2514,16 @@ const styles = StyleSheet.create({
     color: Colors.mutedForeground,
     textAlign: 'center',
     marginTop: Spacing.sm,
+  },
+  achievementsLoading: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.xl * 2,
+  },
+  achievementsLoadingText: {
+    fontSize: 14,
+    color: Colors.mutedForeground,
+    marginTop: Spacing.md,
   },
   levelCardContainer: {
     marginBottom: Spacing.lg,

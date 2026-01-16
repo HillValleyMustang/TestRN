@@ -1286,6 +1286,7 @@ export default function WorkoutLauncherScreen() {
         {...(summaryModalData?.nextWorkoutSuggestion && { nextWorkoutSuggestion: summaryModalData.nextWorkoutSuggestion })}
         {...(summaryModalData?.isOnTPath !== undefined && { isOnTPath: summaryModalData.isOnTPath })}
         {...(summaryModalData?.historicalRating !== undefined && { historicalRating: summaryModalData.historicalRating })}
+        {...(summaryModalData?.sessionId && { sessionId: summaryModalData.sessionId })}
         onSaveWorkout={handleSaveWorkout}
         onRateWorkout={handleRateWorkout}
       />

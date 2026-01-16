@@ -265,7 +265,7 @@ const checkCenturyClub = async (
   totalPoints: number,
   existingAchievements: Set<string>
 ) => {
-  // 100 workouts = 1000 total_points
+  // 200 workouts = 1000 total_points
   return await checkAchievement(supabase, userId, ACHIEVEMENT_IDS.CENTURY_CLUB, totalPoints >= 1000, existingAchievements);
 };
 
@@ -377,7 +377,7 @@ serve(async (req: Request) => {
     if (allSetLogsError) throw allSetLogsError;
     const totalSets = allSetLogs?.length || 0;
 
-    const totalWorkouts = (profileData?.total_points || 0) / 10; // 10 points per workout
+    const totalWorkouts = (profileData?.total_points || 0) / 5; // 5 points per workout
     const currentStreak = profileData?.current_streak || 0;
     const activeTPathId = profileData?.active_t_path_id || null;
     const totalPoints = profileData?.total_points || 0; // For Century Club

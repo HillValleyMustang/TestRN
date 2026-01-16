@@ -21,7 +21,7 @@ interface Step3Data {
   goalFocus: string;
   preferredMuscles: string;
   constraints: string;
-  sessionLength: string;
+  sessionLength: string | number;
 }
 
 interface Step3Props {
@@ -60,10 +60,10 @@ export default function Step3GoalsPreferences({
   const muscles = ['Arms', 'Chest', 'Legs', 'Core', 'Back', 'Shoulders'];
 
   const sessionLengths = [
-    { id: '15-30', label: 'Quick Sessions', desc: '15-30 min' },
-    { id: '30-45', label: 'Balanced', desc: '30-45 min' },
-    { id: '45-60', label: 'Full Workouts', desc: '45-60 min' },
-    { id: '60-90', label: 'Extended', desc: '60-90 min' },
+    { id: 30, label: 'Quick Sessions', desc: '15-30 min' },
+    { id: 45, label: 'Balanced', desc: '30-45 min' },
+    { id: 60, label: 'Full Workouts', desc: '45-60 min' },
+    { id: 90, label: 'Extended', desc: '60-90 min' },
   ];
 
   const selectedMuscles = data.preferredMuscles

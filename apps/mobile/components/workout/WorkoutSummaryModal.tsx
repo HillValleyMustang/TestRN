@@ -76,6 +76,7 @@ interface WorkoutSummaryModalProps {
   historicalData?: boolean;
   weeklyVolumeData?: WeeklyVolumeData;
   allAvailableMuscleGroups?: string[];
+  sessionId?: string; // Session ID for points calculation
 }
 
 // ===== CONSTANTS =====
@@ -511,7 +512,8 @@ export function WorkoutSummaryModal({
   onAIAnalysis,
   nextWorkoutSuggestion,
   isOnTPath,
-  allAvailableMuscleGroups
+  allAvailableMuscleGroups,
+  sessionId
 }: WorkoutSummaryModalProps) {
   // Debug logging - debounced to prevent spam
   useEffect(() => {
@@ -552,7 +554,7 @@ export function WorkoutSummaryModal({
   // ===== HOOKS =====
   const metrics = useWorkoutMetrics(exercises, providedDuration);
   const { handleImageError } = useImageErrorHandling();
-  const { invalidateDashboardCache, handleWorkoutCompletion, userId } = useData();
+  const { invalidateDashboardCache, handleWorkoutCompletion, userId, getWorkoutSessions } = useData();
 
   // ===== CONSTANTS =====
   const [routes] = useState([
@@ -807,8 +809,24 @@ export function WorkoutSummaryModal({
       console.log('[WorkoutSummaryModal] Triggering immediate dashboard refresh after workout completion');
       
       // First, trigger the data context's workout completion handler for immediate cache invalidation
+      // CRITICAL: Pass the session ID to award points for workout completion
       try {
-        await handleWorkoutCompletion({} as any);
+        if (sessionId && userId && getWorkoutSessions) {
+          // Fetch the session data to pass to handleWorkoutCompletion
+          const sessions = await getWorkoutSessions(userId);
+          const session = sessions.find(s => s.id === sessionId);
+          
+          if (session) {
+            await handleWorkoutCompletion(session);
+            console.log('[WorkoutSummaryModal] Points calculated and awarded for session:', sessionId);
+          } else {
+            console.warn('[WorkoutSummaryModal] Session not found, calling without session ID (cache invalidation only)');
+            await handleWorkoutCompletion(undefined);
+          }
+        } else {
+          console.log('[WorkoutSummaryModal] No session ID provided, cache invalidation only (no points)');
+          await handleWorkoutCompletion(undefined);
+        }
         console.log('[WorkoutSummaryModal] Data context cache invalidation completed');
       } catch (error) {
         console.error('[WorkoutSummaryModal] Error during data context cache invalidation:', error);
@@ -834,7 +852,7 @@ export function WorkoutSummaryModal({
     setTimeout(() => {
       onClose();
     }, 1500);
-  }, [hasRatingChanged, handleSaveRating, handleSave, onClose, userId, invalidateDashboardCache, handleWorkoutCompletion]);
+  }, [hasRatingChanged, handleSaveRating, handleSave, onClose, userId, invalidateDashboardCache, handleWorkoutCompletion, sessionId, getWorkoutSessions]);
 
   // ===== TAB ROUTES =====
   const SummaryTab = useCallback(() => (

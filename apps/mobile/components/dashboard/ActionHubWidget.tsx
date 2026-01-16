@@ -37,7 +37,7 @@ export function ActionHubWidget({
     if (onLogActivity) {
       onLogActivity();
     } else {
-      console.log('Log Activity pressed');
+      console.log('Activity Log pressed');
     }
   };
 
@@ -99,7 +99,7 @@ export function ActionHubWidget({
             onPress={handleLogActivity}
           >
             <Ionicons name="fitness" size={22} color="#F97316" />
-            <Text style={styles.buttonText}>Log Activity</Text>
+            <Text style={styles.buttonText}>Activity Log</Text>
           </Pressable>
 
           {/* Col 2: AI Coach */}
@@ -202,7 +202,7 @@ export function ActionHubWidget({
             </Pressable>
             <Pressable
               style={styles.dropdownItem}
-              onPress={() => handleMoreMenuOption('/achievements')}
+              onPress={() => handleMoreMenuOption('/profile?tab=overview&scrollTo=achievements')}
             >
               <Ionicons name="trophy" size={16} color="#FBBF24" />
               <Text style={styles.dropdownText}>Achievements</Text>

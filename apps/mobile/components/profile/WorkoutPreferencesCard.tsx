@@ -42,7 +42,23 @@ export function WorkoutPreferencesCard({
   useEffect(() => {
     if (profile) {
       setPrimaryGoal(profile.primary_goal || '');
-      setSessionLength(profile.preferred_session_length || 60);
+      
+      // Handle both string and numeric session length values
+      let parsedSessionLength = 60; // default
+      if (profile.preferred_session_length) {
+        // If it's a string like '30-45', extract the upper bound number
+        if (typeof profile.preferred_session_length === 'string') {
+          const match = profile.preferred_session_length.match(/(\d+)-(\d+)/);
+          if (match) {
+            parsedSessionLength = parseInt(match[2], 10); // Use upper bound (e.g., 45 from '30-45')
+          } else {
+            parsedSessionLength = parseInt(profile.preferred_session_length, 10) || 60;
+          }
+        } else {
+          parsedSessionLength = profile.preferred_session_length;
+        }
+      }
+      setSessionLength(parsedSessionLength);
     }
   }, [profile, isEditing]);
 

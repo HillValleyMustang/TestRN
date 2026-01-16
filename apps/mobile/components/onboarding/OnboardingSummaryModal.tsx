@@ -30,7 +30,7 @@ interface Profile {
   primary_goal?: string | undefined;
   preferred_muscles?: string | undefined;
   health_notes?: string | undefined;
-  preferred_session_length?: string | undefined;
+  preferred_session_length?: string | number | undefined;
 }
 
 interface TPath {
@@ -86,6 +86,25 @@ export function OnboardingSummaryModal({
 
   console.log('[OnboardingSummaryModal] Modal VISIBLE state:', visible);
   console.log('[OnboardingSummaryModal] About to render modal, visible =', visible);
+
+  // Helper function to format session length for display
+  const formatSessionLength = (sessionLength: string | number | undefined): string => {
+    if (!sessionLength) return '';
+    
+    // If it's a number, map to the label
+    if (typeof sessionLength === 'number') {
+      const sessionLengthMap: Record<number, string> = {
+        30: '15-30 mins',
+        45: '30-45 mins',
+        60: '45-60 mins',
+        90: '60-90 mins',
+      };
+      return sessionLengthMap[sessionLength] || `${sessionLength} mins`;
+    }
+    
+    // If it's already a string, return it (for backward compatibility)
+    return sessionLength;
+  };
 
   const handleStartTraining = async () => {
     console.log('[OnboardingSummaryModal] Start Training pressed');
@@ -150,7 +169,7 @@ export function OnboardingSummaryModal({
           {profile.preferred_session_length && (
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Session Length:</Text>
-              <Text style={styles.detailValue}>{profile.preferred_session_length}</Text>
+              <Text style={styles.detailValue}>{formatSessionLength(profile.preferred_session_length)}</Text>
             </View>
           )}
         </View>

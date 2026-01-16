@@ -32,7 +32,7 @@ export interface Step3Data {
   goalFocus: string;
   preferredMuscles: string;
   constraints: string;
-  sessionLength: string;
+  sessionLength: string | number;
 }
 
 export interface Step4Data {

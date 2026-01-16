@@ -13,6 +13,7 @@ import { TextStyles } from '../constants/Typography';
 import { useAuth } from '../app/_contexts/auth-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRollingStatus } from '../hooks/useRollingStatus';
+import { useData } from '../app/_contexts/data-context';
 import { StatusInfoModal } from './StatusInfoModal';
 import { HamburgerMenuSheet } from './HamburgerMenuSheet';
 import { AvatarDropdown } from './AvatarDropdown';
@@ -23,7 +24,14 @@ import { supabase } from '../app/_lib/supabase';
 export function AppHeader() {
   const insets = useSafeAreaInsets();
   const { session, userId } = useAuth();
-  const { status, config, loading } = useRollingStatus();
+  const { tempStatusMessage, isGeneratingPlan, isSyncing: rawIsSyncing } = useData();
+  // Use stable sync state from dashboard to prevent flickering
+  // For now, use the raw value but we'll need to pass stable state from dashboard
+  const { status, config, loading } = useRollingStatus({
+    tempStatusMessage,
+    isGeneratingPlan,
+    isSyncing: rawIsSyncing || false,
+  });
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showMenuSheet, setShowMenuSheet] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -135,8 +143,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
-    elevation: 3,
-    zIndex: 10000,
+    elevation: 100, // High elevation for Android - this controls layering on Android
+    zIndex: -1, // Low z-index to prevent creating new stacking context, allowing elevation to work properly
   },
   content: {
     flexDirection: 'row',

@@ -5,6 +5,7 @@ import React, {
   useState,
   useMemo,
   useCallback,
+  useRef,
 } from 'react';
 import { AppState, View } from 'react-native';
 import { database, addToSyncQueue } from '../_lib/database';
@@ -22,6 +23,7 @@ import type {
   Gym,
 } from '@data/storage/models';
 import NetInfo from '@react-native-community/netinfo';
+import type { TempStatusMessage } from '../../hooks/useRollingStatus';
 
 // Constants for gym management
 const MAX_GYMS_PER_USER = 3;
@@ -203,6 +205,7 @@ interface DataContextType {
   isOnline: boolean;
   loadDashboardSnapshot: () => Promise<DashboardSnapshot>;
   forceRefreshProfile: () => void;
+  forceRefresh: number;
   forceSyncPendingItems: () => Promise<void>;
   cleanupUserData: (userId: string) => Promise<{ success: boolean; cleanedTables: string[]; errors: string[] }>;
   emergencyReset: () => Promise<{ success: boolean; error?: string }>;
@@ -212,6 +215,10 @@ interface DataContextType {
   setShouldRefreshDashboard: (value: boolean) => void;
   lastWorkoutCompletionTime: number;
   setLastWorkoutCompletionTime: (value: number) => void;
+  tempStatusMessage: TempStatusMessage | null;
+  setTempStatusMessage: (message: TempStatusMessage | null) => void;
+  isGeneratingPlan: boolean;
+  setIsGeneratingPlan: (value: boolean) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -235,6 +242,9 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   } | null>(null);
   const [shouldRefreshDashboard, setShouldRefreshDashboard] = useState(false);
   const [lastWorkoutCompletionTime, setLastWorkoutCompletionTime] = useState<number>(0);
+  const [tempStatusMessage, setTempStatusMessageState] = useState<TempStatusMessage | null>(null);
+  const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
+  const tempStatusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const [gymActivationCache, setGymActivationCache] = useState<{
     [userId: string]: Gym | null;
@@ -292,6 +302,22 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     );
     return () => subscription.unsubscribe();
   }, []);
+
+  // Check for missed weekly completions when user opens app
+  // This is a client-side fallback in case the cron job didn't run
+  useEffect(() => {
+    if (userId && isInitialized && supabase) {
+      // Check for missed weekly completions when app initializes
+      // Use a small delay to ensure profile data is loaded first
+      const checkTimer = setTimeout(() => {
+        checkMissedWeeklyCompletions().catch(error => {
+          console.error('[DataContext] Error in missed weekly completions check:', error);
+        });
+      }, 3000); // 3 second delay to allow profile to load
+
+      return () => clearTimeout(checkTimer);
+    }
+  }, [userId, isInitialized, supabase, checkMissedWeeklyCompletions]);
 
   const { isSyncing, queueLength } = useSyncQueueProcessor({
     supabase,
@@ -1294,21 +1320,288 @@ console.log('Weekly summary calculation:', {
     invalidateDashboardCache();
   };
 
+  // Helper function to get workout type from template name
+  const getWorkoutType = useCallback((templateName: string | null | undefined): string | null => {
+    if (!templateName) return null;
+    const lowerName = templateName.toLowerCase();
+    
+    // Check for PPL workout types
+    if (lowerName.includes('push')) return 'Push';
+    if (lowerName.includes('pull')) return 'Pull';
+    if (lowerName.includes('leg')) return 'Legs';
+    
+    // Check for ULUL workout types
+    if (lowerName.includes('upper') && lowerName.includes('a')) return 'Upper Body A';
+    if (lowerName.includes('upper') && lowerName.includes('b')) return 'Upper Body B';
+    if (lowerName.includes('upper')) return 'Upper Body A'; // Default to A if no variant specified
+    if (lowerName.includes('lower') && lowerName.includes('a')) return 'Lower Body A';
+    if (lowerName.includes('lower') && lowerName.includes('b')) return 'Lower Body B';
+    if (lowerName.includes('lower')) return 'Lower Body A'; // Default to A if no variant specified
+    
+    return null;
+  }, []);
+
+  // Helper function to calculate total volume from set logs
+  const calculateSessionVolume = useCallback((setLogs: any[]): number => {
+    return setLogs.reduce((total, log) => {
+      const weight = parseFloat(log.weight_kg) || 0;
+      const reps = parseFloat(log.reps) || 0;
+      return total + (weight * reps);
+    }, 0);
+  }, []);
+
+  // Helper function to get Monday (week start) for a given date
+  const getWeekStart = useCallback((date: Date): Date => {
+    const d = new Date(date);
+    const day = d.getUTCDay(); // 0 = Sunday, 1 = Monday, etc.
+    const diff = day === 0 ? 6 : day - 1; // Days to subtract to get to Monday
+    d.setUTCDate(d.getUTCDate() - diff);
+    d.setUTCHours(0, 0, 0, 0);
+    d.setUTCMinutes(0, 0, 0);
+    return d;
+  }, []);
+
   // Enhanced method to handle workout completion refresh
   const handleWorkoutCompletion = useCallback(async (session?: WorkoutSession | undefined): Promise<void> => {
-    console.log('[DataContext] Handling workout completion for dashboard refresh');
-    
+    console.log('[DataContext] Handling workout completion for dashboard refresh', { sessionId: session?.id });
+
+    // Calculate and award points for workout completion
+    // CRITICAL: Only award points if a valid session ID is provided
+    // This prevents duplicate point awards when the function is called multiple times
+    // (e.g., from WorkoutSummaryModal, dashboard focus effect, etc.)
+    if (userId && supabase && session?.id) {
+      try {
+        // Check if points were already awarded for this session by verifying
+        // if the session was completed very recently (within last 5 seconds)
+        // and if we've already processed this session in memory
+        const sessionProcessedKey = `points_awarded_${session.id}`;
+        const recentlyProcessed = (global as any)[sessionProcessedKey];
+        
+        if (recentlyProcessed) {
+          console.log('[DataContext] Points already awarded for this session, skipping:', session.id);
+        } else {
+          // Mark this session as processed to prevent duplicate awards
+          (global as any)[sessionProcessedKey] = Date.now();
+          
+          // Clear the flag after 30 seconds to allow for legitimate retries if needed
+          setTimeout(() => {
+            delete (global as any)[sessionProcessedKey];
+          }, 30000);
+
+          // Base points for completing workout
+          let pointsEarned = 5;
+
+          // Get volume PR count from the session (set-level PRs)
+          let volumePrCount = 0;
+          // Fetch set logs for this session to count volume PRs
+          const { data: setLogs, error: setLogsError } = await supabase
+            .from('set_logs')
+            .select('is_pb, weight_kg, reps')
+            .eq('session_id', session.id);
+
+          if (!setLogsError && setLogs) {
+            volumePrCount = setLogs.filter(log => log.is_pb).length;
+          }
+          pointsEarned += volumePrCount * 2;
+
+          // Check for workout type volume PR (total session volume PR per workout type)
+          const workoutType = getWorkoutType(session.template_name);
+          if (workoutType && setLogs && setLogs.length > 0) {
+            const sessionVolume = calculateSessionVolume(setLogs);
+            
+            // Check current best volume for this workout type
+            const { data: currentRecord, error: recordError } = await supabase
+              .from('user_workout_volume_records')
+              .select('best_volume')
+              .eq('user_id', userId)
+              .eq('workout_type', workoutType)
+              .single();
+
+            // Handle query errors - skip volume PR check if critical error (not just "not found")
+            // PGRST116 = "not found" which is fine (means no previous record)
+            if (recordError && recordError.code !== 'PGRST116') {
+              console.error('[DataContext] Error checking volume record, skipping volume PR check:', recordError);
+            } else {
+              const currentBestVolume = currentRecord?.best_volume || 0;
+              
+              if (sessionVolume > currentBestVolume) {
+                // Update or insert the volume record FIRST (before awarding points)
+                const { error: upsertError } = await supabase
+                  .from('user_workout_volume_records')
+                  .upsert({
+                    user_id: userId,
+                    workout_type: workoutType,
+                    best_volume: sessionVolume,
+                    achieved_at: new Date().toISOString(),
+                    session_id: session.id,
+                    updated_at: new Date().toISOString()
+                  }, {
+                    onConflict: 'user_id,workout_type'
+                  });
+
+                // Only award +5 points AFTER successfully upserting the record
+                if (upsertError) {
+                  console.error('[DataContext] Error updating volume record, not awarding volume PR points:', upsertError);
+                } else {
+                  // New volume PR for this workout type - award +5 points
+                  pointsEarned += 5;
+                  console.log('[DataContext] New volume PR for workout type:', { workoutType, previousBest: currentBestVolume, newBest: sessionVolume });
+                }
+              }
+            }
+          }
+
+          console.log('[DataContext] Points calculation:', { base: 5, volumePrs: volumePrCount, totalEarned: pointsEarned, userId, sessionId: session.id });
+
+          // Update user's total_points in database
+          const { data: currentProfile } = await supabase
+            .from('profiles')
+            .select('total_points')
+            .eq('id', userId)
+            .single();
+
+          const currentTotalPoints = currentProfile?.total_points || 0;
+          const newTotalPoints = currentTotalPoints + pointsEarned;
+
+          const { error: pointsUpdateError } = await supabase
+            .from('profiles')
+            .update({
+              total_points: newTotalPoints,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', userId);
+
+          if (pointsUpdateError) {
+            console.error('[DataContext] Error updating points:', pointsUpdateError);
+            console.error('[DataContext] Points update failed for user:', userId);
+            // Clear the flag on error so it can be retried
+            delete (global as any)[sessionProcessedKey];
+          } else {
+            console.log('[DataContext] Points updated successfully:', {
+              userId,
+              previous: currentTotalPoints,
+              earned: pointsEarned,
+              total: newTotalPoints
+            });
+
+            // Verify the update by reading back the value
+            const { data: verifyProfile } = await supabase
+              .from('profiles')
+              .select('total_points')
+              .eq('id', userId)
+              .single();
+
+            console.log('[DataContext] Verification - points after update:', verifyProfile?.total_points);
+          }
+        }
+      } catch (pointsError) {
+        console.error('[DataContext] Error in points calculation:', pointsError);
+        // Clear the flag on error so it can be retried
+        if (session?.id) {
+          const sessionProcessedKey = `points_awarded_${session.id}`;
+          delete (global as any)[sessionProcessedKey];
+        }
+      }
+    } else if (!session?.id) {
+      // Log when called without a session ID (cache invalidation only, no points)
+      console.log('[DataContext] handleWorkoutCompletion called without session ID - performing cache invalidation only (no points awarded)');
+    }
+
     // Clear all caches immediately
     invalidateAllCaches();
-    
+
     // Set refresh flag to ensure dashboard shows updated data
     setShouldRefreshDashboard(true);
-    
+
     // Update last workout completion time for debugging
     setLastWorkoutCompletionTime(Date.now());
-    
+
+    // Show "Workout Complete!" message first (will be cleared after 2 seconds when sync box hides)
+    setTempStatusMessage({ message: 'Workout Complete!', type: 'success' });
+
+    // Update rolling workout status after workout completion
+    if (userId && supabase) {
+      try {
+        console.log('[DataContext] Updating rolling workout status after workout completion');
+        const { data, error } = await supabase.functions.invoke('calculate-rolling-status', {
+          body: { user_id: userId }
+        });
+
+        if (error) {
+          console.error('[DataContext] Error updating rolling workout status:', error);
+        } else {
+          console.log('[DataContext] Rolling workout status updated successfully:', data);
+        }
+      } catch (error) {
+        console.error('[DataContext] Failed to update rolling workout status:', error);
+      }
+
+      // Process achievements after workout completion
+      try {
+        console.log('[DataContext] Processing achievements after workout completion');
+        const { data: achievementData, error: achievementError } = await supabase.functions.invoke('process-achievements', {
+          body: { user_id: userId, session_id: session?.id }
+        });
+
+        if (achievementError) {
+          console.error('[DataContext] Error processing achievements:', achievementError);
+        } else {
+          console.log('[DataContext] Achievements processed successfully:', achievementData);
+        }
+      } catch (error) {
+        console.error('[DataContext] Failed to process achievements:', error);
+      }
+    }
+
+    // Refresh profile data to show updated points
+    console.log('[DataContext] Calling forceRefreshProfile after workout completion');
+    await forceRefreshProfile();
+    console.log('[DataContext] forceRefreshProfile completed');
+
     console.log('[DataContext] Workout completion refresh triggered successfully');
-  }, [invalidateAllCaches, setShouldRefreshDashboard, setLastWorkoutCompletionTime]);
+  }, [invalidateAllCaches, setShouldRefreshDashboard, setLastWorkoutCompletionTime, userId, supabase, setTempStatusMessage, getWorkoutType, calculateSessionVolume, getWeekStart, forceRefreshProfile]);
+
+  // Client-side fallback: Check for missed weekly completions when user opens app
+  // This ensures users get their weekly completion points/penalties even if the cron job didn't run
+  const checkMissedWeeklyCompletions = useCallback(async (): Promise<void> => {
+    if (!userId || !supabase) return;
+
+    try {
+      console.log('[DataContext] Checking for missed weekly completions for user:', userId);
+
+      // Invoke the edge function to check missed weekly completions
+      // The edge function will determine which weeks need checking
+      const { data, error: invokeError } = await supabase.functions.invoke('check-weekly-completion', {
+        body: { user_id: userId }
+      });
+
+      if (invokeError) {
+        // Handle 404 (function not deployed) gracefully - this is expected if the function hasn't been deployed yet
+        if (invokeError.message?.includes('404') || invokeError.message?.includes('not found')) {
+          console.log('[DataContext] Weekly completion check function not yet deployed. This is expected if the function hasn\'t been deployed to Supabase yet.');
+          return;
+        }
+        // For other errors, log them but don't throw - this is a background check
+        console.error('[DataContext] Error checking missed weekly completions:', invokeError.message || invokeError);
+        return;
+      }
+
+      console.log('[DataContext] Checked missed weekly completions successfully', data);
+      // Refresh profile to get updated points after weekly completion check
+      // Use a small delay to ensure the points update has completed
+      setTimeout(() => {
+        forceRefreshProfile();
+      }, 1000);
+    } catch (error: any) {
+      // Handle any unexpected errors gracefully - this is a background check, so we don't want to disrupt the app
+      const errorMessage = error?.message || String(error);
+      if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+        console.log('[DataContext] Weekly completion check function not yet deployed. This is expected if the function hasn\'t been deployed to Supabase yet.');
+      } else {
+        console.error('[DataContext] Failed to check missed weekly completions:', errorMessage);
+      }
+    }
+  }, [userId, supabase, forceRefreshProfile]);
 
   const addSetLog = async (setLog: SetLog): Promise<void> => {
     await database.addSetLog(setLog);
@@ -1323,7 +1616,7 @@ console.log('Weekly summary calculation:', {
       await database.deleteWorkoutSession(sessionId);
       console.log('[DataContext] Deleted workout session from local database');
       
-      // 2. Add to sync queue for remote deletion
+      // 2. Add to sync queue for remote deletion (this will sync silently in the background)
       await addToSyncQueue('delete', 'workout_sessions', { id: sessionId });
       console.log('[DataContext] Added deletion to sync queue');
       
@@ -1337,7 +1630,8 @@ console.log('Weekly summary calculation:', {
       console.log('[DataContext] Invalidating dashboard cache due to workout deletion');
       setDashboardCache(null);
       setShouldRefreshDashboard(true);
-      setLastWorkoutCompletionTime(Date.now());
+      // Note: NOT setting setLastWorkoutCompletionTime here - that's only for completions
+      // This ensures the sync happens silently in the background without showing the sync banner
       
       // 5. Force immediate state reset to prevent empty dashboard
       console.log('[DataContext] Resetting data context state to prevent empty dashboard');
@@ -1712,6 +2006,35 @@ console.log('Weekly summary calculation:', {
     return result;
   }, []);
 
+  // Temporary status message management with auto-clear
+  const setTempStatusMessage = useCallback((message: TempStatusMessage | null) => {
+    // Clear any existing timeout
+    if (tempStatusTimeoutRef.current) {
+      clearTimeout(tempStatusTimeoutRef.current);
+      tempStatusTimeoutRef.current = null;
+    }
+
+    setTempStatusMessageState(message);
+
+    // Auto-clear after 5 seconds if message is set (longer than our 2-second sync box window)
+    // This prevents auto-clear from interfering with sync flow
+    if (message) {
+      tempStatusTimeoutRef.current = setTimeout(() => {
+        setTempStatusMessageState(null);
+        tempStatusTimeoutRef.current = null;
+      }, 5000); // Increased from 3s to 5s to avoid conflicts with sync flow
+    }
+  }, []);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (tempStatusTimeoutRef.current) {
+        clearTimeout(tempStatusTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const value = useMemo(
     () => ({
       supabase,
@@ -1777,8 +2100,13 @@ console.log('Weekly summary calculation:', {
       setShouldRefreshDashboard,
       lastWorkoutCompletionTime,
       setLastWorkoutCompletionTime,
+      tempStatusMessage,
+      setTempStatusMessage,
+      isGeneratingPlan,
+      setIsGeneratingPlan,
+      forceRefresh,
     }),
-    [isSyncing, queueLength, isOnline, loadDashboardSnapshot, forceRefreshProfile, cleanupUserData, emergencyReset, supabase, userId]
+    [isSyncing, queueLength, isOnline, loadDashboardSnapshot, forceRefreshProfile, cleanupUserData, emergencyReset, supabase, userId, tempStatusMessage, isGeneratingPlan, setTempStatusMessage, forceRefresh]
   );
 
   if (!isInitialized) {

@@ -44,7 +44,7 @@ import { ActivityLoggingModal_new as ActivityLoggingModal } from '../../componen
 
 export default function DashboardScreen() {
   const { session, userId, loading: authLoading } = useAuth();
-  const { loadDashboardSnapshot, deleteWorkoutSession, setActiveGym, isSyncing, queueLength, isOnline, forceRefreshProfile, getWorkoutSessions, getSetLogs, shouldRefreshDashboard, setShouldRefreshDashboard, lastWorkoutCompletionTime, setLastWorkoutCompletionTime, handleWorkoutCompletion } = useData();
+  const { loadDashboardSnapshot, deleteWorkoutSession, setActiveGym, isSyncing, queueLength, isOnline, forceRefreshProfile, getWorkoutSessions, getSetLogs, shouldRefreshDashboard, setShouldRefreshDashboard, lastWorkoutCompletionTime, setLastWorkoutCompletionTime, handleWorkoutCompletion, setTempStatusMessage } = useData();
   
   const router = useRouter();
   
@@ -124,6 +124,24 @@ export default function DashboardScreen() {
   // Refresh mutex to prevent concurrent refresh calls causing race conditions
   const refreshInProgressRef = useRef(false);
   const pendingRefreshRef = useRef(false);
+  
+  // Track sync box visibility - show for max 2 seconds from when first shown
+  const syncBoxTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const syncBoxShownAtRef = useRef<number | null>(null);
+  const syncBoxHiddenRef = useRef<boolean>(false); // Track if sync box was already hidden
+  const tempMessageClearTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const tempMessageClearedRef = useRef<boolean>(false);
+  const tempMessageMinDurationElapsedRef = useRef<boolean>(false);
+  const syncCompletedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [showSyncBox, setShowSyncBox] = useState(false);
+  
+  // Stable sync state that doesn't flicker - only becomes false after consistent inactivity
+  const stableIsSyncingRef = useRef<boolean>(false);
+  const stableSyncInactiveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [stableIsSyncing, setStableIsSyncing] = useState(false);
+  
+  // ScrollView refs for scrolling to top
+  const scrollViewRef = useRef<ScrollView | null>(null);
 
   // Enhanced cache invalidation function - now calls data context's handleWorkoutCompletion
   const dashboardInvalidateAllCaches = useCallback(async () => {
@@ -323,6 +341,26 @@ export default function DashboardScreen() {
         console.log('[Dashboard] Syncing userProfile from cached data');
         setUserProfile(snapshot.profile);
       }
+
+      // Update rolling workout status periodically when dashboard data is refreshed
+      if (userId) {
+        try {
+          console.log('[Dashboard] Updating rolling workout status on dashboard refresh');
+          supabase?.functions.invoke('calculate-rolling-status', {
+            body: { user_id: userId }
+          }).then(({ data, error }) => {
+            if (error) {
+              console.error('[Dashboard] Error updating rolling workout status:', error);
+            } else {
+              console.log('[Dashboard] Rolling workout status updated successfully:', data);
+            }
+          }).catch((error) => {
+            console.error('[Dashboard] Failed to update rolling workout status:', error);
+          });
+        } catch (error) {
+          console.error('[Dashboard] Failed to trigger rolling workout status update:', error);
+        }
+      }
     } catch (error) {
       console.error('[Dashboard] Failed to load data', error);
     } finally {
@@ -463,9 +501,161 @@ export default function DashboardScreen() {
     }
   }, [session, authLoading, userId, userProfile?.onboarding_completed, router]);
 
+  // Show sync box for exactly 2 seconds from when workout completes or sync starts
+  // This ensures the box shows even if sync hasn't started yet
+  useEffect(() => {
+    const hasSyncActivity = isSyncing || queueLength > 0;
+    const timeSinceCompletion = lastWorkoutCompletionTime > 0 ? Date.now() - lastWorkoutCompletionTime : Infinity;
+    const recentWorkoutCompletion = timeSinceCompletion < 5000; // Within 5 seconds of completion (extended window)
+    const timeSinceShow = syncBoxShownAtRef.current ? Date.now() - syncBoxShownAtRef.current : null;
+    const isWithinTwoSecondWindow = timeSinceShow !== null && timeSinceShow < 2000;
+    
+    // Show sync box ONLY if workout just completed (not for other sync operations like deletions)
+    // This ensures background syncs (like workout deletion) happen silently without showing the banner
+    const shouldShowSyncBox = recentWorkoutCompletion && 
+                               syncBoxShownAtRef.current === null && 
+                               !syncBoxHiddenRef.current; // Don't re-show if already hidden
+    
+    if (shouldShowSyncBox) {
+      // First time - show box and set timer (only once)
+      const now = Date.now();
+      syncBoxShownAtRef.current = now;
+      tempMessageClearedRef.current = false;
+      setShowSyncBox(true);
+      
+      // Mark that 2 seconds minimum duration has elapsed after this timeout
+      // We'll clear temp message when sync is active (to prevent flickering)
+      // The data-context has a 5-second auto-clear as a fallback if sync never starts
+      tempMessageMinDurationElapsedRef.current = false;
+      if (tempMessageClearTimeoutRef.current) {
+        clearTimeout(tempMessageClearTimeoutRef.current);
+      }
+      tempMessageClearTimeoutRef.current = setTimeout(() => {
+        tempMessageMinDurationElapsedRef.current = true;
+        // Don't clear temp message here - let the effect below clear it when sync is active
+        // This ensures smooth transition: "Workout Complete!" → "Syncing" (no flicker to normal status first)
+        tempMessageClearTimeoutRef.current = null;
+      }, 2000);
+      
+      // Hide sync box after exactly 2 seconds from first show
+      if (syncBoxTimeoutRef.current) {
+        clearTimeout(syncBoxTimeoutRef.current);
+      }
+      syncBoxTimeoutRef.current = setTimeout(() => {
+        // Force hide the sync box after 2 seconds regardless of sync state
+        setShowSyncBox(false);
+        syncBoxHiddenRef.current = true; // Mark that we've hidden the sync box
+        syncBoxTimeoutRef.current = null;
+        console.log('[Dashboard] Sync box hidden after 2 seconds', {
+          isSyncing,
+          queueLength,
+          showSyncBox: 'will be false'
+        });
+      }, 2000);
+    }
+    
+    // Detect when sync completes (only reset if we're past the 2-second window)
+    // Don't interfere with the 2-second hide timeout - let it run independently
+    if (!hasSyncActivity && syncBoxShownAtRef.current !== null && !isWithinTwoSecondWindow && !syncCompletedTimeoutRef.current) {
+      // Wait a bit to ensure sync has truly completed (debounce check)
+      syncCompletedTimeoutRef.current = setTimeout(() => {
+        // Re-check if sync is still inactive
+        // Note: We can't access current isSyncing/queueLength here, but if hasSyncActivity was false,
+        // and we're past the 2-second window, sync has likely completed
+        // Reset everything except showSyncBox (which is controlled by its own timeout)
+          // Sync truly completed - ensure temp message is cleared (should already be cleared after 2s)
+          // But in case sync completed before 2s, make sure temp message is cleared
+          if (!tempMessageClearedRef.current) {
+            setTempStatusMessage(null);
+            tempMessageClearedRef.current = true;
+          }
+          
+          // Don't clear syncBoxTimeoutRef - let it finish its job
+          if (tempMessageClearTimeoutRef.current) {
+            clearTimeout(tempMessageClearTimeoutRef.current);
+            tempMessageClearTimeoutRef.current = null;
+          }
+          syncBoxShownAtRef.current = null;
+          syncBoxHiddenRef.current = false; // Reset for next workout
+          tempMessageMinDurationElapsedRef.current = false; // Reset for next workout
+          tempMessageClearedRef.current = false;
+          syncCompletedTimeoutRef.current = null;
+          // Don't set showSyncBox to false here - let the 2-second timeout handle it
+          console.log('[Dashboard] Sync completed - state reset (sync box will hide via its own timeout)');
+      }, 500); // Wait 500ms to ensure sync is truly done
+    } else if (hasSyncActivity && syncCompletedTimeoutRef.current) {
+      // Sync restarted - cancel the completion check
+      clearTimeout(syncCompletedTimeoutRef.current);
+      syncCompletedTimeoutRef.current = null;
+    }
+    
+    // Manage stable sync state and clear temp message when sync is active (after 2s minimum)
+    // This ensures smooth transition: "Workout Complete!" (2s) → "Syncing" → normal status
+    if (hasSyncActivity) {
+      // Sync is active - set stable state immediately
+      if (!stableIsSyncingRef.current) {
+        stableIsSyncingRef.current = true;
+        setStableIsSyncing(true);
+        console.log('[Dashboard] Sync activity detected - setting stable sync state');
+      }
+      // If 2 seconds have elapsed and temp message is still showing, clear it so "Syncing" can show
+      // This prevents flickering by ensuring we transition directly from "Workout Complete!" to "Syncing"
+      if (tempMessageMinDurationElapsedRef.current && !tempMessageClearedRef.current) {
+        setTempStatusMessage(null);
+        tempMessageClearedRef.current = true;
+        console.log('[Dashboard] Clearing temp message after 2s minimum - showing "Syncing"');
+      }
+      // Clear any inactive timeout
+      if (stableSyncInactiveTimeoutRef.current) {
+        clearTimeout(stableSyncInactiveTimeoutRef.current);
+        stableSyncInactiveTimeoutRef.current = null;
+      }
+    } else if (stableIsSyncingRef.current && !stableSyncInactiveTimeoutRef.current) {
+      // Sync became inactive - wait before clearing stable state
+      stableSyncInactiveTimeoutRef.current = setTimeout(() => {
+        // Re-check if sync is still inactive
+        const stillInactive = !isSyncing && queueLength === 0;
+        if (stillInactive) {
+          stableIsSyncingRef.current = false;
+          setStableIsSyncing(false);
+        }
+        stableSyncInactiveTimeoutRef.current = null;
+      }, 1000); // Wait 1 second to ensure sync is truly done
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      if (syncBoxTimeoutRef.current) {
+        clearTimeout(syncBoxTimeoutRef.current);
+        syncBoxTimeoutRef.current = null;
+      }
+      if (tempMessageClearTimeoutRef.current) {
+        clearTimeout(tempMessageClearTimeoutRef.current);
+        tempMessageClearTimeoutRef.current = null;
+      }
+      if (syncCompletedTimeoutRef.current) {
+        clearTimeout(syncCompletedTimeoutRef.current);
+        syncCompletedTimeoutRef.current = null;
+      }
+      if (stableSyncInactiveTimeoutRef.current) {
+        clearTimeout(stableSyncInactiveTimeoutRef.current);
+        stableSyncInactiveTimeoutRef.current = null;
+      }
+    };
+  }, [isSyncing, queueLength, lastWorkoutCompletionTime, setTempStatusMessage]); // Removed showSyncBox from deps to prevent re-runs
+
   // Enhanced focus effect to handle both regular refresh and workout completion refresh
   useFocusEffect(
     useCallback(() => {
+      // Scroll to top when returning to dashboard (especially after workout completion)
+      if (scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({ y: 0, animated: false });
+      }
+      
+      // Check if we're returning from workout completion and trigger sync box if needed
+      // But don't re-show if we've already hidden it - the main effect handles this now
+      // This check is only needed if the main effect hasn't already shown the sync box
+      
       async function fetchOnFocus() {
         if (userProfile?.onboarding_completed && initialLoadComplete) {
           const now = Date.now();
@@ -1312,20 +1502,9 @@ export default function DashboardScreen() {
           (global as any).clearWeeklyVolumeCache();
         }
         
-        // Update last workout completion time to trigger data context refresh
-        if (typeof setLastWorkoutCompletionTime === 'function') {
-          console.log('[Dashboard] Updating last workout completion time to trigger data context refresh');
-          setLastWorkoutCompletionTime(Date.now());
-        }
-        
-        // Call the data context's handleWorkoutCompletion for comprehensive cache invalidation
-        try {
-          console.log('[Dashboard] Calling data context handleWorkoutCompletion for comprehensive cache invalidation');
-          await handleWorkoutCompletion(undefined);
-          console.log('[Dashboard] Data context cache invalidation completed successfully');
-        } catch (error) {
-          console.error('[Dashboard] Error during data context cache invalidation:', error);
-        }
+        // NOTE: Do NOT call setLastWorkoutCompletionTime or handleWorkoutCompletion here
+        // Those are only for workout completions and will trigger the sync banner to show
+        // Deletions should sync silently in the background
         
         // Step 5: Trigger immediate dashboard refresh with forced cache bypass
         console.log('[Dashboard] Triggering immediate dashboard refresh after deletion');
@@ -1446,6 +1625,7 @@ export default function DashboardScreen() {
         <View style={styles.container}>
           <BackgroundRoot />
           <ScrollView
+            ref={scrollViewRef}
             style={styles.scrollView}
             contentContainerStyle={styles.content}
             refreshControl={
@@ -1460,12 +1640,12 @@ export default function DashboardScreen() {
               />
             </View>
 
-            {/* Only show sync banner when there are sync issues or offline */}
-            {(!isOnline || isSyncing || queueLength > 0) && (
+            {/* Only show sync banner when offline or during 2-second sync box display */}
+            {(!isOnline || showSyncBox) && (
               <View>
                 <SyncStatusBanner
                   isOnline={isOnline}
-                  isSyncing={isSyncing}
+                  isSyncing={isSyncing || showSyncBox}
                   queueLength={queueLength}
                   onManualSync={() => {
                     // Trigger manual sync by refreshing data
@@ -1557,20 +1737,6 @@ export default function DashboardScreen() {
               />
             </View>
 
-            {/* Debug: Force Refresh Button */}
-            <View style={{ marginTop: 20, padding: 10, backgroundColor: '#f0f0f0', borderRadius: 8 }}>
-              <Pressable
-                onPress={onRefresh}
-                style={{ padding: 10, backgroundColor: '#007AFF', borderRadius: 6 }}
-              >
-                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '600' }}>
-                  🔄 Force Refresh Data
-                </Text>
-              </Pressable>
-              <Text style={{ fontSize: 12, color: '#666', marginTop: 5, textAlign: 'center' }}>
-                Debug: Force refresh to apply workout progression fix
-              </Text>
-            </View>
           </ScrollView>
         </View>
 
@@ -1595,39 +1761,6 @@ export default function DashboardScreen() {
               await handleSessionRatingUpdate(selectedSessionData.sessionId, rating);
             } catch (error) {
               Alert.alert('Error', 'Failed to save workout rating');
-            }
-          }}
-        />
-
-        <ActivityLoggingModal
-          visible={activityModalVisible}
-          onClose={() => setActivityModalVisible(false)}
-          onLogActivity={async (activity: any) => {
-            try {
-              const activityData = {
-                user_id: userId,
-                type: activity.type,
-                duration_minutes: activity.duration,
-                notes: activity.notes,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              };
-
-              const { data, error } = await supabase
-                .from('activity_logs')
-                .insert([activityData])
-                .select();
-
-              if (error) {
-                Alert.alert('Error', 'Failed to log activity. Please try again.');
-                return;
-              }
-
-              setActivityModalVisible(false);
-              await fetchDashboardData();
-              Alert.alert('Success', 'Activity logged successfully!');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to log activity. Please try again.');
             }
           }}
         />
@@ -1753,12 +1886,12 @@ export default function DashboardScreen() {
             />
           </View>
 
-          {/* Sync Status Banner - only show when there are sync issues */}
-          {(!isOnline || isSyncing || queueLength > 0) && (
+          {/* Sync Status Banner - only show when offline or during 2-second sync box display */}
+          {(!isOnline || showSyncBox) && (
             <View>
               <SyncStatusBanner
                 isOnline={isOnline}
-                isSyncing={isSyncing}
+                isSyncing={isSyncing || showSyncBox}
                 queueLength={queueLength}
                 onManualSync={() => {
                   // Trigger manual sync by refreshing data
@@ -1862,20 +1995,6 @@ export default function DashboardScreen() {
             />
           </View>
 
-          {/* Debug: Force Refresh Button */}
-          <View style={{ marginTop: 20, padding: 10, backgroundColor: '#f0f0f0', borderRadius: 8 }}>
-            <Pressable
-              onPress={onRefresh}
-              style={{ padding: 10, backgroundColor: '#007AFF', borderRadius: 6 }}
-            >
-              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '600' }}>
-                🔄 Force Refresh Data
-              </Text>
-            </Pressable>
-            <Text style={{ fontSize: 12, color: '#666', marginTop: 5, textAlign: 'center' }}>
-              Debug: Force refresh to apply workout progression fix
-            </Text>
-          </View>
         </ScrollView>
       </View>
 
@@ -1915,44 +2034,11 @@ export default function DashboardScreen() {
       <ActivityLoggingModal
         visible={activityModalVisible}
         onClose={() => setActivityModalVisible(false)}
-        onLogActivity={async (activity) => {
-          try {
-            // Log the activity to the database
-            console.log('[Dashboard] Logging activity:', activity);
-            
-            // Create activity log entry
-            const activityData = {
-              user_id: userId,
-              type: activity.type,
-              duration_minutes: activity.duration,
-              notes: activity.notes,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            };
-
-            // Insert into Supabase
-            const { data, error } = await supabase
-              .from('activity_logs')
-              .insert([activityData])
-              .select();
-
-            if (error) {
-              console.error('[Dashboard] Failed to log activity:', error);
-              Alert.alert('Error', 'Failed to log activity. Please try again.');
-              return;
-            }
-
-            console.log('[Dashboard] Activity logged successfully:', data);
-            setActivityModalVisible(false);
-            
-            // Refresh dashboard data to update activity count
-            await fetchDashboardData();
-            
-            Alert.alert('Success', 'Activity logged successfully!');
-          } catch (error) {
-            console.error('[Dashboard] Error logging activity:', error);
-            Alert.alert('Error', 'Failed to log activity. Please try again.');
-          }
+        setTempStatusMessage={setTempStatusMessage}
+        onLogActivity={async () => {
+          // ActivityLoggingModal handles the database insertion internally
+          // Just refresh dashboard data after successful logging
+          await fetchDashboardData();
         }}
       />
 

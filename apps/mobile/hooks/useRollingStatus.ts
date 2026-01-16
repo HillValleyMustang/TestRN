@@ -4,13 +4,20 @@
  * Used by both RollingStatusBadge and DashboardHeader
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { useAuth } from '../app/_contexts/auth-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Theme';
 
 export type WorkoutStatus = 'Getting into it' | 'Building Momentum' | 'In the Zone' | 'On Fire' | 'Offline';
+
+export type TempStatusMessageType = 'success' | 'error' | 'added' | 'removed';
+
+export interface TempStatusMessage {
+  message: string;
+  type: TempStatusMessageType;
+}
 
 export interface StatusConfig {
   icon: keyof typeof Ionicons.glyphMap;
@@ -52,15 +59,71 @@ export const STATUS_CONFIG: Record<WorkoutStatus, StatusConfig> = {
   },
 };
 
+// Temporary status configs for temporary messages
+export const TEMP_STATUS_CONFIG: Record<TempStatusMessageType, StatusConfig> = {
+  success: {
+    icon: 'checkmark-circle',
+    color: 'white',
+    backgroundColor: '#22C55E',
+    description: 'Success message',
+  },
+  error: {
+    icon: 'alert-circle',
+    color: 'white',
+    backgroundColor: '#ef4444',
+    description: 'Error message',
+  },
+  added: {
+    icon: 'checkmark-circle',
+    color: 'white',
+    backgroundColor: '#22C55E',
+    description: 'Item added',
+  },
+  removed: {
+    icon: 'close-circle',
+    color: 'white',
+    backgroundColor: '#ef4444',
+    description: 'Item removed',
+  },
+};
+
+// Config for "Updating Plan..." status
+export const UPDATING_PLAN_CONFIG: StatusConfig = {
+  icon: 'sync',
+  color: '#1D4ED8',
+  backgroundColor: '#DBEAFE',
+  description: 'AI is generating your personalized workout program.',
+};
+
+// Config for "Syncing" status
+export const SYNCING_CONFIG: StatusConfig = {
+  icon: 'sync',
+  color: '#1D4ED8',
+  backgroundColor: '#DBEAFE',
+  description: 'Syncing your workout data...',
+};
+
 const isValidStatus = (status: string): boolean => {
   return ['Getting into it', 'Building Momentum', 'In the Zone', 'On Fire'].includes(status);
 };
 
-export function useRollingStatus() {
+export interface UseRollingStatusProps {
+  tempStatusMessage?: TempStatusMessage | null;
+  isGeneratingPlan?: boolean;
+  isSyncing?: boolean;
+}
+
+export function useRollingStatus(props?: UseRollingStatusProps) {
+  const { tempStatusMessage = null, isGeneratingPlan = false, isSyncing = false } = props || {};
   const { userId, supabase } = useAuth();
   const [status, setStatus] = useState<WorkoutStatus>('Getting into it');
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(true);
+  
+  // Stable sync state that doesn't flicker - only becomes false after consistent inactivity
+  const stableSyncRef = useRef<boolean>(false);
+  const stableSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [stableIsSyncing, setStableIsSyncing] = useState(false);
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
@@ -83,6 +146,46 @@ export function useRollingStatus() {
       setLoading(false);
     }
   }, [userId, isOnline, supabase]);
+
+  // Stabilize sync state to prevent flickering
+  useEffect(() => {
+    if (isSyncing) {
+      // Sync is active - set stable state immediately
+      if (!stableSyncRef.current) {
+        stableSyncRef.current = true;
+        setStableIsSyncing(true);
+        console.log('[useRollingStatus] Sync started - showing "Syncing" badge');
+      }
+      // Clear any inactive timeout since sync is active
+      if (stableSyncTimeoutRef.current) {
+        clearTimeout(stableSyncTimeoutRef.current);
+        stableSyncTimeoutRef.current = null;
+      }
+    } else {
+      // Sync became inactive - if we were showing stable sync state, wait before clearing it
+      if (stableSyncRef.current && !stableSyncTimeoutRef.current) {
+        // Wait before clearing stable state to prevent flickering
+        stableSyncTimeoutRef.current = setTimeout(() => {
+          // Only clear if sync is still inactive (check the current prop value via the effect dependency)
+          // But since this timeout runs after the effect, we need to check via a different mechanism
+          // For now, just clear it - if sync restarted, the effect will have already set it back to true
+          stableSyncRef.current = false;
+          setStableIsSyncing(false);
+          console.log('[useRollingStatus] Sync completed - clearing "Syncing" badge');
+          stableSyncTimeoutRef.current = null;
+        }, 1000); // Wait 1 second to ensure sync is truly done
+      } else if (!stableSyncRef.current) {
+        // Sync is inactive and we haven't set stable state - make sure it's false
+        setStableIsSyncing(false);
+      }
+    }
+    
+    return () => {
+      if (stableSyncTimeoutRef.current) {
+        clearTimeout(stableSyncTimeoutRef.current);
+      }
+    };
+  }, [isSyncing]);
 
   const fetchStatus = async () => {
     if (!userId || !supabase) {
@@ -123,13 +226,49 @@ export function useRollingStatus() {
     }
   };
 
-  const config = STATUS_CONFIG[status];
+  // Priority-based status display:
+  // 1. tempStatusMessage (highest priority)
+  // 2. isSyncing
+  // 3. isGeneratingPlan
+  // 4. loading
+  // 5. !isOnline
+  // 6. Normal rolling status (lowest priority)
+
+  let displayStatus: string;
+  let displayConfig: StatusConfig;
+
+  if (tempStatusMessage) {
+    // Show temporary message (highest priority)
+    displayStatus = tempStatusMessage.message;
+    displayConfig = TEMP_STATUS_CONFIG[tempStatusMessage.type];
+  } else if (stableIsSyncing) {
+    // Show "Syncing" status using stable state to prevent flickering
+    displayStatus = 'Syncing';
+    displayConfig = SYNCING_CONFIG;
+  } else if (isGeneratingPlan) {
+    // Show "Updating Plan..."
+    displayStatus = 'Updating Plan...';
+    displayConfig = UPDATING_PLAN_CONFIG;
+  } else if (loading) {
+    // Show loading state (keep existing behavior)
+    displayStatus = status;
+    displayConfig = STATUS_CONFIG[status];
+  } else if (!isOnline) {
+    // Show offline status
+    displayStatus = 'Offline';
+    displayConfig = STATUS_CONFIG['Offline'];
+  } else {
+    // Show normal rolling status
+    displayStatus = status;
+    displayConfig = STATUS_CONFIG[status];
+  }
 
   return {
-    status,
+    status: displayStatus,
     loading,
     isOnline,
-    config,
+    config: displayConfig,
     refetch: fetchStatus,
+    actualStatus: status, // Keep track of actual rolling status
   };
 }

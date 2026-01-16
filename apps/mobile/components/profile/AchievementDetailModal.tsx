@@ -15,8 +15,9 @@ interface AchievementDetailModalProps {
   visible: boolean;
   onClose: () => void;
   achievement: {
-    emoji: string;
-    title: string;
+    id: string;
+    name: string;
+    icon: string;
     description: string;
     progress: number;
     total: number;
@@ -53,22 +54,28 @@ export function AchievementDetailModal({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.content}
           >
-            <Text style={styles.emoji}>{achievement.emoji}</Text>
+            <Text style={styles.emoji}>{achievement.icon}</Text>
             
-            <Text style={styles.title}>{achievement.title}</Text>
+            <Text style={styles.title}>{achievement.name}</Text>
             <Text style={styles.description}>{achievement.description}</Text>
 
             <View style={styles.progressSection}>
               <Text style={styles.progressLabel}>Your Progress:</Text>
               <Text style={styles.progressValue}>
-                Current streak: {achievement.progress} / {achievement.total} days
+                {achievement.total > 1 
+                  ? `${achievement.progress} / ${achievement.total}`
+                  : achievement.unlocked 
+                    ? 'Completed'
+                    : 'Not completed'}
               </Text>
               
-              <View style={styles.progressBarContainer}>
-                <View 
-                  style={[styles.progressBarFill, { width: `${progressPercentage}%` }]} 
-                />
-              </View>
+              {achievement.total > 1 && (
+                <View style={styles.progressBarContainer}>
+                  <View 
+                    style={[styles.progressBarFill, { width: `${progressPercentage}%` }]} 
+                  />
+                </View>
+              )}
 
               <Text style={styles.encouragement}>
                 {achievement.unlocked

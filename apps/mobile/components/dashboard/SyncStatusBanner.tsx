@@ -31,10 +31,7 @@ export function SyncStatusBanner({
     iconColor = Colors.destructive;
   } else if (isSyncing) {
     title = "Syncing changes…";
-    subtitle =
-      queueLength > 0
-        ? `${queueLength} ${queueLength === 1 ? "update" : "updates"} remaining`
-        : "Pushing your latest progress";
+    subtitle = "Sync in progress, your app will update in the background";
     showSpinner = true;
     iconColor = Colors.actionPrimary;
   } else if (queueLength > 0) {

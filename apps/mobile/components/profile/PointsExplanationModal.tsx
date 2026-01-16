@@ -50,8 +50,8 @@ export function PointsExplanationModal({ visible, onClose }: PointsExplanationMo
                   <Ionicons name="fitness" size={20} color={Colors.blue600} />
                 </View>
                 <View style={styles.pointText}>
-                  <Text style={styles.pointLabel}>Complete a Workout</Text>
-                  <Text style={styles.pointValue}>+10 points</Text>
+                  <Text style={styles.pointLabel}>Complete workouts</Text>
+                  <Text style={styles.pointValue}>+5 points each</Text>
                 </View>
               </View>
 
@@ -60,28 +60,38 @@ export function PointsExplanationModal({ visible, onClose }: PointsExplanationMo
                   <Ionicons name="trophy" size={20} color={Colors.purple600} />
                 </View>
                 <View style={styles.pointText}>
-                  <Text style={styles.pointLabel}>Set a Personal Record</Text>
-                  <Text style={styles.pointValue}>+5 points</Text>
+                  <Text style={styles.pointLabel}>Set volume personal records</Text>
+                  <Text style={styles.pointValue}>+2 points per set PB</Text>
                 </View>
               </View>
 
               <View style={styles.pointItem}>
                 <View style={[styles.badge, { backgroundColor: Colors.cyan50 }]}>
-                  <Ionicons name="flame" size={20} color={Colors.cyan600} />
+                  <Ionicons name="trending-up" size={20} color={Colors.cyan600} />
                 </View>
                 <View style={styles.pointText}>
-                  <Text style={styles.pointLabel}>Maintain Streak (per day)</Text>
-                  <Text style={styles.pointValue}>+2 points</Text>
+                  <Text style={styles.pointLabel}>Beat total workout volume</Text>
+                  <Text style={styles.pointValue}>+5 points per session PB</Text>
                 </View>
               </View>
 
               <View style={styles.pointItem}>
-                <View style={[styles.badge, { backgroundColor: Colors.yellow50 }]}>
-                  <Ionicons name="medal" size={20} color={Colors.yellow600} />
+                <View style={[styles.badge, { backgroundColor: Colors.success + '20' }]}>
+                  <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
                 </View>
                 <View style={styles.pointText}>
-                  <Text style={styles.pointLabel}>Unlock Achievement</Text>
-                  <Text style={styles.pointValue}>+15-50 points</Text>
+                  <Text style={styles.pointLabel}>Complete full programme (PPL/ULUL)</Text>
+                  <Text style={styles.pointValue}>+10 points per week</Text>
+                </View>
+              </View>
+
+              <View style={styles.pointItem}>
+                <View style={[styles.badge, { backgroundColor: Colors.red50 }]}>
+                  <Ionicons name="remove-circle" size={20} color={Colors.red600} />
+                </View>
+                <View style={styles.pointText}>
+                  <Text style={styles.pointLabel}>Incomplete workout week</Text>
+                  <Text style={[styles.pointValue, { color: Colors.red600 }]}>-5 points</Text>
                 </View>
               </View>
             </View>

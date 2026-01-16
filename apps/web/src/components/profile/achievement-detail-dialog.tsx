@@ -48,9 +48,9 @@ export const AchievementDetailDialog = ({
   if (profile) {
     switch (achievementId) {
       case ACHIEVEMENT_IDS.FIRST_WORKOUT:
-        progressValue = (profile.total_points || 0) >= 10 ? 1 : 0;
+        progressValue = (profile.total_points || 0) >= 5 ? 1 : 0;
         progressMax = 1;
-        progressText = `Workouts completed: ${(profile.total_points || 0) / 10} / 1`;
+        progressText = `Workouts completed: ${(profile.total_points || 0) / 5} / 1`;
         break;
       case ACHIEVEMENT_IDS.TEN_DAY_STREAK:
         progressValue = profile.current_streak || 0;
@@ -63,14 +63,14 @@ export const AchievementDetailDialog = ({
         progressText = `Current streak: ${profile.current_streak || 0} / 30 days`;
         break;
       case ACHIEVEMENT_IDS.TWENTY_FIVE_WORKOUTS:
-        progressValue = (profile.total_points || 0) / 10;
+        progressValue = (profile.total_points || 0) / 5;
         progressMax = 25;
-        progressText = `Workouts completed: ${(profile.total_points || 0) / 10} / 25`;
+        progressText = `Workouts completed: ${(profile.total_points || 0) / 5} / 25`;
         break;
       case ACHIEVEMENT_IDS.FIFTY_WORKOUTS:
-        progressValue = (profile.total_points || 0) / 10;
+        progressValue = (profile.total_points || 0) / 5;
         progressMax = 50;
-        progressText = `Workouts completed: ${(profile.total_points || 0) / 10} / 50`;
+        progressText = `Workouts completed: ${(profile.total_points || 0) / 5} / 50`;
         break;
       case ACHIEVEMENT_IDS.CENTURY_CLUB:
         progressValue = profile.total_points || 0;

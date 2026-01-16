@@ -20,7 +20,7 @@ import { useSettingsStrings } from '../../localization/useSettingsStrings';
 interface ProgrammeTypeCardProps {
   profile: any;
   onUpdate: (updates: any) => Promise<void>;
-  onRegenerateTPath?: () => Promise<void>;
+  onRegenerateTPath?: (newProgrammeType: 'ppl' | 'ulul') => Promise<void>;
 }
 
 export function ProgrammeTypeCard({
@@ -44,13 +44,14 @@ export function ProgrammeTypeCard({
 
   useEffect(() => {
     if (profile) {
-      setProgrammeType(profile.t_path_type || profile.programme_type || 'ppl');
+      console.log('[ProgrammeTypeCard] Profile programme_type from DB:', profile.programme_type);
+      setProgrammeType(profile.programme_type || 'ppl');
     }
   }, [profile, isEditing]);
 
   const handleSave = async () => {
     // If value didn't change, just exit edit mode
-    const currentType = profile.t_path_type || profile.programme_type;
+    const currentType = profile.programme_type;
     if (programmeType === currentType) {
       setIsEditing(false);
       return;
@@ -66,15 +67,17 @@ export function ProgrammeTypeCard({
     setIsSaving(true);
 
     try {
+      console.log('[ProgrammeTypeCard] Changing programme type to:', programmeType);
+      
       const updates = {
-        t_path_type: programmeType,
         programme_type: programmeType,
       };
 
       await onUpdate(updates);
 
       if (profile.active_t_path_id && onRegenerateTPath) {
-        await onRegenerateTPath();
+        console.log('[ProgrammeTypeCard] Calling onRegenerateTPath with new type:', programmeType);
+        await onRegenerateTPath(programmeType as 'ppl' | 'ulul');
       }
 
       setRollingStatus(strings.programme_type.status_updated);

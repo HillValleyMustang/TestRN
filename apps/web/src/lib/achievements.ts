@@ -64,10 +64,10 @@ export const ACHIEVEMENT_DISPLAY_INFO: Record<string, { name: string; icon: stri
     icon: '🏋️', 
     description: 'Log a total of 100 sets across all your workouts.' 
   },
-  [ACHIEVEMENT_IDS.CENTURY_CLUB]: { 
-    name: 'Century Club', 
-    icon: '💯', 
-    description: 'Reach 1000 total points (equivalent to 100 workouts).' 
+  [ACHIEVEMENT_IDS.CENTURY_CLUB]: {
+    name: 'Century Club',
+    icon: '💯',
+    description: 'Reach 1000 total points (equivalent to 200 workouts).'
   },
   [ACHIEVEMENT_IDS.AI_APPRENTICE]: { 
     name: 'AI Apprentice', 

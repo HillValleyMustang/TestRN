@@ -66,7 +66,7 @@ export function WeeklyTargetWidget({
   // Construct progress text safely
   const progressText = useMemo(() => {
     const baseText = `${completedWorkouts.length} / ${goalTotal} T-Path Workouts Completed This Week`;
-    if (totalSessions && typeof totalSessions === 'number' && totalSessions > goalTotal) {
+    if (totalSessions && typeof totalSessions === 'number' && totalSessions > completedWorkouts.length) {
       return `${baseText} (${totalSessions} sessions)`;
     }
     return baseText;

@@ -47,8 +47,24 @@ export function WorkoutHistoryCard({ session, onViewSummary, onDelete }: Workout
     );
   };
 
-  const formatDate = (dateString: string) => {
+  const formatTimeAgo = (dateString: string): string => {
     const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffSeconds = Math.floor(diffMs / 1000);
+
+    if (diffSeconds < 60) return 'Just now';
+
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    if (diffMinutes < 60) return `${diffMinutes}min ago`;
+
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 30) return `${diffDays}d ago`;
+
+    // For 30+ days, show actual date
     return date.toLocaleDateString();
   };
 
@@ -62,7 +78,7 @@ export function WorkoutHistoryCard({ session, onViewSummary, onDelete }: Workout
           >
             {session.template_name || 'Ad Hoc Workout'}
           </Text>
-          <Text style={styles.timeAgo}>{formatDate(session.session_date)}</Text>
+          <Text style={styles.timeAgo}>{formatTimeAgo(session.session_date)}</Text>
         </View>
 
         <View style={styles.workoutRight}>
